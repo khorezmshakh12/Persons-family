@@ -16,7 +16,7 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
         <SidebarNav role={profile.role} />
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-background sticky top-0 z-40 flex h-14 items-center border-b px-4">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav role={profile.role} />
@@ -32,7 +32,7 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
           </div>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );

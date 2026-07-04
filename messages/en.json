@@ -9,7 +9,10 @@
     "submit": "Submit",
     "logout": "Log out",
     "language": "Language",
-    "comingSoon": "This feature is coming soon."
+    "comingSoon": "This feature is coming soon.",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "Please try again, or contact an administrator if the problem persists.",
+    "tryAgain": "Try again"
   },
   "nav": {
     "dashboard": "Dashboard",

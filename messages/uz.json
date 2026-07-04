@@ -9,7 +9,10 @@
     "submit": "Yuborish",
     "logout": "Chiqish",
     "language": "Til",
-    "comingSoon": "Bu bo'lim tez orada ishga tushadi."
+    "comingSoon": "Bu bo'lim tez orada ishga tushadi.",
+    "errorTitle": "Nimadir xato ketdi",
+    "errorDescription": "Qayta urinib ko'ring yoki muammo davom etsa, administratorga murojaat qiling.",
+    "tryAgain": "Qayta urinish"
   },
   "nav": {
     "dashboard": "Boshqaruv paneli",
