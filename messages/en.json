@@ -185,7 +185,7 @@
     "topic": "Topic",
     "date": "Date",
     "file": "Lesson material",
-    "fileHint": "Optional — PDF, DOCX, JPG, or PNG, up to 15MB.",
+    "fileHint": "Optional — PDF, DOCX, JPG, or PNG, up to 45MB.",
     "create": "Create",
     "noPlans": "No lesson plans yet.",
     "download": "Download",
@@ -203,7 +203,7 @@
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please enter a topic and date.",
       "invalidFileType": "File must be a PDF, DOCX, JPG, or PNG.",
-      "fileTooLarge": "File must be under 15MB.",
+      "fileTooLarge": "File must be under 45MB.",
       "uploadFailed": "Could not upload the file.",
       "createFailed": "Could not save the lesson plan. Please try again."
     }

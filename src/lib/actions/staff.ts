@@ -3,19 +3,17 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
-import type { Database } from '@/lib/supabase/types';
+import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 
-export type StaffActionState = { error?: string; tempPassword?: string } | undefined;
+export type StaffActionState =
+  | { error?: string; tempPassword?: string; userId?: string }
+  | undefined;
 
 const ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
-
-const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-const AVATAR_ALLOWED_TYPES = ['image/png', 'image/jpeg'];
 
 const staffSchema = z.object({
   firstName: z.string().min(1),
@@ -29,31 +27,50 @@ function generateTempPassword() {
   return randomBytes(9).toString('base64url');
 }
 
+export type UploadUrlResult = { path?: string; token?: string; error?: string };
+
 /**
- * Uploads to the avatars bucket using the CALLER's own authenticated client
- * (never the service-role client) so the `avatars_admin_manage` RLS policy —
- * and not a blanket bypass — is what authorizes the write.
+ * Issues a signed upload URL so the admin's browser can send the avatar
+ * straight to Supabase Storage — never through this Next.js server —
+ * avoiding both Next's default 1MB Server Action body limit and Vercel's
+ * hard 4.5MB serverless function payload limit. The RLS check for
+ * `avatars_admin_manage` runs right here, at signed-URL creation time.
  */
-async function uploadAvatarIfProvided(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  avatar: FormDataEntryValue | null,
-) {
-  if (!(avatar instanceof File) || avatar.size === 0) return null;
+export async function requestAvatarUploadUrlAction(
+  targetUserId: string,
+  fileName: string,
+  fileType: string,
+): Promise<UploadUrlResult> {
+  let actingProfile;
+  try {
+    ({ profile: actingProfile } = await requireAdmin());
+  } catch {
+    return { error: 'forbidden' };
+  }
 
-  if (!AVATAR_ALLOWED_TYPES.includes(avatar.type)) throw new Error('invalidAvatarType');
-  if (avatar.size > AVATAR_MAX_BYTES) throw new Error('avatarTooLarge');
+  const ext = AVATAR_ALLOWED_TYPES[fileType];
+  if (!ext) return { error: 'invalidAvatarType' };
 
-  const ext = avatar.type === 'image/png' ? 'png' : 'jpg';
-  const path = `${userId}/avatar.${ext}`;
+  const supabase = await createClient();
 
-  const { error } = await supabase.storage
+  // The target may not have a profile row yet (mid-creation flow) — only
+  // enforce the ceo-protection check when there's an existing row to check.
+  const { data: target } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', targetUserId)
+    .maybeSingle();
+  if (target && target.role === 'ceo' && actingProfile.role !== 'ceo') {
+    return { error: 'cannotManageCeo' };
+  }
+
+  const path = `${targetUserId}/avatar.${ext}`;
+  const { data, error } = await supabase.storage
     .from('avatars')
-    .upload(path, avatar, { upsert: true, contentType: avatar.type });
-  if (error) throw new Error('uploadFailed');
+    .createSignedUploadUrl(path, { upsert: true });
+  if (error || !data) return { error: 'uploadFailed' };
 
-  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-  return data.publicUrl;
+  return { path, token: data.token };
 }
 
 export async function createStaffAction(
@@ -87,15 +104,6 @@ export async function createStaffAction(
   }
 
   const supabase = await createClient();
-
-  let avatarUrl: string | null = null;
-  try {
-    avatarUrl = await uploadAvatarIfProvided(supabase, created.user.id, formData.get('avatar'));
-  } catch (err) {
-    await admin.auth.admin.deleteUser(created.user.id);
-    return { error: err instanceof Error ? err.message : 'uploadFailed' };
-  }
-
   const { error: profileError } = await supabase.from('profiles').insert({
     id: created.user.id,
     phone,
@@ -103,7 +111,6 @@ export async function createStaffAction(
     last_name: parsed.data.lastName,
     date_of_birth: parsed.data.dateOfBirth,
     role: parsed.data.role,
-    avatar_url: avatarUrl,
     created_by: actingProfile.id,
   });
   if (profileError) {
@@ -112,10 +119,36 @@ export async function createStaffAction(
   }
 
   revalidatePath('/[locale]/staff', 'page');
-  return { tempPassword };
+  return { tempPassword, userId: created.user.id };
 }
 
-const updateSchema = staffSchema.extend({ id: z.string().uuid() });
+/** Attaches an avatar already uploaded (via requestAvatarUploadUrlAction) to a staff profile. */
+export async function attachAvatarAction(
+  targetUserId: string,
+  avatarPath: string,
+): Promise<{ error?: string }> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { error: 'forbidden' };
+  }
+
+  const supabase = await createClient();
+  const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: data.publicUrl })
+    .eq('id', targetUserId);
+  if (error) return { error: 'updateFailed' };
+
+  revalidatePath('/[locale]/staff', 'page');
+  return {};
+}
+
+const updateSchema = staffSchema.extend({
+  id: z.string().uuid(),
+  avatarPath: z.string().optional().or(z.literal('')),
+});
 
 export async function updateStaffAction(
   _prevState: StaffActionState,
@@ -144,11 +177,9 @@ export async function updateStaffAction(
   const phone = normalizePhone(parsed.data.phone);
   if (!phone) return { error: 'invalidPhone' };
 
-  let avatarUrl: string | null = null;
-  try {
-    avatarUrl = await uploadAvatarIfProvided(supabase, parsed.data.id, formData.get('avatar'));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : 'uploadFailed' };
+  let avatarUrl: string | undefined;
+  if (parsed.data.avatarPath) {
+    avatarUrl = supabase.storage.from('avatars').getPublicUrl(parsed.data.avatarPath).data.publicUrl;
   }
 
   const { error } = await supabase

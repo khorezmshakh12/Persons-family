@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
-import { createLessonPlanAction, type LessonPlanActionState } from '@/lib/actions/lesson-plans';
+import { createClient } from '@/lib/supabase/client';
+import { requestLessonPlanUploadUrlAction, saveLessonPlanAction } from '@/lib/actions/lesson-plans';
+import {
+  LESSON_PLAN_ALLOWED_TYPES,
+  LESSON_PLAN_MAX_FILE_BYTES,
+} from '@/lib/lesson-plan-constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,14 +25,71 @@ export function CreateLessonPlanDialog() {
   const t = useTranslations('lessonPlans');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
-  const [state, formAction, isPending] = useActionState<LessonPlanActionState, FormData>(
-    createLessonPlanAction,
-    undefined,
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (state && !state.error) setOpen(false);
-  }, [state]);
+  function handleSubmit(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      const topic = String(formData.get('topic') ?? '');
+      const planDate = String(formData.get('planDate') ?? '');
+      const file = formData.get('file');
+
+      let filePath = '';
+      let fileName = '';
+      let fileType = '';
+
+      if (file instanceof File && file.size > 0) {
+        if (file.size > LESSON_PLAN_MAX_FILE_BYTES) {
+          setError('fileTooLarge');
+          return;
+        }
+        if (!LESSON_PLAN_ALLOWED_TYPES[file.type]) {
+          setError('invalidFileType');
+          return;
+        }
+
+        // Uploads go straight from the browser to Supabase Storage using a
+        // signed URL, never through this Next.js server — that's what lets
+        // files exceed Vercel's 4.5MB serverless function payload limit.
+        const uploadUrlResult = await requestLessonPlanUploadUrlAction(file.name, file.type);
+        if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.token) {
+          setError(uploadUrlResult.error ?? 'uploadFailed');
+          return;
+        }
+
+        const supabase = createClient();
+        const { error: uploadError } = await supabase.storage
+          .from('lesson-files')
+          .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, file, {
+            contentType: file.type,
+          });
+        if (uploadError) {
+          setError('uploadFailed');
+          return;
+        }
+
+        filePath = uploadUrlResult.path;
+        fileName = file.name;
+        fileType = LESSON_PLAN_ALLOWED_TYPES[file.type];
+      }
+
+      const saveData = new FormData();
+      saveData.set('topic', topic);
+      saveData.set('planDate', planDate);
+      saveData.set('filePath', filePath);
+      saveData.set('fileName', fileName);
+      saveData.set('fileType', fileType);
+
+      const result = await saveLessonPlanAction(undefined, saveData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      setOpen(false);
+    });
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -39,7 +101,7 @@ export function CreateLessonPlanDialog() {
         <DialogHeader>
           <DialogTitle>{t('addPlan')}</DialogTitle>
         </DialogHeader>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form action={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="topic">{t('topic')}</Label>
             <Input id="topic" name="topic" required maxLength={200} />
@@ -58,7 +120,7 @@ export function CreateLessonPlanDialog() {
             />
             <p className="text-muted-foreground text-xs">{t('fileHint')}</p>
           </div>
-          {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
+          {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
               {isPending ? tCommon('loading') : t('create')}
