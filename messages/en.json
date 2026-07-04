@@ -21,5 +21,28 @@
   "home": {
     "title": "Welcome to Persons Education",
     "subtitle": "Internal staff platform"
+  },
+  "auth": {
+    "phone": "Phone number",
+    "password": "Password",
+    "login": "Log in",
+    "loginTitle": "Sign in to your account",
+    "loginSubtitle": "Enter your phone number and password.",
+    "setPasswordTitle": "Set your password",
+    "setPasswordSubtitle": "For your security, choose a new password before continuing.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "setPassword": "Set password",
+    "errors": {
+      "invalidInput": "Please fill in all fields.",
+      "invalidPhone": "Enter a valid phone number.",
+      "invalidCredentials": "Incorrect phone number or password.",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "passwordMismatch": "Passwords do not match.",
+      "updateFailed": "Could not set your password. Please try again."
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard"
   }
 }

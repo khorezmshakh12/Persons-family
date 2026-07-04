@@ -21,5 +21,28 @@
   "home": {
     "title": "Persons Education kompaniyasiga xush kelibsiz",
     "subtitle": "Ichki xodimlar platformasi"
+  },
+  "auth": {
+    "phone": "Telefon raqami",
+    "password": "Parol",
+    "login": "Kirish",
+    "loginTitle": "Hisobga kirish",
+    "loginSubtitle": "Telefon raqami va parolni kiriting.",
+    "setPasswordTitle": "Parolni o'rnating",
+    "setPasswordSubtitle": "Xavfsizlik uchun davom etishdan oldin yangi parol o'rnating.",
+    "newPassword": "Yangi parol",
+    "confirmPassword": "Parolni tasdiqlang",
+    "setPassword": "Parolni o'rnatish",
+    "errors": {
+      "invalidInput": "Barcha maydonlarni to'ldiring.",
+      "invalidPhone": "To'g'ri telefon raqamini kiriting.",
+      "invalidCredentials": "Telefon raqami yoki parol noto'g'ri.",
+      "passwordTooShort": "Parol kamida 8 belgidan iborat bo'lishi kerak.",
+      "passwordMismatch": "Parollar mos kelmadi.",
+      "updateFailed": "Parolni o'rnatib bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "dashboard": {
+    "title": "Boshqaruv paneli"
   }
 }
