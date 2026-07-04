@@ -1,0 +1,25 @@
+'use client';
+
+import { useState } from 'react';
+import { Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { SidebarNav } from './sidebar-nav';
+import type { StaffRole } from '@/lib/nav';
+
+export function MobileNav({ role }: { role: StaffRole }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger render={<Button variant="outline" size="icon" aria-label="Menu" />}>
+        <Menu className="size-4" />
+      </SheetTrigger>
+      <SheetContent side="left">
+        <div className="mt-8 px-4">
+          <SidebarNav role={role} onNavigate={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

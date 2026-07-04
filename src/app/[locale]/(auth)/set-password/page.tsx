@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export const dynamic = 'force-dynamic';
 
 export default async function SetPasswordPage() {
-  const { user, mustChangePassword } = await getAuthState();
+  const { user, profile } = await getAuthState();
   const locale = await getLocale();
   if (!user) redirect({ href: '/login', locale });
-  if (!mustChangePassword) redirect({ href: '/dashboard', locale });
+  if (!profile?.must_change_password) redirect({ href: '/dashboard', locale });
 
   const t = await getTranslations('auth');
 

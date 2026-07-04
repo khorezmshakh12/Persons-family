@@ -44,7 +44,7 @@ export default async function proxy(request: NextRequest) {
     return path === '/set-password' ? intlResponse : redirectTo('/set-password');
   }
 
-  if (path === '/login' || path === '/set-password') {
+  if (path === '/login' || path === '/set-password' || path === '/') {
     return redirectTo('/dashboard');
   }
 

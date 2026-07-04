@@ -5,7 +5,6 @@ import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server
 import { hasLocale } from 'next-intl';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
-import { SiteHeader } from '@/components/site-header';
 import { Toaster } from '@/components/ui/sonner';
 import '../globals.css';
 
@@ -54,8 +53,7 @@ export default async function LocaleLayout({
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider messages={messages}>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
+          {children}
           <Toaster />
         </NextIntlClientProvider>
       </body>

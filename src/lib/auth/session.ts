@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import type { Database } from '@/lib/supabase/types';
+
+export type Profile = Database['public']['Tables']['profiles']['Row'];
 
 /**
  * Authoritative, page-level auth check. The proxy already gates routes, but
@@ -11,13 +14,9 @@ export async function getAuthState() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { user: null, mustChangePassword: false };
+  if (!user) return { user: null, profile: null as Profile | null };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('must_change_password')
-    .eq('id', user.id)
-    .single();
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
-  return { user, mustChangePassword: profile?.must_change_password ?? false };
+  return { user, profile: profile as Profile | null };
 }
