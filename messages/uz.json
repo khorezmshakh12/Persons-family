@@ -140,5 +140,16 @@
       "noOpenSession": "Siz hozir ishda emassiz.",
       "clockOutFailed": "Ketishni belgilab bo'lmadi. Qayta urinib ko'ring."
     }
+  },
+  "chat": {
+    "placeholder": "Xabar yozing...",
+    "send": "Yuborish",
+    "delete": "Xabarni o'chirish",
+    "empty": "Hozircha xabarlar yo'q. Suhbatni boshlang!",
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
+      "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
+    }
   }
 }

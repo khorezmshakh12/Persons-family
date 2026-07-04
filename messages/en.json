@@ -140,5 +140,16 @@
       "noOpenSession": "You're not currently clocked in.",
       "clockOutFailed": "Could not clock out. Please try again."
     }
+  },
+  "chat": {
+    "placeholder": "Write a message...",
+    "send": "Send",
+    "delete": "Delete message",
+    "empty": "No messages yet. Start the conversation!",
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidMessage": "Message can't be empty.",
+      "sendFailed": "Could not send your message. Please try again."
+    }
   }
 }
