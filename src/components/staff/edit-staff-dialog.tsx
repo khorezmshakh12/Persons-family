@@ -97,7 +97,7 @@ export function EditStaffDialog({
             <Label htmlFor={`role-${profile.id}`}>{t('role')}</Label>
             <Select name="role" defaultValue={profile.role}>
               <SelectTrigger id={`role-${profile.id}`} className="w-full">
-                <SelectValue />
+                <SelectValue>{(value: string) => t(`roles.${value}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {roles.map((r) => (

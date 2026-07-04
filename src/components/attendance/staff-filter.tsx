@@ -16,6 +16,12 @@ export function StaffFilter({
   const searchParams = useSearchParams();
   const current = searchParams.get('staff') ?? 'all';
 
+  function labelFor(value: string) {
+    if (value === 'all') return t('allStaffOption');
+    const person = staffList.find((s) => s.id === value);
+    return person ? `${person.first_name} ${person.last_name}` : value;
+  }
+
   function handleChange(value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
     if (!value || value === 'all') {
@@ -30,7 +36,7 @@ export function StaffFilter({
   return (
     <Select value={current} onValueChange={handleChange}>
       <SelectTrigger className="w-[220px]">
-        <SelectValue />
+        <SelectValue>{labelFor}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">{t('allStaffOption')}</SelectItem>

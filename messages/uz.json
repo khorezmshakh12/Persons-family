@@ -151,5 +151,29 @@
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
       "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
     }
+  },
+  "issues": {
+    "title": "Muammolar",
+    "newIssue": "Yangi murojaat",
+    "titleLabel": "Sarlavha",
+    "descriptionLabel": "Tavsif",
+    "submit": "Yuborish",
+    "noIssues": "Hozircha murojaatlar yo'q.",
+    "status": {
+      "open": "Ochiq",
+      "in_progress": "Jarayonda",
+      "done": "Bajarildi"
+    },
+    "table": {
+      "reporter": "Yuboruvchi",
+      "title": "Murojaat",
+      "created": "Yaratilgan",
+      "status": "Holat"
+    },
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, murojaat sarlavhasini kiriting.",
+      "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring."
+    }
   }
 }

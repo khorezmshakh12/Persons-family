@@ -151,5 +151,29 @@
       "invalidMessage": "Message can't be empty.",
       "sendFailed": "Could not send your message. Please try again."
     }
+  },
+  "issues": {
+    "title": "Issues",
+    "newIssue": "New issue",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description",
+    "submit": "Submit",
+    "noIssues": "No issues reported yet.",
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "done": "Done"
+    },
+    "table": {
+      "reporter": "Reported by",
+      "title": "Issue",
+      "created": "Created",
+      "status": "Status"
+    },
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidInput": "Please enter a title for the issue.",
+      "createFailed": "Could not submit the issue. Please try again."
+    }
   }
 }

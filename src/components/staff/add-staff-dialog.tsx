@@ -68,7 +68,7 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
                 <Label htmlFor="role">{t('role')}</Label>
                 <Select name="role" defaultValue="teacher">
                   <SelectTrigger id="role" className="w-full">
-                    <SelectValue />
+                    <SelectValue>{(value: string) => t(`roles.${value}`)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map((r) => (

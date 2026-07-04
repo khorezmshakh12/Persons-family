@@ -35,7 +35,7 @@ export function LanguageSwitcher() {
   return (
     <Select defaultValue={locale} onValueChange={onChange} disabled={isPending}>
       <SelectTrigger className="w-[140px]" aria-label={t('language')}>
-        <SelectValue />
+        <SelectValue>{(value: string) => LOCALE_LABELS[value]}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {routing.locales.map((l) => (
