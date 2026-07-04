@@ -175,5 +175,34 @@
       "invalidInput": "Iltimos, murojaat sarlavhasini kiriting.",
       "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring."
     }
+  },
+  "lessonPlans": {
+    "title": "Dars rejalari",
+    "addPlan": "Dars rejasini qo'shish",
+    "topic": "Mavzu",
+    "date": "Sana",
+    "file": "Dars materiali",
+    "fileHint": "Ixtiyoriy — PDF, DOCX, JPG yoki PNG, 15MB gacha.",
+    "create": "Yaratish",
+    "noPlans": "Hozircha dars rejalari yo'q.",
+    "download": "Yuklab olish",
+    "delete": "Dars rejasini o'chirish",
+    "confirmDeleteTitle": "Ushbu dars rejasini o'chirasizmi?",
+    "confirmDeleteDescription": "Dars rejasi va unga biriktirilgan fayl butunlay o'chiriladi.",
+    "table": {
+      "teacher": "O'qituvchi",
+      "topic": "Mavzu",
+      "date": "Sana",
+      "file": "Fayl",
+      "actions": "Amallar"
+    },
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, mavzu va sanani kiriting.",
+      "invalidFileType": "Fayl PDF, DOCX, JPG yoki PNG formatida bo'lishi kerak.",
+      "fileTooLarge": "Fayl 15MB dan kichik bo'lishi kerak.",
+      "uploadFailed": "Faylni yuklab bo'lmadi.",
+      "createFailed": "Dars rejasini saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
   }
 }

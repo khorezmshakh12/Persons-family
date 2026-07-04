@@ -175,5 +175,34 @@
       "invalidInput": "Please enter a title for the issue.",
       "createFailed": "Could not submit the issue. Please try again."
     }
+  },
+  "lessonPlans": {
+    "title": "Lesson Plans",
+    "addPlan": "Add lesson plan",
+    "topic": "Topic",
+    "date": "Date",
+    "file": "Lesson material",
+    "fileHint": "Optional — PDF, DOCX, JPG, or PNG, up to 15MB.",
+    "create": "Create",
+    "noPlans": "No lesson plans yet.",
+    "download": "Download",
+    "delete": "Delete lesson plan",
+    "confirmDeleteTitle": "Delete this lesson plan?",
+    "confirmDeleteDescription": "This will permanently remove the lesson plan and its attached file.",
+    "table": {
+      "teacher": "Teacher",
+      "topic": "Topic",
+      "date": "Date",
+      "file": "File",
+      "actions": "Actions"
+    },
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidInput": "Please enter a topic and date.",
+      "invalidFileType": "File must be a PDF, DOCX, JPG, or PNG.",
+      "fileTooLarge": "File must be under 15MB.",
+      "uploadFailed": "Could not upload the file.",
+      "createFailed": "Could not save the lesson plan. Please try again."
+    }
   }
 }
