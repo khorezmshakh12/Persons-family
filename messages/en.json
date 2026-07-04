@@ -111,5 +111,34 @@
       "notFound": "Staff member not found.",
       "forbidden": "You don't have permission to do this."
     }
+  },
+  "attendance": {
+    "title": "Attendance",
+    "myAttendance": "My attendance",
+    "myHistory": "My recent history",
+    "allStaff": "All staff",
+    "allStaffOption": "All staff",
+    "clockIn": "Clock in",
+    "clockOut": "Clock out",
+    "clockedInSince": "Clocked in since {time} ({duration})",
+    "notClockedIn": "You haven't clocked in today.",
+    "stillClockedIn": "Still clocked in",
+    "noRecords": "No attendance records yet.",
+    "hoursAbbrev": "h",
+    "minutesAbbrev": "m",
+    "table": {
+      "staff": "Staff",
+      "date": "Date",
+      "clockIn": "Clock in",
+      "clockOut": "Clock out",
+      "duration": "Duration"
+    },
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "alreadyClockedIn": "You're already clocked in today.",
+      "clockInFailed": "Could not clock in. Please try again.",
+      "noOpenSession": "You're not currently clocked in.",
+      "clockOutFailed": "Could not clock out. Please try again."
+    }
   }
 }

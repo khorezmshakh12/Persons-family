@@ -111,5 +111,34 @@
       "notFound": "Xodim topilmadi.",
       "forbidden": "Sizda bu amal uchun ruxsat yo'q."
     }
+  },
+  "attendance": {
+    "title": "Davomat",
+    "myAttendance": "Mening davomatim",
+    "myHistory": "So'nggi tarixim",
+    "allStaff": "Barcha xodimlar",
+    "allStaffOption": "Barcha xodimlar",
+    "clockIn": "Kelishni belgilash",
+    "clockOut": "Ketishni belgilash",
+    "clockedInSince": "{time} dan beri ishda ({duration})",
+    "notClockedIn": "Siz bugun hali kelishni belgilamadingiz.",
+    "stillClockedIn": "Hali ishda",
+    "noRecords": "Hozircha davomat yozuvlari yo'q.",
+    "hoursAbbrev": "soat",
+    "minutesAbbrev": "daq",
+    "table": {
+      "staff": "Xodim",
+      "date": "Sana",
+      "clockIn": "Kelish",
+      "clockOut": "Ketish",
+      "duration": "Davomiylik"
+    },
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "alreadyClockedIn": "Siz bugun allaqachon kelishni belgilagansiz.",
+      "clockInFailed": "Kelishni belgilab bo'lmadi. Qayta urinib ko'ring.",
+      "noOpenSession": "Siz hozir ishda emassiz.",
+      "clockOutFailed": "Ketishni belgilab bo'lmadi. Qayta urinib ko'ring."
+    }
   }
 }

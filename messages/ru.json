@@ -111,5 +111,34 @@
       "notFound": "Сотрудник не найден.",
       "forbidden": "У вас нет прав для этого действия."
     }
+  },
+  "attendance": {
+    "title": "Посещаемость",
+    "myAttendance": "Моя посещаемость",
+    "myHistory": "Моя недавняя история",
+    "allStaff": "Все сотрудники",
+    "allStaffOption": "Все сотрудники",
+    "clockIn": "Отметить приход",
+    "clockOut": "Отметить уход",
+    "clockedInSince": "На работе с {time} ({duration})",
+    "notClockedIn": "Вы ещё не отметили приход сегодня.",
+    "stillClockedIn": "Ещё на работе",
+    "noRecords": "Записей о посещаемости пока нет.",
+    "hoursAbbrev": "ч",
+    "minutesAbbrev": "м",
+    "table": {
+      "staff": "Сотрудник",
+      "date": "Дата",
+      "clockIn": "Приход",
+      "clockOut": "Уход",
+      "duration": "Продолжительность"
+    },
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "alreadyClockedIn": "Вы уже отметили приход сегодня.",
+      "clockInFailed": "Не удалось отметить приход. Попробуйте снова.",
+      "noOpenSession": "Вы сейчас не на работе.",
+      "clockOutFailed": "Не удалось отметить уход. Попробуйте снова."
+    }
   }
 }
