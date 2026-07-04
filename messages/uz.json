@@ -36,7 +36,8 @@
       "invalidCredentials": "Telefon raqami yoki parol noto'g'ri.",
       "passwordTooShort": "Parol kamida 8 belgidan iborat bo'lishi kerak.",
       "passwordMismatch": "Parollar mos kelmadi.",
-      "updateFailed": "Parolni o'rnatib bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Parolni o'rnatib bo'lmadi. Qayta urinib ko'ring.",
+      "accountDeactivated": "Hisobingiz faolsizlantirilgan. Administrator bilan bog'laning."
     }
   },
   "dashboard": {
@@ -47,6 +48,68 @@
       "admin_manager": "Xodimlarni boshqaring, murojaatlarni ko'rib chiqing va ish jarayonini kuzating.",
       "teacher": "Davomatingizni belgilang, dars rejalarini yuboring va jamoa bilan aloqada bo'ling.",
       "assistant": "Davomatingizni belgilang, dars rejalarini ko'ring va jamoa bilan aloqada bo'ling."
+    }
+  },
+  "staff": {
+    "title": "Xodimlar",
+    "addStaff": "Xodim qo'shish",
+    "editStaff": "Xodimni tahrirlash",
+    "firstName": "Ism",
+    "lastName": "Familiya",
+    "phone": "Telefon raqami",
+    "dateOfBirth": "Tug'ilgan sana",
+    "role": "Lavozim",
+    "avatar": "Profil rasmi",
+    "avatarOptional": "Ixtiyoriy — PNG yoki JPG, 5MB gacha.",
+    "create": "Yaratish",
+    "saveChanges": "O'zgarishlarni saqlash",
+    "edit": "Tahrirlash",
+    "deactivate": "Faolsizlantirish",
+    "activate": "Faollashtirish",
+    "resetPassword": "Parolni tiklash",
+    "roles": {
+      "ceo": "Bosh direktor",
+      "admin_manager": "Ma'muriy menejer",
+      "teacher": "O'qituvchi",
+      "assistant": "O'qituvchi yordamchisi"
+    },
+    "status": {
+      "active": "Faol",
+      "inactive": "Faol emas"
+    },
+    "table": {
+      "name": "Ism",
+      "phone": "Telefon",
+      "role": "Lavozim",
+      "status": "Holat",
+      "actions": "Amallar"
+    },
+    "tempPasswordTitle": "Vaqtinchalik parol yaratildi",
+    "tempPasswordDescription": "Ushbu parolni xodimga bevosita ayting (shaxsan yoki telefon orqali). Birinchi kirishda undan o'z parolini o'rnatish so'raladi.",
+    "copy": "Nusxalash",
+    "copied": "Nusxalandi",
+    "done": "Tayyor",
+    "confirmDeactivateTitle": "Ushbu xodimni faolsizlantirasizmi?",
+    "confirmDeactivateDescription": "U darhol tizimdan chiqariladi va qayta faollashtirilmaguncha kira olmaydi.",
+    "confirmActivateTitle": "Ushbu xodimni qayta faollashtirasizmi?",
+    "confirmActivateDescription": "U mavjud login ma'lumotlari bilan qayta kira oladi.",
+    "confirmResetPasswordTitle": "Ushbu xodimning parolini tiklaysizmi?",
+    "confirmResetPasswordDescription": "Yangi vaqtinchalik parol yaratiladi va uning faol sessiyasi tugatiladi.",
+    "confirm": "Tasdiqlash",
+    "errors": {
+      "invalidInput": "Barcha majburiy maydonlarni to'ldiring.",
+      "invalidPhone": "To'g'ri telefon raqamini kiriting.",
+      "phoneTaken": "Bu telefon raqamiga ega xodim allaqachon mavjud.",
+      "cannotAssignCeo": "Faqat bosh direktor CEO lavozimini belgilay oladi.",
+      "cannotManageCeo": "Faqat bosh direktor boshqa CEO hisobini boshqara oladi.",
+      "cannotDeactivateSelf": "O'z hisobingizni faolsizlantira olmaysiz.",
+      "createFailed": "Xodim hisobini yaratib bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "uploadFailed": "Profil rasmini yuklab bo'lmadi.",
+      "invalidAvatarType": "Profil rasmi PNG yoki JPG formatida bo'lishi kerak.",
+      "avatarTooLarge": "Profil rasmi 5MB dan kichik bo'lishi kerak.",
+      "notFound": "Xodim topilmadi.",
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q."
     }
   }
 }

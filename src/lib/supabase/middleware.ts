@@ -5,7 +5,8 @@ import type { Database } from './types';
 /**
  * Refreshes the Supabase session for the current request/response pair and
  * reports whether the caller must still set a permanent password. Mutates
- * `response` in place with any refreshed auth cookies.
+ * `response` in place with any refreshed auth cookies. A deactivated staff
+ * member is treated as if they had no session at all.
  */
 export async function getSessionUser(request: NextRequest, response: NextResponse) {
   const supabase = createServerClient<Database>(
@@ -30,15 +31,18 @@ export async function getSessionUser(request: NextRequest, response: NextRespons
     data: { user },
   } = await supabase.auth.getUser();
 
-  let mustChangePassword = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('must_change_password')
-      .eq('id', user.id)
-      .single();
-    mustChangePassword = profile?.must_change_password ?? false;
+  if (!user) return { user: null, mustChangePassword: false };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('must_change_password, is_active')
+    .eq('id', user.id)
+    .single();
+
+  if (profile && !profile.is_active) {
+    await supabase.auth.signOut();
+    return { user: null, mustChangePassword: false };
   }
 
-  return { user, mustChangePassword };
+  return { user, mustChangePassword: profile?.must_change_password ?? false };
 }

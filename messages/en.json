@@ -36,7 +36,8 @@
       "invalidCredentials": "Incorrect phone number or password.",
       "passwordTooShort": "Password must be at least 8 characters.",
       "passwordMismatch": "Passwords do not match.",
-      "updateFailed": "Could not set your password. Please try again."
+      "updateFailed": "Could not set your password. Please try again.",
+      "accountDeactivated": "Your account has been deactivated. Contact an administrator."
     }
   },
   "dashboard": {
@@ -47,6 +48,68 @@
       "admin_manager": "Manage staff, review issues, and keep operations running smoothly.",
       "teacher": "Log your attendance, submit lesson plans, and stay in touch with the team.",
       "assistant": "Log your attendance, review lesson plans, and stay in touch with the team."
+    }
+  },
+  "staff": {
+    "title": "Staff",
+    "addStaff": "Add staff",
+    "editStaff": "Edit staff",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone number",
+    "dateOfBirth": "Date of birth",
+    "role": "Role",
+    "avatar": "Profile picture",
+    "avatarOptional": "Optional — PNG or JPG, up to 5MB.",
+    "create": "Create",
+    "saveChanges": "Save changes",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "resetPassword": "Reset password",
+    "roles": {
+      "ceo": "CEO / Founder",
+      "admin_manager": "Administrative Manager",
+      "teacher": "Teacher",
+      "assistant": "Teacher Assistant"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "table": {
+      "name": "Name",
+      "phone": "Phone",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "tempPasswordTitle": "Temporary password created",
+    "tempPasswordDescription": "Share this password with the staff member directly (in person or by phone). They'll be asked to set their own password on first login.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done",
+    "confirmDeactivateTitle": "Deactivate this staff member?",
+    "confirmDeactivateDescription": "They will be immediately signed out and won't be able to log in until reactivated.",
+    "confirmActivateTitle": "Reactivate this staff member?",
+    "confirmActivateDescription": "They will be able to log in again with their existing credentials.",
+    "confirmResetPasswordTitle": "Reset this staff member's password?",
+    "confirmResetPasswordDescription": "A new temporary password will be generated and they'll be signed out of any active session.",
+    "confirm": "Confirm",
+    "errors": {
+      "invalidInput": "Please fill in all required fields.",
+      "invalidPhone": "Enter a valid phone number.",
+      "phoneTaken": "A staff member with this phone number already exists.",
+      "cannotAssignCeo": "Only the CEO can grant the CEO role.",
+      "cannotManageCeo": "Only the CEO can manage another CEO's account.",
+      "cannotDeactivateSelf": "You can't deactivate your own account.",
+      "createFailed": "Could not create the staff account. Please try again.",
+      "updateFailed": "Could not save changes. Please try again.",
+      "uploadFailed": "Could not upload the profile picture.",
+      "invalidAvatarType": "Profile picture must be a PNG or JPG image.",
+      "avatarTooLarge": "Profile picture must be under 5MB.",
+      "notFound": "Staff member not found.",
+      "forbidden": "You don't have permission to do this."
     }
   }
 }

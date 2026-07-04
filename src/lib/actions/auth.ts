@@ -35,9 +35,14 @@ export async function loginAction(
   // another redirect() doesn't reliably update the browser URL.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('must_change_password')
+    .select('must_change_password, is_active')
     .eq('id', signInData.user.id)
     .single();
+
+  if (profile && !profile.is_active) {
+    await supabase.auth.signOut();
+    return { error: 'accountDeactivated' };
+  }
 
   redirect({
     href: profile?.must_change_password ? '/set-password' : '/dashboard',
