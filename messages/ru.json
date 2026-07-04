@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "Persons Education"
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "loading": "Загрузка...",
+    "submit": "Отправить",
+    "logout": "Выйти",
+    "language": "Язык"
+  },
+  "nav": {
+    "dashboard": "Панель управления",
+    "staff": "Сотрудники",
+    "attendance": "Посещаемость",
+    "chat": "Чат",
+    "issues": "Проблемы",
+    "lessonPlans": "Планы уроков"
+  },
+  "home": {
+    "title": "Добро пожаловать в Persons Education",
+    "subtitle": "Внутренняя платформа для сотрудников"
+  }
+}

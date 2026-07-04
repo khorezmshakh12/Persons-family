@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "Persons Education"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "submit": "Submit",
+    "logout": "Log out",
+    "language": "Language"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "staff": "Staff",
+    "attendance": "Attendance",
+    "chat": "Chat",
+    "issues": "Issues",
+    "lessonPlans": "Lesson Plans"
+  },
+  "home": {
+    "title": "Welcome to Persons Education",
+    "subtitle": "Internal staff platform"
+  }
+}

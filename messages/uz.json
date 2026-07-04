@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "Persons Education"
+  },
+  "common": {
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "loading": "Yuklanmoqda...",
+    "submit": "Yuborish",
+    "logout": "Chiqish",
+    "language": "Til"
+  },
+  "nav": {
+    "dashboard": "Boshqaruv paneli",
+    "staff": "Xodimlar",
+    "attendance": "Davomat",
+    "chat": "Suhbat",
+    "issues": "Muammolar",
+    "lessonPlans": "Dars rejalari"
+  },
+  "home": {
+    "title": "Persons Education kompaniyasiga xush kelibsiz",
+    "subtitle": "Ichki xodimlar platformasi"
+  }
+}
