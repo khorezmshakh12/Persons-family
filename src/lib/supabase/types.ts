@@ -132,6 +132,147 @@ export type Database = {
           },
         ]
       }
+      groups: {
+        Row: {
+          configuration: Json
+          created_at: string
+          id: string
+          name: string
+          teacher_id: string
+        }
+        Insert: {
+          configuration?: Json
+          created_at?: string
+          id?: string
+          name: string
+          teacher_id: string
+        }
+        Update: {
+          configuration?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          teacher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_assignments: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          group_id: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          group_id: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          group_id?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_assignments_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_students: {
+        Row: {
+          created_at: string
+          full_name: string
+          group_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          group_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          group_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_students_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_submissions: {
+        Row: {
+          assignment_id: string
+          grade: string | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["homework_status"]
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          grade?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["homework_status"]
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          grade?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["homework_status"]
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "homework_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "homework_students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           created_at: string
@@ -176,6 +317,77 @@ export type Database = {
             columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lesson_plan_comments: {
+        Row: {
+          comment_text: string
+          created_at: string
+          id: string
+          lesson_plan_day_id: string
+          user_id: string
+        }
+        Insert: {
+          comment_text: string
+          created_at?: string
+          id?: string
+          lesson_plan_day_id: string
+          user_id: string
+        }
+        Update: {
+          comment_text?: string
+          created_at?: string
+          id?: string
+          lesson_plan_day_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_plan_comments_lesson_plan_day_id_fkey"
+            columns: ["lesson_plan_day_id"]
+            isOneToOne: false
+            referencedRelation: "lesson_plan_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_plan_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lesson_plan_days: {
+        Row: {
+          id: string
+          notes: string | null
+          topic: string | null
+          weekday: Database["public"]["Enums"]["weekday"]
+          weekly_plan_id: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          topic?: string | null
+          weekday: Database["public"]["Enums"]["weekday"]
+          weekly_plan_id: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          topic?: string | null
+          weekday?: Database["public"]["Enums"]["weekday"]
+          weekly_plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_plan_days_weekly_plan_id_fkey"
+            columns: ["weekly_plan_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_lesson_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -265,6 +477,38 @@ export type Database = {
           {
             foreignKeyName: "profiles_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_chat_messages_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -376,6 +620,38 @@ export type Database = {
           },
         ]
       }
+      weekly_lesson_plans: {
+        Row: {
+          created_at: string
+          end_date: string
+          group_id: string
+          id: string
+          start_date: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          group_id: string
+          id?: string
+          start_date: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          group_id?: string
+          id?: string
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_lesson_plans_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -386,12 +662,22 @@ export type Database = {
         Returns: Database["public"]["Enums"]["staff_role"]
       }
       is_admin: { Args: never; Returns: boolean }
+      is_group_owner: { Args: { target_group_id: string }; Returns: boolean }
     }
     Enums: {
+      homework_status: "pending" | "submitted" | "graded" | "missing"
       issue_status: "open" | "in_progress" | "done"
       staff_role: "ceo" | "admin_manager" | "teacher" | "assistant"
       staff_tier: "A" | "B" | "C"
       task_status: "pending" | "in_progress" | "done"
+      weekday:
+        | "monday"
+        | "tuesday"
+        | "wednesday"
+        | "thursday"
+        | "friday"
+        | "saturday"
+        | "sunday"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -522,10 +808,20 @@ export const Constants = {
   },
   public: {
     Enums: {
+      homework_status: ["pending", "submitted", "graded", "missing"],
       issue_status: ["open", "in_progress", "done"],
       staff_role: ["ceo", "admin_manager", "teacher", "assistant"],
       staff_tier: ["A", "B", "C"],
       task_status: ["pending", "in_progress", "done"],
+      weekday: [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+      ],
     },
   },
 } as const

@@ -19,9 +19,10 @@
     "staff": "Xodimlar",
     "chat": "Suhbat",
     "issues": "Muammolar",
-    "lessonPlans": "Dars rejalari",
+    "lessonPlans": "Dars Reja Taxtasi",
     "tasks": "Vazifalar",
     "companyNews": "Kompaniya Yangiliklari",
+    "staffChat": "O'qituvchi/TA Chat",
     "settings": "Sozlamalar"
   },
   "auth": {
@@ -201,32 +202,88 @@
     }
   },
   "lessonPlans": {
-    "title": "Dars rejalari",
-    "addPlan": "Dars rejasini qo'shish",
-    "topic": "Mavzu",
-    "date": "Sana",
-    "file": "Dars materiali",
-    "fileHint": "Ixtiyoriy — PDF, DOCX, JPG yoki PNG, 45MB gacha.",
+    "title": "Dars Reja Taxtasi",
+    "createGroup": "Guruh yaratish",
+    "editGroup": "Guruhni tahrirlash",
+    "deleteGroup": "Guruhni o'chirish",
+    "groupName": "Guruh nomi",
+    "subject": "Fan",
+    "level": "Daraja",
+    "schedule": "Jadval",
+    "room": "Xona",
+    "groupNotes": "Izohlar",
     "create": "Yaratish",
-    "noPlans": "Hozircha dars rejalari yo'q.",
-    "download": "Yuklab olish",
-    "delete": "Dars rejasini o'chirish",
-    "confirmDeleteTitle": "Ushbu dars rejasini o'chirasizmi?",
-    "confirmDeleteDescription": "Dars rejasi va unga biriktirilgan fayl butunlay o'chiriladi.",
-    "table": {
-      "teacher": "O'qituvchi",
-      "topic": "Mavzu",
-      "date": "Sana",
-      "file": "Fayl",
-      "actions": "Amallar"
+    "saveChanges": "O'zgarishlarni saqlash",
+    "confirm": "Tasdiqlash",
+    "groupsUsed": "{max} tadan {count} tasi ishlatilgan",
+    "noGroups": "Hozircha guruhlar yo'q.",
+    "noConfiguration": "Hali ma'lumot kiritilmagan.",
+    "confirmDeleteGroupTitle": "Ushbu guruhni o'chirasizmi?",
+    "confirmDeleteGroupDescription": "Guruh, uning dars rejalari, izohlari va uyga vazifalari butunlay o'chiriladi.",
+    "weeklyPlanTitle": "Haftalik Lesson Plan",
+    "dayTopic": "Mavzu",
+    "dayNotes": "Izoh",
+    "noTopic": "Hali mavzu yo'q",
+    "weekdays": {
+      "monday": "Dushanba",
+      "tuesday": "Seshanba",
+      "wednesday": "Chorshanba",
+      "thursday": "Payshanba",
+      "friday": "Juma",
+      "saturday": "Shanba",
+      "sunday": "Yakshanba"
+    },
+    "comments": {
+      "roleTabs": {
+        "ceo": "CEO",
+        "admin": "Admin",
+        "ta": "TA"
+      },
+      "noComments": "Hozircha izohlar yo'q.",
+      "placeholder": "Izoh yozing...",
+      "send": "Yuborish",
+      "delete": "Izohni o'chirish",
+      "viewOnly": "Siz bu yerda faqat ko'rishingiz mumkin, izoh qoldira olmaysiz."
+    },
+    "homework": {
+      "title": "Homework (O'quv Ishlari)",
+      "addAssignment": "Vazifa qo'shish",
+      "assignmentTitle": "Sarlavha",
+      "assignmentDescription": "Tavsif",
+      "dueDate": "Topshirish muddati",
+      "due": "Muddat",
+      "noAssignments": "Hozircha vazifalar yo'q.",
+      "addStudent": "O'quvchi qo'shish",
+      "studentName": "O'quvchi ismi",
+      "rosterCount": "Ro'yxatda {count} ta o'quvchi",
+      "status": {
+        "pending": "Kutilmoqda",
+        "submitted": "Topshirilgan",
+        "graded": "Baholangan",
+        "missing": "Topshirilmagan"
+      }
+    },
+    "staffChat": {
+      "title": "Staff Chat: {name}"
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
-      "invalidInput": "Iltimos, mavzu va sanani kiriting.",
-      "invalidFileType": "Fayl PDF, DOCX, JPG yoki PNG formatida bo'lishi kerak.",
-      "fileTooLarge": "Fayl 45MB dan kichik bo'lishi kerak.",
-      "uploadFailed": "Faylni yuklab bo'lmadi.",
-      "createFailed": "Dars rejasini saqlab bo'lmadi. Qayta urinib ko'ring."
+      "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+      "createFailed": "Guruhni yaratib bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "groupLimitReached": "Siz 50 ta guruh chegarasiga yetdingiz."
+    }
+  },
+  "staffChat": {
+    "title": "O'qituvchi/TA Chat",
+    "placeholder": "Xabar yozing...",
+    "send": "Yuborish",
+    "delete": "Xabarni o'chirish",
+    "empty": "Hozircha xabarlar yo'q. Suhbatni boshlang!",
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
+      "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "tasks": {

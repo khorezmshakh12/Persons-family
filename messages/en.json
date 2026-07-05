@@ -19,9 +19,10 @@
     "staff": "Staff",
     "chat": "Chat",
     "issues": "Issues",
-    "lessonPlans": "Lesson Plans",
+    "lessonPlans": "Lesson Plan Board",
     "tasks": "Tasks",
     "companyNews": "Company News",
+    "staffChat": "Teacher/TA Chat",
     "settings": "Settings"
   },
   "auth": {
@@ -201,32 +202,88 @@
     }
   },
   "lessonPlans": {
-    "title": "Lesson Plans",
-    "addPlan": "Add lesson plan",
-    "topic": "Topic",
-    "date": "Date",
-    "file": "Lesson material",
-    "fileHint": "Optional — PDF, DOCX, JPG, or PNG, up to 45MB.",
+    "title": "Lesson Plan Board",
+    "createGroup": "Create group",
+    "editGroup": "Edit group",
+    "deleteGroup": "Delete group",
+    "groupName": "Group name",
+    "subject": "Subject",
+    "level": "Level",
+    "schedule": "Schedule",
+    "room": "Room",
+    "groupNotes": "Notes",
     "create": "Create",
-    "noPlans": "No lesson plans yet.",
-    "download": "Download",
-    "delete": "Delete lesson plan",
-    "confirmDeleteTitle": "Delete this lesson plan?",
-    "confirmDeleteDescription": "This will permanently remove the lesson plan and its attached file.",
-    "table": {
-      "teacher": "Teacher",
-      "topic": "Topic",
-      "date": "Date",
-      "file": "File",
-      "actions": "Actions"
+    "saveChanges": "Save changes",
+    "confirm": "Confirm",
+    "groupsUsed": "{count} of {max} groups used",
+    "noGroups": "No groups yet.",
+    "noConfiguration": "No details set yet.",
+    "confirmDeleteGroupTitle": "Delete this group?",
+    "confirmDeleteGroupDescription": "This will permanently remove the group, its lesson plans, comments, and homework.",
+    "weeklyPlanTitle": "Haftalik Lesson Plan",
+    "dayTopic": "Topic",
+    "dayNotes": "Notes",
+    "noTopic": "No topic yet",
+    "weekdays": {
+      "monday": "Dushanba",
+      "tuesday": "Seshanba",
+      "wednesday": "Chorshanba",
+      "thursday": "Payshanba",
+      "friday": "Juma",
+      "saturday": "Shanba",
+      "sunday": "Yakshanba"
+    },
+    "comments": {
+      "roleTabs": {
+        "ceo": "CEO",
+        "admin": "Admin",
+        "ta": "TA"
+      },
+      "noComments": "No comments yet.",
+      "placeholder": "Write a comment...",
+      "send": "Send",
+      "delete": "Delete comment",
+      "viewOnly": "You can view but not comment here."
+    },
+    "homework": {
+      "title": "Homework (O'quv Ishlari)",
+      "addAssignment": "Add assignment",
+      "assignmentTitle": "Title",
+      "assignmentDescription": "Description",
+      "dueDate": "Due date",
+      "due": "Due",
+      "noAssignments": "No assignments yet.",
+      "addStudent": "Add student",
+      "studentName": "Student name",
+      "rosterCount": "{count} students in roster",
+      "status": {
+        "pending": "Pending",
+        "submitted": "Submitted",
+        "graded": "Graded",
+        "missing": "Missing"
+      }
+    },
+    "staffChat": {
+      "title": "Staff Chat: {name}"
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
-      "invalidInput": "Please enter a topic and date.",
-      "invalidFileType": "File must be a PDF, DOCX, JPG, or PNG.",
-      "fileTooLarge": "File must be under 45MB.",
-      "uploadFailed": "Could not upload the file.",
-      "createFailed": "Could not save the lesson plan. Please try again."
+      "invalidInput": "Please fill in all required fields.",
+      "createFailed": "Could not create the group. Please try again.",
+      "updateFailed": "Could not save changes. Please try again.",
+      "groupLimitReached": "You've reached the maximum of 50 groups."
+    }
+  },
+  "staffChat": {
+    "title": "Teacher/TA Chat",
+    "placeholder": "Write a message...",
+    "send": "Send",
+    "delete": "Delete message",
+    "empty": "No messages yet. Start the conversation!",
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidMessage": "Message can't be empty.",
+      "sendFailed": "Could not send your message. Please try again."
     }
   },
   "tasks": {

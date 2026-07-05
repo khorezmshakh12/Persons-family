@@ -6,10 +6,11 @@ import {
   Users,
   MessageSquare,
   AlertCircle,
-  BookOpen,
+  CalendarDays,
   ListTodo,
   Megaphone,
   Settings,
+  MessagesSquare,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -20,9 +21,10 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   staff: Users,
   chat: MessageSquare,
   issues: AlertCircle,
-  lessonPlans: BookOpen,
+  lessonPlans: CalendarDays,
   tasks: ListTodo,
   companyNews: Megaphone,
+  staffChat: MessagesSquare,
   settings: Settings,
 };
 
