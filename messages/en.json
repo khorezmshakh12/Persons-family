@@ -20,7 +20,8 @@
     "chat": "Chat",
     "issues": "Issues",
     "lessonPlans": "Lesson Plans",
-    "tasks": "Tasks"
+    "tasks": "Tasks",
+    "companyNews": "Company News"
   },
   "auth": {
     "phone": "Phone number",
@@ -56,13 +57,30 @@
       "teacher": "Submit lesson plans and stay in touch with the team.",
       "assistant": "Review lesson plans and stay in touch with the team."
     },
-    "performance": {
-      "title": "Your performance",
-      "rating": "Rating",
-      "bonus": "Bonus",
-      "penalty": "Penalty",
-      "notes": "Last month's updates",
-      "noData": "No performance data yet."
+    "hero": {
+      "title": "Welcome to Your Personal Growth Center",
+      "subtitle": "Welcome back, {name}. Here's where things stand this week.",
+      "viewWeeklyPlan": "View Weekly Plan",
+      "checkResults": "Check Results"
+    },
+    "companyNews": {
+      "title": "Company News",
+      "noNews": "No announcements yet."
+    },
+    "weeklyProgress": {
+      "title": "Weekly Progress",
+      "currentTier": "Current tier",
+      "score": "This week's progress",
+      "monthsInTier": "{months}/6 months in this tier",
+      "noData": "No progress data yet."
+    },
+    "teamResults": {
+      "sectionTitle": "Team Results: Teacher Ratings",
+      "name": "Name",
+      "tier": "Tier",
+      "progressToNextTier": "Progress to next tier",
+      "monthsProgress": "{months}/6 months",
+      "noStaff": "No teachers or assistants yet."
     }
   },
   "staff": {
@@ -124,12 +142,18 @@
       "invalidAvatarType": "Profile picture must be a PNG or JPG image.",
       "avatarTooLarge": "Profile picture must be under 5MB.",
       "notFound": "Staff member not found.",
-      "forbidden": "You don't have permission to do this.",
-      "invalidRating": "Rating must be between 0 and 5."
+      "forbidden": "You don't have permission to do this."
     },
     "performance": {
       "title": "Performance",
-      "rating": "Rating",
+      "tier": "Tier",
+      "tierLabels": {
+        "A": "A — Professional",
+        "B": "B — Developing",
+        "C": "C — New"
+      },
+      "monthsInTier": "Months in current tier (0–6)",
+      "weeklyProgressScore": "Weekly progress score (0–100%)",
       "bonus": "Bonus",
       "penalty": "Penalty",
       "notes": "Last month's updates / achievements",
@@ -235,6 +259,20 @@
       "invalidInput": "Please fill in all required fields.",
       "createFailed": "Could not assign the task. Please try again.",
       "updateFailed": "Could not save changes. Please try again."
+    }
+  },
+  "companyNews": {
+    "title": "Company News",
+    "addNews": "Add news",
+    "titleLabel": "Title",
+    "contentLabel": "Content",
+    "publish": "Publish",
+    "noNews": "No announcements yet.",
+    "postedBy": "Posted by {name}",
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidInput": "Please fill in a title and content.",
+      "createFailed": "Could not publish the announcement. Please try again."
     }
   }
 }

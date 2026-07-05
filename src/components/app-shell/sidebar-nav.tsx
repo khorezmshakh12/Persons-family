@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { LayoutDashboard, Users, MessageSquare, AlertCircle, BookOpen, ListTodo } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, AlertCircle, BookOpen, ListTodo, Megaphone } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { navItemsForRole, type NavItem, type StaffRole } from '@/lib/nav';
@@ -13,6 +13,7 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   issues: AlertCircle,
   lessonPlans: BookOpen,
   tasks: ListTodo,
+  companyNews: Megaphone,
 };
 
 export function SidebarNav({ role, onNavigate }: { role: StaffRole; onNavigate?: () => void }) {

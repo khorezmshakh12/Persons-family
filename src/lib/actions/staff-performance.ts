@@ -9,7 +9,9 @@ export type StaffPerformanceActionState = { error?: string } | undefined;
 
 const performanceSchema = z.object({
   staffId: z.string().uuid(),
-  rating: z.string().optional().or(z.literal('')),
+  currentTier: z.enum(['A', 'B', 'C']),
+  monthsInTier: z.string().optional().or(z.literal('')),
+  weeklyProgressScore: z.string().optional().or(z.literal('')),
   bonus: z.string().optional().or(z.literal('')),
   penalty: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
@@ -29,9 +31,17 @@ export async function updateStaffPerformanceAction(
   const parsed = performanceSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const rating = parsed.data.rating ? Number(parsed.data.rating) : null;
-  if (rating !== null && (Number.isNaN(rating) || rating < 0 || rating > 5)) {
-    return { error: 'invalidRating' };
+  const monthsInTier = Number(parsed.data.monthsInTier || 0);
+  const weeklyProgressScore = Number(parsed.data.weeklyProgressScore || 0);
+  if (
+    Number.isNaN(monthsInTier) ||
+    monthsInTier < 0 ||
+    monthsInTier > 6 ||
+    Number.isNaN(weeklyProgressScore) ||
+    weeklyProgressScore < 0 ||
+    weeklyProgressScore > 100
+  ) {
+    return { error: 'invalidInput' };
   }
 
   const bonus = Number(parsed.data.bonus || 0);
@@ -44,7 +54,9 @@ export async function updateStaffPerformanceAction(
   const { error } = await supabase.from('staff_performance').upsert(
     {
       staff_id: parsed.data.staffId,
-      rating,
+      current_tier: parsed.data.currentTier,
+      months_in_tier: monthsInTier,
+      weekly_progress_score: weeklyProgressScore,
       bonus,
       penalty,
       notes: parsed.data.notes || null,

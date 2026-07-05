@@ -20,7 +20,8 @@
     "chat": "Suhbat",
     "issues": "Muammolar",
     "lessonPlans": "Dars rejalari",
-    "tasks": "Vazifalar"
+    "tasks": "Vazifalar",
+    "companyNews": "Kompaniya Yangiliklari"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -56,13 +57,30 @@
       "teacher": "Dars rejalarini yuboring va jamoa bilan aloqada bo'ling.",
       "assistant": "Dars rejalarini ko'ring va jamoa bilan aloqada bo'ling."
     },
-    "performance": {
-      "title": "Sizning ko'rsatkichlaringiz",
-      "rating": "Reyting",
-      "bonus": "Bonus",
-      "penalty": "Jarima",
-      "notes": "So'nggi oy yangilanishlari",
-      "noData": "Hozircha ma'lumot yo'q."
+    "hero": {
+      "title": "Shaxsiy O'sish Markaziga Xush Kelibsiz",
+      "subtitle": "Xush kelibsiz, {name}. Bu haftaning holati shunday.",
+      "viewWeeklyPlan": "Haftalik Rejani Ko'rish",
+      "checkResults": "Natijalarni Tekshirish"
+    },
+    "companyNews": {
+      "title": "Kompaniya Yangiliklari",
+      "noNews": "Hozircha e'lonlar yo'q."
+    },
+    "weeklyProgress": {
+      "title": "Haftalik Progressingiz",
+      "currentTier": "Joriy daraja",
+      "score": "Bu haftadagi progress",
+      "monthsInTier": "Ushbu darajada {months}/6 oy",
+      "noData": "Hozircha progress ma'lumotlari yo'q."
+    },
+    "teamResults": {
+      "sectionTitle": "Jamoa Natijalari: Ustozlar Reytingi",
+      "name": "Ism",
+      "tier": "Daraja",
+      "progressToNextTier": "Keyingi darajagacha progress",
+      "monthsProgress": "{months}/6 oy",
+      "noStaff": "Hozircha o'qituvchi yoki yordamchi yo'q."
     }
   },
   "staff": {
@@ -124,12 +142,18 @@
       "invalidAvatarType": "Profil rasmi PNG yoki JPG formatida bo'lishi kerak.",
       "avatarTooLarge": "Profil rasmi 5MB dan kichik bo'lishi kerak.",
       "notFound": "Xodim topilmadi.",
-      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
-      "invalidRating": "Reyting 0 dan 5 gacha bo'lishi kerak."
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q."
     },
     "performance": {
       "title": "Ko'rsatkichlar",
-      "rating": "Reyting",
+      "tier": "Daraja",
+      "tierLabels": {
+        "A": "A — Professional",
+        "B": "B — Rivojlanishda",
+        "C": "C — Yangi"
+      },
+      "monthsInTier": "Joriy darajadagi oylar soni (0–6)",
+      "weeklyProgressScore": "Haftalik progress ko'rsatkichi (0–100%)",
       "bonus": "Bonus",
       "penalty": "Jarima",
       "notes": "So'nggi oy yangilanishlari / yutuqlari",
@@ -235,6 +259,20 @@
       "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
       "createFailed": "Vazifani berib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "companyNews": {
+    "title": "Kompaniya Yangiliklari",
+    "addNews": "Yangilik qo'shish",
+    "titleLabel": "Sarlavha",
+    "contentLabel": "Matn",
+    "publish": "E'lon qilish",
+    "noNews": "Hozircha e'lonlar yo'q.",
+    "postedBy": "Joylagan: {name}",
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, sarlavha va matnni kiriting.",
+      "createFailed": "E'lonni joylab bo'lmadi. Qayta urinib ko'ring."
     }
   }
 }

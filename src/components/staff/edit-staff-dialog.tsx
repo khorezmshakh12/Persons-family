@@ -20,7 +20,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { StarRatingInput } from './star-rating-input';
 import { CurrencyInput } from './currency-input';
 import type { Profile } from '@/lib/auth/session';
 import type { Database } from '@/lib/supabase/types';
@@ -179,8 +178,45 @@ export function EditStaffDialog({
           <div className="flex flex-col gap-4 rounded-lg border p-3">
             <h3 className="text-sm font-medium">{t('performance.title')}</h3>
             <div className="flex flex-col gap-2">
-              <Label>{t('performance.rating')}</Label>
-              <StarRatingInput name="rating" defaultValue={performance?.rating ?? null} />
+              <Label htmlFor={`tier-${profile.id}`}>{t('performance.tier')}</Label>
+              <Select name="currentTier" defaultValue={performance?.current_tier ?? 'C'}>
+                <SelectTrigger id={`tier-${profile.id}`} className="w-full">
+                  <SelectValue>{(value: string) => t(`performance.tierLabels.${value}`)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {(['A', 'B', 'C'] as const).map((tier) => (
+                    <SelectItem key={tier} value={tier}>
+                      {t(`performance.tierLabels.${tier}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`monthsInTier-${profile.id}`}>{t('performance.monthsInTier')}</Label>
+                <Input
+                  id={`monthsInTier-${profile.id}`}
+                  name="monthsInTier"
+                  type="number"
+                  min={0}
+                  max={6}
+                  defaultValue={performance?.months_in_tier ?? 0}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`weeklyProgressScore-${profile.id}`}>
+                  {t('performance.weeklyProgressScore')}
+                </Label>
+                <Input
+                  id={`weeklyProgressScore-${profile.id}`}
+                  name="weeklyProgressScore"
+                  type="number"
+                  min={0}
+                  max={100}
+                  defaultValue={performance?.weekly_progress_score ?? 0}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">

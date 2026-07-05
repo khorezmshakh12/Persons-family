@@ -100,6 +100,38 @@ export type Database = {
           },
         ]
       }
+      company_news: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_news_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           created_at: string
@@ -242,33 +274,39 @@ export type Database = {
       staff_performance: {
         Row: {
           bonus: number
+          current_tier: Database["public"]["Enums"]["staff_tier"]
           id: string
+          months_in_tier: number
           notes: string | null
           penalty: number
-          rating: number | null
           staff_id: string
           updated_at: string
           updated_by: string | null
+          weekly_progress_score: number
         }
         Insert: {
           bonus?: number
+          current_tier?: Database["public"]["Enums"]["staff_tier"]
           id?: string
+          months_in_tier?: number
           notes?: string | null
           penalty?: number
-          rating?: number | null
           staff_id: string
           updated_at?: string
           updated_by?: string | null
+          weekly_progress_score?: number
         }
         Update: {
           bonus?: number
+          current_tier?: Database["public"]["Enums"]["staff_tier"]
           id?: string
+          months_in_tier?: number
           notes?: string | null
           penalty?: number
-          rating?: number | null
           staff_id?: string
           updated_at?: string
           updated_by?: string | null
+          weekly_progress_score?: number
         }
         Relationships: [
           {
@@ -352,6 +390,7 @@ export type Database = {
     Enums: {
       issue_status: "open" | "in_progress" | "done"
       staff_role: "ceo" | "admin_manager" | "teacher" | "assistant"
+      staff_tier: "A" | "B" | "C"
       task_status: "pending" | "in_progress" | "done"
     }
     CompositeTypes: {
@@ -485,6 +524,7 @@ export const Constants = {
     Enums: {
       issue_status: ["open", "in_progress", "done"],
       staff_role: ["ceo", "admin_manager", "teacher", "assistant"],
+      staff_tier: ["A", "B", "C"],
       task_status: ["pending", "in_progress", "done"],
     },
   },
