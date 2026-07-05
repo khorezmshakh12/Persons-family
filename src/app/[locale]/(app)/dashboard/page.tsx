@@ -28,7 +28,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="flex w-full max-w-md flex-col gap-4 rounded-lg border p-4">
+      <div className="bg-card flex w-full max-w-md flex-col gap-4 rounded-xl border p-4 shadow-sm">
         <h2 className="text-lg font-medium">{t('performance.title')}</h2>
         {performance ? (
           <div className="flex flex-col gap-3 text-sm">

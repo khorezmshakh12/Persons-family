@@ -1,6 +1,8 @@
 import { getTranslations, getFormatter } from 'next-intl/server';
 import { FileText } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { DeleteLessonPlanButton } from './delete-lesson-plan-button';
 
 type LessonPlanRow = {
@@ -29,7 +31,7 @@ export async function LessonPlansTable({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="bg-card rounded-xl border shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>
@@ -61,7 +63,7 @@ export async function LessonPlansTable({
                     href={plan.downloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary inline-flex items-center gap-1 underline underline-offset-2"
+                    className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'rounded-full')}
                   >
                     <FileText className="size-3.5" />
                     {t('download')}

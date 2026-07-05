@@ -21,7 +21,7 @@ export function SidebarNav({ role, onNavigate }: { role: StaffRole; onNavigate?:
   const items = navItemsForRole(role);
 
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-2">
       {items.map((item) => {
         const Icon = ICONS[item.key];
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -32,10 +32,10 @@ export function SidebarNav({ role, onNavigate }: { role: StaffRole; onNavigate?:
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98]',
+              'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98]',
               active
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                ? 'bg-primary/10 text-primary font-semibold'
+                : 'text-muted-foreground hover:bg-muted font-medium',
             )}
           >
             <Icon className="size-4" />

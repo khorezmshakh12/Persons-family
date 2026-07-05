@@ -22,7 +22,7 @@ export async function StaffTable({
   const t = await getTranslations('staff');
 
   return (
-    <div className="rounded-md border">
+    <div className="bg-card rounded-xl border shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>

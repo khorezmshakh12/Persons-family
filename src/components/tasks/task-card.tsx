@@ -27,7 +27,7 @@ export async function TaskCard({
   const format = await getFormatter();
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
+    <div className="bg-card flex flex-col gap-3 rounded-xl border p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <span className="font-medium">{task.title}</span>
         {isAdmin && (

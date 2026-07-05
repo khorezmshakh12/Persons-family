@@ -20,7 +20,7 @@ export async function IssuesTable({ issues, isAdmin }: { issues: Issue[]; isAdmi
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="bg-card rounded-xl border shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>

@@ -12,13 +12,13 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
 
   return (
     <div className="flex min-h-full">
-      <aside className="hidden w-60 shrink-0 flex-col border-r p-4 md:flex">
+      <aside className="bg-card border-border/60 shadow-sm hidden w-60 shrink-0 flex-col border-r p-4 md:flex">
         <span className="mb-6 text-sm font-semibold tracking-tight">{t('name')}</span>
         <SidebarNav role={profile.role} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-background sticky top-0 z-40 flex h-14 items-center border-b px-4">
+        <header className="bg-card border-border/60 sticky top-0 z-40 flex h-14 items-center border-b px-4">
           <div className="flex items-center gap-2 md:hidden">
             <MobileNav role={profile.role} />
             <span className="text-sm font-semibold tracking-tight">{t('name')}</span>
