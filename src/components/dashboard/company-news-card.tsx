@@ -7,7 +7,7 @@ export async function CompanyNewsCard({ news }: { news: NewsItem[] }) {
   const format = await getFormatter();
 
   return (
-    <div className="bg-card flex flex-col gap-4 rounded-xl border p-4 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <h2 className="text-lg font-medium">{t('companyNews.title')}</h2>
       {news.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t('companyNews.noNews')}</p>

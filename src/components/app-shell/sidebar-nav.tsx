@@ -35,7 +35,7 @@ export function SidebarNav({ role, onNavigate }: { role: StaffRole; onNavigate?:
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98]',
               active
-                ? 'bg-primary/10 text-primary font-semibold'
+                ? 'bg-teal-50 text-teal-600 font-semibold dark:bg-teal-500/15 dark:text-teal-400'
                 : 'text-muted-foreground hover:bg-muted font-medium',
             )}
           >

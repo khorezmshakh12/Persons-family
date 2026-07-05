@@ -19,7 +19,10 @@ export async function NewsList({ news }: { news: NewsItem[] }) {
   return (
     <div className="flex flex-col gap-4">
       {news.map((item) => (
-        <div key={item.id} className="bg-card flex flex-col gap-2 rounded-xl border p-4 shadow-sm">
+        <div
+          key={item.id}
+          className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        >
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-lg font-medium">{item.title}</h2>
             <span className="text-muted-foreground shrink-0 text-xs">

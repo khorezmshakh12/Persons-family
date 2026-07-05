@@ -57,10 +57,9 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
-      <HeroCard firstName={profile?.first_name ?? ''} isAdmin={isAdmin} />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 bg-slate-50 p-6 sm:p-8 dark:bg-slate-950">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <HeroCard firstName={profile?.first_name ?? ''} isAdmin={isAdmin} />
         <div id="company-news">
           <CompanyNewsCard news={news ?? []} />
         </div>

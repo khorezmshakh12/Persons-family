@@ -20,7 +20,7 @@ export async function TeamResultsTable({ staff }: { staff: TeamMember[] }) {
   }
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm">
+    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <Table>
         <TableHeader>
           <TableRow>
