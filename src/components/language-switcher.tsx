@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const LOCALE_LABELS: Record<string, string> = {
   en: 'English',
@@ -18,7 +19,7 @@ const LOCALE_LABELS: Record<string, string> = {
   uz: 'O‘zbekcha',
 };
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ className }: { className?: string }) {
   const t = useTranslations('common');
   const locale = useLocale();
   const router = useRouter();
@@ -34,7 +35,7 @@ export function LanguageSwitcher() {
 
   return (
     <Select defaultValue={locale} onValueChange={onChange} disabled={isPending}>
-      <SelectTrigger className="w-[140px]" aria-label={t('language')}>
+      <SelectTrigger className={cn('w-[140px]', className)} aria-label={t('language')}>
         <SelectValue>{(value: string) => LOCALE_LABELS[value]}</SelectValue>
       </SelectTrigger>
       <SelectContent>

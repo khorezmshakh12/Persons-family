@@ -1,7 +1,16 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { LayoutDashboard, Users, MessageSquare, AlertCircle, BookOpen, ListTodo, Megaphone } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  MessageSquare,
+  AlertCircle,
+  BookOpen,
+  ListTodo,
+  Megaphone,
+  Settings,
+} from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { navItemsForRole, type NavItem, type StaffRole } from '@/lib/nav';
@@ -14,9 +23,21 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   lessonPlans: BookOpen,
   tasks: ListTodo,
   companyNews: Megaphone,
+  settings: Settings,
 };
 
-export function SidebarNav({ role, onNavigate }: { role: StaffRole; onNavigate?: () => void }) {
+export function SidebarNav({
+  role,
+  onNavigate,
+  glass = false,
+}: {
+  role: StaffRole;
+  onNavigate?: () => void;
+  /** True inside the glassmorphism desktop sidebar (over a dynamic photo
+   * background); false inside the mobile Sheet, which keeps a normal
+   * opaque surface and needs the usual theme-aware text colors instead. */
+  glass?: boolean;
+}) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const items = navItemsForRole(role);
@@ -34,9 +55,13 @@ export function SidebarNav({ role, onNavigate }: { role: StaffRole; onNavigate?:
             onClick={onNavigate}
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98]',
-              active
-                ? 'bg-teal-50 text-teal-600 font-semibold dark:bg-teal-500/15 dark:text-teal-400'
-                : 'text-muted-foreground hover:bg-muted font-medium',
+              glass
+                ? active
+                  ? 'border border-teal-300/30 bg-teal-400/20 font-semibold text-white'
+                  : 'text-white/70 hover:bg-white/10 font-medium'
+                : active
+                  ? 'bg-teal-50 text-teal-600 font-semibold dark:bg-teal-500/15 dark:text-teal-400'
+                  : 'text-muted-foreground hover:bg-muted font-medium',
             )}
           >
             <Icon className="size-4" />

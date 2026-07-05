@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Profile } from '@/lib/auth/session';
 import type { Database } from '@/lib/supabase/types';
 import { StaffRowActions } from './staff-row-actions';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 
 type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 
@@ -22,7 +24,7 @@ export async function StaffTable({
   const t = await getTranslations('staff');
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className={cn(GLASS_CARD)}>
       <Table>
         <TableHeader>
           <TableRow>

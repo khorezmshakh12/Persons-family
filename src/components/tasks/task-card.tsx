@@ -3,6 +3,8 @@ import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
 import type { Assignee } from './assign-task-dialog';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 
 export type Task = {
   id: string;
@@ -27,7 +29,7 @@ export async function TaskCard({
   const format = await getFormatter();
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6')}>
       <div className="flex items-start justify-between gap-2">
         <span className="font-medium">{task.title}</span>
         {isAdmin && (
@@ -46,8 +48,8 @@ export async function TaskCard({
           </div>
         )}
       </div>
-      {task.description && <p className="text-muted-foreground text-sm">{task.description}</p>}
-      <div className="text-muted-foreground flex flex-col gap-1 text-xs">
+      {task.description && <p className="text-sm text-white/70">{task.description}</p>}
+      <div className="flex flex-col gap-1 text-xs text-white/60">
         {isAdmin && task.assignee && (
           <span>
             {task.assignee.first_name} {task.assignee.last_name}

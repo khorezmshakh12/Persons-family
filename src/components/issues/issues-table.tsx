@@ -1,6 +1,8 @@
 import { getTranslations, getFormatter } from 'next-intl/server';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { IssueStatusControl } from './issue-status-control';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 
 type Issue = {
   id: string;
@@ -16,11 +18,11 @@ export async function IssuesTable({ issues, isAdmin }: { issues: Issue[]; isAdmi
   const format = await getFormatter();
 
   if (issues.length === 0) {
-    return <p className="text-muted-foreground text-sm">{t('noIssues')}</p>;
+    return <p className="text-sm text-white/70">{t('noIssues')}</p>;
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className={cn(GLASS_CARD)}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -42,7 +44,7 @@ export async function IssuesTable({ issues, isAdmin }: { issues: Issue[]; isAdmi
                 <div className="flex flex-col">
                   <span className="font-medium">{issue.title}</span>
                   {issue.description && (
-                    <span className="text-muted-foreground text-sm">{issue.description}</span>
+                    <span className="text-sm text-white/70">{issue.description}</span>
                   )}
                 </div>
               </TableCell>

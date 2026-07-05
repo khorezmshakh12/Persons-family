@@ -57,7 +57,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 bg-slate-50 p-6 sm:p-8 dark:bg-slate-950">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         <HeroCard firstName={profile?.first_name ?? ''} isAdmin={isAdmin} />
         <div id="company-news">
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
 
       {isAdmin && (
         <div id="team-results" className="flex scroll-mt-4 flex-col gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">{t('teamResults.sectionTitle')}</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-white">{t('teamResults.sectionTitle')}</h2>
           <TeamResultsTable staff={teamStaff} />
         </div>
       )}

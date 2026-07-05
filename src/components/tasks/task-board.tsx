@@ -22,12 +22,12 @@ export async function TaskBoard({
         const columnTasks = tasks.filter((task) => task.status === status);
         return (
           <div key={status} className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium">
+            <h2 className="text-sm font-medium text-white">
               {t(`columns.${status}`)} ({columnTasks.length})
             </h2>
             <div className="flex flex-col gap-3">
               {columnTasks.length === 0 ? (
-                <p className="text-muted-foreground text-sm">{t('noTasks')}</p>
+                <p className="text-sm text-white/60">{t('noTasks')}</p>
               ) : (
                 columnTasks.map((task) => (
                   <TaskCard key={task.id} task={task} isAdmin={isAdmin} assignees={assignees} />

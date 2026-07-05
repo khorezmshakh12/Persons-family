@@ -21,7 +21,8 @@
     "issues": "Issues",
     "lessonPlans": "Lesson Plans",
     "tasks": "Tasks",
-    "companyNews": "Company News"
+    "companyNews": "Company News",
+    "settings": "Settings"
   },
   "auth": {
     "phone": "Phone number",
@@ -273,6 +274,29 @@
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please fill in a title and content.",
       "createFailed": "Could not publish the announcement. Please try again."
+    }
+  },
+  "settings": {
+    "title": "Platform Appearance Settings",
+    "subtitle": "Choose a background theme for the whole platform, or upload your own.",
+    "presetsTitle": "Preset themes",
+    "uploadTitle": "Upload custom background",
+    "themes": {
+      "nature": "Nature",
+      "ocean": "Deep Ocean",
+      "cyberpunk": "Dark Cyberpunk",
+      "abstract": "Minimalist Abstract",
+      "space": "Space / Night Sky"
+    },
+    "upload": {
+      "button": "Choose image",
+      "hint": "PNG or JPG, up to 3MB. Saved on this device only.",
+      "errors": {
+        "invalidType": "Please choose an image file.",
+        "tooLarge": "Image must be under 3MB.",
+        "readFailed": "Could not read that image. Please try again.",
+        "storageQuotaExceeded": "Applied for this session, but couldn't be saved for next time — try a smaller image."
+      }
     }
   }
 }

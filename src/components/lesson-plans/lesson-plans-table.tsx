@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { DeleteLessonPlanButton } from './delete-lesson-plan-button';
+import { GLASS_CARD } from '@/lib/glass';
 
 type LessonPlanRow = {
   id: string;
@@ -27,11 +28,11 @@ export async function LessonPlansTable({
   const format = await getFormatter();
 
   if (plans.length === 0) {
-    return <p className="text-muted-foreground text-sm">{t('noPlans')}</p>;
+    return <p className="text-sm text-white/70">{t('noPlans')}</p>;
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className={cn(GLASS_CARD)}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -63,13 +64,16 @@ export async function LessonPlansTable({
                     href={plan.downloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'rounded-full')}
+                    className={cn(
+                      buttonVariants({ variant: 'outline', size: 'sm' }),
+                      'rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20',
+                    )}
                   >
                     <FileText className="size-3.5" />
                     {t('download')}
                   </a>
                 ) : (
-                  <span className="text-muted-foreground text-sm">—</span>
+                  <span className="text-sm text-white/70">—</span>
                 )}
               </TableCell>
               {showActions && (

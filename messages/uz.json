@@ -21,7 +21,8 @@
     "issues": "Muammolar",
     "lessonPlans": "Dars rejalari",
     "tasks": "Vazifalar",
-    "companyNews": "Kompaniya Yangiliklari"
+    "companyNews": "Kompaniya Yangiliklari",
+    "settings": "Sozlamalar"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -273,6 +274,29 @@
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Iltimos, sarlavha va matnni kiriting.",
       "createFailed": "E'lonni joylab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "settings": {
+    "title": "Platforma Ko'rinishi Sozlamalari",
+    "subtitle": "Butun platforma uchun fon mavzusini tanlang yoki o'zingiznikini yuklang.",
+    "presetsTitle": "Tayyor mavzular",
+    "uploadTitle": "O'zingizning fon rasmingizni yuklang",
+    "themes": {
+      "nature": "Tabiat",
+      "ocean": "Chuqur Okean",
+      "cyberpunk": "Qorong'u Kiberpank",
+      "abstract": "Minimalistik Abstrakt",
+      "space": "Koinot / Tungi Osmon"
+    },
+    "upload": {
+      "button": "Rasm tanlash",
+      "hint": "PNG yoki JPG, 3MB gacha. Faqat shu qurilmada saqlanadi.",
+      "errors": {
+        "invalidType": "Iltimos, rasm faylini tanlang.",
+        "tooLarge": "Rasm 3MB dan kichik bo'lishi kerak.",
+        "readFailed": "Rasmni o'qib bo'lmadi. Qayta urinib ko'ring.",
+        "storageQuotaExceeded": "Shu seans uchun qo'llanildi, lekin keyingi safar uchun saqlab bo'lmadi — kichikroq rasm sinab ko'ring."
+      }
     }
   }
 }

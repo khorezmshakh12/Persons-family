@@ -3,6 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { TierBadge, type StaffTier } from '@/components/staff/tier-badge';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 
 type TeamMember = {
   id: string;
@@ -16,11 +18,11 @@ export async function TeamResultsTable({ staff }: { staff: TeamMember[] }) {
   const t = await getTranslations('dashboard');
 
   if (staff.length === 0) {
-    return <p className="text-muted-foreground text-sm">{t('teamResults.noStaff')}</p>;
+    return <p className="text-sm text-white/70">{t('teamResults.noStaff')}</p>;
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className={cn(GLASS_CARD)}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -55,7 +57,7 @@ export async function TeamResultsTable({ staff }: { staff: TeamMember[] }) {
                 <TableCell>
                   <div className="flex max-w-40 flex-col gap-1">
                     <Progress value={(monthsInTier / 6) * 100} />
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-xs text-white/60">
                       {t('teamResults.monthsProgress', { months: monthsInTier })}
                     </span>
                   </div>
