@@ -14,6 +14,8 @@ export default async function StaffPage() {
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: true });
+  const { data: performance } = await supabase.from('staff_performance').select('*');
+  const performanceByStaffId = Object.fromEntries((performance ?? []).map((row) => [row.staff_id, row]));
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
@@ -21,7 +23,12 @@ export default async function StaffPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
         <AddStaffDialog canAssignCeo={profile!.role === 'ceo'} />
       </div>
-      <StaffTable staff={staff ?? []} currentUserId={user!.id} actingRole={profile!.role} />
+      <StaffTable
+        staff={staff ?? []}
+        currentUserId={user!.id}
+        actingRole={profile!.role}
+        performanceByStaffId={performanceByStaffId}
+      />
     </div>
   );
 }

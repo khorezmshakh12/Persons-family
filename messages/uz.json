@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Persons Education"
+    "name": "Persons Education Company"
   },
   "common": {
     "save": "Saqlash",
@@ -17,10 +17,10 @@
   "nav": {
     "dashboard": "Boshqaruv paneli",
     "staff": "Xodimlar",
-    "attendance": "Davomat",
     "chat": "Suhbat",
     "issues": "Muammolar",
-    "lessonPlans": "Dars rejalari"
+    "lessonPlans": "Dars rejalari",
+    "tasks": "Vazifalar"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -43,14 +43,26 @@
       "accountDeactivated": "Hisobingiz faolsizlantirilgan. Administrator bilan bog'laning."
     }
   },
+  "birthday": {
+    "reminderSingle": "{name} tug'ilgan kuni 2 kundan keyin!",
+    "reminderMultiple": "2 kundan keyingi tug'ilgan kunlar: {names}"
+  },
   "dashboard": {
     "title": "Boshqaruv paneli",
     "greeting": "Xush kelibsiz, {name}.",
     "roleWelcome": {
       "ceo": "Sizda platformaning barcha bo'limlariga to'liq kirish huquqi bor.",
       "admin_manager": "Xodimlarni boshqaring, murojaatlarni ko'rib chiqing va ish jarayonini kuzating.",
-      "teacher": "Davomatingizni belgilang, dars rejalarini yuboring va jamoa bilan aloqada bo'ling.",
-      "assistant": "Davomatingizni belgilang, dars rejalarini ko'ring va jamoa bilan aloqada bo'ling."
+      "teacher": "Dars rejalarini yuboring va jamoa bilan aloqada bo'ling.",
+      "assistant": "Dars rejalarini ko'ring va jamoa bilan aloqada bo'ling."
+    },
+    "performance": {
+      "title": "Sizning ko'rsatkichlaringiz",
+      "rating": "Reyting",
+      "bonus": "Bonus",
+      "penalty": "Jarima",
+      "notes": "So'nggi oy yangilanishlari",
+      "noData": "Hozircha ma'lumot yo'q."
     }
   },
   "staff": {
@@ -112,42 +124,26 @@
       "invalidAvatarType": "Profil rasmi PNG yoki JPG formatida bo'lishi kerak.",
       "avatarTooLarge": "Profil rasmi 5MB dan kichik bo'lishi kerak.",
       "notFound": "Xodim topilmadi.",
-      "forbidden": "Sizda bu amal uchun ruxsat yo'q."
-    }
-  },
-  "attendance": {
-    "title": "Davomat",
-    "myAttendance": "Mening davomatim",
-    "myHistory": "So'nggi tarixim",
-    "allStaff": "Barcha xodimlar",
-    "allStaffOption": "Barcha xodimlar",
-    "clockIn": "Kelishni belgilash",
-    "clockOut": "Ketishni belgilash",
-    "clockedInSince": "{time} dan beri ishda ({duration})",
-    "notClockedIn": "Siz bugun hali kelishni belgilamadingiz.",
-    "stillClockedIn": "Hali ishda",
-    "noRecords": "Hozircha davomat yozuvlari yo'q.",
-    "hoursAbbrev": "soat",
-    "minutesAbbrev": "daq",
-    "table": {
-      "staff": "Xodim",
-      "date": "Sana",
-      "clockIn": "Kelish",
-      "clockOut": "Ketish",
-      "duration": "Davomiylik"
-    },
-    "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
-      "alreadyClockedIn": "Siz bugun allaqachon kelishni belgilagansiz.",
-      "clockInFailed": "Kelishni belgilab bo'lmadi. Qayta urinib ko'ring.",
-      "noOpenSession": "Siz hozir ishda emassiz.",
-      "clockOutFailed": "Ketishni belgilab bo'lmadi. Qayta urinib ko'ring."
+      "invalidRating": "Reyting 0 dan 5 gacha bo'lishi kerak."
+    },
+    "performance": {
+      "title": "Ko'rsatkichlar",
+      "rating": "Reyting",
+      "bonus": "Bonus",
+      "penalty": "Jarima",
+      "notes": "So'nggi oy yangilanishlari / yutuqlari",
+      "notesPlaceholder": "Bu oyda nimalarga erishdi?"
     }
   },
   "chat": {
     "placeholder": "Xabar yozing...",
     "send": "Yuborish",
     "delete": "Xabarni o'chirish",
+    "pin": "Xabarni mahkamlash",
+    "unpin": "Mahkamlashni bekor qilish",
+    "enableChat": "Suhbat yoqilgan",
+    "chatDisabled": "Suhbat hozircha o'chirilgan.",
     "empty": "Hozircha xabarlar yo'q. Suhbatni boshlang!",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
@@ -206,6 +202,39 @@
       "fileTooLarge": "Fayl 45MB dan kichik bo'lishi kerak.",
       "uploadFailed": "Faylni yuklab bo'lmadi.",
       "createFailed": "Dars rejasini saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "tasks": {
+    "title": "Vazifalar",
+    "assignTask": "Vazifa berish",
+    "editTask": "Vazifani tahrirlash",
+    "titleLabel": "Sarlavha",
+    "descriptionLabel": "Tavsif",
+    "assignee": "Bajaruvchi",
+    "dueDate": "Muddat",
+    "noDueDate": "Muddat belgilanmagan",
+    "create": "Yaratish",
+    "saveChanges": "O'zgarishlarni saqlash",
+    "delete": "Vazifani o'chirish",
+    "confirmDeleteTitle": "Ushbu vazifani o'chirasizmi?",
+    "confirmDeleteDescription": "Vazifa butunlay o'chiriladi.",
+    "confirm": "Tasdiqlash",
+    "noTasks": "Bu yerda vazifalar yo'q.",
+    "status": {
+      "pending": "Kutilmoqda",
+      "in_progress": "Jarayonda",
+      "done": "Bajarildi"
+    },
+    "columns": {
+      "pending": "Kutilmoqda",
+      "in_progress": "Jarayonda",
+      "done": "Bajarildi"
+    },
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+      "createFailed": "Vazifani berib bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
     }
   }
 }

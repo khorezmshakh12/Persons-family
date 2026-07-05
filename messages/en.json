@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Persons Education"
+    "name": "Persons Education Company"
   },
   "common": {
     "save": "Save",
@@ -17,10 +17,10 @@
   "nav": {
     "dashboard": "Dashboard",
     "staff": "Staff",
-    "attendance": "Attendance",
     "chat": "Chat",
     "issues": "Issues",
-    "lessonPlans": "Lesson Plans"
+    "lessonPlans": "Lesson Plans",
+    "tasks": "Tasks"
   },
   "auth": {
     "phone": "Phone number",
@@ -43,14 +43,26 @@
       "accountDeactivated": "Your account has been deactivated. Contact an administrator."
     }
   },
+  "birthday": {
+    "reminderSingle": "{name}'s birthday is in 2 days!",
+    "reminderMultiple": "Upcoming birthdays in 2 days: {names}"
+  },
   "dashboard": {
     "title": "Dashboard",
     "greeting": "Welcome back, {name}.",
     "roleWelcome": {
       "ceo": "You have full access to every part of the platform.",
       "admin_manager": "Manage staff, review issues, and keep operations running smoothly.",
-      "teacher": "Log your attendance, submit lesson plans, and stay in touch with the team.",
-      "assistant": "Log your attendance, review lesson plans, and stay in touch with the team."
+      "teacher": "Submit lesson plans and stay in touch with the team.",
+      "assistant": "Review lesson plans and stay in touch with the team."
+    },
+    "performance": {
+      "title": "Your performance",
+      "rating": "Rating",
+      "bonus": "Bonus",
+      "penalty": "Penalty",
+      "notes": "Last month's updates",
+      "noData": "No performance data yet."
     }
   },
   "staff": {
@@ -112,42 +124,26 @@
       "invalidAvatarType": "Profile picture must be a PNG or JPG image.",
       "avatarTooLarge": "Profile picture must be under 5MB.",
       "notFound": "Staff member not found.",
-      "forbidden": "You don't have permission to do this."
-    }
-  },
-  "attendance": {
-    "title": "Attendance",
-    "myAttendance": "My attendance",
-    "myHistory": "My recent history",
-    "allStaff": "All staff",
-    "allStaffOption": "All staff",
-    "clockIn": "Clock in",
-    "clockOut": "Clock out",
-    "clockedInSince": "Clocked in since {time} ({duration})",
-    "notClockedIn": "You haven't clocked in today.",
-    "stillClockedIn": "Still clocked in",
-    "noRecords": "No attendance records yet.",
-    "hoursAbbrev": "h",
-    "minutesAbbrev": "m",
-    "table": {
-      "staff": "Staff",
-      "date": "Date",
-      "clockIn": "Clock in",
-      "clockOut": "Clock out",
-      "duration": "Duration"
-    },
-    "errors": {
       "forbidden": "You don't have permission to do this.",
-      "alreadyClockedIn": "You're already clocked in today.",
-      "clockInFailed": "Could not clock in. Please try again.",
-      "noOpenSession": "You're not currently clocked in.",
-      "clockOutFailed": "Could not clock out. Please try again."
+      "invalidRating": "Rating must be between 0 and 5."
+    },
+    "performance": {
+      "title": "Performance",
+      "rating": "Rating",
+      "bonus": "Bonus",
+      "penalty": "Penalty",
+      "notes": "Last month's updates / achievements",
+      "notesPlaceholder": "What did they accomplish this month?"
     }
   },
   "chat": {
     "placeholder": "Write a message...",
     "send": "Send",
     "delete": "Delete message",
+    "pin": "Pin message",
+    "unpin": "Unpin message",
+    "enableChat": "Chat enabled",
+    "chatDisabled": "Chat is currently disabled.",
     "empty": "No messages yet. Start the conversation!",
     "errors": {
       "forbidden": "You don't have permission to do this.",
@@ -206,6 +202,39 @@
       "fileTooLarge": "File must be under 45MB.",
       "uploadFailed": "Could not upload the file.",
       "createFailed": "Could not save the lesson plan. Please try again."
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "assignTask": "Assign task",
+    "editTask": "Edit task",
+    "titleLabel": "Title",
+    "descriptionLabel": "Description",
+    "assignee": "Assignee",
+    "dueDate": "Due date",
+    "noDueDate": "No due date",
+    "create": "Create",
+    "saveChanges": "Save changes",
+    "delete": "Delete task",
+    "confirmDeleteTitle": "Delete this task?",
+    "confirmDeleteDescription": "This will permanently remove the task.",
+    "confirm": "Confirm",
+    "noTasks": "No tasks here.",
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "done": "Done"
+    },
+    "columns": {
+      "pending": "Pending",
+      "in_progress": "In Progress",
+      "done": "Done"
+    },
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidInput": "Please fill in all required fields.",
+      "createFailed": "Could not assign the task. Please try again.",
+      "updateFailed": "Could not save changes. Please try again."
     }
   }
 }

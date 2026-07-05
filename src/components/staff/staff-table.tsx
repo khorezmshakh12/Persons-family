@@ -3,16 +3,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Profile } from '@/lib/auth/session';
+import type { Database } from '@/lib/supabase/types';
 import { StaffRowActions } from './staff-row-actions';
+
+type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 
 export async function StaffTable({
   staff,
   currentUserId,
   actingRole,
+  performanceByStaffId,
 }: {
   staff: Profile[];
   currentUserId: string;
   actingRole: Profile['role'];
+  performanceByStaffId: Record<string, StaffPerformance>;
 }) {
   const t = await getTranslations('staff');
 
@@ -53,7 +58,12 @@ export async function StaffTable({
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                <StaffRowActions target={person} currentUserId={currentUserId} actingRole={actingRole} />
+                <StaffRowActions
+                  target={person}
+                  currentUserId={currentUserId}
+                  actingRole={actingRole}
+                  performance={performanceByStaffId[person.id] ?? null}
+                />
               </TableCell>
             </TableRow>
           ))}

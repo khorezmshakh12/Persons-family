@@ -5,10 +5,12 @@ import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateStaffAction, requestAvatarUploadUrlAction } from '@/lib/actions/staff';
+import { updateStaffPerformanceAction } from '@/lib/actions/staff-performance';
 import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_FILE_BYTES } from '@/lib/avatar-constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -18,16 +20,23 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { StarRatingInput } from './star-rating-input';
+import { CurrencyInput } from './currency-input';
 import type { Profile } from '@/lib/auth/session';
+import type { Database } from '@/lib/supabase/types';
+
+type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 
 const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
 
 export function EditStaffDialog({
   profile,
   canAssignCeo,
+  performance,
 }: {
   profile: Profile;
   canAssignCeo: boolean;
+  performance: StaffPerformance | null;
 }) {
   const t = useTranslations('staff');
   const tCommon = useTranslations('common');
@@ -83,6 +92,12 @@ export function EditStaffDialog({
         return;
       }
 
+      const performanceResult = await updateStaffPerformanceAction(undefined, formData);
+      if (performanceResult?.error) {
+        setError(performanceResult.error);
+        return;
+      }
+
       setOpen(false);
     });
   }
@@ -99,6 +114,7 @@ export function EditStaffDialog({
         </DialogHeader>
         <form action={handleSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={profile.id} />
+          <input type="hidden" name="staffId" value={profile.id} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor={`firstName-${profile.id}`}>{t('firstName')}</Label>
@@ -159,6 +175,42 @@ export function EditStaffDialog({
             <Input id={`avatar-${profile.id}`} name="avatar" type="file" accept="image/png,image/jpeg" />
             <p className="text-muted-foreground text-xs">{t('avatarOptional')}</p>
           </div>
+
+          <div className="flex flex-col gap-4 rounded-lg border p-3">
+            <h3 className="text-sm font-medium">{t('performance.title')}</h3>
+            <div className="flex flex-col gap-2">
+              <Label>{t('performance.rating')}</Label>
+              <StarRatingInput name="rating" defaultValue={performance?.rating ?? null} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`bonus-${profile.id}`}>{t('performance.bonus')}</Label>
+                <CurrencyInput
+                  id={`bonus-${profile.id}`}
+                  name="bonus"
+                  defaultValue={performance?.bonus ?? 0}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`penalty-${profile.id}`}>{t('performance.penalty')}</Label>
+                <CurrencyInput
+                  id={`penalty-${profile.id}`}
+                  name="penalty"
+                  defaultValue={performance?.penalty ?? 0}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`notes-${profile.id}`}>{t('performance.notes')}</Label>
+              <Textarea
+                id={`notes-${profile.id}`}
+                name="notes"
+                defaultValue={performance?.notes ?? ''}
+                placeholder={t('performance.notesPlaceholder')}
+              />
+            </div>
+          </div>
+
           {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending}>

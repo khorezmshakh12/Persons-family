@@ -2,10 +2,10 @@
 
 import { useTransition } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Pin, PinOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { deleteMessageAction } from '@/lib/actions/chat';
+import { deleteMessageAction, toggleMessagePinAction } from '@/lib/actions/chat';
 import { cn } from '@/lib/utils';
 
 export type ChatSender = { first_name: string; last_name: string; avatar_url: string | null };
@@ -14,22 +14,35 @@ export function MessageItem({
   message,
   sender,
   isOwn,
+  isAdmin,
 }: {
-  message: { id: string; content: string; created_at: string };
+  message: { id: string; content: string; created_at: string; pinned_at: string | null };
   sender: ChatSender | undefined;
   isOwn: boolean;
+  isAdmin: boolean;
 }) {
   const t = useTranslations('chat');
   const format = useFormatter();
   const [isPending, startTransition] = useTransition();
+  const [isPinPending, startPinTransition] = useTransition();
   const name = sender ? `${sender.first_name} ${sender.last_name}` : '—';
   const initials = sender ? `${sender.first_name[0]}${sender.last_name[0]}` : '?';
+  const isPinned = !!message.pinned_at;
 
   function handleDelete() {
     const formData = new FormData();
     formData.set('id', message.id);
     startTransition(() => {
       deleteMessageAction(formData);
+    });
+  }
+
+  function handleTogglePin() {
+    const formData = new FormData();
+    formData.set('id', message.id);
+    formData.set('pin', String(!isPinned));
+    startPinTransition(() => {
+      toggleMessagePinAction(formData);
     });
   }
 
@@ -55,19 +68,37 @@ export function MessageItem({
           >
             {message.content}
           </div>
-          {isOwn && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="opacity-0 transition-opacity group-hover:opacity-100"
-              onClick={handleDelete}
-              disabled={isPending}
-              aria-label={t('delete')}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          )}
+          <div
+            className={cn(
+              'flex items-center gap-1 transition-opacity',
+              !isPinned && 'opacity-0 group-hover:opacity-100',
+            )}
+          >
+            {isAdmin && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleTogglePin}
+                disabled={isPinPending}
+                aria-label={isPinned ? t('unpin') : t('pin')}
+              >
+                {isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+              </Button>
+            )}
+            {(isOwn || isAdmin) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleDelete}
+                disabled={isPending}
+                aria-label={t('delete')}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

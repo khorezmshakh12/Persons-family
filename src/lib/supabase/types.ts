@@ -39,35 +39,29 @@ export type Database = {
   }
   public: {
     Tables: {
-      attendance: {
+      app_settings: {
         Row: {
-          clock_in: string
-          clock_out: string | null
-          created_at: string
-          id: string
-          user_id: string
-          work_date: string
+          chat_enabled: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
         }
         Insert: {
-          clock_in?: string
-          clock_out?: string | null
-          created_at?: string
-          id?: string
-          user_id: string
-          work_date?: string
+          chat_enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
         }
         Update: {
-          clock_in?: string
-          clock_out?: string | null
-          created_at?: string
-          id?: string
-          user_id?: string
-          work_date?: string
+          chat_enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "attendance_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "app_settings_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -79,18 +73,21 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          pinned_at: string | null
           user_id: string
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
+          pinned_at?: string | null
           user_id: string
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
+          pinned_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -242,6 +239,105 @@ export type Database = {
           },
         ]
       }
+      staff_performance: {
+        Row: {
+          bonus: number
+          id: string
+          notes: string | null
+          penalty: number
+          rating: number | null
+          staff_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bonus?: number
+          id?: string
+          notes?: string | null
+          penalty?: number
+          rating?: number | null
+          staff_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bonus?: number
+          id?: string
+          notes?: string | null
+          penalty?: number
+          rating?: number | null
+          staff_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_performance_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_performance_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_by: string
+          assigned_to: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by: string
+          assigned_to: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string
+          assigned_to?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -256,6 +352,7 @@ export type Database = {
     Enums: {
       issue_status: "open" | "in_progress" | "done"
       staff_role: "ceo" | "admin_manager" | "teacher" | "assistant"
+      task_status: "pending" | "in_progress" | "done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -388,6 +485,7 @@ export const Constants = {
     Enums: {
       issue_status: ["open", "in_progress", "done"],
       staff_role: ["ceo", "admin_manager", "teacher", "assistant"],
+      task_status: ["pending", "in_progress", "done"],
     },
   },
 } as const

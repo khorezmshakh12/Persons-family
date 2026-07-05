@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { SidebarNav } from './sidebar-nav';
 import { MobileNav } from './mobile-nav';
@@ -27,6 +28,7 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
             <span className="text-muted-foreground hidden text-sm sm:inline">
               {profile.first_name} {profile.last_name}
             </span>
+            <ThemeToggle />
             <LanguageSwitcher />
             <LogoutButton />
           </div>

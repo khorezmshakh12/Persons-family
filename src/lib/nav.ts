@@ -3,7 +3,7 @@ import type { Database } from '@/lib/supabase/types';
 export type StaffRole = Database['public']['Enums']['staff_role'];
 
 export type NavItem = {
-  key: 'dashboard' | 'staff' | 'attendance' | 'chat' | 'issues' | 'lessonPlans';
+  key: 'dashboard' | 'staff' | 'chat' | 'issues' | 'lessonPlans' | 'tasks';
   href: string;
   roles?: StaffRole[];
 };
@@ -11,10 +11,10 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
   { key: 'staff', href: '/staff', roles: ['ceo', 'admin_manager'] },
-  { key: 'attendance', href: '/attendance' },
   { key: 'chat', href: '/chat' },
   { key: 'issues', href: '/issues' },
   { key: 'lessonPlans', href: '/lesson-plans' },
+  { key: 'tasks', href: '/tasks' },
 ];
 
 export function navItemsForRole(role: StaffRole) {
