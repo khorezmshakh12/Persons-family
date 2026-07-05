@@ -1,17 +1,23 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { createClient } from '@/lib/supabase/server';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
-type NewsItem = { id: string; title: string; content: string; created_at: string };
-
-export async function CompanyNewsCard({ news }: { news: NewsItem[] }) {
+export async function CompanyNewsCard() {
   const t = await getTranslations('dashboard');
   const format = await getFormatter();
+  const supabase = await createClient();
+
+  const { data: news } = await supabase
+    .from('company_news')
+    .select('id, title, content, created_at')
+    .order('created_at', { ascending: false })
+    .limit(3);
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <h2 className="text-lg font-medium">{t('companyNews.title')}</h2>
-      {news.length === 0 ? (
+      {!news || news.length === 0 ? (
         <p className="text-sm text-white/70">{t('companyNews.noNews')}</p>
       ) : (
         <div className="flex flex-col gap-4">

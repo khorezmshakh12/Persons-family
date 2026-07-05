@@ -1,21 +1,33 @@
 import { getTranslations } from 'next-intl/server';
+import { createClient } from '@/lib/supabase/server';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { TierBadge, type StaffTier } from '@/components/staff/tier-badge';
+import { TierBadge } from '@/components/staff/tier-badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
-type TeamMember = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  avatar_url: string | null;
-  performance: { current_tier: StaffTier; months_in_tier: number } | null;
-};
-
-export async function TeamResultsTable({ staff }: { staff: TeamMember[] }) {
+export async function TeamResultsTable() {
   const t = await getTranslations('dashboard');
+  const supabase = await createClient();
+
+  const { data: staffProfiles } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, avatar_url')
+    .in('role', ['teacher', 'assistant'])
+    .eq('is_active', true)
+    .order('first_name', { ascending: true });
+
+  const { data: performanceRows } = await supabase
+    .from('staff_performance')
+    .select('staff_id, current_tier, months_in_tier');
+
+  const performanceByStaffId = Object.fromEntries((performanceRows ?? []).map((row) => [row.staff_id, row]));
+
+  const staff = (staffProfiles ?? []).map((p) => ({
+    ...p,
+    performance: performanceByStaffId[p.id] ?? null,
+  }));
 
   if (staff.length === 0) {
     return <p className="text-sm text-white/70">{t('teamResults.noStaff')}</p>;

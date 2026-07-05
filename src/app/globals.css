@@ -134,3 +134,15 @@
     @apply font-sans;
   }
 }
+
+/* Glassmorphism panels (GLASS_CARD, sidebar, header) use backdrop-blur-md/lg.
+   Full-strength blur is one of the more expensive paint operations on
+   battery-constrained mobile GPUs — take it down a notch below 768px so
+   scrolling and animations stay smooth without losing the frosted look. */
+@media (max-width: 768px) {
+  .backdrop-blur-md,
+  .backdrop-blur-lg {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+}

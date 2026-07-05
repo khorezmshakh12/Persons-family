@@ -18,13 +18,15 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
     <BackgroundProvider>
       <DynamicBackground />
       <div className="relative flex min-h-screen">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg md:flex">
+        <aside className="hidden w-60 shrink-0 transform-gpu flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg will-change-transform md:flex">
           <span className="mb-6 text-sm font-semibold tracking-tight text-white">{t('name')}</span>
           <SidebarNav role={profile.role} glass />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 flex h-14 items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg">
+          {/* transform-gpu lives on the sticky header itself, not this wrapper —
+              a transformed ancestor can break position: sticky in some browsers. */}
+          <header className="sticky top-0 z-40 flex h-14 transform-gpu items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg will-change-transform">
             <div className="flex items-center gap-2 md:hidden">
               <MobileNav role={profile.role} />
               <span className="text-sm font-semibold tracking-tight text-white">{t('name')}</span>
@@ -40,7 +42,7 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
             </div>
           </header>
 
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1 transform-gpu will-change-transform">{children}</main>
         </div>
       </div>
     </BackgroundProvider>
