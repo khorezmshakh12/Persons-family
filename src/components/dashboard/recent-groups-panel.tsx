@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { GLASS_CARD } from '@/lib/glass';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 const RECENT_GROUPS_LIMIT = 6;
@@ -55,9 +55,13 @@ export async function RecentGroupsPanel() {
             <span>{t('ta')}</span>
           </div>
           {groups.map((group) => (
-            <div
+            <Link
               key={group.id}
-              className="grid grid-cols-1 gap-1 border-b border-white/10 py-3 last:border-b-0 sm:grid-cols-[1fr_1fr_1fr] sm:items-center sm:gap-2"
+              href={`/lesson-plans/${group.id}`}
+              className={cn(
+                'grid grid-cols-1 gap-1 rounded-lg border-b border-white/10 px-2 py-3 last:border-b-0 sm:grid-cols-[1fr_1fr_1fr] sm:items-center sm:gap-2',
+                GLASS_INTERACTIVE,
+              )}
             >
               <span className="truncate font-medium text-white">{group.name}</span>
               <span className="truncate text-sm text-white/70">
@@ -66,7 +70,7 @@ export async function RecentGroupsPanel() {
               <span className="truncate text-sm text-white/70">
                 {group.assigned_ta ? `${group.assigned_ta.first_name} ${group.assigned_ta.last_name}` : t('noTa')}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       )}

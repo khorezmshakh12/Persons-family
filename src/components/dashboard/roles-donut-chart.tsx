@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
-import { GLASS_CARD } from '@/lib/glass';
+import { Link } from '@/i18n/navigation';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 const ROLE_ORDER = [
@@ -22,15 +23,15 @@ const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   it_developer: '#06b6d4',
 };
 
-const SIZE = 160;
-const STROKE = 22;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-
-export async function RolesDonutChart() {
+export async function RolesDonutChart({ href, large }: { href?: string; large?: boolean } = {}) {
   const t = await getTranslations('dashboard.rolesChart');
   const tStaff = await getTranslations('staff');
   const supabase = await createClient();
+
+  const SIZE = large ? 220 : 160;
+  const STROKE = large ? 28 : 22;
+  const RADIUS = (SIZE - STROKE) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
   const { data } = await supabase.from('profiles').select('role').eq('is_active', true);
   const rows = data ?? [];
@@ -47,8 +48,8 @@ export async function RolesDonutChart() {
     return { role, count, color: ROLE_COLOR[role], dash, offset };
   }).filter((s) => s.count > 0);
 
-  return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+  const content = (
+    <>
       <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
       <div className="flex justify-center">
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
@@ -91,6 +92,16 @@ export async function RolesDonutChart() {
           </div>
         ))}
       </div>
-    </div>
+    </>
+  );
+
+  const cardClassName = cn(GLASS_CARD, 'flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+
+  return href ? (
+    <Link href={href} className={cardClassName}>
+      {content}
+    </Link>
+  ) : (
+    <div className={cardClassName}>{content}</div>
   );
 }

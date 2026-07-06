@@ -1,4 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
+import { GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 const TINTS = {
@@ -31,6 +33,7 @@ export function StatCard({
   tint,
   changePercent,
   sparkline,
+  href,
 }: {
   label: string;
   value: number;
@@ -38,16 +41,19 @@ export function StatCard({
   tint: keyof typeof TINTS;
   changePercent: number;
   sparkline: number[];
+  href: string;
 }) {
   const t = TINTS[tint];
   const max = Math.max(...sparkline, 1);
   const isPositive = changePercent >= 0;
 
   return (
-    <div
+    <Link
+      href={href}
       className={cn(
-        'relative flex transform-gpu flex-col overflow-hidden rounded-2xl border p-5 text-white shadow-xl backdrop-blur-md will-change-transform',
+        'flex transform-gpu flex-col overflow-hidden rounded-2xl border p-5 text-white shadow-xl backdrop-blur-md will-change-transform',
         t.card,
+        GLASS_INTERACTIVE,
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -80,6 +86,6 @@ export function StatCard({
           />
         ))}
       </div>
-    </div>
+    </Link>
   );
 }

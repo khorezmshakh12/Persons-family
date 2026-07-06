@@ -449,5 +449,13 @@
         "forbidden": "Bu amalni bajarishga ruxsatingiz yo'q."
       }
     }
+  },
+  "analytics": {
+    "title": "Umumiy Tahlillar",
+    "subtitle": "Butun platforma bo'yicha lavozimlar va o'sish haqida batafsil ma'lumot."
+  },
+  "calendar": {
+    "title": "Umumiy Kalendar",
+    "subtitle": "Butun platforma bo'yicha chat faolligi, kunma-kun."
   }
 }

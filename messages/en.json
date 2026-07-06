@@ -449,5 +449,13 @@
         "forbidden": "You don't have permission to do that."
       }
     }
+  },
+  "analytics": {
+    "title": "Global Analytics",
+    "subtitle": "A closer look at roles and growth across the whole platform."
+  },
+  "calendar": {
+    "title": "Global Calendar",
+    "subtitle": "Chat activity across the platform, day by day."
   }
 }

@@ -43,6 +43,7 @@ export async function StatsRow() {
       icon: Users,
       tint: 'green' as const,
       buckets: staffBuckets,
+      href: '/staff',
     },
     {
       label: t('activeGroups'),
@@ -50,6 +51,7 @@ export async function StatsRow() {
       icon: Layers,
       tint: 'blue' as const,
       buckets: groupBuckets,
+      href: '/lesson-plans',
     },
     {
       label: t('lessonPlans'),
@@ -57,6 +59,7 @@ export async function StatsRow() {
       icon: CalendarDays,
       tint: 'orange' as const,
       buckets: lessonBuckets,
+      href: '/lesson-plans',
     },
     {
       label: t('chatActivity'),
@@ -64,6 +67,7 @@ export async function StatsRow() {
       icon: MessagesSquare,
       tint: 'red' as const,
       buckets: chatBuckets,
+      href: '/chat',
     },
   ];
 
@@ -78,6 +82,7 @@ export async function StatsRow() {
           tint={c.tint}
           changePercent={momChangePercent(c.buckets)}
           sparkline={c.buckets}
+          href={c.href}
         />
       ))}
     </div>

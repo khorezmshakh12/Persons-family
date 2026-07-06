@@ -1,18 +1,20 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
+import { Link } from '@/i18n/navigation';
 import { monthlyBuckets, momChangePercent } from '@/lib/dashboard-stats';
-import { GLASS_CARD } from '@/lib/glass';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 const MONTHS = 6;
-const WIDTH = 280;
-const HEIGHT = 100;
 const PADDING = 8;
 
-export async function GrowthChart() {
+export async function GrowthChart({ href, large }: { href?: string; large?: boolean } = {}) {
   const t = await getTranslations('dashboard.growthChart');
   const format = await getFormatter();
   const supabase = await createClient();
+
+  const WIDTH = large ? 360 : 280;
+  const HEIGHT = large ? 140 : 100;
 
   const { data } = await supabase.from('profiles').select('created_at').eq('is_active', true);
   const buckets = monthlyBuckets((data ?? []).map((r) => r.created_at), MONTHS);
@@ -34,8 +36,8 @@ export async function GrowthChart() {
     format.dateTime(new Date(now.getFullYear(), now.getMonth() - (MONTHS - 1 - i), 1), { month: 'short' }),
   );
 
-  return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+  const content = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
         <span
@@ -53,7 +55,7 @@ export async function GrowthChart() {
         <span className="ml-2 text-sm font-normal text-white/60">{t('newThisMonth')}</span>
       </p>
 
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="h-24 w-full">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className={cn('w-full', large ? 'h-36' : 'h-24')}>
         <defs>
           <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.5" />
@@ -74,6 +76,16 @@ export async function GrowthChart() {
           </span>
         ))}
       </div>
-    </div>
+    </>
+  );
+
+  const cardClassName = cn(GLASS_CARD, 'flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+
+  return href ? (
+    <Link href={href} className={cardClassName}>
+      {content}
+    </Link>
+  ) : (
+    <div className={cardClassName}>{content}</div>
   );
 }

@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { GLASS_CARD } from '@/lib/glass';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 const ROSTER_LIMIT = 6;
@@ -47,7 +47,14 @@ export async function StaffRosterPanel() {
       ) : (
         <div className="flex flex-col">
           {staff.map((person) => (
-            <div key={person.id} className="flex items-center gap-3 border-b border-white/10 py-3 last:border-b-0">
+            <Link
+              key={person.id}
+              href="/staff"
+              className={cn(
+                'flex items-center gap-3 rounded-lg border-b border-white/10 px-2 py-3 last:border-b-0',
+                GLASS_INTERACTIVE,
+              )}
+            >
               <div className="relative shrink-0">
                 <Avatar className="border border-white/30">
                   <AvatarImage src={person.avatar_url ?? undefined} alt="" />
@@ -79,7 +86,7 @@ export async function StaffRosterPanel() {
               >
                 {tStaff(`roles.${person.role}`)}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       )}

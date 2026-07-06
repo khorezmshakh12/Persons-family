@@ -31,13 +31,13 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<GlassCardSkeleton />}>
-          <RolesDonutChart />
+          <RolesDonutChart href="/analytics" />
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
-          <ActivityHeatmap />
+          <ActivityHeatmap href="/calendar" />
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
-          <GrowthChart />
+          <GrowthChart href="/analytics" />
         </Suspense>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
-import { GLASS_CARD } from '@/lib/glass';
+import { Link } from '@/i18n/navigation';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 function intensityClass(count: number, max: number) {
@@ -12,7 +13,7 @@ function intensityClass(count: number, max: number) {
   return 'bg-teal-400/20 text-white';
 }
 
-export async function ActivityHeatmap() {
+export async function ActivityHeatmap({ href, large }: { href?: string; large?: boolean } = {}) {
   const t = await getTranslations('dashboard.activityGrid');
   const format = await getFormatter();
   const supabase = await createClient();
@@ -60,17 +61,17 @@ export async function ActivityHeatmap() {
 
   const today = now.getDate();
 
-  return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+  const content = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
         <span className="text-xs font-medium text-white/60 capitalize">
           {format.dateTime(now, { month: 'long', year: 'numeric' })}
         </span>
       </div>
-      <div className="grid grid-cols-7 gap-1.5 text-center">
+      <div className={cn('grid grid-cols-7 text-center', large ? 'gap-2' : 'gap-1.5')}>
         {weekdayLabels.map((label, i) => (
-          <span key={i} className="text-[11px] font-medium text-white/50">
+          <span key={i} className={cn('font-medium text-white/50', large ? 'text-xs' : 'text-[11px]')}>
             {label}
           </span>
         ))}
@@ -81,7 +82,8 @@ export async function ActivityHeatmap() {
             <span
               key={i}
               className={cn(
-                'flex aspect-square items-center justify-center rounded-md text-xs',
+                'flex aspect-square items-center justify-center rounded-md',
+                large ? 'text-sm' : 'text-xs',
                 intensityClass(dayCounts[day], maxCount),
                 day === today && 'ring-2 ring-white/70',
               )}
@@ -92,6 +94,16 @@ export async function ActivityHeatmap() {
         )}
       </div>
       <p className="text-xs text-white/60">{t('hint')}</p>
-    </div>
+    </>
+  );
+
+  const cardClassName = cn(GLASS_CARD, 'flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+
+  return href ? (
+    <Link href={href} className={cardClassName}>
+      {content}
+    </Link>
+  ) : (
+    <div className={cardClassName}>{content}</div>
   );
 }

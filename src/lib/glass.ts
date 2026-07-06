@@ -7,3 +7,9 @@
 // of being recomputed on every scroll/animation frame.
 export const GLASS_CARD =
   'rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-md transform-gpu will-change-transform';
+
+// Applied to any glass surface that's a link/button to something else —
+// gives an unambiguous "this is clickable" signal (scale, deeper shadow,
+// brighter border) on top of the base GLASS_CARD look.
+export const GLASS_INTERACTIVE =
+  'cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-white/40 z-10 relative';
