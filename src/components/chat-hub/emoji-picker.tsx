@@ -42,7 +42,13 @@ export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void })
         <Smile className="size-5" />
       </Button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 grid grid-cols-8 gap-1 rounded-xl border border-white/20 bg-slate-900/95 p-2 shadow-xl backdrop-blur-xl">
+        // Explicit w-64 is load-bearing here: without it, this absolutely
+        // positioned grid has no fixed width to shrink-to-fit against, and
+        // Tailwind's grid-cols-N uses minmax(0, 1fr) tracks — with no floor,
+        // an ambiguous shrink-to-fit width let every column collapse toward
+        // 0 and the emoji glyphs overlapped instead of sitting in their own
+        // cell.
+        <div className="absolute bottom-full left-0 z-50 mb-2 grid w-64 grid-cols-6 gap-2 rounded-xl border border-white/20 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md">
           {EMOJIS.map((emoji) => (
             <button
               key={emoji}
@@ -51,7 +57,7 @@ export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void })
                 onSelect(emoji);
                 setOpen(false);
               }}
-              className="rounded-md p-1 text-lg hover:bg-white/10"
+              className="flex cursor-pointer items-center justify-center rounded-lg p-2 text-xl transition-colors hover:bg-white/10"
             >
               {emoji}
             </button>
