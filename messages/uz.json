@@ -372,6 +372,31 @@
         "readFailed": "Rasmni o'qib bo'lmadi. Qayta urinib ko'ring.",
         "storageQuotaExceeded": "Shu seans uchun qo'llanildi, lekin keyingi safar uchun saqlab bo'lmadi — kichikroq rasm sinab ko'ring."
       }
+    },
+    "profile": {
+      "cardTitle": "Mening Profilim",
+      "cardSubtitle": "Rasmingiz, ismingiz va parolingizni yangilang.",
+      "changeAvatar": "Avatarni o'zgartirish",
+      "avatarHint": "Yangilash uchun rasmingizga bosing. PNG yoki JPG, 5MB gacha.",
+      "fullName": "To'liq ism",
+      "newPassword": "Yangi parol",
+      "confirmPassword": "Yangi parolni tasdiqlang",
+      "passwordPlaceholder": "Parolni o'zgartirmaslik uchun bo'sh qoldiring",
+      "saveChanges": "Saqlash",
+      "saving": "Saqlanmoqda...",
+      "successToast": "Profil yangilandi.",
+      "avatarUpdated": "Avatar yangilandi.",
+      "errors": {
+        "invalidName": "Iltimos, ism va familiyani kiriting.",
+        "passwordMismatch": "Parollar mos kelmadi.",
+        "passwordTooShort": "Parol kamida 8 ta belgidan iborat bo'lishi kerak.",
+        "updateFailed": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+        "passwordUpdateFailed": "Parolni yangilab bo'lmadi. Qayta urinib ko'ring.",
+        "invalidAvatarType": "Iltimos, PNG yoki JPG rasmni tanlang.",
+        "avatarTooLarge": "Rasm 5MB dan kichik bo'lishi kerak.",
+        "uploadFailed": "Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.",
+        "forbidden": "Bu amalni bajarishga ruxsatingiz yo'q."
+      }
     }
   }
 }

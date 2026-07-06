@@ -372,6 +372,31 @@
         "readFailed": "Could not read that image. Please try again.",
         "storageQuotaExceeded": "Applied for this session, but couldn't be saved for next time — try a smaller image."
       }
+    },
+    "profile": {
+      "cardTitle": "My Profile",
+      "cardSubtitle": "Update your photo, name, and password.",
+      "changeAvatar": "Change avatar",
+      "avatarHint": "Click your photo to update it. PNG or JPG, up to 5MB.",
+      "fullName": "Full name",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordPlaceholder": "Leave blank to keep current password",
+      "saveChanges": "Save changes",
+      "saving": "Saving...",
+      "successToast": "Profile updated.",
+      "avatarUpdated": "Avatar updated.",
+      "errors": {
+        "invalidName": "Please enter both a first and last name.",
+        "passwordMismatch": "Passwords do not match.",
+        "passwordTooShort": "Password must be at least 8 characters.",
+        "updateFailed": "Something went wrong. Please try again.",
+        "passwordUpdateFailed": "Could not update your password. Please try again.",
+        "invalidAvatarType": "Please choose a PNG or JPG image.",
+        "avatarTooLarge": "Image must be under 5MB.",
+        "uploadFailed": "Could not upload image. Please try again.",
+        "forbidden": "You don't have permission to do that."
+      }
     }
   }
 }
