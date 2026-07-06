@@ -17,12 +17,14 @@ export async function WeeklyPlanPanel({
   days,
   canEdit,
   currentUserId,
+  viewerName,
   viewerRole,
   canComment,
 }: {
   days: DayWithComments[];
   canEdit: boolean;
   currentUserId: string;
+  viewerName: string;
   viewerRole: CommentRole | 'teacher';
   canComment: boolean;
 }) {
@@ -58,6 +60,7 @@ export async function WeeklyPlanPanel({
               dayId={day.id}
               comments={day.comments}
               currentUserId={currentUserId}
+              viewerName={viewerName}
               viewerRole={viewerRole}
               canComment={canComment}
             />

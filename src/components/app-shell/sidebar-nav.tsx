@@ -55,6 +55,12 @@ export function SidebarNav({
             key={item.key}
             href={item.href}
             onClick={onNavigate}
+            // Every dynamic route below has its own loading.tsx, so a full
+            // prefetch (not just the default up-to-loading-boundary prefetch)
+            // warms the actual page content in the background on hover/
+            // viewport-visibility — clicking a sidebar item then just swaps
+            // in an already-fetched response instead of starting cold.
+            prefetch
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98]',
               glass

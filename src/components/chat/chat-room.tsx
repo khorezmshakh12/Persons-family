@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Pin } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -26,6 +26,13 @@ export function ChatRoom({
 }) {
   const t = useTranslations('chat');
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  // Realtime is what actually appends the persisted row (see the INSERT
+  // handler below) — useOptimistic shows the sender's own message the
+  // instant they hit send, instead of waiting on that round-trip.
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic(
+    messages,
+    (state, newMessage: Message) => [...state, newMessage],
+  );
   const [chatEnabled, setChatEnabled] = useState(initialChatEnabled);
   const [isTogglePending, startToggleTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -93,11 +100,21 @@ export function ChatRoom({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [optimisticMessages.length]);
 
-  const pinnedMessages = messages
+  const pinnedMessages = optimisticMessages
     .filter((m) => m.pinned_at)
     .sort((a, b) => new Date(b.pinned_at!).getTime() - new Date(a.pinned_at!).getTime());
+
+  function handleOptimisticSend(content: string) {
+    addOptimisticMessage({
+      id: `optimistic-${Date.now()}`,
+      user_id: currentUserId,
+      content,
+      created_at: new Date().toISOString(),
+      pinned_at: null,
+    });
+  }
 
   function handleToggleChatEnabled(next: boolean) {
     setChatEnabled(next);
@@ -138,17 +155,18 @@ export function ChatRoom({
       )}
 
       <div className="flex-1 overflow-y-auto p-4">
-        {messages.length === 0 ? (
+        {optimisticMessages.length === 0 ? (
           <p className="text-muted-foreground text-center text-sm">{t('empty')}</p>
         ) : (
           <div className="flex flex-col gap-4">
-            {messages.map((m) => (
+            {optimisticMessages.map((m) => (
               <MessageItem
                 key={m.id}
                 message={m}
                 sender={staffMap[m.user_id]}
                 isOwn={m.user_id === currentUserId}
                 isAdmin={isAdmin}
+                isOptimistic={m.id.startsWith('optimistic-')}
               />
             ))}
             <div ref={bottomRef} />
@@ -157,7 +175,7 @@ export function ChatRoom({
       </div>
 
       {chatEnabled ? (
-        <MessageComposer />
+        <MessageComposer onOptimisticSend={handleOptimisticSend} />
       ) : (
         <p className="text-muted-foreground border-t p-4 text-center text-sm">{t('chatDisabled')}</p>
       )}

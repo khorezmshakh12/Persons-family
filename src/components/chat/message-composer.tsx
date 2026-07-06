@@ -2,26 +2,40 @@
 
 import { useActionState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send } from 'lucide-react';
+import { toast } from 'sonner';
+import { Loader2, Send } from 'lucide-react';
 import { sendMessageAction, type ChatActionState } from '@/lib/actions/chat';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
-export function MessageComposer() {
+export function MessageComposer({ onOptimisticSend }: { onOptimisticSend: (content: string) => void }) {
   const t = useTranslations('chat');
+
+  async function composedAction(prevState: ChatActionState, formData: FormData) {
+    const content = formData.get('content');
+    if (typeof content === 'string' && content.trim()) onOptimisticSend(content);
+    return sendMessageAction(prevState, formData);
+  }
+
   const [state, formAction, isPending] = useActionState<ChatActionState, FormData>(
-    sendMessageAction,
+    composedAction,
     undefined,
   );
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (state && !state.error) {
+    if (!state) return;
+    if (state.error) {
+      // The optimistic message already rendered and will disappear once
+      // useOptimistic reverts to the real (unchanged) message list — the
+      // toast is the only signal the send actually failed.
+      toast.error(t(`errors.${state.error}`));
+    } else {
       formRef.current?.reset();
       textareaRef.current?.focus();
     }
-  }, [state]);
+  }, [state, t]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -44,7 +58,7 @@ export function MessageComposer() {
           required
         />
         <Button type="submit" size="icon" disabled={isPending} aria-label={t('send')}>
-          <Send className="size-4" />
+          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </Button>
       </div>
       {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}

@@ -15,11 +15,15 @@ export function MessageItem({
   sender,
   isOwn,
   isAdmin,
+  isOptimistic = false,
 }: {
   message: { id: string; content: string; created_at: string; pinned_at: string | null };
   sender: ChatSender | undefined;
   isOwn: boolean;
   isAdmin: boolean;
+  /** True for an optimistic message not yet confirmed by the server —
+   * hides actions that need a real, persisted row id. */
+  isOptimistic?: boolean;
 }) {
   const t = useTranslations('chat');
   const format = useFormatter();
@@ -47,7 +51,7 @@ export function MessageItem({
   }
 
   return (
-    <div className={cn('flex gap-3', isOwn && 'flex-row-reverse')}>
+    <div className={cn('flex gap-3', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}>
       <Avatar className="size-8 shrink-0">
         <AvatarImage src={sender?.avatar_url ?? undefined} alt="" />
         <AvatarFallback>{initials}</AvatarFallback>
@@ -68,37 +72,39 @@ export function MessageItem({
           >
             {message.content}
           </div>
-          <div
-            className={cn(
-              'flex items-center gap-1 transition-opacity',
-              !isPinned && 'opacity-0 group-hover:opacity-100',
-            )}
-          >
-            {isAdmin && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleTogglePin}
-                disabled={isPinPending}
-                aria-label={isPinned ? t('unpin') : t('pin')}
-              >
-                {isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
-              </Button>
-            )}
-            {(isOwn || isAdmin) && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleDelete}
-                disabled={isPending}
-                aria-label={t('delete')}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            )}
-          </div>
+          {!isOptimistic && (
+            <div
+              className={cn(
+                'flex items-center gap-1 transition-opacity',
+                !isPinned && 'opacity-0 group-hover:opacity-100',
+              )}
+            >
+              {isAdmin && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleTogglePin}
+                  disabled={isPinPending}
+                  aria-label={isPinned ? t('unpin') : t('pin')}
+                >
+                  {isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+                </Button>
+              )}
+              {(isOwn || isAdmin) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleDelete}
+                  disabled={isPending}
+                  aria-label={t('delete')}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

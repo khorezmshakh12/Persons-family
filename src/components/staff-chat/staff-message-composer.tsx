@@ -2,26 +2,43 @@
 
 import { useActionState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Send } from 'lucide-react';
+import { toast } from 'sonner';
+import { Loader2, Send } from 'lucide-react';
 import { sendStaffChatMessageAction, type StaffChatActionState } from '@/lib/actions/staff-chat';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
-export function StaffMessageComposer({ conversationId }: { conversationId: string }) {
+export function StaffMessageComposer({
+  conversationId,
+  onOptimisticSend,
+}: {
+  conversationId: string;
+  onOptimisticSend: (content: string) => void;
+}) {
   const t = useTranslations('staffChat');
+
+  async function composedAction(prevState: StaffChatActionState, formData: FormData) {
+    const content = formData.get('content');
+    if (typeof content === 'string' && content.trim()) onOptimisticSend(content);
+    return sendStaffChatMessageAction(prevState, formData);
+  }
+
   const [state, formAction, isPending] = useActionState<StaffChatActionState, FormData>(
-    sendStaffChatMessageAction,
+    composedAction,
     undefined,
   );
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (state && !state.error) {
+    if (!state) return;
+    if (state.error) {
+      toast.error(t(`errors.${state.error}`));
+    } else {
       formRef.current?.reset();
       textareaRef.current?.focus();
     }
-  }, [state]);
+  }, [state, t]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -45,7 +62,7 @@ export function StaffMessageComposer({ conversationId }: { conversationId: strin
           required
         />
         <Button type="submit" size="icon" disabled={isPending} aria-label={t('send')}>
-          <Send className="size-4" />
+          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </Button>
       </div>
       {state?.error && <p className="text-sm text-red-300">{t(`errors.${state.error}`)}</p>}

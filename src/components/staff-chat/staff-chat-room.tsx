@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useOptimistic, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { StaffMessageItem, type ChatSender } from './staff-message-item';
@@ -26,6 +26,10 @@ export function StaffChatRoom({
 }) {
   const t = useTranslations('staffChat');
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic(
+    messages,
+    (state, newMessage: Message) => [...state, newMessage],
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,9 +83,18 @@ export function StaffChatRoom({
 
   useEffect(() => {
     if (!compact) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, compact]);
+  }, [optimisticMessages.length, compact]);
 
-  const visibleMessages = compact ? messages.slice(-3) : messages;
+  const visibleMessages = compact ? optimisticMessages.slice(-3) : optimisticMessages;
+
+  function handleOptimisticSend(content: string) {
+    addOptimisticMessage({
+      id: `optimistic-${Date.now()}`,
+      user_id: currentUserId,
+      content,
+      created_at: new Date().toISOString(),
+    });
+  }
 
   return (
     <div className={compact ? 'flex flex-col gap-3' : 'flex h-full flex-col'}>
@@ -96,13 +109,14 @@ export function StaffChatRoom({
                 message={m}
                 sender={staffMap[m.user_id]}
                 isOwn={m.user_id === currentUserId}
+                isOptimistic={m.id.startsWith('optimistic-')}
               />
             ))}
             {!compact && <div ref={bottomRef} />}
           </div>
         )}
       </div>
-      <StaffMessageComposer conversationId={conversationId} />
+      <StaffMessageComposer conversationId={conversationId} onOptimisticSend={handleOptimisticSend} />
     </div>
   );
 }

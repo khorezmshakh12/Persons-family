@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import { Loader2, Plus } from 'lucide-react';
 import { createAssignmentAction, type HomeworkActionState } from '@/lib/actions/homework';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,18 +18,41 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-export function CreateAssignmentDialog({ groupId }: { groupId: string }) {
+export function CreateAssignmentDialog({
+  groupId,
+  onOptimisticAdd,
+}: {
+  groupId: string;
+  onOptimisticAdd: (assignment: { title: string; description: string; dueDate: string }) => void;
+}) {
   const t = useTranslations('lessonPlans');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+
+  async function composedAction(prevState: HomeworkActionState, formData: FormData) {
+    const title = formData.get('title');
+    if (typeof title === 'string' && title.trim()) {
+      onOptimisticAdd({
+        title,
+        description: String(formData.get('description') ?? ''),
+        dueDate: String(formData.get('dueDate') ?? ''),
+      });
+      // Close immediately — the dialog is a modal overlay, so unlike chat/
+      // comments the optimistic list update behind it would otherwise stay
+      // invisible until the real request resolves.
+      setOpen(false);
+    }
+    return createAssignmentAction(prevState, formData);
+  }
+
   const [state, formAction, isPending] = useActionState<HomeworkActionState, FormData>(
-    createAssignmentAction,
+    composedAction,
     undefined,
   );
 
   useEffect(() => {
-    if (state && !state.error) setOpen(false);
-  }, [state]);
+    if (state?.error) toast.error(t(`errors.${state.error}`));
+  }, [state, t]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -54,9 +78,9 @@ export function CreateAssignmentDialog({ groupId }: { groupId: string }) {
             <Label htmlFor="dueDate">{t('homework.dueDate')}</Label>
             <Input id="dueDate" name="dueDate" type="date" />
           </div>
-          {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="size-4 animate-spin" />}
               {isPending ? tCommon('loading') : t('create')}
             </Button>
           </DialogFooter>

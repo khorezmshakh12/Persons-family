@@ -14,10 +14,14 @@ export function StaffMessageItem({
   message,
   sender,
   isOwn,
+  isOptimistic = false,
 }: {
   message: { id: string; content: string; created_at: string };
   sender: ChatSender | undefined;
   isOwn: boolean;
+  /** True for an optimistic message not yet confirmed by the server —
+   * hides actions that need a real, persisted row id. */
+  isOptimistic?: boolean;
 }) {
   const t = useTranslations('staffChat');
   const format = useFormatter();
@@ -34,7 +38,7 @@ export function StaffMessageItem({
   }
 
   return (
-    <div className={cn('flex gap-3', isOwn && 'flex-row-reverse')}>
+    <div className={cn('flex gap-3', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}>
       <Avatar className="size-7 shrink-0">
         <AvatarImage src={sender?.avatar_url ?? undefined} alt="" />
         <AvatarFallback>{initials}</AvatarFallback>
@@ -55,7 +59,7 @@ export function StaffMessageItem({
           >
             {message.content}
           </div>
-          {isOwn && (
+          {isOwn && !isOptimistic && (
             <Button
               type="button"
               variant="ghost"

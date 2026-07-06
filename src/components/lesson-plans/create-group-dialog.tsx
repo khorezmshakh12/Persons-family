@@ -1,9 +1,9 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { createGroupAction, type GroupActionState } from '@/lib/actions/groups';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,11 +27,17 @@ export function CreateGroupDialog() {
     createGroupAction,
     undefined,
   );
+  const [isNavigating, startNavigation] = useTransition();
 
   useEffect(() => {
     if (state && !state.error && state.groupId) {
       setOpen(false);
-      router.push(`/lesson-plans/${state.groupId}`);
+      // startTransition keeps the dialog-closing UI responsive instead of
+      // the click blocking on the new route's render work; the target page
+      // has its own loading.tsx, so the user sees a skeleton immediately.
+      startNavigation(() => {
+        router.push(`/lesson-plans/${state.groupId}`);
+      });
     }
   }, [state, router]);
 
@@ -76,8 +82,9 @@ export function CreateGroupDialog() {
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? tCommon('loading') : t('create')}
+            <Button type="submit" disabled={isPending || isNavigating}>
+              {(isPending || isNavigating) && <Loader2 className="size-4 animate-spin" />}
+              {isPending || isNavigating ? tCommon('loading') : t('create')}
             </Button>
           </DialogFooter>
         </form>
