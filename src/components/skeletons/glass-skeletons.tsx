@@ -55,17 +55,24 @@ export function GlassGroupGridSkeleton({ count = 6 }: { count?: number }) {
   );
 }
 
-/** Matches the weekly-plan panel's 7-day card grid. */
-export function GlassWeeklyPlanSkeleton() {
+/** Matches the 24-row course lessons table. */
+export function GlassCourseLessonsSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className={cn(GLASS_CARD, 'flex flex-col gap-3 p-4')}>
-          <GlassBar className="h-3 w-16" />
-          <GlassBar className="h-4 w-4/5" />
-          <div className="border-t border-white/15 pt-2">
-            <GlassBar className="h-3 w-1/2" />
-          </div>
+    <div className={cn(GLASS_CARD, 'flex flex-col gap-3 p-4')}>
+      <div className="flex gap-4">
+        <GlassBar className="h-3 w-10" />
+        <GlassBar className="h-3 w-20" />
+        <GlassBar className="h-3 w-24" />
+        <GlassBar className="h-3 w-16" />
+        <GlassBar className="h-3 w-16" />
+      </div>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 border-t border-white/10 pt-3 first:border-t-0 first:pt-0">
+          <GlassBar className="h-4 w-6" />
+          <GlassBar className="h-8 w-36" />
+          <GlassBar className="h-8 w-56" />
+          <GlassBar className="h-4 w-24" />
+          <GlassBar className="h-8 w-16" />
         </div>
       ))}
     </div>

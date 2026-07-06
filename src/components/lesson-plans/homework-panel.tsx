@@ -6,7 +6,7 @@ export type Assignment = { id: string; title: string; description: string | null
 export type Student = { id: string; full_name: string };
 export type SubmissionsByKey = Record<string, SubmissionStatus>;
 
-// Self-fetching so it streams independently of WeeklyPlanSection and the
+// Self-fetching so it streams independently of CourseLessonsSection and the
 // staff chat snippet on the group page, instead of one shared await
 // blocking all three sections together. Rendering itself (plus the
 // optimistic add-flows) lives in the client component below.

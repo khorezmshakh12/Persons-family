@@ -220,29 +220,23 @@
     "noConfiguration": "Данные ещё не заданы.",
     "confirmDeleteGroupTitle": "Удалить эту группу?",
     "confirmDeleteGroupDescription": "Группа, её планы уроков, комментарии и домашние задания будут удалены без возможности восстановления.",
-    "weeklyPlanTitle": "Недельный план урока",
-    "dayTopic": "Тема",
-    "dayNotes": "Заметки",
-    "noTopic": "Тема ещё не задана",
-    "weekdays": {
-      "monday": "Понедельник",
-      "tuesday": "Вторник",
-      "wednesday": "Среда",
-      "thursday": "Четверг",
-      "friday": "Пятница",
-      "saturday": "Суббота",
-      "sunday": "Воскресенье"
-    },
-    "comments": {
-      "roleTabs": {
-        "ceo": "CEO",
-        "admin": "Админ",
-        "ta": "Ассистент"
-      },
+    "courseLessons": {
+      "title": "Уроки курса",
+      "lessonNumber": "Урок №",
+      "date": "Дата",
+      "topic": "Тема",
+      "files": "Файлы",
+      "comments": "Комментарии",
+      "topicPlaceholder": "Что будет пройдено...",
+      "noTopic": "Тема не задана",
+      "noFiles": "Файлов нет",
+      "upload": "Загрузить",
+      "remove": "Удалить",
+      "commentsTitle": "Комментарии — Урок {number}",
       "noComments": "Комментариев пока нет.",
-      "placeholder": "Напишите комментарий...",
+      "commentPlaceholder": "Напишите комментарий...",
       "send": "Отправить",
-      "delete": "Удалить комментарий",
+      "deleteComment": "Удалить комментарий",
       "viewOnly": "Вы можете просматривать, но не комментировать здесь."
     },
     "homework": {
@@ -271,7 +265,9 @@
       "invalidInput": "Пожалуйста, заполните все обязательные поля.",
       "createFailed": "Не удалось создать группу. Попробуйте снова.",
       "updateFailed": "Не удалось сохранить изменения. Попробуйте снова.",
-      "groupLimitReached": "Вы достигли максимума в 50 групп."
+      "groupLimitReached": "Вы достигли максимума в 50 групп.",
+      "fileTooLarge": "Файл должен быть меньше 50 МБ.",
+      "uploadFailed": "Не удалось загрузить файл. Попробуйте снова."
     }
   },
   "staffChat": {

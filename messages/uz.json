@@ -220,29 +220,23 @@
     "noConfiguration": "Hali ma'lumot kiritilmagan.",
     "confirmDeleteGroupTitle": "Ushbu guruhni o'chirasizmi?",
     "confirmDeleteGroupDescription": "Guruh, uning dars rejalari, izohlari va uyga vazifalari butunlay o'chiriladi.",
-    "weeklyPlanTitle": "Haftalik Lesson Plan",
-    "dayTopic": "Mavzu",
-    "dayNotes": "Izoh",
-    "noTopic": "Hali mavzu yo'q",
-    "weekdays": {
-      "monday": "Dushanba",
-      "tuesday": "Seshanba",
-      "wednesday": "Chorshanba",
-      "thursday": "Payshanba",
-      "friday": "Juma",
-      "saturday": "Shanba",
-      "sunday": "Yakshanba"
-    },
-    "comments": {
-      "roleTabs": {
-        "ceo": "CEO",
-        "admin": "Admin",
-        "ta": "TA"
-      },
+    "courseLessons": {
+      "title": "Kurs Darslari",
+      "lessonNumber": "Dars #",
+      "date": "Sana",
+      "topic": "Mavzu",
+      "files": "Fayllar",
+      "comments": "Izohlar",
+      "topicPlaceholder": "Nima o'tiladi...",
+      "noTopic": "Mavzu kiritilmagan",
+      "noFiles": "Fayl yo'q",
+      "upload": "Yuklash",
+      "remove": "O'chirish",
+      "commentsTitle": "Izohlar — {number}-dars",
       "noComments": "Hozircha izohlar yo'q.",
-      "placeholder": "Izoh yozing...",
+      "commentPlaceholder": "Izoh yozing...",
       "send": "Yuborish",
-      "delete": "Izohni o'chirish",
+      "deleteComment": "Izohni o'chirish",
       "viewOnly": "Siz bu yerda faqat ko'rishingiz mumkin, izoh qoldira olmaysiz."
     },
     "homework": {
@@ -271,7 +265,9 @@
       "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
       "createFailed": "Guruhni yaratib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
-      "groupLimitReached": "Siz 50 ta guruh chegarasiga yetdingiz."
+      "groupLimitReached": "Siz 50 ta guruh chegarasiga yetdingiz.",
+      "fileTooLarge": "Fayl 50MB dan kichik bo'lishi kerak.",
+      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "staffChat": {

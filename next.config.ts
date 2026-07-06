@@ -19,7 +19,13 @@ const nextConfig: NextConfig = {
     // (resize, format conversion, LCP priority). Custom uploads are a
     // client-generated data: URI and go through next/image with
     // `unoptimized` instead, since there's nothing remote to fetch/resize.
-    remotePatterns: [{ protocol: 'https', hostname: 'images.unsplash.com' }],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      // Lesson material thumbnails: private bucket, served via short-lived
+      // signed URLs generated server-side (createSignedUrl), never a public
+      // bucket URL.
+      { protocol: 'https', hostname: 'enjfzcnfwstcwjsycxhi.supabase.co', pathname: '/storage/v1/object/sign/**' },
+    ],
   },
 };
 

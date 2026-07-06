@@ -220,29 +220,23 @@
     "noConfiguration": "No details set yet.",
     "confirmDeleteGroupTitle": "Delete this group?",
     "confirmDeleteGroupDescription": "This will permanently remove the group, its lesson plans, comments, and homework.",
-    "weeklyPlanTitle": "Haftalik Lesson Plan",
-    "dayTopic": "Topic",
-    "dayNotes": "Notes",
-    "noTopic": "No topic yet",
-    "weekdays": {
-      "monday": "Dushanba",
-      "tuesday": "Seshanba",
-      "wednesday": "Chorshanba",
-      "thursday": "Payshanba",
-      "friday": "Juma",
-      "saturday": "Shanba",
-      "sunday": "Yakshanba"
-    },
-    "comments": {
-      "roleTabs": {
-        "ceo": "CEO",
-        "admin": "Admin",
-        "ta": "TA"
-      },
+    "courseLessons": {
+      "title": "Course Lessons",
+      "lessonNumber": "Lesson #",
+      "date": "Date",
+      "topic": "Topic",
+      "files": "Files",
+      "comments": "Comments",
+      "topicPlaceholder": "What will be covered...",
+      "noTopic": "No topic set",
+      "noFiles": "No files",
+      "upload": "Upload",
+      "remove": "Remove",
+      "commentsTitle": "Comments — Lesson {number}",
       "noComments": "No comments yet.",
-      "placeholder": "Write a comment...",
+      "commentPlaceholder": "Write a comment...",
       "send": "Send",
-      "delete": "Delete comment",
+      "deleteComment": "Delete comment",
       "viewOnly": "You can view but not comment here."
     },
     "homework": {
@@ -271,7 +265,9 @@
       "invalidInput": "Please fill in all required fields.",
       "createFailed": "Could not create the group. Please try again.",
       "updateFailed": "Could not save changes. Please try again.",
-      "groupLimitReached": "You've reached the maximum of 50 groups."
+      "groupLimitReached": "You've reached the maximum of 50 groups.",
+      "fileTooLarge": "File must be under 50MB.",
+      "uploadFailed": "Could not upload the file. Please try again."
     }
   },
   "staffChat": {

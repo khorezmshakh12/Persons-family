@@ -8,13 +8,12 @@ import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
-import { WeeklyPlanSection } from '@/components/lesson-plans/weekly-plan-section';
+import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
 import { HomeworkPanel } from '@/components/lesson-plans/homework-panel';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
-import type { CommentRole } from '@/components/lesson-plans/day-comments';
 import {
   GlassCardSkeleton,
-  GlassWeeklyPlanSkeleton,
+  GlassCourseLessonsSkeleton,
 } from '@/components/skeletons/glass-skeletons';
 
 const EditGroupDialog = nextDynamic(() =>
@@ -49,8 +48,12 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   if (profile!.role === 'teacher' && !isOwnerTeacher) notFound();
 
   const canEditGroup = isOwnerTeacher || isAdmin;
+  // Course lesson permissions per spec: only the owning teacher sets
+  // dates/topics/uploads; the CEO (not admin_manager) can additionally
+  // clear/delete a file; CEO/Admin/assistant can comment, the teacher can't.
+  const canEditLessonContent = isOwnerTeacher;
+  const canDeleteLessonFiles = isOwnerTeacher || profile!.role === 'ceo';
   const canComment = isAdmin || isAssistant;
-  const viewerRole: CommentRole | 'teacher' = isOwnerTeacher ? 'teacher' : (profile!.role as CommentRole);
   const isTeacherOrAssistant = profile!.role === 'teacher' || profile!.role === 'assistant';
 
   const configuration = group.configuration as GroupConfiguration;
@@ -83,15 +86,15 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">{t('weeklyPlanTitle')}</h2>
-        <Suspense fallback={<GlassWeeklyPlanSkeleton />}>
-          <WeeklyPlanSection
+        <h2 className="text-xl font-semibold tracking-tight">{t('courseLessons.title')}</h2>
+        <Suspense fallback={<GlassCourseLessonsSkeleton />}>
+          <CourseLessonsSection
             groupId={group.id}
-            canEdit={canEditGroup}
+            canEditContent={canEditLessonContent}
+            canDeleteFiles={canDeleteLessonFiles}
+            canComment={canComment}
             currentUserId={user!.id}
             viewerName={`${profile!.first_name} ${profile!.last_name}`}
-            viewerRole={viewerRole}
-            canComment={canComment}
           />
         </Suspense>
       </section>

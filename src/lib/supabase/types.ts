@@ -132,6 +132,44 @@ export type Database = {
           },
         ]
       }
+      course_lessons: {
+        Row: {
+          attachments: Json
+          created_at: string
+          group_id: string
+          id: string
+          lesson_date: string | null
+          lesson_number: number
+          topic: string | null
+        }
+        Insert: {
+          attachments?: Json
+          created_at?: string
+          group_id: string
+          id?: string
+          lesson_date?: string | null
+          lesson_number: number
+          topic?: string | null
+        }
+        Update: {
+          attachments?: Json
+          created_at?: string
+          group_id?: string
+          id?: string
+          lesson_date?: string | null
+          lesson_number?: number
+          topic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_lessons_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       groups: {
         Row: {
           configuration: Json
@@ -315,6 +353,45 @@ export type Database = {
           {
             foreignKeyName: "issues_resolved_by_fkey"
             columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lesson_comments: {
+        Row: {
+          comment_text: string
+          created_at: string
+          id: string
+          lesson_id: string
+          user_id: string
+        }
+        Insert: {
+          comment_text: string
+          created_at?: string
+          id?: string
+          lesson_id: string
+          user_id: string
+        }
+        Update: {
+          comment_text?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_comments_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "course_lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_comments_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
