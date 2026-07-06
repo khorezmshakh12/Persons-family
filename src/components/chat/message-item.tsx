@@ -58,8 +58,16 @@ export function MessageItem({
       </Avatar>
       <div className={cn('group flex max-w-[75%] flex-col gap-1', isOwn && 'items-end')}>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium">{name}</span>
-          <span className="text-muted-foreground text-xs">
+          {/* This page has no glass card/scrim of its own behind these
+              labels, unlike the rest of the app — force light text with a
+              strong shadow so name/time stay legible over any dynamic
+              background photo (including bright ones), regardless of the
+              light/dark theme toggle. Tailwind's built-in text-shadow-md
+              preset is only ~10% opacity, too faint for a busy photo. */}
+          <span className="text-xs font-medium text-white/95 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            {name}
+          </span>
+          <span className="text-xs text-white/95 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
