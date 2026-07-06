@@ -32,7 +32,9 @@ export function DeleteGroupButton({ groupId }: { groupId: string }) {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger render={<Button variant="outline" size="sm" />}>
+      <AlertDialogTrigger
+        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+      >
         <Trash2 className="size-4" />
         {t('deleteGroup')}
       </AlertDialogTrigger>

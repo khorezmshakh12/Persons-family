@@ -27,7 +27,9 @@ export function ResetPasswordDialog({ staffId }: { staffId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger
+        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+      >
         <KeyRound className="size-4" />
         {t('resetPassword')}
       </DialogTrigger>

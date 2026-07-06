@@ -20,7 +20,7 @@ export default async function CompanyNewsPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
         {isAdmin && <CreateNewsDialog />}
       </div>
       <NewsList news={(news as never) ?? []} />

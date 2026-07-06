@@ -46,7 +46,7 @@ export function IssueStatusControl({
 
   return (
     <Select value={status} onValueChange={handleChange} disabled={isPending}>
-      <SelectTrigger className="w-[150px]">
+      <SelectTrigger className="w-[150px] border-white/30 bg-white/10 text-white hover:bg-white/20">
         <SelectValue>{(value: IssueStatus) => t(`status.${value}`)}</SelectValue>
       </SelectTrigger>
       <SelectContent>

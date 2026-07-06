@@ -42,7 +42,16 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="icon-sm" aria-label={t('editTask')} />}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={t('editTask')}
+            className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+          />
+        }
+      >
         <Pencil className="size-3.5" />
       </DialogTrigger>
       <DialogContent>

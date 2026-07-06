@@ -109,7 +109,9 @@ export function EditStaffDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger
+        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+      >
         <Pencil className="size-4" />
         {t('edit')}
       </DialogTrigger>

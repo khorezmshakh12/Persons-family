@@ -12,7 +12,16 @@ export function MobileNav({ role }: { role: StaffRole }) {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger render={<Button variant="outline" size="icon" aria-label="Menu" />}>
+      <SheetTrigger
+        render={
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Menu"
+            className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+          />
+        }
+      >
         <Menu className="size-4" />
       </SheetTrigger>
       <SheetContent side="left">

@@ -95,7 +95,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
 
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{group.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{group.name}</h1>
           <p className="text-sm text-white/60">
             {[configuration.subject, configuration.level, configuration.schedule, configuration.room]
               .filter(Boolean)
@@ -117,7 +117,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">{t('courseLessons.title')}</h2>
+        <h2 className="text-xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('courseLessons.title')}</h2>
         <Suspense fallback={<GlassCourseLessonsSkeleton />}>
           <CourseLessonsSection
             groupId={group.id}

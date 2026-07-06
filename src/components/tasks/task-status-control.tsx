@@ -27,7 +27,7 @@ export function TaskStatusControl({ taskId, status }: { taskId: string; status: 
 
   return (
     <Select value={status} onValueChange={handleChange} disabled={isPending}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full border-white/30 bg-white/10 text-white hover:bg-white/20">
         <SelectValue>{(value: TaskStatus) => t(`status.${value}`)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
