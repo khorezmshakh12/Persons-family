@@ -20,7 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TempPasswordResult } from './temp-password-result';
 
-const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
+const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm', 'mobilgrof', 'it_developer'] as const;
 
 export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
   const t = useTranslations('staff');

@@ -16,8 +16,11 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export function CreateIssueDialog() {
+export type IssueAssignee = { id: string; first_name: string; last_name: string };
+
+export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] }) {
   const t = useTranslations('issues');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
@@ -25,6 +28,10 @@ export function CreateIssueDialog() {
     createIssueAction,
     undefined,
   );
+  const nameFor = (id: string) => {
+    const a = assignees.find((x) => x.id === id);
+    return a ? `${a.first_name} ${a.last_name}` : t('unassigned');
+  };
 
   useEffect(() => {
     if (state && !state.error) setOpen(false);
@@ -48,6 +55,22 @@ export function CreateIssueDialog() {
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">{t('descriptionLabel')}</Label>
             <Textarea id="description" name="description" maxLength={2000} rows={4} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="assignedTo">{t('assignTo')}</Label>
+            <Select name="assignedTo" defaultValue="none">
+              <SelectTrigger id="assignedTo" className="w-full">
+                <SelectValue>{(value: string) => (value === 'none' ? t('unassigned') : nameFor(value))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t('unassigned')}</SelectItem>
+                {assignees.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.first_name} {a.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>

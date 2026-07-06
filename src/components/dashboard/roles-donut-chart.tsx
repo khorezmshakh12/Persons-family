@@ -3,12 +3,23 @@ import { createClient } from '@/lib/supabase/server';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
-const ROLE_ORDER = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
+const ROLE_ORDER = [
+  'ceo',
+  'admin_manager',
+  'teacher',
+  'assistant',
+  'smm',
+  'mobilgrof',
+  'it_developer',
+] as const;
 const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   ceo: '#a855f7',
   admin_manager: '#3b82f6',
   teacher: '#22c55e',
   assistant: '#f97316',
+  smm: '#ec4899',
+  mobilgrof: '#eab308',
+  it_developer: '#06b6d4',
 };
 
 const SIZE = 160;

@@ -143,7 +143,10 @@
       "ceo": "CEO / Founder",
       "admin_manager": "Administrative Manager",
       "teacher": "Teacher",
-      "assistant": "Teacher Assistant"
+      "assistant": "Teacher Assistant",
+      "smm": "SMM",
+      "mobilgrof": "Mobilgrof",
+      "it_developer": "IT Developer"
     },
     "status": {
       "active": "Active",
@@ -258,9 +261,19 @@
     "descriptionLabel": "Description",
     "submit": "Submit",
     "noIssues": "No issues reported yet.",
+    "noIssuesInColumn": "No issues",
+    "assignTo": "Assign to",
+    "assignee": "Assignee",
+    "unassigned": "Unassigned",
+    "noAssignee": "No assignee",
     "status": {
       "open": "Open",
       "in_progress": "In progress",
+      "done": "Done"
+    },
+    "columns": {
+      "open": "To Do",
+      "in_progress": "In Progress",
       "done": "Done"
     },
     "table": {
@@ -272,7 +285,8 @@
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please enter a title for the issue.",
-      "createFailed": "Could not submit the issue. Please try again."
+      "createFailed": "Could not submit the issue. Please try again.",
+      "invalidAssignee": "You can only assign issues to an Administrative Manager."
     }
   },
   "lessonPlans": {

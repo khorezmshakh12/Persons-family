@@ -143,7 +143,10 @@
       "ceo": "Bosh direktor",
       "admin_manager": "Ma'muriy menejer",
       "teacher": "O'qituvchi",
-      "assistant": "O'qituvchi yordamchisi"
+      "assistant": "O'qituvchi yordamchisi",
+      "smm": "SMM",
+      "mobilgrof": "Mobilgrof",
+      "it_developer": "IT dasturchi"
     },
     "status": {
       "active": "Faol",
@@ -258,8 +261,18 @@
     "descriptionLabel": "Tavsif",
     "submit": "Yuborish",
     "noIssues": "Hozircha murojaatlar yo'q.",
+    "noIssuesInColumn": "Murojaatlar yo'q",
+    "assignTo": "Kimga biriktirish",
+    "assignee": "Mas'ul",
+    "unassigned": "Biriktirilmagan",
+    "noAssignee": "Mas'ul tayinlanmagan",
     "status": {
       "open": "Ochiq",
+      "in_progress": "Jarayonda",
+      "done": "Bajarildi"
+    },
+    "columns": {
+      "open": "Bajarish kerak",
       "in_progress": "Jarayonda",
       "done": "Bajarildi"
     },
@@ -272,7 +285,8 @@
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Iltimos, murojaat sarlavhasini kiriting.",
-      "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring."
+      "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring.",
+      "invalidAssignee": "Siz murojaatlarni faqat Ma'muriy menejerga biriktira olasiz."
     }
   },
   "lessonPlans": {

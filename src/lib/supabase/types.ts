@@ -323,6 +323,7 @@ export type Database = {
       }
       issues: {
         Row: {
+          assigned_to: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -333,6 +334,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          assigned_to?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -343,6 +345,7 @@ export type Database = {
           title: string
         }
         Update: {
+          assigned_to?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -353,6 +356,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "issues_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "issues_created_by_fkey"
             columns: ["created_by"]
@@ -804,7 +814,14 @@ export type Database = {
       chat_media_type: "image" | "video" | "voice" | "none"
       homework_status: "pending" | "submitted" | "graded" | "missing"
       issue_status: "open" | "in_progress" | "done"
-      staff_role: "ceo" | "admin_manager" | "teacher" | "assistant"
+      staff_role:
+        | "ceo"
+        | "admin_manager"
+        | "teacher"
+        | "assistant"
+        | "smm"
+        | "mobilgrof"
+        | "it_developer"
       staff_tier: "A" | "B" | "C"
       task_status: "pending" | "in_progress" | "done"
       weekday:
@@ -948,7 +965,15 @@ export const Constants = {
       chat_media_type: ["image", "video", "voice", "none"],
       homework_status: ["pending", "submitted", "graded", "missing"],
       issue_status: ["open", "in_progress", "done"],
-      staff_role: ["ceo", "admin_manager", "teacher", "assistant"],
+      staff_role: [
+        "ceo",
+        "admin_manager",
+        "teacher",
+        "assistant",
+        "smm",
+        "mobilgrof",
+        "it_developer",
+      ],
       staff_tier: ["A", "B", "C"],
       task_status: ["pending", "in_progress", "done"],
       weekday: [

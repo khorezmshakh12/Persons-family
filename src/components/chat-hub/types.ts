@@ -1,4 +1,5 @@
 import type { ChatMediaType } from '@/lib/chat-media';
+import type { StaffRole } from '@/lib/nav';
 
 export type StaffChatMessage = {
   id: string;
@@ -16,7 +17,7 @@ export type StaffDirectoryEntry = {
   first_name: string;
   last_name: string;
   avatar_url: string | null;
-  role: 'ceo' | 'admin_manager' | 'teacher' | 'assistant';
+  role: StaffRole;
 };
 
 export type ActiveConversation = { type: 'family' } | { type: 'dm'; userId: string };

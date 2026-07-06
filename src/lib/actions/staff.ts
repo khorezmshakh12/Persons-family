@@ -13,7 +13,7 @@ export type StaffActionState =
   | { error?: string; tempPassword?: string; userId?: string }
   | undefined;
 
-const ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
+const ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm', 'mobilgrof', 'it_developer'] as const;
 
 /** CEO and Admin Manager are equal for day-to-day operations, but managing
  * an Admin (or CEO) account itself — editing, deactivating, resetting their

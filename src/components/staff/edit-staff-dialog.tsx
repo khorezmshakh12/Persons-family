@@ -26,7 +26,7 @@ import type { Database } from '@/lib/supabase/types';
 
 type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 
-const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
+const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm', 'mobilgrof', 'it_developer'] as const;
 
 export function EditStaffDialog({
   profile,

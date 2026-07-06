@@ -12,6 +12,9 @@ const ROLE_TINT: Record<string, string> = {
   admin_manager: 'bg-blue-500/25 text-blue-100',
   teacher: 'bg-green-500/25 text-green-100',
   assistant: 'bg-orange-500/25 text-orange-100',
+  smm: 'bg-pink-500/25 text-pink-100',
+  mobilgrof: 'bg-yellow-500/25 text-yellow-100',
+  it_developer: 'bg-cyan-500/25 text-cyan-100',
 };
 
 export async function StaffRosterPanel() {
