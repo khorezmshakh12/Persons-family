@@ -83,6 +83,40 @@
       "progressToNextTier": "Прогресс до следующего уровня",
       "monthsProgress": "{months}/6 месяцев",
       "noStaff": "Пока нет учителей или ассистентов."
+    },
+    "stats": {
+      "totalStaff": "Всего сотрудников",
+      "activeGroups": "Активные группы",
+      "lessonPlans": "Планы уроков",
+      "chatActivity": "Активность чата"
+    },
+    "groupsPanel": {
+      "title": "Новые группы",
+      "viewAll": "Все",
+      "groupName": "Группа",
+      "teacher": "Учитель",
+      "ta": "Ассистент",
+      "noTa": "Не назначен",
+      "noGroups": "Пока нет групп."
+    },
+    "staffPanel": {
+      "title": "Команда",
+      "viewAll": "Все",
+      "active": "Активен",
+      "inactive": "Неактивен",
+      "noStaff": "Пока нет сотрудников."
+    },
+    "rolesChart": {
+      "title": "Распределение должностей",
+      "totalLabel": "Всего сотрудников"
+    },
+    "activityGrid": {
+      "title": "Активность за месяц",
+      "hint": "Чем темнее ячейка, тем больше активности в чате в этот день."
+    },
+    "growthChart": {
+      "title": "Показатель роста",
+      "newThisMonth": "новых сотрудников за месяц"
     }
   },
   "staff": {

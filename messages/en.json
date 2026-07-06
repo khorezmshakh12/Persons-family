@@ -83,6 +83,40 @@
       "progressToNextTier": "Progress to next tier",
       "monthsProgress": "{months}/6 months",
       "noStaff": "No teachers or assistants yet."
+    },
+    "stats": {
+      "totalStaff": "Total Staff",
+      "activeGroups": "Active Groups",
+      "lessonPlans": "Lesson Plans",
+      "chatActivity": "Chat Activity"
+    },
+    "groupsPanel": {
+      "title": "Recent Groups",
+      "viewAll": "View All",
+      "groupName": "Group",
+      "teacher": "Teacher",
+      "ta": "TA",
+      "noTa": "Unassigned",
+      "noGroups": "No groups yet."
+    },
+    "staffPanel": {
+      "title": "Team Members",
+      "viewAll": "View All",
+      "active": "Active",
+      "inactive": "Inactive",
+      "noStaff": "No staff yet."
+    },
+    "rolesChart": {
+      "title": "Roles Breakdown",
+      "totalLabel": "Total staff"
+    },
+    "activityGrid": {
+      "title": "Monthly Activity",
+      "hint": "Darker cells mean more chat activity that day."
+    },
+    "growthChart": {
+      "title": "Growth Indicator",
+      "newThisMonth": "new staff this month"
     }
   },
   "staff": {

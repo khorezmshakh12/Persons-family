@@ -21,6 +21,25 @@ export function GlassCardSkeleton() {
   );
 }
 
+/** Matches the dashboard's top row of 4 stat cards. */
+export function GlassStatsRowSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-md">
+          <div className="flex items-start justify-between gap-2">
+            <GlassBar className="size-10 rounded-xl" />
+            <GlassBar className="h-5 w-14 rounded-full" />
+          </div>
+          <GlassBar className="mt-4 h-8 w-16" />
+          <GlassBar className="mt-2 h-4 w-24" />
+          <GlassBar className="mt-4 h-8 w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Matches a GLASS_CARD-wrapped table (StaffTable, TeamResultsTable). */
 export function GlassTableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
