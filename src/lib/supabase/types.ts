@@ -602,6 +602,54 @@ export type Database = {
           },
         ]
       }
+      staff_chats: {
+        Row: {
+          created_at: string
+          id: string
+          media_type: Database["public"]["Enums"]["chat_media_type"]
+          media_url: string | null
+          message_text: string | null
+          pinned_at: string | null
+          receiver_id: string | null
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          media_type?: Database["public"]["Enums"]["chat_media_type"]
+          media_url?: string | null
+          message_text?: string | null
+          pinned_at?: string | null
+          receiver_id?: string | null
+          sender_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          media_type?: Database["public"]["Enums"]["chat_media_type"]
+          media_url?: string | null
+          message_text?: string | null
+          pinned_at?: string | null
+          receiver_id?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_chats_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_chats_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_performance: {
         Row: {
           bonus: number
@@ -753,6 +801,7 @@ export type Database = {
       is_group_owner: { Args: { target_group_id: string }; Returns: boolean }
     }
     Enums: {
+      chat_media_type: "image" | "video" | "voice" | "none"
       homework_status: "pending" | "submitted" | "graded" | "missing"
       issue_status: "open" | "in_progress" | "done"
       staff_role: "ceo" | "admin_manager" | "teacher" | "assistant"
@@ -896,6 +945,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      chat_media_type: ["image", "video", "voice", "none"],
       homework_status: ["pending", "submitted", "graded", "missing"],
       issue_status: ["open", "in_progress", "done"],
       staff_role: ["ceo", "admin_manager", "teacher", "assistant"],

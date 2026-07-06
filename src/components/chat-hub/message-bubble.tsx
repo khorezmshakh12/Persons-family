@@ -2,32 +2,34 @@
 
 import { useTransition } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { Trash2, Pin, PinOff } from 'lucide-react';
+import Image from 'next/image';
+import { Pin, PinOff, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { deleteMessageAction, toggleMessagePinAction } from '@/lib/actions/chat';
+import { deleteStaffChatAction, toggleStaffChatPinAction } from '@/lib/actions/staff-chats';
 import { cn } from '@/lib/utils';
+import type { StaffChatMessage } from './types';
 
 export type ChatSender = { first_name: string; last_name: string; avatar_url: string | null };
 
-export function MessageItem({
+export function MessageBubble({
   message,
   sender,
   isOwn,
+  isFamily,
   isAdmin,
   isOptimistic = false,
 }: {
-  message: { id: string; content: string; created_at: string; pinned_at: string | null };
+  message: StaffChatMessage;
   sender: ChatSender | undefined;
   isOwn: boolean;
+  isFamily: boolean;
   isAdmin: boolean;
-  /** True for an optimistic message not yet confirmed by the server —
-   * hides actions that need a real, persisted row id. */
   isOptimistic?: boolean;
 }) {
-  const t = useTranslations('chat');
+  const t = useTranslations('chatHub');
   const format = useFormatter();
-  const [isPending, startTransition] = useTransition();
+  const [isDeletePending, startDeleteTransition] = useTransition();
   const [isPinPending, startPinTransition] = useTransition();
   const name = sender ? `${sender.first_name} ${sender.last_name}` : '—';
   const initials = sender ? `${sender.first_name[0]}${sender.last_name[0]}` : '?';
@@ -36,8 +38,8 @@ export function MessageItem({
   function handleDelete() {
     const formData = new FormData();
     formData.set('id', message.id);
-    startTransition(() => {
-      deleteMessageAction(formData);
+    startDeleteTransition(() => {
+      deleteStaffChatAction(formData);
     });
   }
 
@@ -46,7 +48,7 @@ export function MessageItem({
     formData.set('id', message.id);
     formData.set('pin', String(!isPinned));
     startPinTransition(() => {
-      toggleMessagePinAction(formData);
+      toggleStaffChatPinAction(formData);
     });
   }
 
@@ -58,36 +60,42 @@ export function MessageItem({
       </Avatar>
       <div className={cn('group flex max-w-[75%] flex-col gap-1', isOwn && 'items-end')}>
         <div className="flex items-center gap-2">
-          {/* This page has no glass card/scrim of its own behind these
-              labels, unlike the rest of the app — force light text with a
-              strong shadow so name/time stay legible over any dynamic
-              background photo (including bright ones), regardless of the
-              light/dark theme toggle. Tailwind's built-in text-shadow-md
-              preset is only ~10% opacity, too faint for a busy photo. */}
-          <span className="text-xs font-medium text-white/95 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-            {name}
-          </span>
-          <span className="text-xs text-white/95 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <span className="text-xs font-medium text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{name}</span>
+          <span className="text-xs text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
+          {isPinned && <Pin className="size-3 text-teal-300" />}
         </div>
         <div className="flex items-center gap-1">
           <div
             className={cn(
-              'rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
-              isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted',
+              'flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
+              isOwn ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-white' : 'bg-white/10 text-white',
             )}
           >
-            {message.content}
+            {message.media_type === 'image' && message.media_url && (
+              <Image
+                src={message.media_url}
+                alt=""
+                width={240}
+                height={240}
+                unoptimized
+                className="max-h-64 w-auto rounded-lg object-cover"
+              />
+            )}
+            {message.media_type === 'video' && message.media_url && (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video src={message.media_url} controls className="max-h-64 max-w-full rounded-lg" />
+            )}
+            {message.media_type === 'voice' && message.media_url && (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <audio src={message.media_url} controls className="h-10 max-w-full" />
+            )}
+            {message.message_text && <span>{message.message_text}</span>}
           </div>
           {!isOptimistic && (
-            <div
-              className={cn(
-                'flex items-center gap-1 transition-opacity',
-                !isPinned && 'opacity-0 group-hover:opacity-100',
-              )}
-            >
-              {isAdmin && (
+            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              {isFamily && isAdmin && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -99,13 +107,13 @@ export function MessageItem({
                   {isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
                 </Button>
               )}
-              {(isOwn || isAdmin) && (
+              {(isOwn || (isFamily && isAdmin)) && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   onClick={handleDelete}
-                  disabled={isPending}
+                  disabled={isDeletePending}
                   aria-label={t('delete')}
                 >
                   <Trash2 className="size-3.5" />

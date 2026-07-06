@@ -162,19 +162,32 @@
       "notesPlaceholder": "What did they accomplish this month?"
     }
   },
-  "chat": {
+  "chatHub": {
+    "familyChat": "Family Chat",
+    "individualChats": "Individual Chats",
+    "noStaff": "No other staff members yet.",
     "placeholder": "Write a message...",
     "send": "Send",
     "delete": "Delete message",
     "pin": "Pin message",
     "unpin": "Unpin message",
-    "enableChat": "Chat enabled",
+    "chatEnabled": "Chat enabled",
     "chatDisabled": "Chat is currently disabled.",
     "empty": "No messages yet. Start the conversation!",
+    "attach": "Attach image or video",
+    "emoji": "Insert emoji",
+    "recordVoice": "Record a voice message",
+    "stopRecording": "Stop recording",
+    "recording": "Recording...",
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "invalidMessage": "Message can't be empty.",
-      "sendFailed": "Could not send your message. Please try again."
+      "sendFailed": "Could not send your message. Please try again.",
+      "invalidInput": "Please fill in all required fields.",
+      "fileTooLarge": "File must be under 50MB.",
+      "invalidFileType": "Please choose an image or video file.",
+      "uploadFailed": "Could not upload the file. Please try again.",
+      "micDenied": "Couldn't access your microphone. Check your browser permissions."
     }
   },
   "issues": {

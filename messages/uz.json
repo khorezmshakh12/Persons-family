@@ -162,19 +162,32 @@
       "notesPlaceholder": "Bu oyda nimalarga erishdi?"
     }
   },
-  "chat": {
+  "chatHub": {
+    "familyChat": "Oilaviy Chat",
+    "individualChats": "Shaxsiy Suhbatlar",
+    "noStaff": "Hozircha boshqa xodimlar yo'q.",
     "placeholder": "Xabar yozing...",
     "send": "Yuborish",
     "delete": "Xabarni o'chirish",
     "pin": "Xabarni mahkamlash",
     "unpin": "Mahkamlashni bekor qilish",
-    "enableChat": "Suhbat yoqilgan",
+    "chatEnabled": "Suhbat yoqilgan",
     "chatDisabled": "Suhbat hozircha o'chirilgan.",
     "empty": "Hozircha xabarlar yo'q. Suhbatni boshlang!",
+    "attach": "Rasm yoki video biriktirish",
+    "emoji": "Emoji qo'shish",
+    "recordVoice": "Ovozli xabar yozish",
+    "stopRecording": "Yozishni to'xtatish",
+    "recording": "Yozilmoqda...",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
-      "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
+      "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring.",
+      "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+      "fileTooLarge": "Fayl 50MB dan kichik bo'lishi kerak.",
+      "invalidFileType": "Iltimos, rasm yoki video tanlang.",
+      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "micDenied": "Mikrofonga kirish imkoni bo'lmadi. Brauzer ruxsatlarini tekshiring."
     }
   },
   "issues": {
