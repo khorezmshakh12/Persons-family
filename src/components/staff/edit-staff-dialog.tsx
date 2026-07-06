@@ -43,7 +43,13 @@ export function EditStaffDialog({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const roles = canAssignCeo ? ALL_ROLES : ALL_ROLES.filter((r) => r !== 'ceo');
+  // Only the CEO can grant either elevated role, but the target's own
+  // current role always stays selectable (a no-op resubmission, e.g. an
+  // admin_manager editing their own profile) even when it wouldn't
+  // otherwise be offered as a new choice.
+  const roles = canAssignCeo
+    ? ALL_ROLES
+    : ALL_ROLES.filter((r) => r === profile.role || (r !== 'ceo' && r !== 'admin_manager'));
 
   function handleSubmit(formData: FormData) {
     setError(null);

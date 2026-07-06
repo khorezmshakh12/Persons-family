@@ -30,7 +30,10 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const roles = canAssignCeo ? ALL_ROLES : ALL_ROLES.filter((r) => r !== 'ceo');
+  // Only the CEO can grant either elevated role — an admin_manager creating
+  // a new hire never sees 'ceo' or 'admin_manager' as options (matches the
+  // server-side check in createStaffAction, which would reject either).
+  const roles = canAssignCeo ? ALL_ROLES : ALL_ROLES.filter((r) => r !== 'ceo' && r !== 'admin_manager');
 
   function handleOpenChange(next: boolean) {
     setOpen(next);

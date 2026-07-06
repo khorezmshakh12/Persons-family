@@ -6,15 +6,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reason?: string }>;
+}) {
   const { user, profile } = await getAuthState();
   const locale = await getLocale();
   if (user) redirect({ href: profile?.must_change_password ? '/set-password' : '/dashboard', locale });
 
   const t = await getTranslations('auth');
+  const { reason } = await searchParams;
+  const suspended = reason === 'suspended';
 
   return (
     <div className="mx-auto flex max-w-md flex-col justify-center px-4 py-16">
+      {suspended && (
+        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {t('errors.accountDeactivated')}
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>{t('loginTitle')}</CardTitle>

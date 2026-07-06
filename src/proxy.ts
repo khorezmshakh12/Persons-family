@@ -27,17 +27,20 @@ export default async function proxy(request: NextRequest) {
     return intlResponse;
   }
 
-  const { user, mustChangePassword } = await getSessionUser(request, intlResponse);
+  const { user, mustChangePassword, suspended } = await getSessionUser(request, intlResponse);
   const { locale, path } = localeAndPath(request.nextUrl.pathname);
 
-  const redirectTo = (target: string) => {
+  const redirectTo = (target: string, params?: Record<string, string>) => {
     const url = request.nextUrl.clone();
     url.pathname = `/${locale}${target}`;
+    url.search = '';
+    if (params) for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
     return copyCookies(intlResponse, NextResponse.redirect(url));
   };
 
   if (!user) {
-    return path === '/login' ? intlResponse : redirectTo('/login');
+    if (path === '/login') return intlResponse;
+    return redirectTo('/login', suspended ? { reason: 'suspended' } : undefined);
   }
 
   if (mustChangePassword) {

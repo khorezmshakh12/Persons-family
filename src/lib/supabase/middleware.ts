@@ -31,7 +31,7 @@ export async function getSessionUser(request: NextRequest, response: NextRespons
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { user: null, mustChangePassword: false };
+  if (!user) return { user: null, mustChangePassword: false, suspended: false };
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -41,8 +41,8 @@ export async function getSessionUser(request: NextRequest, response: NextRespons
 
   if (profile && !profile.is_active) {
     await supabase.auth.signOut();
-    return { user: null, mustChangePassword: false };
+    return { user: null, mustChangePassword: false, suspended: true };
   }
 
-  return { user, mustChangePassword: profile?.must_change_password ?? false };
+  return { user, mustChangePassword: profile?.must_change_password ?? false, suspended: false };
 }

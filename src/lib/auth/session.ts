@@ -15,14 +15,14 @@ export async function getAuthState() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { user: null, profile: null as Profile | null };
+  if (!user) return { user: null, profile: null as Profile | null, suspended: false };
 
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
   if (profile && !profile.is_active) {
     await supabase.auth.signOut();
-    return { user: null, profile: null as Profile | null };
+    return { user: null, profile: null as Profile | null, suspended: true };
   }
 
-  return { user, profile: profile as Profile | null };
+  return { user, profile: profile as Profile | null, suspended: false };
 }

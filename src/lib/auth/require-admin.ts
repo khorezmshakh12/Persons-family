@@ -14,3 +14,13 @@ export async function requireAdmin() {
   }
   return { user, profile };
 }
+
+/** For the handful of actions reserved to the CEO alone — managing an Admin
+ * account itself, not day-to-day operations (those use requireAdmin). */
+export async function requireCeo() {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile || profile.role !== 'ceo') {
+    throw new ForbiddenError('CEO access required');
+  }
+  return { user, profile };
+}

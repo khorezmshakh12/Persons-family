@@ -136,7 +136,9 @@
       "invalidPhone": "Enter a valid phone number.",
       "phoneTaken": "A staff member with this phone number already exists.",
       "cannotAssignCeo": "Only the CEO can grant the CEO role.",
+      "cannotAssignAdmin": "Only the CEO can grant the Administrative Manager role.",
       "cannotManageCeo": "Only the CEO can manage another CEO's account.",
+      "cannotManageAdmin": "Only the CEO can manage another Admin's account.",
       "cannotDeactivateSelf": "You can't deactivate your own account.",
       "createFailed": "Could not create the staff account. Please try again.",
       "updateFailed": "Could not save changes. Please try again.",
@@ -145,6 +147,28 @@
       "avatarTooLarge": "Profile picture must be under 5MB.",
       "notFound": "Staff member not found.",
       "forbidden": "You don't have permission to do this."
+    },
+    "adminManagement": {
+      "title": "Admin Management",
+      "subtitle": "CEO-only controls for Administrative Manager accounts.",
+      "noAdmins": "No Administrative Managers yet.",
+      "suspend": "Suspend",
+      "activate": "Activate",
+      "delete": "Delete",
+      "transferCeo": "Transfer CEO Role",
+      "confirm": "Confirm",
+      "confirmDeleteTitle": "Delete this Admin's account?",
+      "confirmDeleteDescription": "This will permanently delete {name}'s account. This cannot be undone.",
+      "confirmTransferTitle": "Grant CEO access to this Admin?",
+      "confirmTransferDescription": "{name} will gain full CEO-level access, sharing ultimate control of the platform with you. This cannot be easily undone.",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Please try again.",
+        "notFound": "Admin not found.",
+        "updateFailed": "Could not save changes. Please try again.",
+        "deleteFailed": "Could not delete this account. Please try again.",
+        "cannotDeleteSelf": "You can't delete your own account."
+      }
     },
     "performance": {
       "title": "Performance",

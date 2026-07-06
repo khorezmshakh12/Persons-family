@@ -15,6 +15,22 @@ export type StaffActionState =
 
 const ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant'] as const;
 
+/** CEO and Admin Manager are equal for day-to-day operations, but managing
+ * an Admin (or CEO) account itself — editing, deactivating, resetting their
+ * password, or promoting someone into either role — is reserved to the CEO
+ * alone. */
+function isProtectedRole(role: string) {
+  return role === 'ceo' || role === 'admin_manager';
+}
+
+function assignRoleError(role: string): 'cannotAssignCeo' | 'cannotAssignAdmin' {
+  return role === 'ceo' ? 'cannotAssignCeo' : 'cannotAssignAdmin';
+}
+
+function manageRoleError(role: string): 'cannotManageCeo' | 'cannotManageAdmin' {
+  return role === 'ceo' ? 'cannotManageCeo' : 'cannotManageAdmin';
+}
+
 const staffSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -60,8 +76,8 @@ export async function requestAvatarUploadUrlAction(
     .select('role')
     .eq('id', targetUserId)
     .maybeSingle();
-  if (target && target.role === 'ceo' && actingProfile.role !== 'ceo') {
-    return { error: 'cannotManageCeo' };
+  if (target && targetUserId !== actingProfile.id && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+    return { error: manageRoleError(target.role) };
   }
 
   const path = `${targetUserId}/avatar.${ext}`;
@@ -86,7 +102,9 @@ export async function createStaffAction(
 
   const parsed = staffSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-  if (parsed.data.role === 'ceo' && actingProfile.role !== 'ceo') return { error: 'cannotAssignCeo' };
+  if (isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
+    return { error: assignRoleError(parsed.data.role) };
+  }
 
   const phone = normalizePhone(parsed.data.phone);
   if (!phone) return { error: 'invalidPhone' };
@@ -171,8 +189,16 @@ export async function updateStaffAction(
     .eq('id', parsed.data.id)
     .single();
   if (!target) return { error: 'notFound' };
-  if (target.role === 'ceo' && actingProfile.role !== 'ceo') return { error: 'cannotManageCeo' };
-  if (parsed.data.role === 'ceo' && actingProfile.role !== 'ceo') return { error: 'cannotAssignCeo' };
+  const isSelf = parsed.data.id === actingProfile.id;
+  if (!isSelf && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+    return { error: manageRoleError(target.role) };
+  }
+  // Only a genuine role *change* into ceo/admin_manager is blocked — an
+  // admin_manager editing their own profile still resubmits their current
+  // (unchanged) role through this same form field.
+  if (parsed.data.role !== target.role && isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
+    return { error: assignRoleError(parsed.data.role) };
+  }
 
   const phone = normalizePhone(parsed.data.phone);
   if (!phone) return { error: 'invalidPhone' };
@@ -223,7 +249,9 @@ export async function toggleStaffActiveAction(
     .eq('id', parsed.data.id)
     .single();
   if (!target) return { error: 'notFound' };
-  if (target.role === 'ceo' && actingProfile.role !== 'ceo') return { error: 'cannotManageCeo' };
+  if (isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+    return { error: manageRoleError(target.role) };
+  }
 
   const { error } = await supabase
     .from('profiles')
@@ -256,7 +284,9 @@ export async function resetStaffPasswordAction(
     .eq('id', parsed.data.id)
     .single();
   if (!target) return { error: 'notFound' };
-  if (target.role === 'ceo' && actingProfile.role !== 'ceo') return { error: 'cannotManageCeo' };
+  if (parsed.data.id !== actingProfile.id && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+    return { error: manageRoleError(target.role) };
+  }
 
   const tempPassword = generateTempPassword();
   const admin = createAdminClient();

@@ -136,7 +136,9 @@
       "invalidPhone": "To'g'ri telefon raqamini kiriting.",
       "phoneTaken": "Bu telefon raqamiga ega xodim allaqachon mavjud.",
       "cannotAssignCeo": "Faqat bosh direktor CEO lavozimini belgilay oladi.",
+      "cannotAssignAdmin": "Faqat bosh direktor Ma'muriy menejer lavozimini belgilay oladi.",
       "cannotManageCeo": "Faqat bosh direktor boshqa CEO hisobini boshqara oladi.",
+      "cannotManageAdmin": "Faqat bosh direktor boshqa administratorning hisobini boshqara oladi.",
       "cannotDeactivateSelf": "O'z hisobingizni faolsizlantira olmaysiz.",
       "createFailed": "Xodim hisobini yaratib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
@@ -145,6 +147,28 @@
       "avatarTooLarge": "Profil rasmi 5MB dan kichik bo'lishi kerak.",
       "notFound": "Xodim topilmadi.",
       "forbidden": "Sizda bu amal uchun ruxsat yo'q."
+    },
+    "adminManagement": {
+      "title": "Administratorlarni Boshqarish",
+      "subtitle": "Faqat bosh direktor uchun — Ma'muriy menejer hisoblarini boshqarish.",
+      "noAdmins": "Hozircha Ma'muriy menejerlar yo'q.",
+      "suspend": "Faoliyatini to'xtatish",
+      "activate": "Faollashtirish",
+      "delete": "O'chirish",
+      "transferCeo": "CEO huquqini berish",
+      "confirm": "Tasdiqlash",
+      "confirmDeleteTitle": "Ushbu administratorning hisobini o'chirasizmi?",
+      "confirmDeleteDescription": "{name} hisobi butunlay o'chiriladi. Buni ortga qaytarib bo'lmaydi.",
+      "confirmTransferTitle": "Ushbu administratorga CEO huquqini berasizmi?",
+      "confirmTransferDescription": "{name} to'liq CEO darajasidagi huquqqa ega bo'ladi va platformaning yakuniy nazoratini siz bilan baham ko'radi. Buni osongina bekor qilib bo'lmaydi.",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "invalidInput": "Iltimos, qayta urinib ko'ring.",
+        "notFound": "Administrator topilmadi.",
+        "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "deleteFailed": "Ushbu hisobni o'chirib bo'lmadi. Qayta urinib ko'ring.",
+        "cannotDeleteSelf": "O'z hisobingizni o'chira olmaysiz."
+      }
     },
     "performance": {
       "title": "Ko'rsatkichlar",

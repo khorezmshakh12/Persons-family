@@ -24,9 +24,12 @@ export function StaffRowActions({
   actingRole: Profile['role'];
   performance: StaffPerformance | null;
 }) {
-  const canManage = !(target.role === 'ceo' && actingRole !== 'ceo');
-  const canAssignCeo = actingRole === 'ceo';
   const isSelf = target.id === currentUserId;
+  // CEO and Admin Manager are equal for day-to-day operations, but managing
+  // another CEO or Admin account (not your own) is reserved to the CEO.
+  const isProtectedRole = target.role === 'ceo' || target.role === 'admin_manager';
+  const canManage = isSelf || !(isProtectedRole && actingRole !== 'ceo');
+  const canAssignCeo = actingRole === 'ceo';
 
   if (!canManage) return <span className="text-muted-foreground text-sm">—</span>;
 
