@@ -1,10 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import type { Profile } from '@/lib/auth/session';
 import type { Database } from '@/lib/supabase/types';
-import { EditStaffDialog } from './edit-staff-dialog';
 import { ToggleActiveButton } from './toggle-active-button';
 import { ResetPasswordDialog } from './reset-password-dialog';
+
+// Code-split: the heaviest dialog in the app (tabs, avatar upload, the A/B/C
+// performance form) only needs to load once someone actually opens it,
+// instead of shipping in every staff-page bundle up front.
+const EditStaffDialog = dynamic(() => import('./edit-staff-dialog').then((mod) => mod.EditStaffDialog));
 
 type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 

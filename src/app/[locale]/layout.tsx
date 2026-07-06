@@ -10,14 +10,19 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { CursorGlow } from '@/components/cursor-glow';
 import '../globals.css';
 
+// This app ships uz/ru/en. Google Fonts serves each subset as its own
+// @font-face with a unicode-range, so the browser only ever fetches the
+// chunk it needs — declaring `cyrillic` here costs Latin/Uzbek readers
+// nothing, but without it Russian text was silently falling back to the
+// system font instead of using the self-hosted Geist face.
 const geistSans = Geist({
   variable: '--font-geist-sans',
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
 });
 
 export function generateStaticParams() {

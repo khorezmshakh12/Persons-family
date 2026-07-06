@@ -1,16 +1,22 @@
 import { notFound } from 'next/navigation';
+// Aliased: this file also exports the route-segment config `dynamic` below.
+import nextDynamic from 'next/dynamic';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentWeeklyPlan } from '@/lib/weekly-plan';
-import { EditGroupDialog, type GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
+import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { WeeklyPlanPanel, type DayWithComments } from '@/components/lesson-plans/weekly-plan-panel';
 import { HomeworkPanel, type SubmissionsByKey } from '@/components/lesson-plans/homework-panel';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import type { Comment, CommentRole } from '@/components/lesson-plans/day-comments';
 import type { SubmissionStatus } from '@/components/lesson-plans/submission-status-select';
+
+const EditGroupDialog = nextDynamic(() =>
+  import('@/components/lesson-plans/edit-group-dialog').then((mod) => mod.EditGroupDialog),
+);
 
 export const dynamic = 'force-dynamic';
 

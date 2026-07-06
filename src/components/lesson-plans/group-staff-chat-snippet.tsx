@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { StaffChatRoom } from '@/components/staff-chat/staff-chat-room';
+import { StaffChatRoomLazy as StaffChatRoom } from '@/components/staff-chat/staff-chat-room-lazy';
 import type { ChatSender } from '@/components/staff-chat/staff-message-item';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';

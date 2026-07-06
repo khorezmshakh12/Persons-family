@@ -13,6 +13,14 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  images: {
+    // The five preset background themes (src/lib/background-themes.ts) are
+    // all Unsplash photos rendered through next/image for real optimization
+    // (resize, format conversion, LCP priority). Custom uploads are a
+    // client-generated data: URI and go through next/image with
+    // `unoptimized` instead, since there's nothing remote to fetch/resize.
+    remotePatterns: [{ protocol: 'https', hostname: 'images.unsplash.com' }],
+  },
 };
 
 export default withNextIntl(nextConfig);
