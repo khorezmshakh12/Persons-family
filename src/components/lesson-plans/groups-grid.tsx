@@ -16,7 +16,14 @@ export async function GroupsGrid() {
     .select('id, name, configuration, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)')
     .order('created_at', { ascending: false });
 
-  if (isTeacher) query = query.eq('teacher_id', profile!.id);
+  if (isTeacher) {
+    query = query.eq('teacher_id', profile!.id);
+  } else if (profile!.role === 'assistant') {
+    // TAs now only see the groups they're specifically assigned to, not
+    // every group in the company (a deliberate narrowing from the earlier
+    // broad-visibility precedent — see the assigned_ta migration).
+    query = query.eq('assigned_ta_id', profile!.id);
+  }
 
   const { data } = await query;
   const groups = (data as unknown as GroupCardData[]) ?? [];

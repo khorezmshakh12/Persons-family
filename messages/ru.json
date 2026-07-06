@@ -212,6 +212,8 @@
     "schedule": "Расписание",
     "room": "Кабинет",
     "groupNotes": "Заметки",
+    "assignedTa": "Ассистент учителя",
+    "noTaAssigned": "Ассистент не назначен",
     "create": "Создать",
     "saveChanges": "Сохранить изменения",
     "confirm": "Подтвердить",
@@ -219,7 +221,7 @@
     "noGroups": "Групп пока нет.",
     "noConfiguration": "Данные ещё не заданы.",
     "confirmDeleteGroupTitle": "Удалить эту группу?",
-    "confirmDeleteGroupDescription": "Группа, её планы уроков, комментарии и домашние задания будут удалены без возможности восстановления.",
+    "confirmDeleteGroupDescription": "Группа, её планы уроков и комментарии будут удалены без возможности восстановления.",
     "courseLessons": {
       "title": "Уроки курса",
       "lessonNumber": "Урок №",
@@ -238,24 +240,6 @@
       "send": "Отправить",
       "deleteComment": "Удалить комментарий",
       "viewOnly": "Вы можете просматривать, но не комментировать здесь."
-    },
-    "homework": {
-      "title": "Домашние задания",
-      "addAssignment": "Добавить задание",
-      "assignmentTitle": "Заголовок",
-      "assignmentDescription": "Описание",
-      "dueDate": "Срок сдачи",
-      "due": "Срок",
-      "noAssignments": "Заданий пока нет.",
-      "addStudent": "Добавить ученика",
-      "studentName": "Имя ученика",
-      "rosterCount": "Учеников в списке: {count}",
-      "status": {
-        "pending": "Ожидает",
-        "submitted": "Сдано",
-        "graded": "Оценено",
-        "missing": "Не сдано"
-      }
     },
     "staffChat": {
       "title": "Чат группы: {name}"
@@ -276,6 +260,7 @@
     "send": "Отправить",
     "delete": "Удалить сообщение",
     "empty": "Сообщений пока нет. Начните разговор!",
+    "monitorOnly": "Вы можете наблюдать за этим чатом, но не можете отправлять сообщения.",
     "errors": {
       "forbidden": "У вас нет прав для этого действия.",
       "invalidMessage": "Сообщение не может быть пустым.",

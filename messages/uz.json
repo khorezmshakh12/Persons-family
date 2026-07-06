@@ -212,6 +212,8 @@
     "schedule": "Jadval",
     "room": "Xona",
     "groupNotes": "Izohlar",
+    "assignedTa": "O'qituvchi yordamchisi (TA)",
+    "noTaAssigned": "TA tayinlanmagan",
     "create": "Yaratish",
     "saveChanges": "O'zgarishlarni saqlash",
     "confirm": "Tasdiqlash",
@@ -219,7 +221,7 @@
     "noGroups": "Hozircha guruhlar yo'q.",
     "noConfiguration": "Hali ma'lumot kiritilmagan.",
     "confirmDeleteGroupTitle": "Ushbu guruhni o'chirasizmi?",
-    "confirmDeleteGroupDescription": "Guruh, uning dars rejalari, izohlari va uyga vazifalari butunlay o'chiriladi.",
+    "confirmDeleteGroupDescription": "Guruh, uning dars rejalari va izohlari butunlay o'chiriladi.",
     "courseLessons": {
       "title": "Kurs Darslari",
       "lessonNumber": "Dars #",
@@ -238,24 +240,6 @@
       "send": "Yuborish",
       "deleteComment": "Izohni o'chirish",
       "viewOnly": "Siz bu yerda faqat ko'rishingiz mumkin, izoh qoldira olmaysiz."
-    },
-    "homework": {
-      "title": "Homework (O'quv Ishlari)",
-      "addAssignment": "Vazifa qo'shish",
-      "assignmentTitle": "Sarlavha",
-      "assignmentDescription": "Tavsif",
-      "dueDate": "Topshirish muddati",
-      "due": "Muddat",
-      "noAssignments": "Hozircha vazifalar yo'q.",
-      "addStudent": "O'quvchi qo'shish",
-      "studentName": "O'quvchi ismi",
-      "rosterCount": "Ro'yxatda {count} ta o'quvchi",
-      "status": {
-        "pending": "Kutilmoqda",
-        "submitted": "Topshirilgan",
-        "graded": "Baholangan",
-        "missing": "Topshirilmagan"
-      }
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -276,6 +260,7 @@
     "send": "Yuborish",
     "delete": "Xabarni o'chirish",
     "empty": "Hozircha xabarlar yo'q. Suhbatni boshlang!",
+    "monitorOnly": "Siz bu chatni kuzatishingiz mumkin, lekin xabar yubora olmaysiz.",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",

@@ -172,6 +172,7 @@ export type Database = {
       }
       groups: {
         Row: {
+          assigned_ta_id: string | null
           configuration: Json
           created_at: string
           id: string
@@ -179,6 +180,7 @@ export type Database = {
           teacher_id: string
         }
         Insert: {
+          assigned_ta_id?: string | null
           configuration?: Json
           created_at?: string
           id?: string
@@ -186,6 +188,7 @@ export type Database = {
           teacher_id: string
         }
         Update: {
+          assigned_ta_id?: string | null
           configuration?: Json
           created_at?: string
           id?: string
@@ -193,6 +196,13 @@ export type Database = {
           teacher_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "groups_assigned_ta_id_fkey"
+            columns: ["assigned_ta_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "groups_teacher_id_fkey"
             columns: ["teacher_id"]
@@ -739,6 +749,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["staff_role"]
       }
       is_admin: { Args: never; Returns: boolean }
+      is_assigned_ta: { Args: { target_group_id: string }; Returns: boolean }
       is_group_owner: { Args: { target_group_id: string }; Returns: boolean }
     }
     Enums: {

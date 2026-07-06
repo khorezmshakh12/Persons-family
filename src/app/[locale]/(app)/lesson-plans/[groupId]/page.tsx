@@ -9,7 +9,6 @@ import { createClient } from '@/lib/supabase/server';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
-import { HomeworkPanel } from '@/components/lesson-plans/homework-panel';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import {
   GlassCardSkeleton,
@@ -23,9 +22,9 @@ const EditGroupDialog = nextDynamic(() =>
 export const dynamic = 'force-dynamic';
 
 // Only the group row itself (needed for the header + notFound/ownership
-// gate) blocks the initial render. The weekly plan, homework, and staff
-// chat snippet each fetch their own data and stream in behind independent
-// Suspense boundaries, so one slow section never holds up the other two.
+// gate) blocks the initial render. The course lessons table and staff chat
+// snippet each fetch their own data and stream in behind independent
+// Suspense boundaries, so one slow section never holds up the other.
 export default async function GroupPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const t = await getTranslations('lessonPlans');
@@ -34,7 +33,9 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
 
   const { data: group } = await supabase
     .from('groups')
-    .select('id, name, teacher_id, configuration, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)')
+    .select(
+      'id, name, teacher_id, assigned_ta_id, configuration, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)',
+    )
     .eq('id', groupId)
     .maybeSingle();
 
@@ -43,20 +44,44 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
   const isAssistant = profile!.role === 'assistant';
+  // Only the assistant specifically assigned to this group counts as "the
+  // group's TA" now — RLS already narrows their access to this group alone,
+  // this just drives which UI a non-owner/non-admin assistant sees.
+  const isAssignedTa = isAssistant && group.assigned_ta_id === user!.id;
 
-  // A different teacher (not the owner) should never see this group.
+  // A different teacher (not the owner) should never see this group. An
+  // assistant who isn't the one assigned to this group shouldn't either —
+  // RLS would return no row for them anyway, but this gives a clean 404
+  // instead of relying solely on the RLS-empty-row fallthrough.
   if (profile!.role === 'teacher' && !isOwnerTeacher) notFound();
+  if (isAssistant && !isAssignedTa) notFound();
 
   const canEditGroup = isOwnerTeacher || isAdmin;
   // Course lesson permissions per spec: only the owning teacher sets
   // dates/topics/uploads; the CEO (not admin_manager) can additionally
-  // clear/delete a file; CEO/Admin/assistant can comment, the teacher can't.
+  // clear/delete a file; CEO/Admin/the assigned TA can comment, the teacher
+  // can't.
   const canEditLessonContent = isOwnerTeacher;
   const canDeleteLessonFiles = isOwnerTeacher || profile!.role === 'ceo';
-  const canComment = isAdmin || isAssistant;
-  const isTeacherOrAssistant = profile!.role === 'teacher' || profile!.role === 'assistant';
+  const canComment = isAdmin || isAssignedTa;
+  // Group staff chat: the owning teacher and assigned TA can read + post;
+  // CEO/Admin can read-only ("monitor"). A non-assigned assistant never
+  // reaches this branch (notFound() above already caught them).
+  const canViewGroupChat = isOwnerTeacher || isAssignedTa || isAdmin;
+  const canPostGroupChat = isOwnerTeacher || isAssignedTa;
 
   const configuration = group.configuration as GroupConfiguration;
+
+  let assistants: { id: string; first_name: string; last_name: string }[] = [];
+  if (canEditGroup) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .eq('role', 'assistant')
+      .eq('is_active', true)
+      .order('first_name', { ascending: true });
+    assistants = data ?? [];
+  }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -79,7 +104,13 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
         </div>
         {canEditGroup && (
           <div className="flex shrink-0 gap-2">
-            <EditGroupDialog groupId={group.id} name={group.name} configuration={configuration} />
+            <EditGroupDialog
+              groupId={group.id}
+              name={group.name}
+              configuration={configuration}
+              assignedTaId={group.assigned_ta_id}
+              assistants={assistants}
+            />
             <DeleteGroupButton groupId={group.id} />
           </div>
         )}
@@ -99,16 +130,11 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
         </Suspense>
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {canViewGroupChat && (
         <Suspense fallback={<GlassCardSkeleton />}>
-          <HomeworkPanel groupId={group.id} canEdit={canEditGroup} />
+          <GroupStaffChatSnippet groupId={group.id} groupName={group.name} canPost={canPostGroupChat} />
         </Suspense>
-        {isTeacherOrAssistant && (
-          <Suspense fallback={<GlassCardSkeleton />}>
-            <GroupStaffChatSnippet groupId={group.id} groupName={group.name} />
-          </Suspense>
-        )}
-      </div>
+      )}
     </div>
   );
 }

@@ -4,9 +4,8 @@ import type { LessonAttachment } from '@/lib/lesson-materials';
 import type { LessonAttachmentWithUrl } from './lesson-files-cell';
 import type { LessonComment, LessonCommentRole } from './lesson-comments-drawer';
 
-// Self-fetching so it streams independently of HomeworkPanel and the staff
-// chat snippet on the group page, matching the pattern used for the rest of
-// this group-detail view.
+// Self-fetching so it streams independently of the staff chat snippet on the
+// group page, matching the pattern used for the rest of this group-detail view.
 export async function CourseLessonsSection({
   groupId,
   canEditContent,

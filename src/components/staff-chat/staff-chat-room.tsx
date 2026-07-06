@@ -13,12 +13,17 @@ export function StaffChatRoom({
   initialMessages,
   staffMap,
   currentUserId,
+  canPost = true,
   compact = false,
 }: {
   conversationId: string;
   initialMessages: Message[];
   staffMap: Record<string, ChatSender>;
   currentUserId: string;
+  /** False for CEO/Admin "monitor" access to a group's staff chat — they
+   * can read but RLS would reject an insert, so hide the composer rather
+   * than let them hit a silent failure. */
+  canPost?: boolean;
   /** Snippet mode for embedding inside a group page — shows only the last
    * few messages and skips auto-scroll, instead of the full-height room
    * used by the standalone /staff-chat page. */
@@ -116,7 +121,13 @@ export function StaffChatRoom({
           </div>
         )}
       </div>
-      <StaffMessageComposer conversationId={conversationId} onOptimisticSend={handleOptimisticSend} />
+      {canPost ? (
+        <StaffMessageComposer conversationId={conversationId} onOptimisticSend={handleOptimisticSend} />
+      ) : (
+        <p className="border-t border-white/15 pt-3 text-center text-xs text-white/40 italic">
+          {t('monitorOnly')}
+        </p>
+      )}
     </div>
   );
 }

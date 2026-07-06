@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { TaSelectField, type AssistantOption } from './ta-select-field';
 import {
   Dialog,
   DialogContent,
@@ -29,10 +30,14 @@ export function EditGroupDialog({
   groupId,
   name,
   configuration,
+  assignedTaId,
+  assistants,
 }: {
   groupId: string;
   name: string;
   configuration: GroupConfiguration;
+  assignedTaId: string | null;
+  assistants: AssistantOption[];
 }) {
   const t = useTranslations('lessonPlans');
   const tCommon = useTranslations('common');
@@ -86,6 +91,7 @@ export function EditGroupDialog({
             <Label htmlFor="notes">{t('groupNotes')}</Label>
             <Textarea id="notes" name="notes" maxLength={2000} rows={3} defaultValue={configuration.notes ?? ''} />
           </div>
+          <TaSelectField assistants={assistants} defaultValue={assignedTaId ?? 'none'} />
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending}>

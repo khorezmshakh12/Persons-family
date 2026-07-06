@@ -212,6 +212,8 @@
     "schedule": "Schedule",
     "room": "Room",
     "groupNotes": "Notes",
+    "assignedTa": "Teacher Assistant",
+    "noTaAssigned": "No TA assigned",
     "create": "Create",
     "saveChanges": "Save changes",
     "confirm": "Confirm",
@@ -219,7 +221,7 @@
     "noGroups": "No groups yet.",
     "noConfiguration": "No details set yet.",
     "confirmDeleteGroupTitle": "Delete this group?",
-    "confirmDeleteGroupDescription": "This will permanently remove the group, its lesson plans, comments, and homework.",
+    "confirmDeleteGroupDescription": "This will permanently remove the group, its lesson plans, and comments.",
     "courseLessons": {
       "title": "Course Lessons",
       "lessonNumber": "Lesson #",
@@ -238,24 +240,6 @@
       "send": "Send",
       "deleteComment": "Delete comment",
       "viewOnly": "You can view but not comment here."
-    },
-    "homework": {
-      "title": "Homework (O'quv Ishlari)",
-      "addAssignment": "Add assignment",
-      "assignmentTitle": "Title",
-      "assignmentDescription": "Description",
-      "dueDate": "Due date",
-      "due": "Due",
-      "noAssignments": "No assignments yet.",
-      "addStudent": "Add student",
-      "studentName": "Student name",
-      "rosterCount": "{count} students in roster",
-      "status": {
-        "pending": "Pending",
-        "submitted": "Submitted",
-        "graded": "Graded",
-        "missing": "Missing"
-      }
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -276,6 +260,7 @@
     "send": "Send",
     "delete": "Delete message",
     "empty": "No messages yet. Start the conversation!",
+    "monitorOnly": "You can monitor this chat but not send messages.",
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "invalidMessage": "Message can't be empty.",

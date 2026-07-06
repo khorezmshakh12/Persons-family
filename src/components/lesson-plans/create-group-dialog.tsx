@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { TaSelectField, type AssistantOption } from './ta-select-field';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-export function CreateGroupDialog() {
+export function CreateGroupDialog({ assistants }: { assistants: AssistantOption[] }) {
   const t = useTranslations('lessonPlans');
   const tCommon = useTranslations('common');
   const router = useRouter();
@@ -80,6 +81,7 @@ export function CreateGroupDialog() {
             <Label htmlFor="notes">{t('groupNotes')}</Label>
             <Textarea id="notes" name="notes" maxLength={2000} rows={3} />
           </div>
+          <TaSelectField assistants={assistants} />
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending || isNavigating}>

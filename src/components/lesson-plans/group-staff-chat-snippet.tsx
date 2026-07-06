@@ -6,7 +6,17 @@ import type { ChatSender } from '@/components/staff-chat/staff-message-item';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
-export async function GroupStaffChatSnippet({ groupId, groupName }: { groupId: string; groupName: string }) {
+export async function GroupStaffChatSnippet({
+  groupId,
+  groupName,
+  canPost,
+}: {
+  groupId: string;
+  groupName: string;
+  /** Only the group's teacher and assigned TA can post; CEO/Admin get
+   * read-only "monitor" access. */
+  canPost: boolean;
+}) {
   const t = await getTranslations('lessonPlans');
   const { user } = await getAuthState();
   const supabase = await createClient();
@@ -18,14 +28,21 @@ export async function GroupStaffChatSnippet({ groupId, groupName }: { groupId: s
     .order('created_at', { ascending: true })
     .limit(20);
 
-  const { data: staff } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, avatar_url')
-    .in('role', ['teacher', 'assistant']);
+  // This chat is now strictly between the group's teacher and their
+  // assigned TA, so only their two names ever need resolving — not every
+  // teacher/assistant in the company.
+  const { data: group } = await supabase.from('groups').select('teacher_id, assigned_ta_id').eq('id', groupId).maybeSingle();
+  const participantIds = [group?.teacher_id, group?.assigned_ta_id].filter((id): id is string => Boolean(id));
 
   const staffMap: Record<string, ChatSender> = {};
-  for (const s of staff ?? []) {
-    staffMap[s.id] = { first_name: s.first_name, last_name: s.last_name, avatar_url: s.avatar_url };
+  if (participantIds.length > 0) {
+    const { data: staff } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, avatar_url')
+      .in('id', participantIds);
+    for (const s of staff ?? []) {
+      staffMap[s.id] = { first_name: s.first_name, last_name: s.last_name, avatar_url: s.avatar_url };
+    }
   }
 
   return (
@@ -36,6 +53,7 @@ export async function GroupStaffChatSnippet({ groupId, groupName }: { groupId: s
         initialMessages={messages ?? []}
         staffMap={staffMap}
         currentUserId={user!.id}
+        canPost={canPost}
         compact
       />
     </div>

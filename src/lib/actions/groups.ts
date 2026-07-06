@@ -17,6 +17,9 @@ const configurationSchema = z.object({
 
 const groupSchema = z.object({
   name: z.string().trim().min(1).max(200),
+  // 'none' is the Select's sentinel value for "no TA assigned" (Base UI's
+  // Select doesn't take a plain empty-string item value).
+  assignedTaId: z.union([z.string().uuid(), z.literal('none'), z.literal('')]).optional(),
   ...configurationSchema.shape,
 });
 
@@ -30,6 +33,21 @@ function buildConfiguration(data: z.infer<typeof configurationSchema>) {
   };
 }
 
+function normalizeAssignedTaId(value: string | undefined): string | null {
+  return value && value !== 'none' ? value : null;
+}
+
+/** Defense in depth: RLS doesn't itself check that assigned_ta_id points at
+ * an actual assistant, since that's a cross-table business rule rather than
+ * a per-row ownership check. */
+async function validateAssignedTa(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  assignedTaId: string,
+): Promise<boolean> {
+  const { data } = await supabase.from('profiles').select('role').eq('id', assignedTaId).maybeSingle();
+  return data?.role === 'assistant';
+}
+
 export async function createGroupAction(
   _prevState: GroupActionState,
   formData: FormData,
@@ -41,11 +59,18 @@ export async function createGroupAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
+  const assignedTaId = normalizeAssignedTaId(parsed.data.assignedTaId);
+
+  if (assignedTaId && !(await validateAssignedTa(supabase, assignedTaId))) {
+    return { error: 'invalidInput' };
+  }
+
   const { data, error } = await supabase
     .from('groups')
     .insert({
       teacher_id: user.id,
       name: parsed.data.name,
+      assigned_ta_id: assignedTaId,
       configuration: buildConfiguration(parsed.data),
     })
     .select('id')
@@ -73,10 +98,17 @@ export async function updateGroupAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
+  const assignedTaId = normalizeAssignedTaId(parsed.data.assignedTaId);
+
+  if (assignedTaId && !(await validateAssignedTa(supabase, assignedTaId))) {
+    return { error: 'invalidInput' };
+  }
+
   const { error } = await supabase
     .from('groups')
     .update({
       name: parsed.data.name,
+      assigned_ta_id: assignedTaId,
       configuration: buildConfiguration(parsed.data),
     })
     .eq('id', parsed.data.id);
