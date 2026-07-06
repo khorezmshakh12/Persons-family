@@ -10,6 +10,8 @@
     "logout": "Chiqish",
     "language": "Til",
     "comingSoon": "Bu bo'lim tez orada ishga tushadi.",
+    "showPassword": "Parolni ko'rsatish",
+    "hidePassword": "Parolni yashirish",
     "errorTitle": "Nimadir xato ketdi",
     "errorDescription": "Qayta urinib ko'ring yoki muammo davom etsa, administratorga murojaat qiling.",
     "tryAgain": "Qayta urinish"
@@ -29,6 +31,7 @@
     "phone": "Telefon raqami",
     "password": "Parol",
     "login": "Kirish",
+    "tagline": "Persons oilasiga kirish",
     "loginTitle": "Hisobga kirish",
     "loginSubtitle": "Telefon raqami va parolni kiriting.",
     "setPasswordTitle": "Parolni o'rnating",

@@ -10,6 +10,8 @@
     "logout": "Log out",
     "language": "Language",
     "comingSoon": "This feature is coming soon.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "errorTitle": "Something went wrong",
     "errorDescription": "Please try again, or contact an administrator if the problem persists.",
     "tryAgain": "Try again"
@@ -29,6 +31,7 @@
     "phone": "Phone number",
     "password": "Password",
     "login": "Log in",
+    "tagline": "Welcome to the Persons family",
     "loginTitle": "Sign in to your account",
     "loginSubtitle": "Enter your phone number and password.",
     "setPasswordTitle": "Set your password",

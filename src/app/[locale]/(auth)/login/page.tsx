@@ -2,7 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { LoginForm } from '@/components/auth/login-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AuthCard } from '@/components/auth/auth-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,21 +20,15 @@ export default async function LoginPage({
   const suspended = reason === 'suspended';
 
   return (
-    <div className="mx-auto flex max-w-md flex-col justify-center px-4 py-16">
+    <div className="flex w-full max-w-md flex-col gap-4">
       {suspended && (
-        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700 shadow-sm">
           {t('errors.accountDeactivated')}
         </div>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('loginTitle')}</CardTitle>
-          <CardDescription>{t('loginSubtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
+      <AuthCard tagline={t('tagline')} title={t('loginTitle')} subtitle={t('loginSubtitle')}>
+        <LoginForm />
+      </AuthCard>
     </div>
   );
 }
