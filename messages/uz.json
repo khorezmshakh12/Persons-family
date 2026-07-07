@@ -573,5 +573,64 @@
       "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
       "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
     }
+  },
+  "roadmap": {
+    "title": "Yo'l Xaritasi",
+    "newGoal": "Yangi maqsad",
+    "goalTitle": "Maqsad nomi",
+    "create": "Yaratish",
+    "delete": "Maqsadni o'chirish",
+    "progress": "Bajarilishi",
+    "detailsSaved": "Ma'lumotlar saqlandi.",
+    "saveDetails": "Saqlash",
+    "saving": "Saqlanmoqda...",
+    "failureReason": "Muvaffaqiyatsizlik sababi",
+    "failureReasonPlaceholder": "Nima noto'g'ri ketdi?",
+    "solution": "CEO/Admin yechimi",
+    "solutionPlaceholder": "Bu qanday hal qilinadi?",
+    "noGoals": "Hozircha maqsadlar yo'q.",
+    "noGoalsInColumn": "Maqsadlar yo'q",
+    "timeframe": {
+      "label": "Muddat",
+      "weekly": "Haftalik",
+      "monthly": "Oylik",
+      "quarterly": "3 Oylik"
+    },
+    "status": {
+      "pending": "Jarayonda",
+      "done": "Bajarildi",
+      "failed": "Muvaffaqiyatsiz"
+    },
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, majburiy maydonlarni to'ldiring.",
+      "createFailed": "Maqsadni yaratib bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "projects": {
+    "title": "Loyihalar",
+    "newProject": "Yangi loyiha",
+    "projectTitle": "Loyiha nomi",
+    "create": "Yaratish",
+    "deleteProject": "Loyihani o'chirish",
+    "estimatedBudget": "Taxminiy byudjet",
+    "save": "Saqlash",
+    "saving": "Saqlanmoqda...",
+    "budgetSaved": "Byudjet saqlandi.",
+    "currency": "so'm",
+    "noBudget": "Byudjet kiritilmagan",
+    "initialSteps": "Boshlang'ich qadamlar",
+    "stepsProgress": "{done}/{total} qadam bajarildi",
+    "noSteps": "Hozircha qadamlar yo'q",
+    "addStepPlaceholder": "Qadam qo'shish...",
+    "removeStep": "Qadamni o'chirish",
+    "noProjects": "Hozircha loyihalar yo'q.",
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, majburiy maydonlarni to'ldiring.",
+      "createFailed": "Loyihani yaratib bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
   }
 }

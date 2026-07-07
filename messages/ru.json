@@ -573,5 +573,64 @@
       "alreadySubmitted": "Вы уже отправили свой прогресс за этот месяц.",
       "submitFailed": "Что-то пошло не так. Попробуйте снова."
     }
+  },
+  "roadmap": {
+    "title": "Дорожная карта",
+    "newGoal": "Новая цель",
+    "goalTitle": "Название цели",
+    "create": "Создать",
+    "delete": "Удалить цель",
+    "progress": "Прогресс",
+    "detailsSaved": "Данные сохранены.",
+    "saveDetails": "Сохранить",
+    "saving": "Сохранение...",
+    "failureReason": "Причина неудачи",
+    "failureReasonPlaceholder": "Что пошло не так?",
+    "solution": "Решение CEO/Админа",
+    "solutionPlaceholder": "Как это будет исправлено?",
+    "noGoals": "Целей пока нет.",
+    "noGoalsInColumn": "Нет целей",
+    "timeframe": {
+      "label": "Период",
+      "weekly": "Неделя",
+      "monthly": "Месяц",
+      "quarterly": "3 месяца"
+    },
+    "status": {
+      "pending": "В процессе",
+      "done": "Выполнено",
+      "failed": "Провалено"
+    },
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "invalidInput": "Пожалуйста, заполните обязательные поля.",
+      "createFailed": "Не удалось создать цель. Попробуйте снова.",
+      "updateFailed": "Не удалось сохранить изменения. Попробуйте снова."
+    }
+  },
+  "projects": {
+    "title": "Проекты",
+    "newProject": "Новый проект",
+    "projectTitle": "Название проекта",
+    "create": "Создать",
+    "deleteProject": "Удалить проект",
+    "estimatedBudget": "Ориентировочный бюджет",
+    "save": "Сохранить",
+    "saving": "Сохранение...",
+    "budgetSaved": "Бюджет сохранён.",
+    "currency": "сум",
+    "noBudget": "Бюджет не задан",
+    "initialSteps": "Первые шаги",
+    "stepsProgress": "Выполнено {done}/{total}",
+    "noSteps": "Шагов пока нет",
+    "addStepPlaceholder": "Добавить шаг...",
+    "removeStep": "Удалить шаг",
+    "noProjects": "Проектов пока нет.",
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "invalidInput": "Пожалуйста, заполните обязательные поля.",
+      "createFailed": "Не удалось создать проект. Попробуйте снова.",
+      "updateFailed": "Не удалось сохранить изменения. Попробуйте снова."
+    }
   }
 }
