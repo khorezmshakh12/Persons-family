@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { GroupsGrid } from '@/components/lesson-plans/groups-grid';
+import { GroupFilters } from '@/components/lesson-plans/group-filters';
 import { GlassGroupGridSkeleton } from '@/components/skeletons/glass-skeletons';
 
 const CreateGroupDialog = nextDynamic(() =>
@@ -13,14 +14,19 @@ const CreateGroupDialog = nextDynamic(() =>
 
 export const dynamic = 'force-dynamic';
 
-export default async function LessonPlansPage() {
+export default async function LessonPlansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string; teacher?: string }>;
+}) {
+  const { days, teacher } = await searchParams;
   const t = await getTranslations('lessonPlans');
   const { profile } = await getAuthState();
   const isTeacher = profile!.role === 'teacher';
+  const supabase = await createClient();
 
   let assistants: { id: string; first_name: string; last_name: string }[] = [];
   if (isTeacher) {
-    const supabase = await createClient();
     const { data } = await supabase
       .from('profiles')
       .select('id, first_name, last_name')
@@ -30,6 +36,19 @@ export default async function LessonPlansPage() {
     assistants = data ?? [];
   }
 
+  // The "filter by teacher" dropdown only makes sense for a viewer who can
+  // see more than one teacher's groups in the first place.
+  let teachers: { id: string; first_name: string; last_name: string }[] = [];
+  if (!isTeacher) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .eq('role', 'teacher')
+      .eq('is_active', true)
+      .order('first_name', { ascending: true });
+    teachers = data ?? [];
+  }
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
       <div className="flex items-center justify-between">
@@ -37,8 +56,10 @@ export default async function LessonPlansPage() {
         {isTeacher && <CreateGroupDialog assistants={assistants} />}
       </div>
 
+      <GroupFilters teachers={teachers} />
+
       <Suspense fallback={<GlassGroupGridSkeleton />}>
-        <GroupsGrid />
+        <GroupsGrid days={days} teacherId={teacher} />
       </Suspense>
     </div>
   );

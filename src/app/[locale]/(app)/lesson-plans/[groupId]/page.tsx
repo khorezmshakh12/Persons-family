@@ -34,7 +34,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const { data: group } = await supabase
     .from('groups')
     .select(
-      'id, name, teacher_id, assigned_ta_id, configuration, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)',
+      'id, name, teacher_id, assigned_ta_id, configuration, course_name, schedule_type, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)',
     )
     .eq('id', groupId)
     .maybeSingle();
@@ -97,7 +97,14 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{group.name}</h1>
           <p className="text-sm text-white/60">
-            {[configuration.subject, configuration.level, configuration.schedule, configuration.room]
+            {[
+              group.course_name,
+              group.schedule_type ? t(`scheduleType.${group.schedule_type}`) : null,
+              configuration.subject,
+              configuration.level,
+              configuration.schedule,
+              configuration.room,
+            ]
               .filter(Boolean)
               .join(' · ') || t('noConfiguration')}
           </p>
@@ -110,6 +117,8 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
               configuration={configuration}
               assignedTaId={group.assigned_ta_id}
               assistants={assistants}
+              courseName={group.course_name}
+              scheduleType={group.schedule_type}
             />
             <DeleteGroupButton groupId={group.id} />
           </div>

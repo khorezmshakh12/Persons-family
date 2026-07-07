@@ -65,6 +65,61 @@ export async function updateLessonTopicAction(
   return {};
 }
 
+const updateLessonDescriptionSchema = z.object({
+  lessonId: z.string().uuid(),
+  description: z.string().trim().max(4000).optional().or(z.literal('')),
+});
+
+/** "Offline game" rules/notes for the lesson — free text, separate column
+ * and action from topic for the same reason date/topic are split. */
+export async function updateLessonDescriptionAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = updateLessonDescriptionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('course_lessons')
+    .update({ description: parsed.data.description || null })
+    .eq('id', parsed.data.lessonId);
+  if (error) return { error: 'updateFailed' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}
+
+const updateLessonGameLinkSchema = z.object({
+  lessonId: z.string().uuid(),
+  gameLink: z.string().trim().max(500).optional().or(z.literal('')),
+});
+
+export async function updateLessonGameLinkAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = updateLessonGameLinkSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.gameLink && !/^https?:\/\//i.test(parsed.data.gameLink)) return { error: 'invalidGameLink' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('course_lessons')
+    .update({ game_link: parsed.data.gameLink || null })
+    .eq('id', parsed.data.lessonId);
+  if (error) return { error: 'updateFailed' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}
+
 const uploadUrlSchema = z.object({
   lessonId: z.string().uuid(),
   groupId: z.string().uuid(),

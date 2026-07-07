@@ -324,6 +324,18 @@
     "groupsUsed": "Использовано групп: {count} из {max}",
     "noGroups": "Групп пока нет.",
     "noConfiguration": "Данные ещё не заданы.",
+    "courseName": "Название курса",
+    "noCourseName": "Название курса не задано",
+    "scheduleType": {
+      "label": "Дни",
+      "notSet": "Не задано",
+      "odd": "Нечётные дни",
+      "even": "Чётные дни"
+    },
+    "filters": {
+      "allDays": "Все дни",
+      "allTeachers": "Все учителя"
+    },
     "confirmDeleteGroupTitle": "Удалить эту группу?",
     "confirmDeleteGroupDescription": "Группа, её планы уроков и комментарии будут удалены без возможности восстановления.",
     "courseLessons": {
@@ -331,10 +343,17 @@
       "lessonNumber": "Урок №",
       "date": "Дата",
       "topic": "Тема",
+      "description": "Описание / Офлайн игра",
+      "gameLink": "Ссылка на онлайн игру",
       "files": "Файлы",
       "comments": "Комментарии",
       "topicPlaceholder": "Что будет пройдено...",
       "noTopic": "Тема не задана",
+      "descriptionPlaceholder": "Правила или заметки для офлайн игры...",
+      "noDescription": "Описание не задано",
+      "gameLinkPlaceholder": "https://...",
+      "noGameLink": "Ссылки нет",
+      "openGame": "Открыть игру",
       "noFiles": "Файлов нет",
       "upload": "Загрузить",
       "remove": "Удалить",
@@ -355,7 +374,8 @@
       "updateFailed": "Не удалось сохранить изменения. Попробуйте снова.",
       "groupLimitReached": "Вы достигли максимума в 50 групп.",
       "fileTooLarge": "Файл должен быть меньше 50 МБ.",
-      "uploadFailed": "Не удалось загрузить файл. Попробуйте снова."
+      "uploadFailed": "Не удалось загрузить файл. Попробуйте снова.",
+      "invalidGameLink": "Введите корректную ссылку, начинающуюся с http:// или https://."
     }
   },
   "staffChat": {

@@ -5,6 +5,8 @@ import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { LessonDateCell } from './lesson-date-cell';
 import { LessonTopicCell } from './lesson-topic-cell';
+import { LessonDescriptionCell } from './lesson-description-cell';
+import { LessonGameLinkCell } from './lesson-game-link-cell';
 import { LessonFilesCell, type LessonAttachmentWithUrl } from './lesson-files-cell';
 import { LessonCommentsDrawer, type LessonComment } from './lesson-comments-drawer';
 
@@ -13,6 +15,8 @@ export type CourseLessonRow = {
   lesson_number: number;
   lesson_date: string | null;
   topic: string | null;
+  description: string | null;
+  game_link: string | null;
   attachments: LessonAttachmentWithUrl[];
   comments: LessonComment[];
 };
@@ -47,6 +51,8 @@ export function CourseLessonsTable({
             <th className="px-3 py-2.5 font-medium">{t('courseLessons.lessonNumber')}</th>
             <th className="px-3 py-2.5 font-medium">{t('courseLessons.date')}</th>
             <th className="px-3 py-2.5 font-medium">{t('courseLessons.topic')}</th>
+            <th className="px-3 py-2.5 font-medium">{t('courseLessons.description')}</th>
+            <th className="px-3 py-2.5 font-medium">{t('courseLessons.gameLink')}</th>
             <th className="px-3 py-2.5 font-medium">{t('courseLessons.files')}</th>
             <th className="px-3 py-2.5 font-medium">{t('courseLessons.comments')}</th>
           </tr>
@@ -60,6 +66,12 @@ export function CourseLessonsTable({
               </td>
               <td className="px-3 py-2.5 align-top">
                 <LessonTopicCell lessonId={lesson.id} topic={lesson.topic} canEdit={canEditContent} />
+              </td>
+              <td className="px-3 py-2.5 align-top">
+                <LessonDescriptionCell lessonId={lesson.id} description={lesson.description} canEdit={canEditContent} />
+              </td>
+              <td className="px-3 py-2.5 align-top">
+                <LessonGameLinkCell lessonId={lesson.id} gameLink={lesson.game_link} canEdit={canEditContent} />
               </td>
               <td className="px-3 py-2.5 align-top">
                 <LessonFilesCell

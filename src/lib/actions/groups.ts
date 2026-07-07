@@ -18,11 +18,17 @@ const configurationSchema = z.object({
 
 const groupSchema = z.object({
   name: z.string().trim().min(1).max(200),
-  // 'none' is the Select's sentinel value for "no TA assigned" (Base UI's
-  // Select doesn't take a plain empty-string item value).
+  // 'none' is the Select's sentinel value for "no TA assigned"/"no schedule
+  // set yet" (Base UI's Select doesn't take a plain empty-string item value).
   assignedTaId: z.union([z.string().uuid(), z.literal('none'), z.literal('')]).optional(),
+  scheduleType: z.union([z.enum(['odd', 'even']), z.literal('none'), z.literal('')]).optional(),
+  courseName: z.string().trim().max(200).optional().or(z.literal('')),
   ...configurationSchema.shape,
 });
+
+function normalizeScheduleType(value: string | undefined): 'odd' | 'even' | null {
+  return value === 'odd' || value === 'even' ? value : null;
+}
 
 function buildConfiguration(data: z.infer<typeof configurationSchema>) {
   return {
@@ -72,6 +78,8 @@ export async function createGroupAction(
       teacher_id: user.id,
       name: parsed.data.name,
       assigned_ta_id: assignedTaId,
+      schedule_type: normalizeScheduleType(parsed.data.scheduleType),
+      course_name: parsed.data.courseName || null,
       configuration: buildConfiguration(parsed.data),
     })
     .select('id')
@@ -144,6 +152,8 @@ export async function updateGroupAction(
     .update({
       name: parsed.data.name,
       assigned_ta_id: assignedTaId,
+      schedule_type: normalizeScheduleType(parsed.data.scheduleType),
+      course_name: parsed.data.courseName || null,
       configuration: buildConfiguration(parsed.data),
     })
     .eq('id', parsed.data.id);

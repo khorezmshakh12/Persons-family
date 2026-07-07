@@ -5,7 +5,16 @@ import { GroupCard, type GroupCardData } from '@/components/lesson-plans/group-c
 
 const MAX_GROUPS_PER_TEACHER = 50;
 
-export async function GroupsGrid() {
+export async function GroupsGrid({
+  days,
+  teacherId,
+}: {
+  /** 'odd' | 'even' | undefined (no filter). */
+  days?: string;
+  /** Ignored for a teacher viewer — their own groups are already the only
+   * ones they can see, so filtering by teacher would be a no-op at best. */
+  teacherId?: string;
+}) {
   const t = await getTranslations('lessonPlans');
   const { profile } = await getAuthState();
   const isTeacher = profile!.role === 'teacher';
@@ -13,7 +22,9 @@ export async function GroupsGrid() {
 
   let query = supabase
     .from('groups')
-    .select('id, name, configuration, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)')
+    .select(
+      'id, name, course_name, schedule_type, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)',
+    )
     .order('created_at', { ascending: false });
 
   if (isTeacher) {
@@ -24,6 +35,9 @@ export async function GroupsGrid() {
     // broad-visibility precedent — see the assigned_ta migration).
     query = query.eq('assigned_ta_id', profile!.id);
   }
+
+  if (days === 'odd' || days === 'even') query = query.eq('schedule_type', days);
+  if (!isTeacher && teacherId) query = query.eq('teacher_id', teacherId);
 
   const { data } = await query;
   const groups = (data as unknown as GroupCardData[]) ?? [];
@@ -40,7 +54,7 @@ export async function GroupsGrid() {
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {groups.map((group) => (
-            <GroupCard key={group.id} group={group} showTeacher={!isTeacher} />
+            <GroupCard key={group.id} group={group} />
           ))}
         </div>
       )}

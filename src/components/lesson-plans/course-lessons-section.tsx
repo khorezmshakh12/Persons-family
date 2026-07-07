@@ -25,7 +25,7 @@ export async function CourseLessonsSection({
 
   const { data: lessonsData } = await supabase
     .from('course_lessons')
-    .select('id, lesson_number, lesson_date, topic, attachments')
+    .select('id, lesson_number, lesson_date, topic, description, game_link, attachments')
     .eq('group_id', groupId)
     .order('lesson_number', { ascending: true });
   const lessons = lessonsData ?? [];
@@ -86,6 +86,8 @@ export async function CourseLessonsSection({
       lesson_number: l.lesson_number,
       lesson_date: l.lesson_date,
       topic: l.topic,
+      description: l.description,
+      game_link: l.game_link,
       attachments: attachmentsWithUrl,
       comments: commentsByLesson.get(l.id) ?? [],
     };

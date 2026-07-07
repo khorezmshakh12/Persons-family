@@ -17,6 +17,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export type GroupConfiguration = {
   subject: string | null;
@@ -32,12 +33,16 @@ export function EditGroupDialog({
   configuration,
   assignedTaId,
   assistants,
+  courseName,
+  scheduleType,
 }: {
   groupId: string;
   name: string;
   configuration: GroupConfiguration;
   assignedTaId: string | null;
   assistants: AssistantOption[];
+  courseName: string | null;
+  scheduleType: 'odd' | 'even' | null;
 }) {
   const t = useTranslations('lessonPlans');
   const tCommon = useTranslations('common');
@@ -68,6 +73,27 @@ export function EditGroupDialog({
           <div className="flex flex-col gap-2">
             <Label htmlFor="name">{t('groupName')}</Label>
             <Input id="name" name="name" required maxLength={200} defaultValue={name} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="courseName">{t('courseName')}</Label>
+              <Input id="courseName" name="courseName" maxLength={200} defaultValue={courseName ?? ''} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="scheduleType">{t('scheduleType.label')}</Label>
+              <Select name="scheduleType" defaultValue={scheduleType ?? 'none'}>
+                <SelectTrigger id="scheduleType" className="w-full">
+                  <SelectValue>
+                    {(value: string) => (value === 'none' ? t('scheduleType.notSet') : t(`scheduleType.${value}`))}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('scheduleType.notSet')}</SelectItem>
+                  <SelectItem value="odd">{t('scheduleType.odd')}</SelectItem>
+                  <SelectItem value="even">{t('scheduleType.even')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">

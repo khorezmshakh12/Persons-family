@@ -324,6 +324,18 @@
     "groupsUsed": "{max} tadan {count} tasi ishlatilgan",
     "noGroups": "Hozircha guruhlar yo'q.",
     "noConfiguration": "Hali ma'lumot kiritilmagan.",
+    "courseName": "Kurs nomi",
+    "noCourseName": "Kurs nomi kiritilmagan",
+    "scheduleType": {
+      "label": "Kunlar",
+      "notSet": "Kiritilmagan",
+      "odd": "Toq kunlar",
+      "even": "Juft kunlar"
+    },
+    "filters": {
+      "allDays": "Barcha kunlar",
+      "allTeachers": "Barcha o'qituvchilar"
+    },
     "confirmDeleteGroupTitle": "Ushbu guruhni o'chirasizmi?",
     "confirmDeleteGroupDescription": "Guruh, uning dars rejalari va izohlari butunlay o'chiriladi.",
     "courseLessons": {
@@ -331,10 +343,17 @@
       "lessonNumber": "Dars #",
       "date": "Sana",
       "topic": "Mavzu",
+      "description": "Tavsif / Oflayn O'yin",
+      "gameLink": "Onlayn O'yin Havolasi",
       "files": "Fayllar",
       "comments": "Izohlar",
       "topicPlaceholder": "Nima o'tiladi...",
       "noTopic": "Mavzu kiritilmagan",
+      "descriptionPlaceholder": "Oflayn o'yin qoidalari yoki izohlar...",
+      "noDescription": "Tavsif kiritilmagan",
+      "gameLinkPlaceholder": "https://...",
+      "noGameLink": "Havola yo'q",
+      "openGame": "O'yinni ochish",
       "noFiles": "Fayl yo'q",
       "upload": "Yuklash",
       "remove": "O'chirish",
@@ -355,7 +374,8 @@
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
       "groupLimitReached": "Siz 50 ta guruh chegarasiga yetdingiz.",
       "fileTooLarge": "Fayl 50MB dan kichik bo'lishi kerak.",
-      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring."
+      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "invalidGameLink": "Iltimos, http:// yoki https:// bilan boshlanuvchi to'g'ri havola kiriting."
     }
   },
   "staffChat": {

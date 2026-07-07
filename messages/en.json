@@ -324,6 +324,18 @@
     "groupsUsed": "{count} of {max} groups used",
     "noGroups": "No groups yet.",
     "noConfiguration": "No details set yet.",
+    "courseName": "Course name",
+    "noCourseName": "No course name set",
+    "scheduleType": {
+      "label": "Days",
+      "notSet": "Not set",
+      "odd": "Odd days",
+      "even": "Even days"
+    },
+    "filters": {
+      "allDays": "All days",
+      "allTeachers": "All teachers"
+    },
     "confirmDeleteGroupTitle": "Delete this group?",
     "confirmDeleteGroupDescription": "This will permanently remove the group, its lesson plans, and comments.",
     "courseLessons": {
@@ -331,10 +343,17 @@
       "lessonNumber": "Lesson #",
       "date": "Date",
       "topic": "Topic",
+      "description": "Description / Offline Game",
+      "gameLink": "Online Game Link",
       "files": "Files",
       "comments": "Comments",
       "topicPlaceholder": "What will be covered...",
       "noTopic": "No topic set",
+      "descriptionPlaceholder": "Offline game rules or notes...",
+      "noDescription": "No description set",
+      "gameLinkPlaceholder": "https://...",
+      "noGameLink": "No game link",
+      "openGame": "Open game",
       "noFiles": "No files",
       "upload": "Upload",
       "remove": "Remove",
@@ -355,7 +374,8 @@
       "updateFailed": "Could not save changes. Please try again.",
       "groupLimitReached": "You've reached the maximum of 50 groups.",
       "fileTooLarge": "File must be under 50MB.",
-      "uploadFailed": "Could not upload the file. Please try again."
+      "uploadFailed": "Could not upload the file. Please try again.",
+      "invalidGameLink": "Please enter a valid link starting with http:// or https://."
     }
   },
   "staffChat": {
