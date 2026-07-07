@@ -10,6 +10,9 @@ import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-di
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 import {
   GlassCardSkeleton,
   GlassCourseLessonsSkeleton,
@@ -34,7 +37,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const { data: group } = await supabase
     .from('groups')
     .select(
-      'id, name, teacher_id, assigned_ta_id, configuration, course_name, schedule_type, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)',
+      'id, name, teacher_id, assigned_ta_id, configuration, course_name, schedule_type, teacher:profiles!groups_teacher_id_fkey(first_name, last_name, avatar_url)',
     )
     .eq('id', groupId)
     .maybeSingle();
@@ -93,36 +96,52 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
         <span className="font-semibold text-white">{group.name}</span>
       </div>
 
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{group.name}</h1>
-          <p className="text-sm text-white/60">
-            {[
-              group.course_name,
-              group.schedule_type ? t(`scheduleType.${group.schedule_type}`) : null,
-              configuration.subject,
-              configuration.level,
-              configuration.schedule,
-              configuration.room,
-            ]
-              .filter(Boolean)
-              .join(' · ') || t('noConfiguration')}
-          </p>
-        </div>
-        {canEditGroup && (
-          <div className="flex shrink-0 gap-2">
-            <EditGroupDialog
-              groupId={group.id}
-              name={group.name}
-              configuration={configuration}
-              assignedTaId={group.assigned_ta_id}
-              assistants={assistants}
-              courseName={group.course_name}
-              scheduleType={group.schedule_type}
-            />
-            <DeleteGroupButton groupId={group.id} />
+      <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full border border-teal-300/30 bg-teal-400/15 px-4 py-1.5 text-sm font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+              {t('groupLabel')}: {group.name}
+            </span>
+            {group.teacher && (
+              <span className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1 pr-4 pl-1.5 text-sm font-medium text-white">
+                <Avatar className="size-7 border border-white/30">
+                  <AvatarImage src={group.teacher.avatar_url ?? undefined} alt="" />
+                  <AvatarFallback className="bg-white/10 text-xs text-white">
+                    {group.teacher.first_name[0]}
+                    {group.teacher.last_name[0]}
+                  </AvatarFallback>
+                </Avatar>
+                {t('teacherLabel')}: {group.teacher.first_name} {group.teacher.last_name}
+              </span>
+            )}
           </div>
-        )}
+          {canEditGroup && (
+            <div className="flex shrink-0 gap-2">
+              <EditGroupDialog
+                groupId={group.id}
+                name={group.name}
+                configuration={configuration}
+                assignedTaId={group.assigned_ta_id}
+                assistants={assistants}
+                courseName={group.course_name}
+                scheduleType={group.schedule_type}
+              />
+              <DeleteGroupButton groupId={group.id} />
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-white/60">
+          {[
+            group.course_name,
+            group.schedule_type ? t(`scheduleType.${group.schedule_type}`) : null,
+            configuration.subject,
+            configuration.level,
+            configuration.schedule,
+            configuration.room,
+          ]
+            .filter(Boolean)
+            .join(' · ') || t('noConfiguration')}
+        </p>
       </div>
 
       <section className="flex flex-col gap-3">
