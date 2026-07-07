@@ -599,6 +599,15 @@
       "monthly": "Monthly",
       "quarterly": "3-Month"
     },
+    "milestoneTimeline": {
+      "title": "Milestone Timeline",
+      "goalsCount": "{count} goals",
+      "milestonesLabel": "Milestones",
+      "destinationsTitle": "Ultimate destinations",
+      "noMilestones": "No projects yet — add one from the Projects page.",
+      "noBudget": "No budget set",
+      "currency": "UZS"
+    },
     "status": {
       "pending": "Pending",
       "done": "Done",

@@ -599,6 +599,15 @@
       "monthly": "Месяц",
       "quarterly": "3 месяца"
     },
+    "milestoneTimeline": {
+      "title": "Хронология вех",
+      "goalsCount": "целей: {count}",
+      "milestonesLabel": "Вехи",
+      "destinationsTitle": "Конечные цели",
+      "noMilestones": "Проектов пока нет — добавьте на странице «Проекты».",
+      "noBudget": "Бюджет не задан",
+      "currency": "сум"
+    },
     "status": {
       "pending": "В процессе",
       "done": "Выполнено",

@@ -599,6 +599,15 @@
       "monthly": "Oylik",
       "quarterly": "3 Oylik"
     },
+    "milestoneTimeline": {
+      "title": "Bosqichlar Jadvali",
+      "goalsCount": "{count} ta maqsad",
+      "milestonesLabel": "Bosqichlar",
+      "destinationsTitle": "Yakuniy manzillar",
+      "noMilestones": "Hozircha loyihalar yo'q — Loyihalar sahifasidan qo'shing.",
+      "noBudget": "Byudjet kiritilmagan",
+      "currency": "so'm"
+    },
     "status": {
       "pending": "Jarayonda",
       "done": "Bajarildi",

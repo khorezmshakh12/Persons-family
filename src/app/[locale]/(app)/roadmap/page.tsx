@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { RoadmapBoard } from '@/components/roadmap/roadmap-board';
 import { CreateGoalDialog } from '@/components/roadmap/create-goal-dialog';
+import { MilestoneTimeline, type Milestone } from '@/components/roadmap/milestone-timeline';
 import type { Goal } from '@/components/roadmap/goal-card';
 
 export const dynamic = 'force-dynamic';
@@ -10,10 +11,16 @@ export default async function RoadmapPage() {
   const t = await getTranslations('roadmap');
   const supabase = await createClient();
 
-  const { data: goals } = await supabase
-    .from('roadmap_goals')
-    .select('id, title, timeframe, status, progress_percentage, failure_reason, solution')
-    .order('created_at', { ascending: false });
+  const [{ data: goals }, { data: projects }] = await Promise.all([
+    supabase
+      .from('roadmap_goals')
+      .select('id, title, timeframe, status, progress_percentage, failure_reason, solution')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('future_projects')
+      .select('id, title, estimated_budget')
+      .order('created_at', { ascending: false }),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -23,6 +30,10 @@ export default async function RoadmapPage() {
         </h1>
         <CreateGoalDialog />
       </div>
+      <MilestoneTimeline
+        goals={(goals as unknown as Goal[]) ?? []}
+        milestones={(projects as unknown as Milestone[]) ?? []}
+      />
       <RoadmapBoard goals={(goals as unknown as Goal[]) ?? []} />
     </div>
   );
