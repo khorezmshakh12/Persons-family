@@ -238,6 +238,10 @@
     "familyChat": "Family Chat",
     "individualChats": "Individual Chats",
     "noStaff": "No other staff members yet.",
+    "readReceipt": {
+      "read": "Read",
+      "unread": "Delivered"
+    },
     "placeholder": "Write a message...",
     "send": "Send",
     "delete": "Delete message",
@@ -537,7 +541,10 @@
   },
   "calendar": {
     "title": "Global Calendar",
-    "subtitle": "Chat activity across the platform, day by day."
+    "subtitle": "Every scheduled lesson across the groups you can see, day by day.",
+    "monthTitle": "This month's lessons",
+    "more": "+{count} more",
+    "noLessonsThisMonth": "No lessons scheduled this month yet."
   },
   "selfDevelopment": {
     "title": "Self-Development",

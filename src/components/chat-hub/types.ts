@@ -10,6 +10,7 @@ export type StaffChatMessage = {
   media_type: ChatMediaType;
   pinned_at: string | null;
   created_at: string;
+  is_read: boolean;
 };
 
 export type StaffDirectoryEntry = {

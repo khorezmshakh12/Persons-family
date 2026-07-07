@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
-import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
+import { LessonsCalendar } from '@/components/calendar/lessons-calendar';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export default async function CalendarPage() {
       </div>
 
       <Suspense fallback={<GlassCardSkeleton />}>
-        <ActivityHeatmap large />
+        <LessonsCalendar />
       </Suspense>
     </div>
   );

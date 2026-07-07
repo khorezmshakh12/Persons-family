@@ -3,7 +3,7 @@
 import { memo, useTransition } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Pin, PinOff, Trash2 } from 'lucide-react';
+import { Pin, PinOff, Trash2, Check, CheckCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { deleteStaffChatAction, toggleStaffChatPinAction } from '@/lib/actions/staff-chats';
@@ -69,6 +69,15 @@ function MessageBubbleComponent({
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
           {isPinned && <Pin className="size-3 text-teal-300" />}
+          {isOwn && !isFamily && !isOptimistic && (
+            <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
+              {message.is_read ? (
+                <CheckCheck className="size-3.5 text-sky-300" />
+              ) : (
+                <Check className="size-3.5 text-white/50" />
+              )}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <div

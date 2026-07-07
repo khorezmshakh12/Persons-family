@@ -72,7 +72,7 @@ export function ChatHubClient({
     const supabase = createClient();
     supabase
       .from('staff_chats')
-      .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at')
+      .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read')
       .or(
         `and(sender_id.eq.${currentUserId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUserId})`,
       )
@@ -95,6 +95,30 @@ export function ChatHubClient({
       return next;
     });
   }, [active]);
+
+  // Read receipts: opening a DM marks every message the other person sent
+  // us as read. The RPC is the source of truth (security-definer, scoped to
+  // rows where we're genuinely the receiver); the local state update just
+  // flips the tick to blue immediately instead of waiting on the realtime
+  // UPDATE echo to round-trip back.
+  useEffect(() => {
+    if (active.type !== 'dm') return;
+    const otherId = active.userId;
+    const key = dmKey(currentUserId, otherId);
+
+    setDmMessagesByPair((prev) => {
+      const existing = prev[key];
+      if (!existing || !existing.some((m) => m.sender_id === otherId && !m.is_read)) return prev;
+      return {
+        ...prev,
+        [key]: existing.map((m) => (m.sender_id === otherId && !m.is_read ? { ...m, is_read: true } : m)),
+      };
+    });
+
+    const supabase = createClient();
+    supabase.rpc('mark_conversation_read', { other_user_id: otherId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, currentUserId]);
 
   // Single realtime subscription for the whole table — RLS (which Realtime
   // also enforces) already guarantees a client only ever receives rows it's
@@ -175,6 +199,7 @@ export function ChatHubClient({
       media_type: partial.mediaType ?? 'none',
       pinned_at: null,
       created_at: new Date().toISOString(),
+      is_read: false,
     };
     addOptimisticMessage(optimisticMessage);
   }

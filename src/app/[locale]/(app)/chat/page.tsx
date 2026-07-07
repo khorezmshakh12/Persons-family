@@ -17,7 +17,7 @@ export default async function ChatPage() {
 
   const { data: familyMessages } = await supabase
     .from('staff_chats')
-    .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at')
+    .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read')
     .is('receiver_id', null)
     .order('created_at', { ascending: true })
     .limit(50);

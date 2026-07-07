@@ -960,6 +960,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_assigned_ta: { Args: { target_group_id: string }; Returns: boolean }
       is_group_owner: { Args: { target_group_id: string }; Returns: boolean }
+      mark_conversation_read: {
+        Args: { other_user_id: string }
+        Returns: undefined
+      }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
     }
     Enums: {

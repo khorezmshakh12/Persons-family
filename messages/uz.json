@@ -238,6 +238,10 @@
     "familyChat": "Oilaviy Chat",
     "individualChats": "Shaxsiy Suhbatlar",
     "noStaff": "Hozircha boshqa xodimlar yo'q.",
+    "readReceipt": {
+      "read": "O'qildi",
+      "unread": "Yetkazildi"
+    },
     "placeholder": "Xabar yozing...",
     "send": "Yuborish",
     "delete": "Xabarni o'chirish",
@@ -537,7 +541,10 @@
   },
   "calendar": {
     "title": "Umumiy Kalendar",
-    "subtitle": "Butun platforma bo'yicha chat faolligi, kunma-kun."
+    "subtitle": "Sizga ko'rinadigan guruhlarning barcha darslari, kunma-kun.",
+    "monthTitle": "Shu oydagi darslar",
+    "more": "yana +{count}",
+    "noLessonsThisMonth": "Bu oyda hali dars rejalashtirilmagan."
   },
   "selfDevelopment": {
     "title": "O'z-o'zini Rivojlantirish",
