@@ -18,7 +18,7 @@ export default async function SettingsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('profile.cardTitle')}</h1>
           <p className="text-white/70">{t('profile.cardSubtitle')}</p>
         </div>
-        <ProfileSection userId={user!.id} />
+        <ProfileSection userId={user!.id} role={profile!.role} teacherLevel={profile!.teacher_level} />
       </div>
 
       <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">

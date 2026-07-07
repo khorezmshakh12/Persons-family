@@ -136,6 +136,8 @@ export type Database = {
         Row: {
           attachments: Json
           created_at: string
+          description: string | null
+          game_link: string | null
           group_id: string
           id: string
           lesson_date: string | null
@@ -145,6 +147,8 @@ export type Database = {
         Insert: {
           attachments?: Json
           created_at?: string
+          description?: string | null
+          game_link?: string | null
           group_id: string
           id?: string
           lesson_date?: string | null
@@ -154,6 +158,8 @@ export type Database = {
         Update: {
           attachments?: Json
           created_at?: string
+          description?: string | null
+          game_link?: string | null
           group_id?: string
           id?: string
           lesson_date?: string | null
@@ -170,29 +176,59 @@ export type Database = {
           },
         ]
       }
+      future_projects: {
+        Row: {
+          created_at: string
+          estimated_budget: number | null
+          id: string
+          initial_steps: Json
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_budget?: number | null
+          id?: string
+          initial_steps?: Json
+          title: string
+        }
+        Update: {
+          created_at?: string
+          estimated_budget?: number | null
+          id?: string
+          initial_steps?: Json
+          title?: string
+        }
+        Relationships: []
+      }
       groups: {
         Row: {
           assigned_ta_id: string | null
           configuration: Json
+          course_name: string | null
           created_at: string
           id: string
           name: string
+          schedule_type: Database["public"]["Enums"]["schedule_type"] | null
           teacher_id: string
         }
         Insert: {
           assigned_ta_id?: string | null
           configuration?: Json
+          course_name?: string | null
           created_at?: string
           id?: string
           name: string
+          schedule_type?: Database["public"]["Enums"]["schedule_type"] | null
           teacher_id: string
         }
         Update: {
           assigned_ta_id?: string | null
           configuration?: Json
+          course_name?: string | null
           created_at?: string
           id?: string
           name?: string
+          schedule_type?: Database["public"]["Enums"]["schedule_type"] | null
           teacher_id?: string
         }
         Relationships: [
@@ -543,9 +579,11 @@ export type Database = {
           id: string
           is_active: boolean
           last_name: string
+          level_updated_at: string
           must_change_password: boolean
           phone: string
           role: Database["public"]["Enums"]["staff_role"]
+          teacher_level: Database["public"]["Enums"]["teacher_level"]
           telegram_id: number | null
         }
         Insert: {
@@ -557,9 +595,11 @@ export type Database = {
           id: string
           is_active?: boolean
           last_name: string
+          level_updated_at?: string
           must_change_password?: boolean
           phone: string
           role?: Database["public"]["Enums"]["staff_role"]
+          teacher_level?: Database["public"]["Enums"]["teacher_level"]
           telegram_id?: number | null
         }
         Update: {
@@ -571,15 +611,88 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name?: string
+          level_updated_at?: string
           must_change_password?: boolean
           phone?: string
           role?: Database["public"]["Enums"]["staff_role"]
+          teacher_level?: Database["public"]["Enums"]["teacher_level"]
           telegram_id?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "profiles_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmap_goals: {
+        Row: {
+          created_at: string
+          failure_reason: string | null
+          id: string
+          progress_percentage: number
+          solution: string | null
+          status: Database["public"]["Enums"]["roadmap_status"]
+          timeframe: Database["public"]["Enums"]["roadmap_timeframe"]
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          progress_percentage?: number
+          solution?: string | null
+          status?: Database["public"]["Enums"]["roadmap_status"]
+          timeframe: Database["public"]["Enums"]["roadmap_timeframe"]
+          title: string
+        }
+        Update: {
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          progress_percentage?: number
+          solution?: string | null
+          status?: Database["public"]["Enums"]["roadmap_status"]
+          timeframe?: Database["public"]["Enums"]["roadmap_timeframe"]
+          title?: string
+        }
+        Relationships: []
+      }
+      self_development: {
+        Row: {
+          achievements: string | null
+          ceo_rating: string | null
+          created_at: string
+          id: string
+          month: string
+          user_id: string
+          value_added: string | null
+        }
+        Insert: {
+          achievements?: string | null
+          ceo_rating?: string | null
+          created_at?: string
+          id?: string
+          month: string
+          user_id: string
+          value_added?: string | null
+        }
+        Update: {
+          achievements?: string | null
+          ceo_rating?: string | null
+          created_at?: string
+          id?: string
+          month?: string
+          user_id?: string
+          value_added?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "self_development_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -622,6 +735,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_read: boolean
           media_type: Database["public"]["Enums"]["chat_media_type"]
           media_url: string | null
           message_text: string | null
@@ -632,6 +746,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_read?: boolean
           media_type?: Database["public"]["Enums"]["chat_media_type"]
           media_url?: string | null
           message_text?: string | null
@@ -642,6 +757,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_read?: boolean
           media_type?: Database["public"]["Enums"]["chat_media_type"]
           media_url?: string | null
           message_text?: string | null
@@ -844,11 +960,15 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_assigned_ta: { Args: { target_group_id: string }; Returns: boolean }
       is_group_owner: { Args: { target_group_id: string }; Returns: boolean }
+      mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
     }
     Enums: {
       chat_media_type: "image" | "video" | "voice" | "none"
       homework_status: "pending" | "submitted" | "graded" | "missing"
       issue_status: "open" | "in_progress" | "done"
+      roadmap_status: "pending" | "done" | "failed"
+      roadmap_timeframe: "weekly" | "monthly" | "quarterly"
+      schedule_type: "odd" | "even"
       staff_role:
         | "ceo"
         | "admin_manager"
@@ -859,6 +979,16 @@ export type Database = {
         | "it_developer"
       staff_tier: "A" | "B" | "C"
       task_status: "pending" | "in_progress" | "done"
+      teacher_level:
+        | "C"
+        | "C+"
+        | "C++"
+        | "B"
+        | "B+"
+        | "B++"
+        | "A"
+        | "A+"
+        | "A++"
       weekday:
         | "monday"
         | "tuesday"
@@ -1000,6 +1130,9 @@ export const Constants = {
       chat_media_type: ["image", "video", "voice", "none"],
       homework_status: ["pending", "submitted", "graded", "missing"],
       issue_status: ["open", "in_progress", "done"],
+      roadmap_status: ["pending", "done", "failed"],
+      roadmap_timeframe: ["weekly", "monthly", "quarterly"],
+      schedule_type: ["odd", "even"],
       staff_role: [
         "ceo",
         "admin_manager",
@@ -1011,6 +1144,7 @@ export const Constants = {
       ],
       staff_tier: ["A", "B", "C"],
       task_status: ["pending", "in_progress", "done"],
+      teacher_level: ["C", "C+", "C++", "B", "B+", "B++", "A", "A+", "A++"],
       weekday: [
         "monday",
         "tuesday",

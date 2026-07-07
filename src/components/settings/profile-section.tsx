@@ -12,11 +12,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useProfile } from '@/components/app-shell/profile-context';
+import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
+import type { TeacherLevel } from '@/lib/teacher-level';
+import type { Database } from '@/lib/supabase/types';
 
 const GLASS_INPUT =
   'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-gray-300 focus-visible:border-teal-400 focus-visible:ring-0';
 
-export function ProfileSection({ userId }: { userId: string }) {
+export function ProfileSection({
+  userId,
+  role,
+  teacherLevel,
+}: {
+  userId: string;
+  role: Database['public']['Enums']['staff_role'];
+  teacherLevel: TeacherLevel;
+}) {
   const t = useTranslations('settings.profile');
   const { firstName, lastName, avatarUrl, updateProfile } = useProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,9 +123,12 @@ export function ProfileSection({ userId }: { userId: string }) {
           onChange={handleAvatarChange}
         />
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-white">
-            {firstName} {lastName}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-white">
+              {firstName} {lastName}
+            </p>
+            {role === 'teacher' && <TeacherLevelBadge level={teacherLevel} />}
+          </div>
           <p className="text-xs text-white/60">{t('avatarHint')}</p>
         </div>
       </div>

@@ -26,6 +26,9 @@
     "companyNews": "Kompaniya Yangiliklari",
     "staffChat": "O'qituvchi/TA Chat",
     "telegramSetup": "Telegram",
+    "selfDevelopment": "O'z-o'zini Rivojlantirish",
+    "roadmap": "Yo'l Xaritasi",
+    "projects": "Loyihalar",
     "settings": "Sozlamalar"
   },
   "auth": {
@@ -157,9 +160,13 @@
       "name": "Ism",
       "phone": "Telefon",
       "role": "Lavozim",
+      "level": "Daraja",
+      "reviewDue": "Ko'rib chiqish kerak",
       "status": "Holat",
       "actions": "Amallar"
     },
+    "teacherLevel": "O'qituvchi darajasi",
+    "teacherLevelHint": "O'z-o'zini rivojlantirish sahifasidan o'zgartiriladi.",
     "tempPasswordTitle": "Vaqtinchalik parol yaratildi",
     "tempPasswordDescription": "Ushbu parolni xodimga bevosita ayting (shaxsan yoki telefon orqali). Birinchi kirishda undan o'z parolini o'rnatish so'raladi.",
     "copy": "Nusxalash",
@@ -511,5 +518,33 @@
   "calendar": {
     "title": "Umumiy Kalendar",
     "subtitle": "Butun platforma bo'yicha chat faolligi, kunma-kun."
+  },
+  "selfDevelopment": {
+    "title": "O'z-o'zini Rivojlantirish",
+    "subtitle": "Oylik rivojlanishingizni kuzatib boring — CEO va Ma'muriy menejer buni ko'rib chiqib, shu yerdan o'qituvchi darajasini belgilaydi.",
+    "submitTitle": "Shu oydagi natijalar",
+    "achievements": "Yutuqlar",
+    "achievementsPlaceholder": "Shu oyda nimalarga erishdingiz?",
+    "valueAdded": "Qo'shgan hissangiz",
+    "valueAddedPlaceholder": "Jamoaga yoki o'quvchilarga qanday qo'shimcha foyda keltirdingiz?",
+    "submit": "Yuborish",
+    "submitted": "Yuborildi.",
+    "submittedThisMonth": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
+    "yourSubmissions": "Sizning hisobotlaringiz",
+    "allSubmissions": "Barcha hisobotlar",
+    "noSubmissions": "Hozircha hisobotlar yo'q.",
+    "ceoRating": "CEO/Admin fikri",
+    "notRatedYet": "Hali ko'rib chiqilmagan.",
+    "ratingPlaceholder": "Fikringizni yozing...",
+    "saveRating": "Fikrni saqlash",
+    "rated": "Fikr saqlandi.",
+    "teacherLevel": "Daraja",
+    "levelUpdated": "O'qituvchi darajasi yangilandi.",
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Iltimos, kamida bitta maydonni to'ldiring.",
+      "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
+      "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
+    }
   }
 }

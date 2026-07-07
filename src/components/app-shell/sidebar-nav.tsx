@@ -12,6 +12,9 @@ import {
   Settings,
   MessagesSquare,
   Send,
+  TrendingUp,
+  Map,
+  Rocket,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -27,6 +30,9 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   companyNews: Megaphone,
   staffChat: MessagesSquare,
   telegramSetup: Send,
+  selfDevelopment: TrendingUp,
+  roadmap: Map,
+  projects: Rocket,
   settings: Settings,
 };
 

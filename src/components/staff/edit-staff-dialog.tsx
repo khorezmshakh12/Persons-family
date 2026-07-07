@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CurrencyInput } from './currency-input';
+import { TeacherLevelBadge } from './teacher-level-badge';
 import type { Profile } from '@/lib/auth/session';
 import type { Database } from '@/lib/supabase/types';
 
@@ -122,6 +123,13 @@ export function EditStaffDialog({
         <form action={handleSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={profile.id} />
           <input type="hidden" name="staffId" value={profile.id} />
+          {profile.role === 'teacher' && (
+            <div className="flex items-center gap-2">
+              <Label className="text-muted-foreground text-xs">{t('teacherLevel')}</Label>
+              <TeacherLevelBadge level={profile.teacher_level} />
+              <span className="text-muted-foreground text-xs">{t('teacherLevelHint')}</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor={`firstName-${profile.id}`}>{t('firstName')}</Label>

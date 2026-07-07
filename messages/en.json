@@ -26,6 +26,9 @@
     "companyNews": "Company News",
     "staffChat": "Teacher/TA Chat",
     "telegramSetup": "Telegram",
+    "selfDevelopment": "Self-Development",
+    "roadmap": "Roadmap",
+    "projects": "Projects",
     "settings": "Settings"
   },
   "auth": {
@@ -157,9 +160,13 @@
       "name": "Name",
       "phone": "Phone",
       "role": "Role",
+      "level": "Level",
+      "reviewDue": "Review due",
       "status": "Status",
       "actions": "Actions"
     },
+    "teacherLevel": "Teacher level",
+    "teacherLevelHint": "Changed from the Self-Development page.",
     "tempPasswordTitle": "Temporary password created",
     "tempPasswordDescription": "Share this password with the staff member directly (in person or by phone). They'll be asked to set their own password on first login.",
     "copy": "Copy",
@@ -511,5 +518,33 @@
   "calendar": {
     "title": "Global Calendar",
     "subtitle": "Chat activity across the platform, day by day."
+  },
+  "selfDevelopment": {
+    "title": "Self-Development",
+    "subtitle": "Track your monthly growth — the CEO and Administrative Manager review these and set teacher levels from here.",
+    "submitTitle": "This month's progress",
+    "achievements": "Achievements",
+    "achievementsPlaceholder": "What did you accomplish this month?",
+    "valueAdded": "Value added",
+    "valueAddedPlaceholder": "What extra value did you bring to the team or students?",
+    "submit": "Submit",
+    "submitted": "Submitted.",
+    "submittedThisMonth": "You've already submitted your progress for this month.",
+    "yourSubmissions": "Your submissions",
+    "allSubmissions": "All submissions",
+    "noSubmissions": "No submissions yet.",
+    "ceoRating": "CEO/Admin feedback",
+    "notRatedYet": "Not reviewed yet.",
+    "ratingPlaceholder": "Write your feedback...",
+    "saveRating": "Save feedback",
+    "rated": "Feedback saved.",
+    "teacherLevel": "Level",
+    "levelUpdated": "Teacher level updated.",
+    "errors": {
+      "forbidden": "You don't have permission to do that.",
+      "invalidInput": "Please fill in at least one field.",
+      "alreadySubmitted": "You've already submitted your progress for this month.",
+      "submitFailed": "Something went wrong. Please try again."
+    }
   }
 }
