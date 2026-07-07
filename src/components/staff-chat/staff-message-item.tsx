@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { memo, useTransition } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,7 +10,10 @@ import { cn } from '@/lib/utils';
 
 export type ChatSender = { first_name: string; last_name: string; avatar_url: string | null };
 
-export function StaffMessageItem({
+// Memoized for the same reason as chat-hub's MessageBubble — StaffChatRoom
+// appends to its message array with a spread, so unaffected messages keep
+// referentially stable props and this skips re-rendering them.
+function StaffMessageItemComponent({
   message,
   sender,
   isOwn,
@@ -77,3 +80,5 @@ export function StaffMessageItem({
     </div>
   );
 }
+
+export const StaffMessageItem = memo(StaffMessageItemComponent);

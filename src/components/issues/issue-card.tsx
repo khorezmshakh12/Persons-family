@@ -24,7 +24,7 @@ export async function IssueCard({ issue, isAdmin }: { issue: Issue; isAdmin: boo
       <span className="font-medium">{issue.title}</span>
       {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
       {issue.voiceSignedUrl && (
-        <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
           <Mic className="size-4 shrink-0 text-teal-300" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-[11px] font-medium text-white/70">{t('voiceNote')}</span>

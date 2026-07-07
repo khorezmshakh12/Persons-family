@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { memo, useTransition } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Pin, PinOff, Trash2 } from 'lucide-react';
@@ -12,7 +12,11 @@ import type { StaffChatMessage } from './types';
 
 export type ChatSender = { first_name: string; last_name: string; avatar_url: string | null };
 
-export function MessageBubble({
+// Memoized: ChatHubClient's realtime handlers append to the message array
+// with a spread (`[...prev, message]`), which preserves object identity for
+// every existing message — so on each new message, every *other* bubble's
+// props are referentially unchanged and this skips re-rendering them.
+function MessageBubbleComponent({
   message,
   sender,
   isOwn,
@@ -126,3 +130,5 @@ export function MessageBubble({
     </div>
   );
 }
+
+export const MessageBubble = memo(MessageBubbleComponent);

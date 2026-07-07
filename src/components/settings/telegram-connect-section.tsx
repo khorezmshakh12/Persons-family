@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import QRCode from 'qrcode';
 import { Send, Unlink, Loader2 } from 'lucide-react';
 import { createTelegramLinkTokenAction, disconnectTelegramAction } from '@/lib/actions/telegram';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,10 @@ export function TelegramConnectSection({ isConnected: initialConnected }: { isCo
       const link = `https://t.me/${BOT_USERNAME}?start=${result.token}`;
       setDeepLink(link);
       try {
+        // Dynamically imported: every other Settings visitor who never
+        // clicks "Connect" shouldn't pay for this library in their initial
+        // page bundle — it's only needed right here, on demand.
+        const { default: QRCode } = await import('qrcode');
         setQrDataUrl(await QRCode.toDataURL(link, { margin: 1, width: 200 }));
       } catch {
         // QR generation failing still leaves the deep-link button usable.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Loader2, Mic, Paperclip, Send, Square } from 'lucide-react';
@@ -13,7 +14,12 @@ import {
 import { CHAT_MEDIA_MAX_FILE_BYTES, mediaTypeForMime, type ChatMediaType } from '@/lib/chat-media';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { EmojiPicker } from './emoji-picker';
+
+// Not a heavy dependency on its own (a static emoji grid, no third-party
+// picker library — see emoji-picker.tsx's own comment on that), but every
+// byte deferred out of the initial chat bundle is still a byte deferred;
+// most people load /chat to read/send text, not to pick an emoji.
+const EmojiPicker = dynamic(() => import('./emoji-picker').then((mod) => mod.EmojiPicker), { ssr: false });
 
 // Signed URLs are the only way to read from a private bucket — 5 years is
 // "effectively permanent" for a chat attachment without needing to
@@ -38,8 +44,23 @@ export function ChatComposer({
   const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Releases the microphone if this composer unmounts mid-recording (e.g.
+  // navigating away from /chat, or switching conversations if this
+  // component gets remounted) — without this, the mic stays active
+  // indefinitely with no visible indication to the user.
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   async function composedAction(prevState: StaffChatsActionState, formData: FormData) {
     const messageText = formData.get('messageText');
@@ -123,6 +144,7 @@ export function ChatComposer({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -130,6 +152,7 @@ export function ChatComposer({
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
         await uploadAndSend(file, 'voice');

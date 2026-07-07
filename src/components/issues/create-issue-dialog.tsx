@@ -32,6 +32,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
   const [voicePath, setVoicePath] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
   const [state, formAction, isPending] = useActionState<IssueActionState, FormData>(
@@ -57,6 +58,26 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
     setPreviewUrl(null);
   }
 
+  /** Releases the microphone immediately without running the upload flow —
+   * used when the dialog is closed or the component unmounts mid-recording.
+   * Without this, closing the dialog (Escape, clicking outside, navigating
+   * away) while recording leaves the mic active indefinitely with no
+   * visible indication to the user. */
+  function forceStopRecording() {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setIsRecording(false);
+  }
+
+  useEffect(() => {
+    return () => forceStopRecording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleToggleRecording() {
     if (isRecording) {
       mediaRecorderRef.current?.stop();
@@ -65,6 +86,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -72,6 +94,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
       };
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         clearRecording();
         setPreviewUrl(URL.createObjectURL(blob));
@@ -109,7 +132,10 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) clearRecording();
+        if (!next) {
+          if (isRecording) forceStopRecording();
+          clearRecording();
+        }
       }}
     >
       <DialogTrigger render={<Button />}>

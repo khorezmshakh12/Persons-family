@@ -1,9 +1,45 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, StaffDirectoryEntry } from './types';
+
+// Memoized so switching the active conversation only re-renders the two
+// rows whose isActive actually flipped, not every row in the list.
+const ChatSidebarItem = memo(function ChatSidebarItem({
+  person,
+  isActive,
+  isUnread,
+  onSelect,
+}: {
+  person: StaffDirectoryEntry;
+  isActive: boolean;
+  isUnread: boolean;
+  onSelect: (conversation: ActiveConversation) => void;
+}) {
+  const initials = `${person.first_name[0]}${person.last_name[0]}`;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect({ type: 'dm', userId: person.id })}
+      className={cn(
+        'flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
+        isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10',
+      )}
+    >
+      <Avatar className="size-8 shrink-0">
+        <AvatarImage src={person.avatar_url ?? undefined} alt="" />
+        <AvatarFallback>{initials}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0 flex-1 truncate">
+        {person.first_name} {person.last_name}
+      </span>
+      {isUnread && !isActive && <span className="size-2 shrink-0 rounded-full bg-teal-400" aria-hidden />}
+    </button>
+  );
+});
 
 export function ChatSidebar({
   staff,
@@ -41,32 +77,15 @@ export function ChatSidebar({
       {staff.length === 0 ? (
         <p className="px-3 py-2 text-sm text-white/50">{t('noStaff')}</p>
       ) : (
-        staff.map((person) => {
-          const isActive = active.type === 'dm' && active.userId === person.id;
-          const initials = `${person.first_name[0]}${person.last_name[0]}`;
-          return (
-            <button
-              key={person.id}
-              type="button"
-              onClick={() => onSelect({ type: 'dm', userId: person.id })}
-              className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
-                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10',
-              )}
-            >
-              <Avatar className="size-8 shrink-0">
-                <AvatarImage src={person.avatar_url ?? undefined} alt="" />
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <span className="min-w-0 flex-1 truncate">
-                {person.first_name} {person.last_name}
-              </span>
-              {unreadDmUserIds.has(person.id) && !isActive && (
-                <span className="size-2 shrink-0 rounded-full bg-teal-400" aria-hidden />
-              )}
-            </button>
-          );
-        })
+        staff.map((person) => (
+          <ChatSidebarItem
+            key={person.id}
+            person={person}
+            isActive={active.type === 'dm' && active.userId === person.id}
+            isUnread={unreadDmUserIds.has(person.id)}
+            onSelect={onSelect}
+          />
+        ))
       )}
     </nav>
   );
