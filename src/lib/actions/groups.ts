@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
+import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -82,7 +83,41 @@ export async function createGroupAction(
   }
 
   revalidatePath('/[locale]/lesson-plans', 'page');
+
+  // Fire-and-forget — the group is already created either way.
+  void notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId, supabase });
+
   return { groupId: data.id };
+}
+
+async function notifyGroupCreated({
+  name,
+  teacherProfile,
+  assignedTaId,
+  supabase,
+}: {
+  name: string;
+  teacherProfile: { first_name: string; last_name: string; telegram_id: number | null };
+  assignedTaId: string | null;
+  supabase: Awaited<ReturnType<typeof createClient>>;
+}) {
+  let taTelegramId: number | null = null;
+  if (assignedTaId) {
+    const { data: ta } = await supabase
+      .from('profiles')
+      .select('telegram_id')
+      .eq('id', assignedTaId)
+      .maybeSingle();
+    taTelegramId = ta?.telegram_id ?? null;
+  }
+
+  const text = [
+    `*Yangi guruh yaratildi:* ${escapeTelegramText(name)}`,
+    `*O'qituvchi:* ${escapeTelegramText(`${teacherProfile.first_name} ${teacherProfile.last_name}`)}`,
+    assignedTaId ? "*Yordamchi (TA) tayinlandi.*" : "*Yordamchi (TA):* Tayinlanmagan",
+  ].join('\n');
+
+  await sendTelegramMessageToMany([teacherProfile.telegram_id, taTelegramId], text);
 }
 
 const updateGroupSchema = groupSchema.extend({ id: z.string().uuid() });

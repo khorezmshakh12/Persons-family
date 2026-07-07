@@ -546,6 +546,7 @@ export type Database = {
           must_change_password: boolean
           phone: string
           role: Database["public"]["Enums"]["staff_role"]
+          telegram_id: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -559,6 +560,7 @@ export type Database = {
           must_change_password?: boolean
           phone: string
           role?: Database["public"]["Enums"]["staff_role"]
+          telegram_id?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -572,6 +574,7 @@ export type Database = {
           must_change_password?: boolean
           phone?: string
           role?: Database["public"]["Enums"]["staff_role"]
+          telegram_id?: number | null
         }
         Relationships: [
           {
@@ -762,6 +765,35 @@ export type Database = {
           {
             foreignKeyName: "tasks_assigned_to_fkey"
             columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_link_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          profile_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          profile_id: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          profile_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_link_tokens_profile_id_fkey"
+            columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

@@ -25,6 +25,7 @@
     "tasks": "Tasks",
     "companyNews": "Company News",
     "staffChat": "Teacher/TA Chat",
+    "telegramSetup": "Telegram",
     "settings": "Settings"
   },
   "auth": {
@@ -456,11 +457,56 @@
         "uploadFailed": "Could not upload image. Please try again.",
         "forbidden": "You don't have permission to do that."
       }
+    },
+    "telegram": {
+      "cardTitle": "Telegram Notifications",
+      "cardSubtitle": "Connect your Telegram account to receive updates instantly.",
+      "description": "Connect your Telegram account to get notified about new issues, tasks, and groups.",
+      "connectButton": "Connect Telegram",
+      "connected": "Connected to Telegram",
+      "disconnect": "Disconnect",
+      "disconnected": "Telegram disconnected.",
+      "openBot": "Open Telegram bot",
+      "linkHint": "Opens Telegram and starts the bot — your account links automatically.",
+      "qrAlt": "QR code to connect Telegram",
+      "errors": {
+        "notConfigured": "Telegram integration isn't set up yet. Contact an administrator.",
+        "linkFailed": "Could not generate a connection link. Please try again.",
+        "updateFailed": "Something went wrong. Please try again."
+      }
     }
   },
   "analytics": {
     "title": "Global Analytics",
     "subtitle": "A closer look at roles and growth across the whole platform."
+  },
+  "telegramSetup": {
+    "title": "Telegram Integration",
+    "subtitle": "Connection status and company-wide broadcast tool.",
+    "status": {
+      "configured": "Bot configured",
+      "notConfigured": "Bot not configured",
+      "notConfiguredHint": "Set TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, and NEXT_PUBLIC_TELEGRAM_BOT_USERNAME to enable this integration.",
+      "connectedCount": "{connected} of {total} active staff connected"
+    },
+    "webhook": {
+      "registerButton": "Register webhook",
+      "success": "Webhook registered successfully."
+    },
+    "broadcast": {
+      "title": "Broadcast",
+      "description": "Send an urgent message to every staff member connected to Telegram.",
+      "placeholder": "Write your announcement...",
+      "send": "Send broadcast",
+      "sending": "Sending...",
+      "sent": "Broadcast sent."
+    },
+    "errors": {
+      "forbidden": "You don't have permission to do that.",
+      "notConfigured": "Telegram integration isn't set up yet.",
+      "invalidInput": "Please write a message before sending.",
+      "webhookFailed": "Could not register the webhook. Check your Telegram settings."
+    }
   },
   "calendar": {
     "title": "Global Calendar",

@@ -24,7 +24,7 @@ export async function StaffTable({
   const { data: staff } = await supabase
     .from('profiles')
     .select(
-      'id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at, created_by, must_change_password',
+      'id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at, created_by, must_change_password, telegram_id',
     )
     .order('created_at', { ascending: true });
 

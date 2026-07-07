@@ -11,6 +11,7 @@ import {
   Megaphone,
   Settings,
   MessagesSquare,
+  Send,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,7 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   tasks: ListTodo,
   companyNews: Megaphone,
   staffChat: MessagesSquare,
+  telegramSetup: Send,
   settings: Settings,
 };
 

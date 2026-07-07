@@ -25,6 +25,7 @@
     "tasks": "Vazifalar",
     "companyNews": "Kompaniya Yangiliklari",
     "staffChat": "O'qituvchi/TA Chat",
+    "telegramSetup": "Telegram",
     "settings": "Sozlamalar"
   },
   "auth": {
@@ -456,11 +457,56 @@
         "uploadFailed": "Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.",
         "forbidden": "Bu amalni bajarishga ruxsatingiz yo'q."
       }
+    },
+    "telegram": {
+      "cardTitle": "Telegram Bildirishnomalari",
+      "cardSubtitle": "Yangiliklarni darhol olish uchun Telegram hisobingizni ulang.",
+      "description": "Yangi murojaatlar, vazifalar va guruhlar haqida bildirishnoma olish uchun Telegramni ulang.",
+      "connectButton": "Telegramni ulash",
+      "connected": "Telegramga ulangan",
+      "disconnect": "Uzish",
+      "disconnected": "Telegram uzildi.",
+      "openBot": "Telegram botni ochish",
+      "linkHint": "Telegramni ochadi va botni ishga tushiradi — hisobingiz avtomatik ulanadi.",
+      "qrAlt": "Telegramni ulash uchun QR kod",
+      "errors": {
+        "notConfigured": "Telegram integratsiyasi hali sozlanmagan. Administratorga murojaat qiling.",
+        "linkFailed": "Ulanish havolasini yaratib bo'lmadi. Qayta urinib ko'ring.",
+        "updateFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
+      }
     }
   },
   "analytics": {
     "title": "Umumiy Tahlillar",
     "subtitle": "Butun platforma bo'yicha lavozimlar va o'sish haqida batafsil ma'lumot."
+  },
+  "telegramSetup": {
+    "title": "Telegram Integratsiyasi",
+    "subtitle": "Ulanish holati va kompaniya bo'yicha e'lon yuborish vositasi.",
+    "status": {
+      "configured": "Bot sozlangan",
+      "notConfigured": "Bot sozlanmagan",
+      "notConfiguredHint": "Integratsiyani yoqish uchun TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET va NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ni sozlang.",
+      "connectedCount": "{total} ta faol xodimdan {connected} tasi ulangan"
+    },
+    "webhook": {
+      "registerButton": "Webhookni ro'yxatdan o'tkazish",
+      "success": "Webhook muvaffaqiyatli ro'yxatdan o'tkazildi."
+    },
+    "broadcast": {
+      "title": "E'lon yuborish",
+      "description": "Telegramga ulangan barcha xodimlarga shoshilinch xabar yuboring.",
+      "placeholder": "E'loningizni yozing...",
+      "send": "E'lonni yuborish",
+      "sending": "Yuborilmoqda...",
+      "sent": "E'lon yuborildi."
+    },
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "notConfigured": "Telegram integratsiyasi hali sozlanmagan.",
+      "invalidInput": "Iltimos, yuborishdan oldin xabar yozing.",
+      "webhookFailed": "Webhookni ro'yxatdan o'tkazib bo'lmadi. Telegram sozlamalarini tekshiring."
+    }
   },
   "calendar": {
     "title": "Umumiy Kalendar",

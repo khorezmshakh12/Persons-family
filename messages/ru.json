@@ -25,6 +25,7 @@
     "tasks": "Задачи",
     "companyNews": "Новости компании",
     "staffChat": "Чат учителей/ассистентов",
+    "telegramSetup": "Telegram",
     "settings": "Настройки"
   },
   "auth": {
@@ -456,11 +457,56 @@
         "uploadFailed": "Не удалось загрузить изображение. Попробуйте снова.",
         "forbidden": "У вас нет разрешения на это действие."
       }
+    },
+    "telegram": {
+      "cardTitle": "Уведомления в Telegram",
+      "cardSubtitle": "Подключите Telegram, чтобы мгновенно получать обновления.",
+      "description": "Подключите свой Telegram, чтобы получать уведомления о новых обращениях, задачах и группах.",
+      "connectButton": "Подключить Telegram",
+      "connected": "Telegram подключён",
+      "disconnect": "Отключить",
+      "disconnected": "Telegram отключён.",
+      "openBot": "Открыть Telegram-бота",
+      "linkHint": "Откроет Telegram и запустит бота — аккаунт привяжется автоматически.",
+      "qrAlt": "QR-код для подключения Telegram",
+      "errors": {
+        "notConfigured": "Интеграция с Telegram ещё не настроена. Обратитесь к администратору.",
+        "linkFailed": "Не удалось создать ссылку для подключения. Попробуйте снова.",
+        "updateFailed": "Что-то пошло не так. Попробуйте снова."
+      }
     }
   },
   "analytics": {
     "title": "Общая аналитика",
     "subtitle": "Подробный обзор ролей и роста по всей платформе."
+  },
+  "telegramSetup": {
+    "title": "Интеграция с Telegram",
+    "subtitle": "Статус подключения и инструмент рассылки по компании.",
+    "status": {
+      "configured": "Бот настроен",
+      "notConfigured": "Бот не настроен",
+      "notConfiguredHint": "Задайте TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET и NEXT_PUBLIC_TELEGRAM_BOT_USERNAME, чтобы включить интеграцию.",
+      "connectedCount": "Подключено {connected} из {total} активных сотрудников"
+    },
+    "webhook": {
+      "registerButton": "Зарегистрировать webhook",
+      "success": "Webhook успешно зарегистрирован."
+    },
+    "broadcast": {
+      "title": "Рассылка",
+      "description": "Отправьте срочное сообщение всем сотрудникам, подключённым к Telegram.",
+      "placeholder": "Напишите объявление...",
+      "send": "Отправить рассылку",
+      "sending": "Отправка...",
+      "sent": "Рассылка отправлена."
+    },
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "notConfigured": "Интеграция с Telegram ещё не настроена.",
+      "invalidInput": "Пожалуйста, напишите сообщение перед отправкой.",
+      "webhookFailed": "Не удалось зарегистрировать webhook. Проверьте настройки Telegram."
+    }
   },
   "calendar": {
     "title": "Общий календарь",

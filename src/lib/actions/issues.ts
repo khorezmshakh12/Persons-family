@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { allowedAssigneeRoles } from '@/lib/issue-roles';
+import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 
 export type IssueActionState = { error?: string } | undefined;
 
@@ -35,21 +36,22 @@ export async function createIssueAction(
   const supabase = await createClient();
 
   let assignedTo: string | null = null;
+  let assigneeProfile: { first_name: string; last_name: string; role: string } | null = null;
   if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
+    const { data: target } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, role')
+      .eq('id', parsed.data.assignedTo)
+      .maybeSingle();
     // Strict chain of command, re-checked here regardless of what the
     // client's dropdown offered — the dropdown options alone are not a
     // security boundary.
-    if (!isAdmin) {
-      const { data: target } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', parsed.data.assignedTo)
-        .maybeSingle();
-      if (!target || !allowedAssigneeRoles(profile.role).includes(target.role)) {
-        return { error: 'invalidAssignee' };
-      }
+    if (!isAdmin && (!target || !allowedAssigneeRoles(profile.role).includes(target.role))) {
+      return { error: 'invalidAssignee' };
     }
+    if (!target) return { error: 'invalidAssignee' };
     assignedTo = parsed.data.assignedTo;
+    assigneeProfile = target;
   }
 
   // Defense in depth: the storage RLS already scopes uploads to the
@@ -68,7 +70,53 @@ export async function createIssueAction(
   if (error) return { error: 'createFailed' };
 
   revalidatePath('/[locale]/issues', 'page');
+
+  // Fire-and-forget notification — never let a Telegram hiccup affect the
+  // response to the person who just submitted the issue. Scoped to
+  // teacher-authored issues per the spec: notify the reporter (as a
+  // receipt) plus every connected CEO and Administrative Manager, since a
+  // teacher's issue always needs visibility at that level regardless of
+  // which single person they picked in "Assign to".
+  if (profile.role === 'teacher') {
+    void notifyIssueCreated({
+      title: parsed.data.title,
+      reporterName: `${profile.first_name} ${profile.last_name}`,
+      reporterTelegramId: profile.telegram_id,
+      assigneeName: assigneeProfile ? `${assigneeProfile.first_name} ${assigneeProfile.last_name}` : null,
+      supabase,
+    });
+  }
+
   return {};
+}
+
+async function notifyIssueCreated({
+  title,
+  reporterName,
+  reporterTelegramId,
+  assigneeName,
+  supabase,
+}: {
+  title: string;
+  reporterName: string;
+  reporterTelegramId: number | null;
+  assigneeName: string | null;
+  supabase: Awaited<ReturnType<typeof createClient>>;
+}) {
+  const { data: admins } = await supabase
+    .from('profiles')
+    .select('telegram_id')
+    .in('role', ['ceo', 'admin_manager'])
+    .not('telegram_id', 'is', null);
+
+  const text = [
+    `*Yangi murojaat:* ${escapeTelegramText(title)}`,
+    `*Kimdan:* ${escapeTelegramText(reporterName)}`,
+    `*Kimga:* ${assigneeName ? escapeTelegramText(assigneeName) : 'Belgilanmagan'}`,
+  ].join('\n');
+
+  const chatIds = [reporterTelegramId, ...(admins ?? []).map((a) => a.telegram_id)];
+  await sendTelegramMessageToMany(chatIds, text);
 }
 
 const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });
