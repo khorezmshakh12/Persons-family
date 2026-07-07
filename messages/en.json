@@ -644,5 +644,13 @@
       "createFailed": "Could not create the project. Please try again.",
       "updateFailed": "Could not save changes. Please try again."
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You're all caught up.",
+    "messages": "Messages",
+    "tasks": "Tasks",
+    "unknownSender": "Unknown",
+    "mediaMessage": "Sent an attachment"
   }
 }

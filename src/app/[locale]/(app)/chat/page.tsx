@@ -22,6 +22,13 @@ export default async function ChatPage() {
     .order('created_at', { ascending: true })
     .limit(50);
 
+  const { data: unreadRows } = await supabase
+    .from('staff_chats')
+    .select('sender_id')
+    .eq('receiver_id', user!.id)
+    .eq('is_read', false);
+  const initialUnreadSenderIds = Array.from(new Set((unreadRows ?? []).map((r) => r.sender_id)));
+
   const { data: settings } = await supabase.from('app_settings').select('chat_enabled').eq('id', true).single();
 
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
@@ -35,6 +42,7 @@ export default async function ChatPage() {
         isAdmin={isAdmin}
         staff={staff ?? []}
         initialFamilyMessages={familyMessages ?? []}
+        initialUnreadSenderIds={initialUnreadSenderIds}
         initialChatEnabled={settings?.chat_enabled ?? true}
       />
     </div>

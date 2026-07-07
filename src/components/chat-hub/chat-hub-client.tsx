@@ -19,6 +19,7 @@ export function ChatHubClient({
   isAdmin,
   staff,
   initialFamilyMessages,
+  initialUnreadSenderIds,
   initialChatEnabled,
 }: {
   currentUserId: string;
@@ -27,13 +28,14 @@ export function ChatHubClient({
   isAdmin: boolean;
   staff: StaffDirectoryEntry[];
   initialFamilyMessages: StaffChatMessage[];
+  initialUnreadSenderIds: string[];
   initialChatEnabled: boolean;
 }) {
   const [active, setActive] = useState<ActiveConversation>({ type: 'family' });
   const [familyMessages, setFamilyMessages] = useState<StaffChatMessage[]>(initialFamilyMessages);
   const [dmMessagesByPair, setDmMessagesByPair] = useState<Record<string, StaffChatMessage[]>>({});
   const [loadedDmPairs, setLoadedDmPairs] = useState<Set<string>>(new Set());
-  const [unreadDmUserIds, setUnreadDmUserIds] = useState<Set<string>>(new Set());
+  const [unreadDmUserIds, setUnreadDmUserIds] = useState<Set<string>>(() => new Set(initialUnreadSenderIds));
   const [chatEnabled, setChatEnabled] = useState(initialChatEnabled);
   const activeRef = useRef(active);
   activeRef.current = active;

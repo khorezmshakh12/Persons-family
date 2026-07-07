@@ -9,11 +9,26 @@ import { SidebarNav } from './sidebar-nav';
 import { MobileNav } from './mobile-nav';
 import { ProfileProvider } from './profile-context';
 import { UserBadge } from './user-badge';
+import { NotificationBell, type UnreadChatItem, type UnseenIssueItem } from './notification-bell';
 import type { Profile } from '@/lib/auth/session';
 
 const GLASS_CONTROL = 'border-white/30 bg-white/10 text-white hover:bg-white/20';
 
-export async function AppShell({ profile, children }: { profile: Profile; children: ReactNode }) {
+export async function AppShell({
+  profile,
+  userId,
+  profileNames,
+  initialUnreadChats,
+  initialUnseenIssues,
+  children,
+}: {
+  profile: Profile;
+  userId: string;
+  profileNames: Record<string, string>;
+  initialUnreadChats: UnreadChatItem[];
+  initialUnseenIssues: UnseenIssueItem[];
+  children: ReactNode;
+}) {
   const t = await getTranslations('app');
 
   return (
@@ -42,6 +57,12 @@ export async function AppShell({ profile, children }: { profile: Profile; childr
               </div>
 
               <div className="ml-auto flex items-center gap-3">
+                <NotificationBell
+                  userId={userId}
+                  profileNames={profileNames}
+                  initialUnreadChats={initialUnreadChats}
+                  initialUnseenIssues={initialUnseenIssues}
+                />
                 <UserBadge className="hidden sm:flex" />
                 <ThemeToggle className={GLASS_CONTROL} />
                 <LanguageSwitcher className={GLASS_CONTROL} />

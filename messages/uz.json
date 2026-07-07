@@ -644,5 +644,13 @@
       "createFailed": "Loyihani yaratib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
     }
+  },
+  "notifications": {
+    "title": "Bildirishnomalar",
+    "empty": "Yangi bildirishnoma yo'q.",
+    "messages": "Xabarlar",
+    "tasks": "Vazifalar",
+    "unknownSender": "Noma'lum",
+    "mediaMessage": "Fayl yubordi"
   }
 }
