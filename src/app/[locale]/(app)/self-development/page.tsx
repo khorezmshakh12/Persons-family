@@ -16,7 +16,7 @@ export default async function SelfDevelopmentPage() {
   let query = supabase
     .from('self_development')
     .select(
-      'id, month, achievements, value_added, ceo_rating, user_id, author:profiles!self_development_user_id_fkey(first_name, last_name, role, teacher_level)',
+      'id, month, achievements, value_added, ceo_rating, ceo_score, user_id, author:profiles!self_development_user_id_fkey(first_name, last_name, role, teacher_level)',
     )
     .order('month', { ascending: false });
 

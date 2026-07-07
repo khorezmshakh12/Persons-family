@@ -5,10 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth/require-admin';
-import { TEACHER_LEVELS } from '@/lib/teacher-level';
+import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { firstOfCurrentMonth } from '@/lib/self-development';
+import type { Database } from '@/lib/supabase/types';
 
 export type SelfDevActionState = { error?: string; success?: boolean } | undefined;
+
+type SelfDevelopmentUpdate = Database['public']['Tables']['self_development']['Update'];
 
 const submitSchema = z.object({
   achievements: z.string().trim().max(4000).optional().or(z.literal('')),
@@ -45,38 +48,21 @@ export async function submitSelfDevelopmentAction(
   return { success: true };
 }
 
-const rateSchema = z.object({ id: z.string().uuid(), ceoRating: z.string().trim().max(2000) });
-
-export async function rateSelfDevelopmentAction(
-  _prevState: SelfDevActionState,
-  formData: FormData,
-): Promise<SelfDevActionState> {
-  try {
-    await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
-  }
-
-  const parsed = rateSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('self_development')
-    .update({ ceo_rating: parsed.data.ceoRating || null })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'submitFailed' };
-
-  revalidatePath('/[locale]/self-development', 'page');
-  return { success: true };
-}
-
-const upgradeLevelSchema = z.object({
+// The CEO Evaluation Panel saves the rating, score, and (for a teacher's
+// submission) a level change all in one action — one "Save evaluation"
+// button, not three separate silent auto-saves. `level` is omitted from
+// the form entirely for a non-teacher submission (the Select isn't
+// rendered), so it arrives here as undefined and the profiles update is
+// skipped rather than attempted with a bogus value.
+const saveEvaluationSchema = z.object({
+  id: z.string().uuid(),
   userId: z.string().uuid(),
-  level: z.enum(TEACHER_LEVELS as [string, ...string[]]),
+  ceoRating: z.string().trim().max(2000).optional().or(z.literal('')),
+  ceoScore: z.coerce.number().int().min(1).max(100),
+  level: z.enum(TEACHER_LEVELS as [string, ...string[]]).optional(),
 });
 
-export async function upgradeTeacherLevelAction(
+export async function saveEvaluationAction(
   _prevState: SelfDevActionState,
   formData: FormData,
 ): Promise<SelfDevActionState> {
@@ -86,18 +72,31 @@ export async function upgradeTeacherLevelAction(
     return { error: 'forbidden' };
   }
 
-  const parsed = upgradeLevelSchema.safeParse(Object.fromEntries(formData));
+  const parsed = saveEvaluationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      teacher_level: parsed.data.level as (typeof TEACHER_LEVELS)[number],
-      level_updated_at: new Date().toISOString(),
-    })
-    .eq('id', parsed.data.userId);
-  if (error) return { error: 'submitFailed' };
+
+  const devUpdates: SelfDevelopmentUpdate = {
+    ceo_rating: parsed.data.ceoRating || null,
+    ceo_score: parsed.data.ceoScore,
+  };
+  const { error: devError } = await supabase
+    .from('self_development')
+    .update(devUpdates)
+    .eq('id', parsed.data.id);
+  if (devError) return { error: 'submitFailed' };
+
+  if (parsed.data.level) {
+    const { error: levelError } = await supabase
+      .from('profiles')
+      .update({
+        teacher_level: parsed.data.level as TeacherLevel,
+        level_updated_at: new Date().toISOString(),
+      })
+      .eq('id', parsed.data.userId);
+    if (levelError) return { error: 'submitFailed' };
+  }
 
   revalidatePath('/[locale]/self-development', 'page');
   revalidatePath('/[locale]/staff', 'page');

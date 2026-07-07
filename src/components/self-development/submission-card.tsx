@@ -1,6 +1,5 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { RateForm } from './rate-form';
-import { LevelUpgradeControl } from './level-upgrade-control';
+import { CeoEvaluationPanel } from './ceo-evaluation-panel';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import type { TeacherLevel } from '@/lib/teacher-level';
@@ -11,6 +10,7 @@ export type Submission = {
   achievements: string | null;
   value_added: string | null;
   ceo_rating: string | null;
+  ceo_score: number | null;
   user_id: string;
   author: { first_name: string; last_name: string; role: string; teacher_level: TeacherLevel } | null;
 };
@@ -36,8 +36,10 @@ export async function SubmissionCard({ submission, isAdmin }: { submission: Subm
             })}
           </span>
         </div>
-        {isAdmin && submission.author?.role === 'teacher' && (
-          <LevelUpgradeControl userId={submission.user_id} currentLevel={submission.author.teacher_level} />
+        {submission.ceo_score !== null && (
+          <span className="shrink-0 rounded-full bg-teal-400/20 px-3 py-1 text-xs font-bold text-teal-100">
+            {submission.ceo_score}/100
+          </span>
         )}
       </div>
 
@@ -55,9 +57,13 @@ export async function SubmissionCard({ submission, isAdmin }: { submission: Subm
       )}
 
       {isAdmin ? (
-        <div className="border-t border-white/10 pt-3">
-          <RateForm submissionId={submission.id} currentRating={submission.ceo_rating} />
-        </div>
+        <CeoEvaluationPanel
+          submissionId={submission.id}
+          userId={submission.user_id}
+          currentRating={submission.ceo_rating}
+          currentScore={submission.ceo_score}
+          currentLevel={submission.author?.role === 'teacher' ? submission.author.teacher_level : null}
+        />
       ) : submission.ceo_rating ? (
         <div className="flex flex-col gap-1 border-t border-white/10 pt-3">
           <span className="text-xs font-semibold text-white/60">{t('ceoRating')}</span>

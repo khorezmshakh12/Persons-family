@@ -364,6 +364,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          is_seen: boolean
           resolved_at: string | null
           resolved_by: string | null
           status: Database["public"]["Enums"]["issue_status"]
@@ -376,6 +377,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          is_seen?: boolean
           resolved_at?: string | null
           resolved_by?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
@@ -388,6 +390,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          is_seen?: boolean
           resolved_at?: string | null
           resolved_by?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
@@ -665,6 +668,7 @@ export type Database = {
         Row: {
           achievements: string | null
           ceo_rating: string | null
+          ceo_score: number | null
           created_at: string
           id: string
           month: string
@@ -674,6 +678,7 @@ export type Database = {
         Insert: {
           achievements?: string | null
           ceo_rating?: string | null
+          ceo_score?: number | null
           created_at?: string
           id?: string
           month: string
@@ -683,6 +688,7 @@ export type Database = {
         Update: {
           achievements?: string | null
           ceo_rating?: string | null
+          ceo_score?: number | null
           created_at?: string
           id?: string
           month?: string
@@ -964,6 +970,7 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: undefined
       }
+      mark_issues_seen: { Args: never; Returns: undefined }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
     }
     Enums: {
