@@ -1,4 +1,5 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
+import { Mic } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -9,6 +10,7 @@ export type Issue = {
   description: string | null;
   status: 'open' | 'in_progress' | 'done';
   created_at: string;
+  voiceSignedUrl: string | null;
   reporter: { first_name: string; last_name: string } | null;
   assignee: { first_name: string; last_name: string } | null;
 };
@@ -21,6 +23,15 @@ export async function IssueCard({ issue, isAdmin }: { issue: Issue; isAdmin: boo
     <div className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6')}>
       <span className="font-medium">{issue.title}</span>
       {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
+      {issue.voiceSignedUrl && (
+        <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
+          <Mic className="size-4 shrink-0 text-teal-300" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-[11px] font-medium text-white/70">{t('voiceNote')}</span>
+            <audio controls preload="none" src={issue.voiceSignedUrl} className="h-8 w-full" />
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-1 text-xs text-white/60">
         {isAdmin && issue.reporter && (
           <span>

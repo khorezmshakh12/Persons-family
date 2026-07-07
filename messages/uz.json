@@ -266,6 +266,12 @@
     "assignee": "Mas'ul",
     "unassigned": "Biriktirilmagan",
     "noAssignee": "Mas'ul tayinlanmagan",
+    "voiceNote": "Ovozli xabar",
+    "recordVoice": "Ovozli ariza yozish",
+    "stopRecording": "Yozishni to'xtatish",
+    "recording": "Yozilmoqda...",
+    "uploadingVoice": "Ovozli xabar yuklanmoqda...",
+    "discardRecording": "Yozuvni o'chirish",
     "status": {
       "open": "Ochiq",
       "in_progress": "Jarayonda",
@@ -286,7 +292,9 @@
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Iltimos, murojaat sarlavhasini kiriting.",
       "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring.",
-      "invalidAssignee": "Siz murojaatlarni faqat Ma'muriy menejerga biriktira olasiz."
+      "invalidAssignee": "Sizda bu murojaatni ushbu shaxsga biriktirish uchun ruxsat yo'q.",
+      "micDenied": "Mikrofonga ulanib bo'lmadi. Brauzer ruxsatlarini tekshiring.",
+      "voiceUploadFailed": "Ovozli xabarni yuklab bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "lessonPlans": {

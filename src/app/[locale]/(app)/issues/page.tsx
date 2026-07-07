@@ -1,11 +1,17 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { allowedAssigneeRoles } from '@/lib/issue-roles';
 import { CreateIssueDialog } from '@/components/issues/create-issue-dialog';
 import { IssuesBoard } from '@/components/issues/issues-board';
 import type { Issue } from '@/components/issues/issue-card';
 
 export const dynamic = 'force-dynamic';
+
+// Signed URLs are re-minted on every page load rather than stored — a
+// voice note is viewed occasionally from the board, not streamed live like
+// chat media, so there's no reason to bake in a long-lived credential.
+const VOICE_URL_EXPIRY_SECONDS = 60 * 60; // 1 hour, plenty for one page view
 
 export default async function IssuesPage() {
   const t = await getTranslations('issues');
@@ -13,22 +19,34 @@ export default async function IssuesPage() {
   const supabase = await createClient();
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
 
-  const { data: issues } = await supabase
+  const { data: issuesData } = await supabase
     .from('issues')
     .select(
-      'id, title, description, status, created_at, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
+      'id, title, description, status, created_at, voice_url, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
     )
     .order('created_at', { ascending: false });
 
-  // Strict chain of command: a non-admin can only escalate to an
-  // Administrative Manager, so that's the only pool they're offered.
-  // CEO/Administrative Manager can delegate to any active staff member.
+  const issues = await Promise.all(
+    (issuesData ?? []).map(async (issue) => {
+      if (!issue.voice_url) return { ...issue, voiceSignedUrl: null };
+      const { data: signed } = await supabase.storage
+        .from('issue-voice-notes')
+        .createSignedUrl(issue.voice_url, VOICE_URL_EXPIRY_SECONDS);
+      return { ...issue, voiceSignedUrl: signed?.signedUrl ?? null };
+    }),
+  );
+
+  // Chain of command: a non-admin can only escalate to an Administrative
+  // Manager, except teachers, who additionally get the CEO as an option
+  // (their choice — day-to-day issues go to the Manager, anything more
+  // critical can go straight to the CEO). CEO/Administrative Manager can
+  // delegate to any active staff member.
   let assigneeQuery = supabase
     .from('profiles')
     .select('id, first_name, last_name')
     .eq('is_active', true)
     .order('first_name', { ascending: true });
-  assigneeQuery = isAdmin ? assigneeQuery : assigneeQuery.eq('role', 'admin_manager');
+  if (!isAdmin) assigneeQuery = assigneeQuery.in('role', allowedAssigneeRoles(profile!.role));
   const { data: assignees } = await assigneeQuery;
 
   return (
@@ -37,7 +55,7 @@ export default async function IssuesPage() {
         <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
         <CreateIssueDialog assignees={assignees ?? []} />
       </div>
-      <IssuesBoard issues={(issues as unknown as Issue[]) ?? []} isAdmin={isAdmin} />
+      <IssuesBoard issues={issues as unknown as Issue[]} isAdmin={isAdmin} />
     </div>
   );
 }

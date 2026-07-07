@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth/require-admin';
+import { allowedAssigneeRoles } from '@/lib/issue-roles';
 
 export type IssueActionState = { error?: string } | undefined;
 
@@ -14,6 +15,10 @@ const createIssueSchema = z.object({
   // 'none' is the Select's sentinel value for "no assignee" (Base UI's
   // Select doesn't take a plain empty-string item value).
   assignedTo: z.union([z.string().uuid(), z.literal('none'), z.literal('')]).optional(),
+  // Storage object path from requestIssueVoiceUploadUrlAction, not a URL —
+  // see the comment on the migration for why we persist the path and
+  // re-sign it on read instead of storing a signed URL directly.
+  voiceUrl: z.string().max(500).optional().or(z.literal('')),
 });
 
 export async function createIssueAction(
@@ -31,32 +36,61 @@ export async function createIssueAction(
 
   let assignedTo: string | null = null;
   if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
-    // Strict chain of command: the CEO and Administrative Manager can
-    // delegate to anyone, but every other role may only escalate to an
-    // Administrative Manager — never to a peer or any other role. This is
-    // re-checked here regardless of what the client's dropdown offered,
-    // since the dropdown options alone are not a security boundary.
+    // Strict chain of command, re-checked here regardless of what the
+    // client's dropdown offered — the dropdown options alone are not a
+    // security boundary.
     if (!isAdmin) {
       const { data: target } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', parsed.data.assignedTo)
         .maybeSingle();
-      if (!target || target.role !== 'admin_manager') return { error: 'invalidAssignee' };
+      if (!target || !allowedAssigneeRoles(profile.role).includes(target.role)) {
+        return { error: 'invalidAssignee' };
+      }
     }
     assignedTo = parsed.data.assignedTo;
   }
+
+  // Defense in depth: the storage RLS already scopes uploads to the
+  // uploader's own folder, but double-check here too rather than trusting
+  // a client-supplied path unconditionally.
+  const voiceUrl =
+    parsed.data.voiceUrl && parsed.data.voiceUrl.startsWith(`${user.id}/`) ? parsed.data.voiceUrl : null;
 
   const { error } = await supabase.from('issues').insert({
     created_by: user.id,
     title: parsed.data.title,
     description: parsed.data.description || null,
     assigned_to: assignedTo,
+    voice_url: voiceUrl,
   });
   if (error) return { error: 'createFailed' };
 
   revalidatePath('/[locale]/issues', 'page');
   return {};
+}
+
+const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });
+export type UploadUrlResult = { path?: string; token?: string; error?: string };
+
+/** Mirrors requestChatMediaUploadUrlAction's signed-upload-url pattern
+ * exactly, targeting the dedicated issue-voice-notes bucket instead. */
+export async function requestIssueVoiceUploadUrlAction(fileName: string): Promise<UploadUrlResult> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = uploadUrlSchema.safeParse({ fileName });
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
+  const path = `${user.id}/${crypto.randomUUID()}-${sanitized}`;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage.from('issue-voice-notes').createSignedUploadUrl(path);
+  if (error || !data) return { error: 'uploadFailed' };
+
+  return { path, token: data.token };
 }
 
 const STATUSES = ['open', 'in_progress', 'done'] as const;

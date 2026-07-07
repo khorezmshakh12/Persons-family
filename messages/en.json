@@ -266,6 +266,12 @@
     "assignee": "Assignee",
     "unassigned": "Unassigned",
     "noAssignee": "No assignee",
+    "voiceNote": "Voice note",
+    "recordVoice": "Record a voice note",
+    "stopRecording": "Stop recording",
+    "recording": "Recording...",
+    "uploadingVoice": "Uploading voice note...",
+    "discardRecording": "Discard recording",
     "status": {
       "open": "Open",
       "in_progress": "In progress",
@@ -286,7 +292,9 @@
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please enter a title for the issue.",
       "createFailed": "Could not submit the issue. Please try again.",
-      "invalidAssignee": "You can only assign issues to an Administrative Manager."
+      "invalidAssignee": "You don't have permission to assign an issue to that person.",
+      "micDenied": "Couldn't access your microphone. Check your browser permissions.",
+      "voiceUploadFailed": "Could not upload the voice note. Please try again."
     }
   },
   "lessonPlans": {

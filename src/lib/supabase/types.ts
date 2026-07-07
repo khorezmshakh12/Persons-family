@@ -332,6 +332,7 @@ export type Database = {
           resolved_by: string | null
           status: Database["public"]["Enums"]["issue_status"]
           title: string
+          voice_url: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -343,6 +344,7 @@ export type Database = {
           resolved_by?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
           title: string
+          voice_url?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           resolved_by?: string | null
           status?: Database["public"]["Enums"]["issue_status"]
           title?: string
+          voice_url?: string | null
         }
         Relationships: [
           {
