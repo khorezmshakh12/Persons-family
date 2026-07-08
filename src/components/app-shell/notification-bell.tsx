@@ -138,6 +138,22 @@ export function NotificationBell({
 
   const issuePreviews = [...unseenIssues].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
 
+  // Optimistically drop the item(s) from local state the instant it's
+  // clicked — the badge shouldn't wait on a network round trip — then
+  // persist the read/seen state so it stays cleared on reload and for the
+  // sidebar dot in /chat, which listens for this same row change.
+  function handleChatClick(senderId: string) {
+    setUnreadChats((prev) => prev.filter((m) => m.senderId !== senderId));
+    setOpen(false);
+    createClient().rpc('mark_conversation_read', { other_user_id: senderId });
+  }
+
+  function handleIssueClick(issueId: string) {
+    setUnseenIssues((prev) => prev.filter((i) => i.id !== issueId));
+    setOpen(false);
+    createClient().rpc('mark_issue_seen', { issue_id: issueId });
+  }
+
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
       <PopoverPrimitive.Trigger
@@ -173,7 +189,7 @@ export function NotificationBell({
                       <Link
                         key={m.id}
                         href="/chat"
-                        onClick={() => setOpen(false)}
+                        onClick={() => handleChatClick(m.senderId)}
                         className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
                       >
                         <span className="text-sm font-medium text-white">
@@ -193,7 +209,7 @@ export function NotificationBell({
                       <Link
                         key={issue.id}
                         href="/issues"
-                        onClick={() => setOpen(false)}
+                        onClick={() => handleIssueClick(issue.id)}
                         className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
                       >
                         <span className="truncate text-sm font-medium text-white">{issue.title}</span>

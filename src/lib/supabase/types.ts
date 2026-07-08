@@ -970,6 +970,7 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: undefined
       }
+      mark_issue_seen: { Args: { issue_id: string }; Returns: undefined }
       mark_issues_seen: { Args: never; Returns: undefined }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
     }

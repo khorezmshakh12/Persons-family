@@ -171,6 +171,18 @@ export function ChatHubClient({
             setDmMessagesByPair((prev) =>
               prev[key] ? { ...prev, [key]: prev[key].map((m) => (m.id === updated.id ? updated : m)) } : prev,
             );
+            // A message from this sender was marked read somewhere else —
+            // the notification bell, another tab, opening this DM just now
+            // — so the sidebar dot should clear regardless of which path
+            // did it, not only the "this DM just became active" effect.
+            if (updated.is_read && updated.receiver_id === currentUserId) {
+              setUnreadDmUserIds((prev) => {
+                if (!prev.has(updated.sender_id)) return prev;
+                const next = new Set(prev);
+                next.delete(updated.sender_id);
+                return next;
+              });
+            }
           }
         })
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'staff_chats' }, (payload) => {
