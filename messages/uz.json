@@ -50,7 +50,8 @@
       "passwordTooShort": "Parol kamida 8 belgidan iborat bo'lishi kerak.",
       "passwordMismatch": "Parollar mos kelmadi.",
       "updateFailed": "Parolni o'rnatib bo'lmadi. Qayta urinib ko'ring.",
-      "accountDeactivated": "Hisobingiz faolsizlantirilgan. Administrator bilan bog'laning."
+      "accountDeactivated": "Hisobingiz faolsizlantirilgan. Administrator bilan bog'laning.",
+      "unexpectedError": "Serverga ulanishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring."
     }
   },
   "birthday": {

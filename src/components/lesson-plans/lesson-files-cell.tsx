@@ -67,7 +67,8 @@ export function LessonFilesCell({
     try {
       const uploadUrlResult = await requestLessonMaterialUploadUrlAction(lessonId, groupId, file.name);
       if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.token) {
-        toast.error(t(`errors.${uploadUrlResult.error ?? 'uploadFailed'}`));
+        const base = t(`errors.${uploadUrlResult.error ?? 'uploadFailed'}`);
+        toast.error(uploadUrlResult.detail ? `${base}: ${uploadUrlResult.detail}` : base);
         return;
       }
 
@@ -76,7 +77,7 @@ export function LessonFilesCell({
         .from('lesson_materials')
         .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, file, { contentType: file.type });
       if (uploadError) {
-        toast.error(t('errors.uploadFailed'));
+        toast.error(`${t('errors.uploadFailed')}: ${uploadError.message}`);
         return;
       }
 

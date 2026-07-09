@@ -50,7 +50,8 @@
       "passwordTooShort": "Password must be at least 8 characters.",
       "passwordMismatch": "Passwords do not match.",
       "updateFailed": "Could not set your password. Please try again.",
-      "accountDeactivated": "Your account has been deactivated. Contact an administrator."
+      "accountDeactivated": "Your account has been deactivated. Contact an administrator.",
+      "unexpectedError": "Something went wrong connecting to the server. Please try again shortly."
     }
   },
   "birthday": {

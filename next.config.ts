@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
       // Lesson material thumbnails: private bucket, served via short-lived
       // signed URLs generated server-side (createSignedUrl), never a public
       // bucket URL.
-      { protocol: 'https', hostname: 'enjfzcnfwstcwjsycxhi.supabase.co', pathname: '/storage/v1/object/sign/**' },
+      { protocol: 'https', hostname: 'oligfydrmrcxkwupljxo.supabase.co', pathname: '/storage/v1/object/sign/**' },
     ],
   },
 };

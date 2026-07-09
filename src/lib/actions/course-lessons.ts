@@ -7,7 +7,7 @@ import { getAuthState } from '@/lib/auth/session';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 
 export type LessonActionState = { error?: string } | undefined;
-export type UploadUrlResult = { path?: string; token?: string; error?: string };
+export type UploadUrlResult = { path?: string; token?: string; error?: string; detail?: string };
 
 const updateLessonDateSchema = z.object({
   lessonId: z.string().uuid(),
@@ -153,7 +153,13 @@ export async function requestLessonMaterialUploadUrlAction(
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${parsed.data.groupId}/${parsed.data.lessonId}/${crypto.randomUUID()}-${sanitized}`;
   const { data, error } = await supabase.storage.from('lesson_materials').createSignedUploadUrl(path);
-  if (error || !data) return { error: 'uploadFailed' };
+  if (error || !data) {
+    // Surface the raw Supabase error (e.g. "Bucket not found", "new row
+    // violates row-level security policy") so a migration/config bug is
+    // diagnosable from the toast instead of a generic "upload failed".
+    console.error('createSignedUploadUrl failed', error);
+    return { error: 'uploadFailed', detail: error?.message };
+  }
 
   return { path, token: data.token };
 }

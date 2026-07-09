@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { Bell } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Link } from '@/i18n/navigation';
@@ -35,6 +35,7 @@ export function NotificationBell({
 }) {
   const t = useTranslations('notifications');
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
   const [unseenIssues, setUnseenIssues] = useState(initialUnseenIssues);
   const [open, setOpen] = useState(false);
@@ -213,7 +214,9 @@ export function NotificationBell({
                         className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
                       >
                         <span className="truncate text-sm font-medium text-white">{issue.title}</span>
-                        <span className="text-xs text-white/60">{format.relativeTime(new Date(issue.createdAt))}</span>
+                        <span className="text-xs text-white/60">
+                          {format.relativeTime(new Date(issue.createdAt), now)}
+                        </span>
                       </Link>
                     ))}
                   </div>

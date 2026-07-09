@@ -23,31 +23,40 @@ export async function loginAction(
   const phone = normalizePhone(parsed.data.phone);
   if (!phone) return { error: 'invalidPhone' };
 
-  const supabase = await createClient();
-  const { data: signInData, error } = await supabase.auth.signInWithPassword({
-    email: phoneToSyntheticEmail(phone),
-    password: parsed.data.password,
-  });
-  if (error) return { error: 'invalidCredentials' };
+  let destination: string;
+  try {
+    const supabase = await createClient();
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
+      email: phoneToSyntheticEmail(phone),
+      password: parsed.data.password,
+    });
+    if (error) return { error: 'invalidCredentials' };
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('must_change_password, is_active')
+      .eq('id', signInData.user.id)
+      .single();
+
+    if (profile && !profile.is_active) {
+      await supabase.auth.signOut();
+      return { error: 'accountDeactivated' };
+    }
+
+    destination = profile?.must_change_password ? '/set-password' : '/dashboard';
+  } catch (err) {
+    // Network/config failures (wrong Supabase URL/key, DNS, timeout, etc.)
+    // throw instead of returning { error }, which would otherwise leave the
+    // submit button stuck on "loading" forever with no feedback.
+    if (err instanceof Error && (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw err;
+    console.error('loginAction failed unexpectedly', err);
+    return { error: 'unexpectedError' };
+  }
 
   // Compute the final destination here rather than always redirecting to
   // /dashboard: a redirect() encountered while rendering the target of
   // another redirect() doesn't reliably update the browser URL.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('must_change_password, is_active')
-    .eq('id', signInData.user.id)
-    .single();
-
-  if (profile && !profile.is_active) {
-    await supabase.auth.signOut();
-    return { error: 'accountDeactivated' };
-  }
-
-  redirect({
-    href: profile?.must_change_password ? '/set-password' : '/dashboard',
-    locale: await getLocale(),
-  });
+  redirect({ href: destination, locale: await getLocale() });
 }
 
 const setPasswordSchema = z
@@ -70,18 +79,24 @@ export async function setPasswordAction(
     return { error: isMismatch ? 'passwordMismatch' : 'passwordTooShort' };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect({ href: '/login', locale: await getLocale() });
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect({ href: '/login', locale: await getLocale() });
 
-  const { error: updateError } = await supabase.auth.updateUser({
-    password: parsed.data.password,
-  });
-  if (updateError) return { error: 'updateFailed' };
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: parsed.data.password,
+    });
+    if (updateError) return { error: 'updateFailed' };
 
-  await supabase.from('profiles').update({ must_change_password: false }).eq('id', user!.id);
+    await supabase.from('profiles').update({ must_change_password: false }).eq('id', user!.id);
+  } catch (err) {
+    if (err instanceof Error && (err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw err;
+    console.error('setPasswordAction failed unexpectedly', err);
+    return { error: 'unexpectedError' };
+  }
 
   redirect({ href: '/dashboard', locale: await getLocale() });
 }
