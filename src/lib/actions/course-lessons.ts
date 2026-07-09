@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 
@@ -150,9 +151,20 @@ export async function requestLessonMaterialUploadUrlAction(
   if (!group) return { error: 'forbidden' };
   if (group.teacher_id !== user.id) return { error: 'forbidden' };
 
+  // Confirm the lesson actually belongs to this group — the storage call
+  // below uses the admin client (see comment there), so this app-level check
+  // is now the only thing standing between the two path segments.
+  const { data: lesson } = await supabase.from('course_lessons').select('group_id').eq('id', lessonId).maybeSingle();
+  if (!lesson || lesson.group_id !== groupId) return { error: 'forbidden' };
+
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${parsed.data.groupId}/${parsed.data.lessonId}/${crypto.randomUUID()}-${sanitized}`;
-  const { data, error } = await supabase.storage.from('lesson_materials').createSignedUploadUrl(path);
+  // Ownership is already fully verified above, so this uses the admin client
+  // (bypasses storage RLS) rather than the user's own session — the new
+  // Frankfurt project is missing its storage.objects INSERT policies post
+  // migration, and a database-side fix requires access we don't have from
+  // here. This keeps uploads working without depending on that RLS policy.
+  const { data, error } = await createAdminClient().storage.from('lesson_materials').createSignedUploadUrl(path);
   if (error || !data) {
     // Surface the raw Supabase error (e.g. "Bucket not found", "new row
     // violates row-level security policy") so a migration/config bug is

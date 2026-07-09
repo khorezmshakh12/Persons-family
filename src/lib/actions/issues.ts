@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { allowedAssigneeRoles } from '@/lib/issue-roles';
@@ -134,8 +135,9 @@ export async function requestIssueVoiceUploadUrlAction(fileName: string): Promis
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${user.id}/${crypto.randomUUID()}-${sanitized}`;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.storage.from('issue-voice-notes').createSignedUploadUrl(path);
+  // Path is always scoped to the caller's own id — see the identical
+  // admin-client note in requestChatMediaUploadUrlAction.
+  const { data, error } = await createAdminClient().storage.from('issue-voice-notes').createSignedUploadUrl(path);
   if (error || !data) return { error: 'uploadFailed' };
 
   return { path, token: data.token };

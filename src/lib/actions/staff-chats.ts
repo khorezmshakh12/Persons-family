@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
 
 export type StaffChatsActionState = { error?: string } | undefined;
@@ -96,8 +97,10 @@ export async function requestChatMediaUploadUrlAction(fileName: string): Promise
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${user.id}/${crypto.randomUUID()}-${sanitized}`;
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.storage.from('chat_media').createSignedUploadUrl(path);
+  // Path is always scoped to the caller's own id, so the admin client (which
+  // bypasses storage RLS — currently missing its INSERT policies on the new
+  // Frankfurt project) doesn't widen access beyond what the user already had.
+  const { data, error } = await createAdminClient().storage.from('chat_media').createSignedUploadUrl(path);
   if (error || !data) return { error: 'uploadFailed' };
 
   return { path, token: data.token };

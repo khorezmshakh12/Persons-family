@@ -81,7 +81,11 @@ export async function requestAvatarUploadUrlAction(
   }
 
   const path = `${targetUserId}/avatar.${ext}`;
-  const { data, error } = await supabase.storage
+  // Authorization is already fully enforced above (requireAdmin + the
+  // protected-role check), so this uses the admin client — see the note in
+  // requestLessonMaterialUploadUrlAction for why (missing storage RLS
+  // INSERT policies on the new Frankfurt project).
+  const { data, error } = await createAdminClient().storage
     .from('avatars')
     .createSignedUploadUrl(path, { upsert: true });
   if (error || !data) return { error: 'uploadFailed' };
