@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { CourseLessonsTable, type CourseLessonRow } from './course-lessons-table';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 import type { LessonAttachmentWithUrl } from './lesson-files-cell';
@@ -35,7 +36,10 @@ export async function CourseLessonsSection({
   const allPaths = lessons.flatMap((l) => ((l.attachments as unknown as LessonAttachment[]) ?? []).map((a) => a.path));
   const signedUrlByPath = new Map<string, string>();
   if (allPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from('lesson_materials').createSignedUrls(allPaths, 3600);
+    // Caller access to this group is already gated by the parent page before
+    // this component renders, so the admin client here (needed since storage
+    // RLS is missing on the new Frankfurt project) doesn't widen anything.
+    const { data: signedUrls } = await createAdminClient().storage.from('lesson_materials').createSignedUrls(allPaths, 3600);
     for (const s of signedUrls ?? []) {
       if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? '', s.signedUrl);
     }

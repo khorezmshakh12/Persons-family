@@ -254,11 +254,11 @@ export async function removeLessonMaterialAction(
     .eq('id', parsed.data.lessonId);
   if (error) return { error: 'updateFailed' };
 
-  // Best-effort: the row update above is the source of truth and is already
-  // RLS-gated to teacher-or-CEO; if the storage delete fails (e.g. RLS
-  // denies a race where the caller wasn't actually the owner), leave it
-  // orphaned rather than surfacing a confusing partial error to the user.
-  await supabase.storage.from('lesson_materials').remove([parsed.data.path]);
+  // The row update above is the real authorization gate (RLS-restricted to
+  // teacher-or-CEO) and already succeeded, so this uses the admin client —
+  // storage RLS itself is missing on the new Frankfurt project and would
+  // otherwise block the delete even though the caller is confirmed allowed.
+  await createAdminClient().storage.from('lesson_materials').remove([parsed.data.path]);
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};

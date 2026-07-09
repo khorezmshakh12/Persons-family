@@ -7,6 +7,12 @@ import { getAuthState } from '@/lib/auth/session';
 
 export type StaffChatsActionState = { error?: string } | undefined;
 export type UploadUrlResult = { path?: string; token?: string; error?: string };
+export type ReadUrlResult = { signedUrl?: string; error?: string };
+
+// media_url is stored permanently on the message row rather than re-signed
+// on each read (unlike issue voice notes, which are viewed occasionally from
+// a board), so this needs a long expiry.
+const CHAT_MEDIA_READ_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 365 * 5;
 
 const MEDIA_TYPES = ['image', 'video', 'voice', 'none'] as const;
 
@@ -104,4 +110,24 @@ export async function requestChatMediaUploadUrlAction(fileName: string): Promise
   if (error || !data) return { error: 'uploadFailed' };
 
   return { path, token: data.token };
+}
+
+/**
+ * Signs the just-uploaded object for reading, right after the browser
+ * finishes uploadToSignedUrl. Must go through the server (not the client's
+ * own supabase.storage.createSignedUrl) since storage RLS is missing on the
+ * new Frankfurt project — the admin client is scoped here to only the
+ * caller's own uploads by re-deriving the expected path prefix.
+ */
+export async function requestChatMediaReadUrlAction(path: string): Promise<ReadUrlResult> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+  if (!path.startsWith(`${user.id}/`)) return { error: 'forbidden' };
+
+  const { data, error } = await createAdminClient()
+    .storage.from('chat_media')
+    .createSignedUrl(path, CHAT_MEDIA_READ_URL_EXPIRY_SECONDS);
+  if (error || !data) return { error: 'uploadFailed' };
+
+  return { signedUrl: data.signedUrl };
 }

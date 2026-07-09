@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Loader2, Mic, Paperclip, Send, Square } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
+  requestChatMediaReadUrlAction,
   requestChatMediaUploadUrlAction,
   sendStaffChatAction,
   type StaffChatsActionState,
@@ -20,15 +21,6 @@ import { Textarea } from '@/components/ui/textarea';
 // byte deferred out of the initial chat bundle is still a byte deferred;
 // most people load /chat to read/send text, not to pick an emoji.
 const EmojiPicker = dynamic(() => import('./emoji-picker').then((mod) => mod.EmojiPicker), { ssr: false });
-
-// Signed URLs are the only way to read from a private bucket — 5 years is
-// "effectively permanent" for a chat attachment without needing to
-// re-resolve a fresh signed URL every time messages are fetched/rendered
-// (unlike the lesson-materials feature, which re-signs on every page load;
-// simpler here since this composer is the single place media URLs are
-// minted, and DMs are fetched client-side on demand rather than always
-// server-rendered).
-const MEDIA_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 365 * 5;
 
 export function ChatComposer({
   receiverId,
@@ -103,19 +95,17 @@ export function ChatComposer({
         return;
       }
 
-      const { data: signed } = await supabase.storage
-        .from('chat_media')
-        .createSignedUrl(uploadUrlResult.path, MEDIA_URL_EXPIRY_SECONDS);
-      if (!signed?.signedUrl) {
+      const readUrlResult = await requestChatMediaReadUrlAction(uploadUrlResult.path);
+      if (readUrlResult.error || !readUrlResult.signedUrl) {
         toast.error(t('errors.uploadFailed'));
         return;
       }
 
-      onOptimisticSend({ mediaUrl: signed.signedUrl, mediaType });
+      onOptimisticSend({ mediaUrl: readUrlResult.signedUrl, mediaType });
 
       const sendFormData = new FormData();
       if (receiverId) sendFormData.set('receiverId', receiverId);
-      sendFormData.set('mediaUrl', signed.signedUrl);
+      sendFormData.set('mediaUrl', readUrlResult.signedUrl);
       sendFormData.set('mediaType', mediaType);
       const result = await sendStaffChatAction(undefined, sendFormData);
       if (result?.error) toast.error(t(`errors.${result.error}`));

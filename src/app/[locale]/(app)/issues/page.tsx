@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { allowedAssigneeRoles } from '@/lib/issue-roles';
 import { CreateIssueDialog } from '@/components/issues/create-issue-dialog';
 import { IssuesBoard } from '@/components/issues/issues-board';
@@ -30,8 +31,11 @@ export default async function IssuesPage() {
   const issues = await Promise.all(
     (issuesData ?? []).map(async (issue) => {
       if (!issue.voice_url) return { ...issue, voiceSignedUrl: null };
-      const { data: signed } = await supabase.storage
-        .from('issue-voice-notes')
+      // Row access is already scoped by the issues_select RLS policy above;
+      // this only needs the admin client because storage RLS itself is
+      // missing on the new Frankfurt project.
+      const { data: signed } = await createAdminClient()
+        .storage.from('issue-voice-notes')
         .createSignedUrl(issue.voice_url, VOICE_URL_EXPIRY_SECONDS);
       return { ...issue, voiceSignedUrl: signed?.signedUrl ?? null };
     }),
