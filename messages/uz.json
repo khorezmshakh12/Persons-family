@@ -278,6 +278,7 @@
     "uploadingVoice": "Ovozli xabar yuklanmoqda...",
     "discardRecording": "Yozuvni o'chirish",
     "dragHandle": "Ko'chirish uchun torting",
+    "delete": "Murojaatni o'chirish",
     "status": {
       "open": "Ochiq",
       "in_progress": "Ko'rib chiqilmoqda",
@@ -301,7 +302,10 @@
       "invalidAssignee": "Sizda bu murojaatni ushbu shaxsga biriktirish uchun ruxsat yo'q.",
       "micDenied": "Mikrofonga ulanib bo'lmadi. Brauzer ruxsatlarini tekshiring.",
       "voiceUploadFailed": "Ovozli xabarni yuklab bo'lmadi. Qayta urinib ko'ring.",
-      "updateFailed": "Murojaat holatini yangilab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Murojaat holatini yangilab bo'lmadi. Qayta urinib ko'ring.",
+      "notFound": "Bu murojaat endi mavjud emas.",
+      "notDone": "Faqat bajarilgan murojaatlarni o'chirish mumkin.",
+      "deleteFailed": "Murojaatni o'chirib bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "lessonPlans": {
@@ -407,6 +411,7 @@
     "confirmDeleteDescription": "Vazifa butunlay o'chiriladi.",
     "confirm": "Tasdiqlash",
     "noTasks": "Bu yerda vazifalar yo'q.",
+    "dragHandle": "Ko'chirish uchun torting",
     "status": {
       "pending": "Kutilmoqda",
       "in_progress": "Jarayonda",
@@ -592,16 +597,18 @@
     "subtitle": "Sizga ko'rinadigan guruhlarning barcha darslari, kunma-kun.",
     "monthTitle": "Shu oydagi darslar",
     "more": "yana +{count}",
-    "noLessonsThisMonth": "Bu oyda hali dars rejalashtirilmagan."
+    "noLessonsThisMonth": "Bu oyda hali dars rejalashtirilmagan.",
+    "lessonsOnDay": "{date} kunidagi darslar",
+    "noLessonsThisDay": "Bu kunda dars rejalashtirilmagan."
   },
   "selfDevelopment": {
     "title": "O'z-o'zini Rivojlantirish",
     "subtitle": "Oylik rivojlanishingizni kuzatib boring — CEO va Ma'muriy menejer buni ko'rib chiqib, shu yerdan o'qituvchi darajasini belgilaydi.",
     "submitTitle": "Shu oydagi natijalar",
-    "achievements": "Yutuqlar",
-    "achievementsPlaceholder": "Shu oyda nimalarga erishdingiz?",
-    "valueAdded": "Qo'shgan hissangiz",
-    "valueAddedPlaceholder": "Jamoaga yoki o'quvchilarga qanday qo'shimcha foyda keltirdingiz?",
+    "achievements": "O'z ustida ish",
+    "achievementsPlaceholder": "Shu oy davomida o'z ustingizda qanday ishladingiz?",
+    "valueAdded": "Kompaniyaga foyda",
+    "valueAddedPlaceholder": "Shu oy kompaniyaga qanday foyda keltirdingiz?",
     "submit": "Yuborish",
     "submitted": "Yuborildi.",
     "submittedThisMonth": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",

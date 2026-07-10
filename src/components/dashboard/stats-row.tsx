@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { Users, Layers, CalendarDays, MessagesSquare } from 'lucide-react';
+import { Users, Layers, CalendarDays } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { monthlyBuckets, momChangePercent } from '@/lib/dashboard-stats';
 import { StatCard } from './stat-card';
@@ -11,30 +11,20 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
   const supabase = await createClient();
 
   // Each RLS-scoped independently: profiles are visible platform-wide, but
-  // groups/course_lessons/staff_chat_messages narrow to what the viewer's
-  // own role can see (their own groups for a teacher, assigned group for a
-  // TA) — so a non-admin's cards naturally read as "my" totals, not the
-  // company's, without any extra filtering logic here.
-  const [
-    { data: staffRows },
-    { data: groupRows },
-    { data: lessonRows },
-    { data: chatRowsA },
-    { data: chatRowsB },
-  ] = await Promise.all([
+  // groups/course_lessons narrow to what the viewer's own role can see
+  // (their own groups for a teacher, assigned group for a TA) — so a
+  // non-admin's cards naturally read as "my" totals, not the company's,
+  // without any extra filtering logic here.
+  const [{ data: staffRows }, { data: groupRows }, { data: lessonRows }] = await Promise.all([
     supabase.from('profiles').select('created_at, is_active'),
     supabase.from('groups').select('created_at'),
     supabase.from('course_lessons').select('created_at'),
-    supabase.from('staff_chats').select('created_at'),
-    supabase.from('staff_chat_messages').select('created_at'),
   ]);
 
   const activeStaff = (staffRows ?? []).filter((r) => r.is_active);
   const staffBuckets = monthlyBuckets(activeStaff.map((r) => r.created_at), MONTHS);
   const groupBuckets = monthlyBuckets((groupRows ?? []).map((r) => r.created_at), MONTHS);
   const lessonBuckets = monthlyBuckets((lessonRows ?? []).map((r) => r.created_at), MONTHS);
-  const chatTimestamps = [...(chatRowsA ?? []), ...(chatRowsB ?? [])].map((r) => r.created_at);
-  const chatBuckets = monthlyBuckets(chatTimestamps, MONTHS);
 
   const cards = [
     // CEO/Admin get "Total Staff"; a teacher's own dashboard has no use for
@@ -63,21 +53,11 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
       buckets: lessonBuckets,
       href: '/lesson-plans',
     },
-    // Teachers get their Self-Development chart in place of this card
-    // instead (see DashboardPage), so it's only shown for CEO/Admin.
-    isAdminRole && {
-      label: t('chatActivity'),
-      value: chatTimestamps.length,
-      icon: MessagesSquare,
-      tint: 'red' as const,
-      buckets: chatBuckets,
-      href: '/chat',
-    },
   ].filter(Boolean) as Array<{
     label: string;
     value: number;
     icon: typeof Users;
-    tint: 'green' | 'blue' | 'orange' | 'red';
+    tint: 'green' | 'blue' | 'orange';
     buckets: number[];
     href: string;
   }>;

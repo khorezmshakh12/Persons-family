@@ -278,6 +278,7 @@
     "uploadingVoice": "Uploading voice note...",
     "discardRecording": "Discard recording",
     "dragHandle": "Drag to move",
+    "delete": "Delete issue",
     "status": {
       "open": "Open",
       "in_progress": "In review",
@@ -301,7 +302,10 @@
       "invalidAssignee": "You don't have permission to assign an issue to that person.",
       "micDenied": "Couldn't access your microphone. Check your browser permissions.",
       "voiceUploadFailed": "Could not upload the voice note. Please try again.",
-      "updateFailed": "Could not update the issue's status. Please try again."
+      "updateFailed": "Could not update the issue's status. Please try again.",
+      "notFound": "That issue no longer exists.",
+      "notDone": "Only resolved issues can be deleted.",
+      "deleteFailed": "Could not delete the issue. Please try again."
     }
   },
   "lessonPlans": {
@@ -407,6 +411,7 @@
     "confirmDeleteDescription": "This will permanently remove the task.",
     "confirm": "Confirm",
     "noTasks": "No tasks here.",
+    "dragHandle": "Drag to move",
     "status": {
       "pending": "Pending",
       "in_progress": "In progress",
@@ -592,16 +597,18 @@
     "subtitle": "Every scheduled lesson across the groups you can see, day by day.",
     "monthTitle": "This month's lessons",
     "more": "+{count} more",
-    "noLessonsThisMonth": "No lessons scheduled this month yet."
+    "noLessonsThisMonth": "No lessons scheduled this month yet.",
+    "lessonsOnDay": "Lessons on {date}",
+    "noLessonsThisDay": "No lessons scheduled this day."
   },
   "selfDevelopment": {
     "title": "Self-Development",
     "subtitle": "Track your monthly growth — the CEO and Administrative Manager review these and set teacher levels from here.",
     "submitTitle": "This month's progress",
-    "achievements": "Achievements",
-    "achievementsPlaceholder": "What did you accomplish this month?",
-    "valueAdded": "Value added",
-    "valueAddedPlaceholder": "What extra value did you bring to the team or students?",
+    "achievements": "Own Growth",
+    "achievementsPlaceholder": "What did you work on for your own growth this month?",
+    "valueAdded": "Company Benefit",
+    "valueAddedPlaceholder": "What benefit did you bring to the company this month?",
     "submit": "Submit",
     "submitted": "Submitted.",
     "submittedThisMonth": "You've already submitted your progress for this month.",

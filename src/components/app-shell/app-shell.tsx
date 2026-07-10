@@ -59,7 +59,7 @@ export async function AppShell({
             <span className="mb-6 text-sm font-semibold tracking-tight text-white">{t('name')}</span>
             <SidebarNav role={profile.role} glass />
             <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
-            <span className="pt-3 text-center text-xs tracking-wider text-white/50">Persons ERP v1.5</span>
+            <span className="pt-3 text-center text-xs tracking-wider text-white/50">Persons ERP v1.6</span>
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col">

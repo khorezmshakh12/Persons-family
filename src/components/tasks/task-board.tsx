@@ -1,12 +1,19 @@
-import { getTranslations } from 'next-intl/server';
-import { TaskCard, type Task } from './task-card';
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { updateTaskStatusAction } from '@/lib/actions/tasks';
+import { TaskKanbanColumn } from './task-kanban-column';
+import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
 
 const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
 
-export async function TaskBoard({
-  tasks,
+export function TaskBoard({
+  tasks: initialTasks,
   isAdmin,
   assignees,
 }: {
@@ -14,29 +21,49 @@ export async function TaskBoard({
   isAdmin: boolean;
   assignees: Assignee[];
 }) {
-  const t = await getTranslations('tasks');
+  const t = useTranslations('tasks');
+  const [tasks, setTasks] = useState(initialTasks);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = String(active.id);
+    const nextStatus = over.id as TaskStatus;
+    const current = tasks.find((task) => task.id === taskId);
+    if (!current || current.status === nextStatus) return;
+
+    const previousTasks = tasks;
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status: nextStatus } : task)));
+
+    (async () => {
+      const formData = new FormData();
+      formData.set('id', taskId);
+      formData.set('status', nextStatus);
+      const result = await updateTaskStatusAction(formData);
+      if (result?.error) {
+        setTasks(previousTasks);
+        toast.error(t(`errors.${result.error}`));
+      }
+    })();
+  }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {COLUMNS.map((status) => {
-        const columnTasks = tasks.filter((task) => task.status === status);
-        return (
-          <div key={status} className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-white">
-              {t(`columns.${status}`)} ({columnTasks.length})
-            </h2>
-            <div className="flex flex-col gap-3">
-              {columnTasks.length === 0 ? (
-                <p className="text-sm text-white/60">{t('noTasks')}</p>
-              ) : (
-                columnTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} isAdmin={isAdmin} assignees={assignees} />
-                ))
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {COLUMNS.map((status) => (
+          <TaskKanbanColumn
+            key={status}
+            status={status}
+            label={t(`columns.${status}`)}
+            tasks={tasks.filter((task) => task.status === status)}
+            isAdmin={isAdmin}
+            assignees={assignees}
+            emptyLabel={t('noTasks')}
+          />
+        ))}
+      </div>
+    </DndContext>
   );
 }

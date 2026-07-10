@@ -3,22 +3,24 @@
 import { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
-import { IssueCard, type Issue } from './issue-card';
+import { TaskCard, type Task } from './task-card';
+import type { Assignee } from './assign-task-dialog';
+import type { TaskStatus } from './task-status-control';
 
-function KanbanColumnImpl({
+function TaskKanbanColumnImpl({
   status,
   label,
-  issues,
+  tasks,
   isAdmin,
+  assignees,
   emptyLabel,
-  onRequestDelete,
 }: {
-  status: Issue['status'];
+  status: TaskStatus;
   label: string;
-  issues: Issue[];
+  tasks: Task[];
   isAdmin: boolean;
+  assignees: Assignee[];
   emptyLabel: string;
-  onRequestDelete: (issue: Issue) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -31,14 +33,14 @@ function KanbanColumnImpl({
       )}
     >
       <h2 className="text-sm font-medium text-white">
-        {label} ({issues.length})
+        {label} ({tasks.length})
       </h2>
       <div className="flex flex-col gap-3">
-        {issues.length === 0 ? (
+        {tasks.length === 0 ? (
           <p className="text-sm text-white/60">{emptyLabel}</p>
         ) : (
-          issues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} isAdmin={isAdmin} onRequestDelete={onRequestDelete} />
+          tasks.map((task) => (
+            <TaskCard key={task.id} task={task} isAdmin={isAdmin} assignees={assignees} />
           ))
         )}
       </div>
@@ -46,7 +48,4 @@ function KanbanColumnImpl({
   );
 }
 
-// A card moving within/into one column re-renders only that column — the
-// other two columns' subtrees are skipped entirely, which is what actually
-// makes the drag feel instant on a board with many cards.
-export const KanbanColumn = memo(KanbanColumnImpl);
+export const TaskKanbanColumn = memo(TaskKanbanColumnImpl);

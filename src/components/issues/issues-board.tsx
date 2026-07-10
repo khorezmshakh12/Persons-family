@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { updateIssueStatusAction } from '@/lib/actions/issues';
+import { updateIssueStatusAction, deleteIssueAction } from '@/lib/actions/issues';
 import { KanbanColumn } from './kanban-column';
 import type { Issue } from './issue-card';
 
@@ -42,6 +42,23 @@ export function IssuesBoard({ issues: initialIssues, isAdmin }: { issues: Issue[
     })();
   }
 
+  // Same optimistic pattern as the drag handler: remove immediately, put it
+  // back and surface a toast only if the delete actually fails.
+  function handleRequestDelete(issue: Issue) {
+    const previousIssues = issues;
+    setIssues((prev) => prev.filter((i) => i.id !== issue.id));
+
+    (async () => {
+      const formData = new FormData();
+      formData.set('id', issue.id);
+      const result = await deleteIssueAction(formData);
+      if (result?.error) {
+        setIssues(previousIssues);
+        toast.error(t(`errors.${result.error}`));
+      }
+    })();
+  }
+
   if (issues.length === 0) {
     return <p className="text-sm text-white/70">{t('noIssues')}</p>;
   }
@@ -57,6 +74,7 @@ export function IssuesBoard({ issues: initialIssues, isAdmin }: { issues: Issue[
             issues={issues.filter((issue) => issue.status === status)}
             isAdmin={isAdmin}
             emptyLabel={t('noIssuesInColumn')}
+            onRequestDelete={handleRequestDelete}
           />
         ))}
       </div>

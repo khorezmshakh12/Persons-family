@@ -50,7 +50,7 @@ export async function IssuesTable({ issues, isAdmin }: { issues: Issue[]; isAdmi
               </TableCell>
               <TableCell>{format.dateTime(new Date(issue.created_at), { dateStyle: 'medium' })}</TableCell>
               <TableCell>
-                <IssueStatusControl issueId={issue.id} status={issue.status} readOnly={!isAdmin} />
+                <IssueStatusControl status={issue.status} />
               </TableCell>
             </TableRow>
           ))}

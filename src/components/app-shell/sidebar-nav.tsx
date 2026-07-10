@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Map,
   Rocket,
-  Wallet,
   ScrollText,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -33,7 +32,6 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   staffChat: MessagesSquare,
   telegramSetup: Send,
   selfDevelopment: TrendingUp,
-  performance: Wallet,
   systemLogs: ScrollText,
   roadmap: Map,
   projects: Rocket,

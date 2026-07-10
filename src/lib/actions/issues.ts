@@ -181,3 +181,33 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
   revalidatePath('/[locale]/issues', 'page');
   return {};
 }
+
+const deleteIssueSchema = z.object({ id: z.string().uuid() });
+
+export type DeleteIssueResult = { error?: string };
+
+/** Deleting is restricted to issues already in "done" — a still-open or
+ * in-review issue should be resolved through the board, not removed. */
+export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
+  try {
+    await requireAdmin();
+  } catch {
+    return { error: 'forbidden' };
+  }
+
+  const parsed = deleteIssueSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { data: issue } = await supabase.from('issues').select('status').eq('id', parsed.data.id).maybeSingle();
+  if (!issue) return { error: 'notFound' };
+  if (issue.status !== 'done') return { error: 'notDone' };
+
+  const { error } = await supabase.from('issues').delete().eq('id', parsed.data.id);
+  if (error) return { error: 'deleteFailed' };
+
+  logSystemAction(supabase, 'issue.delete', `Deleted resolved issue ${parsed.data.id}`);
+
+  revalidatePath('/[locale]/issues', 'page');
+  return {};
+}

@@ -82,17 +82,21 @@ const updateStatusSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export async function updateTaskStatusAction(formData: FormData): Promise<void> {
+export type UpdateTaskStatusResult = { error?: string };
+
+export async function updateTaskStatusAction(formData: FormData): Promise<UpdateTaskStatusResult> {
   const { user } = await getAuthState();
-  if (!user) return;
+  if (!user) return { error: 'forbidden' };
 
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  await supabase.from('tasks').update({ status: parsed.data.status }).eq('id', parsed.data.id);
+  const { error } = await supabase.from('tasks').update({ status: parsed.data.status }).eq('id', parsed.data.id);
+  if (error) return { error: 'updateFailed' };
 
   revalidatePath('/[locale]/tasks', 'page');
+  return {};
 }
 
 const idSchema = z.object({ id: z.string().uuid() });

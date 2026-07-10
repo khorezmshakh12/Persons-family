@@ -24,7 +24,7 @@ export function SelfDevelopmentChart({ points, title }: { points: ScorePoint[]; 
   const data = points
     .filter((p) => p.ceoScore !== null)
     .map((p) => ({
-      label: format.dateTime(new Date(p.month), { month: 'short', year: '2-digit' }),
+      label: format.dateTime(new Date(p.month), { month: 'long', year: 'numeric' }),
       score: p.ceoScore as number,
     }));
 
