@@ -9,7 +9,9 @@ import { createClient } from '@/lib/supabase/client';
 export function MarkIssuesSeen() {
   useEffect(() => {
     const supabase = createClient();
-    supabase.rpc('mark_issues_seen');
+    supabase.rpc('mark_issues_seen').then(({ error }) => {
+      if (error) console.error('mark_issues_seen failed', error);
+    });
   }, []);
 
   return null;

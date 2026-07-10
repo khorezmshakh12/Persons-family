@@ -31,12 +31,46 @@ export function ConversationView({
 }) {
   const t = useTranslations('chatHub');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Tracks whether the user was already scrolled near the bottom right
+  // before this render — read at effect time, not at scroll time, so a
+  // typing-indicator re-render or any other minor state change can't
+  // retroactively change what "near bottom" meant when the message arrived.
+  const isNearBottomRef = useRef(true);
   const [isTogglePending, startToggleTransition] = useTransition();
   const isFamily = active.type === 'family';
+  const conversationKey = isFamily ? 'family' : active.userId;
+  const previousMessageCount = useRef(0);
+  // Sentinel that never matches a real conversation key, so the very first
+  // render is always treated as a "conversation changed" — the chat should
+  // open scrolled to the latest message, not wherever a fresh scroll
+  // container happens to start.
+  const previousConversationKey = useRef<string | null>(null);
 
+  function handleScroll() {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
+
+  // Switching conversations always jumps to the bottom (a fresh chat should
+  // open where the latest message is), but within the same conversation a
+  // new message only auto-scrolls if the user hadn't scrolled up to read
+  // history — otherwise it would yank them back down mid-read.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    const conversationChanged = previousConversationKey.current !== conversationKey;
+    const gainedMessages = messages.length > previousMessageCount.current;
+    const lastMessage = messages[messages.length - 1];
+    const ownNewMessage = gainedMessages && lastMessage?.sender_id === currentUserId;
+
+    if (conversationChanged || (gainedMessages && isNearBottomRef.current) || ownNewMessage) {
+      bottomRef.current?.scrollIntoView({ behavior: conversationChanged ? 'auto' : 'smooth' });
+      isNearBottomRef.current = true;
+    }
+
+    previousMessageCount.current = messages.length;
+    previousConversationKey.current = conversationKey;
+  }, [messages, conversationKey, currentUserId]);
 
   const headerName = isFamily
     ? t('familyChat')
@@ -77,7 +111,7 @@ export function ConversationView({
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <p className="text-center text-sm text-white/60">{t('empty')}</p>
         ) : (

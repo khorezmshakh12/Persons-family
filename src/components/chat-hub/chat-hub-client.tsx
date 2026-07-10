@@ -118,7 +118,9 @@ export function ChatHubClient({
     });
 
     const supabase = createClient();
-    supabase.rpc('mark_conversation_read', { other_user_id: otherId });
+    supabase.rpc('mark_conversation_read', { other_user_id: otherId }).then(({ error }) => {
+      if (error) console.error('mark_conversation_read failed', error);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, currentUserId]);
 
