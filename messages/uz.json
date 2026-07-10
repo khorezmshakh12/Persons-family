@@ -27,6 +27,7 @@
     "staffChat": "O'qituvchi/TA Chat",
     "telegramSetup": "Telegram",
     "selfDevelopment": "O'z-o'zini Rivojlantirish",
+    "performance": "Samaradorlik",
     "roadmap": "Yo'l Xaritasi",
     "projects": "Loyihalar",
     "settings": "Sozlamalar"
@@ -125,6 +126,12 @@
     "growthChart": {
       "title": "O'sish Ko'rsatkichi",
       "newThisMonth": "shu oyda qo'shilgan xodimlar"
+    },
+    "employeeGrowth": {
+      "title": "Xodimlarning Oylik O'sishi",
+      "avgScore": "o'rtacha CEO bahosi",
+      "comparedToLastMonth": "o'tgan oydagi {score} bilan solishtirganda",
+      "noData": "Hozircha yetarli ma'lumot yo'q — kamida ikki oylik CEO baholari kerak."
     }
   },
   "staff": {
@@ -218,21 +225,6 @@
         "deleteFailed": "Ushbu hisobni o'chirib bo'lmadi. Qayta urinib ko'ring.",
         "cannotDeleteSelf": "O'z hisobingizni o'chira olmaysiz."
       }
-    },
-    "performance": {
-      "title": "Ko'rsatkichlar",
-      "tier": "Daraja",
-      "tierLabels": {
-        "A": "A — Professional",
-        "B": "B — Rivojlanishda",
-        "C": "C — Yangi"
-      },
-      "monthsInTier": "Joriy darajadagi oylar soni (0–6)",
-      "weeklyProgressScore": "Haftalik progress ko'rsatkichi (0–100%)",
-      "bonus": "Bonus",
-      "penalty": "Jarima",
-      "notes": "So'nggi oy yangilanishlari / yutuqlari",
-      "notesPlaceholder": "Bu oyda nimalarga erishdi?"
     }
   },
   "chatHub": {
@@ -285,14 +277,15 @@
     "recording": "Yozilmoqda...",
     "uploadingVoice": "Ovozli xabar yuklanmoqda...",
     "discardRecording": "Yozuvni o'chirish",
+    "dragHandle": "Ko'chirish uchun torting",
     "status": {
       "open": "Ochiq",
-      "in_progress": "Jarayonda",
+      "in_progress": "Ko'rib chiqilmoqda",
       "done": "Bajarildi"
     },
     "columns": {
       "open": "Bajarish kerak",
-      "in_progress": "Jarayonda",
+      "in_progress": "Ko'rib chiqilmoqda",
       "done": "Bajarildi"
     },
     "table": {
@@ -307,7 +300,8 @@
       "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring.",
       "invalidAssignee": "Sizda bu murojaatni ushbu shaxsga biriktirish uchun ruxsat yo'q.",
       "micDenied": "Mikrofonga ulanib bo'lmadi. Brauzer ruxsatlarini tekshiring.",
-      "voiceUploadFailed": "Ovozli xabarni yuklab bo'lmadi. Qayta urinib ko'ring."
+      "voiceUploadFailed": "Ovozli xabarni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "Murojaat holatini yangilab bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "lessonPlans": {
@@ -319,8 +313,7 @@
     "deleteGroup": "Guruhni o'chirish",
     "groupName": "Guruh nomi",
     "subject": "Fan",
-    "level": "Daraja",
-    "schedule": "Jadval",
+    "time": "Vaqt (Dars vaqti)",
     "room": "Xona",
     "groupNotes": "Izohlar",
     "assignedTa": "O'qituvchi yordamchisi (TA)",
@@ -571,11 +564,51 @@
     "saving": "Saqlanmoqda...",
     "evaluationSaved": "Baholash saqlandi.",
     "teacherLevel": "Daraja",
+    "progressChart": {
+      "title": "Sizning Rivojlanishingiz",
+      "noData": "Hali baholangan topshiriqlar yo'q — CEO birinchi bahoni qo'ygandan so'ng diagramma paydo bo'ladi."
+    },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Iltimos, kamida bitta maydonni to'ldiring.",
       "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
       "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
+    }
+  },
+  "performance": {
+    "title": "Samaradorlik",
+    "subtitle": "Sizning darajangiz, haftalik progress va bonus/jarima tarixi.",
+    "adminSubtitle": "Har bir xodimning darajasi, haftalik progressi va bonus/jarima tarixini boshqaring.",
+    "totalBonus": "Jami Bonus",
+    "totalPenalty": "Jami Jarima",
+    "netTotal": "Sof Jami",
+    "tier": "Daraja",
+    "tierLabels": {
+      "A": "A — Professional",
+      "B": "B — Rivojlanishda",
+      "C": "C — Yangi"
+    },
+    "monthsInTier": "Joriy darajadagi oylar soni (0–6)",
+    "weeklyProgressScore": "Haftalik progress ko'rsatkichi (0–100%)",
+    "notes": "So'nggi oy yangilanishlari / yutuqlari",
+    "notesPlaceholder": "Bu oyda nimalarga erishdi?",
+    "saveTier": "Saqlash",
+    "manage": "Boshqarish",
+    "history": "Tarix",
+    "noEntries": "Hozircha yozuvlar yo'q.",
+    "addEntry": "Yozuv qo'shish",
+    "entryAdded": "Yozuv qo'shildi.",
+    "entryType": "Turi",
+    "bonus": "Bonus",
+    "penalty": "Jarima",
+    "amount": "Miqdor",
+    "reason": "Sabab",
+    "reasonPlaceholder": "Nima uchun bu bonus/jarima qo'llanilmoqda?",
+    "delete": "Yozuvni o'chirish",
+    "errors": {
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "roadmap": {

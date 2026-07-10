@@ -2,27 +2,22 @@
 
 import dynamic from 'next/dynamic';
 import type { Profile } from '@/lib/auth/session';
-import type { Database } from '@/lib/supabase/types';
 import { ToggleActiveButton } from './toggle-active-button';
 import { ResetPasswordDialog } from './reset-password-dialog';
 
-// Code-split: the heaviest dialog in the app (tabs, avatar upload, the A/B/C
-// performance form) only needs to load once someone actually opens it,
-// instead of shipping in every staff-page bundle up front.
+// Code-split: the heaviest dialog in the app (tabs, avatar upload) only
+// needs to load once someone actually opens it, instead of shipping in
+// every staff-page bundle up front.
 const EditStaffDialog = dynamic(() => import('./edit-staff-dialog').then((mod) => mod.EditStaffDialog));
-
-type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 
 export function StaffRowActions({
   target,
   currentUserId,
   actingRole,
-  performance,
 }: {
   target: Profile;
   currentUserId: string;
   actingRole: Profile['role'];
-  performance: StaffPerformance | null;
 }) {
   const isSelf = target.id === currentUserId;
   // CEO and Admin Manager are equal for day-to-day operations, but managing
@@ -35,7 +30,7 @@ export function StaffRowActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <EditStaffDialog profile={target} canAssignCeo={canAssignCeo} performance={performance} />
+      <EditStaffDialog profile={target} canAssignCeo={canAssignCeo} />
       <ResetPasswordDialog staffId={target.id} />
       {!isSelf && <ToggleActiveButton staffId={target.id} isActive={target.is_active} />}
     </div>

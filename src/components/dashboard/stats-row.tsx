@@ -6,7 +6,7 @@ import { StatCard } from './stat-card';
 
 const MONTHS = 6;
 
-export async function StatsRow() {
+export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
   const t = await getTranslations('dashboard.stats');
   const supabase = await createClient();
 
@@ -37,7 +37,9 @@ export async function StatsRow() {
   const chatBuckets = monthlyBuckets(chatTimestamps, MONTHS);
 
   const cards = [
-    {
+    // CEO/Admin get "Total Staff"; a teacher's own dashboard has no use for
+    // company-wide headcount, so it's dropped for that role instead.
+    isAdminRole && {
       label: t('totalStaff'),
       value: activeStaff.length,
       icon: Users,
@@ -61,7 +63,9 @@ export async function StatsRow() {
       buckets: lessonBuckets,
       href: '/lesson-plans',
     },
-    {
+    // Teachers get their Self-Development chart in place of this card
+    // instead (see DashboardPage), so it's only shown for CEO/Admin.
+    isAdminRole && {
       label: t('chatActivity'),
       value: chatTimestamps.length,
       icon: MessagesSquare,
@@ -69,7 +73,14 @@ export async function StatsRow() {
       buckets: chatBuckets,
       href: '/chat',
     },
-  ];
+  ].filter(Boolean) as Array<{
+    label: string;
+    value: number;
+    icon: typeof Users;
+    tint: 'green' | 'blue' | 'orange' | 'red';
+    buckets: number[];
+    href: string;
+  }>;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

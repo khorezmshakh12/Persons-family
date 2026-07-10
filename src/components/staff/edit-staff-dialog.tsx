@@ -5,12 +5,10 @@ import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { updateStaffAction, requestAvatarUploadUrlAction } from '@/lib/actions/staff';
-import { updateStaffPerformanceAction } from '@/lib/actions/staff-performance';
 import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_FILE_BYTES } from '@/lib/avatar-constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -20,23 +18,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CurrencyInput } from './currency-input';
 import { TeacherLevelBadge } from './teacher-level-badge';
 import type { Profile } from '@/lib/auth/session';
-import type { Database } from '@/lib/supabase/types';
-
-type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
 
 const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm', 'mobilgrof', 'it_developer'] as const;
 
 export function EditStaffDialog({
   profile,
   canAssignCeo,
-  performance,
 }: {
   profile: Profile;
   canAssignCeo: boolean;
-  performance: StaffPerformance | null;
 }) {
   const t = useTranslations('staff');
   const tCommon = useTranslations('common');
@@ -95,12 +87,6 @@ export function EditStaffDialog({
       const result = await updateStaffAction(undefined, formData);
       if (result?.error) {
         setError(result.error);
-        return;
-      }
-
-      const performanceResult = await updateStaffPerformanceAction(undefined, formData);
-      if (performanceResult?.error) {
-        setError(performanceResult.error);
         return;
       }
 
@@ -189,78 +175,6 @@ export function EditStaffDialog({
             <Label htmlFor={`avatar-${profile.id}`}>{t('avatar')}</Label>
             <Input id={`avatar-${profile.id}`} name="avatar" type="file" accept="image/png,image/jpeg" />
             <p className="text-muted-foreground text-xs">{t('avatarOptional')}</p>
-          </div>
-
-          <div className="flex flex-col gap-4 rounded-lg border p-3">
-            <h3 className="text-sm font-medium">{t('performance.title')}</h3>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={`tier-${profile.id}`}>{t('performance.tier')}</Label>
-              <Select name="currentTier" defaultValue={performance?.current_tier ?? 'C'}>
-                <SelectTrigger id={`tier-${profile.id}`} className="w-full">
-                  <SelectValue>{(value: string) => t(`performance.tierLabels.${value}`)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {(['A', 'B', 'C'] as const).map((tier) => (
-                    <SelectItem key={tier} value={tier}>
-                      {t(`performance.tierLabels.${tier}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor={`monthsInTier-${profile.id}`}>{t('performance.monthsInTier')}</Label>
-                <Input
-                  id={`monthsInTier-${profile.id}`}
-                  name="monthsInTier"
-                  type="number"
-                  min={0}
-                  max={6}
-                  defaultValue={performance?.months_in_tier ?? 0}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor={`weeklyProgressScore-${profile.id}`}>
-                  {t('performance.weeklyProgressScore')}
-                </Label>
-                <Input
-                  id={`weeklyProgressScore-${profile.id}`}
-                  name="weeklyProgressScore"
-                  type="number"
-                  min={0}
-                  max={100}
-                  defaultValue={performance?.weekly_progress_score ?? 0}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor={`bonus-${profile.id}`}>{t('performance.bonus')}</Label>
-                <CurrencyInput
-                  id={`bonus-${profile.id}`}
-                  name="bonus"
-                  defaultValue={performance?.bonus ?? 0}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor={`penalty-${profile.id}`}>{t('performance.penalty')}</Label>
-                <CurrencyInput
-                  id={`penalty-${profile.id}`}
-                  name="penalty"
-                  defaultValue={performance?.penalty ?? 0}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={`notes-${profile.id}`}>{t('performance.notes')}</Label>
-              <Textarea
-                id={`notes-${profile.id}`}
-                name="notes"
-                defaultValue={performance?.notes ?? ''}
-                placeholder={t('performance.notesPlaceholder')}
-              />
-            </div>
           </div>
 
           {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}

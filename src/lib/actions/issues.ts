@@ -150,20 +150,22 @@ const updateStatusSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export async function updateIssueStatusAction(formData: FormData): Promise<void> {
+export type UpdateIssueStatusResult = { error?: string };
+
+export async function updateIssueStatusAction(formData: FormData): Promise<UpdateIssueStatusResult> {
   let actingUserId: string;
   try {
     const { user } = await requireAdmin();
     actingUserId = user.id;
   } catch {
-    return;
+    return { error: 'forbidden' };
   }
 
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from('issues')
     .update({
       status: parsed.data.status,
@@ -171,6 +173,8 @@ export async function updateIssueStatusAction(formData: FormData): Promise<void>
       resolved_at: parsed.data.status === 'done' ? new Date().toISOString() : null,
     })
     .eq('id', parsed.data.id);
+  if (error) return { error: 'updateFailed' };
 
   revalidatePath('/[locale]/issues', 'page');
+  return {};
 }

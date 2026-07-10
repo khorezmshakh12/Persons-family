@@ -8,10 +8,12 @@ import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
+// HH:MM, 24-hour — matches the <input type="time"> the form now uses.
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const configurationSchema = z.object({
   subject: z.string().trim().max(100).optional().or(z.literal('')),
-  level: z.string().trim().max(100).optional().or(z.literal('')),
-  schedule: z.string().trim().max(200).optional().or(z.literal('')),
+  time: z.string().trim().regex(TIME_PATTERN).optional().or(z.literal('')),
   room: z.string().trim().max(100).optional().or(z.literal('')),
   notes: z.string().trim().max(2000).optional().or(z.literal('')),
 });
@@ -33,8 +35,7 @@ function normalizeScheduleType(value: string | undefined): 'odd' | 'even' | null
 function buildConfiguration(data: z.infer<typeof configurationSchema>) {
   return {
     subject: data.subject || null,
-    level: data.level || null,
-    schedule: data.schedule || null,
+    time: data.time || null,
     room: data.room || null,
     notes: data.notes || null,
   };

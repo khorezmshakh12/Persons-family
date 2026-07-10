@@ -24,12 +24,20 @@ export default async function IssuesPage() {
   const { data: issuesData } = await supabase
     .from('issues')
     .select(
-      'id, title, description, status, created_at, voice_url, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
+      'id, title, description, status, created_at, resolved_at, voice_url, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
     )
     .order('created_at', { ascending: false });
 
+  // Auto-hide (not delete): a "done" card older than a week just clutters
+  // the board, but the row itself is left alone — no destructive cleanup.
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const visibleIssues = (issuesData ?? []).filter((issue) => {
+    if (issue.status !== 'done' || !issue.resolved_at) return true;
+    return Date.now() - new Date(issue.resolved_at).getTime() < SEVEN_DAYS_MS;
+  });
+
   const issues = await Promise.all(
-    (issuesData ?? []).map(async (issue) => {
+    visibleIssues.map(async (issue) => {
       if (!issue.voice_url) return { ...issue, voiceSignedUrl: null };
       // Row access is already scoped by the issues_select RLS policy above;
       // this only needs the admin client because storage RLS itself is

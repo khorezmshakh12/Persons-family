@@ -135,8 +135,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             group.course_name,
             group.schedule_type ? t(`scheduleType.${group.schedule_type}`) : null,
             configuration.subject,
-            configuration.level,
-            configuration.schedule,
+            configuration.time,
             configuration.room,
           ]
             .filter(Boolean)

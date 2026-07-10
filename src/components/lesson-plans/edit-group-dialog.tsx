@@ -21,8 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export type GroupConfiguration = {
   subject: string | null;
-  level: string | null;
-  schedule: string | null;
+  time: string | null;
   room: string | null;
   notes: string | null;
 };
@@ -101,15 +100,11 @@ export function EditGroupDialog({
               <Input id="subject" name="subject" maxLength={100} defaultValue={configuration.subject ?? ''} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="level">{t('level')}</Label>
-              <Input id="level" name="level" maxLength={100} defaultValue={configuration.level ?? ''} />
+              <Label htmlFor="time">{t('time')}</Label>
+              <Input id="time" name="time" type="time" defaultValue={configuration.time ?? ''} />
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="schedule">{t('schedule')}</Label>
-              <Input id="schedule" name="schedule" maxLength={200} defaultValue={configuration.schedule ?? ''} />
-            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="room">{t('room')}</Label>
               <Input id="room" name="room" maxLength={100} defaultValue={configuration.room ?? ''} />

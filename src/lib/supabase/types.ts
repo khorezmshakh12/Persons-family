@@ -788,6 +788,51 @@ export type Database = {
           },
         ]
       }
+      performance_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["performance_entry_type"]
+          id: string
+          reason: string | null
+          staff_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          entry_type: Database["public"]["Enums"]["performance_entry_type"]
+          id?: string
+          reason?: string | null
+          staff_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          entry_type?: Database["public"]["Enums"]["performance_entry_type"]
+          id?: string
+          reason?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_performance: {
         Row: {
           bonus: number
@@ -978,6 +1023,7 @@ export type Database = {
       chat_media_type: "image" | "video" | "voice" | "none"
       homework_status: "pending" | "submitted" | "graded" | "missing"
       issue_status: "open" | "in_progress" | "done"
+      performance_entry_type: "bonus" | "penalty"
       roadmap_status: "pending" | "done" | "failed"
       roadmap_timeframe: "weekly" | "monthly" | "quarterly"
       schedule_type: "odd" | "even"
@@ -1142,6 +1188,7 @@ export const Constants = {
       chat_media_type: ["image", "video", "voice", "none"],
       homework_status: ["pending", "submitted", "graded", "missing"],
       issue_status: ["open", "in_progress", "done"],
+      performance_entry_type: ["bonus", "penalty"],
       roadmap_status: ["pending", "done", "failed"],
       roadmap_timeframe: ["weekly", "monthly", "quarterly"],
       schedule_type: ["odd", "even"],

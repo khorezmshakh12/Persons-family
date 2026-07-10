@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import { SubmitForm } from '@/components/self-development/submit-form';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
+import { SelfDevelopmentChart } from '@/components/self-development/self-development-chart';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,10 +37,15 @@ export default async function SelfDevelopmentPage() {
       </div>
 
       {!isAdmin && (
-        <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
-          <h2 className="mb-4 text-lg font-semibold text-white">{t('submitTitle')}</h2>
-          {hasSubmittedThisMonth ? <p className="text-sm text-white/70">{t('submittedThisMonth')}</p> : <SubmitForm />}
-        </div>
+        <>
+          <SelfDevelopmentChart
+            points={[...(submissions ?? [])].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+          />
+          <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+            <h2 className="mb-4 text-lg font-semibold text-white">{t('submitTitle')}</h2>
+            {hasSubmittedThisMonth ? <p className="text-sm text-white/70">{t('submittedThisMonth')}</p> : <SubmitForm />}
+          </div>
+        </>
       )}
 
       <div className="flex flex-col gap-4">

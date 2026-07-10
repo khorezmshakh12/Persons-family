@@ -1,5 +1,10 @@
-import { getFormatter, getTranslations } from 'next-intl/server';
-import { Mic } from 'lucide-react';
+'use client';
+
+import { memo } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import { Mic, GripVertical } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -15,13 +20,34 @@ export type Issue = {
   assignee: { first_name: string; last_name: string } | null;
 };
 
-export async function IssueCard({ issue, isAdmin }: { issue: Issue; isAdmin: boolean }) {
-  const t = await getTranslations('issues');
-  const format = await getFormatter();
+function IssueCardImpl({ issue, isAdmin }: { issue: Issue; isAdmin: boolean }) {
+  const t = useTranslations('issues');
+  const format = useFormatter();
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: issue.id,
+    disabled: !isAdmin,
+  });
 
   return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6')}>
-      <span className="font-medium">{issue.title}</span>
+    <div
+      ref={setNodeRef}
+      style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}
+      className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-medium">{issue.title}</span>
+        {isAdmin && (
+          <button
+            type="button"
+            {...listeners}
+            {...attributes}
+            aria-label={t('dragHandle')}
+            className="-mt-1 -mr-1 shrink-0 cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+          >
+            <GripVertical className="size-4" />
+          </button>
+        )}
+      </div>
       {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
       {issue.voiceSignedUrl && (
         <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
@@ -49,3 +75,5 @@ export async function IssueCard({ issue, isAdmin }: { issue: Issue; isAdmin: boo
     </div>
   );
 }
+
+export const IssueCard = memo(IssueCardImpl);
