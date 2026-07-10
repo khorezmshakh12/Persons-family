@@ -11,6 +11,7 @@ import {
   requestChatMediaUploadUrlAction,
   sendStaffChatAction,
   type StaffChatsActionState,
+  type SentStaffChatMessage,
 } from '@/lib/actions/staff-chats';
 import { CHAT_MEDIA_MAX_FILE_BYTES, mediaTypeForMime, type ChatMediaType } from '@/lib/chat-media';
 import { Button } from '@/components/ui/button';
@@ -25,10 +26,16 @@ const EmojiPicker = dynamic(() => import('./emoji-picker').then((mod) => mod.Emo
 export function ChatComposer({
   receiverId,
   onOptimisticSend,
+  onConfirmedSend,
 }: {
   /** null for Family Chat. */
   receiverId: string | null;
   onOptimisticSend: (partial: { messageText?: string; mediaUrl?: string; mediaType?: ChatMediaType }) => void;
+  /** Commits the server-confirmed row into real state immediately, instead
+   * of waiting on the Realtime INSERT echo — see the comment on
+   * sendStaffChatAction for why that round trip alone let the optimistic
+   * bubble flicker away before being replaced. */
+  onConfirmedSend: (message: SentStaffChatMessage) => void;
 }) {
   const t = useTranslations('chatHub');
   const [text, setText] = useState('');
@@ -68,9 +75,13 @@ export function ChatComposer({
     if (state.error) {
       toast.error(t(`errors.${state.error}`));
     } else {
+      if (state.message) onConfirmedSend(state.message);
       setText('');
       formRef.current?.reset();
     }
+    // onConfirmedSend is a fresh closure from the parent every render —
+    // only `state` (and `t` for the toast copy) should re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, t]);
 
   async function uploadAndSend(file: File, mediaType: ChatMediaType) {
@@ -108,7 +119,11 @@ export function ChatComposer({
       sendFormData.set('mediaUrl', readUrlResult.signedUrl);
       sendFormData.set('mediaType', mediaType);
       const result = await sendStaffChatAction(undefined, sendFormData);
-      if (result?.error) toast.error(t(`errors.${result.error}`));
+      if (result?.error) {
+        toast.error(t(`errors.${result.error}`));
+      } else if (result?.message) {
+        onConfirmedSend(result.message);
+      }
     } finally {
       setIsUploading(false);
     }

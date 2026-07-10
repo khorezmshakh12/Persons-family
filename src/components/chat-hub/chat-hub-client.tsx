@@ -220,6 +220,26 @@ export function ChatHubClient({
     addOptimisticMessage(optimisticMessage);
   }
 
+  // Commits the send action's own confirmed row into real state right away
+  // — the sender doesn't wait on the Realtime INSERT echo (which is what
+  // let the optimistic bubble disappear for a beat once its transition
+  // settled, before that echo arrived to replace it). The realtime handler
+  // above already de-dupes by id, so when the echo does eventually land it
+  // just no-ops instead of double-adding this message.
+  function handleConfirmedSend(message: StaffChatMessage) {
+    if (message.receiver_id === null) {
+      setFamilyMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      return;
+    }
+    const otherId = message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
+    const key = dmKey(currentUserId, otherId);
+    setDmMessagesByPair((prev) => {
+      const existing = prev[key] ?? [];
+      if (existing.some((m) => m.id === message.id)) return prev;
+      return { ...prev, [key]: [...existing, message] };
+    });
+  }
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-lg sm:flex-row">
       <ChatSidebar staff={staff} active={active} onSelect={setActive} unreadDmUserIds={unreadDmUserIds} />
@@ -232,6 +252,7 @@ export function ChatHubClient({
         chatEnabled={chatEnabled}
         onChatEnabledChange={setChatEnabled}
         onOptimisticSend={handleOptimisticSend}
+        onConfirmedSend={handleConfirmedSend}
       />
     </div>
   );

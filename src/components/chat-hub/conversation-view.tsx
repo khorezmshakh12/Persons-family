@@ -9,6 +9,7 @@ import { MessageBubble, type ChatSender } from './message-bubble';
 import { ChatComposer } from './chat-composer';
 import type { ActiveConversation, StaffChatMessage, StaffDirectoryEntry } from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
+import type { SentStaffChatMessage } from '@/lib/actions/staff-chats';
 
 export function ConversationView({
   active,
@@ -19,6 +20,7 @@ export function ConversationView({
   chatEnabled,
   onChatEnabledChange,
   onOptimisticSend,
+  onConfirmedSend,
 }: {
   active: ActiveConversation;
   messages: StaffChatMessage[];
@@ -28,6 +30,7 @@ export function ConversationView({
   chatEnabled: boolean;
   onChatEnabledChange: (next: boolean) => void;
   onOptimisticSend: (partial: { messageText?: string; mediaUrl?: string; mediaType?: ChatMediaType }) => void;
+  onConfirmedSend: (message: SentStaffChatMessage) => void;
 }) {
   const t = useTranslations('chatHub');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -64,7 +67,16 @@ export function ConversationView({
     const ownNewMessage = gainedMessages && lastMessage?.sender_id === currentUserId;
 
     if (conversationChanged || (gainedMessages && isNearBottomRef.current) || ownNewMessage) {
-      bottomRef.current?.scrollIntoView({ behavior: conversationChanged ? 'auto' : 'smooth' });
+      // `block: 'nearest'` keeps this scroll confined to the message
+      // container itself — the default `block: 'start'` asks every
+      // scrollable ancestor (including the page) to reposition so the
+      // target aligns to an edge, which is what was yanking the whole
+      // window on every conversation switch.
+      bottomRef.current?.scrollIntoView({
+        behavior: conversationChanged ? 'auto' : 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
       isNearBottomRef.current = true;
     }
 
@@ -133,7 +145,11 @@ export function ConversationView({
       </div>
 
       {canPost ? (
-        <ChatComposer receiverId={isFamily ? null : active.userId} onOptimisticSend={onOptimisticSend} />
+        <ChatComposer
+          receiverId={isFamily ? null : active.userId}
+          onOptimisticSend={onOptimisticSend}
+          onConfirmedSend={onConfirmedSend}
+        />
       ) : (
         <p className="border-t border-white/15 p-4 text-center text-sm text-white/50">{t('chatDisabled')}</p>
       )}

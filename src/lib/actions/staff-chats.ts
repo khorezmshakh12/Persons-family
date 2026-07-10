@@ -5,7 +5,19 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
 
-export type StaffChatsActionState = { error?: string } | undefined;
+export type SentStaffChatMessage = {
+  id: string;
+  sender_id: string;
+  receiver_id: string | null;
+  message_text: string | null;
+  media_url: string | null;
+  media_type: (typeof MEDIA_TYPES)[number];
+  pinned_at: string | null;
+  created_at: string;
+  is_read: boolean;
+};
+
+export type StaffChatsActionState = { error?: string; message?: SentStaffChatMessage } | undefined;
 export type UploadUrlResult = { path?: string; token?: string; error?: string };
 export type ReadUrlResult = { signedUrl?: string; error?: string };
 
@@ -38,16 +50,31 @@ export async function sendStaffChatAction(
   if (!parsed.success) return { error: 'invalidMessage' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('staff_chats').insert({
-    sender_id: user.id,
-    receiver_id: parsed.data.receiverId || null,
-    message_text: parsed.data.messageText || null,
-    media_url: parsed.data.mediaUrl || null,
-    media_type: parsed.data.mediaUrl ? (parsed.data.mediaType ?? 'none') : 'none',
-  });
-  if (error) return { error: 'sendFailed' };
+  const { data, error } = await supabase
+    .from('staff_chats')
+    .insert({
+      sender_id: user.id,
+      receiver_id: parsed.data.receiverId || null,
+      message_text: parsed.data.messageText || null,
+      media_url: parsed.data.mediaUrl || null,
+      media_type: parsed.data.mediaUrl ? (parsed.data.mediaType ?? 'none') : 'none',
+    })
+    .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read')
+    .single();
+  if (error || !data) {
+    // A silent failure here is exactly what used to make the optimistic
+    // bubble vanish with no explanation — surfacing it is the actual fix,
+    // not just a diagnostic nicety.
+    console.error('sendStaffChatAction insert failed', error);
+    return { error: 'sendFailed' };
+  }
 
-  return {};
+  // Returning the confirmed row lets the caller commit it straight into
+  // real (non-optimistic) state instead of waiting on the Realtime INSERT
+  // echo — that round trip has enough latency that the optimistic bubble
+  // could disappear (once its transition settles) before the echo arrives
+  // to replace it, which is what "messages disappearing" actually was.
+  return { message: data as SentStaffChatMessage };
 }
 
 const idSchema = z.object({ id: z.string().uuid() });
