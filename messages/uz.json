@@ -737,6 +737,7 @@
     "messages": "Xabarlar",
     "tasks": "Vazifalar",
     "unknownSender": "Noma'lum",
-    "mediaMessage": "Fayl yubordi"
+    "mediaMessage": "Fayl yubordi",
+    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Bell } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Link } from '@/i18n/navigation';
@@ -140,20 +141,82 @@ export function NotificationBell({
   const issuePreviews = [...unseenIssues].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
 
   // Optimistically drop the item(s) from local state the instant it's
-  // clicked — the badge shouldn't wait on a network round trip — then
-  // persist the read/seen state so it stays cleared on reload and for the
-  // sidebar dot in /chat, which listens for this same row change.
+  // clicked — the badge shouldn't wait on a network round trip, and the
+  // click also drives a <Link> navigation that must never be blocked by an
+  // awaited mutation — then persist the read/seen state in the background
+  // so it stays cleared on reload and for the sidebar dot in /chat, which
+  // listens for this same row change. If the mutation itself fails, the
+  // optimistic removal is reverted and surfaced as a toast instead of
+  // silently leaving the client and database out of sync.
   function handleChatClick(senderId: string) {
+    const removed = unreadChats.filter((m) => m.senderId === senderId);
     setUnreadChats((prev) => prev.filter((m) => m.senderId !== senderId));
     setOpen(false);
-    createClient().rpc('mark_conversation_read', { other_user_id: senderId });
+    createClient()
+      .rpc('mark_conversation_read', { other_user_id: senderId })
+      .then(({ error }) => {
+        if (!error) return;
+        console.error('mark_conversation_read failed', error);
+        setUnreadChats((prev) => [...removed, ...prev]);
+        toast.error(t('markReadFailed'));
+      });
   }
 
   function handleIssueClick(issueId: string) {
+    const removed = unseenIssues.find((i) => i.id === issueId);
     setUnseenIssues((prev) => prev.filter((i) => i.id !== issueId));
     setOpen(false);
-    createClient().rpc('mark_issue_seen', { issue_id: issueId });
+    createClient()
+      .rpc('mark_issue_seen', { issue_id: issueId })
+      .then(({ error }) => {
+        if (!error) return;
+        console.error('mark_issue_seen failed', error);
+        if (removed) setUnseenIssues((prev) => [removed, ...prev]);
+        toast.error(t('markReadFailed'));
+      });
   }
+
+  // Failsafe: every time the dropdown opens, re-read the absolute truth
+  // from the database and reconcile local state to match it. This is what
+  // actually guarantees correctness regardless of any missed Realtime event
+  // or a mutation that failed without the user noticing the toast.
+  const resyncFromDatabase = useCallback(async () => {
+    const supabase = createClient();
+    const [{ data: chatRows }, { data: issueRows }] = await Promise.all([
+      supabase
+        .from('staff_chats')
+        .select('id, sender_id, message_text, created_at')
+        .eq('receiver_id', userId)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('issues')
+        .select('id, title, created_at')
+        .eq('assigned_to', userId)
+        .eq('is_seen', false)
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ]);
+
+    if (chatRows) {
+      setUnreadChats(
+        chatRows.map((m) => ({
+          id: m.id,
+          senderId: m.sender_id,
+          messageText: m.message_text,
+          createdAt: m.created_at,
+        })),
+      );
+    }
+    if (issueRows) {
+      setUnseenIssues(issueRows.map((i) => ({ id: i.id, title: i.title, createdAt: i.created_at })));
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (open) resyncFromDatabase();
+  }, [open, resyncFromDatabase]);
 
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
