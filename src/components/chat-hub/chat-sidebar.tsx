@@ -3,6 +3,7 @@
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { OnlineDot } from '@/components/presence/online-dot';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, StaffDirectoryEntry } from './types';
 
@@ -29,10 +30,13 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
         isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10',
       )}
     >
-      <Avatar className="size-8 shrink-0">
-        <AvatarImage src={person.avatar_url ?? undefined} alt="" />
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
+      <div className="relative shrink-0">
+        <Avatar className="size-8">
+          <AvatarImage src={person.avatar_url ?? undefined} alt="" />
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+        <OnlineDot userId={person.id} className="absolute right-0 bottom-0 size-2 border border-slate-900" />
+      </div>
       <span className="min-w-0 flex-1 truncate">
         {person.first_name} {person.last_name}
       </span>

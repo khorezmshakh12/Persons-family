@@ -443,6 +443,30 @@
     "subtitle": "Butun platforma uchun fon mavzusini tanlang yoki o'zingiznikini yuklang.",
     "presetsTitle": "Tayyor mavzular",
     "uploadTitle": "O'zingizning fon rasmingizni yuklang",
+    "announcement": {
+      "cardTitle": "Global E'lon",
+      "cardSubtitle": "Barcha faol foydalanuvchilarga ekran tepasida darhol ko'rinadigan banner joylashtiring.",
+      "placeholder": "masalan, Tizim 5 daqiqadan so'ng yangilanadi",
+      "publish": "E'lonni joylash",
+      "publishing": "Joylanmoqda...",
+      "published": "E'lon joylandi.",
+      "clear": "Bannerni o'chirish",
+      "cleared": "E'lon o'chirildi.",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "invalidInput": "Iltimos, avval xabar yozing.",
+        "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+      }
+    },
+    "systemHealth": {
+      "cardTitle": "Tizim Holati va Zaxira Nusxa",
+      "cardSubtitle": "Muhim yozuvlarning to'liq nusxasini xavfsizlik uchun yuklab oling.",
+      "description": "Ko'rish huquqingiz bo'lgan barcha xodim profillari, guruhlar va dars rejalarini bitta JSON faylga eksport qiladi.",
+      "backupButton": "Bir Bosishda Zaxira Nusxa",
+      "backingUp": "Zaxira nusxa tayyorlanmoqda...",
+      "backupComplete": "Zaxira nusxa yuklab olindi.",
+      "backupFailed": "Zaxira nusxa tayyorlab bo'lmadi. Qayta urinib ko'ring."
+    },
     "themes": {
       "nature": "Tabiat",
       "ocean": "Chuqur Okean",
@@ -505,7 +529,35 @@
   },
   "analytics": {
     "title": "Umumiy Tahlillar",
-    "subtitle": "Butun platforma bo'yicha lavozimlar va o'sish haqida batafsil ma'lumot."
+    "subtitle": "Butun platforma bo'yicha lavozimlar va o'sish haqida batafsil ma'lumot.",
+    "staffPerformance": {
+      "title": "Xodimlar Samaradorligi",
+      "noData": "Hozircha samaradorlik ma'lumotlari yo'q."
+    },
+    "roadmapGoals": {
+      "title": "Yo'l Xaritasi Maqsadlari",
+      "noData": "Hozircha yo'l xaritasi maqsadlari yo'q."
+    }
+  },
+  "systemLogs": {
+    "title": "Tizim Jurnallari",
+    "subtitle": "Platformadagi asosiy o'zgarishlar tarixi.",
+    "noLogs": "Hozircha hech qanday harakat qayd etilmagan.",
+    "unknownUser": "Noma'lum foydalanuvchi"
+  },
+  "commandPalette": {
+    "label": "Buyruqlar paneli",
+    "placeholder": "Xodim, guruh, murojaatlarni qidiring...",
+    "noResults": "Hech narsa topilmadi.",
+    "groups": {
+      "staff": "Xodimlar",
+      "groups": "Guruhlar",
+      "issues": "Murojaatlar"
+    }
+  },
+  "export": {
+    "csv": "CSV",
+    "pdf": "PDF"
   },
   "telegramSetup": {
     "title": "Telegram Integratsiyasi",

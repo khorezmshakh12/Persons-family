@@ -443,6 +443,30 @@
     "subtitle": "Choose a background theme for the whole platform, or upload your own.",
     "presetsTitle": "Preset themes",
     "uploadTitle": "Upload custom background",
+    "announcement": {
+      "cardTitle": "Global Announcement",
+      "cardSubtitle": "Publish a banner every active user sees instantly, at the top of the screen.",
+      "placeholder": "e.g. System updating in 5 minutes",
+      "publish": "Publish alert",
+      "publishing": "Publishing...",
+      "published": "Announcement published.",
+      "clear": "Clear banner",
+      "cleared": "Announcement cleared.",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Please write a message first.",
+        "updateFailed": "Could not save. Please try again."
+      }
+    },
+    "systemHealth": {
+      "cardTitle": "System Health & Backup",
+      "cardSubtitle": "Download a full snapshot of critical records for safekeeping.",
+      "description": "Exports every staff profile, group, and lesson plan you can see as a single JSON file.",
+      "backupButton": "One-Click Backup",
+      "backingUp": "Preparing backup...",
+      "backupComplete": "Backup downloaded.",
+      "backupFailed": "Could not prepare the backup. Please try again."
+    },
     "themes": {
       "nature": "Nature",
       "ocean": "Deep Ocean",
@@ -505,7 +529,35 @@
   },
   "analytics": {
     "title": "Global Analytics",
-    "subtitle": "A closer look at roles and growth across the whole platform."
+    "subtitle": "A closer look at roles and growth across the whole platform.",
+    "staffPerformance": {
+      "title": "Staff Performance",
+      "noData": "No performance data yet."
+    },
+    "roadmapGoals": {
+      "title": "Roadmap Goals",
+      "noData": "No roadmap goals yet."
+    }
+  },
+  "systemLogs": {
+    "title": "System Logs",
+    "subtitle": "An audit trail of key changes across the platform.",
+    "noLogs": "No activity logged yet.",
+    "unknownUser": "Unknown user"
+  },
+  "commandPalette": {
+    "label": "Command palette",
+    "placeholder": "Search staff, groups, issues...",
+    "noResults": "No results found.",
+    "groups": {
+      "staff": "Staff",
+      "groups": "Groups",
+      "issues": "Issues"
+    }
+  },
+  "export": {
+    "csv": "CSV",
+    "pdf": "PDF"
   },
   "telegramSetup": {
     "title": "Telegram Integration",

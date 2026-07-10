@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
+import { logSystemAction } from '@/lib/audit-log';
 
 export type StaffActionState =
   | { error?: string; tempPassword?: string; userId?: string }
@@ -140,6 +141,8 @@ export async function createStaffAction(
     return { error: 'createFailed' };
   }
 
+  logSystemAction(supabase, 'staff.create', `Created staff member ${parsed.data.firstName} ${parsed.data.lastName} (${parsed.data.role})`);
+
   revalidatePath('/[locale]/staff', 'page');
   return { tempPassword, userId: created.user.id };
 }
@@ -262,6 +265,12 @@ export async function toggleStaffActiveAction(
     .update({ is_active: !target.is_active })
     .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
+
+  logSystemAction(
+    supabase,
+    target.is_active ? 'staff.deactivate' : 'staff.activate',
+    `${target.is_active ? 'Deactivated' : 'Reactivated'} staff member ${parsed.data.id}`,
+  );
 
   revalidatePath('/[locale]/staff', 'page');
   return {};

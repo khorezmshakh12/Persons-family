@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
+import { logSystemAction } from '@/lib/audit-log';
 
 export type PerformanceActionState = { error?: string } | undefined;
 
@@ -46,6 +47,12 @@ export async function updateStaffTierAction(
   );
   if (error) return { error: 'updateFailed' };
 
+  logSystemAction(
+    supabase,
+    'performance.tier_update',
+    `Set tier ${parsed.data.currentTier} / ${parsed.data.weeklyProgressScore}% for staff ${parsed.data.staffId}`,
+  );
+
   revalidatePath('/[locale]/performance', 'page');
   return {};
 }
@@ -82,6 +89,12 @@ export async function addPerformanceEntryAction(
     created_by: adminId,
   });
   if (error) return { error: 'updateFailed' };
+
+  logSystemAction(
+    supabase,
+    `performance.${parsed.data.entryType}`,
+    `Added a ${parsed.data.entryType} of ${parsed.data.amount} for staff ${parsed.data.staffId}`,
+  );
 
   revalidatePath('/[locale]/performance', 'page');
   return {};

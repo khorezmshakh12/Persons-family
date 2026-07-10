@@ -3,12 +3,14 @@ import { createClient } from '@/lib/supabase/server';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { OnlineDot } from '@/components/presence/online-dot';
 import type { Profile } from '@/lib/auth/session';
 import { StaffRowActions } from './staff-row-actions';
 import { TeacherLevelBadge } from './teacher-level-badge';
 import { isLevelReviewDue } from '@/lib/teacher-level';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { ExportButtons } from '@/components/export/export-buttons';
 
 export async function StaffTable({
   currentUserId,
@@ -27,8 +29,28 @@ export async function StaffTable({
     )
     .order('created_at', { ascending: true });
 
+  const exportRows = (staff ?? []).map((person) => ({
+    name: `${person.first_name} ${person.last_name}`,
+    phone: person.phone,
+    role: person.role,
+    status: person.is_active ? 'active' : 'inactive',
+  }));
+
   return (
-    <div className={cn(GLASS_CARD)}>
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <ExportButtons
+          filename="staff-directory"
+          columns={[
+            { header: 'Name', key: 'name' },
+            { header: 'Phone', key: 'phone' },
+            { header: 'Role', key: 'role' },
+            { header: 'Status', key: 'status' },
+          ]}
+          rows={exportRows}
+        />
+      </div>
+      <div className={cn(GLASS_CARD)}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -45,13 +67,16 @@ export async function StaffTable({
             <TableRow key={person.id}>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <Avatar className="size-8">
-                    <AvatarImage src={person.avatar_url ?? undefined} alt="" />
-                    <AvatarFallback>
-                      {person.first_name[0]}
-                      {person.last_name[0]}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative shrink-0">
+                    <Avatar className="size-8">
+                      <AvatarImage src={person.avatar_url ?? undefined} alt="" />
+                      <AvatarFallback>
+                        {person.first_name[0]}
+                        {person.last_name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <OnlineDot userId={person.id} className="absolute right-0 bottom-0 size-2 border border-slate-900" />
+                  </div>
                   <span>
                     {person.first_name} {person.last_name}
                   </span>
@@ -85,6 +110,7 @@ export async function StaffTable({
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

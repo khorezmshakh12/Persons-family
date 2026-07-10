@@ -1,13 +1,38 @@
-import { Suspense } from 'react';
+import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
-import { GrowthChart } from '@/components/dashboard/growth-chart';
-import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
+import { getAuthState } from '@/lib/auth/session';
+import { createClient } from '@/lib/supabase/server';
+import { StaffPerformanceChart } from '@/components/analytics/staff-performance-chart';
+import { RoadmapGoalsChart } from '@/components/analytics/roadmap-goals-chart';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
+  const { profile } = await getAuthState();
+  if (profile!.role !== 'ceo') notFound();
+
   const t = await getTranslations('analytics');
+  const supabase = await createClient();
+
+  const [{ data: performance }, { data: goals }] = await Promise.all([
+    supabase
+      .from('staff_performance')
+      .select('weekly_progress_score, staff:profiles!staff_performance_staff_id_fkey(first_name, last_name)'),
+    supabase.from('roadmap_goals').select('title, progress_percentage, status'),
+  ]);
+
+  const staffPerformanceData = (performance ?? [])
+    .filter((p) => p.staff)
+    .map((p) => ({
+      name: `${p.staff!.first_name} ${p.staff!.last_name}`,
+      score: p.weekly_progress_score,
+    }));
+
+  const roadmapGoalsData = (goals ?? []).map((g) => ({
+    name: g.title,
+    progress: g.progress_percentage,
+    status: g.status,
+  }));
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -19,12 +44,8 @@ export default async function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Suspense fallback={<GlassCardSkeleton />}>
-          <RolesDonutChart large />
-        </Suspense>
-        <Suspense fallback={<GlassCardSkeleton />}>
-          <GrowthChart large />
-        </Suspense>
+        <StaffPerformanceChart data={staffPerformanceData} />
+        <RoadmapGoalsChart data={roadmapGoalsData} />
       </div>
     </div>
   );

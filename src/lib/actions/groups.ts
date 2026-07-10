@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { logSystemAction } from '@/lib/audit-log';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -90,6 +91,8 @@ export async function createGroupAction(
     if (error.message.includes('Group limit reached')) return { error: 'groupLimitReached' };
     return { error: 'createFailed' };
   }
+
+  logSystemAction(supabase, 'group.create', `Created group "${parsed.data.name}"`);
 
   revalidatePath('/[locale]/lesson-plans', 'page');
 

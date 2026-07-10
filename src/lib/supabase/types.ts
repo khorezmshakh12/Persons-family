@@ -788,6 +788,70 @@ export type Database = {
           },
         ]
       }
+      platform_announcements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          message: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_entries: {
         Row: {
           amount: number
@@ -1011,6 +1075,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_assigned_ta: { Args: { target_group_id: string }; Returns: boolean }
       is_group_owner: { Args: { target_group_id: string }; Returns: boolean }
+      log_system_action: {
+        Args: { p_action_type: string; p_description: string }
+        Returns: undefined
+      }
       mark_conversation_read: {
         Args: { other_user_id: string }
         Returns: undefined

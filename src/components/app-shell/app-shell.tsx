@@ -10,6 +10,11 @@ import { MobileNav } from './mobile-nav';
 import { ProfileProvider } from './profile-context';
 import { UserBadge } from './user-badge';
 import { NotificationBell, type UnreadChatItem, type UnseenIssueItem } from './notification-bell';
+import { CommandPalette } from '@/components/command-palette/command-palette';
+import { PresenceProvider } from '@/components/presence/presence-context';
+import { PageTransition } from './page-transition';
+import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
+import { createClient } from '@/lib/supabase/server';
 import type { Profile } from '@/lib/auth/session';
 
 const GLASS_CONTROL = 'border-white/30 bg-white/10 text-white hover:bg-white/20';
@@ -30,20 +35,30 @@ export async function AppShell({
   children: ReactNode;
 }) {
   const t = await getTranslations('app');
+  const supabase = await createClient();
+  const { data: announcement } = await supabase
+    .from('platform_announcements')
+    .select('message')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   return (
     <BackgroundProvider>
+      <AnnouncementBanner initialMessage={announcement?.message ?? null} />
       <ProfileProvider
         initialFirstName={profile.first_name}
         initialLastName={profile.last_name}
         initialAvatarUrl={profile.avatar_url}
       >
-        <DynamicBackground />
+        <PresenceProvider userId={userId}>
+          <DynamicBackground />
+          <CommandPalette />
         <div className="relative flex min-h-screen">
           <aside className="hidden w-60 shrink-0 transform-gpu flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg will-change-transform md:flex">
             <span className="mb-6 text-sm font-semibold tracking-tight text-white">{t('name')}</span>
             <SidebarNav role={profile.role} glass />
-            <UserBadge className="mt-auto border-t border-white/10 pt-4" />
+            <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
             <span className="pt-3 text-center text-xs tracking-wider text-white/50">Persons ERP v1.5</span>
           </aside>
 
@@ -63,16 +78,19 @@ export async function AppShell({
                   initialUnreadChats={initialUnreadChats}
                   initialUnseenIssues={initialUnseenIssues}
                 />
-                <UserBadge className="hidden sm:flex" />
+                <UserBadge className="hidden sm:flex" userId={userId} />
                 <ThemeToggle className={GLASS_CONTROL} />
                 <LanguageSwitcher className={GLASS_CONTROL} />
                 <LogoutButton className={GLASS_CONTROL} />
               </div>
             </header>
 
-            <main className="min-w-0 flex-1 transform-gpu will-change-transform">{children}</main>
+            <main className="min-w-0 flex-1 transform-gpu will-change-transform">
+              <PageTransition>{children}</PageTransition>
+            </main>
           </div>
         </div>
+        </PresenceProvider>
       </ProfileProvider>
     </BackgroundProvider>
   );

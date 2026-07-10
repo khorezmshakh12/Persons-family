@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
 import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
+import { ExportButtons } from '@/components/export/export-buttons';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,13 +39,38 @@ export default async function PerformancePage() {
       entriesByStaffId.set(e.staff_id, list);
     }
 
+    const exportRows = (staff ?? []).map((person) => {
+      const perf = performanceByStaffId.get(person.id);
+      const net = netTotal(entriesByStaffId.get(person.id) ?? []);
+      return {
+        name: `${person.first_name} ${person.last_name}`,
+        role: person.role,
+        tier: perf?.current_tier ?? '',
+        weekly_progress_score: perf?.weekly_progress_score ?? '',
+        net_total: net,
+      };
+    });
+
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 sm:p-8">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-            {t('title')}
-          </h1>
-          <p className="text-white/70">{t('adminSubtitle')}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+              {t('title')}
+            </h1>
+            <p className="text-white/70">{t('adminSubtitle')}</p>
+          </div>
+          <ExportButtons
+            filename="staff-performance"
+            columns={[
+              { header: 'Name', key: 'name' },
+              { header: 'Role', key: 'role' },
+              { header: 'Tier', key: 'tier' },
+              { header: 'Weekly Progress %', key: 'weekly_progress_score' },
+              { header: 'Net Total', key: 'net_total' },
+            ]}
+            rows={exportRows}
+          />
         </div>
 
         <div className="flex flex-col gap-4">

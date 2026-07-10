@@ -4,12 +4,28 @@ import { ThemeSelector } from '@/components/theme/theme-selector';
 import { CustomBackgroundUpload } from '@/components/theme/custom-background-upload';
 import { ProfileSection } from '@/components/settings/profile-section';
 import { TelegramConnectSection } from '@/components/settings/telegram-connect-section';
+import { AnnouncementSection } from '@/components/settings/announcement-section';
+import { SystemHealthSection } from '@/components/settings/system-health-section';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const t = await getTranslations('settings');
   const { user, profile } = await getAuthState();
+  const isCeo = profile!.role === 'ceo';
+
+  let currentAnnouncement: string | null = null;
+  if (isCeo) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from('platform_announcements')
+      .select('message')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    currentAnnouncement = data?.message ?? null;
+  }
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
@@ -30,6 +46,30 @@ export default async function SettingsPage() {
         </div>
         <TelegramConnectSection isConnected={profile!.telegram_id !== null} />
       </div>
+
+      {isCeo && (
+        <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+              {t('announcement.cardTitle')}
+            </h2>
+            <p className="text-white/70">{t('announcement.cardSubtitle')}</p>
+          </div>
+          <AnnouncementSection currentMessage={currentAnnouncement} />
+        </div>
+      )}
+
+      {isCeo && (
+        <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+              {t('systemHealth.cardTitle')}
+            </h2>
+            <p className="text-white/70">{t('systemHealth.cardSubtitle')}</p>
+          </div>
+          <SystemHealthSection />
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
         <div className="flex flex-col gap-1">

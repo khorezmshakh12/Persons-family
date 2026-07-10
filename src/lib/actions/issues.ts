@@ -8,6 +8,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { allowedAssigneeRoles } from '@/lib/issue-roles';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { logSystemAction } from '@/lib/audit-log';
 
 export type IssueActionState = { error?: string } | undefined;
 
@@ -174,6 +175,8 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
     })
     .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
+
+  logSystemAction(supabase, 'issue.status_change', `Moved issue ${parsed.data.id} to "${parsed.data.status}"`);
 
   revalidatePath('/[locale]/issues', 'page');
   return {};

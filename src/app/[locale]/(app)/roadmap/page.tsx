@@ -4,6 +4,7 @@ import { RoadmapBoard } from '@/components/roadmap/roadmap-board';
 import { CreateGoalDialog } from '@/components/roadmap/create-goal-dialog';
 import { MilestoneTimeline, type Milestone } from '@/components/roadmap/milestone-timeline';
 import type { Goal } from '@/components/roadmap/goal-card';
+import { ExportButtons } from '@/components/export/export-buttons';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,19 @@ export default async function RoadmapPage() {
         <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
           {t('title')}
         </h1>
-        <CreateGoalDialog />
+        <div className="flex items-center gap-2">
+          <ExportButtons
+            filename="roadmap-goals"
+            columns={[
+              { header: 'Title', key: 'title' },
+              { header: 'Timeframe', key: 'timeframe' },
+              { header: 'Status', key: 'status' },
+              { header: 'Progress %', key: 'progress_percentage' },
+            ]}
+            rows={(goals ?? []) as unknown as Record<string, unknown>[]}
+          />
+          <CreateGoalDialog />
+        </div>
       </div>
       <MilestoneTimeline
         goals={(goals as unknown as Goal[]) ?? []}

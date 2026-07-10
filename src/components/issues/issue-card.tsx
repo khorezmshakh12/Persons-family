@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { motion } from 'framer-motion';
 import { Mic, GripVertical } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
 import { GLASS_CARD } from '@/lib/glass';
@@ -29,12 +30,16 @@ function IssueCardImpl({ issue, isAdmin }: { issue: Issue; isAdmin: boolean }) {
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}
-      className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
-    >
-      <div className="flex items-start justify-between gap-2">
+    // dnd-kit owns this outer element's transform (drag translate); the
+    // hover spring lives on the inner motion.div instead so the two never
+    // fight over the same CSS property.
+    <div ref={setNodeRef} style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}>
+      <motion.div
+        whileHover={isDragging ? undefined : { scale: 1.015 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
+      >
+        <div className="flex items-start justify-between gap-2">
         <span className="font-medium">{issue.title}</span>
         {isAdmin && (
           <button
@@ -71,7 +76,8 @@ function IssueCardImpl({ issue, isAdmin }: { issue: Issue; isAdmin: boolean }) {
         </span>
         <span>{format.dateTime(new Date(issue.created_at), { dateStyle: 'medium' })}</span>
       </div>
-      <IssueStatusControl issueId={issue.id} status={issue.status} readOnly={!isAdmin} />
+        <IssueStatusControl issueId={issue.id} status={issue.status} readOnly={!isAdmin} />
+      </motion.div>
     </div>
   );
 }

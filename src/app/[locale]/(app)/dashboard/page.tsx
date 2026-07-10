@@ -30,7 +30,12 @@ async function TeacherSelfDevelopmentCard({ userId }: { userId: string }) {
 // blocking on the slowest of several independent Supabase queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
-  const isAdminRole = profile!.role === 'ceo' || profile!.role === 'admin_manager';
+  const isCeo = profile!.role === 'ceo';
+  const isAdminRole = isCeo || profile!.role === 'admin_manager';
+  // /analytics is now CEO-only (see analytics/page.tsx) — admin_manager is
+  // an "admin role" for the rest of this dashboard but would 404 there, so
+  // these two cards only link out for the CEO specifically.
+  const analyticsHref = isCeo ? '/analytics' : undefined;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -49,13 +54,17 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? <EmployeeGrowthIndicator href="/self-development" /> : <RolesDonutChart href="/analytics" />}
+          {isAdminRole ? (
+            <EmployeeGrowthIndicator href="/self-development" />
+          ) : (
+            <RolesDonutChart href={analyticsHref} />
+          )}
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
           <ActivityHeatmap href="/calendar" />
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? <GrowthChart href="/analytics" /> : <TeacherSelfDevelopmentCard userId={user!.id} />}
+          {isAdminRole ? <GrowthChart href={analyticsHref} /> : <TeacherSelfDevelopmentCard userId={user!.id} />}
         </Suspense>
       </div>
     </div>
