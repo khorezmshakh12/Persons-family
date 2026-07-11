@@ -85,7 +85,7 @@ export async function AppShell({
               </div>
             </header>
 
-            <main className="min-w-0 flex-1 transform-gpu will-change-transform">
+            <main className="min-h-0 min-w-0 flex-1 transform-gpu will-change-transform">
               <PageTransition>{children}</PageTransition>
             </main>
           </div>

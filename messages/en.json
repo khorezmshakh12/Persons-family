@@ -28,8 +28,6 @@
     "telegramSetup": "Telegram",
     "selfDevelopment": "Self-Development",
     "performance": "Performance",
-    "roadmap": "Roadmap",
-    "projects": "Projects",
     "settings": "Settings"
   },
   "auth": {
@@ -544,12 +542,6 @@
       "noData": "No roadmap goals yet."
     }
   },
-  "systemLogs": {
-    "title": "System Logs",
-    "subtitle": "An audit trail of key changes across the platform.",
-    "noLogs": "No activity logged yet.",
-    "unknownUser": "Unknown user"
-  },
   "commandPalette": {
     "label": "Command palette",
     "placeholder": "Search staff, groups, issues...",
@@ -668,74 +660,6 @@
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
-    }
-  },
-  "roadmap": {
-    "title": "Roadmap",
-    "newGoal": "New goal",
-    "goalTitle": "Goal title",
-    "create": "Create",
-    "delete": "Delete goal",
-    "progress": "Progress",
-    "detailsSaved": "Details saved.",
-    "saveDetails": "Save details",
-    "saving": "Saving...",
-    "failureReason": "Failure reason",
-    "failureReasonPlaceholder": "What went wrong?",
-    "solution": "CEO/Admin solution",
-    "solutionPlaceholder": "How will this be fixed?",
-    "noGoals": "No goals yet.",
-    "noGoalsInColumn": "No goals",
-    "timeframe": {
-      "label": "Timeframe",
-      "weekly": "Weekly",
-      "monthly": "Monthly",
-      "quarterly": "3-Month"
-    },
-    "milestoneTimeline": {
-      "title": "Milestone Timeline",
-      "goalsCount": "{count} goals",
-      "milestonesLabel": "Milestones",
-      "destinationsTitle": "Ultimate destinations",
-      "noMilestones": "No projects yet — add one from the Projects page.",
-      "noBudget": "No budget set",
-      "currency": "UZS"
-    },
-    "status": {
-      "pending": "Pending",
-      "done": "Done",
-      "failed": "Failed"
-    },
-    "errors": {
-      "forbidden": "You don't have permission to do that.",
-      "invalidInput": "Please fill in the required fields.",
-      "createFailed": "Could not create the goal. Please try again.",
-      "updateFailed": "Could not save changes. Please try again."
-    }
-  },
-  "projects": {
-    "title": "Projects",
-    "newProject": "New project",
-    "projectTitle": "Project title",
-    "create": "Create",
-    "deleteProject": "Delete project",
-    "estimatedBudget": "Estimated budget",
-    "save": "Save",
-    "saving": "Saving...",
-    "budgetSaved": "Budget saved.",
-    "currency": "UZS",
-    "noBudget": "No budget set",
-    "initialSteps": "Initial steps",
-    "stepsProgress": "{done}/{total} steps done",
-    "noSteps": "No steps yet",
-    "addStepPlaceholder": "Add a step...",
-    "removeStep": "Remove step",
-    "noProjects": "No projects yet.",
-    "errors": {
-      "forbidden": "You don't have permission to do that.",
-      "invalidInput": "Please fill in the required fields.",
-      "createFailed": "Could not create the project. Please try again.",
-      "updateFailed": "Could not save changes. Please try again."
     }
   },
   "notifications": {

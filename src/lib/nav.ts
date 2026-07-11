@@ -14,9 +14,6 @@ export type NavItem = {
     | 'staffChat'
     | 'telegramSetup'
     | 'selfDevelopment'
-    | 'roadmap'
-    | 'projects'
-    | 'systemLogs'
     | 'settings';
   href: string;
   roles?: StaffRole[];
@@ -32,9 +29,6 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'companyNews', href: '/company-news' },
   { key: 'staffChat', href: '/staff-chat', roles: ['teacher', 'assistant'] },
   { key: 'selfDevelopment', href: '/self-development' },
-  { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
-  { key: 'projects', href: '/projects', roles: ['ceo', 'admin_manager'] },
-  { key: 'systemLogs', href: '/system-logs', roles: ['ceo', 'admin_manager'] },
   { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo', 'admin_manager'] },
   { key: 'settings', href: '/settings' },
 ];

@@ -241,7 +241,7 @@ export function ChatHubClient({
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-lg sm:flex-row">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-lg sm:flex-row">
       <ChatSidebar staff={staff} active={active} onSelect={setActive} unreadDmUserIds={unreadDmUserIds} />
       <ConversationView
         active={active}

@@ -34,7 +34,7 @@ export default async function ChatPage() {
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
 
   return (
-    <div className="mx-auto max-w-6xl p-4 sm:p-6">
+    <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">
       <ChatHubClient
         currentUserId={user!.id}
         currentUserName={`${profile!.first_name} ${profile!.last_name}`}
