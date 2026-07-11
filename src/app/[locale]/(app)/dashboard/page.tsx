@@ -2,13 +2,11 @@ import { Suspense } from 'react';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { StatsRow } from '@/components/dashboard/stats-row';
-import { RecentGroupsPanel } from '@/components/dashboard/recent-groups-panel';
-import { StaffRosterPanel } from '@/components/dashboard/staff-roster-panel';
+import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
 import { EmployeeGrowthChartCard } from '@/components/dashboard/employee-growth-chart-card';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
-import { GrowthChart } from '@/components/dashboard/growth-chart';
 import { SelfDevelopmentChart } from '@/components/self-development/self-development-chart';
 import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons/glass-skeletons';
 
@@ -70,14 +68,9 @@ export default async function DashboardPage() {
         <StatsRow isAdminRole={isAdminRole} />
       </Suspense>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Suspense fallback={<GlassCardSkeleton />}>
-          <RecentGroupsPanel />
-        </Suspense>
-        <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? <StaffRosterPanel /> : <CompanyNewsCard />}
-        </Suspense>
-      </div>
+      <Suspense fallback={<GlassCardSkeleton />}>
+        {isAdminRole ? <ActiveIssuesOverview /> : <CompanyNewsCard />}
+      </Suspense>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<GlassCardSkeleton />}>
@@ -87,7 +80,7 @@ export default async function DashboardPage() {
           <ActivityHeatmap href="/calendar" />
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? <GrowthChart href={analyticsHref} /> : <TeacherSelfDevelopmentCard userId={user!.id} />}
+          <TeacherSelfDevelopmentCard userId={user!.id} />
         </Suspense>
       </div>
     </div>

@@ -73,7 +73,8 @@ export function ProfileSection({
         .from('avatars')
         .upload(path, file, { upsert: true, contentType: file.type });
       if (uploadError) {
-        toast.error(t('errors.uploadFailed'));
+        console.error('Avatar upload failed', uploadError);
+        toast.error(`${t('errors.uploadFailed')}: ${uploadError.message}`);
         return;
       }
 
@@ -85,6 +86,9 @@ export function ProfileSection({
 
       updateProfile({ avatarUrl: result.avatarUrl });
       toast.success(t('avatarUpdated'));
+    } catch (err) {
+      console.error('Avatar upload failed', err);
+      toast.error(t('errors.uploadFailed'));
     } finally {
       setIsUploadingAvatar(false);
     }

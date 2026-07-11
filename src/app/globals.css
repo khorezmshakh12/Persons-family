@@ -198,3 +198,67 @@
 [data-flat-theme='black'] [class*="text-white/"] {
   color: #d4d4d8 !important;
 }
+
+/* "Minimal Mint" — crisp white canvas, soft mint/teal accents, deep slate
+   text. Reuses the same [class*=] override family as white/black above. */
+[data-flat-theme='mint'] [class*="bg-white/"] {
+  background-color: #ffffff !important;
+}
+[data-flat-theme='mint'] [class*="border-white/"] {
+  border-color: #99f6e4 !important;
+}
+[data-flat-theme='mint'] [class~="text-white"] {
+  color: #1e293b !important;
+}
+[data-flat-theme='mint'] [class*="text-white/"] {
+  color: #475569 !important;
+}
+
+/* "Midnight Navy" — deep navy canvas, white text, soft indigo borders. */
+[data-flat-theme='navy'] [class*="bg-white/"] {
+  background-color: #0f172a !important;
+}
+[data-flat-theme='navy'] [class*="border-white/"] {
+  border-color: #4338ca !important;
+}
+[data-flat-theme='navy'] [class~="text-white"] {
+  color: #ffffff !important;
+}
+[data-flat-theme='navy'] [class*="text-white/"] {
+  color: #c7d2fe !important;
+}
+
+/* "Coffee Latte" — soft cream canvas, dark espresso text, minimal borders. */
+[data-flat-theme='latte'] [class*="bg-white/"] {
+  background-color: #fdfbf7 !important;
+}
+[data-flat-theme='latte'] [class*="border-white/"] {
+  border-color: #e7ddd0 !important;
+}
+[data-flat-theme='latte'] [class~="text-white"] {
+  color: #3b2a1a !important;
+}
+[data-flat-theme='latte'] [class*="text-white/"] {
+  color: #6b5745 !important;
+}
+
+/* The page canvas itself (outside any glass panel) also needs to show each
+   theme's exact background — DynamicBackground renders nothing in flat
+   mode, so without this the canvas would fall back to next-themes' generic
+   light/dark --background, which doesn't necessarily match these specific
+   hex values (e.g. latte's cream vs. the generic light theme's white). */
+[data-flat-theme='white'] body {
+  background-color: #ffffff !important;
+}
+[data-flat-theme='black'] body {
+  background-color: #000000 !important;
+}
+[data-flat-theme='mint'] body {
+  background-color: #ffffff !important;
+}
+[data-flat-theme='navy'] body {
+  background-color: #0f172a !important;
+}
+[data-flat-theme='latte'] body {
+  background-color: #fdfbf7 !important;
+}

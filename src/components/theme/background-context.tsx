@@ -7,7 +7,19 @@ import { DEFAULT_BACKGROUND } from '@/lib/background-themes';
 const STORAGE_KEY = 'app-background-url';
 const MODE_STORAGE_KEY = 'app-theme-mode';
 
-export type ThemeMode = 'photo' | 'flat-white' | 'flat-black';
+export type ThemeMode = 'photo' | 'flat-white' | 'flat-black' | 'mint' | 'navy' | 'latte';
+
+const FLAT_MODES: ThemeMode[] = ['flat-white', 'flat-black', 'mint', 'navy', 'latte'];
+// Which next-themes light/dark value each flat mode nudges toward, so the
+// few surfaces outside the glass system (e.g. the login page) that do read
+// next-themes' CSS vars stay visually consistent with the chosen theme.
+const NEXT_THEME_FOR_MODE: Partial<Record<ThemeMode, 'light' | 'dark'>> = {
+  'flat-white': 'light',
+  'flat-black': 'dark',
+  mint: 'light',
+  navy: 'dark',
+  latte: 'light',
+};
 
 type BackgroundContextValue = {
   backgroundUrl: string;
@@ -33,7 +45,7 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) setBackgroundUrlState(stored);
     const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
-    if (storedMode === 'flat-white' || storedMode === 'flat-black') setThemeModeState(storedMode);
+    if (storedMode && FLAT_MODES.includes(storedMode as ThemeMode)) setThemeModeState(storedMode as ThemeMode);
   }, []);
 
   // Reflects themeMode onto <html data-flat-theme> so the CSS in globals.css
@@ -46,12 +58,9 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
   // deliberately leaves next-themes alone.
   useEffect(() => {
     const root = document.documentElement;
-    if (themeMode === 'flat-white') {
-      root.setAttribute('data-flat-theme', 'white');
-      setTheme('light');
-    } else if (themeMode === 'flat-black') {
-      root.setAttribute('data-flat-theme', 'black');
-      setTheme('dark');
+    if (FLAT_MODES.includes(themeMode)) {
+      root.setAttribute('data-flat-theme', themeMode === 'flat-white' ? 'white' : themeMode === 'flat-black' ? 'black' : themeMode);
+      setTheme(NEXT_THEME_FOR_MODE[themeMode]!);
     } else {
       root.removeAttribute('data-flat-theme');
     }

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useOptimistic, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { ChatSidebar } from './chat-sidebar';
 import { ConversationView } from './conversation-view';
@@ -31,6 +33,7 @@ export function ChatHubClient({
   initialUnreadSenderIds: string[];
   initialChatEnabled: boolean;
 }) {
+  const t = useTranslations('notifications');
   const [active, setActive] = useState<ActiveConversation>({ type: 'family' });
   const [familyMessages, setFamilyMessages] = useState<StaffChatMessage[]>(initialFamilyMessages);
   const [dmMessagesByPair, setDmMessagesByPair] = useState<Record<string, StaffChatMessage[]>>({});
@@ -80,7 +83,14 @@ export function ChatHubClient({
       )
       .order('created_at', { ascending: true })
       .limit(100)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          // Deliberately does NOT mark this pair as loaded on failure — the
+          // effect below re-runs the next time this DM is opened instead of
+          // permanently caching an empty conversation.
+          console.error('Failed to load DM history', error);
+          return;
+        }
         setDmMessagesByPair((prev) => ({ ...prev, [key]: (data as StaffChatMessage[]) ?? [] }));
         setLoadedDmPairs((prev) => new Set(prev).add(key));
       });
@@ -108,18 +118,36 @@ export function ChatHubClient({
     const otherId = active.userId;
     const key = dmKey(currentUserId, otherId);
 
+    let flippedIds: string[] = [];
     setDmMessagesByPair((prev) => {
       const existing = prev[key];
-      if (!existing || !existing.some((m) => m.sender_id === otherId && !m.is_read)) return prev;
+      if (!existing) return prev;
+      const toFlip = existing.filter((m) => m.sender_id === otherId && !m.is_read);
+      if (toFlip.length === 0) return prev;
+      flippedIds = toFlip.map((m) => m.id);
       return {
         ...prev,
         [key]: existing.map((m) => (m.sender_id === otherId && !m.is_read ? { ...m, is_read: true } : m)),
       };
     });
 
+    if (flippedIds.length === 0) return;
+
     const supabase = createClient();
     supabase.rpc('mark_conversation_read', { other_user_id: otherId }).then(({ error }) => {
-      if (error) console.error('mark_conversation_read failed', error);
+      if (!error) return;
+      console.error('mark_conversation_read failed', error);
+      // Revert exactly the messages this effect optimistically flipped —
+      // the DB still has them unread, so the tick/sidebar dot should too.
+      setDmMessagesByPair((prev) => {
+        const existing = prev[key];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [key]: existing.map((m) => (flippedIds.includes(m.id) ? { ...m, is_read: false } : m)),
+        };
+      });
+      toast.error(t('markReadFailed'));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, currentUserId]);

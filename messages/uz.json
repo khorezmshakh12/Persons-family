@@ -97,22 +97,6 @@
       "lessonPlans": "Dars Rejalari",
       "chatActivity": "Chat Faolligi"
     },
-    "groupsPanel": {
-      "title": "Yangi Guruhlar",
-      "viewAll": "Barchasi",
-      "groupName": "Guruh",
-      "teacher": "O'qituvchi",
-      "ta": "TA",
-      "noTa": "Tayinlanmagan",
-      "noGroups": "Hozircha guruhlar yo'q."
-    },
-    "staffPanel": {
-      "title": "Jamoa A'zolari",
-      "viewAll": "Barchasi",
-      "active": "Faol",
-      "inactive": "Nofaol",
-      "noStaff": "Hozircha xodimlar yo'q."
-    },
     "rolesChart": {
       "title": "Lavozimlar",
       "totalLabel": "Jami xodimlar"
@@ -121,9 +105,9 @@
       "title": "Oylik Faollik",
       "hint": "Katak qanchalik to'q bo'lsa, o'sha kuni chat faolligi shuncha yuqori."
     },
-    "growthChart": {
-      "title": "O'sish Ko'rsatkichi",
-      "newThisMonth": "shu oyda qo'shilgan xodimlar"
+    "activeIssues": {
+      "title": "Faol Muammolar Ko'rinishi",
+      "noActiveIssues": "Ochiq yoki ko'rib chiqilayotgan muammolar yo'q."
     },
     "employeeGrowth": {
       "title": "Xodimlarning Oylik O'sishi",
@@ -476,7 +460,10 @@
       "abstract": "Minimalistik Abstrakt",
       "space": "Koinot / Tungi Osmon",
       "flatWhite": "Oddiy Oq",
-      "flatBlack": "Oddiy Qora"
+      "flatBlack": "Oddiy Qora",
+      "mint": "Yalpiz Yashil",
+      "navy": "Tungi Ko'k",
+      "latte": "Latte Qahva"
     },
     "upload": {
       "button": "Rasm tanlash",
