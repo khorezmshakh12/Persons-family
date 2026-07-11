@@ -14,6 +14,7 @@ import { CommandPalette } from '@/components/command-palette/command-palette';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
 import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
+import { TashkentClock } from './tashkent-clock';
 import { createClient } from '@/lib/supabase/server';
 import type { Profile } from '@/lib/auth/session';
 
@@ -59,7 +60,7 @@ export async function AppShell({
             <span className="mb-6 text-sm font-semibold tracking-tight text-white">{t('name')}</span>
             <SidebarNav role={profile.role} glass />
             <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
-            <span className="pt-3 text-center text-xs tracking-wider text-white/50">Persons ERP v1.6</span>
+            <span className="pt-3 text-center text-xs tracking-wider text-white/50">Persons ERP v1.6.5</span>
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col">
@@ -88,6 +89,10 @@ export async function AppShell({
             <main className="min-h-0 min-w-0 flex-1 transform-gpu will-change-transform">
               <PageTransition>{children}</PageTransition>
             </main>
+
+            <footer className="flex h-8 shrink-0 items-center justify-end border-t border-white/20 bg-white/10 px-4 text-xs text-white/60 backdrop-blur-lg">
+              <TashkentClock />
+            </footer>
           </div>
         </div>
         </PresenceProvider>

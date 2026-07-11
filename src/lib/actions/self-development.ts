@@ -8,6 +8,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import type { Database } from '@/lib/supabase/types';
+import type { ScorePoint } from '@/components/self-development/self-development-chart';
 
 export type SelfDevActionState = { error?: string; success?: boolean } | undefined;
 
@@ -101,4 +102,19 @@ export async function saveEvaluationAction(
   revalidatePath('/[locale]/self-development', 'page');
   revalidatePath('/[locale]/staff', 'page');
   return { success: true };
+}
+
+/** Read-only lookup backing the dashboard's teacher-picker chart widget —
+ * called on selection change from a client component, not a form submit. */
+export async function getTeacherSelfDevelopmentAction(teacherId: string): Promise<ScorePoint[]> {
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('self_development')
+    .select('month, ceo_score')
+    .eq('user_id', teacherId)
+    .order('month', { ascending: true });
+
+  return (data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }));
 }

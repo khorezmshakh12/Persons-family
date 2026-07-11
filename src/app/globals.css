@@ -152,3 +152,49 @@
     -webkit-backdrop-filter: blur(6px);
   }
 }
+
+/* Flat themes ("Default White" / "Default Black", set via
+   BackgroundProvider as data-flat-theme on <html>) replace the glass/photo
+   system with solid, high-contrast surfaces. 94 components inline raw
+   glass utility classes with no shared theme-value plumbing, so instead of
+   touching every one of them this targets Tailwind's own generated class
+   names via attribute-substring selectors — [class*=] also reaches Radix
+   Dialog/Sheet content, which portals to the end of <body> but is still a
+   descendant of <html>. !important is required to outrank both Tailwind's
+   own utility specificity and the mobile-perf rule above.
+   [class~="text-white"] (exact token) vs [class*="text-white/"]
+   (substring) is deliberate: it keeps a real strong/muted text hierarchy
+   instead of collapsing every white-family color to one gray. bg-black/*
+   overlay scrims (dialog/sheet/command-palette dimmers) are intentionally
+   left alone — they're legitimate modal dimming in any theme, not part of
+   the glass/photo system being replaced here. */
+[data-flat-theme] [class*="backdrop-blur-"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-flat-theme='white'] [class*="bg-white/"] {
+  background-color: #ffffff !important;
+}
+[data-flat-theme='white'] [class*="border-white/"] {
+  border-color: #e2e8f0 !important;
+}
+[data-flat-theme='white'] [class~="text-white"] {
+  color: #0f172a !important;
+}
+[data-flat-theme='white'] [class*="text-white/"] {
+  color: #475569 !important;
+}
+
+[data-flat-theme='black'] [class*="bg-white/"] {
+  background-color: #000000 !important;
+}
+[data-flat-theme='black'] [class*="border-white/"] {
+  border-color: #27272a !important;
+}
+[data-flat-theme='black'] [class~="text-white"] {
+  color: #ffffff !important;
+}
+[data-flat-theme='black'] [class*="text-white/"] {
+  color: #d4d4d8 !important;
+}

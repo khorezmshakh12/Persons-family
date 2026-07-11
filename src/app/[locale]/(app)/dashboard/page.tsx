@@ -6,7 +6,7 @@ import { RecentGroupsPanel } from '@/components/dashboard/recent-groups-panel';
 import { StaffRosterPanel } from '@/components/dashboard/staff-roster-panel';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
-import { EmployeeGrowthIndicator } from '@/components/dashboard/employee-growth-indicator';
+import { EmployeeGrowthChartCard } from '@/components/dashboard/employee-growth-chart-card';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { GrowthChart } from '@/components/dashboard/growth-chart';
 import { SelfDevelopmentChart } from '@/components/self-development/self-development-chart';
@@ -23,6 +23,33 @@ async function TeacherSelfDevelopmentCard({ userId }: { userId: string }) {
     .eq('user_id', userId)
     .order('month', { ascending: true });
   return <SelfDevelopmentChart points={(data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))} />;
+}
+
+async function EmployeeGrowthChartSection() {
+  const supabase = await createClient();
+  const { data: teachers } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name')
+    .eq('role', 'teacher')
+    .eq('is_active', true)
+    .order('first_name', { ascending: true });
+
+  const firstTeacher = teachers?.[0] ?? null;
+  const { data: points } = firstTeacher
+    ? await supabase
+        .from('self_development')
+        .select('month, ceo_score')
+        .eq('user_id', firstTeacher.id)
+        .order('month', { ascending: true })
+    : { data: null };
+
+  return (
+    <EmployeeGrowthChartCard
+      teachers={teachers ?? []}
+      initialTeacherId={firstTeacher?.id ?? null}
+      initialPoints={(points ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+    />
+  );
 }
 
 // Every block fetches its own data and streams in behind its own Suspense
@@ -54,11 +81,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? (
-            <EmployeeGrowthIndicator href="/self-development" />
-          ) : (
-            <RolesDonutChart href={analyticsHref} />
-          )}
+          {isAdminRole ? <EmployeeGrowthChartSection /> : <RolesDonutChart href={analyticsHref} />}
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
           <ActivityHeatmap href="/calendar" />

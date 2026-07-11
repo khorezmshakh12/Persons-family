@@ -8,6 +8,8 @@ import { formatUZS } from '@/lib/format-currency';
 import { SubmitForm } from '@/components/self-development/submit-form';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
 import { SelfDevelopmentChart } from '@/components/self-development/self-development-chart';
+import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
+import { TeacherPicker } from '@/components/self-development/teacher-picker';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
 import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
 import { ExportButtons } from '@/components/export/export-buttons';
@@ -18,9 +20,14 @@ function netTotal(entries: { entry_type: string; amount: number }[]) {
   return entries.reduce((sum, e) => sum + (e.entry_type === 'bonus' ? e.amount : -e.amount), 0);
 }
 
-export default async function SelfDevelopmentPage() {
+export default async function SelfDevelopmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ teacher?: string }>;
+}) {
   const t = await getTranslations('selfDevelopment');
   const tp = await getTranslations('performance');
+  const { teacher } = await searchParams;
   const { user, profile } = await getAuthState();
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
   const supabase = await createClient();
@@ -48,6 +55,16 @@ export default async function SelfDevelopmentPage() {
       supabase.from('staff_performance').select('*'),
       supabase.from('performance_entries').select('*').order('created_at', { ascending: false }),
     ]);
+
+    const teacherList = (staff ?? []).filter((p) => p.role === 'teacher');
+    const selectedTeacherId = teacher ?? teacherList[0]?.id;
+    const { data: teacherPoints } = selectedTeacherId
+      ? await supabase
+          .from('self_development')
+          .select('month, ceo_score')
+          .eq('user_id', selectedTeacherId)
+          .order('month', { ascending: true })
+      : { data: null };
 
     const performanceByStaffId = new Map((performance ?? []).map((p) => [p.staff_id, p]));
     const entriesByStaffId = new Map<string, PerformanceEntry[]>();
@@ -77,6 +94,21 @@ export default async function SelfDevelopmentPage() {
           </h1>
           <p className="text-white/70">{t('subtitle')}</p>
         </div>
+
+        {teacherList.length > 0 && (
+          <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+                {t('teacherProgress.title')}
+              </h2>
+              <TeacherPicker teachers={teacherList} selectedId={selectedTeacherId!} />
+            </div>
+            <SelfDevelopmentLineChart
+              points={(teacherPoints ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+              bare
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">

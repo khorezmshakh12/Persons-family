@@ -127,9 +127,8 @@
     },
     "employeeGrowth": {
       "title": "Xodimlarning Oylik O'sishi",
-      "avgScore": "o'rtacha CEO bahosi",
-      "comparedToLastMonth": "o'tgan oydagi {score} bilan solishtirganda",
-      "noData": "Hozircha yetarli ma'lumot yo'q — kamida ikki oylik CEO baholari kerak."
+      "selectTeacher": "O'qituvchini tanlang",
+      "noTeachers": "Hozircha faol o'qituvchilar yo'q."
     }
   },
   "staff": {
@@ -475,7 +474,9 @@
       "ocean": "Chuqur Okean",
       "cyberpunk": "Qorong'u Kiberpank",
       "abstract": "Minimalistik Abstrakt",
-      "space": "Koinot / Tungi Osmon"
+      "space": "Koinot / Tungi Osmon",
+      "flatWhite": "Oddiy Oq",
+      "flatBlack": "Oddiy Qora"
     },
     "upload": {
       "button": "Rasm tanlash",
@@ -606,6 +607,10 @@
     "submittedThisMonth": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
     "yourSubmissions": "Sizning hisobotlaringiz",
     "allSubmissions": "Barcha hisobotlar",
+    "teacherProgress": {
+      "title": "O'qituvchi Rivojlanishi",
+      "selectTeacher": "O'qituvchini tanlang"
+    },
     "noSubmissions": "Hozircha hisobotlar yo'q.",
     "ceoRating": "CEO/Admin fikri",
     "ceoScore": "Ball",

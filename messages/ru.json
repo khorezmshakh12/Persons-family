@@ -127,9 +127,8 @@
     },
     "employeeGrowth": {
       "title": "Месячный рост сотрудников",
-      "avgScore": "средний балл CEO",
-      "comparedToLastMonth": "против {score} в прошлом месяце",
-      "noData": "Пока недостаточно данных — нужно минимум два месяца оценок CEO."
+      "selectTeacher": "Выберите учителя",
+      "noTeachers": "Пока нет активных учителей."
     }
   },
   "staff": {
@@ -475,7 +474,9 @@
       "ocean": "Глубокий океан",
       "cyberpunk": "Тёмный киберпанк",
       "abstract": "Минималистичная абстракция",
-      "space": "Космос / ночное небо"
+      "space": "Космос / ночное небо",
+      "flatWhite": "Обычный белый",
+      "flatBlack": "Обычный чёрный"
     },
     "upload": {
       "button": "Выбрать изображение",
@@ -606,6 +607,10 @@
     "submittedThisMonth": "Вы уже отправили свой прогресс за этот месяц.",
     "yourSubmissions": "Ваши отчёты",
     "allSubmissions": "Все отчёты",
+    "teacherProgress": {
+      "title": "Прогресс учителя",
+      "selectTeacher": "Выберите учителя"
+    },
     "noSubmissions": "Отчётов пока нет.",
     "ceoRating": "Отзыв CEO/Админа",
     "ceoScore": "Балл",

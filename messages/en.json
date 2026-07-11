@@ -127,9 +127,8 @@
     },
     "employeeGrowth": {
       "title": "Employee Monthly Growth",
-      "avgScore": "avg. CEO score",
-      "comparedToLastMonth": "vs. {score} last month",
-      "noData": "Not enough data yet — needs at least two months of CEO-scored submissions."
+      "selectTeacher": "Select a teacher",
+      "noTeachers": "No active teachers yet."
     }
   },
   "staff": {
@@ -475,7 +474,9 @@
       "ocean": "Deep Ocean",
       "cyberpunk": "Dark Cyberpunk",
       "abstract": "Minimalist Abstract",
-      "space": "Space / Night Sky"
+      "space": "Space / Night Sky",
+      "flatWhite": "Default White",
+      "flatBlack": "Default Black"
     },
     "upload": {
       "button": "Choose image",
@@ -606,6 +607,10 @@
     "submittedThisMonth": "You've already submitted your progress for this month.",
     "yourSubmissions": "Your submissions",
     "allSubmissions": "All submissions",
+    "teacherProgress": {
+      "title": "Teacher Progress",
+      "selectTeacher": "Select a teacher"
+    },
     "noSubmissions": "No submissions yet.",
     "ceoRating": "CEO/Admin feedback",
     "ceoScore": "Score",

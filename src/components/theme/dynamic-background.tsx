@@ -4,7 +4,11 @@ import Image from 'next/image';
 import { useBackground } from './background-context';
 
 export function DynamicBackground() {
-  const { backgroundUrl } = useBackground();
+  const { backgroundUrl, themeMode } = useBackground();
+  // A flat theme replaces the photo/glass system entirely — nothing to
+  // paint here, globals.css's [data-flat-theme] rules handle everything.
+  if (themeMode !== 'photo') return null;
+
   // Custom uploads are a client-generated data: URI — there's no remote
   // resource for the optimizer to fetch/resize, so they skip it entirely.
   // The five preset themes are real Unsplash URLs and get full next/image
