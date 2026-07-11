@@ -20,15 +20,20 @@ export default async function LoginPage({
   const suspended = reason === 'suspended';
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-4">
-      {suspended && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700 shadow-sm">
-          {t('errors.accountDeactivated')}
-        </div>
-      )}
-      <AuthCard tagline={t('tagline')} title={t('loginTitle')} subtitle={t('loginSubtitle')}>
-        <LoginForm />
-      </AuthCard>
-    </div>
+    <>
+      <div className="flex w-full max-w-md flex-col gap-4">
+        {suspended && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700 shadow-sm">
+            {t('errors.accountDeactivated')}
+          </div>
+        )}
+        <AuthCard tagline={t('tagline')} title={t('loginTitle')} subtitle={t('loginSubtitle')}>
+          <LoginForm />
+        </AuthCard>
+      </div>
+      <span className="fixed right-8 bottom-6 text-sm font-light tracking-widest text-zinc-500 italic opacity-80 select-none pointer-events-none dark:text-zinc-400">
+        Unlock Your Potential
+      </span>
+    </>
   );
 }
