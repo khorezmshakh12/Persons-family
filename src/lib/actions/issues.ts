@@ -186,27 +186,64 @@ const deleteIssueSchema = z.object({ id: z.string().uuid() });
 
 export type DeleteIssueResult = { error?: string };
 
-/** Deleting is restricted to issues already in "done" — a still-open or
- * in-review issue should be resolved through the board, not removed. */
+/** Open to the issue's own creator or an admin, at any status — issues_delete
+ * mirrors this at the RLS layer, so this lookup is defense in depth, not the
+ * only thing standing between an unrelated staff member and someone else's
+ * issue. */
 export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
-  try {
-    await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
-  }
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'forbidden' };
+  const isAdmin = profile.role === 'ceo' || profile.role === 'admin_manager';
 
   const parsed = deleteIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { data: issue } = await supabase.from('issues').select('status').eq('id', parsed.data.id).maybeSingle();
+  const { data: issue } = await supabase.from('issues').select('created_by').eq('id', parsed.data.id).maybeSingle();
   if (!issue) return { error: 'notFound' };
-  if (issue.status !== 'done') return { error: 'notDone' };
+  if (!isAdmin && issue.created_by !== user.id) return { error: 'forbidden' };
 
   const { error } = await supabase.from('issues').delete().eq('id', parsed.data.id);
   if (error) return { error: 'deleteFailed' };
 
-  logSystemAction(supabase, 'issue.delete', `Deleted resolved issue ${parsed.data.id}`);
+  logSystemAction(supabase, 'issue.delete', `Deleted issue ${parsed.data.id}`);
+
+  revalidatePath('/[locale]/issues', 'page');
+  return {};
+}
+
+const updateIssueSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).optional().or(z.literal('')),
+});
+
+/** Text-only edit, open to the issue's own creator or an admin. Everything
+ * else (status, assignee, voice note) stays admin-gated through the status
+ * board / protect_issue_fields trigger — this action only ever touches
+ * title/description, matching what that trigger allows a non-admin to
+ * change. */
+export async function updateIssueAction(
+  _prevState: IssueActionState,
+  formData: FormData,
+): Promise<IssueActionState> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'forbidden' };
+  const isAdmin = profile.role === 'ceo' || profile.role === 'admin_manager';
+
+  const parsed = updateIssueSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { data: issue } = await supabase.from('issues').select('created_by').eq('id', parsed.data.id).maybeSingle();
+  if (!issue) return { error: 'notFound' };
+  if (!isAdmin && issue.created_by !== user.id) return { error: 'forbidden' };
+
+  const { error } = await supabase
+    .from('issues')
+    .update({ title: parsed.data.title, description: parsed.data.description || null })
+    .eq('id', parsed.data.id);
+  if (error) return { error: 'updateFailed' };
 
   revalidatePath('/[locale]/issues', 'page');
   return {};

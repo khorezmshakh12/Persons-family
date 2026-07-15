@@ -10,7 +10,15 @@ import type { Issue } from './issue-card';
 
 const COLUMNS: Issue['status'][] = ['open', 'in_progress', 'done'];
 
-export function IssuesBoard({ issues: initialIssues, isAdmin }: { issues: Issue[]; isAdmin: boolean }) {
+export function IssuesBoard({
+  issues: initialIssues,
+  isAdmin,
+  currentUserId,
+}: {
+  issues: Issue[];
+  isAdmin: boolean;
+  currentUserId: string;
+}) {
   const t = useTranslations('issues');
   const [issues, setIssues] = useState(initialIssues);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -73,6 +81,7 @@ export function IssuesBoard({ issues: initialIssues, isAdmin }: { issues: Issue[
             label={t(`columns.${status}`)}
             issues={issues.filter((issue) => issue.status === status)}
             isAdmin={isAdmin}
+            currentUserId={currentUserId}
             emptyLabel={t('noIssuesInColumn')}
             onRequestDelete={handleRequestDelete}
           />

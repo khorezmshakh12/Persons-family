@@ -11,7 +11,11 @@ export type StaffChatMessage = {
   pinned_at: string | null;
   created_at: string;
   is_read: boolean;
+  reply_to_id: string | null;
+  reactions: Record<string, string[]>;
 };
+
+export type ChatQuote = { id: string; senderName: string; text: string | null; mediaType: ChatMediaType };
 
 export type StaffDirectoryEntry = {
   id: string;

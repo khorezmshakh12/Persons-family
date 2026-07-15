@@ -229,6 +229,16 @@
     "recordVoice": "Ovozli xabar yozish",
     "stopRecording": "Yozishni to'xtatish",
     "recording": "Yozilmoqda...",
+    "reply": "Javob berish",
+    "cancelReply": "Javobni bekor qilish",
+    "addReaction": "Reaksiya qo'shish",
+    "originalMessageUnavailable": "Asl xabar mavjud emas",
+    "mediaLabel": {
+      "image": "Rasm",
+      "video": "Video",
+      "voice": "Ovozli xabar",
+      "none": "Xabar"
+    },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
@@ -237,7 +247,8 @@
       "fileTooLarge": "Fayl 50MB dan kichik bo'lishi kerak.",
       "invalidFileType": "Iltimos, rasm yoki video tanlang.",
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
-      "micDenied": "Mikrofonga kirish imkoni bo'lmadi. Brauzer ruxsatlarini tekshiring."
+      "micDenied": "Mikrofonga kirish imkoni bo'lmadi. Brauzer ruxsatlarini tekshiring.",
+      "reactionFailed": "Reaksiyani yangilab bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "issues": {
@@ -260,6 +271,11 @@
     "discardRecording": "Yozuvni o'chirish",
     "dragHandle": "Ko'chirish uchun torting",
     "delete": "Murojaatni o'chirish",
+    "editIssue": "Murojaatni tahrirlash",
+    "saveChanges": "O'zgarishlarni saqlash",
+    "confirmDeleteTitle": "Bu murojaat o'chirilsinmi?",
+    "confirmDeleteDescription": "Murojaat butunlay o'chirib tashlanadi.",
+    "confirm": "Tasdiqlash",
     "status": {
       "open": "Ochiq",
       "in_progress": "Ko'rib chiqilmoqda",
@@ -336,6 +352,8 @@
       "noTopic": "Mavzu kiritilmagan",
       "descriptionPlaceholder": "Oflayn o'yin qoidalari yoki izohlar...",
       "noDescription": "Tavsif kiritilmagan",
+      "readMore": "Batafsil",
+      "showLess": "Yig'ish",
       "gameLinkPlaceholder": "https://...",
       "noGameLink": "Havola yo'q",
       "openGame": "O'yinni ochish",
@@ -406,8 +424,10 @@
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+      "invalidAssignee": "Sizda bu vazifani ushbu shaxsga biriktirish uchun ruxsat yo'q.",
       "createFailed": "Vazifani berib bo'lmadi. Qayta urinib ko'ring.",
-      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "companyNews": {

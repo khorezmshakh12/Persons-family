@@ -15,11 +15,13 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-/** The parent board owns the mutation + optimistic remove/restore (see
- * TaskBoard.handleRequestDelete) — this component is just the confirm-then-
- * fire trigger, the same split IssueCard already uses for its delete. */
-export function DeleteTaskButton({ onConfirm }: { onConfirm: () => void }) {
-  const t = useTranslations('tasks');
+/** The board owns the mutation + optimistic remove/restore (see
+ * IssuesBoard.handleRequestDelete) — this is just the confirm-then-fire
+ * trigger. Now reachable at any status by the issue's own creator or an
+ * admin, so a confirm step matters here in a way it didn't when deletion was
+ * limited to the Done column. */
+export function DeleteIssueButton({ onConfirm }: { onConfirm: () => void }) {
+  const t = useTranslations('issues');
   const tCommon = useTranslations('common');
 
   return (

@@ -1,9 +1,10 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
+import { CompanyNewsInlineForm } from '@/components/dashboard/company-news-inline-form';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
-export async function CompanyNewsCard() {
+export async function CompanyNewsCard({ isAdmin = false }: { isAdmin?: boolean }) {
   const t = await getTranslations('dashboard');
   const format = await getFormatter();
   const supabase = await createClient();
@@ -17,6 +18,7 @@ export async function CompanyNewsCard() {
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <h2 className="text-lg font-medium">{t('companyNews.title')}</h2>
+      {isAdmin && <CompanyNewsInlineForm />}
       {!news || news.length === 0 ? (
         <p className="text-sm text-white/70">{t('companyNews.noNews')}</p>
       ) : (

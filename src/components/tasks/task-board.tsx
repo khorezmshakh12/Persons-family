@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { updateTaskStatusAction } from '@/lib/actions/tasks';
+import { updateTaskStatusAction, deleteTaskAction } from '@/lib/actions/tasks';
 import { TaskKanbanColumn } from './task-kanban-column';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
@@ -49,6 +49,26 @@ export function TaskBoard({
     })();
   }
 
+  // Strict optimistic UI: the card is filtered out of local state instantly
+  // — before the Supabase delete() mutation is even awaited — which is what
+  // makes the click feel instant instead of freezing the board until the
+  // round trip resolves. Only a failure puts the card back and surfaces a
+  // toast; the common (successful) case never waits on the network at all.
+  function handleRequestDelete(task: Task) {
+    const previousTasks = tasks;
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+
+    (async () => {
+      const formData = new FormData();
+      formData.set('id', task.id);
+      const result = await deleteTaskAction(formData);
+      if (result?.error) {
+        setTasks(previousTasks);
+        toast.error(t(`errors.${result.error}`));
+      }
+    })();
+  }
+
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -61,6 +81,7 @@ export function TaskBoard({
             isAdmin={isAdmin}
             assignees={assignees}
             emptyLabel={t('noTasks')}
+            onRequestDelete={handleRequestDelete}
           />
         ))}
       </div>

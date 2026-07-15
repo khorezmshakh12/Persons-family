@@ -77,7 +77,9 @@ export function ChatHubClient({
     const supabase = createClient();
     supabase
       .from('staff_chats')
-      .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read')
+      .select(
+        'id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions',
+      )
       .or(
         `and(sender_id.eq.${currentUserId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUserId})`,
       )
@@ -91,7 +93,7 @@ export function ChatHubClient({
           console.error('Failed to load DM history', error);
           return;
         }
-        setDmMessagesByPair((prev) => ({ ...prev, [key]: (data as StaffChatMessage[]) ?? [] }));
+        setDmMessagesByPair((prev) => ({ ...prev, [key]: (data as unknown as StaffChatMessage[]) ?? [] }));
         setLoadedDmPairs((prev) => new Set(prev).add(key));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,7 +235,12 @@ export function ChatHubClient({
     };
   }, [currentUserId]);
 
-  function handleOptimisticSend(partial: { messageText?: string; mediaUrl?: string; mediaType?: ChatMediaType }) {
+  function handleOptimisticSend(partial: {
+    messageText?: string;
+    mediaUrl?: string;
+    mediaType?: ChatMediaType;
+    replyToId?: string;
+  }) {
     const optimisticMessage: StaffChatMessage = {
       id: `optimistic-${Date.now()}`,
       sender_id: currentUserId,
@@ -244,6 +251,8 @@ export function ChatHubClient({
       pinned_at: null,
       created_at: new Date().toISOString(),
       is_read: false,
+      reply_to_id: partial.replyToId ?? null,
+      reactions: {},
     };
     addOptimisticMessage(optimisticMessage);
   }

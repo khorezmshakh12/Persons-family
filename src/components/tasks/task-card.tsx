@@ -27,10 +27,12 @@ function TaskCardImpl({
   task,
   isAdmin,
   assignees,
+  onRequestDelete,
 }: {
   task: Task;
   isAdmin: boolean;
   assignees: Assignee[];
+  onRequestDelete: (task: Task) => void;
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
@@ -58,7 +60,7 @@ function TaskCardImpl({
                   }}
                   assignees={assignees}
                 />
-                <DeleteTaskButton taskId={task.id} />
+                <DeleteTaskButton onConfirm={() => onRequestDelete(task)} />
               </div>
             )}
             <button
@@ -88,7 +90,7 @@ function TaskCardImpl({
               : t('noDueDate')}
           </span>
         </div>
-        <TaskStatusControl taskId={task.id} status={task.status} />
+        <TaskStatusControl status={task.status} />
       </motion.div>
     </div>
   );

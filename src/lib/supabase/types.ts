@@ -746,7 +746,9 @@ export type Database = {
           media_url: string | null
           message_text: string | null
           pinned_at: string | null
+          reactions: Json
           receiver_id: string | null
+          reply_to_id: string | null
           sender_id: string
         }
         Insert: {
@@ -757,7 +759,9 @@ export type Database = {
           media_url?: string | null
           message_text?: string | null
           pinned_at?: string | null
+          reactions?: Json
           receiver_id?: string | null
+          reply_to_id?: string | null
           sender_id: string
         }
         Update: {
@@ -768,7 +772,9 @@ export type Database = {
           media_url?: string | null
           message_text?: string | null
           pinned_at?: string | null
+          reactions?: Json
           receiver_id?: string | null
+          reply_to_id?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -777,6 +783,13 @@ export type Database = {
             columns: ["receiver_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_chats_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "staff_chats"
             referencedColumns: ["id"]
           },
           {
@@ -1086,6 +1099,10 @@ export type Database = {
       mark_issue_seen: { Args: { issue_id: string }; Returns: undefined }
       mark_issues_seen: { Args: never; Returns: undefined }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
+      toggle_staff_chat_reaction: {
+        Args: { message_id: string; emoji: string }
+        Returns: Json
+      }
     }
     Enums: {
       chat_media_type: "image" | "video" | "voice" | "none"

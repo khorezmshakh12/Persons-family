@@ -229,6 +229,16 @@
     "recordVoice": "Record a voice message",
     "stopRecording": "Stop recording",
     "recording": "Recording...",
+    "reply": "Reply",
+    "cancelReply": "Cancel reply",
+    "addReaction": "Add reaction",
+    "originalMessageUnavailable": "Original message unavailable",
+    "mediaLabel": {
+      "image": "Photo",
+      "video": "Video",
+      "voice": "Voice message",
+      "none": "Message"
+    },
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "invalidMessage": "Message can't be empty.",
@@ -237,7 +247,8 @@
       "fileTooLarge": "File must be under 50MB.",
       "invalidFileType": "Please choose an image or video file.",
       "uploadFailed": "Could not upload the file. Please try again.",
-      "micDenied": "Couldn't access your microphone. Check your browser permissions."
+      "micDenied": "Couldn't access your microphone. Check your browser permissions.",
+      "reactionFailed": "Could not update your reaction. Please try again."
     }
   },
   "issues": {
@@ -260,6 +271,11 @@
     "discardRecording": "Discard recording",
     "dragHandle": "Drag to move",
     "delete": "Delete issue",
+    "editIssue": "Edit issue",
+    "saveChanges": "Save changes",
+    "confirmDeleteTitle": "Delete this issue?",
+    "confirmDeleteDescription": "This will permanently remove the issue.",
+    "confirm": "Confirm",
     "status": {
       "open": "Open",
       "in_progress": "In review",
@@ -336,6 +352,8 @@
       "noTopic": "No topic set",
       "descriptionPlaceholder": "Offline game rules or notes...",
       "noDescription": "No description set",
+      "readMore": "Read more",
+      "showLess": "Show less",
       "gameLinkPlaceholder": "https://...",
       "noGameLink": "No game link",
       "openGame": "Open game",
@@ -406,8 +424,10 @@
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please fill in all required fields.",
+      "invalidAssignee": "You don't have permission to assign a task to that person.",
       "createFailed": "Could not assign the task. Please try again.",
-      "updateFailed": "Could not save changes. Please try again."
+      "updateFailed": "Could not save changes. Please try again.",
+      "deleteFailed": "Could not delete the task. Please try again."
     }
   },
   "companyNews": {

@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
+import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
+import type { StaffRole } from '@/lib/nav';
 
 export type TaskActionState = { error?: string } | undefined;
 
@@ -20,9 +22,11 @@ export async function assignTaskAction(
   formData: FormData,
 ): Promise<TaskActionState> {
   let actingUserId: string;
+  let actingRole: StaffRole;
   try {
-    const { user } = await requireAdmin();
+    const { user, profile } = await requireAdmin();
     actingUserId = user.id;
+    actingRole = profile.role;
   } catch {
     return { error: 'forbidden' };
   }
@@ -31,6 +35,19 @@ export async function assignTaskAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
+
+  // Strict chain of command, re-checked here regardless of what the
+  // client's dropdown offered — the dropdown options alone are not a
+  // security boundary (mirrors createIssueAction's re-validation).
+  const { data: target } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', parsed.data.assignedTo)
+    .maybeSingle();
+  if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
+    return { error: 'invalidAssignee' };
+  }
+
   const { error } = await supabase.from('tasks').insert({
     title: parsed.data.title,
     description: parsed.data.description || null,
@@ -50,8 +67,12 @@ export async function updateTaskAction(
   _prevState: TaskActionState,
   formData: FormData,
 ): Promise<TaskActionState> {
+  let actingUserId: string;
+  let actingRole: StaffRole;
   try {
-    await requireAdmin();
+    const { user, profile } = await requireAdmin();
+    actingUserId = user.id;
+    actingRole = profile.role;
   } catch {
     return { error: 'forbidden' };
   }
@@ -60,6 +81,21 @@ export async function updateTaskAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
+
+  // Strict visibility mirrors tasks_select: only the admin who originally
+  // assigned this task may rewrite it, not every admin in the company.
+  const { data: existing } = await supabase.from('tasks').select('assigned_by').eq('id', parsed.data.id).maybeSingle();
+  if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
+
+  const { data: target } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', parsed.data.assignedTo)
+    .maybeSingle();
+  if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
+    return { error: 'invalidAssignee' };
+  }
+
   const { error } = await supabase
     .from('tasks')
     .update({
@@ -101,18 +137,30 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
 
 const idSchema = z.object({ id: z.string().uuid() });
 
-export async function deleteTaskAction(formData: FormData): Promise<void> {
+export type DeleteTaskResult = { error?: string };
+
+/** Deletion is restricted to the task's own creator — tasks_delete_own
+ * mirrors this at the RLS layer, so this check is defense in depth, not the
+ * only thing standing between another admin and someone else's task. */
+export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskResult> {
+  let actingUserId: string;
   try {
-    await requireAdmin();
+    const { user } = await requireAdmin();
+    actingUserId = user.id;
   } catch {
-    return;
+    return { error: 'forbidden' };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  await supabase.from('tasks').delete().eq('id', parsed.data.id);
+  const { data: existing } = await supabase.from('tasks').select('assigned_by').eq('id', parsed.data.id).maybeSingle();
+  if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
+
+  const { error } = await supabase.from('tasks').delete().eq('id', parsed.data.id);
+  if (error) return { error: 'deleteFailed' };
 
   revalidatePath('/[locale]/tasks', 'page');
+  return {};
 }

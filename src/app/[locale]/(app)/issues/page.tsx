@@ -17,14 +17,14 @@ const VOICE_URL_EXPIRY_SECONDS = 60 * 60; // 1 hour, plenty for one page view
 
 export default async function IssuesPage() {
   const t = await getTranslations('issues');
-  const { profile } = await getAuthState();
+  const { user, profile } = await getAuthState();
   const supabase = await createClient();
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
 
   const { data: issuesData } = await supabase
     .from('issues')
     .select(
-      'id, title, description, status, created_at, resolved_at, voice_url, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
+      'id, title, description, status, created_at, created_by, resolved_at, voice_url, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
     )
     .order('created_at', { ascending: false });
 
@@ -69,7 +69,7 @@ export default async function IssuesPage() {
         <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
         <CreateIssueDialog assignees={assignees ?? []} />
       </div>
-      <IssuesBoard issues={issues as unknown as Issue[]} isAdmin={isAdmin} />
+      <IssuesBoard issues={issues as unknown as Issue[]} isAdmin={isAdmin} currentUserId={user!.id} />
     </div>
   );
 }

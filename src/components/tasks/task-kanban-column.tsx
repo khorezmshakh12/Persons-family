@@ -14,6 +14,7 @@ function TaskKanbanColumnImpl({
   isAdmin,
   assignees,
   emptyLabel,
+  onRequestDelete,
 }: {
   status: TaskStatus;
   label: string;
@@ -21,6 +22,7 @@ function TaskKanbanColumnImpl({
   isAdmin: boolean;
   assignees: Assignee[];
   emptyLabel: string;
+  onRequestDelete: (task: Task) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
@@ -40,7 +42,13 @@ function TaskKanbanColumnImpl({
           <p className="text-sm text-white/60">{emptyLabel}</p>
         ) : (
           tasks.map((task) => (
-            <TaskCard key={task.id} task={task} isAdmin={isAdmin} assignees={assignees} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              isAdmin={isAdmin}
+              assignees={assignees}
+              onRequestDelete={onRequestDelete}
+            />
           ))
         )}
       </div>

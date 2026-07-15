@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { toggleChatEnabledAction } from '@/lib/actions/chat';
 import { MessageBubble, type ChatSender } from './message-bubble';
 import { ChatComposer } from './chat-composer';
-import type { ActiveConversation, StaffChatMessage, StaffDirectoryEntry } from './types';
+import type { ActiveConversation, ChatQuote, StaffChatMessage, StaffDirectoryEntry } from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
 import type { SentStaffChatMessage } from '@/lib/actions/staff-chats';
+
+function toQuote(message: StaffChatMessage, senderName: string): ChatQuote {
+  return { id: message.id, senderName, text: message.message_text, mediaType: message.media_type };
+}
 
 export function ConversationView({
   active,
@@ -29,10 +33,35 @@ export function ConversationView({
   isAdmin: boolean;
   chatEnabled: boolean;
   onChatEnabledChange: (next: boolean) => void;
-  onOptimisticSend: (partial: { messageText?: string; mediaUrl?: string; mediaType?: ChatMediaType }) => void;
+  onOptimisticSend: (partial: {
+    messageText?: string;
+    mediaUrl?: string;
+    mediaType?: ChatMediaType;
+    replyToId?: string;
+  }) => void;
   onConfirmedSend: (message: SentStaffChatMessage) => void;
 }) {
   const t = useTranslations('chatHub');
+  const [replyTarget, setReplyTarget] = useState<ChatQuote | null>(null);
+  const messageMap = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  // Refs, not deps: handleReply must stay referentially stable across
+  // renders (via the empty dep array below) so MessageBubble.memo isn't
+  // defeated for every bubble every time a new message arrives — see the
+  // memoization comment on MessageBubble itself.
+  const messagesRef = useRef(messages);
+  const staffMapRef = useRef(staffMap);
+  useEffect(() => {
+    messagesRef.current = messages;
+    staffMapRef.current = staffMap;
+  });
+  const handleReply = useCallback((messageId: string) => {
+    const target = messagesRef.current.find((m) => m.id === messageId);
+    if (!target) return;
+    const senderName = staffMapRef.current[target.sender_id]
+      ? `${staffMapRef.current[target.sender_id].first_name} ${staffMapRef.current[target.sender_id].last_name}`
+      : '—';
+    setReplyTarget(toQuote(target, senderName));
+  }, []);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // Tracks whether the user was already scrolled near the bottom right
@@ -107,6 +136,17 @@ export function ConversationView({
 
   const canPost = isFamily ? chatEnabled : true;
 
+  // A reply draft is scoped to whichever conversation it was started in —
+  // switching to a different DM or to Family Chat shouldn't carry a stale
+  // quote (and stale reply_to_id) into an unrelated conversation.
+  useEffect(() => {
+    setReplyTarget(null);
+  }, [conversationKey]);
+
+  function senderNameFor(userId: string) {
+    return staffMap[userId] ? `${staffMap[userId].first_name} ${staffMap[userId].last_name}` : '—';
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-3 border-b border-white/15 px-4 py-3">
@@ -128,17 +168,23 @@ export function ConversationView({
           <p className="text-center text-sm text-white/60">{t('empty')}</p>
         ) : (
           <div className="flex flex-col gap-4">
-            {messages.map((m) => (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                sender={staffMap[m.sender_id]}
-                isOwn={m.sender_id === currentUserId}
-                isFamily={isFamily}
-                isAdmin={isAdmin}
-                isOptimistic={m.id.startsWith('optimistic-')}
-              />
-            ))}
+            {messages.map((m) => {
+              const repliedMessage = m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined;
+              return (
+                <MessageBubble
+                  key={m.id}
+                  message={m}
+                  sender={staffMap[m.sender_id]}
+                  isOwn={m.sender_id === currentUserId}
+                  isFamily={isFamily}
+                  isAdmin={isAdmin}
+                  currentUserId={currentUserId}
+                  isOptimistic={m.id.startsWith('optimistic-')}
+                  repliedQuote={repliedMessage ? toQuote(repliedMessage, senderNameFor(repliedMessage.sender_id)) : null}
+                  onReply={handleReply}
+                />
+              );
+            })}
             <div ref={bottomRef} />
           </div>
         )}
@@ -149,6 +195,8 @@ export function ConversationView({
           receiverId={isFamily ? null : active.userId}
           onOptimisticSend={onOptimisticSend}
           onConfirmedSend={onConfirmedSend}
+          replyTarget={replyTarget}
+          onClearReply={() => setReplyTarget(null)}
         />
       ) : (
         <p className="border-t border-white/15 p-4 text-center text-sm text-white/50">{t('chatDisabled')}</p>

@@ -1,6 +1,7 @@
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { ChatHubClient } from '@/components/chat-hub/chat-hub-client';
+import type { StaffChatMessage } from '@/components/chat-hub/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,9 @@ export default async function ChatPage() {
 
   const { data: familyMessages } = await supabase
     .from('staff_chats')
-    .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read')
+    .select(
+      'id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions',
+    )
     .is('receiver_id', null)
     .order('created_at', { ascending: true })
     .limit(50);
@@ -41,7 +44,7 @@ export default async function ChatPage() {
         currentUserAvatar={profile!.avatar_url}
         isAdmin={isAdmin}
         staff={staff ?? []}
-        initialFamilyMessages={familyMessages ?? []}
+        initialFamilyMessages={(familyMessages as unknown as StaffChatMessage[]) ?? []}
         initialUnreadSenderIds={initialUnreadSenderIds}
         initialChatEnabled={settings?.chat_enabled ?? true}
       />

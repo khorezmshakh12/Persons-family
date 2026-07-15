@@ -68,9 +68,20 @@ export default async function DashboardPage() {
         <StatsRow isAdminRole={isAdminRole} />
       </Suspense>
 
-      <Suspense fallback={<GlassCardSkeleton />}>
-        {isAdminRole ? <ActiveIssuesOverview /> : <CompanyNewsCard />}
-      </Suspense>
+      {isAdminRole ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Suspense fallback={<GlassCardSkeleton />}>
+            <ActiveIssuesOverview />
+          </Suspense>
+          <Suspense fallback={<GlassCardSkeleton />}>
+            <CompanyNewsCard isAdmin />
+          </Suspense>
+        </div>
+      ) : (
+        <Suspense fallback={<GlassCardSkeleton />}>
+          <CompanyNewsCard isAdmin={false} />
+        </Suspense>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<GlassCardSkeleton />}>

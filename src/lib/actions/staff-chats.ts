@@ -15,6 +15,8 @@ export type SentStaffChatMessage = {
   pinned_at: string | null;
   created_at: string;
   is_read: boolean;
+  reply_to_id: string | null;
+  reactions: Record<string, string[]>;
 };
 
 export type StaffChatsActionState = { error?: string; message?: SentStaffChatMessage } | undefined;
@@ -34,6 +36,7 @@ const sendSchema = z
     messageText: z.string().trim().max(2000).optional().or(z.literal('')),
     mediaUrl: z.string().max(1000).optional().or(z.literal('')),
     mediaType: z.enum(MEDIA_TYPES).optional(),
+    replyToId: z.string().uuid().optional().or(z.literal('')),
   })
   .refine((data) => Boolean(data.messageText) || Boolean(data.mediaUrl), {
     message: 'invalidMessage',
@@ -58,8 +61,14 @@ export async function sendStaffChatAction(
       message_text: parsed.data.messageText || null,
       media_url: parsed.data.mediaUrl || null,
       media_type: parsed.data.mediaUrl ? (parsed.data.mediaType ?? 'none') : 'none',
+      // reply_to_id points at a row the RLS select policy already scopes to
+      // this conversation (Family Chat or this DM), so a stray/foreign id
+      // here just fails the FK constraint rather than leaking anything.
+      reply_to_id: parsed.data.replyToId || null,
     })
-    .select('id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read')
+    .select(
+      'id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions',
+    )
     .single();
   if (error || !data) {
     // A silent failure here is exactly what used to make the optimistic
@@ -90,6 +99,32 @@ export async function deleteStaffChatAction(formData: FormData): Promise<void> {
   // RLS covers both self-delete and (Family Chat only) admin-delete —
   // no need to branch on role here.
   await supabase.from('staff_chats').delete().eq('id', parsed.data.id);
+}
+
+const reactionSchema = z.object({ id: z.string().uuid(), emoji: z.string().trim().min(1).max(8) });
+
+/** Toggles the caller's own reaction on a message via the security-definer
+ * toggle_staff_chat_reaction RPC — see that function's migration comment for
+ * why this isn't a plain `.update()` (a blanket UPDATE grant would let any
+ * participant overwrite someone else's reaction, not just add their own).
+ * The realtime UPDATE this triggers is what actually syncs the change to
+ * every other open client; there's no local optimistic step here, same as
+ * toggleStaffChatPinAction below. */
+export async function toggleStaffChatReactionAction(formData: FormData): Promise<{ error?: string }> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = reactionSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('toggle_staff_chat_reaction', {
+    message_id: parsed.data.id,
+    emoji: parsed.data.emoji,
+  });
+  if (error) return { error: 'reactionFailed' };
+
+  return {};
 }
 
 const pinSchema = z.object({ id: z.string().uuid(), pin: z.enum(['true', 'false']) });
