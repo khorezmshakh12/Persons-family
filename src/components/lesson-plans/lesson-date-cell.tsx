@@ -37,7 +37,7 @@ export function LessonDateCell({
       onChange={(e) => setValue(e.target.value)}
       onBlur={handleBlur}
       disabled={!canEdit || isPending}
-      className="h-8 w-36 border-white/20 bg-white/10 text-xs text-white disabled:opacity-70 [color-scheme:dark]"
+      className="h-8 w-36 rounded-full border-dashed border-white/25 bg-white/5 px-3 text-xs text-white transition-colors focus-visible:border-solid focus-visible:border-teal-300/70 focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70 [color-scheme:dark]"
     />
   );
 }

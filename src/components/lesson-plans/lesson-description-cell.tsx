@@ -45,7 +45,7 @@ export function LessonDescriptionCell({
       )}
     >
       {expanded ? (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {canEdit ? (
             <Textarea
               value={value}
@@ -55,7 +55,7 @@ export function LessonDescriptionCell({
               autoFocus
               maxLength={4000}
               placeholder={t('courseLessons.descriptionPlaceholder')}
-              className="w-full resize-none border-white/20 bg-white/10 text-xs text-white placeholder:text-white/40 disabled:opacity-70"
+              className="w-full resize-none rounded-lg border-dashed border-white/25 bg-white/5 text-xs text-white transition-colors placeholder:text-white/40 placeholder:italic focus-visible:border-solid focus-visible:border-teal-300/70 focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70"
             />
           ) : (
             <p className="text-xs whitespace-pre-wrap text-white/80">
@@ -65,24 +65,26 @@ export function LessonDescriptionCell({
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="self-start text-[11px] font-medium text-teal-300 hover:text-teal-200"
+            className="self-start rounded-full border border-teal-300/40 bg-teal-400/15 px-3 py-1 text-[11px] font-medium text-teal-200 transition-colors hover:bg-teal-400/25"
           >
             {t('courseLessons.showLess')}
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => setExpanded(true)} className="block w-full text-left">
+        <div>
           <span
             className={cn('line-clamp-2 text-xs text-white/80', !value && 'text-white/40 italic')}
           >
             {value || (canEdit ? t('courseLessons.descriptionPlaceholder') : t('courseLessons.noDescription'))}
           </span>
-          {value && (
-            <span className="mt-0.5 block text-[11px] font-medium text-teal-300 hover:text-teal-200">
-              {t('courseLessons.readMore')}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="mt-1.5 rounded-full border border-teal-300/40 bg-teal-400/15 px-3 py-1 text-[11px] font-medium text-teal-200 transition-colors hover:bg-teal-400/25"
+          >
+            {t('courseLessons.readMore')}
+          </button>
+        </div>
       )}
     </div>
   );

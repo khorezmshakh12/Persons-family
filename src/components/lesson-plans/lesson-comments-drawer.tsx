@@ -93,11 +93,11 @@ export function LessonCommentsDrawer({
             type="button"
             variant="outline"
             size="sm"
-            className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+            className="h-7 gap-1.5 rounded-full border-white/20 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/15 hover:text-white"
           />
         }
       >
-        <MessageCircle className="size-4" />
+        <MessageCircle className="size-3.5" />
         {comments.length}
       </SheetTrigger>
       <SheetContent className="flex flex-col gap-4 border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
