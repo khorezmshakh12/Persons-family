@@ -4,6 +4,7 @@ import { CourseLessonsTable, type CourseLessonRow } from './course-lessons-table
 import type { LessonAttachment } from '@/lib/lesson-materials';
 import type { LessonAttachmentWithUrl } from './lesson-files-cell';
 import type { LessonComment, LessonCommentRole } from './lesson-comments-drawer';
+import type { LessonProcedureStep } from '@/lib/actions/course-lessons';
 
 // Self-fetching so it streams independently of the staff chat snippet on the
 // group page, matching the pattern used for the rest of this group-detail view.
@@ -26,7 +27,9 @@ export async function CourseLessonsSection({
 
   const { data: lessonsData } = await supabase
     .from('course_lessons')
-    .select('id, lesson_number, lesson_date, topic, description, game_link, attachments')
+    .select(
+      'id, lesson_number, lesson_date, topic, game_link, aim, language_focus, anticipated_problems, materials, homework, procedure, attachments',
+    )
     .eq('group_id', groupId)
     .order('lesson_number', { ascending: true });
   const lessons = lessonsData ?? [];
@@ -90,8 +93,13 @@ export async function CourseLessonsSection({
       lesson_number: l.lesson_number,
       lesson_date: l.lesson_date,
       topic: l.topic,
-      description: l.description,
       game_link: l.game_link,
+      aim: l.aim,
+      language_focus: l.language_focus,
+      anticipated_problems: l.anticipated_problems,
+      materials: l.materials,
+      homework: l.homework,
+      procedure: (l.procedure as unknown as LessonProcedureStep[]) ?? [],
       attachments: attachmentsWithUrl,
       comments: commentsByLesson.get(l.id) ?? [],
     };

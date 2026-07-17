@@ -134,36 +134,54 @@ export type Database = {
       }
       course_lessons: {
         Row: {
+          aim: string | null
+          anticipated_problems: string | null
           attachments: Json
           created_at: string
           description: string | null
           game_link: string | null
           group_id: string
+          homework: string | null
           id: string
+          language_focus: string | null
           lesson_date: string | null
           lesson_number: number
+          materials: string | null
+          procedure: Json
           topic: string | null
         }
         Insert: {
+          aim?: string | null
+          anticipated_problems?: string | null
           attachments?: Json
           created_at?: string
           description?: string | null
           game_link?: string | null
           group_id: string
+          homework?: string | null
           id?: string
+          language_focus?: string | null
           lesson_date?: string | null
           lesson_number: number
+          materials?: string | null
+          procedure?: Json
           topic?: string | null
         }
         Update: {
+          aim?: string | null
+          anticipated_problems?: string | null
           attachments?: Json
           created_at?: string
           description?: string | null
           game_link?: string | null
           group_id?: string
+          homework?: string | null
           id?: string
+          language_focus?: string | null
           lesson_date?: string | null
           lesson_number?: number
+          materials?: string | null
+          procedure?: Json
           topic?: string | null
         }
         Relationships: [
@@ -572,6 +590,83 @@ export type Database = {
           },
         ]
       }
+      performance_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          entry_type: Database["public"]["Enums"]["performance_entry_type"]
+          id: string
+          reason: string | null
+          staff_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          entry_type: Database["public"]["Enums"]["performance_entry_type"]
+          id?: string
+          reason?: string | null
+          staff_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          entry_type?: Database["public"]["Enums"]["performance_entry_type"]
+          id?: string
+          reason?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_announcements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          message: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -801,115 +896,6 @@ export type Database = {
           },
         ]
       }
-      platform_announcements: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          expires_at: string | null
-          id: string
-          message: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string | null
-          id?: string
-          message: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string | null
-          id?: string
-          message?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "platform_announcements_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      system_logs: {
-        Row: {
-          action_type: string
-          created_at: string
-          description: string
-          id: string
-          user_id: string | null
-        }
-        Insert: {
-          action_type: string
-          created_at?: string
-          description: string
-          id?: string
-          user_id?: string | null
-        }
-        Update: {
-          action_type?: string
-          created_at?: string
-          description?: string
-          id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "system_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      performance_entries: {
-        Row: {
-          amount: number
-          created_at: string
-          created_by: string | null
-          entry_type: Database["public"]["Enums"]["performance_entry_type"]
-          id: string
-          reason: string | null
-          staff_id: string
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          created_by?: string | null
-          entry_type: Database["public"]["Enums"]["performance_entry_type"]
-          id?: string
-          reason?: string | null
-          staff_id: string
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          created_by?: string | null
-          entry_type?: Database["public"]["Enums"]["performance_entry_type"]
-          id?: string
-          reason?: string | null
-          staff_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "performance_entries_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "performance_entries_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       staff_performance: {
         Row: {
           bonus: number
@@ -958,6 +944,38 @@ export type Database = {
           {
             foreignKeyName: "staff_performance_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_logs_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1100,7 +1118,7 @@ export type Database = {
       mark_issues_seen: { Args: never; Returns: undefined }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
       toggle_staff_chat_reaction: {
-        Args: { message_id: string; emoji: string }
+        Args: { emoji: string; message_id: string }
         Returns: Json
       }
     }

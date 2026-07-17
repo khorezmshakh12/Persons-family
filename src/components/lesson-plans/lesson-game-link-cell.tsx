@@ -7,6 +7,8 @@ import { Gamepad2 } from 'lucide-react';
 import { updateLessonGameLinkAction } from '@/lib/actions/course-lessons';
 import { Input } from '@/components/ui/input';
 
+const URL_PATTERN = /^https?:\/\//i;
+
 export function LessonGameLinkCell({
   lessonId,
   gameLink,
@@ -32,7 +34,10 @@ export function LessonGameLinkCell({
   }
 
   if (!canEdit) {
-    return gameLink ? (
+    if (!gameLink) return <span className="text-xs text-white/40 italic">{t('courseLessons.noGameLink')}</span>;
+
+    const isOnline = URL_PATTERN.test(gameLink);
+    return isOnline ? (
       <a
         href={gameLink}
         target="_blank"
@@ -40,10 +45,13 @@ export function LessonGameLinkCell({
         className="flex w-40 items-center gap-1.5 text-xs whitespace-nowrap text-teal-300 hover:text-teal-200 hover:underline"
       >
         <Gamepad2 className="size-3.5 shrink-0" />
-        <span className="truncate">{t('courseLessons.openGame')}</span>
+        <span className="truncate">{t('courseLessons.gameOnlinePrefix') + gameLink}</span>
       </a>
     ) : (
-      <span className="text-xs text-white/40 italic">{t('courseLessons.noGameLink')}</span>
+      <span className="flex w-40 items-center gap-1.5 text-xs whitespace-nowrap text-amber-300">
+        <Gamepad2 className="size-3.5 shrink-0" />
+        <span className="truncate">{t('courseLessons.gameOfflinePrefix') + gameLink}</span>
+      </span>
     );
   }
 

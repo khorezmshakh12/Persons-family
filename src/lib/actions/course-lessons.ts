@@ -66,39 +66,14 @@ export async function updateLessonTopicAction(
   return {};
 }
 
-const updateLessonDescriptionSchema = z.object({
-  lessonId: z.string().uuid(),
-  description: z.string().trim().max(4000).optional().or(z.literal('')),
-});
-
-/** "Offline game" rules/notes for the lesson — free text, separate column
- * and action from topic for the same reason date/topic are split. */
-export async function updateLessonDescriptionAction(
-  _prevState: LessonActionState,
-  formData: FormData,
-): Promise<LessonActionState> {
-  const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
-
-  const parsed = updateLessonDescriptionSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('course_lessons')
-    .update({ description: parsed.data.description || null })
-    .eq('id', parsed.data.lessonId);
-  if (error) return { error: 'updateFailed' };
-
-  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
-  return {};
-}
-
 const updateLessonGameLinkSchema = z.object({
   lessonId: z.string().uuid(),
   gameLink: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+/** Single free-text "Game" field — either an online link or an offline
+ * activity name/note. Which one it is gets decided at render time (does the
+ * value look like a URL), not here, so this stays a plain text column. */
 export async function updateLessonGameLinkAction(
   _prevState: LessonActionState,
   formData: FormData,
@@ -108,12 +83,90 @@ export async function updateLessonGameLinkAction(
 
   const parsed = updateLessonGameLinkSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-  if (parsed.data.gameLink && !/^https?:\/\//i.test(parsed.data.gameLink)) return { error: 'invalidGameLink' };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from('course_lessons')
     .update({ game_link: parsed.data.gameLink || null })
+    .eq('id', parsed.data.lessonId);
+  if (error) return { error: 'updateFailed' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}
+
+const lessonPlanFieldSchema = z.object({
+  lessonId: z.string().uuid(),
+  field: z.enum(['aim', 'language_focus', 'anticipated_problems', 'materials', 'homework']),
+  value: z.string().trim().max(4000).optional().or(z.literal('')),
+});
+
+/** One action for all five lesson-plan text fields (aim, language focus,
+ * anticipated problems, materials, homework) — each is a same-shaped
+ * "single column, single value" update, so they share this instead of five
+ * near-identical actions. `field` is enum-validated, never interpolated
+ * from raw input. */
+export async function updateLessonPlanFieldAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = lessonPlanFieldSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const { field, value } = parsed.data;
+  const nextValue = value || null;
+  // A computed `{ [field]: ... }` key widens to `string`, which Supabase's
+  // generated Update type rejects — a switch keeps each branch's key a
+  // literal so it matches the real column type.
+  const updateData =
+    field === 'aim'
+      ? { aim: nextValue }
+      : field === 'language_focus'
+        ? { language_focus: nextValue }
+        : field === 'anticipated_problems'
+          ? { anticipated_problems: nextValue }
+          : field === 'materials'
+            ? { materials: nextValue }
+            : { homework: nextValue };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('course_lessons').update(updateData).eq('id', parsed.data.lessonId);
+  if (error) return { error: 'updateFailed' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}
+
+const procedureStepSchema = z.object({
+  time: z.string().trim().max(20),
+  stage: z.string().trim().max(200),
+  interaction: z.string().trim().max(50),
+});
+
+const updateLessonProcedureSchema = z.object({
+  lessonId: z.string().uuid(),
+  steps: z.array(procedureStepSchema).max(30),
+});
+
+export type LessonProcedureStep = z.infer<typeof procedureStepSchema>;
+
+export async function updateLessonProcedureAction(
+  lessonId: string,
+  steps: LessonProcedureStep[],
+): Promise<LessonActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = updateLessonProcedureSchema.safeParse({ lessonId, steps });
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('course_lessons')
+    .update({ procedure: parsed.data.steps })
     .eq('id', parsed.data.lessonId);
   if (error) return { error: 'updateFailed' };
 
