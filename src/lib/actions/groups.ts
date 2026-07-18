@@ -124,9 +124,9 @@ async function notifyGroupCreated({
   }
 
   const text = [
-    `*Yangi guruh yaratildi:* ${escapeTelegramText(name)}`,
-    `*O'qituvchi:* ${escapeTelegramText(`${teacherProfile.first_name} ${teacherProfile.last_name}`)}`,
-    assignedTaId ? "*Yordamchi (TA) tayinlandi.*" : "*Yordamchi (TA):* Tayinlanmagan",
+    `<b>Yangi guruh yaratildi:</b> ${escapeTelegramText(name)}`,
+    `<b>O'qituvchi:</b> ${escapeTelegramText(`${teacherProfile.first_name} ${teacherProfile.last_name}`)}`,
+    assignedTaId ? "<b>Yordamchi (TA) tayinlandi.</b>" : "<b>Yordamchi (TA):</b> Tayinlanmagan",
   ].join('\n');
 
   await sendTelegramMessageToMany([teacherProfile.telegram_id, taTelegramId], text);

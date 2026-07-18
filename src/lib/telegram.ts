@@ -13,25 +13,34 @@ export function isTelegramConfigured(): boolean {
   return telegramBot !== null;
 }
 
-/** Neutralizes the handful of characters that break Telegram's legacy
- * Markdown parse mode when they show up inside text we didn't author
- * ourselves (an underscore in someone's name, an asterisk in an issue
- * title). We control the *bold* markers ourselves in each template, so
+/** Neutralizes the characters that are structurally significant in
+ * Telegram's HTML parse mode when they show up inside text we didn't
+ * author ourselves (an ampersand or angle bracket in someone's name or an
+ * issue title). We control the <b> tags ourselves in each template, so
  * this only needs to escape stray occurrences from user-entered content. */
 export function escapeTelegramText(text: string): string {
-  return text.replace(/([_*[\]`])/g, '\\$1');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /** Best-effort — a Telegram delivery failure must never fail the action
  * that triggered it (creating an issue/group/etc. still has to succeed
- * even if a notification doesn't go out). */
-export async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
-  if (!telegramBot) {
+ * even if a notification doesn't go out). Uses the raw Bot API over fetch
+ * rather than the Telegraf client so it has no dependency on the webhook
+ * bot instance being configured. */
+export async function sendTelegramMessage(chatId: string | number, text: string): Promise<void> {
+  if (!token) {
     console.warn('Telegram bot not configured (TELEGRAM_BOT_TOKEN missing) — skipping notification.');
     return;
   }
   try {
-    await telegramBot.telegram.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    });
+    if (!res.ok) {
+      console.error('Failed to send Telegram message:', res.status, await res.text());
+    }
   } catch (err) {
     console.error('Failed to send Telegram message:', err);
   }

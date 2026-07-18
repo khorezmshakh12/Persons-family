@@ -112,9 +112,9 @@ async function notifyIssueCreated({
     .not('telegram_id', 'is', null);
 
   const text = [
-    `*Yangi murojaat:* ${escapeTelegramText(title)}`,
-    `*Kimdan:* ${escapeTelegramText(reporterName)}`,
-    `*Kimga:* ${assigneeName ? escapeTelegramText(assigneeName) : 'Belgilanmagan'}`,
+    `<b>Yangi murojaat:</b> ${escapeTelegramText(title)}`,
+    `<b>Kimdan:</b> ${escapeTelegramText(reporterName)}`,
+    `<b>Kimga:</b> ${assigneeName ? escapeTelegramText(assigneeName) : 'Belgilanmagan'}`,
   ].join('\n');
 
   const chatIds = [reporterTelegramId, ...(admins ?? []).map((a) => a.telegram_id)];

@@ -58,7 +58,7 @@ export async function sendBroadcastAction(
   const supabase = await createClient();
   const { data: staff } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
 
-  const text = `📢 *E'lon*\n\n${escapeTelegramText(parsed.data.message)}`;
+  const text = `📢 <b>E'lon</b>\n\n${escapeTelegramText(parsed.data.message)}`;
   await sendTelegramMessageToMany((staff ?? []).map((s) => s.telegram_id), text);
 
   return { success: true };
