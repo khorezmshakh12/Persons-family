@@ -29,6 +29,19 @@ export function NewsList({
   const t = useTranslations('companyNews');
   const format = useFormatter();
   const [news, setNews] = useState(initialNews);
+  // CreateNewsDialog lives outside this component and triggers its own
+  // revalidatePath — that re-renders the parent server component with a
+  // fresh `news` array, but a useState initializer only reads its argument
+  // on mount. Adjusting state during render (React's documented pattern for
+  // this, rather than a useEffect) re-syncs it so a newly published post
+  // shows up without a manual reload. IssuesBoard/TaskBoard predate this
+  // component and have the same gap; not touched here since a live-created
+  // item on those boards wasn't part of what broke.
+  const [prevInitialNews, setPrevInitialNews] = useState(initialNews);
+  if (initialNews !== prevInitialNews) {
+    setPrevInitialNews(initialNews);
+    setNews(initialNews);
+  }
 
   // Same optimistic pattern as IssuesBoard/TaskBoard: remove immediately,
   // put it back and surface a toast only if the delete actually fails.
