@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/require-admin';
+import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 
@@ -56,6 +57,39 @@ export async function createNewsAction(
   if (error) return { error: 'createFailed' };
 
   void notifyCompanyNews({ title: parsed.data.title, supabase });
+
+  revalidatePath('/[locale]/company-news', 'page');
+  revalidatePath('/[locale]/dashboard', 'page');
+  return {};
+}
+
+const deleteNewsSchema = z.object({ id: z.string().uuid() });
+
+export type DeleteNewsResult = { error?: string };
+
+/** Open to the post's own author or an admin — company_news_delete mirrors
+ * this at the RLS layer (see issues_delete/deleteIssueAction for the same
+ * pattern), so this lookup is defense in depth, not the only thing
+ * standing between an unrelated staff member and someone else's post. */
+export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsResult> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'forbidden' };
+  const isAdmin = profile.role === 'ceo' || profile.role === 'admin_manager';
+
+  const parsed = deleteNewsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { data: news } = await supabase
+    .from('company_news')
+    .select('created_by')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
+  if (!news) return { error: 'notFound' };
+  if (!isAdmin && news.created_by !== user.id) return { error: 'forbidden' };
+
+  const { error } = await supabase.from('company_news').delete().eq('id', parsed.data.id);
+  if (error) return { error: 'deleteFailed' };
 
   revalidatePath('/[locale]/company-news', 'page');
   revalidatePath('/[locale]/dashboard', 'page');

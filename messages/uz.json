@@ -454,10 +454,16 @@
     "publish": "E'lon qilish",
     "noNews": "Hozircha e'lonlar yo'q.",
     "postedBy": "Joylagan: {name}",
+    "delete": "Yangilikni o'chirish",
+    "confirmDeleteTitle": "Bu yangilik o'chirilsinmi?",
+    "confirmDeleteDescription": "Yangilik butunlay o'chirib tashlanadi.",
+    "confirm": "Tasdiqlash",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Iltimos, sarlavha va matnni kiriting.",
-      "createFailed": "E'lonni joylab bo'lmadi. Qayta urinib ko'ring."
+      "createFailed": "E'lonni joylab bo'lmadi. Qayta urinib ko'ring.",
+      "notFound": "Bu yangilik endi mavjud emas.",
+      "deleteFailed": "Yangilikni o'chirib bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "settings": {

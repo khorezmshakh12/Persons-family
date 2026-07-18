@@ -454,10 +454,16 @@
     "publish": "Publish",
     "noNews": "No announcements yet.",
     "postedBy": "Posted by {name}",
+    "delete": "Delete news",
+    "confirmDeleteTitle": "Delete this news post?",
+    "confirmDeleteDescription": "The post will be permanently deleted.",
+    "confirm": "Confirm",
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please fill in a title and content.",
-      "createFailed": "Could not publish the announcement. Please try again."
+      "createFailed": "Could not publish the announcement. Please try again.",
+      "notFound": "This news post no longer exists.",
+      "deleteFailed": "Could not delete the news post. Please try again."
     }
   },
   "settings": {
