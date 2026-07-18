@@ -21,10 +21,11 @@ async function notifyCompanyNews({
 }) {
   try {
     const { data: staff } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
+    console.log('Users retrieved from DB for notifications:', staff);
     const text = `Kompaniya yangiligi: <b>${escapeTelegramText(title)}</b>`;
     await sendTelegramMessageToMany((staff ?? []).map((s) => s.telegram_id), text);
-  } catch (err) {
-    console.error('Failed to send company news Telegram broadcast:', err);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
 }
 

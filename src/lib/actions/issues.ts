@@ -105,20 +105,25 @@ async function notifyIssueCreated({
   assigneeName: string | null;
   supabase: Awaited<ReturnType<typeof createClient>>;
 }) {
-  const { data: admins } = await supabase
-    .from('profiles')
-    .select('telegram_id')
-    .in('role', ['ceo', 'admin_manager'])
-    .not('telegram_id', 'is', null);
+  try {
+    const { data: admins } = await supabase
+      .from('profiles')
+      .select('telegram_id')
+      .in('role', ['ceo', 'admin_manager'])
+      .not('telegram_id', 'is', null);
+    console.log('Users retrieved from DB for notifications:', admins);
 
-  const text = [
-    `<b>Yangi murojaat:</b> ${escapeTelegramText(title)}`,
-    `<b>Kimdan:</b> ${escapeTelegramText(reporterName)}`,
-    `<b>Kimga:</b> ${assigneeName ? escapeTelegramText(assigneeName) : 'Belgilanmagan'}`,
-  ].join('\n');
+    const text = [
+      `<b>Yangi murojaat:</b> ${escapeTelegramText(title)}`,
+      `<b>Kimdan:</b> ${escapeTelegramText(reporterName)}`,
+      `<b>Kimga:</b> ${assigneeName ? escapeTelegramText(assigneeName) : 'Belgilanmagan'}`,
+    ].join('\n');
 
-  const chatIds = [reporterTelegramId, ...(admins ?? []).map((a) => a.telegram_id)];
-  await sendTelegramMessageToMany(chatIds, text);
+    const chatIds = [reporterTelegramId, ...(admins ?? []).map((a) => a.telegram_id)];
+    await sendTelegramMessageToMany(chatIds, text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
 }
 
 const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });

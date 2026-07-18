@@ -57,9 +57,14 @@ export async function sendBroadcastAction(
 
   const supabase = await createClient();
   const { data: staff } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
+  console.log('Users retrieved from DB for notifications:', staff);
 
-  const text = `📢 <b>E'lon</b>\n\n${escapeTelegramText(parsed.data.message)}`;
-  await sendTelegramMessageToMany((staff ?? []).map((s) => s.telegram_id), text);
+  try {
+    const text = `📢 <b>E'lon</b>\n\n${escapeTelegramText(parsed.data.message)}`;
+    await sendTelegramMessageToMany((staff ?? []).map((s) => s.telegram_id), text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
 
   return { success: true };
 }

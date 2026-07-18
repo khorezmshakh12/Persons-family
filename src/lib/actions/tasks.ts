@@ -33,8 +33,8 @@ async function notifyTaskAssigned({
   try {
     const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}`;
     await sendTelegramMessage(assigneeTelegramId, text);
-  } catch (err) {
-    console.error('Failed to send task assignment Telegram notification:', err);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
 }
 
@@ -72,6 +72,7 @@ export async function assignTaskAction(
     .select('role, telegram_id')
     .eq('id', parsed.data.assignedTo)
     .maybeSingle();
+  console.log('Users retrieved from DB for notifications:', target);
   if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
     return { error: 'invalidAssignee' };
   }
@@ -126,6 +127,7 @@ export async function updateTaskAction(
     .select('role, telegram_id')
     .eq('id', parsed.data.assignedTo)
     .maybeSingle();
+  console.log('Users retrieved from DB for notifications:', target);
   if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
     return { error: 'invalidAssignee' };
   }

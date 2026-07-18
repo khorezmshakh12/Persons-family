@@ -22,36 +22,47 @@ export function escapeTelegramText(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Best-effort — a Telegram delivery failure must never fail the action
- * that triggered it (creating an issue/group/etc. still has to succeed
- * even if a notification doesn't go out). Uses the raw Bot API over fetch
- * rather than the Telegraf client so it has no dependency on the webhook
- * bot instance being configured. */
+/** Throws on failure with Telegram's own error description instead of
+ * swallowing it — every caller is responsible for its own try/catch (see
+ * sendTelegramMessageToMany below and each notify* helper), which is what
+ * keeps "a Telegram delivery failure must never fail the action that
+ * triggered it" true without this function hiding *why* a send failed.
+ * Uses the raw Bot API over fetch rather than the Telegraf client so it
+ * has no dependency on the webhook bot instance being configured. */
 export async function sendTelegramMessage(chatId: string | number, text: string): Promise<void> {
   if (!token) {
     console.warn('Telegram bot not configured (TELEGRAM_BOT_TOKEN missing) — skipping notification.');
     return;
   }
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-    });
-    if (!res.ok) {
-      console.error('Failed to send Telegram message:', res.status, await res.text());
-    }
-  } catch (err) {
-    console.error('Failed to send Telegram message:', err);
+  console.log('Attempting to send to Chat ID:', chatId);
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+  });
+  const data = await res.json();
+  console.log('Telegram API Response:', data);
+  if (!res.ok) {
+    throw new Error(data.description || 'Unknown Telegram Error');
   }
 }
 
 /** Sends the same message to multiple chat ids, deduplicated, silently
- * skipping nulls (staff who haven't connected Telegram yet). */
+ * skipping nulls (staff who haven't connected Telegram yet). Each send is
+ * caught individually so one bad chat id (blocked bot, deleted account)
+ * can't fail Promise.all and take the rest of the batch down with it. */
 export async function sendTelegramMessageToMany(
   chatIds: (number | null | undefined)[],
   text: string,
 ): Promise<void> {
   const unique = Array.from(new Set(chatIds.filter((id): id is number => typeof id === 'number')));
-  await Promise.all(unique.map((id) => sendTelegramMessage(id, text)));
+  await Promise.all(
+    unique.map(async (id) => {
+      try {
+        await sendTelegramMessage(id, text);
+      } catch (error) {
+        console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+      }
+    }),
+  );
 }
