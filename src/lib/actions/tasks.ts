@@ -7,8 +7,36 @@ import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
 import type { StaffRole } from '@/lib/nav';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 export type TaskActionState = { error?: string } | undefined;
+
+const TASK_STATUS_LABELS: Record<string, string> = {
+  pending: 'Kutilmoqda',
+  in_progress: 'Jarayonda',
+  done: 'Bajarildi',
+};
+
+/** Fire-and-forget notification to the assignee — never let a Telegram
+ * hiccup affect the response to the admin who just assigned/edited the
+ * task (mirrors notifyIssueCreated in actions/issues.ts). */
+async function notifyTaskAssigned({
+  title,
+  status,
+  assigneeTelegramId,
+}: {
+  title: string;
+  status: string;
+  assigneeTelegramId: number | null;
+}) {
+  if (!assigneeTelegramId) return;
+  try {
+    const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}`;
+    await sendTelegramMessage(assigneeTelegramId, text);
+  } catch (err) {
+    console.error('Failed to send task assignment Telegram notification:', err);
+  }
+}
 
 const taskSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -41,7 +69,7 @@ export async function assignTaskAction(
   // security boundary (mirrors createIssueAction's re-validation).
   const { data: target } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, telegram_id')
     .eq('id', parsed.data.assignedTo)
     .maybeSingle();
   if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
@@ -56,6 +84,8 @@ export async function assignTaskAction(
     due_date: parsed.data.dueDate || null,
   });
   if (error) return { error: 'createFailed' };
+
+  void notifyTaskAssigned({ title: parsed.data.title, status: 'pending', assigneeTelegramId: target.telegram_id });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -84,12 +114,16 @@ export async function updateTaskAction(
 
   // Strict visibility mirrors tasks_select: only the admin who originally
   // assigned this task may rewrite it, not every admin in the company.
-  const { data: existing } = await supabase.from('tasks').select('assigned_by').eq('id', parsed.data.id).maybeSingle();
+  const { data: existing } = await supabase
+    .from('tasks')
+    .select('assigned_by, status')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
   const { data: target } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, telegram_id')
     .eq('id', parsed.data.assignedTo)
     .maybeSingle();
   if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
@@ -106,6 +140,8 @@ export async function updateTaskAction(
     })
     .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
+
+  void notifyTaskAssigned({ title: parsed.data.title, status: existing.status, assigneeTelegramId: target.telegram_id });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
