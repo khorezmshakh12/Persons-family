@@ -1,5 +1,6 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
+import { companyNewsCutoff } from '@/lib/company-news';
 import { CompanyNewsInlineForm } from '@/components/dashboard/company-news-inline-form';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,7 @@ export async function CompanyNewsCard({ isAdmin = false }: { isAdmin?: boolean }
   const { data: news } = await supabase
     .from('company_news')
     .select('id, title, content, created_at')
+    .gte('created_at', companyNewsCutoff())
     .order('created_at', { ascending: false })
     .limit(3);
 

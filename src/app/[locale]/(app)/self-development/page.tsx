@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { SubmitForm } from '@/components/self-development/submit-form';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
-import { SelfDevelopmentChart } from '@/components/self-development/self-development-chart';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { TeacherPicker } from '@/components/self-development/teacher-picker';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
@@ -203,7 +202,7 @@ export default async function SelfDevelopmentPage({
         <p className="text-white/70">{t('subtitle')}</p>
       </div>
 
-      <SelfDevelopmentChart
+      <SelfDevelopmentLineChart
         points={[...(submissions ?? [])].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
       />
 

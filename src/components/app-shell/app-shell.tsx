@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { BackgroundProvider } from '@/components/theme/background-context';
 import { DynamicBackground } from '@/components/theme/dynamic-background';
@@ -80,7 +79,6 @@ export async function AppShell({
                   initialUnseenIssues={initialUnseenIssues}
                 />
                 <UserBadge className="hidden sm:flex" userId={userId} />
-                <ThemeToggle className={GLASS_CONTROL} />
                 <LanguageSwitcher className={GLASS_CONTROL} />
                 <LogoutButton className={GLASS_CONTROL} />
               </div>
