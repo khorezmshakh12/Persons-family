@@ -43,16 +43,17 @@ export function SelfDevelopmentLineChart({
     ) : (
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-            <XAxis dataKey="label" stroke="rgba(255,255,255,0.5)" fontSize={11} tickLine={false} axisLine={false} />
+            <XAxis dataKey="label" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis
               domain={[0, 100]}
-              stroke="rgba(255,255,255,0.5)"
+              ticks={[0, 20, 40, 60, 80, 100]}
+              stroke="rgba(255,255,255,0.75)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              width={32}
+              width={40}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line type="monotone" dataKey="score" stroke="#2dd4bf" strokeWidth={2.5} dot={{ fill: '#2dd4bf', r: 3 }} />
