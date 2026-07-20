@@ -50,12 +50,20 @@ export async function createNewsAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('company_news').insert({
-    title: parsed.data.title,
-    content: parsed.data.content,
-    created_by: actingUserId,
-  });
-  if (error) return { error: 'createFailed' };
+  const { data: inserted, error } = await supabase
+    .from('company_news')
+    .insert({
+      title: parsed.data.title,
+      content: parsed.data.content,
+      created_by: actingUserId,
+    })
+    .select('id')
+    .single();
+  if (error || !inserted) return { error: 'createFailed' };
+
+  // The author already knows about their own post — no reason for it to
+  // show up as "unread" for them on the sidebar dot.
+  void supabase.from('company_news_reads').insert({ news_id: inserted.id, user_id: actingUserId });
 
   void notifyCompanyNews({ title: parsed.data.title, supabase });
 

@@ -132,6 +132,39 @@ export type Database = {
           },
         ]
       }
+      company_news_reads: {
+        Row: {
+          news_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          news_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          news_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_news_reads_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "company_news"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_news_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_lessons: {
         Row: {
           aim: string | null
@@ -990,6 +1023,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_seen: boolean
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
@@ -1001,6 +1035,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_seen?: boolean
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
@@ -1012,6 +1047,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_seen?: boolean
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
@@ -1110,6 +1146,7 @@ export type Database = {
         Args: { p_action_type: string; p_description: string }
         Returns: undefined
       }
+      mark_company_news_seen: { Args: never; Returns: undefined }
       mark_conversation_read: {
         Args: { other_user_id: string }
         Returns: undefined
@@ -1117,10 +1154,12 @@ export type Database = {
       mark_issue_seen: { Args: { issue_id: string }; Returns: undefined }
       mark_issues_seen: { Args: never; Returns: undefined }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
+      mark_tasks_seen: { Args: never; Returns: undefined }
       toggle_staff_chat_reaction: {
         Args: { emoji: string; message_id: string }
         Returns: Json
       }
+      unseen_company_news_count: { Args: never; Returns: number }
     }
     Enums: {
       chat_media_type: "image" | "video" | "voice" | "none"

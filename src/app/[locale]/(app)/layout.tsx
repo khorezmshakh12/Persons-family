@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell/app-shell';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
-import { recentNavItemsCutoff } from '@/lib/nav-badges';
 import type { NavItem } from '@/lib/nav';
 
 export const dynamic = 'force-dynamic';
@@ -20,14 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (profile!.must_change_password) redirect({ href: '/set-password', locale });
 
   const supabase = await createClient();
-  const recentCutoff = recentNavItemsCutoff();
   const [
     { data: activeProfiles },
     { data: unreadChatRows },
     { data: unseenIssueRows },
-    { count: newTasksCount },
-    { count: newIssuesCount },
-    { count: newCompanyNewsCount },
+    { count: unseenTasksCount },
+    { data: unseenCompanyNewsCount },
   ] = await Promise.all([
     supabase.from('profiles').select('id, first_name, last_name, date_of_birth').eq('is_active', true),
     supabase
@@ -44,14 +41,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('is_seen', false)
       .order('created_at', { ascending: false })
       .limit(50),
-    supabase.from('tasks').select('id', { count: 'exact', head: true }).gte('created_at', recentCutoff),
-    supabase.from('issues').select('id', { count: 'exact', head: true }).gte('created_at', recentCutoff),
-    supabase.from('company_news').select('id', { count: 'exact', head: true }).gte('created_at', recentCutoff),
+    supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assigned_to', user!.id).eq('is_seen', false),
+    supabase.rpc('unseen_company_news_count'),
   ]);
+  // Real per-user "unseen" state — not a time-based heuristic — so each dot
+  // clears the moment its page is visited (see MarkTasksSeen/MarkIssuesSeen/
+  // MarkCompanyNewsSeen) instead of just aging out after a day.
   const newNavKeys: NavItem['key'][] = [
-    ...(newTasksCount ? (['tasks'] as const) : []),
-    ...(newIssuesCount ? (['issues'] as const) : []),
-    ...(newCompanyNewsCount ? (['companyNews'] as const) : []),
+    ...(unseenTasksCount ? (['tasks'] as const) : []),
+    ...((unseenIssueRows?.length ?? 0) > 0 ? (['issues'] as const) : []),
+    ...((unseenCompanyNewsCount ?? 0) > 0 ? (['companyNews'] as const) : []),
   ];
   const upcomingBirthdays = getUpcomingBirthdays(activeProfiles ?? []);
   const birthdayNames = upcomingBirthdays.map((p) => `${p.first_name} ${p.last_name}`);
