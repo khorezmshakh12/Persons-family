@@ -16,6 +16,7 @@ import { AnnouncementBanner } from '@/components/announcements/announcement-bann
 import { TashkentClock } from './tashkent-clock';
 import { createClient } from '@/lib/supabase/server';
 import type { Profile } from '@/lib/auth/session';
+import type { NavItem } from '@/lib/nav';
 
 const GLASS_CONTROL = 'border-white/30 bg-white/10 text-white hover:bg-white/20';
 
@@ -25,6 +26,7 @@ export async function AppShell({
   profileNames,
   initialUnreadChats,
   initialUnseenIssues,
+  newNavKeys,
   children,
 }: {
   profile: Profile;
@@ -32,6 +34,7 @@ export async function AppShell({
   profileNames: Record<string, string>;
   initialUnreadChats: UnreadChatItem[];
   initialUnseenIssues: UnseenIssueItem[];
+  newNavKeys: NavItem['key'][];
   children: ReactNode;
 }) {
   const t = await getTranslations('app');
@@ -57,7 +60,7 @@ export async function AppShell({
         <div className="relative flex min-h-screen">
           <aside className="hidden w-60 shrink-0 transform-gpu flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg will-change-transform md:flex">
             <span className="mb-6 text-sm font-semibold tracking-tight text-white">{t('name')}</span>
-            <SidebarNav role={profile.role} glass />
+            <SidebarNav role={profile.role} newKeys={newNavKeys} glass />
             <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
             <span className="pt-3 text-center text-xs tracking-wider text-white/50">Persons ERP v1.6.5</span>
           </aside>
@@ -67,7 +70,7 @@ export async function AppShell({
                 a transformed ancestor can break position: sticky in some browsers. */}
             <header className="sticky top-0 z-40 flex h-14 transform-gpu items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg will-change-transform">
               <div className="flex items-center gap-2 md:hidden">
-                <MobileNav role={profile.role} />
+                <MobileNav role={profile.role} newKeys={newNavKeys} />
                 <span className="text-sm font-semibold tracking-tight text-white">{t('name')}</span>
               </div>
 

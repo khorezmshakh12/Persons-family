@@ -34,10 +34,14 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
 
 export function SidebarNav({
   role,
+  newKeys = [],
   onNavigate,
   glass = false,
 }: {
   role: StaffRole;
+  /** Nav item keys with items created in the last 24h — draws a small
+   * green "new" dot next to the link. */
+  newKeys?: NavItem['key'][];
   onNavigate?: () => void;
   /** True inside the glassmorphism desktop sidebar (over a dynamic photo
    * background); false inside the mobile Sheet, which keeps a normal
@@ -78,6 +82,9 @@ export function SidebarNav({
           >
             <Icon className="size-4" />
             {t(item.key)}
+            {newKeys.includes(item.key) && (
+              <span className="ml-auto size-2 shrink-0 rounded-full bg-green-500 animate-pulse" aria-hidden />
+            )}
           </Link>
         );
       })}

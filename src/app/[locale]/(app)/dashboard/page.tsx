@@ -7,7 +7,7 @@ import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
 import { EmployeeGrowthChartCard } from '@/components/dashboard/employee-growth-chart-card';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
-import { SelfDevelopmentChart } from '@/components/self-development/self-development-chart';
+import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons/glass-skeletons';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
@@ -20,7 +20,7 @@ async function TeacherSelfDevelopmentCard({ userId }: { userId: string }) {
     .select('month, ceo_score')
     .eq('user_id', userId)
     .order('month', { ascending: true });
-  return <SelfDevelopmentChart points={(data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))} />;
+  return <SelfDevelopmentLineChart points={(data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))} />;
 }
 
 async function EmployeeGrowthChartSection() {

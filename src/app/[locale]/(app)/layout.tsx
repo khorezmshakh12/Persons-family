@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell/app-shell';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
+import { recentNavItemsCutoff } from '@/lib/nav-badges';
+import type { NavItem } from '@/lib/nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +20,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (profile!.must_change_password) redirect({ href: '/set-password', locale });
 
   const supabase = await createClient();
-  const [{ data: activeProfiles }, { data: unreadChatRows }, { data: unseenIssueRows }] = await Promise.all([
+  const recentCutoff = recentNavItemsCutoff();
+  const [
+    { data: activeProfiles },
+    { data: unreadChatRows },
+    { data: unseenIssueRows },
+    { count: newTasksCount },
+    { count: newIssuesCount },
+    { count: newCompanyNewsCount },
+  ] = await Promise.all([
     supabase.from('profiles').select('id, first_name, last_name, date_of_birth').eq('is_active', true),
     supabase
       .from('staff_chats')
@@ -34,7 +44,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('is_seen', false)
       .order('created_at', { ascending: false })
       .limit(50),
+    supabase.from('tasks').select('id', { count: 'exact', head: true }).gte('created_at', recentCutoff),
+    supabase.from('issues').select('id', { count: 'exact', head: true }).gte('created_at', recentCutoff),
+    supabase.from('company_news').select('id', { count: 'exact', head: true }).gte('created_at', recentCutoff),
   ]);
+  const newNavKeys: NavItem['key'][] = [
+    ...(newTasksCount ? (['tasks'] as const) : []),
+    ...(newIssuesCount ? (['issues'] as const) : []),
+    ...(newCompanyNewsCount ? (['companyNews'] as const) : []),
+  ];
   const upcomingBirthdays = getUpcomingBirthdays(activeProfiles ?? []);
   const birthdayNames = upcomingBirthdays.map((p) => `${p.first_name} ${p.last_name}`);
   const profileNames = Object.fromEntries(
@@ -59,6 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       profileNames={profileNames}
       initialUnreadChats={initialUnreadChats}
       initialUnseenIssues={initialUnseenIssues}
+      newNavKeys={newNavKeys}
     >
       <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />
       {children}

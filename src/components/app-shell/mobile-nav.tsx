@@ -5,9 +5,9 @@ import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { SidebarNav } from './sidebar-nav';
-import type { StaffRole } from '@/lib/nav';
+import type { NavItem, StaffRole } from '@/lib/nav';
 
-export function MobileNav({ role }: { role: StaffRole }) {
+export function MobileNav({ role, newKeys }: { role: StaffRole; newKeys: NavItem['key'][] }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -26,7 +26,7 @@ export function MobileNav({ role }: { role: StaffRole }) {
       </SheetTrigger>
       <SheetContent side="left">
         <div className="mt-8 px-4">
-          <SidebarNav role={role} onNavigate={() => setOpen(false)} />
+          <SidebarNav role={role} newKeys={newKeys} onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>
     </Sheet>
