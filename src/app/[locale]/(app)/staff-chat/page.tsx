@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function StaffChatPage() {
   const t = await getTranslations('staffChat');
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   const supabase = await createClient();
 
   const { data: messages } = await supabase
@@ -40,6 +40,7 @@ export default async function StaffChatPage() {
           initialMessages={messages ?? []}
           staffMap={staffMap}
           currentUserId={user!.id}
+          canPost={profile!.role === 'teacher' || profile!.role === 'assistant'}
         />
       </div>
     </div>

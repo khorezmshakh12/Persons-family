@@ -27,7 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'lessonPlans', href: '/lesson-plans' },
   { key: 'tasks', href: '/tasks' },
   { key: 'companyNews', href: '/company-news' },
-  { key: 'staffChat', href: '/staff-chat', roles: ['teacher', 'assistant'] },
+  { key: 'staffChat', href: '/staff-chat', roles: ['teacher', 'assistant', 'admin_manager'] },
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo', 'admin_manager'] },
   { key: 'settings', href: '/settings' },
