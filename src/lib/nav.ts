@@ -21,7 +21,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
-  { key: 'staff', href: '/staff', roles: ['ceo', 'admin_manager'] },
+  { key: 'staff', href: '/staff', roles: ['ceo', 'admin_manager', 'it_developer'] },
   { key: 'chat', href: '/chat' },
   { key: 'issues', href: '/issues' },
   { key: 'lessonPlans', href: '/lesson-plans' },

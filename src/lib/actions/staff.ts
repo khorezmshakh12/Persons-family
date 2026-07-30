@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/require-admin';
+import { getAuthState, type Profile } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
@@ -94,24 +95,14 @@ export async function requestAvatarUploadUrlAction(
   return { path, token: data.token };
 }
 
-export async function createStaffAction(
-  _prevState: StaffActionState,
-  formData: FormData,
+/** Shared account-creation core for both createStaffAction (ceo/admin_manager,
+ * any role) and createAdminManagerAction (it_developer, admin_manager only)
+ * — authorization happens entirely in the two callers before this runs. */
+async function createStaffRow(
+  actingProfile: Pick<Profile, 'id'>,
+  data: z.infer<typeof staffSchema>,
 ): Promise<StaffActionState> {
-  let actingProfile;
-  try {
-    ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
-  }
-
-  const parsed = staffSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
-  if (isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
-    return { error: assignRoleError(parsed.data.role) };
-  }
-
-  const phone = normalizePhone(parsed.data.phone);
+  const phone = normalizePhone(data.phone);
   if (!phone) return { error: 'invalidPhone' };
 
   const admin = createAdminClient();
@@ -130,10 +121,10 @@ export async function createStaffAction(
   const { error: profileError } = await supabase.from('profiles').insert({
     id: created.user.id,
     phone,
-    first_name: parsed.data.firstName,
-    last_name: parsed.data.lastName,
-    date_of_birth: parsed.data.dateOfBirth,
-    role: parsed.data.role,
+    first_name: data.firstName,
+    last_name: data.lastName,
+    date_of_birth: data.dateOfBirth,
+    role: data.role,
     created_by: actingProfile.id,
   });
   if (profileError) {
@@ -141,10 +132,51 @@ export async function createStaffAction(
     return { error: 'createFailed' };
   }
 
-  logSystemAction(supabase, 'staff.create', `Created staff member ${parsed.data.firstName} ${parsed.data.lastName} (${parsed.data.role})`);
+  logSystemAction(supabase, 'staff.create', `Created staff member ${data.firstName} ${data.lastName} (${data.role})`);
 
   revalidatePath('/[locale]/staff', 'page');
   return { tempPassword, userId: created.user.id };
+}
+
+export async function createStaffAction(
+  _prevState: StaffActionState,
+  formData: FormData,
+): Promise<StaffActionState> {
+  let actingProfile;
+  try {
+    ({ profile: actingProfile } = await requireAdmin());
+  } catch {
+    return { error: 'forbidden' };
+  }
+
+  const parsed = staffSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+  if (isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
+    return { error: assignRoleError(parsed.data.role) };
+  }
+
+  return createStaffRow(actingProfile, parsed.data);
+}
+
+const addAdminManagerSchema = staffSchema.omit({ role: true });
+
+/** Everything else about the IT Developer role is unchanged — this is the
+ * one narrow carve-out: it may create a new Administrative Manager account
+ * (and only that role), without gaining any of requireAdmin()'s broader
+ * staff-management powers (editing/deactivating/resetting other staff). */
+export async function createAdminManagerAction(
+  _prevState: StaffActionState,
+  formData: FormData,
+): Promise<StaffActionState> {
+  const { user, profile: actingProfile } = await getAuthState();
+  if (!user || !actingProfile || actingProfile.role !== 'it_developer') {
+    return { error: 'forbidden' };
+  }
+
+  const parsed = addAdminManagerSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  return createStaffRow(actingProfile, { ...parsed.data, role: 'admin_manager' });
 }
 
 /** Attaches an avatar already uploaded (via requestAvatarUploadUrlAction) to a staff profile. */

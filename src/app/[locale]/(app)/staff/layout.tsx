@@ -6,7 +6,10 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const { profile } = await getAuthState();
   const locale = await getLocale();
 
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) {
+  if (
+    !profile ||
+    (profile.role !== 'ceo' && profile.role !== 'admin_manager' && profile.role !== 'it_developer')
+  ) {
     redirect({ href: '/dashboard', locale });
   }
 

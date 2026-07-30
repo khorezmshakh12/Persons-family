@@ -118,6 +118,7 @@
   "staff": {
     "title": "Xodimlar",
     "addStaff": "Xodim qo'shish",
+    "addAdminManager": "Ma'muriy menejer qo'shish",
     "editStaff": "Xodimni tahrirlash",
     "firstName": "Ism",
     "lastName": "Familiya",

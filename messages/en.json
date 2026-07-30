@@ -118,6 +118,7 @@
   "staff": {
     "title": "Staff",
     "addStaff": "Add staff",
+    "addAdminManager": "Add Administrative Manager",
     "editStaff": "Edit staff",
     "firstName": "First name",
     "lastName": "Last name",
