@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireCeo } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
@@ -52,7 +52,7 @@ export async function assignTaskAction(
   let actingUserId: string;
   let actingRole: StaffRole;
   try {
-    const { user, profile } = await requireAdmin();
+    const { user, profile } = await requireCeo();
     actingUserId = user.id;
     actingRole = profile.role;
   } catch {
@@ -101,7 +101,7 @@ export async function updateTaskAction(
   let actingUserId: string;
   let actingRole: StaffRole;
   try {
-    const { user, profile } = await requireAdmin();
+    const { user, profile } = await requireCeo();
     actingUserId = user.id;
     actingRole = profile.role;
   } catch {
@@ -183,7 +183,7 @@ export type DeleteTaskResult = { error?: string };
 export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskResult> {
   let actingUserId: string;
   try {
-    const { user } = await requireAdmin();
+    const { user } = await requireCeo();
     actingUserId = user.id;
   } catch {
     return { error: 'forbidden' };

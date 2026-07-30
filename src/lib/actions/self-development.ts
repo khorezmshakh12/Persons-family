@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireCeo } from '@/lib/auth/require-admin';
 import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import type { Database } from '@/lib/supabase/types';
@@ -68,7 +68,7 @@ export async function saveEvaluationAction(
   formData: FormData,
 ): Promise<SelfDevActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch {
     return { error: 'forbidden' };
   }
@@ -107,7 +107,7 @@ export async function saveEvaluationAction(
 /** Read-only lookup backing the dashboard's teacher-picker chart widget —
  * called on selection change from a client component, not a form submit. */
 export async function getTeacherSelfDevelopmentAction(teacherId: string): Promise<ScorePoint[]> {
-  await requireAdmin();
+  await requireCeo();
 
   const supabase = await createClient();
   const { data } = await supabase

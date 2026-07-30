@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireCeo } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -25,7 +25,7 @@ export async function updateStaffTierAction(
   formData: FormData,
 ): Promise<PerformanceActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch {
     return { error: 'forbidden' };
   }
@@ -72,7 +72,7 @@ export async function addPerformanceEntryAction(
   try {
     ({
       user: { id: adminId },
-    } = await requireAdmin());
+    } = await requireCeo());
   } catch {
     return { error: 'forbidden' };
   }
@@ -107,7 +107,7 @@ export async function deletePerformanceEntryAction(
   formData: FormData,
 ): Promise<PerformanceActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch {
     return { error: 'forbidden' };
   }

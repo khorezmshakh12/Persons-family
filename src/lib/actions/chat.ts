@@ -14,7 +14,7 @@ const toggleChatEnabledSchema = z.object({ enabled: z.enum(['true', 'false']) })
 
 export async function toggleChatEnabledAction(formData: FormData): Promise<void> {
   const { user, profile } = await getAuthState();
-  if (!user || !profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) return;
+  if (!user || !profile || profile.role !== 'ceo') return;
 
   const parsed = toggleChatEnabledSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;

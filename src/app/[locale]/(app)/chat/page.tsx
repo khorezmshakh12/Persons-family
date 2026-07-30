@@ -34,7 +34,7 @@ export default async function ChatPage() {
 
   const { data: settings } = await supabase.from('app_settings').select('chat_enabled').eq('id', true).single();
 
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
+  const isAdmin = profile!.role === 'ceo';
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-5.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">

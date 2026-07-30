@@ -22,6 +22,9 @@ export type Issue = {
   voiceSignedUrl: string | null;
   reporter: { first_name: string; last_name: string } | null;
   assignee: { first_name: string; last_name: string } | null;
+  /** True for the CEO always, and for an Administrative Manager only when
+   * this specific issue is assigned to them — see updateIssueStatusAction. */
+  canChangeStatus: boolean;
 };
 
 function IssueCardImpl({
@@ -40,9 +43,13 @@ function IssueCardImpl({
   const t = useTranslations('issues');
   const format = useFormatter();
   const isOwn = issue.created_by === currentUserId;
+  // isAdmin here means "CEO" (see IssuesPage) — an Administrative Manager
+  // additionally gets drag-to-change-status on an issue assigned to them,
+  // computed server-side into issue.canChangeStatus.
+  const canDrag = isAdmin || issue.canChangeStatus;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: issue.id,
-    disabled: !isAdmin,
+    disabled: !canDrag,
   });
 
   return (
@@ -61,7 +68,7 @@ function IssueCardImpl({
                 <DeleteIssueButton onConfirm={() => onRequestDelete(issue)} />
               </div>
             )}
-            {isAdmin && (
+            {canDrag && (
               <button
                 type="button"
                 {...listeners}

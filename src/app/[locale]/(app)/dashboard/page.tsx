@@ -56,10 +56,9 @@ async function EmployeeGrowthChartSection() {
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
   const isCeo = profile!.role === 'ceo';
-  const isAdminRole = isCeo || profile!.role === 'admin_manager';
-  // /analytics is now CEO-only (see analytics/page.tsx) — admin_manager is
-  // an "admin role" for the rest of this dashboard but would 404 there, so
-  // these two cards only link out for the CEO specifically.
+  // Administrative Manager now gets the same personal dashboard as a
+  // teacher (self-development chart, own stats) — see the role rework.
+  const isAdminRole = isCeo;
   const analyticsHref = isCeo ? '/analytics' : undefined;
 
   return (

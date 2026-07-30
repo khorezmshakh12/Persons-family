@@ -12,7 +12,7 @@ export default async function TasksPage() {
   const t = await getTranslations('tasks');
   const { user, profile } = await getAuthState();
   const supabase = await createClient();
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
+  const isAdmin = profile!.role === 'ceo';
 
   // Strict visibility: a task is only ever fetched for its creator
   // (assigned_by) or its assignee (assigned_to) — RLS's tasks_select

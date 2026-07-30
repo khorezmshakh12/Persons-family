@@ -28,7 +28,7 @@ export default async function SelfDevelopmentPage({
   const tp = await getTranslations('performance');
   const { teacher } = await searchParams;
   const { user, profile } = await getAuthState();
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
+  const isAdmin = profile!.role === 'ceo';
   const supabase = await createClient();
 
   let query = supabase

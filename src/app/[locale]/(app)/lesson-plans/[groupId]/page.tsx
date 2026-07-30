@@ -45,7 +45,8 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   if (!group) notFound();
 
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'admin_manager';
+  const isCeo = profile!.role === 'ceo';
+  const isAdminManager = profile!.role === 'admin_manager';
   const isAssistant = profile!.role === 'assistant';
   // Only the assistant specifically assigned to this group counts as "the
   // group's TA" now — RLS already narrows their access to this group alone,
@@ -59,18 +60,24 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   if (profile!.role === 'teacher' && !isOwnerTeacher) notFound();
   if (isAssistant && !isAssignedTa) notFound();
 
-  const canEditGroup = isOwnerTeacher || isAdmin;
+  // Group management (name/schedule/TA assignment) is now CEO-or-owner
+  // only — an Administrative Manager no longer has any group-editing
+  // function, per the role rework.
+  const canEditGroup = isOwnerTeacher || isCeo;
   // Course lesson permissions per spec: only the owning teacher sets
-  // dates/topics/uploads; the CEO (not admin_manager) can additionally
-  // clear/delete a file; CEO/Admin/the assigned TA can comment, the teacher
-  // can't.
+  // dates/topics/uploads; the CEO can additionally clear/delete a file;
+  // CEO/Administrative Manager/the assigned TA can comment (view-and-
+  // comment is the one lesson-plan capability admin_manager keeps), the
+  // teacher can't comment on their own lesson.
   const canEditLessonContent = isOwnerTeacher;
-  const canDeleteLessonFiles = isOwnerTeacher || profile!.role === 'ceo';
-  const canComment = isAdmin || isAssignedTa;
+  const canDeleteLessonFiles = isOwnerTeacher || isCeo;
+  const canComment = isCeo || isAdminManager || isAssignedTa;
   // Group staff chat: the owning teacher and assigned TA can read + post;
-  // CEO/Admin can read-only ("monitor"). A non-assigned assistant never
+  // the CEO reads only ("monitor"). Administrative Manager no longer gets
+  // this — their lesson-plan visibility is the course-lessons view/comment
+  // above, not the group's internal chat. A non-assigned assistant never
   // reaches this branch (notFound() above already caught them).
-  const canViewGroupChat = isOwnerTeacher || isAssignedTa || isAdmin;
+  const canViewGroupChat = isOwnerTeacher || isAssignedTa || isCeo;
   const canPostGroupChat = isOwnerTeacher || isAssignedTa;
 
   const configuration = group.configuration as GroupConfiguration;

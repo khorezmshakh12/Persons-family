@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireCeo } from '@/lib/auth/require-admin';
 import { getAuthState, type Profile } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -61,7 +61,7 @@ export async function requestAvatarUploadUrlAction(
 ): Promise<UploadUrlResult> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireCeo());
   } catch {
     return { error: 'forbidden' };
   }
@@ -144,7 +144,7 @@ export async function createStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireCeo());
   } catch {
     return { error: 'forbidden' };
   }
@@ -162,7 +162,7 @@ const addAdminManagerSchema = staffSchema.omit({ role: true });
 
 /** Everything else about the IT Developer role is unchanged — this is the
  * one narrow carve-out: it may create a new Administrative Manager account
- * (and only that role), without gaining any of requireAdmin()'s broader
+ * (and only that role), without gaining any of requireCeo()'s broader
  * staff-management powers (editing/deactivating/resetting other staff). */
 export async function createAdminManagerAction(
   _prevState: StaffActionState,
@@ -185,7 +185,7 @@ export async function attachAvatarAction(
   avatarPath: string,
 ): Promise<{ error?: string }> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch {
     return { error: 'forbidden' };
   }
@@ -213,7 +213,7 @@ export async function updateStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireCeo());
   } catch {
     return { error: 'forbidden' };
   }
@@ -272,7 +272,7 @@ export async function toggleStaffActiveAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireCeo());
   } catch {
     return { error: 'forbidden' };
   }
@@ -314,7 +314,7 @@ export async function resetStaffPasswordAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireCeo());
   } catch {
     return { error: 'forbidden' };
   }

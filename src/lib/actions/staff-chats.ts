@@ -134,7 +134,7 @@ const pinSchema = z.object({ id: z.string().uuid(), pin: z.enum(['true', 'false'
  * separate check needed here for which chat a message belongs to. */
 export async function toggleStaffChatPinAction(formData: FormData): Promise<void> {
   const { profile } = await getAuthState();
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) return;
+  if (!profile || profile.role !== 'ceo') return;
 
   const parsed = pinSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
