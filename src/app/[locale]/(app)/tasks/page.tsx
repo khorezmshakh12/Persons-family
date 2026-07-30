@@ -12,7 +12,10 @@ export default async function TasksPage() {
   const t = await getTranslations('tasks');
   const { user, profile } = await getAuthState();
   const supabase = await createClient();
-  const isAdmin = profile!.role === 'ceo';
+  // CEO can assign to anyone eligible; IT Developer's only assigning power
+  // is the narrow admin_manager-only carve-out already baked into
+  // allowedTaskAssigneeRoles, reused as-is here.
+  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
 
   // Strict visibility: a task is only ever fetched for its creator
   // (assigned_by) or its assignee (assigned_to) — RLS's tasks_select

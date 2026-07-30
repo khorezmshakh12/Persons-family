@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { ForbiddenError } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
@@ -10,6 +10,18 @@ import type { StaffRole } from '@/lib/nav';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 export type TaskActionState = { error?: string } | undefined;
+
+/** The CEO can assign a task to anyone eligible; IT Developer's only
+ * assigning power is the narrow admin_manager-only carve-out in
+ * allowedTaskAssigneeRoles (re-validated below regardless of who's
+ * calling), symmetric to its account-creation power in staff.ts. */
+async function requireTaskAssigner() {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+    throw new ForbiddenError('Task assignment access required');
+  }
+  return { user, profile };
+}
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   pending: 'Kutilmoqda',
@@ -52,7 +64,7 @@ export async function assignTaskAction(
   let actingUserId: string;
   let actingRole: StaffRole;
   try {
-    const { user, profile } = await requireCeo();
+    const { user, profile } = await requireTaskAssigner();
     actingUserId = user.id;
     actingRole = profile.role;
   } catch {
@@ -101,7 +113,7 @@ export async function updateTaskAction(
   let actingUserId: string;
   let actingRole: StaffRole;
   try {
-    const { user, profile } = await requireCeo();
+    const { user, profile } = await requireTaskAssigner();
     actingUserId = user.id;
     actingRole = profile.role;
   } catch {
@@ -183,7 +195,7 @@ export type DeleteTaskResult = { error?: string };
 export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskResult> {
   let actingUserId: string;
   try {
-    const { user } = await requireCeo();
+    const { user } = await requireTaskAssigner();
     actingUserId = user.id;
   } catch {
     return { error: 'forbidden' };
