@@ -40,6 +40,20 @@ export default async function ChatPage() {
     }
   }
 
+  // A bypass-eligible pair (either side ceo/it_developer) never sees the
+  // request step, even before any dm_conversations row exists — the row
+  // gets created transparently, already 'accepted', the moment they send
+  // their first message (see sendStaffChatAction). Without this, a brand
+  // new contact for a CEO would incorrectly show "Send chat request"
+  // instead of going straight to the composer.
+  const iAmBypass = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  for (const s of staff ?? []) {
+    if (conversationStates[s.id]) continue;
+    if (iAmBypass || s.role === 'ceo' || s.role === 'it_developer') {
+      conversationStates[s.id] = { kind: 'accepted', conversationId: '' };
+    }
+  }
+
   const canModerateDmImportance = profile!.role === 'ceo' || profile!.role === 'it_developer';
 
   return (
