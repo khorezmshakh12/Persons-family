@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { MessageSquarePlus, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Switch } from '@/components/ui/switch';
-import { toggleChatEnabledAction } from '@/lib/actions/chat';
+import { Button } from '@/components/ui/button';
+import { sendChatRequestAction } from '@/lib/actions/staff-chats';
 import { MessageBubble, type ChatSender } from './message-bubble';
 import { ChatComposer } from './chat-composer';
-import type { ActiveConversation, ChatQuote, StaffChatMessage, StaffDirectoryEntry } from './types';
+import type { ActiveConversation, ChatQuote, ConversationState, StaffChatMessage } from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
 import type { SentStaffChatMessage } from '@/lib/actions/staff-chats';
 
@@ -17,22 +19,21 @@ function toQuote(message: StaffChatMessage, senderName: string): ChatQuote {
 
 export function ConversationView({
   active,
+  conversationState,
   messages,
   staffMap,
   currentUserId,
-  isAdmin,
-  chatEnabled,
-  onChatEnabledChange,
+  onSendRequest,
   onOptimisticSend,
   onConfirmedSend,
 }: {
   active: ActiveConversation;
+  conversationState: ConversationState;
   messages: StaffChatMessage[];
   staffMap: Record<string, ChatSender>;
   currentUserId: string;
-  isAdmin: boolean;
-  chatEnabled: boolean;
-  onChatEnabledChange: (next: boolean) => void;
+  /** Refresh conversation state after a request is sent (moves 'none' -> 'pendingOutgoing'/'accepted'). */
+  onSendRequest: () => void;
   onOptimisticSend: (partial: {
     messageText?: string;
     mediaUrl?: string;
@@ -43,6 +44,7 @@ export function ConversationView({
 }) {
   const t = useTranslations('chatHub');
   const [replyTarget, setReplyTarget] = useState<ChatQuote | null>(null);
+  const [isRequestPending, startRequestTransition] = useTransition();
   const messageMap = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   // Refs, not deps: handleReply must stay referentially stable across
   // renders (via the empty dep array below) so MessageBubble.memo isn't
@@ -69,9 +71,7 @@ export function ConversationView({
   // typing-indicator re-render or any other minor state change can't
   // retroactively change what "near bottom" meant when the message arrived.
   const isNearBottomRef = useRef(true);
-  const [isTogglePending, startToggleTransition] = useTransition();
-  const isFamily = active.type === 'family';
-  const conversationKey = isFamily ? 'family' : active.userId;
+  const conversationKey = active?.userId ?? null;
   const previousMessageCount = useRef(0);
   // Sentinel that never matches a real conversation key, so the very first
   // render is always treated as a "conversation changed" — the chat should
@@ -113,32 +113,9 @@ export function ConversationView({
     previousConversationKey.current = conversationKey;
   }, [messages, conversationKey, currentUserId]);
 
-  const headerName = isFamily
-    ? t('familyChat')
-    : staffMap[active.userId]
-      ? `${staffMap[active.userId].first_name} ${staffMap[active.userId].last_name}`
-      : '—';
-  const headerAvatar = isFamily ? null : (staffMap[active.userId]?.avatar_url ?? null);
-  const headerInitials = isFamily
-    ? '👨‍👩‍👧‍👦'
-    : staffMap[active.userId]
-      ? `${staffMap[active.userId].first_name[0]}${staffMap[active.userId].last_name[0]}`
-      : '?';
-
-  function handleToggleChatEnabled(next: boolean) {
-    onChatEnabledChange(next);
-    const formData = new FormData();
-    formData.set('enabled', String(next));
-    startToggleTransition(async () => {
-      await toggleChatEnabledAction(formData);
-    });
-  }
-
-  const canPost = isFamily ? chatEnabled : true;
-
   // A reply draft is scoped to whichever conversation it was started in —
-  // switching to a different DM or to Family Chat shouldn't carry a stale
-  // quote (and stale reply_to_id) into an unrelated conversation.
+  // switching to a different DM shouldn't carry a stale quote (and stale
+  // reply_to_id) into an unrelated one.
   useEffect(() => {
     setReplyTarget(null);
   }, [conversationKey]);
@@ -146,6 +123,29 @@ export function ConversationView({
   function senderNameFor(userId: string) {
     return staffMap[userId] ? `${staffMap[userId].first_name} ${staffMap[userId].last_name}` : '—';
   }
+
+  function handleSendRequest() {
+    if (!active) return;
+    startRequestTransition(async () => {
+      const result = await sendChatRequestAction(active.userId);
+      if (result.error) toast.error(t(`errors.${result.error}`));
+      else onSendRequest();
+    });
+  }
+
+  if (!active) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <MessagesSquare className="size-8 text-white/30" />
+        <p className="text-sm text-white/50">{t('selectContact')}</p>
+      </div>
+    );
+  }
+
+  const contact = staffMap[active.userId];
+  const headerName = contact ? `${contact.first_name} ${contact.last_name}` : '—';
+  const headerAvatar = contact?.avatar_url ?? null;
+  const headerInitials = contact ? `${contact.first_name[0]}${contact.last_name[0]}` : '?';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -155,65 +155,66 @@ export function ConversationView({
           <AvatarFallback>{headerInitials}</AvatarFallback>
         </Avatar>
         <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-white">{headerName}</h2>
-        {isFamily && isAdmin && (
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="text-xs text-white/60">{t('chatEnabled')}</span>
-            <Switch
-              checked={chatEnabled}
-              onCheckedChange={handleToggleChatEnabled}
-              disabled={isTogglePending}
-            />
-          </div>
-        )}
       </div>
 
-      <div
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className="min-h-0 flex-1 overflow-y-auto p-4"
-      >
-        {messages.length === 0 ? (
-          <p className="text-center text-sm text-white/60">{t('empty')}</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {messages.map((m) => {
-              const repliedMessage = m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined;
-              return (
-                <MessageBubble
-                  key={m.id}
-                  message={m}
-                  sender={staffMap[m.sender_id]}
-                  isOwn={m.sender_id === currentUserId}
-                  isFamily={isFamily}
-                  isAdmin={isAdmin}
-                  currentUserId={currentUserId}
-                  isOptimistic={m.id.startsWith('optimistic-')}
-                  repliedQuote={
-                    repliedMessage
-                      ? toQuote(repliedMessage, senderNameFor(repliedMessage.sender_id))
-                      : null
-                  }
-                  onReply={handleReply}
-                />
-              );
-            })}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </div>
-
-      {canPost ? (
-        <ChatComposer
-          receiverId={isFamily ? null : active.userId}
-          onOptimisticSend={onOptimisticSend}
-          onConfirmedSend={onConfirmedSend}
-          replyTarget={replyTarget}
-          onClearReply={() => setReplyTarget(null)}
-        />
+      {conversationState.kind === 'none' ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <MessageSquarePlus className="size-8 text-white/30" />
+          <p className="text-sm text-white/60">{t('requests.startPrompt', { name: headerName })}</p>
+          <Button type="button" onClick={handleSendRequest} disabled={isRequestPending}>
+            {isRequestPending ? t('requests.sending') : t('requests.sendRequest')}
+          </Button>
+        </div>
+      ) : conversationState.kind === 'pendingOutgoing' ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+          <MessageSquarePlus className="size-8 text-white/30" />
+          <p className="text-sm text-white/60">
+            {t('requests.waitingForApproval', { name: headerName })}
+          </p>
+        </div>
       ) : (
-        <p className="border-t border-white/15 p-4 text-center text-sm text-white/50">
-          {t('chatDisabled')}
-        </p>
+        <>
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="min-h-0 flex-1 overflow-y-auto p-4"
+          >
+            {messages.length === 0 ? (
+              <p className="text-center text-sm text-white/60">{t('empty')}</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {messages.map((m) => {
+                  const repliedMessage = m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined;
+                  return (
+                    <MessageBubble
+                      key={m.id}
+                      message={m}
+                      sender={staffMap[m.sender_id]}
+                      isOwn={m.sender_id === currentUserId}
+                      currentUserId={currentUserId}
+                      isOptimistic={m.id.startsWith('optimistic-')}
+                      repliedQuote={
+                        repliedMessage
+                          ? toQuote(repliedMessage, senderNameFor(repliedMessage.sender_id))
+                          : null
+                      }
+                      onReply={handleReply}
+                    />
+                  );
+                })}
+                <div ref={bottomRef} />
+              </div>
+            )}
+          </div>
+
+          <ChatComposer
+            receiverId={active.userId}
+            onOptimisticSend={onOptimisticSend}
+            onConfirmedSend={onConfirmedSend}
+            replyTarget={replyTarget}
+            onClearReply={() => setReplyTarget(null)}
+          />
+        </>
       )}
     </div>
   );

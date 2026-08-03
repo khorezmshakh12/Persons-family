@@ -4,7 +4,7 @@ import type { StaffRole } from '@/lib/nav';
 export type StaffChatMessage = {
   id: string;
   sender_id: string;
-  receiver_id: string | null;
+  receiver_id: string;
   message_text: string | null;
   media_url: string | null;
   media_type: ChatMediaType;
@@ -15,7 +15,12 @@ export type StaffChatMessage = {
   reactions: Record<string, string[]>;
 };
 
-export type ChatQuote = { id: string; senderName: string; text: string | null; mediaType: ChatMediaType };
+export type ChatQuote = {
+  id: string;
+  senderName: string;
+  text: string | null;
+  mediaType: ChatMediaType;
+};
 
 export type StaffDirectoryEntry = {
   id: string;
@@ -25,4 +30,13 @@ export type StaffDirectoryEntry = {
   role: StaffRole;
 };
 
-export type ActiveConversation = { type: 'family' } | { type: 'dm'; userId: string };
+/** Per-contact conversation state, derived server-side (chat/page.tsx) from
+ * dm_conversations rows + the viewer's/contact's roles. 'none' covers both
+ * "never contacted" and "they declined, not shown again unless retried". */
+export type ConversationState =
+  | { kind: 'none' }
+  | { kind: 'accepted'; conversationId: string }
+  | { kind: 'pendingOutgoing'; conversationId: string }
+  | { kind: 'pendingIncoming'; conversationId: string };
+
+export type ActiveConversation = { userId: string } | null;

@@ -1,13 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useOptimistic, useRef, useState } from 'react';
+import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { ChatSidebar } from './chat-sidebar';
 import { ConversationView } from './conversation-view';
 import type { ChatSender } from './message-bubble';
-import type { ActiveConversation, StaffChatMessage, StaffDirectoryEntry } from './types';
+import type {
+  ActiveConversation,
+  ConversationState,
+  StaffChatMessage,
+  StaffDirectoryEntry,
+} from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
 
 function dmKey(a: string, b: string) {
@@ -18,32 +24,31 @@ export function ChatHubClient({
   currentUserId,
   currentUserName,
   currentUserAvatar,
-  isAdmin,
   canModerateDmImportance,
   staff,
-  initialFamilyMessages,
+  conversationStates,
   initialUnreadSenderIds,
-  initialChatEnabled,
 }: {
   currentUserId: string;
   currentUserName: string;
   currentUserAvatar: string | null;
-  isAdmin: boolean;
   canModerateDmImportance: boolean;
   staff: StaffDirectoryEntry[];
-  initialFamilyMessages: StaffChatMessage[];
+  /** Server-computed per-contact request/accept state — the source of
+   * truth for whether a composer, a "send request" prompt, or a "waiting
+   * for approval" state renders. Refreshed via router.refresh() after any
+   * action that can change it (send request, accept, decline). */
+  conversationStates: Record<string, ConversationState>;
   initialUnreadSenderIds: string[];
-  initialChatEnabled: boolean;
 }) {
   const t = useTranslations('notifications');
-  const [active, setActive] = useState<ActiveConversation>({ type: 'family' });
-  const [familyMessages, setFamilyMessages] = useState<StaffChatMessage[]>(initialFamilyMessages);
+  const router = useRouter();
+  const [active, setActive] = useState<ActiveConversation>(null);
   const [dmMessagesByPair, setDmMessagesByPair] = useState<Record<string, StaffChatMessage[]>>({});
   const [loadedDmPairs, setLoadedDmPairs] = useState<Set<string>>(new Set());
   const [unreadDmUserIds, setUnreadDmUserIds] = useState<Set<string>>(
     () => new Set(initialUnreadSenderIds),
   );
-  const [chatEnabled, setChatEnabled] = useState(initialChatEnabled);
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -63,19 +68,24 @@ export function ChatHubClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staff, currentUserId, currentUserName, currentUserAvatar]);
 
-  const activeRealMessages =
-    active.type === 'family'
-      ? familyMessages
-      : (dmMessagesByPair[dmKey(currentUserId, active.userId)] ?? []);
+  const activeConversationState: ConversationState = active
+    ? (conversationStates[active.userId] ?? { kind: 'none' })
+    : { kind: 'none' };
+
+  const activeRealMessages = active
+    ? (dmMessagesByPair[dmKey(currentUserId, active.userId)] ?? [])
+    : [];
 
   const [optimisticMessages, addOptimisticMessage] = useOptimistic(
     activeRealMessages,
     (state, newMessage: StaffChatMessage) => [...state, newMessage],
   );
 
-  // Load a DM's history the first time it's opened.
+  // Load a DM's history the first time it's opened (only once it's actually
+  // accepted — a pending/none conversation has no composer and, for a
+  // pending-outgoing one, no messages exist yet to load anyway).
   useEffect(() => {
-    if (active.type !== 'dm') return;
+    if (!active || activeConversationState.kind !== 'accepted') return;
     const key = dmKey(currentUserId, active.userId);
     if (loadedDmPairs.has(key)) return;
 
@@ -106,11 +116,11 @@ export function ChatHubClient({
         setLoadedDmPairs((prev) => new Set(prev).add(key));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, currentUserId]);
+  }, [active, activeConversationState.kind, currentUserId]);
 
   // Clear the unread dot for whichever DM is now active.
   useEffect(() => {
-    if (active.type !== 'dm') return;
+    if (!active) return;
     setUnreadDmUserIds((prev) => {
       if (!prev.has(active.userId)) return prev;
       const next = new Set(prev);
@@ -125,7 +135,7 @@ export function ChatHubClient({
   // flips the tick to blue immediately instead of waiting on the realtime
   // UPDATE echo to round-trip back.
   useEffect(() => {
-    if (active.type !== 'dm') return;
+    if (!active || activeConversationState.kind !== 'accepted') return;
     const otherId = active.userId;
     const key = dmKey(currentUserId, otherId);
 
@@ -163,13 +173,13 @@ export function ChatHubClient({
       toast.error(t('markReadFailed'));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, currentUserId]);
+  }, [active, activeConversationState.kind, currentUserId]);
 
   // Single realtime subscription for the whole table — RLS (which Realtime
   // also enforces) already guarantees a client only ever receives rows it's
-  // allowed to see (Family Chat + its own DMs), so it's safe to route
-  // whatever arrives into the right bucket client-side rather than trying
-  // to express an OR filter server-side.
+  // allowed to see (its own DMs), so it's safe to route whatever arrives
+  // into the right bucket client-side rather than trying to express an OR
+  // filter server-side.
   useEffect(() => {
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -189,12 +199,6 @@ export function ChatHubClient({
           { event: 'INSERT', schema: 'public', table: 'staff_chats' },
           (payload) => {
             const message = payload.new as StaffChatMessage;
-            if (message.receiver_id === null) {
-              setFamilyMessages((prev) =>
-                prev.some((m) => m.id === message.id) ? prev : [...prev, message],
-              );
-              return;
-            }
             const otherId =
               message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
             if (message.sender_id !== currentUserId && message.receiver_id !== currentUserId)
@@ -207,10 +211,7 @@ export function ChatHubClient({
             });
             setLoadedDmPairs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
             const current = activeRef.current;
-            if (
-              message.sender_id !== currentUserId &&
-              (current.type !== 'dm' || current.userId !== otherId)
-            ) {
+            if (message.sender_id !== currentUserId && current?.userId !== otherId) {
               setUnreadDmUserIds((prev) => new Set(prev).add(otherId));
             }
           },
@@ -220,29 +221,25 @@ export function ChatHubClient({
           { event: 'UPDATE', schema: 'public', table: 'staff_chats' },
           (payload) => {
             const updated = payload.new as StaffChatMessage;
-            if (updated.receiver_id === null) {
-              setFamilyMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-            } else {
-              const otherId =
-                updated.sender_id === currentUserId ? updated.receiver_id : updated.sender_id;
-              const key = dmKey(currentUserId, otherId);
-              setDmMessagesByPair((prev) =>
-                prev[key]
-                  ? { ...prev, [key]: prev[key].map((m) => (m.id === updated.id ? updated : m)) }
-                  : prev,
-              );
-              // A message from this sender was marked read somewhere else —
-              // the notification bell, another tab, opening this DM just now
-              // — so the sidebar dot should clear regardless of which path
-              // did it, not only the "this DM just became active" effect.
-              if (updated.is_read && updated.receiver_id === currentUserId) {
-                setUnreadDmUserIds((prev) => {
-                  if (!prev.has(updated.sender_id)) return prev;
-                  const next = new Set(prev);
-                  next.delete(updated.sender_id);
-                  return next;
-                });
-              }
+            const otherId =
+              updated.sender_id === currentUserId ? updated.receiver_id : updated.sender_id;
+            const key = dmKey(currentUserId, otherId);
+            setDmMessagesByPair((prev) =>
+              prev[key]
+                ? { ...prev, [key]: prev[key].map((m) => (m.id === updated.id ? updated : m)) }
+                : prev,
+            );
+            // A message from this sender was marked read somewhere else —
+            // the notification bell, another tab, opening this DM just now
+            // — so the sidebar dot should clear regardless of which path
+            // did it, not only the "this DM just became active" effect.
+            if (updated.is_read && updated.receiver_id === currentUserId) {
+              setUnreadDmUserIds((prev) => {
+                if (!prev.has(updated.sender_id)) return prev;
+                const next = new Set(prev);
+                next.delete(updated.sender_id);
+                return next;
+              });
             }
           },
         )
@@ -251,7 +248,6 @@ export function ChatHubClient({
           { event: 'DELETE', schema: 'public', table: 'staff_chats' },
           (payload) => {
             const deletedId = (payload.old as { id: string }).id;
-            setFamilyMessages((prev) => prev.filter((m) => m.id !== deletedId));
             setDmMessagesByPair((prev) => {
               const next: Record<string, StaffChatMessage[]> = {};
               for (const [key, list] of Object.entries(prev))
@@ -275,10 +271,11 @@ export function ChatHubClient({
     mediaType?: ChatMediaType;
     replyToId?: string;
   }) {
+    if (!active) return;
     const optimisticMessage: StaffChatMessage = {
       id: `optimistic-${Date.now()}`,
       sender_id: currentUserId,
-      receiver_id: active.type === 'dm' ? active.userId : null,
+      receiver_id: active.userId,
       message_text: partial.messageText ?? null,
       media_url: partial.mediaUrl ?? null,
       media_type: partial.mediaType ?? 'none',
@@ -298,12 +295,6 @@ export function ChatHubClient({
   // above already de-dupes by id, so when the echo does eventually land it
   // just no-ops instead of double-adding this message.
   function handleConfirmedSend(message: StaffChatMessage) {
-    if (message.receiver_id === null) {
-      setFamilyMessages((prev) =>
-        prev.some((m) => m.id === message.id) ? prev : [...prev, message],
-      );
-      return;
-    }
     const otherId = message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
     const key = dmKey(currentUserId, otherId);
     setDmMessagesByPair((prev) => {
@@ -317,19 +308,20 @@ export function ChatHubClient({
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-lg sm:flex-row">
       <ChatSidebar
         staff={staff}
+        conversationStates={conversationStates}
         active={active}
-        onSelect={setActive}
+        onSelect={(userId) => setActive({ userId })}
+        onRequestResolved={() => router.refresh()}
         unreadDmUserIds={unreadDmUserIds}
         canModerateDmImportance={canModerateDmImportance}
       />
       <ConversationView
         active={active}
+        conversationState={activeConversationState}
         messages={optimisticMessages}
         staffMap={staffMap}
         currentUserId={currentUserId}
-        isAdmin={isAdmin}
-        chatEnabled={chatEnabled}
-        onChatEnabledChange={setChatEnabled}
+        onSendRequest={() => router.refresh()}
         onOptimisticSend={handleOptimisticSend}
         onConfirmedSend={handleConfirmedSend}
       />

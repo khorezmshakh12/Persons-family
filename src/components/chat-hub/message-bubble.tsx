@@ -3,14 +3,10 @@
 import { memo, useState, useTransition } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Pin, PinOff, Trash2, Check, CheckCheck, Reply, SmilePlus } from 'lucide-react';
+import { Trash2, Check, CheckCheck, Reply, SmilePlus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-  deleteStaffChatAction,
-  toggleStaffChatPinAction,
-  toggleStaffChatReactionAction,
-} from '@/lib/actions/staff-chats';
+import { deleteStaffChatAction, toggleStaffChatReactionAction } from '@/lib/actions/staff-chats';
 import { cn } from '@/lib/utils';
 import type { ChatQuote, StaffChatMessage } from './types';
 
@@ -26,8 +22,6 @@ function MessageBubbleComponent({
   message,
   sender,
   isOwn,
-  isFamily,
-  isAdmin,
   currentUserId,
   repliedQuote,
   onReply,
@@ -36,8 +30,6 @@ function MessageBubbleComponent({
   message: StaffChatMessage;
   sender: ChatSender | undefined;
   isOwn: boolean;
-  isFamily: boolean;
-  isAdmin: boolean;
   currentUserId: string;
   /** The message this one is replying to, already resolved by
    * ConversationView — null if it's not a reply, undefined if the original
@@ -52,12 +44,10 @@ function MessageBubbleComponent({
   const t = useTranslations('chatHub');
   const format = useFormatter();
   const [isDeletePending, startDeleteTransition] = useTransition();
-  const [isPinPending, startPinTransition] = useTransition();
   const [isReactionPending, startReactionTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const name = sender ? `${sender.first_name} ${sender.last_name}` : '—';
   const initials = sender ? `${sender.first_name[0]}${sender.last_name[0]}` : '?';
-  const isPinned = !!message.pinned_at;
   const reactionEntries = Object.entries(message.reactions ?? {}).filter(
     ([, users]) => users.length > 0,
   );
@@ -67,15 +57,6 @@ function MessageBubbleComponent({
     formData.set('id', message.id);
     startDeleteTransition(() => {
       deleteStaffChatAction(formData);
-    });
-  }
-
-  function handleTogglePin() {
-    const formData = new FormData();
-    formData.set('id', message.id);
-    formData.set('pin', String(!isPinned));
-    startPinTransition(() => {
-      toggleStaffChatPinAction(formData);
     });
   }
 
@@ -107,8 +88,7 @@ function MessageBubbleComponent({
           <span className="text-xs text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
-          {isPinned && <Pin className="size-3 text-teal-300" />}
-          {isOwn && !isFamily && !isOptimistic && (
+          {isOwn && !isOptimistic && (
             <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
               {message.is_read ? (
                 <CheckCheck className="size-3.5 text-sky-300" />
@@ -212,19 +192,7 @@ function MessageBubbleComponent({
               >
                 <Reply className="size-3.5" />
               </Button>
-              {isFamily && isAdmin && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleTogglePin}
-                  disabled={isPinPending}
-                  aria-label={isPinned ? t('unpin') : t('pin')}
-                >
-                  {isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
-                </Button>
-              )}
-              {(isOwn || (isFamily && isAdmin)) && (
+              {isOwn && (
                 <Button
                   type="button"
                   variant="ghost"

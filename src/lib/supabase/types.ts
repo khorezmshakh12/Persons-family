@@ -331,6 +331,7 @@ export type Database = {
           id: string;
           participant_one: string;
           participant_two: string;
+          request_status: Database['public']['Enums']['dm_request_status'];
           status: Database['public']['Enums']['dm_status'];
         };
         Insert: {
@@ -339,6 +340,7 @@ export type Database = {
           id?: string;
           participant_one: string;
           participant_two: string;
+          request_status?: Database['public']['Enums']['dm_request_status'];
           status?: Database['public']['Enums']['dm_status'];
         };
         Update: {
@@ -347,6 +349,7 @@ export type Database = {
           id?: string;
           participant_one?: string;
           participant_two?: string;
+          request_status?: Database['public']['Enums']['dm_request_status'];
           status?: Database['public']['Enums']['dm_status'];
         };
         Relationships: [
@@ -1466,6 +1469,14 @@ export type Database = {
       mark_issues_seen: { Args: never; Returns: undefined };
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined };
       mark_tasks_seen: { Args: never; Returns: undefined };
+      respond_to_dm_request: {
+        Args: { accept: boolean; target_conversation_id: string };
+        Returns: undefined;
+      };
+      start_dm_conversation: {
+        Args: { other_user_id: string };
+        Returns: { id: string; request_status: Database['public']['Enums']['dm_request_status'] }[];
+      };
       toggle_staff_chat_reaction: {
         Args: { emoji: string; message_id: string };
         Returns: Json;
@@ -1477,6 +1488,7 @@ export type Database = {
       contract_request_status: 'pending' | 'approved' | 'rejected';
       contract_request_type: 'freeze' | 'extend';
       contract_status: 'active' | 'frozen' | 'ended';
+      dm_request_status: 'pending' | 'accepted';
       dm_status: 'normal' | 'important';
       homework_status: 'pending' | 'submitted' | 'graded' | 'missing';
       issue_status: 'open' | 'in_progress' | 'done';

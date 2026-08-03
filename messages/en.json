@@ -216,7 +216,6 @@
     "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone."
   },
   "chatHub": {
-    "familyChat": "Family Chat",
     "individualChats": "Individual Chats",
     "noStaff": "No other staff members yet.",
     "readReceipt": {
@@ -226,10 +225,6 @@
     "placeholder": "Write a message...",
     "send": "Send",
     "delete": "Delete message",
-    "pin": "Pin message",
-    "unpin": "Unpin message",
-    "chatEnabled": "Chat enabled",
-    "chatDisabled": "Chat is currently disabled.",
     "empty": "No messages yet. Start the conversation!",
     "attach": "Attach image or video",
     "emoji": "Insert emoji",
@@ -256,7 +251,9 @@
       "uploadFailed": "Could not upload the file. Please try again.",
       "micDenied": "Couldn't access your microphone. Check your browser permissions.",
       "reactionFailed": "Could not update your reaction. Please try again.",
-      "updateFailed": "Could not update this chat's status. Please try again."
+      "updateFailed": "Could not update this chat's status. Please try again.",
+      "chatNotAccepted": "This chat hasn't been accepted yet.",
+      "requestFailed": "Could not do that. Please try again."
     },
     "importantChats": {
       "title": "Important chats",
@@ -266,6 +263,18 @@
       "empty": "No conversations here yet.",
       "mark": "Mark important",
       "unmark": "Unmark"
+    },
+    "selectContact": "Select a contact to start chatting.",
+    "requests": {
+      "title": "Chat requests",
+      "wantsToChat": "{name} wants to chat with you",
+      "accept": "Accept",
+      "decline": "Decline",
+      "pendingOutgoing": "Request pending",
+      "startPrompt": "You haven't chatted with {name} yet.",
+      "sendRequest": "Send chat request",
+      "sending": "Sending...",
+      "waitingForApproval": "Request sent to {name} — waiting for them to accept."
     }
   },
   "issues": {

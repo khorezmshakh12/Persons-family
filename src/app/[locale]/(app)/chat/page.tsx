@@ -1,7 +1,7 @@
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { ChatHubClient } from '@/components/chat-hub/chat-hub-client';
-import type { StaffChatMessage } from '@/components/chat-hub/types';
+import type { ConversationState } from '@/components/chat-hub/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,15 +16,6 @@ export default async function ChatPage() {
     .eq('is_active', true)
     .order('first_name', { ascending: true });
 
-  const { data: familyMessages } = await supabase
-    .from('staff_chats')
-    .select(
-      'id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions',
-    )
-    .is('receiver_id', null)
-    .order('created_at', { ascending: true })
-    .limit(50);
-
   const { data: unreadRows } = await supabase
     .from('staff_chats')
     .select('sender_id')
@@ -32,13 +23,23 @@ export default async function ChatPage() {
     .eq('is_read', false);
   const initialUnreadSenderIds = Array.from(new Set((unreadRows ?? []).map((r) => r.sender_id)));
 
-  const { data: settings } = await supabase
-    .from('app_settings')
-    .select('chat_enabled')
-    .eq('id', true)
-    .single();
+  const { data: conversations } = await supabase
+    .from('dm_conversations')
+    .select('id, participant_one, participant_two, created_by, request_status')
+    .or(`participant_one.eq.${user!.id},participant_two.eq.${user!.id}`);
 
-  const isAdmin = profile!.role === 'ceo';
+  const conversationStates: Record<string, ConversationState> = {};
+  for (const c of conversations ?? []) {
+    const otherId = c.participant_one === user!.id ? c.participant_two : c.participant_one;
+    if (c.request_status === 'accepted') {
+      conversationStates[otherId] = { kind: 'accepted', conversationId: c.id };
+    } else if (c.created_by === user!.id) {
+      conversationStates[otherId] = { kind: 'pendingOutgoing', conversationId: c.id };
+    } else {
+      conversationStates[otherId] = { kind: 'pendingIncoming', conversationId: c.id };
+    }
+  }
+
   const canModerateDmImportance = profile!.role === 'ceo' || profile!.role === 'it_developer';
 
   return (
@@ -47,12 +48,10 @@ export default async function ChatPage() {
         currentUserId={user!.id}
         currentUserName={`${profile!.first_name} ${profile!.last_name}`}
         currentUserAvatar={profile!.avatar_url}
-        isAdmin={isAdmin}
         canModerateDmImportance={canModerateDmImportance}
         staff={staff ?? []}
-        initialFamilyMessages={(familyMessages as unknown as StaffChatMessage[]) ?? []}
+        conversationStates={conversationStates}
         initialUnreadSenderIds={initialUnreadSenderIds}
-        initialChatEnabled={settings?.chat_enabled ?? true}
       />
     </div>
   );

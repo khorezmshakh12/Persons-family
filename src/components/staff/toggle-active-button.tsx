@@ -31,7 +31,17 @@ export function ToggleActiveButton({ staffId, isActive }: { staffId: string; isA
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant={isActive ? 'outline' : 'default'} size="sm" />}>
+      <AlertDialogTrigger
+        render={
+          <Button
+            variant={isActive ? 'outline' : 'default'}
+            size="sm"
+            className={
+              isActive ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : undefined
+            }
+          />
+        }
+      >
         {isActive ? t('deactivate') : t('activate')}
       </AlertDialogTrigger>
       <AlertDialogContent>

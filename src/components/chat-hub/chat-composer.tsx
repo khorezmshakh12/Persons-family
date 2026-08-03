@@ -33,8 +33,7 @@ export function ChatComposer({
   replyTarget,
   onClearReply,
 }: {
-  /** null for Family Chat. */
-  receiverId: string | null;
+  receiverId: string;
   onOptimisticSend: (partial: {
     messageText?: string;
     mediaUrl?: string;
@@ -139,7 +138,7 @@ export function ChatComposer({
       });
 
       const sendFormData = new FormData();
-      if (receiverId) sendFormData.set('receiverId', receiverId);
+      sendFormData.set('receiverId', receiverId);
       sendFormData.set('mediaUrl', readUrlResult.signedUrl);
       sendFormData.set('mediaType', mediaType);
       if (replyTarget) sendFormData.set('replyToId', replyTarget.id);
@@ -209,7 +208,7 @@ export function ChatComposer({
       action={formAction}
       className="flex flex-col gap-2 border-t border-white/15 p-4"
     >
-      {receiverId && <input type="hidden" name="receiverId" value={receiverId} />}
+      <input type="hidden" name="receiverId" value={receiverId} />
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
       {replyTarget && (
         <div className="flex items-center gap-2 rounded-lg border-l-2 border-teal-300 bg-white/10 px-3 py-1.5">

@@ -5,10 +5,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
 
+const MEDIA_TYPES = ['image', 'video', 'voice', 'none'] as const;
+
 export type SentStaffChatMessage = {
   id: string;
   sender_id: string;
-  receiver_id: string | null;
+  receiver_id: string;
   message_text: string | null;
   media_url: string | null;
   media_type: (typeof MEDIA_TYPES)[number];
@@ -28,11 +30,14 @@ export type ReadUrlResult = { signedUrl?: string; error?: string };
 // a board), so this needs a long expiry.
 const CHAT_MEDIA_READ_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 365 * 5;
 
-const MEDIA_TYPES = ['image', 'video', 'voice', 'none'] as const;
+/** CEO and IT Developer are always reachable — no request/accept step in
+ * either direction. Everyone else needs an accepted dm_conversations row
+ * before they can exchange messages at all. */
+const BYPASS_ROLES = ['ceo', 'it_developer'];
 
 const sendSchema = z
   .object({
-    receiverId: z.string().uuid().optional().or(z.literal('')),
+    receiverId: z.string().uuid(),
     messageText: z.string().trim().max(2000).optional().or(z.literal('')),
     mediaUrl: z.string().max(1000).optional().or(z.literal('')),
     mediaType: z.enum(MEDIA_TYPES).optional(),
@@ -42,53 +47,65 @@ const sendSchema = z
     message: 'invalidMessage',
   });
 
-/**
- * Ensures a dm_conversations row exists for this pair before/alongside the
- * first message between them — "starting a chat" needs somewhere for its
- * status to live. Canonical (participant_one < participant_two) ordering
- * plus ignoreDuplicates makes this a no-op on every later message in the
- * same DM: only the very first send actually inserts a row, later ones just
- * hit the unique index and skip silently, leaving status untouched. Never
- * lets a failure here block the actual message — the conversation-status
- * feature is supplementary metadata, not the message itself.
- */
-async function ensureDmConversation(
+async function isConversationAccepted(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  actorId: string,
-  otherId: string,
+  userA: string,
+  userB: string,
 ) {
-  const [participantOne, participantTwo] = [actorId, otherId].sort();
-  const { error } = await supabase
+  const [participantOne, participantTwo] = [userA, userB].sort();
+  const { data } = await supabase
     .from('dm_conversations')
-    .upsert(
-      { participant_one: participantOne, participant_two: participantTwo, created_by: actorId },
-      { onConflict: 'participant_one,participant_two', ignoreDuplicates: true },
-    );
-  if (error) console.error('ensureDmConversation upsert failed', error);
+    .select('request_status')
+    .eq('participant_one', participantOne)
+    .eq('participant_two', participantTwo)
+    .maybeSingle();
+  return data?.request_status === 'accepted';
 }
 
 export async function sendStaffChatAction(
   _prevState: StaffChatsActionState,
   formData: FormData,
 ): Promise<StaffChatsActionState> {
-  const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'forbidden' };
 
   const parsed = sendSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidMessage' };
 
   const supabase = await createClient();
+
+  const { data: receiver } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', parsed.data.receiverId)
+    .maybeSingle();
+  if (!receiver) return { error: 'forbidden' };
+
+  const bypass = BYPASS_ROLES.includes(profile.role) || BYPASS_ROLES.includes(receiver.role);
+  if (bypass) {
+    // A bypass pair never sees the request step — their very first message
+    // just works, so this creates (or upgrades a stale pending row to)
+    // 'accepted' transparently before the send below.
+    const { error: rpcError } = await supabase.rpc('start_dm_conversation', {
+      other_user_id: parsed.data.receiverId,
+    });
+    if (rpcError) return { error: 'sendFailed' };
+  } else {
+    const accepted = await isConversationAccepted(supabase, user.id, parsed.data.receiverId);
+    if (!accepted) return { error: 'chatNotAccepted' };
+  }
+
   const { data, error } = await supabase
     .from('staff_chats')
     .insert({
       sender_id: user.id,
-      receiver_id: parsed.data.receiverId || null,
+      receiver_id: parsed.data.receiverId,
       message_text: parsed.data.messageText || null,
       media_url: parsed.data.mediaUrl || null,
       media_type: parsed.data.mediaUrl ? (parsed.data.mediaType ?? 'none') : 'none',
       // reply_to_id points at a row the RLS select policy already scopes to
-      // this conversation (Family Chat or this DM), so a stray/foreign id
-      // here just fails the FK constraint rather than leaking anything.
+      // this DM, so a stray/foreign id here just fails the FK constraint
+      // rather than leaking anything.
       reply_to_id: parsed.data.replyToId || null,
     })
     .select(
@@ -103,10 +120,6 @@ export async function sendStaffChatAction(
     return { error: 'sendFailed' };
   }
 
-  if (parsed.data.receiverId) {
-    await ensureDmConversation(supabase, user.id, parsed.data.receiverId);
-  }
-
   // Returning the confirmed row lets the caller commit it straight into
   // real (non-optimistic) state instead of waiting on the Realtime INSERT
   // echo — that round trip has enough latency that the optimistic bubble
@@ -115,33 +128,57 @@ export async function sendStaffChatAction(
   return { message: data as SentStaffChatMessage };
 }
 
-const dmStatusSchema = z.object({
+export type ChatRequestResult = { error?: string; requestStatus?: 'pending' | 'accepted' };
+
+/**
+ * Initiates contact with someone who has no existing conversation. A
+ * bypass-eligible pair (either side CEO/IT Developer) resolves straight to
+ * 'accepted' — same RPC sendStaffChatAction itself calls — everyone else
+ * gets 'pending' until the recipient calls respondToDmRequestAction.
+ */
+export async function sendChatRequestAction(receiverId: string): Promise<ChatRequestResult> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsedId = z.string().uuid().safeParse(receiverId);
+  if (!parsedId.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('start_dm_conversation', {
+    other_user_id: parsedId.data,
+  });
+  if (error || !data || data.length === 0) return { error: 'requestFailed' };
+
+  return { requestStatus: data[0].request_status };
+}
+
+const respondSchema = z.object({
   conversationId: z.string().uuid(),
-  status: z.enum(['normal', 'important']),
+  decision: z.enum(['accept', 'decline']),
 });
 
-/** CEO/IT Developer only — mirrors dm_conversations_update_important_flag's
- * RLS check. Marking a DM "Important" is what makes it surface on the
- * general chat list; neither participant can do this themselves (see the
- * migration comment for why it's scoped this way rather than to either
- * participant). */
-export async function setDmConversationStatusAction(
-  _prevState: StaffChatsActionState,
-  formData: FormData,
-): Promise<StaffChatsActionState> {
-  const { profile } = await getAuthState();
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer'))
-    return { error: 'forbidden' };
+export type RespondToDmRequestState = { error?: string } | undefined;
 
-  const parsed = dmStatusSchema.safeParse(Object.fromEntries(formData));
+/** The recipient only — respond_to_dm_request itself rejects the requester
+ * calling this on their own request. Declining deletes the conversation
+ * row outright (see the migration comment); accepting flips it to
+ * 'accepted' so both sides can now send. */
+export async function respondToDmRequestAction(
+  _prevState: RespondToDmRequestState,
+  formData: FormData,
+): Promise<RespondToDmRequestState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'forbidden' };
+
+  const parsed = respondSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('dm_conversations')
-    .update({ status: parsed.data.status })
-    .eq('id', parsed.data.conversationId);
-  if (error) return { error: 'updateFailed' };
+  const { error } = await supabase.rpc('respond_to_dm_request', {
+    target_conversation_id: parsed.data.conversationId,
+    accept: parsed.data.decision === 'accept',
+  });
+  if (error) return { error: 'requestFailed' };
 
   return {};
 }
@@ -156,8 +193,8 @@ export async function deleteStaffChatAction(formData: FormData): Promise<void> {
   if (!parsed.success) return;
 
   const supabase = await createClient();
-  // RLS covers both self-delete and (Family Chat only) admin-delete —
-  // no need to branch on role here.
+  // RLS covers self-delete (the only case that still applies now that
+  // Family Chat's admin-delete carve-out has no messages left to act on).
   await supabase.from('staff_chats').delete().eq('id', parsed.data.id);
 }
 
@@ -168,8 +205,7 @@ const reactionSchema = z.object({ id: z.string().uuid(), emoji: z.string().trim(
  * why this isn't a plain `.update()` (a blanket UPDATE grant would let any
  * participant overwrite someone else's reaction, not just add their own).
  * The realtime UPDATE this triggers is what actually syncs the change to
- * every other open client; there's no local optimistic step here, same as
- * toggleStaffChatPinAction below. */
+ * every other open client; there's no local optimistic step here. */
 export async function toggleStaffChatReactionAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
@@ -187,25 +223,6 @@ export async function toggleStaffChatReactionAction(
   if (error) return { error: 'reactionFailed' };
 
   return {};
-}
-
-const pinSchema = z.object({ id: z.string().uuid(), pin: z.enum(['true', 'false']) });
-
-/** Family Chat only — RLS's staff_chats_update_admin_family policy silently
- * no-ops this against a DM row (receiver_id is not null), so there's no
- * separate check needed here for which chat a message belongs to. */
-export async function toggleStaffChatPinAction(formData: FormData): Promise<void> {
-  const { profile } = await getAuthState();
-  if (!profile || profile.role !== 'ceo') return;
-
-  const parsed = pinSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
-
-  const supabase = await createClient();
-  await supabase
-    .from('staff_chats')
-    .update({ pinned_at: parsed.data.pin === 'true' ? new Date().toISOString() : null })
-    .eq('id', parsed.data.id);
 }
 
 const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });
@@ -256,4 +273,35 @@ export async function requestChatMediaReadUrlAction(path: string): Promise<ReadU
   if (error || !data) return { error: 'uploadFailed' };
 
   return { signedUrl: data.signedUrl };
+}
+
+const dmStatusSchema = z.object({
+  conversationId: z.string().uuid(),
+  status: z.enum(['normal', 'important']),
+});
+
+/** CEO/IT Developer only — mirrors dm_conversations_update_important_flag's
+ * RLS check. Marking a DM "Important" is what makes it surface on the
+ * general chat list; neither participant can do this themselves (see the
+ * migration comment for why it's scoped this way rather than to either
+ * participant). */
+export async function setDmConversationStatusAction(
+  _prevState: StaffChatsActionState,
+  formData: FormData,
+): Promise<StaffChatsActionState> {
+  const { profile } = await getAuthState();
+  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer'))
+    return { error: 'forbidden' };
+
+  const parsed = dmStatusSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('dm_conversations')
+    .update({ status: parsed.data.status })
+    .eq('id', parsed.data.conversationId);
+  if (error) return { error: 'updateFailed' };
+
+  return {};
 }

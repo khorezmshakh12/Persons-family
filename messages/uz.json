@@ -216,7 +216,6 @@
     "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi."
   },
   "chatHub": {
-    "familyChat": "Oilaviy Chat",
     "individualChats": "Shaxsiy Suhbatlar",
     "noStaff": "Hozircha boshqa xodimlar yo'q.",
     "readReceipt": {
@@ -226,10 +225,6 @@
     "placeholder": "Xabar yozing...",
     "send": "Yuborish",
     "delete": "Xabarni o'chirish",
-    "pin": "Xabarni mahkamlash",
-    "unpin": "Mahkamlashni bekor qilish",
-    "chatEnabled": "Suhbat yoqilgan",
-    "chatDisabled": "Suhbat hozircha o'chirilgan.",
     "empty": "Hozircha xabarlar yo'q. Suhbatni boshlang!",
     "attach": "Rasm yoki video biriktirish",
     "emoji": "Emoji qo'shish",
@@ -256,7 +251,9 @@
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
       "micDenied": "Mikrofonga kirish imkoni bo'lmadi. Brauzer ruxsatlarini tekshiring.",
       "reactionFailed": "Reaksiyani yangilab bo'lmadi. Qayta urinib ko'ring.",
-      "updateFailed": "Suhbat holatini yangilab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Suhbat holatini yangilab bo'lmadi. Qayta urinib ko'ring.",
+      "chatNotAccepted": "Bu chat hali qabul qilinmagan.",
+      "requestFailed": "Bajarib bo'lmadi. Qayta urinib ko'ring."
     },
     "importantChats": {
       "title": "Muhim suhbatlar",
@@ -266,6 +263,18 @@
       "empty": "Bu yerda hali suhbatlar yo'q.",
       "mark": "Muhim deb belgilash",
       "unmark": "Belgini olib tashlash"
+    },
+    "selectContact": "Suhbatni boshlash uchun kontaktni tanlang.",
+    "requests": {
+      "title": "Chat so'rovlari",
+      "wantsToChat": "{name} siz bilan chat qilmoqchi",
+      "accept": "Qabul qilish",
+      "decline": "Rad etish",
+      "pendingOutgoing": "So'rov kutilmoqda",
+      "startPrompt": "Siz {name} bilan hali yozishmagansiz.",
+      "sendRequest": "So'rov yuborish",
+      "sending": "Yuborilmoqda...",
+      "waitingForApproval": "{name}ga so'rov yuborildi — javobini kuting."
     }
   },
   "issues": {
