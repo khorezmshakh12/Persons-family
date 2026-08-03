@@ -16,7 +16,14 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { fromDatetimeLocalValue } from '@/lib/format-date';
 
 export type Assignee = { id: string; first_name: string; last_name: string };
 
@@ -43,7 +50,16 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
         <DialogHeader>
           <DialogTitle>{t('assignTask')}</DialogTitle>
         </DialogHeader>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form
+          action={(formData) => {
+            const deadline = formData.get('deadline');
+            if (typeof deadline === 'string' && deadline) {
+              formData.set('deadline', fromDatetimeLocalValue(deadline));
+            }
+            return formAction(formData);
+          }}
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">{t('titleLabel')}</Label>
             <Input id="title" name="title" required maxLength={200} />
@@ -73,8 +89,8 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
             </Select>
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="dueDate">{t('dueDate')}</Label>
-            <Input id="dueDate" name="dueDate" type="date" />
+            <Label htmlFor="deadline">{t('deadline')}</Label>
+            <Input id="deadline" name="deadline" type="datetime-local" required />
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>

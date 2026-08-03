@@ -18,8 +18,9 @@ export type Task = {
   title: string;
   description: string | null;
   assigned_to: string;
-  due_date: string | null;
+  deadline: string;
   status: TaskStatus;
+  is_overdue: boolean;
   assignee: { first_name: string; last_name: string } | null;
 };
 
@@ -36,10 +37,15 @@ function TaskCardImpl({
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+  });
 
   return (
-    <div ref={setNodeRef} style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}>
+    <div
+      ref={setNodeRef}
+      style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}
+    >
       <motion.div
         whileHover={isDragging ? undefined : { scale: 1.015 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -56,7 +62,7 @@ function TaskCardImpl({
                     title: task.title,
                     description: task.description,
                     assigned_to: task.assigned_to,
-                    due_date: task.due_date,
+                    deadline: task.deadline,
                   }}
                   assignees={assignees}
                 />
@@ -81,13 +87,18 @@ function TaskCardImpl({
               {task.assignee.first_name} {task.assignee.last_name}
             </span>
           )}
-          <span>
-            {task.due_date
-              ? format.dateTime(new Date(`${task.due_date}T00:00:00Z`), {
-                  dateStyle: 'medium',
-                  timeZone: 'UTC',
-                })
-              : t('noDueDate')}
+          <span
+            className={cn(
+              'flex items-center gap-1.5',
+              task.is_overdue && 'font-semibold text-red-400',
+            )}
+          >
+            {format.dateTime(new Date(task.deadline), { dateStyle: 'medium', timeStyle: 'short' })}
+            {task.is_overdue && (
+              <span className="rounded-full border border-red-400/30 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                {t('overdue')}
+              </span>
+            )}
           </span>
         </div>
         <TaskStatusControl status={task.status} />

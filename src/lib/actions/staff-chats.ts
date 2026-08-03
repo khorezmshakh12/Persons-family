@@ -42,6 +42,31 @@ const sendSchema = z
     message: 'invalidMessage',
   });
 
+/**
+ * Ensures a dm_conversations row exists for this pair before/alongside the
+ * first message between them — "starting a chat" needs somewhere for its
+ * status to live. Canonical (participant_one < participant_two) ordering
+ * plus ignoreDuplicates makes this a no-op on every later message in the
+ * same DM: only the very first send actually inserts a row, later ones just
+ * hit the unique index and skip silently, leaving status untouched. Never
+ * lets a failure here block the actual message — the conversation-status
+ * feature is supplementary metadata, not the message itself.
+ */
+async function ensureDmConversation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  actorId: string,
+  otherId: string,
+) {
+  const [participantOne, participantTwo] = [actorId, otherId].sort();
+  const { error } = await supabase
+    .from('dm_conversations')
+    .upsert(
+      { participant_one: participantOne, participant_two: participantTwo, created_by: actorId },
+      { onConflict: 'participant_one,participant_two', ignoreDuplicates: true },
+    );
+  if (error) console.error('ensureDmConversation upsert failed', error);
+}
+
 export async function sendStaffChatAction(
   _prevState: StaffChatsActionState,
   formData: FormData,
@@ -78,12 +103,47 @@ export async function sendStaffChatAction(
     return { error: 'sendFailed' };
   }
 
+  if (parsed.data.receiverId) {
+    await ensureDmConversation(supabase, user.id, parsed.data.receiverId);
+  }
+
   // Returning the confirmed row lets the caller commit it straight into
   // real (non-optimistic) state instead of waiting on the Realtime INSERT
   // echo — that round trip has enough latency that the optimistic bubble
   // could disappear (once its transition settles) before the echo arrives
   // to replace it, which is what "messages disappearing" actually was.
   return { message: data as SentStaffChatMessage };
+}
+
+const dmStatusSchema = z.object({
+  conversationId: z.string().uuid(),
+  status: z.enum(['normal', 'important']),
+});
+
+/** CEO/IT Developer only — mirrors dm_conversations_update_important_flag's
+ * RLS check. Marking a DM "Important" is what makes it surface on the
+ * general chat list; neither participant can do this themselves (see the
+ * migration comment for why it's scoped this way rather than to either
+ * participant). */
+export async function setDmConversationStatusAction(
+  _prevState: StaffChatsActionState,
+  formData: FormData,
+): Promise<StaffChatsActionState> {
+  const { profile } = await getAuthState();
+  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer'))
+    return { error: 'forbidden' };
+
+  const parsed = dmStatusSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('dm_conversations')
+    .update({ status: parsed.data.status })
+    .eq('id', parsed.data.conversationId);
+  if (error) return { error: 'updateFailed' };
+
+  return {};
 }
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -110,7 +170,9 @@ const reactionSchema = z.object({ id: z.string().uuid(), emoji: z.string().trim(
  * The realtime UPDATE this triggers is what actually syncs the change to
  * every other open client; there's no local optimistic step here, same as
  * toggleStaffChatPinAction below. */
-export async function toggleStaffChatReactionAction(formData: FormData): Promise<{ error?: string }> {
+export async function toggleStaffChatReactionAction(
+  formData: FormData,
+): Promise<{ error?: string }> {
   const { user } = await getAuthState();
   if (!user) return { error: 'forbidden' };
 
@@ -168,7 +230,9 @@ export async function requestChatMediaUploadUrlAction(fileName: string): Promise
   // Path is always scoped to the caller's own id, so the admin client (which
   // bypasses storage RLS — currently missing its INSERT policies on the new
   // Frankfurt project) doesn't widen access beyond what the user already had.
-  const { data, error } = await createAdminClient().storage.from('chat_media').createSignedUploadUrl(path);
+  const { data, error } = await createAdminClient()
+    .storage.from('chat_media')
+    .createSignedUploadUrl(path);
   if (error || !data) return { error: 'uploadFailed' };
 
   return { path, token: data.token };

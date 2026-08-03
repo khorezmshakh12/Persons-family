@@ -158,12 +158,20 @@ export function ConversationView({
         {isFamily && isAdmin && (
           <div className="flex shrink-0 items-center gap-2">
             <span className="text-xs text-white/60">{t('chatEnabled')}</span>
-            <Switch checked={chatEnabled} onCheckedChange={handleToggleChatEnabled} disabled={isTogglePending} />
+            <Switch
+              checked={chatEnabled}
+              onCheckedChange={handleToggleChatEnabled}
+              disabled={isTogglePending}
+            />
           </div>
         )}
       </div>
 
-      <div ref={scrollContainerRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="min-h-0 flex-1 overflow-y-auto p-4"
+      >
         {messages.length === 0 ? (
           <p className="text-center text-sm text-white/60">{t('empty')}</p>
         ) : (
@@ -180,7 +188,11 @@ export function ConversationView({
                   isAdmin={isAdmin}
                   currentUserId={currentUserId}
                   isOptimistic={m.id.startsWith('optimistic-')}
-                  repliedQuote={repliedMessage ? toQuote(repliedMessage, senderNameFor(repliedMessage.sender_id)) : null}
+                  repliedQuote={
+                    repliedMessage
+                      ? toQuote(repliedMessage, senderNameFor(repliedMessage.sender_id))
+                      : null
+                  }
                   onReply={handleReply}
                 />
               );
@@ -199,7 +211,9 @@ export function ConversationView({
           onClearReply={() => setReplyTarget(null)}
         />
       ) : (
-        <p className="border-t border-white/15 p-4 text-center text-sm text-white/50">{t('chatDisabled')}</p>
+        <p className="border-t border-white/15 p-4 text-center text-sm text-white/50">
+          {t('chatDisabled')}
+        </p>
       )}
     </div>
   );

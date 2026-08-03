@@ -12,10 +12,17 @@ import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type StaffActionState =
-  | { error?: string; tempPassword?: string; userId?: string }
-  | undefined;
+  { error?: string; tempPassword?: string; userId?: string } | undefined;
 
-const ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm', 'mobilgrof', 'it_developer'] as const;
+const ROLES = [
+  'ceo',
+  'admin_manager',
+  'teacher',
+  'assistant',
+  'smm',
+  'mobilgrof',
+  'it_developer',
+] as const;
 
 /** CEO and Admin Manager are equal for day-to-day operations, but managing
  * an Admin (or CEO) account itself — editing, deactivating, resetting their
@@ -78,7 +85,12 @@ export async function requestAvatarUploadUrlAction(
     .select('role')
     .eq('id', targetUserId)
     .maybeSingle();
-  if (target && targetUserId !== actingProfile.id && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+  if (
+    target &&
+    targetUserId !== actingProfile.id &&
+    isProtectedRole(target.role) &&
+    actingProfile.role !== 'ceo'
+  ) {
     return { error: manageRoleError(target.role) };
   }
 
@@ -87,8 +99,8 @@ export async function requestAvatarUploadUrlAction(
   // protected-role check), so this uses the admin client — see the note in
   // requestLessonMaterialUploadUrlAction for why (missing storage RLS
   // INSERT policies on the new Frankfurt project).
-  const { data, error } = await createAdminClient().storage
-    .from('avatars')
+  const { data, error } = await createAdminClient()
+    .storage.from('avatars')
     .createSignedUploadUrl(path, { upsert: true });
   if (error || !data) return { error: 'uploadFailed' };
 
@@ -114,7 +126,11 @@ async function createStaffRow(
     email_confirm: true,
   });
   if (createError || !created.user) {
-    return { error: createError?.message.includes('already been registered') ? 'phoneTaken' : 'createFailed' };
+    return {
+      error: createError?.message.includes('already been registered')
+        ? 'phoneTaken'
+        : 'createFailed',
+    };
   }
 
   const supabase = await createClient();
@@ -132,7 +148,11 @@ async function createStaffRow(
     return { error: 'createFailed' };
   }
 
-  logSystemAction(supabase, 'staff.create', `Created staff member ${data.firstName} ${data.lastName} (${data.role})`);
+  logSystemAction(
+    supabase,
+    'staff.create',
+    `Created staff member ${data.firstName} ${data.lastName} (${data.role})`,
+  );
 
   revalidatePath('/[locale]/staff', 'page');
   return { tempPassword, userId: created.user.id };
@@ -235,7 +255,11 @@ export async function updateStaffAction(
   // Only a genuine role *change* into ceo/admin_manager is blocked — an
   // admin_manager editing their own profile still resubmits their current
   // (unchanged) role through this same form field.
-  if (parsed.data.role !== target.role && isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
+  if (
+    parsed.data.role !== target.role &&
+    isProtectedRole(parsed.data.role) &&
+    actingProfile.role !== 'ceo'
+  ) {
     return { error: assignRoleError(parsed.data.role) };
   }
 
@@ -244,7 +268,8 @@ export async function updateStaffAction(
 
   let avatarUrl: string | undefined;
   if (parsed.data.avatarPath) {
-    avatarUrl = supabase.storage.from('avatars').getPublicUrl(parsed.data.avatarPath).data.publicUrl;
+    avatarUrl = supabase.storage.from('avatars').getPublicUrl(parsed.data.avatarPath)
+      .data.publicUrl;
   }
 
   const { error } = await supabase
@@ -308,6 +333,49 @@ export async function toggleStaffActiveAction(
   return {};
 }
 
+/** Permanent deletion, CEO-only, mirrors profiles_delete_ceo's RLS check
+ * (self-delete blocked there too). Goes through the admin client's
+ * deleteUser, same as every other identity-level staff action in this file
+ * — profiles.id cascades from auth.users, so this removes the profile row
+ * (and everything that references it) in one call, no separate table
+ * delete needed. Target's name/role is captured before the delete for the
+ * audit log, since the row won't exist to query afterward. */
+export async function deleteStaffAction(
+  _prevState: StaffActionState,
+  formData: FormData,
+): Promise<StaffActionState> {
+  let actingProfile;
+  try {
+    ({ profile: actingProfile } = await requireCeo());
+  } catch {
+    return { error: 'forbidden' };
+  }
+
+  const parsed = idSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.id === actingProfile.id) return { error: 'cannotDeleteSelf' };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from('profiles')
+    .select('first_name, last_name, role')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
+  if (!target) return { error: 'notFound' };
+
+  const { error } = await createAdminClient().auth.admin.deleteUser(parsed.data.id);
+  if (error) return { error: 'deleteFailed' };
+
+  logSystemAction(
+    supabase,
+    'staff.delete',
+    `Deleted staff member ${target.first_name} ${target.last_name} (${target.role})`,
+  );
+
+  revalidatePath('/[locale]/staff', 'page');
+  return {};
+}
+
 export async function resetStaffPasswordAction(
   _prevState: StaffActionState,
   formData: FormData,
@@ -329,7 +397,11 @@ export async function resetStaffPasswordAction(
     .eq('id', parsed.data.id)
     .single();
   if (!target) return { error: 'notFound' };
-  if (parsed.data.id !== actingProfile.id && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+  if (
+    parsed.data.id !== actingProfile.id &&
+    isProtectedRole(target.role) &&
+    actingProfile.role !== 'ceo'
+  ) {
     return { error: manageRoleError(target.role) };
   }
 

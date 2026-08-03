@@ -28,7 +28,8 @@
     "telegramSetup": "Telegram",
     "selfDevelopment": "O'z-o'zini Rivojlantirish",
     "performance": "Samaradorlik",
-    "settings": "Sozlamalar"
+    "settings": "Sozlamalar",
+    "profile": "Mening profilim"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -184,7 +185,9 @@
       "invalidAvatarType": "Profil rasmi PNG yoki JPG formatida bo'lishi kerak.",
       "avatarTooLarge": "Profil rasmi 5MB dan kichik bo'lishi kerak.",
       "notFound": "Xodim topilmadi.",
-      "forbidden": "Sizda bu amal uchun ruxsat yo'q."
+      "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "cannotDeleteSelf": "O'z hisobingizni o'chira olmaysiz.",
+      "deleteFailed": "Xodimni o'chirib bo'lmadi. Qayta urinib ko'ring."
     },
     "adminManagement": {
       "title": "Administratorlarni Boshqarish",
@@ -207,7 +210,10 @@
         "deleteFailed": "Ushbu hisobni o'chirib bo'lmadi. Qayta urinib ko'ring.",
         "cannotDeleteSelf": "O'z hisobingizni o'chira olmaysiz."
       }
-    }
+    },
+    "delete": "Xodimni o'chirish",
+    "confirmDeleteTitle": "Ushbu xodim butunlay o'chirilsinmi?",
+    "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi."
   },
   "chatHub": {
     "familyChat": "Oilaviy Chat",
@@ -249,7 +255,17 @@
       "invalidFileType": "Iltimos, rasm yoki video tanlang.",
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
       "micDenied": "Mikrofonga kirish imkoni bo'lmadi. Brauzer ruxsatlarini tekshiring.",
-      "reactionFailed": "Reaksiyani yangilab bo'lmadi. Qayta urinib ko'ring."
+      "reactionFailed": "Reaksiyani yangilab bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "Suhbat holatini yangilab bo'lmadi. Qayta urinib ko'ring."
+    },
+    "importantChats": {
+      "title": "Muhim suhbatlar",
+      "subtitle": "Standart holatda faqat \"Muhim\" deb belgilangan suhbatlar shu yerda ko'rinadi.",
+      "showAll": "Barchasini ko'rsatish",
+      "showImportantOnly": "Faqat muhimlarini ko'rsatish",
+      "empty": "Bu yerda hali suhbatlar yo'q.",
+      "mark": "Muhim deb belgilash",
+      "unmark": "Belgini olib tashlash"
     }
   },
   "issues": {
@@ -418,8 +434,6 @@
     "titleLabel": "Sarlavha",
     "descriptionLabel": "Tavsif",
     "assignee": "Bajaruvchi",
-    "dueDate": "Muddat",
-    "noDueDate": "Muddat belgilanmagan",
     "create": "Yaratish",
     "saveChanges": "O'zgarishlarni saqlash",
     "delete": "Vazifani o'chirish",
@@ -445,7 +459,9 @@
       "createFailed": "Vazifani berib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
       "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
-    }
+    },
+    "deadline": "Muddat",
+    "overdue": "Muddati o'tgan"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -695,7 +711,8 @@
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
-    }
+    },
+    "fromWarning": "Ogohlantirishdan"
   },
   "notifications": {
     "title": "Bildirishnomalar",
@@ -705,5 +722,120 @@
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
     "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
+  },
+  "profile": {
+    "contactInfo": {
+      "title": "Aloqa ma'lumotlari",
+      "phone": "Telefon",
+      "email": "Email",
+      "address": "Manzil",
+      "emergencyContact": "Favqulodda aloqa",
+      "emergencyContactPlaceholder": "Ism va telefon raqami",
+      "telegram": "Telegram",
+      "telegramLinked": "Ulangan",
+      "telegramNotLinked": "Ulanmagan",
+      "notSet": "Kiritilmagan",
+      "edit": "Tahrirlash",
+      "editTitle": "Aloqa ma'lumotlarini tahrirlash",
+      "save": "Saqlash",
+      "successToast": "Aloqa ma'lumotlari yangilandi.",
+      "errors": {
+        "invalidInput": "Iltimos, maydonlarni tekshirib, qayta urinib ko'ring.",
+        "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
+      }
+    },
+    "selfDevelopment": {
+      "title": "O'z-o'zini rivojlantirish",
+      "allMonths": "Barcha oylar",
+      "noEntries": "Hozircha yozuvlar yo'q."
+    },
+    "warnings": {
+      "title": "Ogohlantirishlar",
+      "issueWarning": "Ogohlantirish berish",
+      "reason": "Sabab",
+      "noWarnings": "Hozircha ogohlantirishlar yo'q.",
+      "issuedBy": "{name} tomonidan berilgan",
+      "assignPunishment": "Jazo tayinlash",
+      "amount": "Jarima miqdori",
+      "amountHint": "Jarimasiz ogohlantirish uchun 0 qoldiring.",
+      "punishmentReason": "Izoh (ixtiyoriy)",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+        "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "invalidWarning": "Ushbu ogohlantirish topilmadi."
+      }
+    },
+    "bonusesPunishments": {
+      "title": "Bonuslar va jazolar",
+      "bonusesTitle": "Bonuslar",
+      "punishmentsTitle": "Jazolar"
+    },
+    "duties": {
+      "title": "Vazifalar (lavozim)",
+      "addDuty": "Vazifa qo'shish",
+      "dutyTitle": "Sarlavha",
+      "dutyDescription": "Tavsif",
+      "linkedContract": "Bog'liq shartnoma",
+      "noContract": "Aniq shartnomasiz",
+      "noDuties": "Hozircha vazifalar biriktirilmagan.",
+      "delete": "Vazifani o'chirish",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+        "createFailed": "Vazifani qo'shib bo'lmadi. Qayta urinib ko'ring.",
+        "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
+      }
+    },
+    "contracts": {
+      "title": "Shartnoma va vazifalar",
+      "comingSoon": "Yaqinda qo'shiladi. CEO siz uchun shartnoma yaratganidan so'ng, u va unga tegishli vazifalar shu yerda ko'rinadi.",
+      "createContract": "Shartnoma yaratish",
+      "contractTitle": "Sarlavha",
+      "startDate": "Boshlanish sanasi",
+      "endDate": "Tugash sanasi",
+      "noEndDate": "Tugash sanasi yo'q",
+      "noContracts": "Hozircha shartnomalar yo'q.",
+      "status": {
+        "active": "Amal qilmoqda",
+        "frozen": "Muzlatilgan",
+        "ended": "Tugagan"
+      },
+      "attachments": "Fayllar",
+      "noAttachments": "Fayllar biriktirilmagan.",
+      "uploadFile": "Fayl yuklash",
+      "deleteAttachment": "Faylni o'chirish",
+      "requestFreeze": "Muzlatishni so'rash",
+      "requestExtend": "Uzaytirishni so'rash",
+      "requestReason": "Sabab (ixtiyoriy)",
+      "submitRequest": "So'rovni yuborish",
+      "requests": "So'rovlar",
+      "requestType": {
+        "freeze": "Muzlatish so'rovi",
+        "extend": "Uzaytirish so'rovi"
+      },
+      "requestStatus": {
+        "pending": "Kutilmoqda",
+        "approved": "Tasdiqlandi",
+        "rejected": "Rad etildi"
+      },
+      "reject": "Rad etish",
+      "approve": "Tasdiqlash",
+      "approveExtendTitle": "Uzaytirishni tasdiqlash — yangi tugash sanasini belgilang",
+      "newEndDate": "Yangi tugash sanasi",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
+        "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "deleteFailed": "O'chirib bo'lmadi. Qayta urinib ko'ring.",
+        "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+        "downloadFailed": "Faylni ochib bo'lmadi. Qayta urinib ko'ring.",
+        "contractNotActive": "Bu shartnoma endi amal qilmaydi.",
+        "alreadyReviewed": "Bu so'rov allaqachon ko'rib chiqilgan.",
+        "notFound": "Topilmadi."
+      }
+    }
   }
 }

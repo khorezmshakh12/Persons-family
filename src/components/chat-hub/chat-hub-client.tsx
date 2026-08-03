@@ -19,6 +19,7 @@ export function ChatHubClient({
   currentUserName,
   currentUserAvatar,
   isAdmin,
+  canModerateDmImportance,
   staff,
   initialFamilyMessages,
   initialUnreadSenderIds,
@@ -28,6 +29,7 @@ export function ChatHubClient({
   currentUserName: string;
   currentUserAvatar: string | null;
   isAdmin: boolean;
+  canModerateDmImportance: boolean;
   staff: StaffDirectoryEntry[];
   initialFamilyMessages: StaffChatMessage[];
   initialUnreadSenderIds: string[];
@@ -38,7 +40,9 @@ export function ChatHubClient({
   const [familyMessages, setFamilyMessages] = useState<StaffChatMessage[]>(initialFamilyMessages);
   const [dmMessagesByPair, setDmMessagesByPair] = useState<Record<string, StaffChatMessage[]>>({});
   const [loadedDmPairs, setLoadedDmPairs] = useState<Set<string>>(new Set());
-  const [unreadDmUserIds, setUnreadDmUserIds] = useState<Set<string>>(() => new Set(initialUnreadSenderIds));
+  const [unreadDmUserIds, setUnreadDmUserIds] = useState<Set<string>>(
+    () => new Set(initialUnreadSenderIds),
+  );
   const [chatEnabled, setChatEnabled] = useState(initialChatEnabled);
   const activeRef = useRef(active);
   activeRef.current = active;
@@ -60,7 +64,9 @@ export function ChatHubClient({
   }, [staff, currentUserId, currentUserName, currentUserAvatar]);
 
   const activeRealMessages =
-    active.type === 'family' ? familyMessages : (dmMessagesByPair[dmKey(currentUserId, active.userId)] ?? []);
+    active.type === 'family'
+      ? familyMessages
+      : (dmMessagesByPair[dmKey(currentUserId, active.userId)] ?? []);
 
   const [optimisticMessages, addOptimisticMessage] = useOptimistic(
     activeRealMessages,
@@ -93,7 +99,10 @@ export function ChatHubClient({
           console.error('Failed to load DM history', error);
           return;
         }
-        setDmMessagesByPair((prev) => ({ ...prev, [key]: (data as unknown as StaffChatMessage[]) ?? [] }));
+        setDmMessagesByPair((prev) => ({
+          ...prev,
+          [key]: (data as unknown as StaffChatMessage[]) ?? [],
+        }));
         setLoadedDmPairs((prev) => new Set(prev).add(key));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +138,9 @@ export function ChatHubClient({
       flippedIds = toFlip.map((m) => m.id);
       return {
         ...prev,
-        [key]: existing.map((m) => (m.sender_id === otherId && !m.is_read ? { ...m, is_read: true } : m)),
+        [key]: existing.map((m) =>
+          m.sender_id === otherId && !m.is_read ? { ...m, is_read: true } : m,
+        ),
       };
     });
 
@@ -173,59 +184,82 @@ export function ChatHubClient({
 
       channel = supabase
         .channel('staff_chats_hub')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'staff_chats' }, (payload) => {
-          const message = payload.new as StaffChatMessage;
-          if (message.receiver_id === null) {
-            setFamilyMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
-            return;
-          }
-          const otherId = message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
-          if (message.sender_id !== currentUserId && message.receiver_id !== currentUserId) return;
-          const key = dmKey(currentUserId, otherId);
-          setDmMessagesByPair((prev) => {
-            const existing = prev[key] ?? [];
-            if (existing.some((m) => m.id === message.id)) return prev;
-            return { ...prev, [key]: [...existing, message] };
-          });
-          setLoadedDmPairs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-          const current = activeRef.current;
-          if (message.sender_id !== currentUserId && (current.type !== 'dm' || current.userId !== otherId)) {
-            setUnreadDmUserIds((prev) => new Set(prev).add(otherId));
-          }
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'staff_chats' }, (payload) => {
-          const updated = payload.new as StaffChatMessage;
-          if (updated.receiver_id === null) {
-            setFamilyMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-          } else {
-            const otherId = updated.sender_id === currentUserId ? updated.receiver_id : updated.sender_id;
-            const key = dmKey(currentUserId, otherId);
-            setDmMessagesByPair((prev) =>
-              prev[key] ? { ...prev, [key]: prev[key].map((m) => (m.id === updated.id ? updated : m)) } : prev,
-            );
-            // A message from this sender was marked read somewhere else —
-            // the notification bell, another tab, opening this DM just now
-            // — so the sidebar dot should clear regardless of which path
-            // did it, not only the "this DM just became active" effect.
-            if (updated.is_read && updated.receiver_id === currentUserId) {
-              setUnreadDmUserIds((prev) => {
-                if (!prev.has(updated.sender_id)) return prev;
-                const next = new Set(prev);
-                next.delete(updated.sender_id);
-                return next;
-              });
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'staff_chats' },
+          (payload) => {
+            const message = payload.new as StaffChatMessage;
+            if (message.receiver_id === null) {
+              setFamilyMessages((prev) =>
+                prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+              );
+              return;
             }
-          }
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'staff_chats' }, (payload) => {
-          const deletedId = (payload.old as { id: string }).id;
-          setFamilyMessages((prev) => prev.filter((m) => m.id !== deletedId));
-          setDmMessagesByPair((prev) => {
-            const next: Record<string, StaffChatMessage[]> = {};
-            for (const [key, list] of Object.entries(prev)) next[key] = list.filter((m) => m.id !== deletedId);
-            return next;
-          });
-        })
+            const otherId =
+              message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
+            if (message.sender_id !== currentUserId && message.receiver_id !== currentUserId)
+              return;
+            const key = dmKey(currentUserId, otherId);
+            setDmMessagesByPair((prev) => {
+              const existing = prev[key] ?? [];
+              if (existing.some((m) => m.id === message.id)) return prev;
+              return { ...prev, [key]: [...existing, message] };
+            });
+            setLoadedDmPairs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+            const current = activeRef.current;
+            if (
+              message.sender_id !== currentUserId &&
+              (current.type !== 'dm' || current.userId !== otherId)
+            ) {
+              setUnreadDmUserIds((prev) => new Set(prev).add(otherId));
+            }
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'staff_chats' },
+          (payload) => {
+            const updated = payload.new as StaffChatMessage;
+            if (updated.receiver_id === null) {
+              setFamilyMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+            } else {
+              const otherId =
+                updated.sender_id === currentUserId ? updated.receiver_id : updated.sender_id;
+              const key = dmKey(currentUserId, otherId);
+              setDmMessagesByPair((prev) =>
+                prev[key]
+                  ? { ...prev, [key]: prev[key].map((m) => (m.id === updated.id ? updated : m)) }
+                  : prev,
+              );
+              // A message from this sender was marked read somewhere else —
+              // the notification bell, another tab, opening this DM just now
+              // — so the sidebar dot should clear regardless of which path
+              // did it, not only the "this DM just became active" effect.
+              if (updated.is_read && updated.receiver_id === currentUserId) {
+                setUnreadDmUserIds((prev) => {
+                  if (!prev.has(updated.sender_id)) return prev;
+                  const next = new Set(prev);
+                  next.delete(updated.sender_id);
+                  return next;
+                });
+              }
+            }
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'staff_chats' },
+          (payload) => {
+            const deletedId = (payload.old as { id: string }).id;
+            setFamilyMessages((prev) => prev.filter((m) => m.id !== deletedId));
+            setDmMessagesByPair((prev) => {
+              const next: Record<string, StaffChatMessage[]> = {};
+              for (const [key, list] of Object.entries(prev))
+                next[key] = list.filter((m) => m.id !== deletedId);
+              return next;
+            });
+          },
+        )
         .subscribe();
     })();
 
@@ -265,7 +299,9 @@ export function ChatHubClient({
   // just no-ops instead of double-adding this message.
   function handleConfirmedSend(message: StaffChatMessage) {
     if (message.receiver_id === null) {
-      setFamilyMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      setFamilyMessages((prev) =>
+        prev.some((m) => m.id === message.id) ? prev : [...prev, message],
+      );
       return;
     }
     const otherId = message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
@@ -279,7 +315,13 @@ export function ChatHubClient({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-lg sm:flex-row">
-      <ChatSidebar staff={staff} active={active} onSelect={setActive} unreadDmUserIds={unreadDmUserIds} />
+      <ChatSidebar
+        staff={staff}
+        active={active}
+        onSelect={setActive}
+        unreadDmUserIds={unreadDmUserIds}
+        canModerateDmImportance={canModerateDmImportance}
+      />
       <ConversationView
         active={active}
         messages={optimisticMessages}

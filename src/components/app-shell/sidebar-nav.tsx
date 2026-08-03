@@ -13,6 +13,7 @@ import {
   MessagesSquare,
   Send,
   TrendingUp,
+  User,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   staffChat: MessagesSquare,
   telegramSetup: Send,
   selfDevelopment: TrendingUp,
+  profile: User,
   settings: Settings,
 };
 
@@ -74,16 +76,19 @@ export function SidebarNav({
               glass
                 ? active
                   ? 'border border-teal-300/30 bg-teal-400/20 font-semibold text-white'
-                  : 'text-white/70 hover:bg-white/10 font-medium'
+                  : 'font-medium text-white/70 hover:bg-white/10'
                 : active
-                  ? 'bg-teal-50 text-teal-600 font-semibold dark:bg-teal-500/15 dark:text-teal-400'
+                  ? 'bg-teal-50 font-semibold text-teal-600 dark:bg-teal-500/15 dark:text-teal-400'
                   : 'text-muted-foreground hover:bg-muted font-medium',
             )}
           >
             <Icon className="size-4" />
             {t(item.key)}
             {newKeys.includes(item.key) && (
-              <span className="ml-auto size-2 shrink-0 rounded-full bg-green-500 animate-pulse" aria-hidden />
+              <span
+                className="ml-auto size-2 shrink-0 animate-pulse rounded-full bg-green-500"
+                aria-hidden
+              />
             )}
           </Link>
         );

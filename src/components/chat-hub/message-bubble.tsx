@@ -58,7 +58,9 @@ function MessageBubbleComponent({
   const name = sender ? `${sender.first_name} ${sender.last_name}` : '—';
   const initials = sender ? `${sender.first_name[0]}${sender.last_name[0]}` : '?';
   const isPinned = !!message.pinned_at;
-  const reactionEntries = Object.entries(message.reactions ?? {}).filter(([, users]) => users.length > 0);
+  const reactionEntries = Object.entries(message.reactions ?? {}).filter(
+    ([, users]) => users.length > 0,
+  );
 
   function handleDelete() {
     const formData = new FormData();
@@ -99,7 +101,9 @@ function MessageBubbleComponent({
       </Avatar>
       <div className={cn('group flex max-w-[75%] flex-col gap-1', isOwn && 'items-end')}>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{name}</span>
+          <span className="text-xs font-medium text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            {name}
+          </span>
           <span className="text-xs text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
@@ -118,7 +122,9 @@ function MessageBubbleComponent({
           <div
             className={cn(
               'flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
-              isOwn ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-white' : 'bg-white/10 text-white',
+              isOwn
+                ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-white'
+                : 'bg-white/10 text-white',
             )}
           >
             {message.reply_to_id && repliedQuote && (

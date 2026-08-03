@@ -28,7 +28,8 @@
     "telegramSetup": "Telegram",
     "selfDevelopment": "Self-Development",
     "performance": "Performance",
-    "settings": "Settings"
+    "settings": "Settings",
+    "profile": "My Profile"
   },
   "auth": {
     "phone": "Phone number",
@@ -184,7 +185,9 @@
       "invalidAvatarType": "Profile picture must be a PNG or JPG image.",
       "avatarTooLarge": "Profile picture must be under 5MB.",
       "notFound": "Staff member not found.",
-      "forbidden": "You don't have permission to do this."
+      "forbidden": "You don't have permission to do this.",
+      "cannotDeleteSelf": "You can't delete your own account.",
+      "deleteFailed": "Could not delete this staff member. Please try again."
     },
     "adminManagement": {
       "title": "Admin Management",
@@ -207,7 +210,10 @@
         "deleteFailed": "Could not delete this account. Please try again.",
         "cannotDeleteSelf": "You can't delete your own account."
       }
-    }
+    },
+    "delete": "Delete staff member",
+    "confirmDeleteTitle": "Permanently delete this staff member?",
+    "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone."
   },
   "chatHub": {
     "familyChat": "Family Chat",
@@ -249,7 +255,17 @@
       "invalidFileType": "Please choose an image or video file.",
       "uploadFailed": "Could not upload the file. Please try again.",
       "micDenied": "Couldn't access your microphone. Check your browser permissions.",
-      "reactionFailed": "Could not update your reaction. Please try again."
+      "reactionFailed": "Could not update your reaction. Please try again.",
+      "updateFailed": "Could not update this chat's status. Please try again."
+    },
+    "importantChats": {
+      "title": "Important chats",
+      "subtitle": "Only conversations marked Important show here by default.",
+      "showAll": "Show all",
+      "showImportantOnly": "Show important only",
+      "empty": "No conversations here yet.",
+      "mark": "Mark important",
+      "unmark": "Unmark"
     }
   },
   "issues": {
@@ -418,8 +434,6 @@
     "titleLabel": "Title",
     "descriptionLabel": "Description",
     "assignee": "Assignee",
-    "dueDate": "Due date",
-    "noDueDate": "No due date",
     "create": "Create",
     "saveChanges": "Save changes",
     "delete": "Delete task",
@@ -445,7 +459,9 @@
       "createFailed": "Could not assign the task. Please try again.",
       "updateFailed": "Could not save changes. Please try again.",
       "deleteFailed": "Could not delete the task. Please try again."
-    }
+    },
+    "deadline": "Deadline",
+    "overdue": "Overdue"
   },
   "companyNews": {
     "title": "Company News",
@@ -695,7 +711,8 @@
       "forbidden": "You don't have permission to do this.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
-    }
+    },
+    "fromWarning": "From warning"
   },
   "notifications": {
     "title": "Notifications",
@@ -705,5 +722,120 @@
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
     "markReadFailed": "Couldn't sync that as read — it will still show as unread."
+  },
+  "profile": {
+    "contactInfo": {
+      "title": "Contact Information",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "emergencyContact": "Emergency contact",
+      "emergencyContactPlaceholder": "Name and phone number",
+      "telegram": "Telegram",
+      "telegramLinked": "Linked",
+      "telegramNotLinked": "Not linked",
+      "notSet": "Not set",
+      "edit": "Edit",
+      "editTitle": "Edit contact information",
+      "save": "Save",
+      "successToast": "Contact information updated.",
+      "errors": {
+        "invalidInput": "Please check the fields and try again.",
+        "forbidden": "You don't have permission to do this.",
+        "updateFailed": "Could not save changes. Please try again."
+      }
+    },
+    "selfDevelopment": {
+      "title": "Self-Development",
+      "allMonths": "All months",
+      "noEntries": "No self-development entries yet."
+    },
+    "warnings": {
+      "title": "Warnings",
+      "issueWarning": "Issue warning",
+      "reason": "Reason",
+      "noWarnings": "No warnings on record.",
+      "issuedBy": "issued by {name}",
+      "assignPunishment": "Assign punishment",
+      "amount": "Fine amount",
+      "amountHint": "Leave at 0 for a reprimand with no fine attached.",
+      "punishmentReason": "Note (optional)",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Please fill in all required fields.",
+        "createFailed": "Could not save this. Please try again.",
+        "invalidWarning": "This warning could not be found."
+      }
+    },
+    "bonusesPunishments": {
+      "title": "Bonuses & Punishments",
+      "bonusesTitle": "Bonuses",
+      "punishmentsTitle": "Punishments"
+    },
+    "duties": {
+      "title": "Duties",
+      "addDuty": "Add duty",
+      "dutyTitle": "Title",
+      "dutyDescription": "Description",
+      "linkedContract": "Linked contract",
+      "noContract": "No specific contract",
+      "noDuties": "No duties assigned yet.",
+      "delete": "Delete duty",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Please fill in all required fields.",
+        "createFailed": "Could not add this duty. Please try again.",
+        "deleteFailed": "Could not delete this duty. Please try again."
+      }
+    },
+    "contracts": {
+      "title": "Contracts & Duties",
+      "comingSoon": "Coming soon. Your contract and its duties will appear here once the CEO creates one for you.",
+      "createContract": "Create contract",
+      "contractTitle": "Title",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "noEndDate": "No end date",
+      "noContracts": "No contracts yet.",
+      "status": {
+        "active": "Active",
+        "frozen": "Frozen",
+        "ended": "Ended"
+      },
+      "attachments": "Files",
+      "noAttachments": "No files attached.",
+      "uploadFile": "Upload file",
+      "deleteAttachment": "Delete file",
+      "requestFreeze": "Request freeze",
+      "requestExtend": "Request extension",
+      "requestReason": "Reason (optional)",
+      "submitRequest": "Submit request",
+      "requests": "Requests",
+      "requestType": {
+        "freeze": "Freeze request",
+        "extend": "Extension request"
+      },
+      "requestStatus": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "reject": "Reject",
+      "approve": "Approve",
+      "approveExtendTitle": "Approve extension — set new end date",
+      "newEndDate": "New end date",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Please fill in all required fields.",
+        "createFailed": "Could not save this. Please try again.",
+        "updateFailed": "Could not save changes. Please try again.",
+        "deleteFailed": "Could not delete this. Please try again.",
+        "uploadFailed": "Could not upload the file. Please try again.",
+        "downloadFailed": "Could not open the file. Please try again.",
+        "contractNotActive": "This contract is no longer active.",
+        "alreadyReviewed": "This request has already been reviewed.",
+        "notFound": "Not found."
+      }
+    }
   }
 }

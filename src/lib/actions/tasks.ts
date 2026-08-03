@@ -35,15 +35,21 @@ const TASK_STATUS_LABELS: Record<string, string> = {
 async function notifyTaskAssigned({
   title,
   status,
+  deadline,
   assigneeTelegramId,
 }: {
   title: string;
   status: string;
+  deadline: string;
   assigneeTelegramId: number | null;
 }) {
   if (!assigneeTelegramId) return;
   try {
-    const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}`;
+    const deadlineLabel = new Date(deadline).toLocaleString('uz-UZ', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}\nMuddati: ${escapeTelegramText(deadlineLabel)}`;
     await sendTelegramMessage(assigneeTelegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
@@ -54,7 +60,7 @@ const taskSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional().or(z.literal('')),
   assignedTo: z.string().uuid(),
-  dueDate: z.string().optional().or(z.literal('')),
+  deadline: z.string().min(1),
 });
 
 export async function assignTaskAction(
@@ -94,11 +100,16 @@ export async function assignTaskAction(
     description: parsed.data.description || null,
     assigned_to: parsed.data.assignedTo,
     assigned_by: actingUserId,
-    due_date: parsed.data.dueDate || null,
+    deadline: parsed.data.deadline,
   });
   if (error) return { error: 'createFailed' };
 
-  void notifyTaskAssigned({ title: parsed.data.title, status: 'pending', assigneeTelegramId: target.telegram_id });
+  void notifyTaskAssigned({
+    title: parsed.data.title,
+    status: 'pending',
+    deadline: parsed.data.deadline,
+    assigneeTelegramId: target.telegram_id,
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -150,12 +161,17 @@ export async function updateTaskAction(
       title: parsed.data.title,
       description: parsed.data.description || null,
       assigned_to: parsed.data.assignedTo,
-      due_date: parsed.data.dueDate || null,
+      deadline: parsed.data.deadline,
     })
     .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
 
-  void notifyTaskAssigned({ title: parsed.data.title, status: existing.status, assigneeTelegramId: target.telegram_id });
+  void notifyTaskAssigned({
+    title: parsed.data.title,
+    status: existing.status,
+    deadline: parsed.data.deadline,
+    assigneeTelegramId: target.telegram_id,
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -178,7 +194,10 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('tasks').update({ status: parsed.data.status }).eq('id', parsed.data.id);
+  const { error } = await supabase
+    .from('tasks')
+    .update({ status: parsed.data.status })
+    .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
 
   revalidatePath('/[locale]/tasks', 'page');
@@ -205,7 +224,11 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { data: existing } = await supabase.from('tasks').select('assigned_by').eq('id', parsed.data.id).maybeSingle();
+  const { data: existing } = await supabase
+    .from('tasks')
+    .select('assigned_by')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
   const { error } = await supabase.from('tasks').delete().eq('id', parsed.data.id);

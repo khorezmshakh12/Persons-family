@@ -35,7 +35,9 @@ export function TaskBoard({
     if (!current || current.status === nextStatus) return;
 
     const previousTasks = tasks;
-    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status: nextStatus } : task)));
+    setTasks((prev) =>
+      prev.map((task) => (task.id === taskId ? { ...task, status: nextStatus } : task)),
+    );
 
     (async () => {
       const formData = new FormData();

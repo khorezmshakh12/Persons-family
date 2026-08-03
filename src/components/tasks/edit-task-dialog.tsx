@@ -16,15 +16,22 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { Assignee } from './assign-task-dialog';
+import { fromDatetimeLocalValue, toDatetimeLocalValue } from '@/lib/format-date';
 
 export type EditableTask = {
   id: string;
   title: string;
   description: string | null;
   assigned_to: string;
-  due_date: string | null;
+  deadline: string;
 };
 
 export function EditTaskDialog({ task, assignees }: { task: EditableTask; assignees: Assignee[] }) {
@@ -58,11 +65,26 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
         <DialogHeader>
           <DialogTitle>{t('editTask')}</DialogTitle>
         </DialogHeader>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form
+          action={(formData) => {
+            const deadline = formData.get('deadline');
+            if (typeof deadline === 'string' && deadline) {
+              formData.set('deadline', fromDatetimeLocalValue(deadline));
+            }
+            return formAction(formData);
+          }}
+          className="flex flex-col gap-4"
+        >
           <input type="hidden" name="id" value={task.id} />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`title-${task.id}`}>{t('titleLabel')}</Label>
-            <Input id={`title-${task.id}`} name="title" defaultValue={task.title} required maxLength={200} />
+            <Input
+              id={`title-${task.id}`}
+              name="title"
+              defaultValue={task.title}
+              required
+              maxLength={200}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`description-${task.id}`}>{t('descriptionLabel')}</Label>
@@ -95,12 +117,13 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
             </Select>
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor={`dueDate-${task.id}`}>{t('dueDate')}</Label>
+            <Label htmlFor={`deadline-${task.id}`}>{t('deadline')}</Label>
             <Input
-              id={`dueDate-${task.id}`}
-              name="dueDate"
-              type="date"
-              defaultValue={task.due_date ?? ''}
+              id={`deadline-${task.id}`}
+              name="deadline"
+              type="datetime-local"
+              defaultValue={toDatetimeLocalValue(task.deadline)}
+              required
             />
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}

@@ -22,7 +22,9 @@ import type { ChatQuote } from './types';
 // picker library — see emoji-picker.tsx's own comment on that), but every
 // byte deferred out of the initial chat bundle is still a byte deferred;
 // most people load /chat to read/send text, not to pick an emoji.
-const EmojiPicker = dynamic(() => import('./emoji-picker').then((mod) => mod.EmojiPicker), { ssr: false });
+const EmojiPicker = dynamic(() => import('./emoji-picker').then((mod) => mod.EmojiPicker), {
+  ssr: false,
+});
 
 export function ChatComposer({
   receiverId,
@@ -80,7 +82,10 @@ export function ChatComposer({
     return sendStaffChatAction(prevState, formData);
   }
 
-  const [state, formAction, isPending] = useActionState<StaffChatsActionState, FormData>(composedAction, undefined);
+  const [state, formAction, isPending] = useActionState<StaffChatsActionState, FormData>(
+    composedAction,
+    undefined,
+  );
 
   useEffect(() => {
     if (!state) return;
@@ -113,7 +118,9 @@ export function ChatComposer({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage
         .from('chat_media')
-        .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, file, { contentType: file.type });
+        .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, file, {
+          contentType: file.type,
+        });
       if (uploadError) {
         toast.error(t('errors.uploadFailed'));
         return;
@@ -125,7 +132,11 @@ export function ChatComposer({
         return;
       }
 
-      onOptimisticSend({ mediaUrl: readUrlResult.signedUrl, mediaType, replyToId: replyTarget?.id });
+      onOptimisticSend({
+        mediaUrl: readUrlResult.signedUrl,
+        mediaType,
+        replyToId: replyTarget?.id,
+      });
 
       const sendFormData = new FormData();
       if (receiverId) sendFormData.set('receiverId', receiverId);
@@ -193,7 +204,11 @@ export function ChatComposer({
   }
 
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-2 border-t border-white/15 p-4">
+    <form
+      ref={formRef}
+      action={formAction}
+      className="flex flex-col gap-2 border-t border-white/15 p-4"
+    >
       {receiverId && <input type="hidden" name="receiverId" value={receiverId} />}
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
       {replyTarget && (
@@ -270,7 +285,11 @@ export function ChatComposer({
           aria-label={t('send')}
           className="shrink-0"
         >
-          {isPending || isUploading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          {isPending || isUploading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Send className="size-4" />
+          )}
         </Button>
       </div>
     </form>

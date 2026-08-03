@@ -32,9 +32,14 @@ export default async function ChatPage() {
     .eq('is_read', false);
   const initialUnreadSenderIds = Array.from(new Set((unreadRows ?? []).map((r) => r.sender_id)));
 
-  const { data: settings } = await supabase.from('app_settings').select('chat_enabled').eq('id', true).single();
+  const { data: settings } = await supabase
+    .from('app_settings')
+    .select('chat_enabled')
+    .eq('id', true)
+    .single();
 
   const isAdmin = profile!.role === 'ceo';
+  const canModerateDmImportance = profile!.role === 'ceo' || profile!.role === 'it_developer';
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-5.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">
@@ -43,6 +48,7 @@ export default async function ChatPage() {
         currentUserName={`${profile!.first_name} ${profile!.last_name}`}
         currentUserAvatar={profile!.avatar_url}
         isAdmin={isAdmin}
+        canModerateDmImportance={canModerateDmImportance}
         staff={staff ?? []}
         initialFamilyMessages={(familyMessages as unknown as StaffChatMessage[]) ?? []}
         initialUnreadSenderIds={initialUnreadSenderIds}

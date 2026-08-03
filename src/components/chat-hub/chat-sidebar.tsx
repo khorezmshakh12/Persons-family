@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { OnlineDot } from '@/components/presence/online-dot';
+import { ImportantChatsPanel } from './important-chats-panel';
 import { cn } from '@/lib/utils';
 import type { ActiveConversation, StaffDirectoryEntry } from './types';
 
@@ -35,12 +36,17 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
           <AvatarImage src={person.avatar_url ?? undefined} alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
-        <OnlineDot userId={person.id} className="absolute right-0 bottom-0 size-2 border border-slate-900" />
+        <OnlineDot
+          userId={person.id}
+          className="absolute right-0 bottom-0 size-2 border border-slate-900"
+        />
       </div>
       <span className="min-w-0 flex-1 truncate">
         {person.first_name} {person.last_name}
       </span>
-      {isUnread && !isActive && <span className="size-2 shrink-0 rounded-full bg-teal-400" aria-hidden />}
+      {isUnread && !isActive && (
+        <span className="size-2 shrink-0 rounded-full bg-teal-400" aria-hidden />
+      )}
     </button>
   );
 });
@@ -50,6 +56,7 @@ export function ChatSidebar({
   active,
   onSelect,
   unreadDmUserIds,
+  canModerateDmImportance,
 }: {
   staff: StaffDirectoryEntry[];
   active: ActiveConversation;
@@ -57,11 +64,18 @@ export function ChatSidebar({
   /** Staff ids with a DM message that arrived while a different conversation
    * was open — shown as a small dot until that DM is opened. */
   unreadDmUserIds: Set<string>;
+  /** CEO/IT Developer only — see ImportantChatsPanel. */
+  canModerateDmImportance: boolean;
 }) {
   const t = useTranslations('chatHub');
 
   return (
     <nav className="flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-white/15">
+      {canModerateDmImportance && (
+        <div className="mb-2">
+          <ImportantChatsPanel />
+        </div>
+      )}
       <button
         type="button"
         onClick={() => onSelect({ type: 'family' })}
