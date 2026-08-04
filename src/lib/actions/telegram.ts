@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText } from '@/lib/telegram';
 
 export type TelegramActionState = { error?: string; success?: boolean } | undefined;
@@ -45,7 +45,7 @@ export async function sendBroadcastAction(
   formData: FormData,
 ): Promise<TelegramActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -74,7 +74,7 @@ export async function sendBroadcastAction(
  * manual curl command. CEO-only, same as the rest of /telegram-setup. */
 export async function registerTelegramWebhookAction(): Promise<{ error?: string; success?: boolean }> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }

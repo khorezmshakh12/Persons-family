@@ -2,19 +2,24 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { ForbiddenError, requireCeo } from '@/lib/auth/require-admin';
+import { ForbiddenError, requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type WarningActionState = { error?: string } | undefined;
 
-/** CEO and Administrative Manager both issue warnings — mirrors
- * staff_warnings_insert's public.is_ceo_or_admin_manager() RLS check. */
+/** CEO, IT Developer, and Administrative Manager all issue warnings —
+ * mirrors staff_warnings_insert's public.is_ceo_or_admin_manager() RLS
+ * check (is_admin() there now covers ceo + it_developer). */
 async function requireCeoOrAdminManager() {
   const { user, profile } = await getAuthState();
-  if (!user || !profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) {
-    throw new ForbiddenError('CEO or Administrative Manager access required');
+  if (
+    !user ||
+    !profile ||
+    (profile.role !== 'ceo' && profile.role !== 'it_developer' && profile.role !== 'admin_manager')
+  ) {
+    throw new ForbiddenError('CEO, IT Developer, or Administrative Manager access required');
   }
   return { user, profile };
 }
@@ -61,7 +66,7 @@ export async function deleteWarningAction(
   formData: FormData,
 ): Promise<WarningActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }

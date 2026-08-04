@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -15,7 +15,7 @@ export async function publishAnnouncementAction(
   formData: FormData,
 ): Promise<AnnouncementActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -39,7 +39,7 @@ export async function publishAnnouncementAction(
 
 export async function clearAnnouncementAction(): Promise<AnnouncementActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }

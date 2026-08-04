@@ -45,7 +45,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   if (!group) notFound();
 
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
-  const isCeo = profile!.role === 'ceo';
+  const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
   const isAdminManager = profile!.role === 'admin_manager';
   const isAssistant = profile!.role === 'assistant';
   // Only the assistant specifically assigned to this group counts as "the

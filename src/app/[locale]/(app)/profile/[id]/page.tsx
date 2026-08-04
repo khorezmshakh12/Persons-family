@@ -31,17 +31,24 @@ export default async function ProfileDetailPage({
 
   const isSelf = user!.id === id;
   const isCeo = viewerProfile!.role === 'ceo';
+  // IT Developer ranks directly below CEO (requireAdmin()) and shares its
+  // reach here, short of managing a ceo/admin_manager account itself
+  // (isProtectedRole in staff.ts — not relevant on this page, which only
+  // ever shows warnings/bonuses/duties/contracts, none of which touch role
+  // or account identity).
+  const isAdmin = isCeo || viewerProfile!.role === 'it_developer';
   const isAdminManager = viewerProfile!.role === 'admin_manager';
-  // Warnings/bonuses/punishments are visible to CEO and Administrative
-  // Manager for anyone (mirrors is_ceo_or_admin_manager() RLS); self-
-  // development, duties, and contracts stay CEO-or-self only (mirrors their
-  // own RLS, which never granted admin_manager access to those tables).
-  const canView = isSelf || isCeo || isAdminManager;
+  // Warnings/bonuses/punishments are visible to CEO/IT Developer and
+  // Administrative Manager for anyone (mirrors is_ceo_or_admin_manager()
+  // RLS); self-development, duties, and contracts stay admin-or-self only
+  // (mirrors their own RLS, which never granted admin_manager access to
+  // those tables).
+  const canView = isSelf || isAdmin || isAdminManager;
   if (!canView) redirect({ href: '/dashboard', locale });
 
-  const canViewCeoScoped = isSelf || isCeo;
-  const canManageWarnings = !isSelf && (isCeo || isAdminManager);
-  const canManageCeoOnly = !isSelf && isCeo;
+  const canViewCeoScoped = isSelf || isAdmin;
+  const canManageWarnings = !isSelf && (isAdmin || isAdminManager);
+  const canManage = !isSelf && isAdmin;
 
   const supabase = await createClient();
   const { data: target } = await supabase
@@ -79,19 +86,19 @@ export default async function ProfileDetailPage({
       {canViewCeoScoped && (
         <SelfDevelopmentSection
           staffId={id}
-          isAdmin={isCeo && !isSelf}
+          isAdmin={isAdmin && !isSelf}
           selectedMonth={month ?? 'all'}
         />
       )}
 
       <WarningsCard staffId={id} canManage={canManageWarnings} />
 
-      <BonusesPunishmentsCard staffId={id} canManage={canManageCeoOnly} />
+      <BonusesPunishmentsCard staffId={id} canManage={canManage} />
 
       {canViewCeoScoped && (
         <>
-          <DutiesCard staffId={id} canManage={canManageCeoOnly} />
-          <ContractsCard staffId={id} isSelf={isSelf} canManage={canManageCeoOnly} />
+          <DutiesCard staffId={id} canManage={canManage} />
+          <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
         </>
       )}
     </div>

@@ -13,24 +13,24 @@ export default async function StaffPage() {
   const t = await getTranslations('staff');
   const { user, profile } = await getAuthState();
   const isCeo = profile!.role === 'ceo';
+  // IT Developer ranks directly below CEO (requireAdmin()) and gets the
+  // same staff list + create/edit/deactivate/reset-password powers, short
+  // of anything CEO-exclusive: assigning ceo/admin_manager roles
+  // (canAssignCeo stays literal isCeo, which AddStaffDialog already
+  // filters on), deleting a staff account, and managing an Administrative
+  // Manager account itself (AdminManagementSection stays isCeo-gated).
+  const isAdmin = isCeo || profile!.role === 'it_developer';
 
-  // IT Developer's only staff-management capability — see
-  // createAdminManagerAction. No staff list, no editing/deactivating
-  // anyone: just this one narrow account-creation form.
-  if (profile!.role === 'it_developer') {
-    return (
-      <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
-        <AddAdminManagerDialog />
-      </div>
-    );
-  }
+  if (!isAdmin) return null;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
-        <AddStaffDialog canAssignCeo={isCeo} />
+        <div className="flex items-center gap-2">
+          {profile!.role === 'it_developer' && <AddAdminManagerDialog />}
+          <AddStaffDialog canAssignCeo={isCeo} />
+        </div>
       </div>
 
       {isCeo && (

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -28,7 +28,7 @@ export async function createContractAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -65,7 +65,7 @@ export async function updateContractAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -96,7 +96,7 @@ export async function deleteContractAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -129,7 +129,7 @@ export async function createDutyAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -156,7 +156,7 @@ export async function deleteDutyAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -234,7 +234,7 @@ export async function reviewContractRequestAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -285,7 +285,7 @@ export async function reviewContractRequestAction(
 // this app except avatars — see the note in
 // 20260713090000_restore_storage_write_policies.sql: storage.objects
 // INSERT/UPDATE/DELETE RLS policies don't reliably survive this project's
-// infra, so requireCeo()/the ownership check here (not the policies defined
+// infra, so requireAdmin()/the ownership check here (not the policies defined
 // alongside the bucket) is the actual authorization boundary.
 
 export type ContractUploadUrlResult = { path?: string; token?: string; error?: string };
@@ -295,7 +295,7 @@ export async function requestContractFileUploadUrlAction(
   fileName: string,
 ): Promise<ContractUploadUrlResult> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -326,7 +326,7 @@ export async function attachContractFileAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -353,7 +353,7 @@ export async function deleteContractAttachmentAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireCeo();
+    await requireAdmin();
   } catch {
     return { error: 'forbidden' };
   }
@@ -404,7 +404,7 @@ export async function requestContractFileReadUrlAction(
     .maybeSingle();
   if (!attachment) return { error: 'notFound' };
 
-  if (profile.role !== 'ceo') {
+  if (profile.role !== 'ceo' && profile.role !== 'it_developer') {
     const { data: contract } = await supabase
       .from('staff_contracts')
       .select('staff_id')

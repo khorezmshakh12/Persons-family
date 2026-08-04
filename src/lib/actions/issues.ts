@@ -33,7 +33,7 @@ export async function createIssueAction(
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const isCeo = profile.role === 'ceo';
+  const isAdmin = profile.role === 'ceo' || profile.role === 'it_developer';
   const supabase = await createClient();
 
   let assignedTo: string | null = null;
@@ -46,10 +46,10 @@ export async function createIssueAction(
       .maybeSingle();
     // Strict chain of command, re-checked here regardless of what the
     // client's dropdown offered — the dropdown options alone are not a
-    // security boundary. Only the CEO can assign to anyone; everyone else
-    // (including an Administrative Manager reporting their own issue) is
-    // restricted to allowedAssigneeRoles.
-    if (!isCeo && (!target || !allowedAssigneeRoles(profile.role).includes(target.role))) {
+    // security boundary. Only CEO/IT Developer can assign to anyone;
+    // everyone else (including an Administrative Manager reporting their
+    // own issue) is restricted to allowedAssigneeRoles.
+    if (!isAdmin && (!target || !allowedAssigneeRoles(profile.role).includes(target.role))) {
       return { error: 'invalidAssignee' };
     }
     if (!target) return { error: 'invalidAssignee' };
@@ -159,11 +159,12 @@ const updateStatusSchema = z.object({
 
 export type UpdateIssueStatusResult = { error?: string };
 
-/** The CEO can change the status of any issue. An Administrative Manager
- * (no longer an admin role generally) may only change the status of an
- * issue currently assigned to them — everyone else has no status-change
- * capability here at all. Mirrors the RLS/trigger carve-out on the issues
- * table exactly (see protect_issue_fields). */
+/** CEO and IT Developer can change the status of any issue. An
+ * Administrative Manager (no longer an admin role generally) may only
+ * change the status of an issue currently assigned to them — everyone
+ * else has no status-change capability here at all. Mirrors the
+ * RLS/trigger carve-out on the issues table exactly (see
+ * protect_issue_fields). */
 export async function updateIssueStatusAction(formData: FormData): Promise<UpdateIssueStatusResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
@@ -173,7 +174,7 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
 
   const supabase = await createClient();
 
-  if (profile.role !== 'ceo') {
+  if (profile.role !== 'ceo' && profile.role !== 'it_developer') {
     const { data: existing } = await supabase
       .from('issues')
       .select('assigned_to')
@@ -211,7 +212,7 @@ export type DeleteIssueResult = { error?: string };
 export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isCeo = profile.role === 'ceo';
+  const isCeo = profile.role === 'ceo' || profile.role === 'it_developer';
 
   const parsed = deleteIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -247,7 +248,7 @@ export async function updateIssueAction(
 ): Promise<IssueActionState> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isCeo = profile.role === 'ceo';
+  const isCeo = profile.role === 'ceo' || profile.role === 'it_developer';
 
   const parsed = updateIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

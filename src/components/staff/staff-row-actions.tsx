@@ -36,7 +36,7 @@ export function StaffRowActions({
       <EditStaffDialog profile={target} canAssignCeo={canAssignCeo} />
       <ResetPasswordDialog staffId={target.id} />
       {!isSelf && <ToggleActiveButton staffId={target.id} isActive={target.is_active} />}
-      {!isSelf && actingRole === 'ceo' && (
+      {!isSelf && (actingRole === 'ceo' || actingRole === 'it_developer') && (
         <DeleteStaffButton
           staffId={target.id}
           staffName={`${target.first_name} ${target.last_name}`}

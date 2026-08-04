@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
@@ -40,7 +40,7 @@ export async function createNewsAction(
 ): Promise<CompanyNewsActionState> {
   let actingUserId: string;
   try {
-    const { user } = await requireCeo();
+    const { user } = await requireAdmin();
     actingUserId = user.id;
   } catch {
     return { error: 'forbidden' };
@@ -83,7 +83,7 @@ export type DeleteNewsResult = { error?: string };
 export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isCeo = profile.role === 'ceo';
+  const isAdmin = profile.role === 'ceo' || profile.role === 'it_developer';
 
   const parsed = deleteNewsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -95,7 +95,7 @@ export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsRe
     .eq('id', parsed.data.id)
     .maybeSingle();
   if (!news) return { error: 'notFound' };
-  if (!isCeo && news.created_by !== user.id) return { error: 'forbidden' };
+  if (!isAdmin && news.created_by !== user.id) return { error: 'forbidden' };
 
   const { error } = await supabase.from('company_news').delete().eq('id', parsed.data.id);
   if (error) return { error: 'deleteFailed' };

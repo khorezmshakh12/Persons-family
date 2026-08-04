@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState, type Profile } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -68,7 +68,7 @@ export async function requestAvatarUploadUrlAction(
 ): Promise<UploadUrlResult> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireCeo());
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -164,7 +164,7 @@ export async function createStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireCeo());
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -180,10 +180,12 @@ export async function createStaffAction(
 
 const addAdminManagerSchema = staffSchema.omit({ role: true });
 
-/** Everything else about the IT Developer role is unchanged — this is the
- * one narrow carve-out: it may create a new Administrative Manager account
- * (and only that role), without gaining any of requireCeo()'s broader
- * staff-management powers (editing/deactivating/resetting other staff). */
+/** Separate from createStaffAction's now-broad requireAdmin() access: an
+ * Administrative Manager is a protected role (isProtectedRole), so
+ * createStaffAction still rejects it for anyone but the CEO. This is IT
+ * Developer's one narrow carve-out to still be able to create that one
+ * specific role, predating (and narrower than) the general rank
+ * elevation. */
 export async function createAdminManagerAction(
   _prevState: StaffActionState,
   formData: FormData,
@@ -204,13 +206,28 @@ export async function attachAvatarAction(
   targetUserId: string,
   avatarPath: string,
 ): Promise<{ error?: string }> {
+  let actingProfile;
   try {
-    await requireCeo();
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
 
   const supabase = await createClient();
+
+  // requestAvatarUploadUrlAction already gated the upload itself on this
+  // same check — re-checked here since this action, called separately, is
+  // otherwise an unguarded path to overwrite a protected account's avatar.
+  const { data: target } = await supabase.from('profiles').select('role').eq('id', targetUserId).maybeSingle();
+  if (
+    target &&
+    targetUserId !== actingProfile.id &&
+    isProtectedRole(target.role) &&
+    actingProfile.role !== 'ceo'
+  ) {
+    return { error: manageRoleError(target.role) };
+  }
+
   const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
   const { error } = await supabase
     .from('profiles')
@@ -233,7 +250,7 @@ export async function updateStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireCeo());
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -297,7 +314,7 @@ export async function toggleStaffActiveAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireCeo());
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -346,7 +363,7 @@ export async function deleteStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireCeo());
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }
@@ -362,6 +379,12 @@ export async function deleteStaffAction(
     .eq('id', parsed.data.id)
     .maybeSingle();
   if (!target) return { error: 'notFound' };
+  // This goes through the admin (service-role) client below, which bypasses
+  // RLS entirely — profiles_delete_admin's protected-role carve-out isn't
+  // in the path for this specific call, so it's re-checked here explicitly.
+  if (isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
+    return { error: manageRoleError(target.role) };
+  }
 
   const { error } = await createAdminClient().auth.admin.deleteUser(parsed.data.id);
   if (error) return { error: 'deleteFailed' };
@@ -382,7 +405,7 @@ export async function resetStaffPasswordAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireCeo());
+    ({ profile: actingProfile } = await requireAdmin());
   } catch {
     return { error: 'forbidden' };
   }

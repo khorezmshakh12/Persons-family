@@ -55,7 +55,7 @@ async function EmployeeGrowthChartSection() {
 // blocking on the slowest of several independent Supabase queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo';
+  const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
   // Administrative Manager now gets the same personal dashboard as a
   // teacher (self-development chart, own stats) — see the role rework.
   const isAdminRole = isCeo;

@@ -36,10 +36,10 @@ export default async function TelegramSetupPage() {
         </div>
         <p className="text-sm text-white/70">{t('status.connectedCount', { connected, total })}</p>
         {!configured && <p className="text-xs text-white/50">{t('status.notConfiguredHint')}</p>}
-        {profile!.role === 'ceo' && configured && <WebhookRegisterButton />}
+        {(profile!.role === 'ceo' || profile!.role === 'it_developer') && configured && <WebhookRegisterButton />}
       </div>
 
-      {profile!.role === 'ceo' && (
+      {(profile!.role === 'ceo' || profile!.role === 'it_developer') && (
         <div className="flex flex-col gap-4 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
