@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { ChatHubClient } from '@/components/chat-hub/chat-hub-client';
@@ -58,15 +59,17 @@ export default async function ChatPage() {
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-5.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">
-      <ChatHubClient
-        currentUserId={user!.id}
-        currentUserName={`${profile!.first_name} ${profile!.last_name}`}
-        currentUserAvatar={profile!.avatar_url}
-        canModerateDmImportance={canModerateDmImportance}
-        staff={staff ?? []}
-        conversationStates={conversationStates}
-        initialUnreadSenderIds={initialUnreadSenderIds}
-      />
+      <Suspense>
+        <ChatHubClient
+          currentUserId={user!.id}
+          currentUserName={`${profile!.first_name} ${profile!.last_name}`}
+          currentUserAvatar={profile!.avatar_url}
+          canModerateDmImportance={canModerateDmImportance}
+          staff={staff ?? []}
+          conversationStates={conversationStates}
+          initialUnreadSenderIds={initialUnreadSenderIds}
+        />
+      </Suspense>
     </div>
   );
 }

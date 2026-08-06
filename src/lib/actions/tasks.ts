@@ -193,6 +193,11 @@ const updateStatusSchema = z.object({
 
 export type UpdateTaskStatusResult = { error?: string };
 
+/** Only the assignee may change their own task's status — mirrors
+ * protect_task_fields' `auth.uid() <> new.assigned_to` check at the DB
+ * layer. Explicit here too rather than just letting the trigger's
+ * exception bubble up, so a rejected drag gets a clean {error} response
+ * instead of a raw Postgres error surfacing in the UI. */
 export async function updateTaskStatusAction(formData: FormData): Promise<UpdateTaskStatusResult> {
   const { user } = await getAuthState();
   if (!user) return { error: 'forbidden' };
@@ -201,6 +206,13 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from('tasks')
+    .select('assigned_to')
+    .eq('id', parsed.data.id)
+    .maybeSingle();
+  if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
+
   const { error } = await supabase
     .from('tasks')
     .update({ status: parsed.data.status })

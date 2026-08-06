@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useOptimistic, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -45,7 +46,21 @@ export function ChatHubClient({
 }) {
   const t = useTranslations('notifications');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [active, setActive] = useState<ActiveConversation>(null);
+
+  // Deep-linked from the notification bell (`/chat?with=<userId>`) — open
+  // that conversation directly instead of landing on the bare "select a
+  // contact" state and making the user click a second time. Only runs once
+  // per distinct `with` value, since selecting a different contact
+  // afterward shouldn't keep snapping back to this one.
+  const appliedDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const withUserId = searchParams.get('with');
+    if (!withUserId || appliedDeepLinkRef.current === withUserId) return;
+    appliedDeepLinkRef.current = withUserId;
+    setActive({ userId: withUserId });
+  }, [searchParams]);
   const [dmMessagesByPair, setDmMessagesByPair] = useState<Record<string, StaffChatMessage[]>>({});
   const [loadedDmPairs, setLoadedDmPairs] = useState<Set<string>>(new Set());
   const [unreadDmUserIds, setUnreadDmUserIds] = useState<Set<string>>(

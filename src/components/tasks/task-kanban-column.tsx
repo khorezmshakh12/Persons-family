@@ -13,6 +13,7 @@ function TaskKanbanColumnImpl({
   tasks,
   isAdmin,
   assignees,
+  currentUserId,
   emptyLabel,
   onRequestDelete,
 }: {
@@ -21,6 +22,7 @@ function TaskKanbanColumnImpl({
   tasks: Task[];
   isAdmin: boolean;
   assignees: Assignee[];
+  currentUserId: string;
   emptyLabel: string;
   onRequestDelete: (task: Task) => void;
 }) {
@@ -47,6 +49,7 @@ function TaskKanbanColumnImpl({
               task={task}
               isAdmin={isAdmin}
               assignees={assignees}
+              currentUserId={currentUserId}
               onRequestDelete={onRequestDelete}
             />
           ))

@@ -29,17 +29,24 @@ function TaskCardImpl({
   task,
   isAdmin,
   assignees,
+  currentUserId,
   onRequestDelete,
 }: {
   task: Task;
   isAdmin: boolean;
   assignees: Assignee[];
+  currentUserId: string;
   onRequestDelete: (task: Task) => void;
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
+  // Status is the assignee's own progress report — not even the admin who
+  // assigned the task can drag it, mirroring protect_task_fields' DB-level
+  // `auth.uid() <> new.assigned_to` check.
+  const canDrag = task.assigned_to === currentUserId;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
+    disabled: !canDrag,
   });
 
   return (
@@ -73,15 +80,17 @@ function TaskCardImpl({
                 <DeleteTaskButton onConfirm={() => onRequestDelete(task)} />
               </div>
             )}
-            <button
-              type="button"
-              {...listeners}
-              {...attributes}
-              aria-label={t('dragHandle')}
-              className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
-            >
-              <GripVertical className="size-4" />
-            </button>
+            {canDrag && (
+              <button
+                type="button"
+                {...listeners}
+                {...attributes}
+                aria-label={t('dragHandle')}
+                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+              >
+                <GripVertical className="size-4" />
+              </button>
+            )}
           </div>
         </div>
         {task.description && <p className="text-sm text-white/70">{task.description}</p>}

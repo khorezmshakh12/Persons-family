@@ -466,7 +466,7 @@ export function NotificationBell({
                     {chatPreviews.map((m) => (
                       <Link
                         key={m.id}
-                        href="/chat"
+                        href={`/chat?with=${m.senderId}`}
                         onClick={() => handleChatClick(m.senderId)}
                         className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
                       >

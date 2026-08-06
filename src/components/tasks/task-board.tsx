@@ -163,6 +163,7 @@ export function TaskBoard({
             tasks={tasks.filter((task) => task.status === status)}
             isAdmin={isAdmin}
             assignees={assignees}
+            currentUserId={currentUserId}
             emptyLabel={t('noTasks')}
             onRequestDelete={handleRequestDelete}
           />
