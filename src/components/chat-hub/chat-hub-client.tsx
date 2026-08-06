@@ -175,19 +175,25 @@ export function ChatHubClient({
 
     const supabase = createClient();
     supabase.rpc('mark_conversation_read', { other_user_id: otherId }).then(({ error }) => {
-      if (!error) return;
-      console.error('mark_conversation_read failed', error);
-      // Revert exactly the messages this effect optimistically flipped —
-      // the DB still has them unread, so the tick/sidebar dot should too.
-      setDmMessagesByPair((prev) => {
-        const existing = prev[key];
-        if (!existing) return prev;
-        return {
-          ...prev,
-          [key]: existing.map((m) => (flippedIds.includes(m.id) ? { ...m, is_read: false } : m)),
-        };
-      });
-      toast.error(t('markReadFailed'));
+      if (error) {
+        console.error('mark_conversation_read failed', error);
+        // Revert exactly the messages this effect optimistically flipped —
+        // the DB still has them unread, so the tick/sidebar dot should too.
+        setDmMessagesByPair((prev) => {
+          const existing = prev[key];
+          if (!existing) return prev;
+          return {
+            ...prev,
+            [key]: existing.map((m) => (flippedIds.includes(m.id) ? { ...m, is_read: false } : m)),
+          };
+        });
+        toast.error(t('markReadFailed'));
+        return;
+      }
+      // The sidebar NAV's "chat" dot (NavBadgesProvider) is otherwise only
+      // realtime-driven, which has proven unreliable in practice — see the
+      // identical comment in notification-bell.tsx's handleChatClick.
+      router.refresh();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, activeConversationState.kind, currentUserId]);

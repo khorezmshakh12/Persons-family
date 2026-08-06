@@ -5,7 +5,7 @@ import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Bell } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
-import { Link } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -59,6 +59,7 @@ export function NotificationBell({
   profileNames: Record<string, string>;
 }) {
   const t = useTranslations('notifications');
+  const router = useRouter();
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
@@ -283,10 +284,19 @@ export function NotificationBell({
     createClient()
       .rpc('mark_conversation_read', { other_user_id: senderId })
       .then(({ error }) => {
-        if (!error) return;
-        console.error('mark_conversation_read failed', error);
-        setUnreadChats((prev) => [...removed, ...prev]);
-        toast.error(t('markReadFailed'));
+        if (error) {
+          console.error('mark_conversation_read failed', error);
+          setUnreadChats((prev) => [...removed, ...prev]);
+          toast.error(t('markReadFailed'));
+          return;
+        }
+        // Sidebar nav's "chat" dot (NavBadgesProvider) is otherwise only
+        // realtime-driven — that path has proven unreliable in practice
+        // (confirmed: DB correctly flips is_read, but the dot can still be
+        // left stuck). router.refresh() re-runs the (app) layout's
+        // server-computed initialKeys, the same deterministic fix already
+        // used by MarkTasksSeen/MarkIssuesSeen.
+        router.refresh();
       });
   }
 
