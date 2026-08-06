@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { GLOBAL_STAFF_CHAT_ID } from '@/lib/staff-chat';
@@ -77,13 +78,18 @@ export async function sendStaffChatMessageAction(
   });
   if (error) return { error: 'sendFailed' };
 
-  void notifyGroupChatMessage({
-    conversationId: parsed.data.conversationId,
-    senderId: user.id,
-    senderName: `${profile.first_name} ${profile.last_name}`,
-    content: parsed.data.content,
-    supabase,
-  });
+  // See staff-chats.ts's identical `after()` comment — a bare un-awaited
+  // call here can get killed mid-flight by Vercel before the Telegram send
+  // finishes.
+  after(() =>
+    notifyGroupChatMessage({
+      conversationId: parsed.data.conversationId,
+      senderId: user.id,
+      senderName: `${profile.first_name} ${profile.last_name}`,
+      content: parsed.data.content,
+      supabase,
+    }),
+  );
 
   return {};
 }

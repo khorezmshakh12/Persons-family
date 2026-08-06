@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
@@ -81,13 +82,17 @@ export async function createIssueAction(
   // teacher's issue always needs visibility at that level regardless of
   // which single person they picked in "Assign to".
   if (profile.role === 'teacher') {
-    void notifyIssueCreated({
-      title: parsed.data.title,
-      reporterName: `${profile.first_name} ${profile.last_name}`,
-      reporterTelegramId: profile.telegram_id,
-      assigneeName: assigneeProfile ? `${assigneeProfile.first_name} ${assigneeProfile.last_name}` : null,
-      supabase,
-    });
+    // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
+    // un-awaited fire-and-forget call before its Telegram send finishes.
+    after(() =>
+      notifyIssueCreated({
+        title: parsed.data.title,
+        reporterName: `${profile.first_name} ${profile.last_name}`,
+        reporterTelegramId: profile.telegram_id,
+        assigneeName: assigneeProfile ? `${assigneeProfile.first_name} ${assigneeProfile.last_name}` : null,
+        supabase,
+      }),
+    );
   }
 
   return {};

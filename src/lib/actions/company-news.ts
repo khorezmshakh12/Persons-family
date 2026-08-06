@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
@@ -62,10 +63,12 @@ export async function createNewsAction(
   if (error || !inserted) return { error: 'createFailed' };
 
   // The author already knows about their own post — no reason for it to
-  // show up as "unread" for them on the sidebar dot.
-  void supabase.from('company_news_reads').insert({ news_id: inserted.id, user_id: actingUserId });
+  // show up as "unread" for them on the sidebar dot. `after()` here too —
+  // see staff-chats.ts's comment: Vercel can tear down a bare un-awaited
+  // call before it finishes.
+  after(() => supabase.from('company_news_reads').insert({ news_id: inserted.id, user_id: actingUserId }));
 
-  void notifyCompanyNews({ title: parsed.data.title, supabase });
+  after(() => notifyCompanyNews({ title: parsed.data.title, supabase }));
 
   revalidatePath('/[locale]/company-news', 'page');
   revalidatePath('/[locale]/dashboard', 'page');

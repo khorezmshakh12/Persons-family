@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { ForbiddenError, requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
@@ -80,7 +81,11 @@ export async function issueWarningAction(
     .select('telegram_id')
     .eq('id', parsed.data.staffId)
     .maybeSingle();
-  void notifyWarningIssued({ reason: parsed.data.reason, recipientTelegramId: recipient?.telegram_id ?? null });
+  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
+  // un-awaited fire-and-forget call before its Telegram send finishes.
+  after(() =>
+    notifyWarningIssued({ reason: parsed.data.reason, recipientTelegramId: recipient?.telegram_id ?? null }),
+  );
 
   revalidatePath('/[locale]/staff', 'page');
   return {};

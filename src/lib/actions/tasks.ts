@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
@@ -104,12 +105,16 @@ export async function assignTaskAction(
   });
   if (error) return { error: 'createFailed' };
 
-  void notifyTaskAssigned({
-    title: parsed.data.title,
-    status: 'pending',
-    deadline: parsed.data.deadline,
-    assigneeTelegramId: target.telegram_id,
-  });
+  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
+  // un-awaited fire-and-forget call before its Telegram send finishes.
+  after(() =>
+    notifyTaskAssigned({
+      title: parsed.data.title,
+      status: 'pending',
+      deadline: parsed.data.deadline,
+      assigneeTelegramId: target.telegram_id,
+    }),
+  );
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -166,12 +171,14 @@ export async function updateTaskAction(
     .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
 
-  void notifyTaskAssigned({
-    title: parsed.data.title,
-    status: existing.status,
-    deadline: parsed.data.deadline,
-    assigneeTelegramId: target.telegram_id,
-  });
+  after(() =>
+    notifyTaskAssigned({
+      title: parsed.data.title,
+      status: existing.status,
+      deadline: parsed.data.deadline,
+      assigneeTelegramId: target.telegram_id,
+    }),
+  );
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};

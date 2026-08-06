@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
@@ -177,18 +178,28 @@ export async function sendStaffChatAction(
     return { error: 'sendFailed' };
   }
 
-  void notifyNewChatMessage({
-    senderName: `${profile.first_name} ${profile.last_name}`,
-    messageText: parsed.data.messageText || null,
-    hasMedia: Boolean(parsed.data.mediaUrl),
-    receiverTelegramId: receiver.telegram_id,
-  });
-  void notifyCompanyOfChatActivity({
-    senderId: user.id,
-    receiverId: parsed.data.receiverId,
-    senderName: `${profile.first_name} ${profile.last_name}`,
-    supabase,
-  });
+  // `after()`, not a bare un-awaited call — on Vercel, a fire-and-forget
+  // promise with no `waitUntil` can get cut off mid-flight the instant this
+  // action's response is sent (confirmed in production: the fetch to
+  // Telegram's API was starting but never finishing). `after` registers the
+  // work with the platform's `waitUntil` so the function stays alive until
+  // it actually completes.
+  after(() =>
+    notifyNewChatMessage({
+      senderName: `${profile.first_name} ${profile.last_name}`,
+      messageText: parsed.data.messageText || null,
+      hasMedia: Boolean(parsed.data.mediaUrl),
+      receiverTelegramId: receiver.telegram_id,
+    }),
+  );
+  after(() =>
+    notifyCompanyOfChatActivity({
+      senderId: user.id,
+      receiverId: parsed.data.receiverId,
+      senderName: `${profile.first_name} ${profile.last_name}`,
+      supabase,
+    }),
+  );
 
   // Returning the confirmed row lets the caller commit it straight into
   // real (non-optimistic) state instead of waiting on the Realtime INSERT

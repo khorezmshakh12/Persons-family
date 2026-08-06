@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
@@ -97,7 +98,9 @@ export async function createGroupAction(
   revalidatePath('/[locale]/lesson-plans', 'page');
 
   // Fire-and-forget — the group is already created either way.
-  void notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId, supabase });
+  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
+  // un-awaited fire-and-forget call before its Telegram send finishes.
+  after(() => notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId, supabase }));
 
   return { groupId: data.id };
 }
