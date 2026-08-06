@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 // Aliased: this file also exports the route-segment config `dynamic` below.
 import nextDynamic from 'next/dynamic';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { GroupsGrid } from '@/components/lesson-plans/groups-grid';
@@ -22,6 +23,14 @@ export default async function LessonPlansPage({
   const { days, teacher } = await searchParams;
   const t = await getTranslations('lessonPlans');
   const { profile } = await getAuthState();
+  const locale = await getLocale();
+
+  // Administrative Manager has no lesson-plan visibility at all anymore —
+  // see 20260806110000_remove_admin_manager_lesson_plan_access.sql. The nav
+  // item is already hidden for this role (src/lib/nav.ts); this blocks a
+  // direct visit to the URL too.
+  if (profile!.role === 'admin_manager') redirect({ href: '/dashboard', locale });
+
   const isTeacher = profile!.role === 'teacher';
   const supabase = await createClient();
 

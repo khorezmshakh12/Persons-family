@@ -6,7 +6,17 @@ import { StatCard } from './stat-card';
 
 const MONTHS = 6;
 
-export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
+export async function StatsRow({
+  isAdminRole,
+  showLessonPlanCards = true,
+}: {
+  isAdminRole: boolean;
+  /** Administrative Manager has no lesson-plan access at all (see
+   * 20260806110000_remove_admin_manager_lesson_plan_access.sql) — showing
+   * an "Active Groups"/"Lesson Plans" card that reads 0 and links to a page
+   * that immediately redirects them away is worse than not showing it. */
+  showLessonPlanCards?: boolean;
+}) {
   const t = await getTranslations('dashboard.stats');
   const supabase = await createClient();
 
@@ -17,8 +27,12 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
   // without any extra filtering logic here.
   const [{ data: staffRows }, { data: groupRows }, { data: lessonRows }] = await Promise.all([
     supabase.from('profiles').select('created_at, is_active'),
-    supabase.from('groups').select('created_at'),
-    supabase.from('course_lessons').select('created_at'),
+    showLessonPlanCards
+      ? supabase.from('groups').select('created_at')
+      : Promise.resolve({ data: [] as { created_at: string }[] }),
+    showLessonPlanCards
+      ? supabase.from('course_lessons').select('created_at')
+      : Promise.resolve({ data: [] as { created_at: string }[] }),
   ]);
 
   const activeStaff = (staffRows ?? []).filter((r) => r.is_active);
@@ -37,7 +51,7 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
       buckets: staffBuckets,
       href: '/staff',
     },
-    {
+    showLessonPlanCards && {
       label: t('activeGroups'),
       value: groupRows?.length ?? 0,
       icon: Layers,
@@ -45,7 +59,7 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
       buckets: groupBuckets,
       href: '/lesson-plans',
     },
-    {
+    showLessonPlanCards && {
       label: t('lessonPlans'),
       value: lessonRows?.length ?? 0,
       icon: CalendarDays,

@@ -2,8 +2,8 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 // Aliased: this file also exports the route-segment config `dynamic` below.
 import nextDynamic from 'next/dynamic';
-import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import { getTranslations, getLocale } from 'next-intl/server';
+import { Link, redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
@@ -33,6 +33,15 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const { groupId } = await params;
   const t = await getTranslations('lessonPlans');
   const { user, profile } = await getAuthState();
+  const locale = await getLocale();
+
+  // Administrative Manager has no lesson-plan visibility at all anymore —
+  // RLS on groups/course_lessons/etc. already denies the underlying rows
+  // (see 20260806110000_remove_admin_manager_lesson_plan_access.sql), but
+  // this gives a clean redirect instead of a bare 404 from the RLS-empty-row
+  // fallthrough below.
+  if (profile!.role === 'admin_manager') redirect({ href: '/dashboard', locale });
+
   const supabase = await createClient();
 
   const { data: group } = await supabase
@@ -47,7 +56,6 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
 
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
   const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
-  const isAdminManager = profile!.role === 'admin_manager';
   const isAssistant = profile!.role === 'assistant';
   // Only the assistant specifically assigned to this group counts as "the
   // group's TA" now — RLS already narrows their access to this group alone,
@@ -67,17 +75,15 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const canEditGroup = isOwnerTeacher || isCeo;
   // Course lesson permissions per spec: only the owning teacher sets
   // dates/topics/uploads; the CEO can additionally clear/delete a file;
-  // CEO/Administrative Manager/the assigned TA can comment (view-and-
-  // comment is the one lesson-plan capability admin_manager keeps), the
-  // teacher can't comment on their own lesson.
+  // CEO/the assigned TA can comment, the teacher can't comment on their own
+  // lesson. Administrative Manager has no lesson-plan access at all now —
+  // see the redirect above.
   const canEditLessonContent = isOwnerTeacher;
   const canDeleteLessonFiles = isOwnerTeacher || isCeo;
-  const canComment = isCeo || isAdminManager || isAssignedTa;
+  const canComment = isCeo || isAssignedTa;
   // Group staff chat: the owning teacher and assigned TA can read + post;
-  // the CEO reads only ("monitor"). Administrative Manager no longer gets
-  // this — their lesson-plan visibility is the course-lessons view/comment
-  // above, not the group's internal chat. A non-assigned assistant never
-  // reaches this branch (notFound() above already caught them).
+  // the CEO reads only ("monitor"). A non-assigned assistant never reaches
+  // this branch (notFound() above already caught them).
   const canViewGroupChat = isOwnerTeacher || isAssignedTa || isCeo;
   const canPostGroupChat = isOwnerTeacher || isAssignedTa;
 

@@ -60,11 +60,14 @@ export default async function DashboardPage() {
   // teacher (self-development chart, own stats) — see the role rework.
   const isAdminRole = isCeo;
   const analyticsHref = isCeo ? '/analytics' : undefined;
+  // Administrative Manager has no lesson-plan access at all anymore — see
+  // 20260806110000_remove_admin_manager_lesson_plan_access.sql.
+  const showLessonPlanCards = profile!.role !== 'admin_manager';
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
       <Suspense fallback={<GlassStatsRowSkeleton />}>
-        <StatsRow isAdminRole={isAdminRole} />
+        <StatsRow isAdminRole={isAdminRole} showLessonPlanCards={showLessonPlanCards} />
       </Suspense>
 
       {isAdminRole ? (
