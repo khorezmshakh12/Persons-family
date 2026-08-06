@@ -7,8 +7,9 @@ import { DynamicBackground } from '@/components/theme/dynamic-background';
 import { SidebarNav } from './sidebar-nav';
 import { MobileNav } from './mobile-nav';
 import { ProfileProvider } from './profile-context';
+import { NavBadgesProvider } from './nav-badges-context';
 import { UserBadge } from './user-badge';
-import { NotificationBell, type UnreadChatItem, type UnseenIssueItem } from './notification-bell';
+import { NotificationBell, type UnreadChatItem, type UnseenIssueItem, type UnseenTaskItem } from './notification-bell';
 import { CommandPalette } from '@/components/command-palette/command-palette';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
@@ -26,6 +27,7 @@ export async function AppShell({
   profileNames,
   initialUnreadChats,
   initialUnseenIssues,
+  initialUnseenTasks,
   newNavKeys,
   children,
 }: {
@@ -34,6 +36,7 @@ export async function AppShell({
   profileNames: Record<string, string>;
   initialUnreadChats: UnreadChatItem[];
   initialUnseenIssues: UnseenIssueItem[];
+  initialUnseenTasks: UnseenTaskItem[];
   newNavKeys: NavItem['key'][];
   children: ReactNode;
 }) {
@@ -55,53 +58,56 @@ export async function AppShell({
         initialAvatarUrl={profile.avatar_url}
       >
         <PresenceProvider userId={userId}>
-          <DynamicBackground />
-          <CommandPalette />
-          <div className="relative flex min-h-screen">
-            <aside className="hidden w-60 shrink-0 transform-gpu flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg will-change-transform md:flex">
-              <span className="mb-6 text-sm font-semibold tracking-tight text-white">
-                {t('name')}
-              </span>
-              <SidebarNav role={profile.role} newKeys={newNavKeys} glass />
-              <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
-              <span className="pt-3 text-center text-xs tracking-wider text-white/50">
-                Persons ERP v1.7.0
-              </span>
-            </aside>
+          <NavBadgesProvider userId={userId} initialKeys={newNavKeys}>
+            <DynamicBackground />
+            <CommandPalette />
+            <div className="relative flex min-h-screen">
+              <aside className="hidden w-60 shrink-0 transform-gpu flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg will-change-transform md:flex">
+                <span className="font-heading mb-6 text-sm font-semibold tracking-tight text-white">
+                  {t('name')}
+                </span>
+                <SidebarNav role={profile.role} glass />
+                <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
+                <span className="pt-3 text-center text-xs tracking-wider text-white/50">
+                  Persons ERP v1.7.0
+                </span>
+              </aside>
 
-            <div className="flex min-w-0 flex-1 flex-col">
-              {/* transform-gpu lives on the sticky header itself, not this wrapper —
-                a transformed ancestor can break position: sticky in some browsers. */}
-              <header className="sticky top-0 z-40 flex h-14 transform-gpu items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg will-change-transform">
-                <div className="flex items-center gap-2 md:hidden">
-                  <MobileNav role={profile.role} newKeys={newNavKeys} />
-                  <span className="text-sm font-semibold tracking-tight text-white">
-                    {t('name')}
-                  </span>
-                </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                {/* transform-gpu lives on the sticky header itself, not this wrapper —
+                  a transformed ancestor can break position: sticky in some browsers. */}
+                <header className="sticky top-0 z-40 flex h-14 transform-gpu items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg will-change-transform">
+                  <div className="flex items-center gap-2 md:hidden">
+                    <MobileNav role={profile.role} />
+                    <span className="font-heading text-sm font-semibold tracking-tight text-white">
+                      {t('name')}
+                    </span>
+                  </div>
 
-                <div className="ml-auto flex items-center gap-3">
-                  <NotificationBell
-                    userId={userId}
-                    profileNames={profileNames}
-                    initialUnreadChats={initialUnreadChats}
-                    initialUnseenIssues={initialUnseenIssues}
-                  />
-                  <UserBadge className="hidden sm:flex" userId={userId} />
-                  <LanguageSwitcher className={GLASS_CONTROL} />
-                  <LogoutButton className={GLASS_CONTROL} />
-                </div>
-              </header>
+                  <div className="ml-auto flex items-center gap-3">
+                    <NotificationBell
+                      userId={userId}
+                      profileNames={profileNames}
+                      initialUnreadChats={initialUnreadChats}
+                      initialUnseenIssues={initialUnseenIssues}
+                      initialUnseenTasks={initialUnseenTasks}
+                    />
+                    <UserBadge className="hidden sm:flex" userId={userId} />
+                    <LanguageSwitcher className={GLASS_CONTROL} />
+                    <LogoutButton className={GLASS_CONTROL} />
+                  </div>
+                </header>
 
-              <main className="min-h-0 min-w-0 flex-1 transform-gpu will-change-transform">
-                <PageTransition>{children}</PageTransition>
-              </main>
+                <main className="min-h-0 min-w-0 flex-1 transform-gpu will-change-transform">
+                  <PageTransition>{children}</PageTransition>
+                </main>
 
-              <footer className="flex h-8 shrink-0 items-center justify-end border-t border-white/20 bg-white/10 px-4 text-xs text-white/60 backdrop-blur-lg">
-                <TashkentClock />
-              </footer>
+                <footer className="flex h-8 shrink-0 items-center justify-end border-t border-white/20 bg-white/10 px-4 text-xs text-white/60 backdrop-blur-lg">
+                  <TashkentClock />
+                </footer>
+              </div>
             </div>
-          </div>
+          </NavBadgesProvider>
         </PresenceProvider>
       </ProfileProvider>
     </BackgroundProvider>

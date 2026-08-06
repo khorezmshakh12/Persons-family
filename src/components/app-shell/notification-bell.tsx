@@ -23,15 +23,23 @@ export type UnseenIssueItem = {
   createdAt: string;
 };
 
+export type UnseenTaskItem = {
+  id: string;
+  title: string;
+  createdAt: string;
+};
+
 export function NotificationBell({
   userId,
   initialUnreadChats,
   initialUnseenIssues,
+  initialUnseenTasks,
   profileNames,
 }: {
   userId: string;
   initialUnreadChats: UnreadChatItem[];
   initialUnseenIssues: UnseenIssueItem[];
+  initialUnseenTasks: UnseenTaskItem[];
   profileNames: Record<string, string>;
 }) {
   const t = useTranslations('notifications');
@@ -39,6 +47,7 @@ export function NotificationBell({
   const now = useNow({ updateInterval: 60_000 });
   const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
   const [unseenIssues, setUnseenIssues] = useState(initialUnseenIssues);
+  const [unseenTasks, setUnseenTasks] = useState(initialUnseenTasks);
   const [open, setOpen] = useState(false);
 
   // Realtime keeps the bell live without a refetch: new DMs/reassigned
@@ -114,6 +123,31 @@ export function NotificationBell({
             });
           },
         )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${userId}` },
+          (payload) => {
+            const row = payload.new as { id: string; title: string; created_at: string; is_seen: boolean };
+            if (row.is_seen) return;
+            setUnseenTasks((prev) =>
+              prev.some((task) => task.id === row.id)
+                ? prev
+                : [{ id: row.id, title: row.title, createdAt: row.created_at }, ...prev],
+            );
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${userId}` },
+          (payload) => {
+            const row = payload.new as { id: string; title: string; created_at: string; is_seen: boolean };
+            setUnseenTasks((prev) => {
+              if (row.is_seen) return prev.filter((task) => task.id !== row.id);
+              if (prev.some((task) => task.id === row.id)) return prev;
+              return [{ id: row.id, title: row.title, createdAt: row.created_at }, ...prev];
+            });
+          },
+        )
         .subscribe();
     })();
 
@@ -123,7 +157,7 @@ export function NotificationBell({
     };
   }, [userId]);
 
-  const totalCount = unreadChats.length + unseenIssues.length;
+  const totalCount = unreadChats.length + unseenIssues.length + unseenTasks.length;
 
   // One preview row per sender (their latest unread message), newest first.
   const chatPreviews = Array.from(
@@ -139,6 +173,7 @@ export function NotificationBell({
     .slice(0, 5);
 
   const issuePreviews = [...unseenIssues].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
+  const taskPreviews = [...unseenTasks].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
 
   // Optimistically drop the item(s) from local state the instant it's
   // clicked — the badge shouldn't wait on a network round trip, and the
@@ -176,13 +211,30 @@ export function NotificationBell({
       });
   }
 
+  // Tasks only expose a bulk "mark all seen" RPC (mirrors visiting /tasks
+  // via MarkTasksSeen) — there's no per-task equivalent of mark_issue_seen,
+  // so clicking any one task preview clears the whole task badge/list.
+  function handleTaskClick() {
+    const removed = unseenTasks;
+    setUnseenTasks([]);
+    setOpen(false);
+    createClient()
+      .rpc('mark_tasks_seen')
+      .then(({ error }) => {
+        if (!error) return;
+        console.error('mark_tasks_seen failed', error);
+        setUnseenTasks(removed);
+        toast.error(t('markReadFailed'));
+      });
+  }
+
   // Failsafe: every time the dropdown opens, re-read the absolute truth
   // from the database and reconcile local state to match it. This is what
   // actually guarantees correctness regardless of any missed Realtime event
   // or a mutation that failed without the user noticing the toast.
   const resyncFromDatabase = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: chatRows }, { data: issueRows }] = await Promise.all([
+    const [{ data: chatRows }, { data: issueRows }, { data: taskRows }] = await Promise.all([
       supabase
         .from('staff_chats')
         .select('id, sender_id, message_text, created_at')
@@ -192,6 +244,13 @@ export function NotificationBell({
         .limit(50),
       supabase
         .from('issues')
+        .select('id, title, created_at')
+        .eq('assigned_to', userId)
+        .eq('is_seen', false)
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('tasks')
         .select('id, title, created_at')
         .eq('assigned_to', userId)
         .eq('is_seen', false)
@@ -211,6 +270,9 @@ export function NotificationBell({
     }
     if (issueRows) {
       setUnseenIssues(issueRows.map((i) => ({ id: i.id, title: i.title, createdAt: i.created_at })));
+    }
+    if (taskRows) {
+      setUnseenTasks(taskRows.map((task) => ({ id: task.id, title: task.title, createdAt: task.created_at })));
     }
   }, [userId]);
 
@@ -267,7 +329,7 @@ export function NotificationBell({
                 {issuePreviews.length > 0 && (
                   <div className="flex flex-col gap-1">
                     <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
-                      {t('tasks')}
+                      {t('issues')}
                     </p>
                     {issuePreviews.map((issue) => (
                       <Link
@@ -279,6 +341,26 @@ export function NotificationBell({
                         <span className="truncate text-sm font-medium text-white">{issue.title}</span>
                         <span className="text-xs text-white/60">
                           {format.relativeTime(new Date(issue.createdAt), now)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {taskPreviews.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      {t('tasks')}
+                    </p>
+                    {taskPreviews.map((task) => (
+                      <Link
+                        key={task.id}
+                        href="/tasks"
+                        onClick={handleTaskClick}
+                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                      >
+                        <span className="truncate text-sm font-medium text-white">{task.title}</span>
+                        <span className="text-xs text-white/60">
+                          {format.relativeTime(new Date(task.createdAt), now)}
                         </span>
                       </Link>
                     ))}

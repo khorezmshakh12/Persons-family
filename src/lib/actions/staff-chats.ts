@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 const MEDIA_TYPES = ['image', 'video', 'voice', 'none'] as const;
 
@@ -62,6 +63,30 @@ async function isConversationAccepted(
   return data?.request_status === 'accepted';
 }
 
+/** Fire-and-forget DM notification to the receiver, mirroring
+ * notifyTaskAssigned/notifyIssueCreated — a Telegram hiccup must never
+ * affect the response to the sender who just posted the message. */
+async function notifyNewChatMessage({
+  senderName,
+  messageText,
+  hasMedia,
+  receiverTelegramId,
+}: {
+  senderName: string;
+  messageText: string | null;
+  hasMedia: boolean;
+  receiverTelegramId: number | null;
+}) {
+  if (!receiverTelegramId) return;
+  try {
+    const preview = messageText ? escapeTelegramText(messageText) : hasMedia ? '📎 Fayl' : '';
+    const text = `<b>${escapeTelegramText(senderName)}</b> sizga xabar yubordi:\n${preview}`;
+    await sendTelegramMessage(receiverTelegramId, text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
+}
+
 export async function sendStaffChatAction(
   _prevState: StaffChatsActionState,
   formData: FormData,
@@ -76,7 +101,7 @@ export async function sendStaffChatAction(
 
   const { data: receiver } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, telegram_id')
     .eq('id', parsed.data.receiverId)
     .maybeSingle();
   if (!receiver) return { error: 'forbidden' };
@@ -119,6 +144,13 @@ export async function sendStaffChatAction(
     console.error('sendStaffChatAction insert failed', error);
     return { error: 'sendFailed' };
   }
+
+  void notifyNewChatMessage({
+    senderName: `${profile.first_name} ${profile.last_name}`,
+    messageText: parsed.data.messageText || null,
+    hasMedia: Boolean(parsed.data.mediaUrl),
+    receiverTelegramId: receiver.telegram_id,
+  });
 
   // Returning the confirmed row lets the caller commit it straight into
   // real (non-optimistic) state instead of waiting on the Realtime INSERT

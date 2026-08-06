@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { data: activeProfiles },
     { data: unreadChatRows },
     { data: unseenIssueRows },
-    { count: unseenTasksCount },
+    { data: unseenTaskRows },
     { data: unseenCompanyNewsCount },
   ] = await Promise.all([
     supabase.from('profiles').select('id, first_name, last_name, date_of_birth').eq('is_active', true),
@@ -41,14 +41,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('is_seen', false)
       .order('created_at', { ascending: false })
       .limit(50),
-    supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assigned_to', user!.id).eq('is_seen', false),
+    supabase
+      .from('tasks')
+      .select('id, title, created_at')
+      .eq('assigned_to', user!.id)
+      .eq('is_seen', false)
+      .order('created_at', { ascending: false })
+      .limit(50),
     supabase.rpc('unseen_company_news_count'),
   ]);
   // Real per-user "unseen" state — not a time-based heuristic — so each dot
   // clears the moment its page is visited (see MarkTasksSeen/MarkIssuesSeen/
-  // MarkCompanyNewsSeen) instead of just aging out after a day.
+  // MarkCompanyNewsSeen) instead of just aging out after a day. This is only
+  // the initial snapshot for first paint — NavBadgesProvider takes over from
+  // here and keeps it live via Realtime without needing a refresh.
   const newNavKeys: NavItem['key'][] = [
-    ...(unseenTasksCount ? (['tasks'] as const) : []),
+    ...((unseenTaskRows?.length ?? 0) > 0 ? (['tasks'] as const) : []),
     ...((unseenIssueRows?.length ?? 0) > 0 ? (['issues'] as const) : []),
     ...((unseenCompanyNewsCount ?? 0) > 0 ? (['companyNews'] as const) : []),
   ];
@@ -68,6 +76,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     title: i.title,
     createdAt: i.created_at,
   }));
+  const initialUnseenTasks = (unseenTaskRows ?? []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    createdAt: t.created_at,
+  }));
 
   return (
     <AppShell
@@ -76,6 +89,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       profileNames={profileNames}
       initialUnreadChats={initialUnreadChats}
       initialUnseenIssues={initialUnseenIssues}
+      initialUnseenTasks={initialUnseenTasks}
       newNavKeys={newNavKeys}
     >
       <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />

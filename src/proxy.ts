@@ -49,7 +49,22 @@ export default async function proxy(request: NextRequest) {
     });
   }
 
+  // Refresh the Supabase session (and mutate `request`'s cookies) *before*
+  // running the intl middleware below. next-intl snapshots `request.headers`
+  // to build its own response, so if the auth refresh ran after that
+  // snapshot, the refreshed session would never make it into this request's
+  // render — only into the Set-Cookie header for the *next* request. That
+  // mismatch is what used to make navigating to a protected page look like
+  // a logout that a manual page refresh "fixed".
+  const {
+    user,
+    mustChangePassword,
+    suspended,
+    response: authResponse,
+  } = await getSessionUser(request);
+
   const intlResponse = handleI18nRouting(request);
+  copyCookies(authResponse, intlResponse);
 
   // The intl middleware already decided to redirect (e.g. "/" -> "/en").
   // Let that happen first; auth gating runs once the locale is in the URL.
@@ -57,7 +72,6 @@ export default async function proxy(request: NextRequest) {
     return intlResponse;
   }
 
-  const { user, mustChangePassword, suspended } = await getSessionUser(request, intlResponse);
   const { locale, path } = localeAndPath(request.nextUrl.pathname);
 
   const redirectTo = (target: string, params?: Record<string, string>) => {

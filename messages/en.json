@@ -134,6 +134,7 @@
     "deactivate": "Deactivate",
     "activate": "Activate",
     "resetPassword": "Reset password",
+    "moreActions": "More actions",
     "roles": {
       "ceo": "CEO / Founder",
       "admin_manager": "Administrative Manager",
@@ -728,6 +729,7 @@
     "empty": "You're all caught up.",
     "messages": "Messages",
     "tasks": "Tasks",
+    "issues": "Issues",
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
     "markReadFailed": "Couldn't sync that as read — it will still show as unread."

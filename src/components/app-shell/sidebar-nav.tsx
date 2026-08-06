@@ -18,6 +18,7 @@ import {
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { navItemsForRole, type NavItem, type StaffRole } from '@/lib/nav';
+import { useNavBadgeKeys } from './nav-badges-context';
 
 const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
@@ -36,14 +37,10 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
 
 export function SidebarNav({
   role,
-  newKeys = [],
   onNavigate,
   glass = false,
 }: {
   role: StaffRole;
-  /** Nav item keys with items created in the last 24h — draws a small
-   * green "new" dot next to the link. */
-  newKeys?: NavItem['key'][];
   onNavigate?: () => void;
   /** True inside the glassmorphism desktop sidebar (over a dynamic photo
    * background); false inside the mobile Sheet, which keeps a normal
@@ -53,6 +50,9 @@ export function SidebarNav({
   const t = useTranslations('nav');
   const pathname = usePathname();
   const items = navItemsForRole(role);
+  // Live-updating "new" dot state — see NavBadgesProvider for why this
+  // can't just be the static prop the layout computed at request time.
+  const newKeys = useNavBadgeKeys();
 
   return (
     <nav className="flex flex-col gap-2">

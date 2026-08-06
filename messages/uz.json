@@ -134,6 +134,7 @@
     "deactivate": "Faolsizlantirish",
     "activate": "Faollashtirish",
     "resetPassword": "Parolni tiklash",
+    "moreActions": "Boshqa amallar",
     "roles": {
       "ceo": "Bosh direktor",
       "admin_manager": "Ma'muriy menejer",
@@ -728,6 +729,7 @@
     "empty": "Yangi bildirishnoma yo'q.",
     "messages": "Xabarlar",
     "tasks": "Vazifalar",
+    "issues": "Muammolar",
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
     "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
