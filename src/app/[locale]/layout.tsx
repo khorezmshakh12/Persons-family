@@ -8,6 +8,7 @@ import { routing } from '@/i18n/routing';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { CursorGlow } from '@/components/cursor-glow';
+import { IosActiveFix } from '@/components/ios-active-fix';
 import '../globals.css';
 
 // This app ships uz/ru/en. Google Fonts serves each subset as its own
@@ -77,6 +78,7 @@ export default async function LocaleLayout({
         <ThemeProvider attribute="class" forcedTheme="light" disableTransitionOnChange>
           <NextIntlClientProvider messages={messages}>
             <CursorGlow />
+            <IosActiveFix />
             {children}
             <Toaster />
           </NextIntlClientProvider>
