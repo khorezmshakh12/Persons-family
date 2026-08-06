@@ -102,7 +102,7 @@ export function ProfileSection({
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploadingAvatar}
           aria-label={t('changeAvatar')}
-          className="group relative size-20 shrink-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+          className="tap-scale group relative size-20 shrink-0 cursor-pointer rounded-full outline-none transition-transform duration-200 ease-bounce hover:scale-105 focus-visible:ring-2 focus-visible:ring-teal-400"
         >
           <Avatar className="size-20 border border-white/30">
             <AvatarImage src={avatarUrl ?? undefined} alt="" />

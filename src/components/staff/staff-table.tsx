@@ -71,8 +71,12 @@ export async function StaffTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(staff ?? []).map((person) => (
-              <TableRow key={person.id}>
+            {(staff ?? []).map((person, index) => (
+              <TableRow
+                key={person.id}
+                style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
+                className="animate-fade-in-up"
+              >
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="relative shrink-0">

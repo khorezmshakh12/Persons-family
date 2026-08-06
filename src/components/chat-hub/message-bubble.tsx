@@ -175,7 +175,7 @@ function MessageBubbleComponent({
                         key={emoji}
                         type="button"
                         onClick={() => handleToggleReaction(emoji)}
-                        className="rounded-full p-1 text-base transition-transform hover:scale-125"
+                        className="tap-scale rounded-full p-1 text-base transition-transform duration-200 ease-bounce hover:scale-125"
                       >
                         {emoji}
                       </button>
@@ -218,7 +218,7 @@ function MessageBubbleComponent({
                   onClick={() => handleToggleReaction(emoji)}
                   disabled={isReactionPending}
                   className={cn(
-                    'flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors',
+                    'tap-scale flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors',
                     reactedByMe
                       ? 'border-teal-300 bg-teal-400/20 text-teal-100'
                       : 'border-white/20 bg-white/10 text-white/70 hover:bg-white/20',

@@ -222,7 +222,7 @@ export function ChatComposer({
             type="button"
             onClick={onClearReply}
             aria-label={t('cancelReply')}
-            className="shrink-0 text-white/50 hover:text-white"
+            className="tap-scale shrink-0 text-white/50 hover:text-white"
           >
             <X className="size-4" />
           </button>

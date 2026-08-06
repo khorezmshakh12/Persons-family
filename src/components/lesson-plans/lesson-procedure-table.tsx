@@ -96,7 +96,7 @@ export function LessonProcedureTable({
                       onClick={() => removeStep(index)}
                       disabled={isPending}
                       aria-label={t('courseLessons.removeStep')}
-                      className="text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
+                      className="tap-scale text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -112,7 +112,7 @@ export function LessonProcedureTable({
           type="button"
           onClick={addStep}
           disabled={isPending}
-          className="flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+          className="tap-scale flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/15 hover:text-white"
         >
           <Plus className="size-3.5" />
           {t('courseLessons.addStep')}

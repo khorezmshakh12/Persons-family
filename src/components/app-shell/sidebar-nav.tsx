@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,
@@ -53,6 +54,11 @@ export function SidebarNav({
   // Live-updating "new" dot state — see NavBadgesProvider for why this
   // can't just be the static prop the layout computed at request time.
   const newKeys = useNavBadgeKeys();
+  // Desktop sidebar and the mobile Sheet's copy of this nav are both
+  // mounted at once (the Sheet just starts visually hidden) — scoping the
+  // layoutId per surface keeps framer-motion from trying to animate the
+  // pill between two simultaneously-mounted instances.
+  const pillId = glass ? 'sidebar-active-pill-glass' : 'sidebar-active-pill-mobile';
 
   return (
     <nav className="flex flex-col gap-2">
@@ -72,21 +78,33 @@ export function SidebarNav({
             // in an already-fetched response instead of starting cold.
             prefetch
             className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all hover:scale-[1.02] active:scale-[0.98]',
+              'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-transform duration-200 ease-bounce hover:scale-[1.02] active:scale-95',
               glass
                 ? active
-                  ? 'border border-teal-300/30 bg-teal-400/20 font-semibold text-white'
+                  ? 'font-semibold text-white'
                   : 'font-medium text-white/70 hover:bg-white/10'
                 : active
-                  ? 'bg-teal-50 font-semibold text-teal-600 dark:bg-teal-500/15 dark:text-teal-400'
+                  ? 'font-semibold text-teal-600 dark:text-teal-400'
                   : 'text-muted-foreground hover:bg-muted font-medium',
             )}
           >
-            <Icon className="size-4" />
-            {t(item.key)}
+            {active && (
+              <motion.span
+                layoutId={pillId}
+                transition={{ type: 'spring', stiffness: 500, damping: 32 }}
+                className={cn(
+                  'absolute inset-0 rounded-md',
+                  glass
+                    ? 'border border-teal-300/30 bg-teal-400/20'
+                    : 'bg-teal-50 dark:bg-teal-500/15',
+                )}
+              />
+            )}
+            <Icon className="relative z-10 size-4" />
+            <span className="relative z-10">{t(item.key)}</span>
             {newKeys.includes(item.key) && (
               <span
-                className="ml-auto size-2 shrink-0 animate-pulse rounded-full bg-green-500"
+                className="relative z-10 ml-auto size-2 shrink-0 animate-pulse rounded-full bg-green-500"
                 aria-hidden
               />
             )}

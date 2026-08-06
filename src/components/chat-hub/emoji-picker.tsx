@@ -93,7 +93,7 @@ export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void })
                 onSelect(emoji);
                 setOpen(false);
               }}
-              className="flex cursor-pointer items-center justify-center rounded-lg p-2 text-xl transition-colors hover:bg-white/10"
+              className="tap-scale flex cursor-pointer items-center justify-center rounded-lg p-2 text-xl transition-[background-color,transform] duration-200 ease-bounce hover:scale-110 hover:bg-white/10"
             >
               {emoji}
             </button>

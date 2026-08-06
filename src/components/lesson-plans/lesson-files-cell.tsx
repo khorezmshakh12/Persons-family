@@ -153,7 +153,7 @@ export function LessonFilesCell({
                 onClick={() => handleRemove(a.path)}
                 disabled={isRemovePending}
                 aria-label={t('courseLessons.remove')}
-                className="shrink-0 text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
+                className="tap-scale shrink-0 text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
               >
                 <Trash2 className="size-3.5" />
               </button>

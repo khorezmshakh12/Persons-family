@@ -48,6 +48,18 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Shared motion language — every hover/press/entrance across the app
+     pulls from these two curves instead of the browser's flat linear/ease
+     default, so the whole site reads as one consistent, tactile feel
+     instead of scattered one-off transitions. `bounce` overshoots past its
+     target before settling (the "squish" you feel on press/pop-in);
+     `snappy` is a fast, no-overshoot ease-out for things that shouldn't
+     wobble (page transitions, dialogs). Both become Tailwind utilities
+     automatically (ease-bounce / ease-snappy) since Tailwind v4 generates
+     one from any --ease-* theme key. */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :root {
@@ -156,11 +168,72 @@
   }
 }
 .animate-fade-in-up {
-  animation: fade-in-up 0.5s both ease-out;
+  animation: fade-in-up 0.5s both var(--ease-bounce);
 }
+
+/* Spring pop for anything that should announce itself — a badge count
+   ticking up, a toast, a freshly-inserted list item. Overshoots past 100%
+   then settles, which is what makes it read as "alive" rather than a flat
+   fade. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.4s both var(--ease-bounce);
+}
+
+/* A quick attention wiggle — used on the notification bell when a new
+   realtime item lands, so the icon itself (not just the badge) signals
+   "something happened" for the half-second it's actually true. */
+@keyframes shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-12deg);
+  }
+  40% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  80% {
+    transform: rotate(4deg);
+  }
+}
+.animate-shake {
+  animation: shake 0.5s var(--ease-bounce);
+}
+
+/* Shared tap feedback for raw <button>/<a> elements that don't go through
+   the Button component (which already has its own hover/active scale
+   built in) — icon-only controls, chat reaction pickers, list-row actions.
+   One class instead of hand-rolling the same active:scale-* on every one
+   keeps the "does this feel clickable" answer consistent site-wide. */
+.tap-scale {
+  transition: transform 0.15s var(--ease-bounce);
+}
+.tap-scale:active {
+  transform: scale(0.88);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in-up {
+  .animate-fade-in-up,
+  .animate-pop-in,
+  .animate-shake {
     animation: none;
+  }
+  .tap-scale {
+    transition: none;
   }
 }
 

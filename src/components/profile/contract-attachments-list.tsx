@@ -101,7 +101,7 @@ export function ContractAttachmentsList({
                 type="button"
                 onClick={() => handleDownload(a.id)}
                 disabled={downloadingId === a.id}
-                className="max-w-60 truncate text-left text-white/85 hover:text-white hover:underline disabled:opacity-50"
+                className="tap-scale max-w-60 truncate text-left text-white/85 hover:text-white hover:underline disabled:opacity-50"
                 title={a.file_name}
               >
                 {a.file_name}
@@ -112,7 +112,7 @@ export function ContractAttachmentsList({
                   onClick={() => handleDelete(a.id)}
                   disabled={isDeletePending}
                   aria-label={t('deleteAttachment')}
-                  className="shrink-0 text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
+                  className="tap-scale shrink-0 text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
                 >
                   <Trash2 className="size-3.5" />
                 </button>

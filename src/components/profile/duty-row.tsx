@@ -51,7 +51,7 @@ export function DutyRow({
           onClick={handleDelete}
           disabled={isPending}
           aria-label={t('delete')}
-          className="shrink-0 text-white/50 hover:text-red-400 disabled:opacity-50"
+          className="tap-scale shrink-0 text-white/50 hover:text-red-400 disabled:opacity-50"
         >
           <Trash2 className="size-4" />
         </button>

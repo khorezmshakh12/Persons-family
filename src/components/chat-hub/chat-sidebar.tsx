@@ -34,7 +34,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
       type="button"
       onClick={() => onSelect(person.id)}
       className={cn(
-        'flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
+        'tap-scale flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
         isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10',
       )}
     >

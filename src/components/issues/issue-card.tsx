@@ -55,6 +55,9 @@ function IssueCardImpl({
   return (
     <div ref={setNodeRef} style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}>
       <motion.div
+        layout={!isDragging}
+        initial={{ opacity: 0, y: 14, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
         whileHover={isDragging ? undefined : { scale: 1.015 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}

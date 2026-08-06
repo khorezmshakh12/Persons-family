@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Bell } from 'lucide-react';
@@ -193,6 +193,21 @@ export function NotificationBell({
 
   const totalCount = unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length;
 
+  // A little attention wiggle on the bell itself (not just the badge) the
+  // moment a *new* item lands — skips the initial mount (that's just the
+  // server-rendered starting count, not a "new" arrival) and skips drops
+  // (marking something read shouldn't shake anything). Bumping shakeKey
+  // remounts the icon under a fresh `key`, which restarts the CSS animation
+  // — simpler than juggling animation-restart timers.
+  const previousCountRef = useRef<number | null>(null);
+  const [shakeKey, setShakeKey] = useState(0);
+  useEffect(() => {
+    if (previousCountRef.current !== null && totalCount > previousCountRef.current) {
+      setShakeKey((k) => k + 1);
+    }
+    previousCountRef.current = totalCount;
+  }, [totalCount]);
+
   // One preview row per sender (their latest unread message), newest first.
   const chatPreviews = Array.from(
     unreadChats
@@ -348,13 +363,16 @@ export function NotificationBell({
           <button
             type="button"
             aria-label={t('title')}
-            className="relative flex size-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white hover:bg-white/20"
+            className="relative flex size-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition-transform duration-200 ease-bounce hover:scale-110 hover:bg-white/20 active:scale-90"
           />
         }
       >
-        <Bell className="size-4.5" />
+        <Bell key={shakeKey} className={cn('size-4.5', shakeKey > 0 && 'animate-shake')} />
         {totalCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]">
+          <span
+            key={totalCount}
+            className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]"
+          >
             {totalCount > 9 ? '9+' : totalCount}
           </span>
         )}

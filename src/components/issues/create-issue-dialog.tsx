@@ -161,7 +161,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
                 disabled={isUploadingVoice}
                 aria-label={isRecording ? t('stopRecording') : t('recordVoice')}
                 className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-full border transition-all',
+                  'tap-scale flex size-8 shrink-0 items-center justify-center rounded-full border transition-[transform,background-color,box-shadow,border-color] duration-200 ease-bounce hover:scale-110',
                   isRecording
                     ? 'animate-pulse border-red-400/60 bg-red-500/90 text-white shadow-[0_0_14px_4px_rgba(239,68,68,0.55)]'
                     : 'border-white/30 bg-white/10 text-white hover:bg-white/20',
@@ -191,7 +191,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
                   type="button"
                   onClick={clearRecording}
                   aria-label={t('discardRecording')}
-                  className="shrink-0 text-white/60 hover:text-white"
+                  className="tap-scale shrink-0 text-white/60 hover:text-white"
                 >
                   <X className="size-4" />
                 </button>

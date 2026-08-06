@@ -10,6 +10,8 @@ export const GLASS_CARD =
 
 // Applied to any glass surface that's a link/button to something else —
 // gives an unambiguous "this is clickable" signal (scale, deeper shadow,
-// brighter border) on top of the base GLASS_CARD look.
+// brighter border) on top of the base GLASS_CARD look. The bounce easing +
+// active press-down is what makes it feel like a physical card lifting
+// off the surface rather than just a flat opacity/color swap.
 export const GLASS_INTERACTIVE =
-  'cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-white/40 z-10 relative';
+  'cursor-pointer transition-[transform,box-shadow,border-color] duration-300 ease-bounce hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl hover:border-white/40 active:scale-[0.98] active:translate-y-0 active:duration-100 z-10 relative';

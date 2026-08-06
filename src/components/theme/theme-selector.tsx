@@ -20,7 +20,7 @@ export function ThemeSelector() {
             type="button"
             onClick={() => setThemeMode('photo')}
             className={cn(
-              'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-cover bg-center transition-all hover:scale-[1.03]',
+              'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-cover bg-center transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
               active ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
             )}
             style={{ backgroundImage: `url(${theme.url})` }}
@@ -30,7 +30,7 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+              <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
                 <Check className="size-3" />
               </span>
             )}
@@ -42,14 +42,14 @@ export function ThemeSelector() {
         type="button"
         onClick={() => setThemeMode('flat-white')}
         className={cn(
-          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-white transition-all hover:scale-[1.03]',
+          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-white transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
           themeMode === 'flat-white' ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
         )}
         aria-pressed={themeMode === 'flat-white'}
       >
         <span className="px-2 py-1.5 text-left text-xs font-medium text-slate-900">{t('themes.flatWhite')}</span>
         {themeMode === 'flat-white' && (
-          <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+          <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
             <Check className="size-3" />
           </span>
         )}
@@ -59,14 +59,14 @@ export function ThemeSelector() {
         type="button"
         onClick={() => setThemeMode('flat-black')}
         className={cn(
-          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-zinc-900 transition-all hover:scale-[1.03]',
+          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-zinc-900 transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
           themeMode === 'flat-black' ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
         )}
         aria-pressed={themeMode === 'flat-black'}
       >
         <span className="px-2 py-1.5 text-left text-xs font-medium text-white">{t('themes.flatBlack')}</span>
         {themeMode === 'flat-black' && (
-          <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+          <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
             <Check className="size-3" />
           </span>
         )}
@@ -76,14 +76,14 @@ export function ThemeSelector() {
         type="button"
         onClick={() => setThemeMode('mint')}
         className={cn(
-          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-gradient-to-br from-white to-teal-50 transition-all hover:scale-[1.03]',
+          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-gradient-to-br from-white to-teal-50 transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
           themeMode === 'mint' ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
         )}
         aria-pressed={themeMode === 'mint'}
       >
         <span className="px-2 py-1.5 text-left text-xs font-medium text-slate-800">{t('themes.mint')}</span>
         {themeMode === 'mint' && (
-          <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+          <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
             <Check className="size-3" />
           </span>
         )}
@@ -93,14 +93,14 @@ export function ThemeSelector() {
         type="button"
         onClick={() => setThemeMode('navy')}
         className={cn(
-          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-[#0F172A] transition-all hover:scale-[1.03]',
+          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-[#0F172A] transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
           themeMode === 'navy' ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-indigo-400/30',
         )}
         aria-pressed={themeMode === 'navy'}
       >
         <span className="px-2 py-1.5 text-left text-xs font-medium text-white">{t('themes.navy')}</span>
         {themeMode === 'navy' && (
-          <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+          <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
             <Check className="size-3" />
           </span>
         )}
@@ -110,14 +110,14 @@ export function ThemeSelector() {
         type="button"
         onClick={() => setThemeMode('latte')}
         className={cn(
-          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-[#FDFBF7] transition-all hover:scale-[1.03]',
+          'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-[#FDFBF7] transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
           themeMode === 'latte' ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
         )}
         aria-pressed={themeMode === 'latte'}
       >
         <span className="px-2 py-1.5 text-left text-xs font-medium text-[#3B2A1A]">{t('themes.latte')}</span>
         {themeMode === 'latte' && (
-          <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+          <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
             <Check className="size-3" />
           </span>
         )}

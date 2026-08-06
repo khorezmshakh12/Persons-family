@@ -78,7 +78,7 @@ export function PerformanceEntriesList({
                 onClick={() => handleDelete(entry.id)}
                 disabled={isPending}
                 aria-label={t('delete')}
-                className="text-white/50 hover:text-red-400 disabled:opacity-50"
+                className="tap-scale text-white/50 hover:text-red-400 disabled:opacity-50"
               >
                 <Trash2 className="size-4" />
               </button>
