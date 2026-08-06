@@ -15,6 +15,8 @@ import type {
   StaffDirectoryEntry,
 } from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 
 function dmKey(a: string, b: string) {
   return [a, b].sort().join('::');
@@ -305,7 +307,7 @@ export function ChatHubClient({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/10 text-white shadow-xl backdrop-blur-lg sm:flex-row">
+    <div className={cn(GLASS_CARD, 'flex h-full min-h-0 flex-col overflow-hidden sm:flex-row')}>
       <ChatSidebar
         staff={staff}
         conversationStates={conversationStates}

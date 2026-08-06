@@ -64,7 +64,7 @@ export async function ActivityHeatmap({ href, large }: { href?: string; large?: 
   const content = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
+        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
         <span className="text-xs font-medium text-white/60 capitalize">
           {format.dateTime(now, { month: 'long', year: 'numeric' })}
         </span>

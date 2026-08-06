@@ -23,7 +23,7 @@ export default async function LoginPage({
     <>
       <div className="flex w-full max-w-md flex-col gap-4">
         {suspended && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700 shadow-sm">
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-center text-sm text-red-200 shadow-sm backdrop-blur-sm">
             {t('errors.accountDeactivated')}
           </div>
         )}
@@ -31,7 +31,7 @@ export default async function LoginPage({
           <LoginForm />
         </AuthCard>
       </div>
-      <span className="fixed right-8 bottom-6 text-sm font-light tracking-widest text-zinc-500 italic opacity-80 select-none pointer-events-none dark:text-zinc-400">
+      <span className="fixed right-8 bottom-6 text-sm font-light tracking-widest text-white/50 italic opacity-90 select-none pointer-events-none [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">
         Unlock Your Potential
       </span>
     </>

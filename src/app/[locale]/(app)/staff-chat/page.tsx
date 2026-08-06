@@ -33,7 +33,7 @@ export default async function StaffChatPage() {
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-5.5rem)] max-w-4xl flex-col gap-4 p-6 sm:p-8">
-      <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
+      <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
       <div className={cn(GLASS_CARD, 'min-h-0 flex-1 p-4')}>
         <StaffChatRoom
           conversationId={GLOBAL_STAFF_CHAT_ID}

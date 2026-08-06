@@ -45,10 +45,11 @@ export function PerformanceEntriesList({
 
   return (
     <div className="flex flex-col gap-2">
-      {entries.map((entry) => (
+      {entries.map((entry, index) => (
         <div
           key={entry.id}
-          className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+          style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
+          className="animate-fade-in-up flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
         >
           <div className="flex min-w-0 flex-col">
             <span

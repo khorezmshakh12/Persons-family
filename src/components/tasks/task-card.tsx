@@ -10,6 +10,7 @@ import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
 import type { Assignee } from './assign-task-dialog';
+import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -95,9 +96,9 @@ function TaskCardImpl({
           >
             {format.dateTime(new Date(task.deadline), { dateStyle: 'medium', timeStyle: 'short' })}
             {task.is_overdue && (
-              <span className="rounded-full border border-red-400/30 bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+              <Badge variant="tint" tint="red" className="text-[10px] tracking-wide uppercase">
                 {t('overdue')}
-              </span>
+              </Badge>
             )}
           </span>
         </div>

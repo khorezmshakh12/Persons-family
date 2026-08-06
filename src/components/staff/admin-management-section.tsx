@@ -26,7 +26,7 @@ export async function AdminManagementSection() {
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-medium">{t('adminManagement.title')}</h2>
+        <h2 className="font-heading text-lg font-medium">{t('adminManagement.title')}</h2>
         <p className="text-sm text-white/60">{t('adminManagement.subtitle')}</p>
       </div>
 
@@ -52,7 +52,7 @@ export async function AdminManagementSection() {
                     </span>
                     <span className="text-xs text-white/50">{admin.phone}</span>
                   </div>
-                  <Badge variant={admin.is_active ? 'default' : 'secondary'}>
+                  <Badge variant="tint" tint={admin.is_active ? 'green' : 'slate'}>
                     {admin.is_active ? t('status.active') : t('status.inactive')}
                   </Badge>
                 </div>

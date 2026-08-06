@@ -31,7 +31,7 @@ export async function BonusesPunishmentsCard({
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('title')}
         </h2>
         {canManage && <AddPerformanceEntryDialog staffId={staffId} />}

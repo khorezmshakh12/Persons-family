@@ -100,9 +100,9 @@ export async function StaffTable({
                     <div className="flex items-center gap-2">
                       <TeacherLevelBadge level={person.teacher_level} />
                       {actingRole === 'ceo' && isLevelReviewDue(person.level_updated_at) && (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-1 text-[11px] font-semibold text-amber-200">
+                        <Badge variant="tint" tint="amber">
                           {t('table.reviewDue')}
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   ) : (
@@ -110,7 +110,7 @@ export async function StaffTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={person.is_active ? 'default' : 'secondary'}>
+                  <Badge variant="tint" tint={person.is_active ? 'green' : 'slate'}>
                     {person.is_active ? t('status.active') : t('status.inactive')}
                   </Badge>
                 </TableCell>

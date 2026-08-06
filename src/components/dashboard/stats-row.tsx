@@ -64,7 +64,7 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {cards.map((c) => (
+      {cards.map((c, index) => (
         <StatCard
           key={c.label}
           label={c.label}
@@ -74,6 +74,7 @@ export async function StatsRow({ isAdminRole }: { isAdminRole: boolean }) {
           changePercent={momChangePercent(c.buckets)}
           sparkline={c.buckets}
           href={c.href}
+          index={index}
         />
       ))}
     </div>

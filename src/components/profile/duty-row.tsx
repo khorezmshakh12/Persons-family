@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 import { deleteDutyAction } from '@/lib/actions/contracts';
+import { Badge } from '@/components/ui/badge';
 
 export function DutyRow({
   id,
@@ -37,9 +38,9 @@ export function DutyRow({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-white">{title}</span>
           {contractTitle && (
-            <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/60">
+            <Badge variant="tint" tint="slate" className="text-[11px] font-normal text-white/60">
               {contractTitle}
-            </span>
+            </Badge>
           )}
         </div>
         {description && <p className="text-sm whitespace-pre-wrap text-white/70">{description}</p>}

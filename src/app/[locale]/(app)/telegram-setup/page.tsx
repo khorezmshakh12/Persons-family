@@ -21,7 +21,7 @@ export default async function TelegramSetupPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
       <div className="rounded-3xl border border-white/20 bg-white/10 p-8 text-white shadow-xl backdrop-blur-md">
-        <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
           {t('title')}
         </h1>
         <p className="mt-1 text-white/70">{t('subtitle')}</p>
@@ -42,7 +42,7 @@ export default async function TelegramSetupPage() {
       {(profile!.role === 'ceo' || profile!.role === 'it_developer') && (
         <div className="flex flex-col gap-4 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
               {t('broadcast.title')}
             </h2>
             <p className="text-sm text-white/70">{t('broadcast.description')}</p>

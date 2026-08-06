@@ -19,6 +19,24 @@ const badgeVariants = cva(
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Translucent pill for glass surfaces (photo background + frosted
+        // cards) — the stock variants above read `--primary`/`--border`/etc,
+        // which are the strict grayscale light-theme tokens (see globals.css'
+        // TT-07 comment) and render as a solid black-on-white chip that
+        // doesn't belong on a glass card. `tint` opts into the same
+        // translucent color language already used by StatCard/dashboard tint
+        // maps instead, so every ad-hoc status/tier pill across the app can
+        // converge on one component.
+        tint: "",
+      },
+      tint: {
+        green: "border-green-500/30 bg-green-500/20 text-green-50",
+        blue: "border-blue-500/30 bg-blue-500/20 text-blue-50",
+        orange: "border-orange-500/30 bg-orange-500/20 text-orange-50",
+        amber: "border-amber-500/30 bg-amber-500/20 text-amber-100",
+        red: "border-red-500/30 bg-red-500/20 text-red-50",
+        teal: "border-teal-300/30 bg-teal-400/15 text-white",
+        slate: "border-white/20 bg-white/10 text-white/80",
       },
     },
     defaultVariants: {
@@ -30,6 +48,7 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = "default",
+  tint,
   render,
   ...props
 }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
@@ -37,7 +56,7 @@ function Badge({
     defaultTagName: "span",
     props: mergeProps<"span">(
       {
-        className: cn(badgeVariants({ variant }), className),
+        className: cn(badgeVariants({ variant, tint: variant === "tint" ? (tint ?? "slate") : undefined }), className),
       },
       props
     ),

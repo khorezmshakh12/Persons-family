@@ -34,6 +34,7 @@ export function StatCard({
   changePercent,
   sparkline,
   href,
+  index = 0,
 }: {
   label: string;
   value: number;
@@ -42,6 +43,8 @@ export function StatCard({
   changePercent: number;
   sparkline: number[];
   href: string;
+  /** Staggers this card's entrance animation behind the ones before it. */
+  index?: number;
 }) {
   const t = TINTS[tint];
   const max = Math.max(...sparkline, 1);
@@ -50,8 +53,9 @@ export function StatCard({
   return (
     <Link
       href={href}
+      style={{ animationDelay: `${index * 70}ms` }}
       className={cn(
-        'flex transform-gpu flex-col overflow-hidden rounded-2xl border p-5 text-white shadow-xl backdrop-blur-md will-change-transform',
+        'animate-fade-in-up flex transform-gpu flex-col overflow-hidden rounded-2xl border p-5 text-white shadow-xl backdrop-blur-md will-change-transform',
         t.card,
         GLASS_INTERACTIVE,
       )}
@@ -71,7 +75,7 @@ export function StatCard({
       </div>
 
       <div className="mt-4 flex flex-col gap-0.5">
-        <span className="text-3xl font-bold tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <span className="font-heading text-3xl font-bold tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {value}
         </span>
         <span className="text-sm font-medium text-white/90">{label}</span>

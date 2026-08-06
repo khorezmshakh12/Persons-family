@@ -71,7 +71,7 @@ export default async function ProfileDetailPage({
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {target.first_name} {target.last_name}
           </h1>
           <div className="flex flex-wrap items-center gap-2">

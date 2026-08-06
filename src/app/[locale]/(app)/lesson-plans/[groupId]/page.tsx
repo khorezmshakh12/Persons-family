@@ -11,6 +11,7 @@ import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import {
@@ -106,9 +107,9 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
       <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-teal-300/30 bg-teal-400/15 px-4 py-1.5 text-sm font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <Badge variant="tint" tint="teal" className="px-4 py-1.5 text-sm font-bold [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
               {t('groupLabel')}: {group.name}
-            </span>
+            </Badge>
             {group.teacher && (
               <span className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1 pr-4 pl-1.5 text-sm font-medium text-white">
                 <Avatar className="size-7 border border-white/30">
@@ -151,7 +152,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('courseLessons.title')}</h2>
+        <h2 className="font-heading text-xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('courseLessons.title')}</h2>
         <Suspense fallback={<GlassCourseLessonsSkeleton />}>
           <CourseLessonsSection
             groupId={group.id}

@@ -16,10 +16,25 @@ import {
 } from '@/components/ui/dialog';
 import { TempPasswordResult } from './temp-password-result';
 
-export function ResetPasswordDialog({ staffId }: { staffId: string }) {
+export function ResetPasswordDialog({
+  staffId,
+  open: openProp,
+  onOpenChange,
+}: {
+  staffId: string;
+  /** When provided, this dialog is externally controlled (e.g. opened from
+   * a DropdownMenuItem in StaffRowActions) and renders no trigger of its
+   * own — the caller owns showing/hiding it. Omit both to get the default
+   * self-contained button + dialog. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const t = useTranslations('staff');
   const tCommon = useTranslations('common');
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : internalOpen;
+  const setOpen = isControlled ? onOpenChange! : setInternalOpen;
   const [state, formAction, isPending] = useActionState<StaffActionState, FormData>(
     resetStaffPasswordAction,
     undefined,
@@ -27,12 +42,14 @@ export function ResetPasswordDialog({ staffId }: { staffId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
-      >
-        <KeyRound className="size-4" />
-        {t('resetPassword')}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger
+          render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+        >
+          <KeyRound className="size-4" />
+          {t('resetPassword')}
+        </DialogTrigger>
+      )}
       <DialogContent>
         {state?.tempPassword ? (
           <TempPasswordResult tempPassword={state.tempPassword} onDone={() => setOpen(false)} />

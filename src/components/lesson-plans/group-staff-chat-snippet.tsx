@@ -47,7 +47,7 @@ export async function GroupStaffChatSnippet({
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6')}>
-      <h2 className="text-lg font-medium">{t('staffChat.title', { name: groupName })}</h2>
+      <h2 className="font-heading text-lg font-medium">{t('staffChat.title', { name: groupName })}</h2>
       <StaffChatRoom
         conversationId={groupId}
         initialMessages={messages ?? []}

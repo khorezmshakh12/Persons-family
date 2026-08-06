@@ -29,7 +29,7 @@ export default function Error({
         <div className="flex size-14 items-center justify-center rounded-full border border-red-400/30 bg-red-500/15">
           <AlertTriangle className="size-7 text-red-300" />
         </div>
-        <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('errorTitle')}
         </h2>
         <p className="text-sm text-white/70">{t('errorDescription')}</p>

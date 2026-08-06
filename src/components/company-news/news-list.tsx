@@ -66,12 +66,16 @@ export function NewsList({
 
   return (
     <div className="flex flex-col gap-4">
-      {news.map((item) => {
+      {news.map((item, index) => {
         const canDelete = isAdmin || item.created_by === currentUserId;
         return (
-          <div key={item.id} className={cn(GLASS_CARD, 'flex flex-col gap-2 p-6')}>
+          <div
+            key={item.id}
+            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+            className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-2 p-6')}
+          >
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-lg font-medium">{item.title}</h2>
+              <h2 className="font-heading text-lg font-medium">{item.title}</h2>
               <div className="flex shrink-0 items-center gap-2">
                 <span className="text-xs text-white/60">
                   {format.dateTime(new Date(item.created_at), { dateStyle: 'medium', timeStyle: 'short' })}

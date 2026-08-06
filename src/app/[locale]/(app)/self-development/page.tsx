@@ -12,6 +12,7 @@ import { TeacherPicker } from '@/components/self-development/teacher-picker';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
 import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
 import { ExportButtons } from '@/components/export/export-buttons';
+import { Badge } from '@/components/ui/badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +89,7 @@ export default async function SelfDevelopmentPage({
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6 sm:p-8">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {t('title')}
           </h1>
           <p className="text-white/70">{t('subtitle')}</p>
@@ -97,7 +98,7 @@ export default async function SelfDevelopmentPage({
         {teacherList.length > 0 && (
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
                 {t('teacherProgress.title')}
               </h2>
               <TeacherPicker teachers={teacherList} selectedId={selectedTeacherId!} />
@@ -110,7 +111,7 @@ export default async function SelfDevelopmentPage({
         )}
 
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
             {t('allSubmissions')}
           </h2>
           {(submissions ?? []).length === 0 ? (
@@ -126,7 +127,7 @@ export default async function SelfDevelopmentPage({
 
         <div className="flex flex-col gap-4 border-t border-white/10 pt-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
               {tp('title')}
             </h2>
             <ExportButtons
@@ -153,9 +154,9 @@ export default async function SelfDevelopmentPage({
                       {person.first_name} {person.last_name}
                     </span>
                     {perf && (
-                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
+                      <Badge variant="tint" tint="slate" className="text-xs font-semibold">
                         {tp(`tierLabels.${perf.current_tier}`)} · {perf.weekly_progress_score}%
-                      </span>
+                      </Badge>
                     )}
                   </div>
                   <span
@@ -196,7 +197,7 @@ export default async function SelfDevelopmentPage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
           {t('title')}
         </h1>
         <p className="text-white/70">{t('subtitle')}</p>
@@ -207,18 +208,18 @@ export default async function SelfDevelopmentPage({
       />
 
       <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
-        <h2 className="mb-4 text-lg font-semibold text-white">{t('submitTitle')}</h2>
+        <h2 className="font-heading mb-4 text-lg font-semibold text-white">{t('submitTitle')}</h2>
         {hasSubmittedThisMonth ? <p className="text-sm text-white/70">{t('submittedThisMonth')}</p> : <SubmitForm />}
       </div>
 
       {performance && (
         <div className={cn(GLASS_CARD, 'flex flex-wrap items-center gap-3 p-6')}>
-          <span className="rounded-full border border-teal-300/30 bg-teal-400/15 px-4 py-1.5 text-sm font-bold text-white">
+          <Badge variant="tint" tint="teal" className="px-4 py-1.5 text-sm font-bold">
             {tp('tier')}: {tp(`tierLabels.${performance.current_tier}`)}
-          </span>
-          <span className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium text-white">
+          </Badge>
+          <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-medium">
             {tp('weeklyProgressScore')}: {performance.weekly_progress_score}%
-          </span>
+          </Badge>
         </div>
       )}
 
@@ -241,12 +242,12 @@ export default async function SelfDevelopmentPage({
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{tp('history')}</h2>
+        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{tp('history')}</h2>
         <PerformanceEntriesList entries={(entries ?? []) as PerformanceEntry[]} isAdmin={false} />
       </div>
 
       <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('yourSubmissions')}
         </h2>
         {(submissions ?? []).length === 0 ? (

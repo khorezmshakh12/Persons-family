@@ -49,7 +49,7 @@ export async function ContractsCard({
     return (
       <div className={cn(GLASS_CARD, 'flex flex-col items-center gap-3 p-8 text-center')}>
         <Clock3 className="size-8 text-white/40" />
-        <h2 className="text-lg font-semibold text-white">{t('title')}</h2>
+        <h2 className="font-heading text-lg font-semibold text-white">{t('title')}</h2>
         <p className="max-w-sm text-sm text-white/60">{t('comingSoon')}</p>
       </div>
     );
@@ -75,7 +75,7 @@ export async function ContractsCard({
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('title')}
         </h2>
         {canManage && <CreateContractDialog staffId={staffId} />}

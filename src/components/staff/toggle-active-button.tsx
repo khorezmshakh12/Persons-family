@@ -16,10 +16,27 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-export function ToggleActiveButton({ staffId, isActive }: { staffId: string; isActive: boolean }) {
+export function ToggleActiveButton({
+  staffId,
+  isActive,
+  open: openProp,
+  onOpenChange,
+}: {
+  staffId: string;
+  isActive: boolean;
+  /** When provided, this dialog is externally controlled (e.g. opened from
+   * a DropdownMenuItem in StaffRowActions) and renders no trigger of its
+   * own — the caller owns showing/hiding it. Omit both to get the default
+   * self-contained button + dialog. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const t = useTranslations('staff');
   const tCommon = useTranslations('common');
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const open = isControlled ? openProp : internalOpen;
+  const setOpen = isControlled ? onOpenChange! : setInternalOpen;
   const [state, formAction, isPending] = useActionState<StaffActionState, FormData>(
     toggleStaffActiveAction,
     undefined,
@@ -27,23 +44,25 @@ export function ToggleActiveButton({ staffId, isActive }: { staffId: string; isA
 
   useEffect(() => {
     if (state && !state.error) setOpen(false);
-  }, [state]);
+  }, [state, setOpen]);
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger
-        render={
-          <Button
-            variant={isActive ? 'outline' : 'default'}
-            size="sm"
-            className={
-              isActive ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : undefined
-            }
-          />
-        }
-      >
-        {isActive ? t('deactivate') : t('activate')}
-      </AlertDialogTrigger>
+      {!isControlled && (
+        <AlertDialogTrigger
+          render={
+            <Button
+              variant={isActive ? 'outline' : 'default'}
+              size="sm"
+              className={
+                isActive ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : undefined
+              }
+            />
+          }
+        >
+          {isActive ? t('deactivate') : t('activate')}
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>

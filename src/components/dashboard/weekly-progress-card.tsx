@@ -19,7 +19,7 @@ export async function WeeklyProgressCard({ userId }: { userId: string | null }) 
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
-      <h2 className="text-lg font-medium">{t('weeklyProgress.title')}</h2>
+      <h2 className="font-heading text-lg font-medium">{t('weeklyProgress.title')}</h2>
       {performance ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">

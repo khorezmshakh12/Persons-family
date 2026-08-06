@@ -14,7 +14,7 @@ export function StaffPerformanceChart({ data }: { data: StaffPerformancePoint[] 
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
-      <h2 className="text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+      <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
         {t('staffPerformance.title')}
       </h2>
       {data.length === 0 ? (
