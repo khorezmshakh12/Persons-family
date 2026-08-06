@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { CreateContractDialog } from './create-contract-dialog';
+import { EditContractDialog } from './edit-contract-dialog';
 import { ContractAttachmentsList } from './contract-attachments-list';
 import { RequestContractActionDialog } from './request-contract-action-dialog';
 import { ReviewContractRequestControls } from './review-contract-request-controls';
@@ -99,14 +100,28 @@ export async function ContractsCard({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-white">{contract.title}</span>
-                  <span
-                    className={cn(
-                      'rounded-full px-2.5 py-1 text-xs font-semibold',
-                      STATUS_TINT[contract.status] ?? 'bg-white/15 text-white/70',
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'rounded-full px-2.5 py-1 text-xs font-semibold',
+                        STATUS_TINT[contract.status] ?? 'bg-white/15 text-white/70',
+                      )}
+                    >
+                      {t(`status.${contract.status}`)}
+                    </span>
+                    {canManage && (
+                      <EditContractDialog
+                        contract={{
+                          id: contract.id,
+                          staffId,
+                          title: contract.title,
+                          startDate: contract.start_date,
+                          endDate: contract.end_date,
+                          status: contract.status as 'active' | 'frozen' | 'ended',
+                        }}
+                      />
                     )}
-                  >
-                    {t(`status.${contract.status}`)}
-                  </span>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-4 text-xs text-white/60">
                   <span>

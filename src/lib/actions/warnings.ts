@@ -6,6 +6,7 @@ import { ForbiddenError, requireAdmin } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 export type WarningActionState = { error?: string } | undefined;
 
@@ -28,6 +29,25 @@ const warningSchema = z.object({
   staffId: z.string().uuid(),
   reason: z.string().trim().min(1).max(1000),
 });
+
+/** Fire-and-forget notification to the staff member who was warned —
+ * mirrors notifyTaskAssigned/notifyIssueCreated. A Telegram hiccup must
+ * never affect the response to the admin who just issued the warning. */
+async function notifyWarningIssued({
+  reason,
+  recipientTelegramId,
+}: {
+  reason: string;
+  recipientTelegramId: number | null;
+}) {
+  if (!recipientTelegramId) return;
+  try {
+    const text = `<b>Sizga ogohlantirish berildi</b>\nSabab: ${escapeTelegramText(reason)}`;
+    await sendTelegramMessage(recipientTelegramId, text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
+}
 
 export async function issueWarningAction(
   _prevState: WarningActionState,
@@ -54,6 +74,13 @@ export async function issueWarningAction(
   if (error) return { error: 'createFailed' };
 
   logSystemAction(supabase, 'warning.issue', `Issued a warning to staff ${parsed.data.staffId}`);
+
+  const { data: recipient } = await supabase
+    .from('profiles')
+    .select('telegram_id')
+    .eq('id', parsed.data.staffId)
+    .maybeSingle();
+  void notifyWarningIssued({ reason: parsed.data.reason, recipientTelegramId: recipient?.telegram_id ?? null });
 
   revalidatePath('/[locale]/staff', 'page');
   return {};

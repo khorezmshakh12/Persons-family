@@ -730,6 +730,7 @@
     "messages": "Messages",
     "tasks": "Tasks",
     "issues": "Issues",
+    "warnings": "Warnings",
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
     "markReadFailed": "Couldn't sync that as read — it will still show as unread."
@@ -803,6 +804,8 @@
       "title": "Contracts & Duties",
       "comingSoon": "Coming soon. Your contract and its duties will appear here once the CEO creates one for you.",
       "createContract": "Create contract",
+      "editContract": "Edit contract",
+      "statusLabel": "Status",
       "contractTitle": "Title",
       "startDate": "Start date",
       "endDate": "End date",

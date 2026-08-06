@@ -730,6 +730,7 @@
     "messages": "Xabarlar",
     "tasks": "Vazifalar",
     "issues": "Muammolar",
+    "warnings": "Ogohlantirishlar",
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
     "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
@@ -803,6 +804,8 @@
       "title": "Shartnoma va vazifalar",
       "comingSoon": "Yaqinda qo'shiladi. CEO siz uchun shartnoma yaratganidan so'ng, u va unga tegishli vazifalar shu yerda ko'rinadi.",
       "createContract": "Shartnoma yaratish",
+      "editContract": "Shartnomani tahrirlash",
+      "statusLabel": "Holati",
       "contractTitle": "Sarlavha",
       "startDate": "Boshlanish sanasi",
       "endDate": "Tugash sanasi",

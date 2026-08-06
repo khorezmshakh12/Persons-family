@@ -29,17 +29,25 @@ export type UnseenTaskItem = {
   createdAt: string;
 };
 
+export type UnseenWarningItem = {
+  id: string;
+  reason: string;
+  createdAt: string;
+};
+
 export function NotificationBell({
   userId,
   initialUnreadChats,
   initialUnseenIssues,
   initialUnseenTasks,
+  initialUnseenWarnings,
   profileNames,
 }: {
   userId: string;
   initialUnreadChats: UnreadChatItem[];
   initialUnseenIssues: UnseenIssueItem[];
   initialUnseenTasks: UnseenTaskItem[];
+  initialUnseenWarnings: UnseenWarningItem[];
   profileNames: Record<string, string>;
 }) {
   const t = useTranslations('notifications');
@@ -48,6 +56,7 @@ export function NotificationBell({
   const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
   const [unseenIssues, setUnseenIssues] = useState(initialUnseenIssues);
   const [unseenTasks, setUnseenTasks] = useState(initialUnseenTasks);
+  const [unseenWarnings, setUnseenWarnings] = useState(initialUnseenWarnings);
   const [open, setOpen] = useState(false);
 
   // Realtime keeps the bell live without a refetch: new DMs/reassigned
@@ -148,6 +157,31 @@ export function NotificationBell({
             });
           },
         )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
+          (payload) => {
+            const row = payload.new as { id: string; reason: string; created_at: string; is_seen: boolean };
+            if (row.is_seen) return;
+            setUnseenWarnings((prev) =>
+              prev.some((w) => w.id === row.id)
+                ? prev
+                : [{ id: row.id, reason: row.reason, createdAt: row.created_at }, ...prev],
+            );
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
+          (payload) => {
+            const row = payload.new as { id: string; reason: string; created_at: string; is_seen: boolean };
+            setUnseenWarnings((prev) => {
+              if (row.is_seen) return prev.filter((w) => w.id !== row.id);
+              if (prev.some((w) => w.id === row.id)) return prev;
+              return [{ id: row.id, reason: row.reason, createdAt: row.created_at }, ...prev];
+            });
+          },
+        )
         .subscribe();
     })();
 
@@ -157,7 +191,7 @@ export function NotificationBell({
     };
   }, [userId]);
 
-  const totalCount = unreadChats.length + unseenIssues.length + unseenTasks.length;
+  const totalCount = unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length;
 
   // One preview row per sender (their latest unread message), newest first.
   const chatPreviews = Array.from(
@@ -174,6 +208,7 @@ export function NotificationBell({
 
   const issuePreviews = [...unseenIssues].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
   const taskPreviews = [...unseenTasks].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
+  const warningPreviews = [...unseenWarnings].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
 
   // Optimistically drop the item(s) from local state the instant it's
   // clicked — the badge shouldn't wait on a network round trip, and the
@@ -228,13 +263,29 @@ export function NotificationBell({
       });
   }
 
+  // Warnings only expose a bulk "mark all seen" RPC (mirrors visiting one's
+  // own profile via MarkWarningsSeen) — same reasoning as handleTaskClick.
+  function handleWarningClick() {
+    const removed = unseenWarnings;
+    setUnseenWarnings([]);
+    setOpen(false);
+    createClient()
+      .rpc('mark_warnings_seen')
+      .then(({ error }) => {
+        if (!error) return;
+        console.error('mark_warnings_seen failed', error);
+        setUnseenWarnings(removed);
+        toast.error(t('markReadFailed'));
+      });
+  }
+
   // Failsafe: every time the dropdown opens, re-read the absolute truth
   // from the database and reconcile local state to match it. This is what
   // actually guarantees correctness regardless of any missed Realtime event
   // or a mutation that failed without the user noticing the toast.
   const resyncFromDatabase = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: chatRows }, { data: issueRows }, { data: taskRows }] = await Promise.all([
+    const [{ data: chatRows }, { data: issueRows }, { data: taskRows }, { data: warningRows }] = await Promise.all([
       supabase
         .from('staff_chats')
         .select('id, sender_id, message_text, created_at')
@@ -256,6 +307,13 @@ export function NotificationBell({
         .eq('is_seen', false)
         .order('created_at', { ascending: false })
         .limit(50),
+      supabase
+        .from('staff_warnings')
+        .select('id, reason, created_at')
+        .eq('staff_id', userId)
+        .eq('is_seen', false)
+        .order('created_at', { ascending: false })
+        .limit(50),
     ]);
 
     if (chatRows) {
@@ -273,6 +331,9 @@ export function NotificationBell({
     }
     if (taskRows) {
       setUnseenTasks(taskRows.map((task) => ({ id: task.id, title: task.title, createdAt: task.created_at })));
+    }
+    if (warningRows) {
+      setUnseenWarnings(warningRows.map((w) => ({ id: w.id, reason: w.reason, createdAt: w.created_at })));
     }
   }, [userId]);
 
@@ -361,6 +422,26 @@ export function NotificationBell({
                         <span className="truncate text-sm font-medium text-white">{task.title}</span>
                         <span className="text-xs text-white/60">
                           {format.relativeTime(new Date(task.createdAt), now)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {warningPreviews.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      {t('warnings')}
+                    </p>
+                    {warningPreviews.map((warning) => (
+                      <Link
+                        key={warning.id}
+                        href={`/profile/${userId}`}
+                        onClick={handleWarningClick}
+                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                      >
+                        <span className="truncate text-sm font-medium text-white">{warning.reason}</span>
+                        <span className="text-xs text-white/60">
+                          {format.relativeTime(new Date(warning.createdAt), now)}
                         </span>
                       </Link>
                     ))}

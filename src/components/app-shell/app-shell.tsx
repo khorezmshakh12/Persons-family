@@ -9,7 +9,13 @@ import { MobileNav } from './mobile-nav';
 import { ProfileProvider } from './profile-context';
 import { NavBadgesProvider } from './nav-badges-context';
 import { UserBadge } from './user-badge';
-import { NotificationBell, type UnreadChatItem, type UnseenIssueItem, type UnseenTaskItem } from './notification-bell';
+import {
+  NotificationBell,
+  type UnreadChatItem,
+  type UnseenIssueItem,
+  type UnseenTaskItem,
+  type UnseenWarningItem,
+} from './notification-bell';
 import { CommandPalette } from '@/components/command-palette/command-palette';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
@@ -28,6 +34,7 @@ export async function AppShell({
   initialUnreadChats,
   initialUnseenIssues,
   initialUnseenTasks,
+  initialUnseenWarnings,
   newNavKeys,
   children,
 }: {
@@ -37,6 +44,7 @@ export async function AppShell({
   initialUnreadChats: UnreadChatItem[];
   initialUnseenIssues: UnseenIssueItem[];
   initialUnseenTasks: UnseenTaskItem[];
+  initialUnseenWarnings: UnseenWarningItem[];
   newNavKeys: NavItem['key'][];
   children: ReactNode;
 }) {
@@ -91,6 +99,7 @@ export async function AppShell({
                       initialUnreadChats={initialUnreadChats}
                       initialUnseenIssues={initialUnseenIssues}
                       initialUnseenTasks={initialUnseenTasks}
+                      initialUnseenWarnings={initialUnseenWarnings}
                     />
                     <UserBadge className="hidden sm:flex" userId={userId} />
                     <LanguageSwitcher className={GLASS_CONTROL} />

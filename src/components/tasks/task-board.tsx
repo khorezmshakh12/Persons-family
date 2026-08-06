@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { updateTaskStatusAction, deleteTaskAction } from '@/lib/actions/tasks';
+import { createClient } from '@/lib/supabase/client';
 import { TaskKanbanColumn } from './task-kanban-column';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
@@ -12,18 +13,98 @@ import type { TaskStatus } from './task-status-control';
 
 const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
 
+type RawTaskRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  assigned_to: string;
+  assigned_by: string;
+  deadline: string;
+  status: TaskStatus;
+};
+
 export function TaskBoard({
   tasks: initialTasks,
   isAdmin,
   assignees,
+  currentUserId,
 }: {
   tasks: Task[];
   isAdmin: boolean;
   assignees: Assignee[];
+  currentUserId: string;
 }) {
   const t = useTranslations('tasks');
   const [tasks, setTasks] = useState(initialTasks);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  // Board used to only reflect the viewer's own drag/delete actions — a task
+  // someone else assigned (or reassigned/updated) while this page was open
+  // never appeared until a manual refresh. RLS's tasks_select already scopes
+  // Realtime delivery to rows this user may see (creator or assignee, same
+  // as the server query above), so subscribing with no extra filter and
+  // trusting that — mirrors chat-hub-client.tsx's own realtime pattern —
+  // is enough; the sender_id/receiver_id-style guard below is just belt and
+  // suspenders in case a row for someone else's task ever slips through.
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    function toTask(row: RawTaskRow): Task {
+      const assignee = assignees.find((a) => a.id === row.assigned_to);
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        assigned_to: row.assigned_to,
+        deadline: row.deadline,
+        status: row.status,
+        is_overdue: row.status !== 'done' && new Date(row.deadline).getTime() < Date.now(),
+        assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
+      };
+    }
+
+    function isVisible(row: RawTaskRow) {
+      return row.assigned_to === currentUserId || row.assigned_by === currentUserId;
+    }
+
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) supabase.realtime.setAuth(session.access_token);
+      if (cancelled) return;
+
+      channel = supabase
+        .channel('task_board')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks' }, (payload) => {
+          const row = payload.new as RawTaskRow;
+          if (!isVisible(row)) return;
+          setTasks((prev) => (prev.some((task) => task.id === row.id) ? prev : [toTask(row), ...prev]));
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, (payload) => {
+          const row = payload.new as RawTaskRow;
+          setTasks((prev) => {
+            if (!isVisible(row)) return prev.filter((task) => task.id !== row.id);
+            const next = toTask(row);
+            return prev.some((task) => task.id === row.id)
+              ? prev.map((task) => (task.id === row.id ? next : task))
+              : [next, ...prev];
+          });
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (payload) => {
+          const deletedId = (payload.old as { id: string }).id;
+          setTasks((prev) => prev.filter((task) => task.id !== deletedId));
+        })
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [currentUserId, assignees]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;

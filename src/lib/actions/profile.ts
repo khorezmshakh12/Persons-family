@@ -74,16 +74,16 @@ export async function updateOwnProfileAction(
 }
 
 const contactInfoSchema = z.object({
-  email: z.string().trim().max(255).optional().or(z.literal('')),
-  address: z.string().trim().max(500).optional().or(z.literal('')),
   emergencyContact: z.string().trim().max(255).optional().or(z.literal('')),
 });
 
-/** Self-service only — email/address/emergency_contact are deliberately not
- * in protect_profile_fields' blocked-fields list (unlike phone/DOB/role),
- * so profiles_update_self already permits this at the RLS layer. See
+/** Self-service only — emergency_contact is deliberately not in
+ * protect_profile_fields' blocked-fields list (unlike phone/DOB/role), so
+ * profiles_update_self already permits this at the RLS layer. See
  * 20260803095000_profile_contact_info.sql for why the CEO doesn't get an
- * override path for someone else's contact info here. */
+ * override path for someone else's contact info here. Email/address used
+ * to be editable here too but aren't collected at all anymore — staff have
+ * no use for them and they were never shown anywhere but this card. */
 export async function updateOwnContactInfoAction(
   _prevState: ProfileActionState,
   formData: FormData,
@@ -99,11 +99,7 @@ export async function updateOwnContactInfoAction(
 
   const { error } = await supabase
     .from('profiles')
-    .update({
-      email: parsed.data.email || null,
-      address: parsed.data.address || null,
-      emergency_contact: parsed.data.emergencyContact || null,
-    })
+    .update({ emergency_contact: parsed.data.emergencyContact || null })
     .eq('id', user.id);
   if (error) return { error: 'updateFailed' };
 

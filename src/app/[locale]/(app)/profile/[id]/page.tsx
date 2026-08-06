@@ -10,6 +10,7 @@ import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { WarningsCard } from '@/components/profile/warnings-card';
+import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
 import { DutiesCard } from '@/components/profile/duties-card';
 import { ContractsCard } from '@/components/profile/contracts-card';
@@ -53,15 +54,14 @@ export default async function ProfileDetailPage({
   const supabase = await createClient();
   const { data: target } = await supabase
     .from('profiles')
-    .select(
-      'id, first_name, last_name, phone, email, address, emergency_contact, avatar_url, role, teacher_level, telegram_id',
-    )
+    .select('id, first_name, last_name, phone, emergency_contact, avatar_url, role, teacher_level, telegram_id')
     .eq('id', id)
     .maybeSingle();
   if (!target) notFound();
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
+      {isSelf && <MarkWarningsSeen />}
       <div className={cn(GLASS_CARD, 'flex items-center gap-4 p-6')}>
         <Avatar className="size-16 border border-white/30">
           <AvatarImage src={target.avatar_url ?? undefined} alt="" />

@@ -25,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { data: unseenIssueRows },
     { data: unseenTaskRows },
     { data: unseenCompanyNewsCount },
+    { data: unseenWarningRows },
   ] = await Promise.all([
     supabase.from('profiles').select('id, first_name, last_name, date_of_birth').eq('is_active', true),
     supabase
@@ -49,16 +50,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .order('created_at', { ascending: false })
       .limit(50),
     supabase.rpc('unseen_company_news_count'),
+    supabase
+      .from('staff_warnings')
+      .select('id, reason, created_at')
+      .eq('staff_id', user!.id)
+      .eq('is_seen', false)
+      .order('created_at', { ascending: false })
+      .limit(50),
   ]);
   // Real per-user "unseen" state — not a time-based heuristic — so each dot
   // clears the moment its page is visited (see MarkTasksSeen/MarkIssuesSeen/
-  // MarkCompanyNewsSeen) instead of just aging out after a day. This is only
-  // the initial snapshot for first paint — NavBadgesProvider takes over from
-  // here and keeps it live via Realtime without needing a refresh.
+  // MarkCompanyNewsSeen/MarkWarningsSeen) instead of just aging out after a
+  // day. This is only the initial snapshot for first paint —
+  // NavBadgesProvider takes over from here and keeps it live via Realtime
+  // without needing a refresh.
   const newNavKeys: NavItem['key'][] = [
     ...((unseenTaskRows?.length ?? 0) > 0 ? (['tasks'] as const) : []),
     ...((unseenIssueRows?.length ?? 0) > 0 ? (['issues'] as const) : []),
     ...((unseenCompanyNewsCount ?? 0) > 0 ? (['companyNews'] as const) : []),
+    ...((unreadChatRows?.length ?? 0) > 0 ? (['chat'] as const) : []),
+    ...((unseenWarningRows?.length ?? 0) > 0 ? (['profile'] as const) : []),
   ];
   const upcomingBirthdays = getUpcomingBirthdays(activeProfiles ?? []);
   const birthdayNames = upcomingBirthdays.map((p) => `${p.first_name} ${p.last_name}`);
@@ -81,6 +92,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     title: t.title,
     createdAt: t.created_at,
   }));
+  const initialUnseenWarnings = (unseenWarningRows ?? []).map((w) => ({
+    id: w.id,
+    reason: w.reason,
+    createdAt: w.created_at,
+  }));
 
   return (
     <AppShell
@@ -90,6 +106,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       initialUnreadChats={initialUnreadChats}
       initialUnseenIssues={initialUnseenIssues}
       initialUnseenTasks={initialUnseenTasks}
+      initialUnseenWarnings={initialUnseenWarnings}
       newNavKeys={newNavKeys}
     >
       <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />

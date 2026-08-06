@@ -75,7 +75,12 @@ export default async function IssuesPage() {
         <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
         <CreateIssueDialog assignees={assignees ?? []} />
       </div>
-      <IssuesBoard issues={issues as unknown as Issue[]} isAdmin={isCeo} currentUserId={user!.id} />
+      <IssuesBoard
+        issues={issues as unknown as Issue[]}
+        isAdmin={isCeo}
+        isAdminManager={isAdminManager}
+        currentUserId={user!.id}
+      />
     </div>
   );
 }

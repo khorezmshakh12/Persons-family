@@ -6,10 +6,11 @@ import type { NavItem } from '@/lib/nav';
 
 const NavBadgesContext = createContext<NavItem['key'][]>([]);
 
-type BadgeKey = Extract<NavItem['key'], 'tasks' | 'issues' | 'companyNews'>;
+type BadgeKey = Extract<NavItem['key'], 'tasks' | 'issues' | 'companyNews' | 'chat' | 'profile'>;
 
 /**
- * Keeps the sidebar's "new" dots (tasks/issues/companyNews) live. The
+ * Keeps the sidebar's "new" dots (tasks/issues/companyNews/chat/profile —
+ * profile's dot covers unseen warnings) live. The
  * (app) layout computes `initialKeys` once per navigation (it's the only
  * server-side signal Next.js gives us), which is why a task or issue
  * assigned to someone already sitting on the page used to only show up
@@ -73,6 +74,24 @@ export function NavBadgesProvider({
       if (!cancelled) setBadge('companyNews', (data ?? 0) > 0);
     };
 
+    const refreshChat = async () => {
+      const { count } = await supabase
+        .from('staff_chats')
+        .select('id', { count: 'exact', head: true })
+        .eq('receiver_id', userId)
+        .eq('is_read', false);
+      if (!cancelled) setBadge('chat', (count ?? 0) > 0);
+    };
+
+    const refreshWarnings = async () => {
+      const { count } = await supabase
+        .from('staff_warnings')
+        .select('id', { count: 'exact', head: true })
+        .eq('staff_id', userId)
+        .eq('is_seen', false);
+      if (!cancelled) setBadge('profile', (count ?? 0) > 0);
+    };
+
     (async () => {
       const {
         data: { session },
@@ -107,6 +126,26 @@ export function NavBadgesProvider({
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'company_news_reads', filter: `user_id=eq.${userId}` },
           refreshCompanyNews,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'staff_chats', filter: `receiver_id=eq.${userId}` },
+          refreshChat,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'staff_chats', filter: `receiver_id=eq.${userId}` },
+          refreshChat,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
+          refreshWarnings,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
+          refreshWarnings,
         )
         .subscribe();
     })();

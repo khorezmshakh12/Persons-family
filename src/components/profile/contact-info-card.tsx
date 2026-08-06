@@ -1,13 +1,11 @@
 import { getTranslations } from 'next-intl/server';
-import { Mail, MapPin, Phone, Send, ShieldAlert } from 'lucide-react';
+import { Phone, Send, ShieldAlert } from 'lucide-react';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { EditContactInfoDialog } from './edit-contact-info-dialog';
 
 export type ProfileContactInfo = {
   phone: string;
-  email: string | null;
-  address: string | null;
   emergency_contact: string | null;
   telegram_id: number | null;
 };
@@ -48,17 +46,11 @@ export async function ContactInfoCard({
           {t('title')}
         </h2>
         {isSelf && (
-          <EditContactInfoDialog
-            defaultEmail={profile.email ?? ''}
-            defaultAddress={profile.address ?? ''}
-            defaultEmergencyContact={profile.emergency_contact ?? ''}
-          />
+          <EditContactInfoDialog defaultEmergencyContact={profile.emergency_contact ?? ''} />
         )}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Row icon={Phone} label={t('phone')} value={profile.phone} />
-        <Row icon={Mail} label={t('email')} value={profile.email || t('notSet')} />
-        <Row icon={MapPin} label={t('address')} value={profile.address || t('notSet')} />
         <Row
           icon={ShieldAlert}
           label={t('emergencyContact')}

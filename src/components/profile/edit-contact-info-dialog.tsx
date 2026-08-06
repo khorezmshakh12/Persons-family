@@ -8,7 +8,6 @@ import { updateOwnContactInfoAction, type ProfileActionState } from '@/lib/actio
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -19,12 +18,8 @@ import {
 } from '@/components/ui/dialog';
 
 export function EditContactInfoDialog({
-  defaultEmail,
-  defaultAddress,
   defaultEmergencyContact,
 }: {
-  defaultEmail: string;
-  defaultAddress: string;
   defaultEmergencyContact: string;
 }) {
   const t = useTranslations('profile.contactInfo');
@@ -66,26 +61,6 @@ export function EditContactInfoDialog({
           <DialogTitle>{t('editTitle')}</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">{t('email')}</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              defaultValue={defaultEmail}
-              maxLength={255}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="address">{t('address')}</Label>
-            <Textarea
-              id="address"
-              name="address"
-              defaultValue={defaultAddress}
-              maxLength={500}
-              rows={2}
-            />
-          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="emergencyContact">{t('emergencyContact')}</Label>
             <Input

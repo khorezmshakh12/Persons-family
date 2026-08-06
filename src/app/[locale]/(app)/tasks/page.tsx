@@ -60,7 +60,7 @@ export default async function TasksPage() {
         </h1>
         {isAdmin && <AssignTaskDialog assignees={assignees ?? []} />}
       </div>
-      <TaskBoard tasks={tasks as never} isAdmin={isAdmin} assignees={assignees ?? []} />
+      <TaskBoard tasks={tasks as never} isAdmin={isAdmin} assignees={assignees ?? []} currentUserId={user!.id} />
     </div>
   );
 }
