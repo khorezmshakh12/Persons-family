@@ -421,7 +421,8 @@
       "updateFailed": "Could not save changes. Please try again.",
       "groupLimitReached": "You've reached the maximum of 50 groups.",
       "fileTooLarge": "File must be under 50MB.",
-      "uploadFailed": "Could not upload the file. Please try again."
+      "uploadFailed": "Could not upload the file. Please try again.",
+      "dateRequired": "Set the lesson's date first."
     }
   },
   "staffChat": {
@@ -731,6 +732,7 @@
     "tasks": "Tasks",
     "issues": "Issues",
     "warnings": "Warnings",
+    "lessonPlanAlerts": "Lesson plan reports",
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
     "markReadFailed": "Couldn't sync that as read — it will still show as unread."

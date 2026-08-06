@@ -56,11 +56,22 @@ export async function updateLessonTopicAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  // The lesson's date must be set before anything else about it can be
+  // written — see the .not('lesson_date', 'is', null) filter below, which
+  // also doubles as the "does this row even match" check: a matched-but-
+  // unauthorized row is separately blocked by course_lessons' own RLS, so a
+  // null `data` here specifically means "no date yet" for the compliance
+  // check in /api/cron/lesson-plan-check to have something reliable to key
+  // off of.
+  const { data, error } = await supabase
     .from('course_lessons')
     .update({ topic: parsed.data.topic || null })
-    .eq('id', parsed.data.lessonId);
+    .eq('id', parsed.data.lessonId)
+    .not('lesson_date', 'is', null)
+    .select('id')
+    .maybeSingle();
   if (error) return { error: 'updateFailed' };
+  if (!data) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -85,11 +96,15 @@ export async function updateLessonGameLinkAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('course_lessons')
     .update({ game_link: parsed.data.gameLink || null })
-    .eq('id', parsed.data.lessonId);
+    .eq('id', parsed.data.lessonId)
+    .not('lesson_date', 'is', null)
+    .select('id')
+    .maybeSingle();
   if (error) return { error: 'updateFailed' };
+  if (!data) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -133,8 +148,15 @@ export async function updateLessonPlanFieldAction(
             : { homework: nextValue };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('course_lessons').update(updateData).eq('id', parsed.data.lessonId);
+  const { data, error } = await supabase
+    .from('course_lessons')
+    .update(updateData)
+    .eq('id', parsed.data.lessonId)
+    .not('lesson_date', 'is', null)
+    .select('id')
+    .maybeSingle();
   if (error) return { error: 'updateFailed' };
+  if (!data) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -164,11 +186,15 @@ export async function updateLessonProcedureAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('course_lessons')
     .update({ procedure: parsed.data.steps })
-    .eq('id', parsed.data.lessonId);
+    .eq('id', parsed.data.lessonId)
+    .not('lesson_date', 'is', null)
+    .select('id')
+    .maybeSingle();
   if (error) return { error: 'updateFailed' };
+  if (!data) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};

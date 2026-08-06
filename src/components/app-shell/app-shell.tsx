@@ -15,6 +15,7 @@ import {
   type UnseenIssueItem,
   type UnseenTaskItem,
   type UnseenWarningItem,
+  type UnseenLessonPlanAlertItem,
 } from './notification-bell';
 import { CommandPalette } from '@/components/command-palette/command-palette';
 import { PresenceProvider } from '@/components/presence/presence-context';
@@ -35,6 +36,7 @@ export async function AppShell({
   initialUnseenIssues,
   initialUnseenTasks,
   initialUnseenWarnings,
+  initialUnseenLessonPlanAlerts,
   newNavKeys,
   children,
 }: {
@@ -45,6 +47,7 @@ export async function AppShell({
   initialUnseenIssues: UnseenIssueItem[];
   initialUnseenTasks: UnseenTaskItem[];
   initialUnseenWarnings: UnseenWarningItem[];
+  initialUnseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
   newNavKeys: NavItem['key'][];
   children: ReactNode;
 }) {
@@ -100,6 +103,7 @@ export async function AppShell({
                       initialUnseenIssues={initialUnseenIssues}
                       initialUnseenTasks={initialUnseenTasks}
                       initialUnseenWarnings={initialUnseenWarnings}
+                      initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
                     />
                     <UserBadge className="hidden sm:flex" userId={userId} />
                     <LanguageSwitcher className={GLASS_CONTROL} />

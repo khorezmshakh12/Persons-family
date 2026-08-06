@@ -421,7 +421,8 @@
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
       "groupLimitReached": "Siz 50 ta guruh chegarasiga yetdingiz.",
       "fileTooLarge": "Fayl 50MB dan kichik bo'lishi kerak.",
-      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring."
+      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "dateRequired": "Avval darsning sanasini belgilang."
     }
   },
   "staffChat": {
@@ -731,6 +732,7 @@
     "tasks": "Vazifalar",
     "issues": "Muammolar",
     "warnings": "Ogohlantirishlar",
+    "lessonPlanAlerts": "Lesson plan hisobotlari",
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
     "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."

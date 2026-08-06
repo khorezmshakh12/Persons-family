@@ -26,6 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { data: unseenTaskRows },
     { data: unseenCompanyNewsCount },
     { data: unseenWarningRows },
+    { data: unseenLessonPlanAlertRows },
   ] = await Promise.all([
     supabase.from('profiles').select('id, first_name, last_name, date_of_birth').eq('is_active', true),
     supabase
@@ -54,6 +55,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .from('staff_warnings')
       .select('id, reason, created_at')
       .eq('staff_id', user!.id)
+      .eq('is_seen', false)
+      .order('created_at', { ascending: false })
+      .limit(50),
+    // No staff_id filter — RLS already restricts this table to CEO-only
+    // rows, so a non-CEO viewer's query simply comes back empty.
+    supabase
+      .from('lesson_plan_compliance_alerts')
+      .select('id, summary, created_at')
       .eq('is_seen', false)
       .order('created_at', { ascending: false })
       .limit(50),
@@ -97,6 +106,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     reason: w.reason,
     createdAt: w.created_at,
   }));
+  const initialUnseenLessonPlanAlerts = (unseenLessonPlanAlertRows ?? []).map((a) => ({
+    id: a.id,
+    summary: a.summary,
+    createdAt: a.created_at,
+  }));
 
   return (
     <AppShell
@@ -107,6 +121,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       initialUnseenIssues={initialUnseenIssues}
       initialUnseenTasks={initialUnseenTasks}
       initialUnseenWarnings={initialUnseenWarnings}
+      initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
       newNavKeys={newNavKeys}
     >
       <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />

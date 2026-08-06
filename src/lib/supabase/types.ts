@@ -705,6 +705,30 @@ export type Database = {
           },
         ]
       }
+      lesson_plan_compliance_alerts: {
+        Row: {
+          created_at: string
+          id: string
+          is_seen: boolean
+          report_date: string
+          summary: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_seen?: boolean
+          report_date: string
+          summary: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_seen?: boolean
+          report_date?: string
+          summary?: string
+        }
+        Relationships: []
+      }
       lesson_plan_days: {
         Row: {
           id: string
@@ -1476,6 +1500,7 @@ export type Database = {
       }
       mark_issue_seen: { Args: { issue_id: string }; Returns: undefined }
       mark_issues_seen: { Args: never; Returns: undefined }
+      mark_lesson_plan_alerts_seen: { Args: never; Returns: undefined }
       mark_staff_chat_read: { Args: { message_id: string }; Returns: undefined }
       mark_tasks_seen: { Args: never; Returns: undefined }
       mark_warnings_seen: { Args: never; Returns: undefined }

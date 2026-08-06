@@ -35,12 +35,19 @@ export type UnseenWarningItem = {
   createdAt: string;
 };
 
+export type UnseenLessonPlanAlertItem = {
+  id: string;
+  summary: string;
+  createdAt: string;
+};
+
 export function NotificationBell({
   userId,
   initialUnreadChats,
   initialUnseenIssues,
   initialUnseenTasks,
   initialUnseenWarnings,
+  initialUnseenLessonPlanAlerts,
   profileNames,
 }: {
   userId: string;
@@ -48,6 +55,7 @@ export function NotificationBell({
   initialUnseenIssues: UnseenIssueItem[];
   initialUnseenTasks: UnseenTaskItem[];
   initialUnseenWarnings: UnseenWarningItem[];
+  initialUnseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
   profileNames: Record<string, string>;
 }) {
   const t = useTranslations('notifications');
@@ -57,6 +65,7 @@ export function NotificationBell({
   const [unseenIssues, setUnseenIssues] = useState(initialUnseenIssues);
   const [unseenTasks, setUnseenTasks] = useState(initialUnseenTasks);
   const [unseenWarnings, setUnseenWarnings] = useState(initialUnseenWarnings);
+  const [unseenLessonPlanAlerts, setUnseenLessonPlanAlerts] = useState(initialUnseenLessonPlanAlerts);
   const [open, setOpen] = useState(false);
 
   // Realtime keeps the bell live without a refetch: new DMs/reassigned
@@ -182,6 +191,36 @@ export function NotificationBell({
             });
           },
         )
+        // No `filter` here — unlike the other channels, this table has no
+        // per-recipient column (it's a CEO-only broadcast, not a per-staff
+        // record). Delivery is scoped entirely by the table's own
+        // CEO-only SELECT policy, the same "let RLS do the filtering"
+        // pattern chat-hub-client.tsx already relies on elsewhere.
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'lesson_plan_compliance_alerts' },
+          (payload) => {
+            const row = payload.new as { id: string; summary: string; created_at: string; is_seen: boolean };
+            if (row.is_seen) return;
+            setUnseenLessonPlanAlerts((prev) =>
+              prev.some((a) => a.id === row.id)
+                ? prev
+                : [{ id: row.id, summary: row.summary, createdAt: row.created_at }, ...prev],
+            );
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'lesson_plan_compliance_alerts' },
+          (payload) => {
+            const row = payload.new as { id: string; summary: string; created_at: string; is_seen: boolean };
+            setUnseenLessonPlanAlerts((prev) => {
+              if (row.is_seen) return prev.filter((a) => a.id !== row.id);
+              if (prev.some((a) => a.id === row.id)) return prev;
+              return [{ id: row.id, summary: row.summary, createdAt: row.created_at }, ...prev];
+            });
+          },
+        )
         .subscribe();
     })();
 
@@ -191,7 +230,8 @@ export function NotificationBell({
     };
   }, [userId]);
 
-  const totalCount = unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length;
+  const totalCount =
+    unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length + unseenLessonPlanAlerts.length;
 
   // A little attention wiggle on the bell itself (not just the badge) the
   // moment a *new* item lands — skips the initial mount (that's just the
@@ -224,6 +264,9 @@ export function NotificationBell({
   const issuePreviews = [...unseenIssues].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
   const taskPreviews = [...unseenTasks].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
   const warningPreviews = [...unseenWarnings].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
+  const lessonPlanAlertPreviews = [...unseenLessonPlanAlerts]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 5);
 
   // Optimistically drop the item(s) from local state the instant it's
   // clicked — the badge shouldn't wait on a network round trip, and the
@@ -294,13 +337,30 @@ export function NotificationBell({
       });
   }
 
+  // Bulk mark-seen, same reasoning as handleTaskClick/handleWarningClick —
+  // there's no per-alert equivalent, and clicking any one preview clears
+  // the whole section.
+  function handleLessonPlanAlertClick() {
+    const removed = unseenLessonPlanAlerts;
+    setUnseenLessonPlanAlerts([]);
+    setOpen(false);
+    createClient()
+      .rpc('mark_lesson_plan_alerts_seen')
+      .then(({ error }) => {
+        if (!error) return;
+        console.error('mark_lesson_plan_alerts_seen failed', error);
+        setUnseenLessonPlanAlerts(removed);
+        toast.error(t('markReadFailed'));
+      });
+  }
+
   // Failsafe: every time the dropdown opens, re-read the absolute truth
   // from the database and reconcile local state to match it. This is what
   // actually guarantees correctness regardless of any missed Realtime event
   // or a mutation that failed without the user noticing the toast.
   const resyncFromDatabase = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: chatRows }, { data: issueRows }, { data: taskRows }, { data: warningRows }] = await Promise.all([
+    const [{ data: chatRows }, { data: issueRows }, { data: taskRows }, { data: warningRows }, { data: lessonPlanAlertRows }] = await Promise.all([
       supabase
         .from('staff_chats')
         .select('id, sender_id, message_text, created_at')
@@ -329,6 +389,14 @@ export function NotificationBell({
         .eq('is_seen', false)
         .order('created_at', { ascending: false })
         .limit(50),
+      // No `.eq('staff_id', ...)` equivalent — RLS already restricts this
+      // table to CEO-only rows, so a non-CEO viewer simply gets back [].
+      supabase
+        .from('lesson_plan_compliance_alerts')
+        .select('id, summary, created_at')
+        .eq('is_seen', false)
+        .order('created_at', { ascending: false })
+        .limit(50),
     ]);
 
     if (chatRows) {
@@ -349,6 +417,11 @@ export function NotificationBell({
     }
     if (warningRows) {
       setUnseenWarnings(warningRows.map((w) => ({ id: w.id, reason: w.reason, createdAt: w.created_at })));
+    }
+    if (lessonPlanAlertRows) {
+      setUnseenLessonPlanAlerts(
+        lessonPlanAlertRows.map((a) => ({ id: a.id, summary: a.summary, createdAt: a.created_at })),
+      );
     }
   }, [userId]);
 
@@ -460,6 +533,26 @@ export function NotificationBell({
                         <span className="truncate text-sm font-medium text-white">{warning.reason}</span>
                         <span className="text-xs text-white/60">
                           {format.relativeTime(new Date(warning.createdAt), now)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {lessonPlanAlertPreviews.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      {t('lessonPlanAlerts')}
+                    </p>
+                    {lessonPlanAlertPreviews.map((alert) => (
+                      <Link
+                        key={alert.id}
+                        href="/lesson-plans"
+                        onClick={handleLessonPlanAlertClick}
+                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                      >
+                        <span className="whitespace-pre-line text-sm font-medium text-white">{alert.summary}</span>
+                        <span className="text-xs text-white/60">
+                          {format.relativeTime(new Date(alert.createdAt), now)}
                         </span>
                       </Link>
                     ))}
