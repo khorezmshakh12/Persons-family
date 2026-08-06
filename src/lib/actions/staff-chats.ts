@@ -5,7 +5,7 @@ import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
-import { escapeTelegramText, sendTelegramMessage, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 const MEDIA_TYPES = ['image', 'video', 'voice', 'none'] as const;
 
@@ -88,38 +88,6 @@ async function notifyNewChatMessage({
   }
 }
 
-/** Company-wide, content-free ping so every connected staff member knows
- * chat activity is happening, without exposing a private DM's body to
- * anyone but its actual recipient (notifyNewChatMessage above still
- * carries the real content, to the receiver only — this is deliberately
- * separate so a broader "someone's chatting" notice never leaks what was
- * actually said). */
-async function notifyCompanyOfChatActivity({
-  senderId,
-  receiverId,
-  senderName,
-  supabase,
-}: {
-  senderId: string;
-  receiverId: string;
-  senderName: string;
-  supabase: Awaited<ReturnType<typeof createClient>>;
-}) {
-  try {
-    const { data: staff } = await supabase
-      .from('profiles')
-      .select('id, telegram_id')
-      .not('telegram_id', 'is', null);
-    const others = (staff ?? []).filter((p) => p.id !== senderId && p.id !== receiverId);
-    if (others.length === 0) return;
-
-    const text = `<b>${escapeTelegramText(senderName)}</b> chatda yangi xabar yozdi.`;
-    await sendTelegramMessageToMany(others.map((o) => o.telegram_id), text);
-  } catch (error) {
-    console.error('Telegram broadcast notification failed:', error instanceof Error ? error.message : error);
-  }
-}
-
 export async function sendStaffChatAction(
   _prevState: StaffChatsActionState,
   formData: FormData,
@@ -190,14 +158,6 @@ export async function sendStaffChatAction(
       messageText: parsed.data.messageText || null,
       hasMedia: Boolean(parsed.data.mediaUrl),
       receiverTelegramId: receiver.telegram_id,
-    }),
-  );
-  after(() =>
-    notifyCompanyOfChatActivity({
-      senderId: user.id,
-      receiverId: parsed.data.receiverId,
-      senderName: `${profile.first_name} ${profile.last_name}`,
-      supabase,
     }),
   );
 
