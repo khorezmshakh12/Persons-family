@@ -13,17 +13,22 @@ import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons
 // User-specific and RLS-scoped — never attempt to prerender this route.
 export const dynamic = 'force-dynamic';
 
-async function TeacherSelfDevelopmentCard({ userId }: { userId: string }) {
+async function TeacherSelfDevelopmentCard({ userId, delayMs }: { userId: string; delayMs: number }) {
   const supabase = await createClient();
   const { data } = await supabase
     .from('self_development')
     .select('month, ceo_score')
     .eq('user_id', userId)
     .order('month', { ascending: true });
-  return <SelfDevelopmentLineChart points={(data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))} />;
+  return (
+    <SelfDevelopmentLineChart
+      points={(data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+      delayMs={delayMs}
+    />
+  );
 }
 
-async function EmployeeGrowthChartSection() {
+async function EmployeeGrowthChartSection({ delayMs }: { delayMs: number }) {
   const supabase = await createClient();
   const { data: teachers } = await supabase
     .from('profiles')
@@ -46,6 +51,7 @@ async function EmployeeGrowthChartSection() {
       teachers={teachers ?? []}
       initialTeacherId={firstTeacher?.id ?? null}
       initialPoints={(points ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+      delayMs={delayMs}
     />
   );
 }
@@ -73,27 +79,31 @@ export default async function DashboardPage() {
       {isAdminRole ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<GlassCardSkeleton />}>
-            <ActiveIssuesOverview />
+            <ActiveIssuesOverview delayMs={0} />
           </Suspense>
           <Suspense fallback={<GlassCardSkeleton />}>
-            <CompanyNewsCard isAdmin />
+            <CompanyNewsCard isAdmin delayMs={90} />
           </Suspense>
         </div>
       ) : (
         <Suspense fallback={<GlassCardSkeleton />}>
-          <CompanyNewsCard isAdmin={false} />
+          <CompanyNewsCard isAdmin={false} delayMs={0} />
         </Suspense>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? <EmployeeGrowthChartSection /> : <RolesDonutChart href={analyticsHref} />}
+          {isAdminRole ? (
+            <EmployeeGrowthChartSection delayMs={0} />
+          ) : (
+            <RolesDonutChart href={analyticsHref} delayMs={0} />
+          )}
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
-          <ActivityHeatmap href="/calendar" />
+          <ActivityHeatmap href="/calendar" delayMs={90} />
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
-          <TeacherSelfDevelopmentCard userId={user!.id} />
+          <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />
         </Suspense>
       </div>
     </div>

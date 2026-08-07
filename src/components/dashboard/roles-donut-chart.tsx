@@ -23,7 +23,15 @@ const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   it_developer: '#06b6d4',
 };
 
-export async function RolesDonutChart({ href, large }: { href?: string; large?: boolean } = {}) {
+export async function RolesDonutChart({
+  href,
+  large,
+  delayMs = 0,
+}: {
+  href?: string;
+  large?: boolean;
+  delayMs?: number;
+} = {}) {
   const t = await getTranslations('dashboard.rolesChart');
   const tStaff = await getTranslations('staff');
   const supabase = await createClient();
@@ -53,7 +61,13 @@ export async function RolesDonutChart({ href, large }: { href?: string; large?: 
       <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
       <div className="flex justify-center">
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
-          <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="-rotate-90">
+          <svg
+            width={SIZE}
+            height={SIZE}
+            viewBox={`0 0 ${SIZE} ${SIZE}`}
+            style={{ animationDelay: `${delayMs + 100}ms` }}
+            className="animate-pop-in -rotate-90"
+          >
             <circle
               cx={SIZE / 2}
               cy={SIZE / 2}
@@ -76,7 +90,10 @@ export async function RolesDonutChart({ href, large }: { href?: string; large?: 
               />
             ))}
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div
+            style={{ animationDelay: `${delayMs + 350}ms` }}
+            className="animate-pop-in absolute inset-0 flex flex-col items-center justify-center"
+          >
             <span className="text-2xl font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{total}</span>
             <span className="text-xs text-white/60">{t('totalLabel')}</span>
           </div>
@@ -84,7 +101,11 @@ export async function RolesDonutChart({ href, large }: { href?: string; large?: 
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         {ROLE_ORDER.map((role, i) => (
-          <div key={role} className="flex items-center gap-2 text-xs text-white/80">
+          <div
+            key={role}
+            style={{ animationDelay: `${delayMs + 450 + i * 40}ms` }}
+            className="animate-fade-in-up flex items-center gap-2 text-xs text-white/80"
+          >
             <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: ROLE_COLOR[role] }} />
             <span className="truncate">
               {tStaff(`roles.${role}`)} · {counts[i]}
@@ -95,13 +116,16 @@ export async function RolesDonutChart({ href, large }: { href?: string; large?: 
     </>
   );
 
-  const cardClassName = cn(GLASS_CARD, 'flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+  const cardClassName = cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+  const cardStyle = { animationDelay: `${delayMs}ms` };
 
   return href ? (
-    <Link href={href} className={cardClassName}>
+    <Link href={href} style={cardStyle} className={cardClassName}>
       {content}
     </Link>
   ) : (
-    <div className={cardClassName}>{content}</div>
+    <div style={cardStyle} className={cardClassName}>
+      {content}
+    </div>
   );
 }

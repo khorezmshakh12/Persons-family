@@ -20,12 +20,15 @@ export function SelfDevelopmentLineChart({
   points,
   title,
   bare = false,
+  delayMs = 0,
 }: {
   points: ScorePoint[];
   title?: string;
   /** Skip the card wrapper + heading — for callers (e.g. the dashboard
    * widget) that already render their own GLASS_CARD + title/picker row. */
   bare?: boolean;
+  /** Entrance-animation delay for the card wrapper — ignored when `bare`. */
+  delayMs?: number;
 }) {
   const t = useTranslations('selfDevelopment');
   const format = useFormatter();
@@ -65,7 +68,10 @@ export function SelfDevelopmentLineChart({
   if (bare) return chart;
 
   return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+    <div
+      style={{ animationDelay: `${delayMs}ms` }}
+      className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
+    >
       <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
         {title ?? t('progressChart.title')}
       </h2>

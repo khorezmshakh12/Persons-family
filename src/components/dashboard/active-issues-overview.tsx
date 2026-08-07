@@ -10,7 +10,7 @@ const STATUS_TINT: Record<string, 'slate' | 'amber'> = {
   in_progress: 'amber',
 };
 
-export async function ActiveIssuesOverview() {
+export async function ActiveIssuesOverview({ delayMs = 0 }: { delayMs?: number } = {}) {
   const t = await getTranslations('dashboard.activeIssues');
   const tIssues = await getTranslations('issues');
   const supabase = await createClient();
@@ -25,7 +25,11 @@ export async function ActiveIssuesOverview() {
   const rows = issues ?? [];
 
   return (
-    <Link href="/issues" className={cn(GLASS_CARD, GLASS_INTERACTIVE, 'flex flex-col gap-4 p-6')}>
+    <Link
+      href="/issues"
+      style={{ animationDelay: `${delayMs}ms` }}
+      className={cn(GLASS_CARD, GLASS_INTERACTIVE, 'animate-fade-in-up flex flex-col gap-4 p-6')}
+    >
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('title')}
@@ -39,10 +43,11 @@ export async function ActiveIssuesOverview() {
         <p className="text-sm text-white/70">{t('noActiveIssues')}</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {rows.map((issue) => (
+          {rows.map((issue, i) => (
             <li
               key={issue.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              style={{ animationDelay: `${delayMs + 120 + i * 50}ms` }}
+              className="animate-fade-in-up flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
             >
               <span className="truncate text-sm text-white">{issue.title}</span>
               <Badge variant="tint" tint={STATUS_TINT[issue.status] ?? 'slate'} className="shrink-0 text-[11px]">

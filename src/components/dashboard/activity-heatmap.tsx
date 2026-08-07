@@ -13,7 +13,15 @@ function intensityClass(count: number, max: number) {
   return 'bg-teal-400/20 text-white';
 }
 
-export async function ActivityHeatmap({ href, large }: { href?: string; large?: boolean } = {}) {
+export async function ActivityHeatmap({
+  href,
+  large,
+  delayMs = 0,
+}: {
+  href?: string;
+  large?: boolean;
+  delayMs?: number;
+} = {}) {
   const t = await getTranslations('dashboard.activityGrid');
   const format = await getFormatter();
   const supabase = await createClient();
@@ -81,8 +89,9 @@ export async function ActivityHeatmap({ href, large }: { href?: string; large?: 
           ) : (
             <span
               key={i}
+              style={{ animationDelay: `${delayMs + 120 + i * 10}ms` }}
               className={cn(
-                'flex aspect-square items-center justify-center rounded-md',
+                'animate-pop-in flex aspect-square items-center justify-center rounded-md',
                 large ? 'text-sm' : 'text-xs',
                 intensityClass(dayCounts[day], maxCount),
                 day === today && 'ring-2 ring-white/70',
@@ -97,13 +106,16 @@ export async function ActivityHeatmap({ href, large }: { href?: string; large?: 
     </>
   );
 
-  const cardClassName = cn(GLASS_CARD, 'flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+  const cardClassName = cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6', href && GLASS_INTERACTIVE);
+  const cardStyle = { animationDelay: `${delayMs}ms` };
 
   return href ? (
-    <Link href={href} className={cardClassName}>
+    <Link href={href} style={cardStyle} className={cardClassName}>
       {content}
     </Link>
   ) : (
-    <div className={cardClassName}>{content}</div>
+    <div style={cardStyle} className={cardClassName}>
+      {content}
+    </div>
   );
 }
