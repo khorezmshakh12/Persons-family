@@ -1,32 +1,27 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useTheme } from 'next-themes';
 import { DEFAULT_BACKGROUND } from '@/lib/background-themes';
 
 const STORAGE_KEY = 'app-background-url';
 const MODE_STORAGE_KEY = 'app-theme-mode';
+const BLUR_STORAGE_KEY = 'app-glass-blur';
 
-export type ThemeMode = 'photo' | 'video' | 'flat-white' | 'flat-black' | 'mint' | 'navy' | 'latte';
+export type ThemeMode = 'photo' | 'video';
 
-const FLAT_MODES: ThemeMode[] = ['flat-white', 'flat-black', 'mint', 'navy', 'latte'];
-const ALL_MODES: ThemeMode[] = ['photo', 'video', ...FLAT_MODES];
-// Which next-themes light/dark value each flat mode nudges toward, so the
-// few surfaces outside the glass system (e.g. the login page) that do read
-// next-themes' CSS vars stay visually consistent with the chosen theme.
-const NEXT_THEME_FOR_MODE: Partial<Record<ThemeMode, 'light' | 'dark'>> = {
-  'flat-white': 'light',
-  'flat-black': 'dark',
-  mint: 'light',
-  navy: 'dark',
-  latte: 'light',
-};
+const ALL_MODES: ThemeMode[] = ['photo', 'video'];
+
+export const DEFAULT_GLASS_BLUR = 16;
+export const MIN_GLASS_BLUR = 0;
+export const MAX_GLASS_BLUR = 32;
 
 type BackgroundContextValue = {
   backgroundUrl: string;
   themeMode: ThemeMode;
   setBackgroundUrl: (url: string) => { error?: string } | void;
   setThemeMode: (mode: ThemeMode) => void;
+  glassBlur: number;
+  setGlassBlur: (px: number) => void;
 };
 
 const BackgroundContext = createContext<BackgroundContextValue | null>(null);
@@ -39,36 +34,32 @@ const BackgroundContext = createContext<BackgroundContextValue | null>(null);
 // forcing all of them to re-render for no reason.
 export function BackgroundProvider({ children }: { children: ReactNode }) {
   const [backgroundUrl, setBackgroundUrlState] = useState(DEFAULT_BACKGROUND);
-  // 'video' (the looping cinematic clip) is the new default background for
+  // 'video' (the looping cinematic clip) is the default background for
   // anyone who hasn't already picked a theme — see the effect below, which
   // still restores whatever a returning user previously chose.
   const [themeMode, setThemeModeState] = useState<ThemeMode>('video');
-  const { setTheme } = useTheme();
+  const [glassBlur, setGlassBlurState] = useState(DEFAULT_GLASS_BLUR);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) setBackgroundUrlState(stored);
     const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
     if (storedMode && ALL_MODES.includes(storedMode as ThemeMode)) setThemeModeState(storedMode as ThemeMode);
+    const storedBlur = window.localStorage.getItem(BLUR_STORAGE_KEY);
+    if (storedBlur) {
+      const parsed = Number(storedBlur);
+      if (Number.isFinite(parsed)) setGlassBlurState(Math.min(MAX_GLASS_BLUR, Math.max(MIN_GLASS_BLUR, parsed)));
+    }
   }, []);
 
-  // Reflects themeMode onto <html data-flat-theme> so the CSS in globals.css
-  // (which targets Tailwind's own generated class names via attribute
-  // selectors) can neutralize glassmorphism everywhere at once, including
-  // Radix-portaled dialog/sheet content that isn't a DOM descendant of the
-  // app shell tree but still lives under <html>. Also nudges next-themes'
-  // light/dark so the few surfaces outside the glass system (e.g. the login
-  // page) stay visually consistent with the chosen flat theme; photo mode
-  // deliberately leaves next-themes alone.
+  // Every glass panel (GLASS_CARD, header, sidebar, dialogs, ...) reads its
+  // backdrop-filter from this custom property via globals.css's
+  // `[class*="backdrop-blur"]` override — see that rule's comment for why
+  // a single shared variable beats touching the ~90 components that inline
+  // a raw backdrop-blur-* class.
   useEffect(() => {
-    const root = document.documentElement;
-    if (FLAT_MODES.includes(themeMode)) {
-      root.setAttribute('data-flat-theme', themeMode === 'flat-white' ? 'white' : themeMode === 'flat-black' ? 'black' : themeMode);
-      setTheme(NEXT_THEME_FOR_MODE[themeMode]!);
-    } else {
-      root.removeAttribute('data-flat-theme');
-    }
-  }, [themeMode, setTheme]);
+    document.documentElement.style.setProperty('--glass-blur', `${glassBlur}px`);
+  }, [glassBlur]);
 
   const setBackgroundUrl = useCallback((url: string) => {
     setBackgroundUrlState(url);
@@ -94,9 +85,19 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setGlassBlur = useCallback((px: number) => {
+    const clamped = Math.min(MAX_GLASS_BLUR, Math.max(MIN_GLASS_BLUR, px));
+    setGlassBlurState(clamped);
+    try {
+      window.localStorage.setItem(BLUR_STORAGE_KEY, String(clamped));
+    } catch {
+      // Non-fatal — same reasoning as setBackgroundUrl above.
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ backgroundUrl, themeMode, setBackgroundUrl, setThemeMode }),
-    [backgroundUrl, themeMode, setBackgroundUrl, setThemeMode],
+    () => ({ backgroundUrl, themeMode, setBackgroundUrl, setThemeMode, glassBlur, setGlassBlur }),
+    [backgroundUrl, themeMode, setBackgroundUrl, setThemeMode, glassBlur, setGlassBlur],
   );
 
   return <BackgroundContext.Provider value={value}>{children}</BackgroundContext.Provider>;

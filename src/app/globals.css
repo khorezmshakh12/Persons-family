@@ -255,124 +255,31 @@
   }
 }
 
-/* Glassmorphism panels (GLASS_CARD, sidebar, header) use backdrop-blur-md/lg.
-   Full-strength blur is one of the more expensive paint operations on
-   battery-constrained mobile GPUs — take it down a notch below 768px so
-   scrolling and animations stay smooth without losing the frosted look. */
+/* User-adjustable glass blur (Settings > Platform Appearance). Every glass
+   panel across the app (GLASS_CARD, header, sidebar, dialogs, dropdowns —
+   ~90 components) inlines a raw backdrop-blur-* Tailwind class with no
+   shared theme-value plumbing, so instead of touching every one of them
+   this targets Tailwind's own generated class names via an
+   attribute-substring selector — [class*=] also reaches Radix-portaled
+   Dialog/Sheet content, which isn't a DOM descendant of the app shell tree
+   but still lives under <html>. BackgroundContext writes --glass-blur onto
+   <html> (see setGlassBlur); !important is required to outrank Tailwind's
+   own utility specificity. */
+:root {
+  --glass-blur: 16px;
+}
+[class*="backdrop-blur"] {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+}
+
+/* Full-strength blur is one of the more expensive paint operations on
+   battery-constrained mobile GPUs — cap it below 768px so scrolling and
+   animations stay smooth without losing the frosted look. min() still
+   honors a user-chosen value lower than the cap. */
 @media (max-width: 768px) {
-  .backdrop-blur-md,
-  .backdrop-blur-lg {
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: blur(min(var(--glass-blur), 6px)) !important;
+    backdrop-filter: blur(min(var(--glass-blur), 6px)) !important;
   }
-}
-
-/* Flat themes ("Default White" / "Default Black", set via
-   BackgroundProvider as data-flat-theme on <html>) replace the glass/photo
-   system with solid, high-contrast surfaces. 94 components inline raw
-   glass utility classes with no shared theme-value plumbing, so instead of
-   touching every one of them this targets Tailwind's own generated class
-   names via attribute-substring selectors — [class*=] also reaches Radix
-   Dialog/Sheet content, which portals to the end of <body> but is still a
-   descendant of <html>. !important is required to outrank both Tailwind's
-   own utility specificity and the mobile-perf rule above.
-   [class~="text-white"] (exact token) vs [class*="text-white/"]
-   (substring) is deliberate: it keeps a real strong/muted text hierarchy
-   instead of collapsing every white-family color to one gray. bg-black/*
-   overlay scrims (dialog/sheet/command-palette dimmers) are intentionally
-   left alone — they're legitimate modal dimming in any theme, not part of
-   the glass/photo system being replaced here. */
-[data-flat-theme] [class*="backdrop-blur-"] {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-[data-flat-theme='white'] [class*="bg-white/"] {
-  background-color: #ffffff !important;
-}
-[data-flat-theme='white'] [class*="border-white/"] {
-  border-color: #e2e8f0 !important;
-}
-[data-flat-theme='white'] [class~="text-white"] {
-  color: #0f172a !important;
-}
-[data-flat-theme='white'] [class*="text-white/"] {
-  color: #475569 !important;
-}
-
-[data-flat-theme='black'] [class*="bg-white/"] {
-  background-color: #000000 !important;
-}
-[data-flat-theme='black'] [class*="border-white/"] {
-  border-color: #27272a !important;
-}
-[data-flat-theme='black'] [class~="text-white"] {
-  color: #ffffff !important;
-}
-[data-flat-theme='black'] [class*="text-white/"] {
-  color: #d4d4d8 !important;
-}
-
-/* "Minimal Mint" — crisp white canvas, soft mint/teal accents, deep slate
-   text. Reuses the same [class*=] override family as white/black above. */
-[data-flat-theme='mint'] [class*="bg-white/"] {
-  background-color: #ffffff !important;
-}
-[data-flat-theme='mint'] [class*="border-white/"] {
-  border-color: #99f6e4 !important;
-}
-[data-flat-theme='mint'] [class~="text-white"] {
-  color: #1e293b !important;
-}
-[data-flat-theme='mint'] [class*="text-white/"] {
-  color: #475569 !important;
-}
-
-/* "Midnight Navy" — deep navy canvas, white text, soft indigo borders. */
-[data-flat-theme='navy'] [class*="bg-white/"] {
-  background-color: #0f172a !important;
-}
-[data-flat-theme='navy'] [class*="border-white/"] {
-  border-color: #4338ca !important;
-}
-[data-flat-theme='navy'] [class~="text-white"] {
-  color: #ffffff !important;
-}
-[data-flat-theme='navy'] [class*="text-white/"] {
-  color: #c7d2fe !important;
-}
-
-/* "Coffee Latte" — soft cream canvas, dark espresso text, minimal borders. */
-[data-flat-theme='latte'] [class*="bg-white/"] {
-  background-color: #fdfbf7 !important;
-}
-[data-flat-theme='latte'] [class*="border-white/"] {
-  border-color: #e7ddd0 !important;
-}
-[data-flat-theme='latte'] [class~="text-white"] {
-  color: #3b2a1a !important;
-}
-[data-flat-theme='latte'] [class*="text-white/"] {
-  color: #6b5745 !important;
-}
-
-/* The page canvas itself (outside any glass panel) also needs to show each
-   theme's exact background — DynamicBackground renders nothing in flat
-   mode, so without this the canvas would fall back to next-themes' generic
-   light/dark --background, which doesn't necessarily match these specific
-   hex values (e.g. latte's cream vs. the generic light theme's white). */
-[data-flat-theme='white'] body {
-  background-color: #ffffff !important;
-}
-[data-flat-theme='black'] body {
-  background-color: #000000 !important;
-}
-[data-flat-theme='mint'] body {
-  background-color: #ffffff !important;
-}
-[data-flat-theme='navy'] body {
-  background-color: #0f172a !important;
-}
-[data-flat-theme='latte'] body {
-  background-color: #fdfbf7 !important;
 }

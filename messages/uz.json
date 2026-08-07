@@ -498,6 +498,10 @@
     "title": "Platforma Ko'rinishi Sozlamalari",
     "subtitle": "Butun platforma uchun fon mavzusini tanlang yoki o'zingiznikini yuklang.",
     "presetsTitle": "Tayyor mavzular",
+    "blurTitle": "Shisha xiralik darajasi",
+    "blurLabel": "Shisha xiralik darajasi",
+    "blurDecrease": "Xiralikni kamaytirish",
+    "blurIncrease": "Xiralikni oshirish",
     "uploadTitle": "O'zingizning fon rasmingizni yuklang",
     "announcement": {
       "cardTitle": "Global E'lon",
@@ -525,16 +529,7 @@
     },
     "themes": {
       "nature": "Tabiat",
-      "ocean": "Chuqur Okean",
-      "cyberpunk": "Qorong'u Kiberpank",
-      "abstract": "Minimalistik Abstrakt",
-      "space": "Koinot / Tungi Osmon",
-      "cinematic": "Kinematik (Video)",
-      "flatWhite": "Oddiy Oq",
-      "flatBlack": "Oddiy Qora",
-      "mint": "Yalpiz Yashil",
-      "navy": "Tungi Ko'k",
-      "latte": "Latte Qahva"
+      "cinematic": "Kinematik (Video)"
     },
     "upload": {
       "button": "Rasm tanlash",

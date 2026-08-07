@@ -38,13 +38,9 @@ export function DynamicBackground() {
     );
   }
 
-  // A flat theme replaces the photo/glass system entirely — nothing to
-  // paint here, globals.css's [data-flat-theme] rules handle everything.
-  if (themeMode !== 'photo') return null;
-
   // Custom uploads are a client-generated data: URI — there's no remote
   // resource for the optimizer to fetch/resize, so they skip it entirely.
-  // The five preset themes are real Unsplash URLs and get full next/image
+  // The Nature preset is a real Unsplash URL and gets full next/image
   // treatment (resize, format conversion, responsive `sizes`).
   const isDataUrl = backgroundUrl.startsWith('data:');
 

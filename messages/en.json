@@ -498,6 +498,10 @@
     "title": "Platform Appearance Settings",
     "subtitle": "Choose a background theme for the whole platform, or upload your own.",
     "presetsTitle": "Preset themes",
+    "blurTitle": "Glass blur intensity",
+    "blurLabel": "Glass blur intensity",
+    "blurDecrease": "Decrease blur",
+    "blurIncrease": "Increase blur",
     "uploadTitle": "Upload custom background",
     "announcement": {
       "cardTitle": "Global Announcement",
@@ -525,16 +529,7 @@
     },
     "themes": {
       "nature": "Nature",
-      "ocean": "Deep Ocean",
-      "cyberpunk": "Dark Cyberpunk",
-      "abstract": "Minimalist Abstract",
-      "space": "Space / Night Sky",
-      "cinematic": "Cinematic (Video)",
-      "flatWhite": "Default White",
-      "flatBlack": "Default Black",
-      "mint": "Minimal Mint",
-      "navy": "Midnight Navy",
-      "latte": "Coffee Latte"
+      "cinematic": "Cinematic (Video)"
     },
     "upload": {
       "button": "Choose image",

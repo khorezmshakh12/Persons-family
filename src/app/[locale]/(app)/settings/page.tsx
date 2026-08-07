@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { ThemeSelector } from '@/components/theme/theme-selector';
+import { GlassBlurControl } from '@/components/theme/glass-blur-control';
 import { CustomBackgroundUpload } from '@/components/theme/custom-background-upload';
 import { ProfileSection } from '@/components/settings/profile-section';
 import { TelegramConnectSection } from '@/components/settings/telegram-connect-section';
@@ -80,6 +81,11 @@ export default async function SettingsPage() {
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-white/90">{t('presetsTitle')}</h3>
           <ThemeSelector />
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-white/10 pt-6">
+          <h3 className="text-sm font-semibold text-white/90">{t('blurTitle')}</h3>
+          <GlassBlurControl />
         </div>
 
         <div className="flex flex-col gap-3 border-t border-white/10 pt-6">
