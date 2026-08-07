@@ -15,6 +15,8 @@ import {
   Send,
   TrendingUp,
   User,
+  Wallet,
+  Target,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -32,6 +34,8 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   staffChat: MessagesSquare,
   telegramSetup: Send,
   selfDevelopment: TrendingUp,
+  finance: Wallet,
+  missions: Target,
   profile: User,
   settings: Settings,
 };

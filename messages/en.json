@@ -28,6 +28,8 @@
     "telegramSetup": "Telegram",
     "selfDevelopment": "Self-Development",
     "performance": "Performance",
+    "finance": "Finance",
+    "missions": "Missions",
     "settings": "Settings",
     "profile": "My Profile"
   },
@@ -720,6 +722,50 @@
       "updateFailed": "Could not save. Please try again."
     },
     "fromWarning": "From warning"
+  },
+  "finance": {
+    "title": "Finance",
+    "subtitle": "Your financial record.",
+    "adminSubtitle": "Manage every staff member's finance ledger.",
+    "netTotal": "Total",
+    "history": "History",
+    "noEntries": "No entries yet.",
+    "addEntry": "Add Entry",
+    "entryAdded": "Entry added.",
+    "entryTitle": "Title",
+    "entryTitlePlaceholder": "e.g. Monthly salary, Bonus, Expense",
+    "amount": "Amount (negative for a deduction)",
+    "note": "Note",
+    "notePlaceholder": "Optional details",
+    "delete": "Delete entry",
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidInput": "Please check the values you entered.",
+      "updateFailed": "Could not save. Please try again."
+    }
+  },
+  "missions": {
+    "title": "Missions",
+    "subtitle": "Your assigned missions.",
+    "adminSubtitle": "Assign and manage missions for every staff member.",
+    "noMissions": "No missions yet.",
+    "activeCount": "{count} active",
+    "assign": "Assign Mission",
+    "missionAssigned": "Mission assigned.",
+    "missionTitle": "Title",
+    "missionTitlePlaceholder": "e.g. Complete onboarding checklist",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional details",
+    "markComplete": "Mark complete",
+    "markIncomplete": "Mark incomplete",
+    "completed": "Completed",
+    "active": "Active",
+    "delete": "Delete mission",
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "invalidInput": "Please check the values you entered.",
+      "updateFailed": "Could not save. Please try again."
+    }
   },
   "notifications": {
     "title": "Notifications",

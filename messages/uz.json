@@ -28,6 +28,8 @@
     "telegramSetup": "Telegram",
     "selfDevelopment": "O'z-o'zini Rivojlantirish",
     "performance": "Samaradorlik",
+    "finance": "Finance",
+    "missions": "Missions",
     "settings": "Sozlamalar",
     "profile": "Mening profilim"
   },
@@ -720,6 +722,50 @@
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     },
     "fromWarning": "Ogohlantirishdan"
+  },
+  "finance": {
+    "title": "Finance",
+    "subtitle": "Sizning moliyaviy tarixingiz.",
+    "adminSubtitle": "Har bir xodimning moliya yozuvlarini boshqaring.",
+    "netTotal": "Jami",
+    "history": "Tarix",
+    "noEntries": "Hozircha yozuvlar yo'q.",
+    "addEntry": "Yozuv qo'shish",
+    "entryAdded": "Yozuv qo'shildi.",
+    "entryTitle": "Sarlavha",
+    "entryTitlePlaceholder": "masalan: Oylik maosh, Bonus, Xarajat",
+    "amount": "Summa (ayirish uchun manfiy son)",
+    "note": "Izoh",
+    "notePlaceholder": "Ixtiyoriy tafsilotlar",
+    "delete": "Yozuvni o'chirish",
+    "errors": {
+      "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
+      "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "missions": {
+    "title": "Missions",
+    "subtitle": "Sizga biriktirilgan vazifalar (missiyalar).",
+    "adminSubtitle": "Har bir xodimga missiya biriktiring va boshqaring.",
+    "noMissions": "Hozircha missiyalar yo'q.",
+    "activeCount": "{count} ta faol",
+    "assign": "Missiya biriktirish",
+    "missionAssigned": "Missiya biriktirildi.",
+    "missionTitle": "Sarlavha",
+    "missionTitlePlaceholder": "masalan: Onboarding ro'yxatini yakunlash",
+    "description": "Tavsif",
+    "descriptionPlaceholder": "Ixtiyoriy tafsilotlar",
+    "markComplete": "Bajarildi deb belgilash",
+    "markIncomplete": "Bajarilmagan deb belgilash",
+    "completed": "Bajarildi",
+    "active": "Faol",
+    "delete": "Missiyani o'chirish",
+    "errors": {
+      "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
+      "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
   },
   "notifications": {
     "title": "Bildirishnomalar",

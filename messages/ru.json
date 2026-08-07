@@ -28,6 +28,8 @@
     "telegramSetup": "Telegram",
     "selfDevelopment": "Саморазвитие",
     "performance": "Эффективность",
+    "finance": "Финансы",
+    "missions": "Миссии",
     "settings": "Настройки",
     "profile": "Мой профиль"
   },
@@ -720,6 +722,50 @@
       "updateFailed": "Не удалось сохранить. Попробуйте снова."
     },
     "fromWarning": "По предупреждению"
+  },
+  "finance": {
+    "title": "Финансы",
+    "subtitle": "Ваша финансовая история.",
+    "adminSubtitle": "Управляйте финансовым журналом каждого сотрудника.",
+    "netTotal": "Итого",
+    "history": "История",
+    "noEntries": "Записей пока нет.",
+    "addEntry": "Добавить запись",
+    "entryAdded": "Запись добавлена.",
+    "entryTitle": "Название",
+    "entryTitlePlaceholder": "напр. Зарплата, Бонус, Расход",
+    "amount": "Сумма (отрицательное значение для вычета)",
+    "note": "Примечание",
+    "notePlaceholder": "Необязательные детали",
+    "delete": "Удалить запись",
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "invalidInput": "Проверьте введённые значения.",
+      "updateFailed": "Не удалось сохранить. Попробуйте снова."
+    }
+  },
+  "missions": {
+    "title": "Миссии",
+    "subtitle": "Ваши назначенные миссии.",
+    "adminSubtitle": "Назначайте и управляйте миссиями каждого сотрудника.",
+    "noMissions": "Пока нет миссий.",
+    "activeCount": "{count} активных",
+    "assign": "Назначить миссию",
+    "missionAssigned": "Миссия назначена.",
+    "missionTitle": "Название",
+    "missionTitlePlaceholder": "напр. Пройти адаптацию",
+    "description": "Описание",
+    "descriptionPlaceholder": "Необязательные детали",
+    "markComplete": "Отметить выполненной",
+    "markIncomplete": "Отметить невыполненной",
+    "completed": "Выполнено",
+    "active": "Активна",
+    "delete": "Удалить миссию",
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "invalidInput": "Проверьте введённые значения.",
+      "updateFailed": "Не удалось сохранить. Попробуйте снова."
+    }
   },
   "notifications": {
     "title": "Уведомления",
