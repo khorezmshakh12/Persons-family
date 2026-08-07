@@ -666,6 +666,18 @@
       "title": "Teacher Progress",
       "selectTeacher": "Select a teacher"
     },
+    "lastMonthChart": {
+      "title": "Last month's results",
+      "noData": "No evaluated submissions from last month yet."
+    },
+    "thisMonth": {
+      "title": "This month",
+      "noSubmissions": "No one has submitted for this month yet."
+    },
+    "history": {
+      "title": "Previous months (statistics)",
+      "noSubmissions": "No history yet."
+    },
     "noSubmissions": "No submissions yet.",
     "ceoRating": "CEO/Admin feedback",
     "ceoScore": "Score",

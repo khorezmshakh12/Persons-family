@@ -666,6 +666,18 @@
       "title": "O'qituvchi Rivojlanishi",
       "selectTeacher": "O'qituvchini tanlang"
     },
+    "lastMonthChart": {
+      "title": "O'tgan oy natijalari",
+      "noData": "O'tgan oy uchun hali baholangan hisobotlar yo'q."
+    },
+    "thisMonth": {
+      "title": "Shu oy",
+      "noSubmissions": "Shu oy uchun hali hech kim hisobot yubormagan."
+    },
+    "history": {
+      "title": "Oldingi oylar (statistika)",
+      "noSubmissions": "Hali tarix yo'q."
+    },
     "noSubmissions": "Hozircha hisobotlar yo'q.",
     "ceoRating": "CEO/Admin fikri",
     "ceoScore": "Ball",

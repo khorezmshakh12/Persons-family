@@ -1,13 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { firstOfCurrentMonth } from '@/lib/self-development';
+import { firstOfCurrentMonth, firstOfPreviousMonth } from '@/lib/self-development';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { SubmitForm } from '@/components/self-development/submit-form';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
+import { LastMonthScoresChart, type StaffScorePoint } from '@/components/self-development/last-month-scores-chart';
 import { TeacherPicker } from '@/components/self-development/teacher-picker';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
 import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
@@ -46,7 +47,11 @@ export default async function SelfDevelopmentPage({
   const hasSubmittedThisMonth = !isAdmin && (submissions ?? []).some((s) => s.month === firstOfCurrentMonth());
 
   if (isAdmin) {
-    const [{ data: staff }, { data: performance }, { data: entries }] = await Promise.all([
+    const currentMonth = firstOfCurrentMonth();
+    const thisMonthSubmissions = (submissions ?? []).filter((s) => s.month === currentMonth);
+    const historySubmissions = (submissions ?? []).filter((s) => s.month !== currentMonth);
+
+    const [{ data: staff }, { data: performance }, { data: entries }, { data: lastMonthScores }] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -54,7 +59,19 @@ export default async function SelfDevelopmentPage({
         .order('first_name', { ascending: true }),
       supabase.from('staff_performance').select('*'),
       supabase.from('performance_entries').select('*').order('created_at', { ascending: false }),
+      supabase
+        .from('self_development')
+        .select('ceo_score, author:profiles!self_development_user_id_fkey(first_name, last_name)')
+        .eq('month', firstOfPreviousMonth())
+        .not('ceo_score', 'is', null),
     ]);
+
+    const lastMonthPoints: StaffScorePoint[] = (lastMonthScores ?? [])
+      .map((s) => ({
+        name: s.author ? `${s.author.first_name} ${s.author.last_name}` : '—',
+        score: s.ceo_score as number,
+      }))
+      .sort((a, b) => b.score - a.score);
 
     const teacherList = (staff ?? []).filter((p) => p.role === 'teacher');
     const selectedTeacherId = teacher ?? teacherList[0]?.id;
@@ -95,6 +112,8 @@ export default async function SelfDevelopmentPage({
           <p className="text-white/70">{t('subtitle')}</p>
         </div>
 
+        <LastMonthScoresChart points={lastMonthPoints} />
+
         {teacherList.length > 0 && (
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,13 +131,28 @@ export default async function SelfDevelopmentPage({
 
         <div className="flex flex-col gap-4">
           <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-            {t('allSubmissions')}
+            {t('thisMonth.title')}
           </h2>
-          {(submissions ?? []).length === 0 ? (
-            <p className="text-sm text-white/70">{t('noSubmissions')}</p>
+          {thisMonthSubmissions.length === 0 ? (
+            <p className="text-sm text-white/70">{t('thisMonth.noSubmissions')}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              {(submissions ?? []).map((s) => (
+              {thisMonthSubmissions.map((s) => (
+                <SubmissionCard key={s.id} submission={s as unknown as Submission} isAdmin />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4 border-t border-white/10 pt-8">
+          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            {t('history.title')}
+          </h2>
+          {historySubmissions.length === 0 ? (
+            <p className="text-sm text-white/70">{t('history.noSubmissions')}</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {historySubmissions.map((s) => (
                 <SubmissionCard key={s.id} submission={s as unknown as Submission} isAdmin />
               ))}
             </div>
