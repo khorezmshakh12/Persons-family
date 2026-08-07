@@ -7,9 +7,10 @@ import { DEFAULT_BACKGROUND } from '@/lib/background-themes';
 const STORAGE_KEY = 'app-background-url';
 const MODE_STORAGE_KEY = 'app-theme-mode';
 
-export type ThemeMode = 'photo' | 'flat-white' | 'flat-black' | 'mint' | 'navy' | 'latte';
+export type ThemeMode = 'photo' | 'video' | 'flat-white' | 'flat-black' | 'mint' | 'navy' | 'latte';
 
 const FLAT_MODES: ThemeMode[] = ['flat-white', 'flat-black', 'mint', 'navy', 'latte'];
+const ALL_MODES: ThemeMode[] = ['photo', 'video', ...FLAT_MODES];
 // Which next-themes light/dark value each flat mode nudges toward, so the
 // few surfaces outside the glass system (e.g. the login page) that do read
 // next-themes' CSS vars stay visually consistent with the chosen theme.
@@ -38,14 +39,17 @@ const BackgroundContext = createContext<BackgroundContextValue | null>(null);
 // forcing all of them to re-render for no reason.
 export function BackgroundProvider({ children }: { children: ReactNode }) {
   const [backgroundUrl, setBackgroundUrlState] = useState(DEFAULT_BACKGROUND);
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('photo');
+  // 'video' (the looping cinematic clip) is the new default background for
+  // anyone who hasn't already picked a theme — see the effect below, which
+  // still restores whatever a returning user previously chose.
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('video');
   const { setTheme } = useTheme();
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) setBackgroundUrlState(stored);
     const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
-    if (storedMode && FLAT_MODES.includes(storedMode as ThemeMode)) setThemeModeState(storedMode as ThemeMode);
+    if (storedMode && ALL_MODES.includes(storedMode as ThemeMode)) setThemeModeState(storedMode as ThemeMode);
   }, []);
 
   // Reflects themeMode onto <html data-flat-theme> so the CSS in globals.css

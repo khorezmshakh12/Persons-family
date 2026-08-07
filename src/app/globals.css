@@ -226,10 +226,28 @@
   transform: scale(0.88);
 }
 
+/* Slow ambient breathing for the "Cinematic" video background's
+   colour-harmony veil (see dynamic-background.tsx) — keeps the scene
+   quietly alive even when the footage itself is momentarily still,
+   without ever being distracting enough to fight the glass UI on top. */
+@keyframes ambient-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+.animate-ambient-pulse {
+  animation: ambient-pulse 10s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-pop-in,
-  .animate-shake {
+  .animate-shake,
+  .animate-ambient-pulse {
     animation: none;
   }
   .tap-scale {
