@@ -307,10 +307,15 @@ export function NotificationBell({
     createClient()
       .rpc('mark_issue_seen', { issue_id: issueId })
       .then(({ error }) => {
-        if (!error) return;
-        console.error('mark_issue_seen failed', error);
-        if (removed) setUnseenIssues((prev) => [removed, ...prev]);
-        toast.error(t('markReadFailed'));
+        if (error) {
+          console.error('mark_issue_seen failed', error);
+          if (removed) setUnseenIssues((prev) => [removed, ...prev]);
+          toast.error(t('markReadFailed'));
+          return;
+        }
+        // See handleChatClick's comment — the sidebar nav dot is otherwise
+        // realtime-only, which has proven unreliable in practice.
+        router.refresh();
       });
   }
 
@@ -324,10 +329,13 @@ export function NotificationBell({
     createClient()
       .rpc('mark_tasks_seen')
       .then(({ error }) => {
-        if (!error) return;
-        console.error('mark_tasks_seen failed', error);
-        setUnseenTasks(removed);
-        toast.error(t('markReadFailed'));
+        if (error) {
+          console.error('mark_tasks_seen failed', error);
+          setUnseenTasks(removed);
+          toast.error(t('markReadFailed'));
+          return;
+        }
+        router.refresh();
       });
   }
 
@@ -340,10 +348,13 @@ export function NotificationBell({
     createClient()
       .rpc('mark_warnings_seen')
       .then(({ error }) => {
-        if (!error) return;
-        console.error('mark_warnings_seen failed', error);
-        setUnseenWarnings(removed);
-        toast.error(t('markReadFailed'));
+        if (error) {
+          console.error('mark_warnings_seen failed', error);
+          setUnseenWarnings(removed);
+          toast.error(t('markReadFailed'));
+          return;
+        }
+        router.refresh();
       });
   }
 
@@ -357,10 +368,13 @@ export function NotificationBell({
     createClient()
       .rpc('mark_lesson_plan_alerts_seen')
       .then(({ error }) => {
-        if (!error) return;
-        console.error('mark_lesson_plan_alerts_seen failed', error);
-        setUnseenLessonPlanAlerts(removed);
-        toast.error(t('markReadFailed'));
+        if (error) {
+          console.error('mark_lesson_plan_alerts_seen failed', error);
+          setUnseenLessonPlanAlerts(removed);
+          toast.error(t('markReadFailed'));
+          return;
+        }
+        router.refresh();
       });
   }
 

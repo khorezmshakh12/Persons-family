@@ -31,6 +31,19 @@ export function NavBadgesProvider({
 }) {
   const [keys, setKeys] = useState<Set<NavItem['key']>>(() => new Set(initialKeys));
 
+  // `initialKeys` is a fresh array from the server on every render this
+  // component's ancestors re-run for (navigation, or a `router.refresh()`
+  // after marking something seen from the notification bell) — but a
+  // lazy useState initializer only runs once, on mount. Without this,
+  // clicking a bell item called router.refresh() correctly, the server
+  // recomputed a clean `initialKeys`, and this component just never
+  // noticed: the dot stayed lit even though the DB (and a hard reload)
+  // both already agreed it should be gone.
+  useEffect(() => {
+    setKeys(new Set(initialKeys));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(initialKeys)]);
+
   useEffect(() => {
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
