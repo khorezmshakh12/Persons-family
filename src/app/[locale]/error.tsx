@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
 
 export default function Error({
   error,
@@ -21,6 +22,12 @@ export default function Error({
   // otherwise be lost entirely.
   useEffect(() => {
     console.error('Route error boundary caught:', error);
+    // A tab left open across a deploy holds JS chunk URLs from the old
+    // build; the next soft navigation that needs a chunk not in that tab's
+    // cache 404s against the new deployment and lands here. "Try again"
+    // alone re-renders the same stale bundle and fails the same way, so
+    // reload the page outright instead of showing the generic error card.
+    if (isChunkLoadError(error)) reloadOnceForChunkError();
   }, [error]);
 
   return (

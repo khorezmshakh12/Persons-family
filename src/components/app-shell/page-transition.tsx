@@ -1,10 +1,20 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from '@/i18n/navigation';
+import { clearChunkErrorGuard } from '@/lib/chunk-error';
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  // Any successful render here means the app is healthy on the current
+  // bundle, so clear the chunk-error reload guard — otherwise a tab that
+  // hit one stale-chunk error would only ever get the automatic reload
+  // once, instead of once per actual incident.
+  useEffect(() => {
+    clearChunkErrorGuard();
+  }, [pathname]);
 
   return (
     <AnimatePresence mode="wait" initial={false}>

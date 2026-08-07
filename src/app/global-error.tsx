@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
 
 // Only fires if the ROOT layout itself throws (before next-intl/theme
 // providers even mount), so this can't use next-intl, the design-system
@@ -16,6 +17,10 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('Root error boundary caught:', error);
+    // Same stale-chunk-after-deploy situation as the route-level error
+    // boundary (src/app/[locale]/error.tsx) — reload outright rather than
+    // show "Something went wrong" for what a fresh load fixes instantly.
+    if (isChunkLoadError(error)) reloadOnceForChunkError();
   }, [error]);
 
   return (
