@@ -86,6 +86,16 @@ export async function GET(req: NextRequest) {
 
 async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds: (number | null)[]) {
   const checkDate = new Date(`${dateKey}T00:00:00Z`);
+
+  // The center runs a 6-day week — nobody has class on Sunday regardless of
+  // their odd/even rotation, so there's nothing to check or alert on.
+  // getUTCDay() is safe here because dateKey is already the Tashkent-local
+  // calendar date; which weekday a Y-M-D falls on doesn't depend on the
+  // time-of-day it's anchored to.
+  if (checkDate.getUTCDay() === 0) {
+    return { checkedGroups: 0, incompleteTeachers: 0, skipped: 'sunday' as const };
+  }
+
   const parity: 'odd' | 'even' = checkDate.getUTCDate() % 2 === 1 ? 'odd' : 'even';
 
   // schedule_type is nullable; `.eq()` never matches null, so groups with
