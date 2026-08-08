@@ -221,6 +221,7 @@
   },
   "chatHub": {
     "individualChats": "Личные чаты",
+    "backToContacts": "Назад к контактам",
     "noStaff": "Пока нет других сотрудников.",
     "readReceipt": {
       "read": "Прочитано",

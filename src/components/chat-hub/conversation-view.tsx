@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { MessageSquarePlus, MessagesSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquarePlus, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { sendChatRequestAction } from '@/lib/actions/staff-chats';
@@ -26,6 +26,7 @@ export function ConversationView({
   onSendRequest,
   onOptimisticSend,
   onConfirmedSend,
+  onBack,
 }: {
   active: ActiveConversation;
   conversationState: ConversationState;
@@ -41,6 +42,9 @@ export function ConversationView({
     replyToId?: string;
   }) => void;
   onConfirmedSend: (message: SentStaffChatMessage) => void;
+  /** Returns to the contact list — only rendered (and only needed) below
+   * `sm:`, where the list and the open thread aren't shown side by side. */
+  onBack: () => void;
 }) {
   const t = useTranslations('chatHub');
   const [replyTarget, setReplyTarget] = useState<ChatQuote | null>(null);
@@ -150,6 +154,14 @@ export function ConversationView({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-3 border-b border-white/15 px-4 py-3">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={t('backToContacts')}
+          className="tap-scale -ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white sm:hidden"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
         <Avatar className="size-9 shrink-0">
           {headerAvatar && <AvatarImage src={headerAvatar} alt="" />}
           <AvatarFallback>{headerInitials}</AvatarFallback>

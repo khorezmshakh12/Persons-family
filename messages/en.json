@@ -221,6 +221,7 @@
   },
   "chatHub": {
     "individualChats": "Individual Chats",
+    "backToContacts": "Back to contacts",
     "noStaff": "No other staff members yet.",
     "readReceipt": {
       "read": "Read",

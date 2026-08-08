@@ -112,7 +112,7 @@ export function ContractAttachmentsList({
                   onClick={() => handleDelete(a.id)}
                   disabled={isDeletePending}
                   aria-label={t('deleteAttachment')}
-                  className="tap-scale shrink-0 text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
+                  className="tap-scale shrink-0 text-white/30 opacity-100 transition-opacity hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <Trash2 className="size-3.5" />
                 </button>

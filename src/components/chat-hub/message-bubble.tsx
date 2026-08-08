@@ -148,8 +148,12 @@ function MessageBubbleComponent({
           {!isOptimistic && (
             <div
               className={cn(
-                'flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100',
-                pickerOpen && 'opacity-100',
+                // Touch has no hover state — hiding these behind
+                // group-hover would make them unreachable on a phone, so
+                // they're always visible below `sm:` and only hover-reveal
+                // (the tidier desktop behavior) at `sm:` and up.
+                'flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+                pickerOpen && 'sm:opacity-100',
               )}
             >
               <div className="relative">

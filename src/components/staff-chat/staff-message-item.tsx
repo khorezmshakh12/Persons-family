@@ -69,7 +69,7 @@ function StaffMessageItemComponent({
               size="icon-sm"
               onClick={handleDelete}
               disabled={isPending}
-              className="opacity-0 transition-opacity group-hover:opacity-100"
+              className="opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
               aria-label={t('delete')}
             >
               <Trash2 className="size-3.5" />

@@ -221,6 +221,7 @@
   },
   "chatHub": {
     "individualChats": "Shaxsiy Suhbatlar",
+    "backToContacts": "Kontaktlarga qaytish",
     "noStaff": "Hozircha boshqa xodimlar yo'q.",
     "readReceipt": {
       "read": "O'qildi",

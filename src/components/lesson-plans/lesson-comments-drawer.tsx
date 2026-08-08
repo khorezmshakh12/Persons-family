@@ -131,7 +131,7 @@ export function LessonCommentsDrawer({
                       onClick={() => handleDelete(c.id)}
                       disabled={deletePending}
                       aria-label={t('courseLessons.deleteComment')}
-                      className="tap-scale shrink-0 text-white/40 opacity-0 transition-opacity group-hover:opacity-100 hover:text-white"
+                      className="tap-scale shrink-0 text-white/40 opacity-100 transition-opacity hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       <Trash2 className="size-3.5" />
                     </button>

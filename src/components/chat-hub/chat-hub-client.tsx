@@ -329,25 +329,34 @@ export function ChatHubClient({
 
   return (
     <div className={cn(GLASS_CARD, 'flex h-full min-h-0 flex-col overflow-hidden sm:flex-row')}>
-      <ChatSidebar
-        staff={staff}
-        conversationStates={conversationStates}
-        active={active}
-        onSelect={(userId) => setActive({ userId })}
-        onRequestResolved={() => router.refresh()}
-        unreadDmUserIds={unreadDmUserIds}
-        canModerateDmImportance={canModerateDmImportance}
-      />
-      <ConversationView
-        active={active}
-        conversationState={activeConversationState}
-        messages={optimisticMessages}
-        staffMap={staffMap}
-        currentUserId={currentUserId}
-        onSendRequest={() => router.refresh()}
-        onOptimisticSend={handleOptimisticSend}
-        onConfirmedSend={handleConfirmedSend}
-      />
+      {/* Below `sm:`, the sidebar and the active thread would otherwise
+          share the viewport's height and squeeze each other unusable — show
+          exactly one at a time (list, or the open thread with a back
+          button) and let `sm:flex` restore the side-by-side desktop layout. */}
+      <div className={cn('min-h-0', active ? 'hidden sm:flex sm:h-full' : 'flex h-full')}>
+        <ChatSidebar
+          staff={staff}
+          conversationStates={conversationStates}
+          active={active}
+          onSelect={(userId) => setActive({ userId })}
+          onRequestResolved={() => router.refresh()}
+          unreadDmUserIds={unreadDmUserIds}
+          canModerateDmImportance={canModerateDmImportance}
+        />
+      </div>
+      <div className={cn('min-h-0 flex-1', active ? 'flex h-full' : 'hidden sm:flex sm:h-full')}>
+        <ConversationView
+          active={active}
+          conversationState={activeConversationState}
+          messages={optimisticMessages}
+          staffMap={staffMap}
+          currentUserId={currentUserId}
+          onSendRequest={() => router.refresh()}
+          onOptimisticSend={handleOptimisticSend}
+          onConfirmedSend={handleConfirmedSend}
+          onBack={() => setActive(null)}
+        />
+      </div>
     </div>
   );
 }
