@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 import { logSystemAction } from '@/lib/audit-log';
+import { sendTelegramMessage } from '@/lib/telegram';
 
 export type StaffActionState =
   { error?: string; tempPassword?: string; userId?: string } | undefined;
@@ -153,6 +154,22 @@ async function createStaffRow(
   if (profileError) {
     await admin.auth.admin.deleteUser(created.user.id);
     return { error: 'createFailed' };
+  }
+
+  // Mirrors the welcome message telegram-bot-handlers.ts sends when someone
+  // self-links via /start — the Telegram ID is now collected up front
+  // instead of that deep-link flow, so this is the only place left that
+  // would ever say "you're connected" to a newly created account. A
+  // delivery failure (bad id, bot blocked) must never fail account
+  // creation itself, same reasoning as every other Telegram send in this
+  // app — the account is already created either way.
+  try {
+    await sendTelegramMessage(
+      data.telegramId,
+      `✅ Xush kelibsiz, ${data.firstName}! Telegram hisobingiz Persons Education platformasiga ulandi. Endi muhim bildirishnomalarni shu yerda olasiz.`,
+    );
+  } catch (error) {
+    console.error('Telegram welcome message failed:', error instanceof Error ? error.message : error);
   }
 
   logSystemAction(
