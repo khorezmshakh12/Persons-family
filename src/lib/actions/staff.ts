@@ -48,6 +48,12 @@ const staffSchema = z.object({
   role: z.enum(ROLES),
 });
 
+// Telegram ID is required at creation time (not on later edits — an
+// existing staff member's own /telegram-setup self-link takes precedence)
+// so notifications reach them from day one instead of needing someone to
+// remember a separate manual-linking step after the fact.
+const telegramIdField = z.coerce.number().int().positive();
+
 function generateTempPassword() {
   return randomBytes(9).toString('base64url');
 }
@@ -112,7 +118,7 @@ export async function requestAvatarUploadUrlAction(
  * — authorization happens entirely in the two callers before this runs. */
 async function createStaffRow(
   actingProfile: Pick<Profile, 'id'>,
-  data: z.infer<typeof staffSchema>,
+  data: z.infer<typeof staffSchema> & { telegramId: number },
 ): Promise<StaffActionState> {
   const phone = normalizePhone(data.phone);
   if (!phone) return { error: 'invalidPhone' };
@@ -141,6 +147,7 @@ async function createStaffRow(
     last_name: data.lastName,
     date_of_birth: data.dateOfBirth,
     role: data.role,
+    telegram_id: data.telegramId,
     created_by: actingProfile.id,
   });
   if (profileError) {
@@ -169,7 +176,7 @@ export async function createStaffAction(
     return { error: 'forbidden' };
   }
 
-  const parsed = staffSchema.safeParse(Object.fromEntries(formData));
+  const parsed = staffSchema.extend({ telegramId: telegramIdField }).safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
   if (isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
     return { error: assignRoleError(parsed.data.role) };
@@ -178,7 +185,7 @@ export async function createStaffAction(
   return createStaffRow(actingProfile, parsed.data);
 }
 
-const addAdminManagerSchema = staffSchema.omit({ role: true });
+const addAdminManagerSchema = staffSchema.omit({ role: true }).extend({ telegramId: telegramIdField });
 
 /** Separate from createStaffAction's now-broad requireAdmin() access: an
  * Administrative Manager is a protected role (isProtectedRole), so

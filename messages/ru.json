@@ -126,6 +126,8 @@
     "firstName": "Имя",
     "lastName": "Фамилия",
     "phone": "Номер телефона",
+    "telegramId": "Telegram ID",
+    "telegramIdHint": "Попросите написать боту @userinfobot в Telegram, чтобы получить числовой ID.",
     "dateOfBirth": "Дата рождения",
     "role": "Роль",
     "avatar": "Фотография профиля",

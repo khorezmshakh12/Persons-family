@@ -79,6 +79,11 @@ export function AddAdminManagerDialog() {
                 <Input id="phone" name="phone" type="tel" placeholder="+998 90 123 45 67" required />
               </div>
               <div className="flex flex-col gap-2">
+                <Label htmlFor="telegramId">{t('telegramId')}</Label>
+                <Input id="telegramId" name="telegramId" type="number" inputMode="numeric" required />
+                <p className="text-muted-foreground text-xs">{t('telegramIdHint')}</p>
+              </div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="dateOfBirth">{t('dateOfBirth')}</Label>
                 <Input id="dateOfBirth" name="dateOfBirth" type="date" required />
               </div>

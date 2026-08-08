@@ -126,6 +126,8 @@
     "firstName": "Ism",
     "lastName": "Familiya",
     "phone": "Telefon raqami",
+    "telegramId": "Telegram ID",
+    "telegramIdHint": "Raqamli ID olish uchun Telegram'da @userinfobot botiga yozishni so'rang.",
     "dateOfBirth": "Tug'ilgan sana",
     "role": "Lavozim",
     "avatar": "Profil rasmi",
