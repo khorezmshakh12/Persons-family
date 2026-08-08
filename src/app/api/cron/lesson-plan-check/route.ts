@@ -10,20 +10,21 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 const MAX_CATCHUP_DAYS = 7;
 
 // Vercel Cron (see vercel.json, "0 19 * * *" UTC = 00:00 Asia/Tashkent, no
-// DST) hits this once a day right as the deadline day rolls over. Teachers
-// must have every field of a scheduled group's lesson plan filled in by
-// 23:59 the day of — this route finds who didn't and tells the CEO (and the
-// team's Telegram group), both as a Telegram message and, for the CEO, an
-// in-app bell alert (lesson_plan_compliance_alerts, see that migration's
-// comment).
+// DST) hits this once a day right as a new day rolls over. Teachers must
+// have every field of the *next* day's lesson plan filled in by 23:59 the
+// night before — so the day whose deadline just passed is the one that's
+// just starting, not the one that just ended. This route checks that day
+// and tells the CEO (and the team's Telegram group) who didn't, both as a
+// Telegram message and, for the CEO, an in-app bell alert
+// (lesson_plan_compliance_alerts, see that migration's comment).
 //
 // A single missed trigger (a deploy landing right at 00:00 Tashkent can
 // drop that invocation, or Vercel's own cron scheduling can occasionally
 // skip a beat) used to mean that day's compliance was never checked at
 // all — the report just showed up "a day late" on the next run instead,
-// covering the wrong day. lesson_plan_cron_runs now records every date_key
-// actually processed, so each run catches up on anything since the last
-// one instead of only ever looking at "yesterday".
+// covering the wrong date. lesson_plan_cron_runs now records every
+// date_key actually processed, so each run catches up on anything since
+// the last one instead of only ever looking at the single most recent day.
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
@@ -33,12 +34,11 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // "Today" for this run is the Tashkent-local date the moment the cron
-  // fires — the most recent deadline day that's actually closed is the one
-  // before it.
+  // The Tashkent-local date the moment the cron fires *is* the day whose
+  // plan-in-advance deadline (23:59 the night before) just passed — that's
+  // the most recent day there's anything to check.
   const tashkentTodayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   const latestCheckable = new Date(`${tashkentTodayKey}T00:00:00Z`);
-  latestCheckable.setUTCDate(latestCheckable.getUTCDate() - 1);
 
   const { data: lastRun } = await admin
     .from('lesson_plan_cron_runs')
