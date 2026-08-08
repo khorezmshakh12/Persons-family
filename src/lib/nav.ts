@@ -30,7 +30,9 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'lessonPlans',
     href: '/lesson-plans',
-    roles: ['ceo', 'it_developer', 'teacher', 'assistant', 'smm', 'mobilgrof'],
+    // SMM & Mobilograf ranks below teacher/assistant and never sees lesson
+    // plans — they were previously (incorrectly) included here.
+    roles: ['ceo', 'it_developer', 'teacher', 'assistant'],
   },
   { key: 'tasks', href: '/tasks' },
   { key: 'companyNews', href: '/company-news' },

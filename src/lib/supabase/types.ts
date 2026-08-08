@@ -1668,6 +1668,7 @@ export type Database = {
         | "smm"
         | "mobilgrof"
         | "it_developer"
+        | "smm_mobilgrof"
       staff_tier: "A" | "B" | "C"
       task_status: "pending" | "in_progress" | "done"
       teacher_level:
@@ -1838,6 +1839,7 @@ export const Constants = {
         "smm",
         "mobilgrof",
         "it_developer",
+        "smm_mobilgrof",
       ],
       staff_tier: ["A", "B", "C"],
       task_status: ["pending", "in_progress", "done"],

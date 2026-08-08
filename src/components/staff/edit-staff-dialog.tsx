@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TeacherLevelBadge } from './teacher-level-badge';
 import type { Profile } from '@/lib/auth/session';
 
-const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm', 'mobilgrof', 'it_developer'] as const;
+const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm_mobilgrof', 'it_developer'] as const;
 
 export function EditStaffDialog({
   profile,

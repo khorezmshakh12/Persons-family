@@ -69,6 +69,10 @@ export default async function DashboardPage() {
   // Administrative Manager has no lesson-plan access at all anymore — see
   // 20260806110000_remove_admin_manager_lesson_plan_access.sql.
   const showLessonPlanCards = profile!.role !== 'admin_manager';
+  // SMM & Mobilograf shouldn't see headcount at all — not the admin "Total
+  // Staff" stat card (already gated by isAdminRole above) and not the
+  // non-admin Roles Breakdown donut either, which shows the same number.
+  const hideStaffCount = profile!.role === 'smm_mobilgrof';
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -92,13 +96,15 @@ export default async function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Suspense fallback={<GlassCardSkeleton />}>
-          {isAdminRole ? (
-            <EmployeeGrowthChartSection delayMs={0} />
-          ) : (
-            <RolesDonutChart href={analyticsHref} delayMs={0} />
-          )}
-        </Suspense>
+        {!hideStaffCount && (
+          <Suspense fallback={<GlassCardSkeleton />}>
+            {isAdminRole ? (
+              <EmployeeGrowthChartSection delayMs={0} />
+            ) : (
+              <RolesDonutChart href={analyticsHref} delayMs={0} />
+            )}
+          </Suspense>
+        )}
         <Suspense fallback={<GlassCardSkeleton />}>
           <ActivityHeatmap href="/calendar" delayMs={90} />
         </Suspense>

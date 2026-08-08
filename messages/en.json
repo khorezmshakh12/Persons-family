@@ -144,8 +144,7 @@
       "admin_manager": "Administrative Manager",
       "teacher": "Teacher",
       "assistant": "Teacher Assistant",
-      "smm": "SMM",
-      "mobilgrof": "Mobilgrof",
+      "smm_mobilgrof": "SMM & Mobilograf",
       "it_developer": "IT Developer"
     },
     "status": {

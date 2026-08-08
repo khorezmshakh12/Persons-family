@@ -144,8 +144,7 @@
       "admin_manager": "Административный менеджер",
       "teacher": "Учитель",
       "assistant": "Ассистент учителя",
-      "smm": "SMM",
-      "mobilgrof": "Мобилограф",
+      "smm_mobilgrof": "SMM и Мобилограф",
       "it_developer": "IT-разработчик"
     },
     "status": {

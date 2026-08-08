@@ -144,8 +144,7 @@
       "admin_manager": "Ma'muriy menejer",
       "teacher": "O'qituvchi",
       "assistant": "O'qituvchi yordamchisi",
-      "smm": "SMM",
-      "mobilgrof": "Mobilgrof",
+      "smm_mobilgrof": "SMM & Mobilograf",
       "it_developer": "IT dasturchi"
     },
     "status": {

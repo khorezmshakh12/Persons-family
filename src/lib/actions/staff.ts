@@ -20,8 +20,7 @@ const ROLES = [
   'admin_manager',
   'teacher',
   'assistant',
-  'smm',
-  'mobilgrof',
+  'smm_mobilgrof',
   'it_developer',
 ] as const;
 
