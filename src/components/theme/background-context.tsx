@@ -1,11 +1,12 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DEFAULT_BACKGROUND } from '@/lib/background-themes';
+import { DEFAULT_BACKGROUND, DEFAULT_VIDEO_THEME_ID, VIDEO_THEMES } from '@/lib/background-themes';
 
 const STORAGE_KEY = 'app-background-url';
 const MODE_STORAGE_KEY = 'app-theme-mode';
 const BLUR_STORAGE_KEY = 'app-glass-blur';
+const VIDEO_THEME_STORAGE_KEY = 'app-video-theme-id';
 
 export type ThemeMode = 'photo' | 'video';
 
@@ -22,6 +23,8 @@ type BackgroundContextValue = {
   setThemeMode: (mode: ThemeMode) => void;
   glassBlur: number;
   setGlassBlur: (px: number) => void;
+  videoThemeId: string;
+  setVideoThemeId: (id: string) => void;
 };
 
 const BackgroundContext = createContext<BackgroundContextValue | null>(null);
@@ -39,6 +42,7 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
   // still restores whatever a returning user previously chose.
   const [themeMode, setThemeModeState] = useState<ThemeMode>('video');
   const [glassBlur, setGlassBlurState] = useState(DEFAULT_GLASS_BLUR);
+  const [videoThemeId, setVideoThemeIdState] = useState(DEFAULT_VIDEO_THEME_ID);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -49,6 +53,10 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     if (storedBlur) {
       const parsed = Number(storedBlur);
       if (Number.isFinite(parsed)) setGlassBlurState(Math.min(MAX_GLASS_BLUR, Math.max(MIN_GLASS_BLUR, parsed)));
+    }
+    const storedVideoTheme = window.localStorage.getItem(VIDEO_THEME_STORAGE_KEY);
+    if (storedVideoTheme && VIDEO_THEMES.some((v) => v.id === storedVideoTheme)) {
+      setVideoThemeIdState(storedVideoTheme);
     }
   }, []);
 
@@ -95,9 +103,27 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setVideoThemeId = useCallback((id: string) => {
+    setVideoThemeIdState(id);
+    try {
+      window.localStorage.setItem(VIDEO_THEME_STORAGE_KEY, id);
+    } catch {
+      // Non-fatal — same reasoning as setBackgroundUrl above.
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ backgroundUrl, themeMode, setBackgroundUrl, setThemeMode, glassBlur, setGlassBlur }),
-    [backgroundUrl, themeMode, setBackgroundUrl, setThemeMode, glassBlur, setGlassBlur],
+    () => ({
+      backgroundUrl,
+      themeMode,
+      setBackgroundUrl,
+      setThemeMode,
+      glassBlur,
+      setGlassBlur,
+      videoThemeId,
+      setVideoThemeId,
+    }),
+    [backgroundUrl, themeMode, setBackgroundUrl, setThemeMode, glassBlur, setGlassBlur, videoThemeId, setVideoThemeId],
   );
 
   return <BackgroundContext.Provider value={value}>{children}</BackgroundContext.Provider>;

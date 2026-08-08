@@ -532,7 +532,8 @@
     },
     "themes": {
       "nature": "Nature",
-      "cinematic": "Cinematic (Video)"
+      "cinematic": "Cinematic (Video)",
+      "vivid": "Vivid (Video)"
     },
     "upload": {
       "button": "Choose image",
