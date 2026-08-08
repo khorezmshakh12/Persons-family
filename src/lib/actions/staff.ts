@@ -11,6 +11,7 @@ import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 import { logSystemAction } from '@/lib/audit-log';
 import { sendTelegramMessage } from '@/lib/telegram';
+import { INTERNSHIP_LEVELS, type InternshipLevel } from '@/lib/internship-level';
 
 export type StaffActionState =
   { error?: string; tempPassword?: string; userId?: string } | undefined;
@@ -21,6 +22,7 @@ const ROLES = [
   'teacher',
   'assistant',
   'smm_mobilgrof',
+  'internship',
   'it_developer',
 ] as const;
 
@@ -265,6 +267,11 @@ export async function attachAvatarAction(
 const updateSchema = staffSchema.extend({
   id: z.string().uuid(),
   avatarPath: z.string().optional().or(z.literal('')),
+  // Only meaningful (and only ever submitted by the form) when role is
+  // 'internship' — set directly by whichever admin is editing, unlike
+  // teacher_level which only ever changes through the Self-Development
+  // review flow.
+  internshipLevel: z.enum(INTERNSHIP_LEVELS as [string, ...string[]]).optional(),
 });
 
 export async function updateStaffAction(
@@ -321,6 +328,9 @@ export async function updateStaffAction(
       date_of_birth: parsed.data.dateOfBirth,
       role: parsed.data.role,
       ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+      ...(parsed.data.role === 'internship' && parsed.data.internshipLevel
+        ? { internship_level: parsed.data.internshipLevel as InternshipLevel }
+        : {}),
     })
     .eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };

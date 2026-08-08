@@ -15,6 +15,7 @@ import { OnlineDot } from '@/components/presence/online-dot';
 import type { Profile } from '@/lib/auth/session';
 import { StaffRowActions } from './staff-row-actions';
 import { TeacherLevelBadge } from './teacher-level-badge';
+import { InternshipLevelBadge } from './internship-level-badge';
 import { isLevelReviewDue } from '@/lib/teacher-level';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,7 @@ export async function StaffTable({
   const { data: staff } = await supabase
     .from('profiles')
     .select(
-      'id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at, created_by, must_change_password, telegram_id, teacher_level, level_updated_at, email, address, emergency_contact',
+      'id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at, created_by, must_change_password, telegram_id, teacher_level, level_updated_at, internship_level, email, address, emergency_contact',
     )
     .order('created_at', { ascending: true });
 
@@ -109,6 +110,8 @@ export async function StaffTable({
                         </Badge>
                       )}
                     </div>
+                  ) : person.role === 'internship' ? (
+                    <InternshipLevelBadge level={person.internship_level} />
                   ) : (
                     <span className="text-white/40">—</span>
                   )}

@@ -19,9 +19,18 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeacherLevelBadge } from './teacher-level-badge';
+import { INTERNSHIP_LEVELS } from '@/lib/internship-level';
 import type { Profile } from '@/lib/auth/session';
 
-const ALL_ROLES = ['ceo', 'admin_manager', 'teacher', 'assistant', 'smm_mobilgrof', 'it_developer'] as const;
+const ALL_ROLES = [
+  'ceo',
+  'admin_manager',
+  'teacher',
+  'assistant',
+  'smm_mobilgrof',
+  'internship',
+  'it_developer',
+] as const;
 
 export function EditStaffDialog({
   profile,
@@ -114,6 +123,23 @@ export function EditStaffDialog({
               <Label className="text-muted-foreground text-xs">{t('teacherLevel')}</Label>
               <TeacherLevelBadge level={profile.teacher_level} />
               <span className="text-muted-foreground text-xs">{t('teacherLevelHint')}</span>
+            </div>
+          )}
+          {profile.role === 'internship' && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`internshipLevel-${profile.id}`}>{t('internshipLevel')}</Label>
+              <Select name="internshipLevel" defaultValue={profile.internship_level}>
+                <SelectTrigger id={`internshipLevel-${profile.id}`} className="w-full">
+                  <SelectValue>{(value: string) => value}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {INTERNSHIP_LEVELS.map((lvl) => (
+                    <SelectItem key={lvl} value={lvl}>
+                      {lvl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

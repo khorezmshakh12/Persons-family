@@ -145,6 +145,7 @@
       "teacher": "O'qituvchi",
       "assistant": "O'qituvchi yordamchisi",
       "smm_mobilgrof": "SMM & Mobilograf",
+      "internship": "Amaliyotchi",
       "it_developer": "IT dasturchi"
     },
     "status": {
@@ -162,6 +163,7 @@
     },
     "teacherLevel": "O'qituvchi darajasi",
     "teacherLevelHint": "O'z-o'zini rivojlantirish sahifasidan o'zgartiriladi.",
+    "internshipLevel": "Amaliyot darajasi",
     "tempPasswordTitle": "Vaqtinchalik parol yaratildi",
     "tempPasswordDescription": "Ushbu parolni xodimga bevosita ayting (shaxsan yoki telefon orqali). Birinchi kirishda undan o'z parolini o'rnatish so'raladi.",
     "copy": "Nusxalash",

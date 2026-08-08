@@ -1008,6 +1008,7 @@ export type Database = {
           emergency_contact: string | null
           first_name: string
           id: string
+          internship_level: Database["public"]["Enums"]["internship_level"]
           is_active: boolean
           last_name: string
           level_updated_at: string
@@ -1027,6 +1028,7 @@ export type Database = {
           emergency_contact?: string | null
           first_name: string
           id: string
+          internship_level?: Database["public"]["Enums"]["internship_level"]
           is_active?: boolean
           last_name: string
           level_updated_at?: string
@@ -1046,6 +1048,7 @@ export type Database = {
           emergency_contact?: string | null
           first_name?: string
           id?: string
+          internship_level?: Database["public"]["Enums"]["internship_level"]
           is_active?: boolean
           last_name?: string
           level_updated_at?: string
@@ -1655,6 +1658,7 @@ export type Database = {
       dm_request_status: "pending" | "accepted"
       dm_status: "normal" | "important"
       homework_status: "pending" | "submitted" | "graded" | "missing"
+      internship_level: "C" | "B" | "A"
       issue_status: "open" | "in_progress" | "done"
       performance_entry_type: "bonus" | "penalty"
       roadmap_status: "pending" | "done" | "failed"
@@ -1669,6 +1673,7 @@ export type Database = {
         | "mobilgrof"
         | "it_developer"
         | "smm_mobilgrof"
+        | "internship"
       staff_tier: "A" | "B" | "C"
       task_status: "pending" | "in_progress" | "done"
       teacher_level:
@@ -1826,6 +1831,7 @@ export const Constants = {
       dm_request_status: ["pending", "accepted"],
       dm_status: ["normal", "important"],
       homework_status: ["pending", "submitted", "graded", "missing"],
+      internship_level: ["C", "B", "A"],
       issue_status: ["open", "in_progress", "done"],
       performance_entry_type: ["bonus", "penalty"],
       roadmap_status: ["pending", "done", "failed"],
@@ -1840,6 +1846,7 @@ export const Constants = {
         "mobilgrof",
         "it_developer",
         "smm_mobilgrof",
+        "internship",
       ],
       staff_tier: ["A", "B", "C"],
       task_status: ["pending", "in_progress", "done"],

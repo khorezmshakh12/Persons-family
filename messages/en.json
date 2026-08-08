@@ -145,6 +145,7 @@
       "teacher": "Teacher",
       "assistant": "Teacher Assistant",
       "smm_mobilgrof": "SMM & Mobilograf",
+      "internship": "Intern",
       "it_developer": "IT Developer"
     },
     "status": {
@@ -162,6 +163,7 @@
     },
     "teacherLevel": "Teacher level",
     "teacherLevelHint": "Changed from the Self-Development page.",
+    "internshipLevel": "Internship level",
     "tempPasswordTitle": "Temporary password created",
     "tempPasswordDescription": "Share this password with the staff member directly (in person or by phone). They'll be asked to set their own password on first login.",
     "copy": "Copy",

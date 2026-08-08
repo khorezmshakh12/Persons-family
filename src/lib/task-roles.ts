@@ -11,7 +11,7 @@ import type { StaffRole } from '@/lib/nav';
  * this can't live in tasks.ts itself since a 'use server' file may only
  * export async Server Actions. */
 export function allowedTaskAssigneeRoles(actingRole: StaffRole): StaffRole[] {
-  const nonAdminRoles: StaffRole[] = ['teacher', 'assistant', 'smm_mobilgrof', 'it_developer'];
+  const nonAdminRoles: StaffRole[] = ['teacher', 'assistant', 'smm_mobilgrof', 'internship', 'it_developer'];
   if (actingRole === 'ceo' || actingRole === 'it_developer') return ['admin_manager', ...nonAdminRoles];
   return nonAdminRoles;
 }
