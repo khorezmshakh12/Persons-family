@@ -14,17 +14,15 @@ export default async function StaffChatPage() {
   const { user, profile } = await getAuthState();
   const supabase = await createClient();
 
-  const { data: messages } = await supabase
-    .from('staff_chat_messages')
-    .select('id, user_id, content, created_at')
-    .eq('conversation_id', GLOBAL_STAFF_CHAT_ID)
-    .order('created_at', { ascending: true })
-    .limit(50);
-
-  const { data: staff } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, avatar_url')
-    .in('role', ['teacher', 'assistant']);
+  const [{ data: messages }, { data: staff }] = await Promise.all([
+    supabase
+      .from('staff_chat_messages')
+      .select('id, user_id, content, created_at')
+      .eq('conversation_id', GLOBAL_STAFF_CHAT_ID)
+      .order('created_at', { ascending: true })
+      .limit(50),
+    supabase.from('profiles').select('id, first_name, last_name, avatar_url').in('role', ['teacher', 'assistant']),
+  ]);
 
   const staffMap: Record<string, ChatSender> = {};
   for (const s of staff ?? []) {

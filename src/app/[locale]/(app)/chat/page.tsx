@@ -10,24 +10,20 @@ export default async function ChatPage() {
   const { user, profile } = await getAuthState();
   const supabase = await createClient();
 
-  const { data: staff } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, avatar_url, role')
-    .neq('id', user!.id)
-    .eq('is_active', true)
-    .order('first_name', { ascending: true });
-
-  const { data: unreadRows } = await supabase
-    .from('staff_chats')
-    .select('sender_id')
-    .eq('receiver_id', user!.id)
-    .eq('is_read', false);
+  const [{ data: staff }, { data: unreadRows }, { data: conversations }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, first_name, last_name, avatar_url, role')
+      .neq('id', user!.id)
+      .eq('is_active', true)
+      .order('first_name', { ascending: true }),
+    supabase.from('staff_chats').select('sender_id').eq('receiver_id', user!.id).eq('is_read', false),
+    supabase
+      .from('dm_conversations')
+      .select('id, participant_one, participant_two, created_by, request_status')
+      .or(`participant_one.eq.${user!.id},participant_two.eq.${user!.id}`),
+  ]);
   const initialUnreadSenderIds = Array.from(new Set((unreadRows ?? []).map((r) => r.sender_id)));
-
-  const { data: conversations } = await supabase
-    .from('dm_conversations')
-    .select('id, participant_one, participant_two, created_by, request_status')
-    .or(`participant_one.eq.${user!.id},participant_two.eq.${user!.id}`);
 
   const conversationStates: Record<string, ConversationState> = {};
   for (const c of conversations ?? []) {

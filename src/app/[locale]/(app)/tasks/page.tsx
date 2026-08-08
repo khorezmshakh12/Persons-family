@@ -17,39 +17,42 @@ export default async function TasksPage() {
   // allowedTaskAssigneeRoles, reused as-is here.
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
 
+  // Auto-hide (not delete): a "done" task older than a week just clutters
+  // the board — the row itself is left alone, same precedent as the Issues
+  // board's own resolved_at cutoff. Filtered at the DB level (not fetched
+  // then filtered in JS) so the query stays bounded as completed tasks
+  // accumulate over months instead of growing every page load forever.
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const sevenDaysAgo = new Date(now - SEVEN_DAYS_MS).toISOString();
+
   // Strict visibility: a task is only ever fetched for its creator
   // (assigned_by) or its assignee (assigned_to) — RLS's tasks_select
   // enforces this too, but filtering explicitly here keeps the query
-  // itself honest about what it's allowed to return.
-  const { data: tasksData } = await supabase
-    .from('tasks')
-    .select(
-      'id, title, description, assigned_to, assigned_by, deadline, status, updated_at, assignee:profiles!tasks_assigned_to_fkey(first_name, last_name)',
-    )
-    .or(`assigned_by.eq.${user!.id},assigned_to.eq.${user!.id}`)
-    .order('created_at', { ascending: false });
+  // itself honest about what it's allowed to return. Two `.or()` calls AND
+  // together (PostgREST combines successive filters with AND), giving
+  // "(mine) AND (not a stale done task)".
+  const [{ data: tasksData }, { data: assignees }] = await Promise.all([
+    supabase
+      .from('tasks')
+      .select(
+        'id, title, description, assigned_to, assigned_by, deadline, status, updated_at, assignee:profiles!tasks_assigned_to_fkey(first_name, last_name)',
+      )
+      .or(`assigned_by.eq.${user!.id},assigned_to.eq.${user!.id}`)
+      .or(`status.neq.done,updated_at.gte.${sevenDaysAgo}`)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('role', isAdmin ? allowedTaskAssigneeRoles(profile!.role) : ['teacher', 'assistant'])
+      .eq('is_active', true)
+      .order('first_name', { ascending: true }),
+  ]);
 
-  // Auto-hide (not delete): a "done" task older than a week just clutters
-  // the board — the row itself is left alone, same precedent as the Issues
-  // board's own resolved_at cutoff.
-  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const tasks = (tasksData ?? [])
-    .filter((task) => {
-      if (task.status !== 'done') return true;
-      return now - new Date(task.updated_at).getTime() < SEVEN_DAYS_MS;
-    })
-    .map((task) => ({
-      ...task,
-      is_overdue: task.status !== 'done' && new Date(task.deadline).getTime() < now,
-    }));
-
-  const { data: assignees } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name')
-    .in('role', isAdmin ? allowedTaskAssigneeRoles(profile!.role) : ['teacher', 'assistant'])
-    .eq('is_active', true)
-    .order('first_name', { ascending: true });
+  const tasks = (tasksData ?? []).map((task) => ({
+    ...task,
+    is_overdue: task.status !== 'done' && new Date(task.deadline).getTime() < now,
+  }));
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
