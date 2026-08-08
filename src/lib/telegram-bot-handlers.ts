@@ -42,4 +42,18 @@ if (telegramBot) {
       `✅ Xush kelibsiz${profile ? `, ${profile.first_name}` : ''}! Telegram hisobingiz Persons Education platformasiga ulandi. Endi muhim bildirishnomalarni shu yerda olasiz.`,
     );
   });
+
+  // Registered after .start() so it only ever sees messages that aren't the
+  // /start deep-link (Telegraf stops at the first matching handler). Any
+  // message from a group/supergroup the bot is a member of gets that chat's
+  // id recorded — this is how the lesson-plan-check cron (and any future
+  // group broadcast) finds the team's Telegram group without a manual
+  // "paste your chat id" step.
+  telegramBot.on('message', async (ctx) => {
+    if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') return;
+    const admin = createAdminClient();
+    await admin
+      .from('telegram_group_chats')
+      .upsert({ chat_id: ctx.chat.id, title: ctx.chat.title ?? null }, { onConflict: 'chat_id' });
+  });
 }

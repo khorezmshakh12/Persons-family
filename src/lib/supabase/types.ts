@@ -774,6 +774,21 @@ export type Database = {
         }
         Relationships: []
       }
+      lesson_plan_cron_runs: {
+        Row: {
+          date_key: string
+          ran_at: string
+        }
+        Insert: {
+          date_key: string
+          ran_at?: string
+        }
+        Update: {
+          date_key?: string
+          ran_at?: string
+        }
+        Relationships: []
+      }
       lesson_plan_days: {
         Row: {
           id: string
@@ -1507,6 +1522,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      telegram_group_chats: {
+        Row: {
+          added_at: string
+          chat_id: number
+          title: string | null
+        }
+        Insert: {
+          added_at?: string
+          chat_id: number
+          title?: string | null
+        }
+        Update: {
+          added_at?: string
+          chat_id?: number
+          title?: string | null
+        }
+        Relationships: []
       }
       telegram_link_tokens: {
         Row: {

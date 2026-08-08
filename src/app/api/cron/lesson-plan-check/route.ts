@@ -2,12 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+// A run that's this far behind (e.g. the cron was broken for weeks) only
+// catches up this many most-recent days rather than replaying the whole gap
+// in one burst.
+const MAX_CATCHUP_DAYS = 7;
+
 // Vercel Cron (see vercel.json, "0 19 * * *" UTC = 00:00 Asia/Tashkent, no
 // DST) hits this once a day right as the deadline day rolls over. Teachers
 // must have every field of a scheduled group's lesson plan filled in by
-// 23:59 the day of — this route finds who didn't and tells the CEO, both
-// as a Telegram message and an in-app bell alert
-// (lesson_plan_compliance_alerts, see that migration's comment).
+// 23:59 the day of — this route finds who didn't and tells the CEO (and the
+// team's Telegram group), both as a Telegram message and, for the CEO, an
+// in-app bell alert (lesson_plan_compliance_alerts, see that migration's
+// comment).
+//
+// A single missed trigger (a deploy landing right at 00:00 Tashkent can
+// drop that invocation, or Vercel's own cron scheduling can occasionally
+// skip a beat) used to mean that day's compliance was never checked at
+// all — the report just showed up "a day late" on the next run instead,
+// covering the wrong day. lesson_plan_cron_runs now records every date_key
+// actually processed, so each run catches up on anything since the last
+// one instead of only ever looking at "yesterday".
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
@@ -18,11 +34,58 @@ export async function GET(req: NextRequest) {
   const admin = createAdminClient();
 
   // "Today" for this run is the Tashkent-local date the moment the cron
-  // fires (00:00) — the deadline day that just closed is the one before it.
+  // fires — the most recent deadline day that's actually closed is the one
+  // before it.
   const tashkentTodayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
-  const checkDate = new Date(`${tashkentTodayKey}T00:00:00Z`);
-  checkDate.setUTCDate(checkDate.getUTCDate() - 1);
-  const dateKey = checkDate.toISOString().slice(0, 10);
+  const latestCheckable = new Date(`${tashkentTodayKey}T00:00:00Z`);
+  latestCheckable.setUTCDate(latestCheckable.getUTCDate() - 1);
+
+  const { data: lastRun } = await admin
+    .from('lesson_plan_cron_runs')
+    .select('date_key')
+    .order('date_key', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const start = new Date(latestCheckable);
+  if (lastRun) {
+    start.setTime(new Date(`${lastRun.date_key}T00:00:00Z`).getTime());
+    start.setUTCDate(start.getUTCDate() + 1);
+    const earliestAllowed = new Date(latestCheckable);
+    earliestAllowed.setUTCDate(earliestAllowed.getUTCDate() - (MAX_CATCHUP_DAYS - 1));
+    if (start.getTime() < earliestAllowed.getTime()) start.setTime(earliestAllowed.getTime());
+  }
+
+  const dateKeys: string[] = [];
+  for (const d = new Date(start); d.getTime() <= latestCheckable.getTime(); d.setUTCDate(d.getUTCDate() + 1)) {
+    dateKeys.push(d.toISOString().slice(0, 10));
+  }
+
+  if (dateKeys.length === 0) {
+    return NextResponse.json({ ok: true, checked: [] });
+  }
+
+  const [{ data: ceoProfiles }, { data: groupChats }] = await Promise.all([
+    admin.from('profiles').select('telegram_id').eq('role', 'ceo'),
+    admin.from('telegram_group_chats').select('chat_id'),
+  ]);
+  const recipientChatIds = [
+    ...(ceoProfiles ?? []).map((c) => c.telegram_id),
+    ...(groupChats ?? []).map((g) => g.chat_id),
+  ];
+
+  const results = [];
+  for (const dateKey of dateKeys) {
+    const result = await checkOneDay(admin, dateKey, recipientChatIds);
+    await admin.from('lesson_plan_cron_runs').upsert({ date_key: dateKey }, { onConflict: 'date_key' });
+    results.push({ dateKey, ...result });
+  }
+
+  return NextResponse.json({ ok: true, checked: results });
+}
+
+async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds: (number | null)[]) {
+  const checkDate = new Date(`${dateKey}T00:00:00Z`);
   const parity: 'odd' | 'even' = checkDate.getUTCDate() % 2 === 1 ? 'odd' : 'even';
 
   // schedule_type is nullable; `.eq()` never matches null, so groups with
@@ -33,11 +96,8 @@ export async function GET(req: NextRequest) {
     .select('id, name, teacher_id, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)')
     .eq('schedule_type', parity);
 
-  const { data: ceoProfiles } = await admin.from('profiles').select('telegram_id').eq('role', 'ceo');
-  const ceoTelegramIds = (ceoProfiles ?? []).map((c) => c.telegram_id);
-
   if (!groups || groups.length === 0) {
-    return NextResponse.json({ ok: true, dateKey, checkedGroups: 0, incompleteTeachers: 0 });
+    return { checkedGroups: 0, incompleteTeachers: 0 };
   }
 
   const { data: lessons } = await admin
@@ -69,10 +129,10 @@ export async function GET(req: NextRequest) {
     // from "the cron never ran" — matches every other automated report in
     // this app always producing a visible signal.
     await sendTelegramMessageToMany(
-      ceoTelegramIds,
+      recipientChatIds,
       `✅ <b>${escapeTelegramText(dateKey)}</b> — barcha ustozlar kunlik lesson planlarini to'liq yozishgan.`,
     );
-    return NextResponse.json({ ok: true, dateKey, checkedGroups: groups.length, incompleteTeachers: 0 });
+    return { checkedGroups: groups.length, incompleteTeachers: 0 };
   }
 
   // Two renderings of the same data: `summary` is plain text for the
@@ -90,10 +150,10 @@ export async function GET(req: NextRequest) {
   const summary = plainLines.join('\n');
   const telegramText = telegramLines.join('\n');
 
-  await sendTelegramMessageToMany(ceoTelegramIds, telegramText);
+  await sendTelegramMessageToMany(recipientChatIds, telegramText);
   await admin.from('lesson_plan_compliance_alerts').insert({ report_date: dateKey, summary });
 
-  return NextResponse.json({ ok: true, dateKey, checkedGroups: groups.length, incompleteTeachers: byTeacher.size });
+  return { checkedGroups: groups.length, incompleteTeachers: byTeacher.size };
 }
 
 function isLessonPlanComplete(lesson: {
