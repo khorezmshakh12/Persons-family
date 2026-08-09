@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import type { Database } from '@/lib/supabase/types';
@@ -27,7 +27,7 @@ export async function submitSelfDevelopmentAction(
   formData: FormData,
 ): Promise<SelfDevActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = submitSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -69,8 +69,8 @@ export async function saveEvaluationAction(
 ): Promise<SelfDevActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = saveEvaluationSchema.safeParse(Object.fromEntries(formData));

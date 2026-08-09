@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -24,8 +24,8 @@ export async function addFinanceEntryAction(
     ({
       user: { id: adminId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = addEntrySchema.safeParse(Object.fromEntries(formData));
@@ -59,8 +59,8 @@ export async function deleteFinanceEntryAction(
 ): Promise<FinanceActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));

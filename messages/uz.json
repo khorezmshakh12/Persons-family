@@ -192,6 +192,7 @@
       "avatarTooLarge": "Profil rasmi 5MB dan kichik bo'lishi kerak.",
       "notFound": "Xodim topilmadi.",
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "cannotDeleteSelf": "O'z hisobingizni o'chira olmaysiz.",
       "deleteFailed": "Xodimni o'chirib bo'lmadi. Qayta urinib ko'ring."
     },
@@ -210,6 +211,7 @@
       "confirmTransferDescription": "{name} to'liq CEO darajasidagi huquqqa ega bo'ladi va platformaning yakuniy nazoratini siz bilan baham ko'radi. Buni osongina bekor qilib bo'lmaydi.",
       "errors": {
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, qayta urinib ko'ring.",
         "notFound": "Administrator topilmadi.",
         "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
@@ -250,6 +252,7 @@
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
       "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring.",
       "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
@@ -327,6 +330,7 @@
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, murojaat sarlavhasini kiriting.",
       "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring.",
       "invalidAssignee": "Sizda bu murojaatni ushbu shaxsga biriktirish uchun ruxsat yo'q.",
@@ -422,6 +426,7 @@
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
       "createFailed": "Guruhni yaratib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
@@ -440,6 +445,7 @@
     "monitorOnly": "Siz bu chatni kuzatishingiz mumkin, lekin xabar yubora olmaysiz.",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
       "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
     }
@@ -471,6 +477,7 @@
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
       "invalidAssignee": "Sizda bu vazifani ushbu shaxsga biriktirish uchun ruxsat yo'q.",
       "createFailed": "Vazifani berib bo'lmadi. Qayta urinib ko'ring.",
@@ -494,6 +501,7 @@
     "confirm": "Tasdiqlash",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, sarlavha va matnni kiriting.",
       "createFailed": "E'lonni joylab bo'lmadi. Qayta urinib ko'ring.",
       "notFound": "Bu yangilik endi mavjud emas.",
@@ -520,6 +528,7 @@
       "cleared": "E'lon o'chirildi.",
       "errors": {
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, avval xabar yozing.",
         "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
       }
@@ -570,7 +579,8 @@
         "invalidAvatarType": "Iltimos, PNG yoki JPG rasmni tanlang.",
         "avatarTooLarge": "Rasm 5MB dan kichik bo'lishi kerak.",
         "uploadFailed": "Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.",
-        "forbidden": "Bu amalni bajarishga ruxsatingiz yo'q."
+        "forbidden": "Bu amalni bajarishga ruxsatingiz yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring."
       }
     },
     "telegram": {
@@ -640,6 +650,7 @@
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "notConfigured": "Telegram integratsiyasi hali sozlanmagan.",
       "invalidInput": "Iltimos, yuborishdan oldin xabar yozing.",
       "webhookFailed": "Webhookni ro'yxatdan o'tkazib bo'lmadi. Telegram sozlamalarini tekshiring."
@@ -698,6 +709,7 @@
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, kamida bitta maydonni to'ldiring.",
       "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
       "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
@@ -735,6 +747,7 @@
     "delete": "Yozuvni o'chirish",
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     },
@@ -757,6 +770,7 @@
     "delete": "Yozuvni o'chirish",
     "errors": {
       "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     }
@@ -780,6 +794,7 @@
     "delete": "Missiyani o'chirish",
     "errors": {
       "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     }
@@ -815,6 +830,7 @@
       "errors": {
         "invalidInput": "Iltimos, maydonlarni tekshirib, qayta urinib ko'ring.",
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring."
       }
     },
@@ -835,6 +851,7 @@
       "punishmentReason": "Izoh (ixtiyoriy)",
       "errors": {
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
         "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
         "invalidWarning": "Ushbu ogohlantirish topilmadi."
@@ -856,6 +873,7 @@
       "delete": "Vazifani o'chirish",
       "errors": {
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
         "createFailed": "Vazifani qo'shib bo'lmadi. Qayta urinib ko'ring.",
         "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
@@ -901,6 +919,7 @@
       "newEndDate": "Yangi tugash sanasi",
       "errors": {
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
+        "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
         "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
         "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",

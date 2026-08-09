@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState, type Profile } from '@/lib/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -77,8 +77,8 @@ export async function requestAvatarUploadUrlAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const ext = AVATAR_ALLOWED_TYPES[fileType];
@@ -190,8 +190,8 @@ export async function createStaffAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = staffSchema.extend({ telegramId: telegramIdField }).safeParse(Object.fromEntries(formData));
@@ -234,8 +234,8 @@ export async function attachAvatarAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const supabase = await createClient();
@@ -281,8 +281,8 @@ export async function updateStaffAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
@@ -348,8 +348,8 @@ export async function toggleStaffActiveAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
@@ -397,8 +397,8 @@ export async function deleteStaffAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
@@ -439,8 +439,8 @@ export async function resetStaffPasswordAction(
   let actingProfile;
   try {
     ({ profile: actingProfile } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));

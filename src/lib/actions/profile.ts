@@ -54,7 +54,7 @@ export async function updateOwnProfileAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const { error: profileError } = await supabase
     .from('profiles')
@@ -95,7 +95,7 @@ export async function updateOwnContactInfoAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const { error } = await supabase
     .from('profiles')
@@ -118,7 +118,7 @@ export async function updateOwnAvatarAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   if (!avatarPath.startsWith(`${user.id}/`)) return { error: 'forbidden' };
 

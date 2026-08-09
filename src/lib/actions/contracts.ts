@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -29,8 +29,8 @@ export async function createContractAction(
     ({
       user: { id: ceoId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = contractSchema.safeParse(Object.fromEntries(formData));
@@ -66,8 +66,8 @@ export async function updateContractAction(
 ): Promise<ContractActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = updateContractSchema.safeParse(Object.fromEntries(formData));
@@ -97,8 +97,8 @@ export async function deleteContractAction(
 ): Promise<ContractActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
@@ -130,8 +130,8 @@ export async function createDutyAction(
     ({
       user: { id: ceoId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = dutySchema.safeParse(Object.fromEntries(formData));
@@ -157,8 +157,8 @@ export async function deleteDutyAction(
 ): Promise<ContractActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
@@ -235,8 +235,8 @@ export async function reviewContractRequestAction(
     ({
       user: { id: ceoId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = reviewRequestSchema.safeParse(Object.fromEntries(formData));
@@ -296,8 +296,8 @@ export async function requestContractFileUploadUrlAction(
 ): Promise<ContractUploadUrlResult> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const sanitized = fileName.replace(/[^\w.\-]+/g, '_');
@@ -327,8 +327,8 @@ export async function attachContractFileAction(
     ({
       user: { id: ceoId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = attachSchema.safeParse(Object.fromEntries(formData));
@@ -354,8 +354,8 @@ export async function deleteContractAttachmentAction(
 ): Promise<ContractActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));

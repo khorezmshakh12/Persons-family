@@ -179,7 +179,7 @@ export type ChatRequestResult = { error?: string; requestStatus?: 'pending' | 'a
  */
 export async function sendChatRequestAction(receiverId: string): Promise<ChatRequestResult> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsedId = z.string().uuid().safeParse(receiverId);
   if (!parsedId.success) return { error: 'invalidInput' };
@@ -209,7 +209,7 @@ export async function respondToDmRequestAction(
   formData: FormData,
 ): Promise<RespondToDmRequestState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = respondSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -251,7 +251,7 @@ export async function toggleStaffChatReactionAction(
   formData: FormData,
 ): Promise<{ error?: string }> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = reactionSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -277,7 +277,7 @@ const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });
  */
 export async function requestChatMediaUploadUrlAction(fileName: string): Promise<UploadUrlResult> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = uploadUrlSchema.safeParse({ fileName });
   if (!parsed.success) return { error: 'invalidInput' };
@@ -305,7 +305,7 @@ export async function requestChatMediaUploadUrlAction(fileName: string): Promise
  */
 export async function requestChatMediaReadUrlAction(path: string): Promise<ReadUrlResult> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
   if (!path.startsWith(`${user.id}/`)) return { error: 'forbidden' };
 
   const { data, error } = await createAdminClient()

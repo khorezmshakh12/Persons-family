@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo } from '@/lib/auth/require-admin';
+import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -26,8 +26,8 @@ export async function toggleAdminActiveAction(
 ): Promise<AdminManagementState> {
   try {
     await requireCeo();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
@@ -61,8 +61,8 @@ export async function deleteAdminAction(
   let actingUser;
   try {
     ({ user: actingUser } = await requireCeo());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
@@ -86,8 +86,8 @@ export async function transferCeoRoleAction(
 ): Promise<AdminManagementState> {
   try {
     await requireCeo();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -16,8 +16,8 @@ export async function publishAnnouncementAction(
 ): Promise<AnnouncementActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = publishSchema.safeParse(Object.fromEntries(formData));
@@ -40,8 +40,8 @@ export async function publishAnnouncementAction(
 export async function clearAnnouncementAction(): Promise<AnnouncementActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const supabase = await createClient();

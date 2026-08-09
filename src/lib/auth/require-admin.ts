@@ -2,6 +2,22 @@ import { getAuthState } from './session';
 
 export class ForbiddenError extends Error {}
 
+/** Distinct from ForbiddenError: thrown when there's no signed-in user at
+ * all, which almost always means their session expired mid-visit rather
+ * than a genuine permissions problem — the two need different copy so the
+ * user knows to log back in instead of assuming they're not allowed to do
+ * this. */
+export class SessionExpiredError extends Error {}
+
+/** Every requireAdmin()/requireCeo() call site catches with `catch (error)
+ * { return { error: authErrorCode(error) }; }` instead of hardcoding
+ * 'forbidden' — this is the one place that maps the thrown error to the
+ * right user-facing code, so a new distinction (or a third error class
+ * later) only ever needs to change here. */
+export function authErrorCode(error: unknown): 'sessionExpired' | 'forbidden' {
+  return error instanceof SessionExpiredError ? 'sessionExpired' : 'forbidden';
+}
+
 /**
  * Every CEO-only Server Action must call this itself — a route/layout
  * guard only gates page rendering, not the POST endpoints underneath it.
@@ -19,7 +35,8 @@ export class ForbiddenError extends Error {}
  */
 export async function requireCeo() {
   const { user, profile } = await getAuthState();
-  if (!user || !profile || profile.role !== 'ceo') {
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || profile.role !== 'ceo') {
     throw new ForbiddenError('CEO access required');
   }
   return { user, profile };
@@ -36,7 +53,8 @@ export async function requireCeo() {
  */
 export async function requireAdmin() {
   const { user, profile } = await getAuthState();
-  if (!user || !profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
     throw new ForbiddenError('Admin access required');
   }
   return { user, profile };

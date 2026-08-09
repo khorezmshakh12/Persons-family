@@ -139,7 +139,7 @@ export type UploadUrlResult = { path?: string; token?: string; error?: string };
  * exactly, targeting the dedicated issue-voice-notes bucket instead. */
 export async function requestIssueVoiceUploadUrlAction(fileName: string): Promise<UploadUrlResult> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = uploadUrlSchema.safeParse({ fileName });
   if (!parsed.success) return { error: 'invalidInput' };

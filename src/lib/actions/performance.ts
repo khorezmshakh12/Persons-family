@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -26,8 +26,8 @@ export async function updateStaffTierAction(
 ): Promise<PerformanceActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = tierSchema.safeParse(Object.fromEntries(formData));
@@ -73,8 +73,8 @@ export async function addPerformanceEntryAction(
     ({
       user: { id: adminId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = addEntrySchema.safeParse(Object.fromEntries(formData));
@@ -108,8 +108,8 @@ export async function deletePerformanceEntryAction(
 ): Promise<PerformanceActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));

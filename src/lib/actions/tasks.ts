@@ -200,7 +200,7 @@ export type UpdateTaskStatusResult = { error?: string };
  * instead of a raw Postgres error surfacing in the UI. */
 export async function updateTaskStatusAction(formData: FormData): Promise<UpdateTaskStatusResult> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

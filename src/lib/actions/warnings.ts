@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { ForbiddenError, requireAdmin } from '@/lib/auth/require-admin';
+import { ForbiddenError, SessionExpiredError, requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
@@ -16,8 +16,8 @@ export type WarningActionState = { error?: string } | undefined;
  * check (is_admin() there now covers ceo + it_developer). */
 async function requireCeoOrAdminManager() {
   const { user, profile } = await getAuthState();
+  if (!user) throw new SessionExpiredError('No session');
   if (
-    !user ||
     !profile ||
     (profile.role !== 'ceo' && profile.role !== 'it_developer' && profile.role !== 'admin_manager')
   ) {
@@ -59,8 +59,8 @@ export async function issueWarningAction(
     ({
       user: { id: issuerId },
     } = await requireCeoOrAdminManager());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = warningSchema.safeParse(Object.fromEntries(formData));
@@ -99,8 +99,8 @@ export async function deleteWarningAction(
 ): Promise<WarningActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = deleteWarningSchema.safeParse(Object.fromEntries(formData));
@@ -135,8 +135,8 @@ export async function assignPunishmentAction(
     ({
       user: { id: actorId },
     } = await requireCeoOrAdminManager());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = punishmentSchema.safeParse(Object.fromEntries(formData));

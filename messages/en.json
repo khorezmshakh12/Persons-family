@@ -192,6 +192,7 @@
       "avatarTooLarge": "Profile picture must be under 5MB.",
       "notFound": "Staff member not found.",
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "cannotDeleteSelf": "You can't delete your own account.",
       "deleteFailed": "Could not delete this staff member. Please try again."
     },
@@ -210,6 +211,7 @@
       "confirmTransferDescription": "{name} will gain full CEO-level access, sharing ultimate control of the platform with you. This cannot be easily undone.",
       "errors": {
         "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please try again.",
         "notFound": "Admin not found.",
         "updateFailed": "Could not save changes. Please try again.",
@@ -250,6 +252,7 @@
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidMessage": "Message can't be empty.",
       "sendFailed": "Could not send your message. Please try again.",
       "invalidInput": "Please fill in all required fields.",
@@ -327,6 +330,7 @@
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please enter a title for the issue.",
       "createFailed": "Could not submit the issue. Please try again.",
       "invalidAssignee": "You don't have permission to assign an issue to that person.",
@@ -422,6 +426,7 @@
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please fill in all required fields.",
       "createFailed": "Could not create the group. Please try again.",
       "updateFailed": "Could not save changes. Please try again.",
@@ -440,6 +445,7 @@
     "monitorOnly": "You can monitor this chat but not send messages.",
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidMessage": "Message can't be empty.",
       "sendFailed": "Could not send your message. Please try again."
     }
@@ -471,6 +477,7 @@
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please fill in all required fields.",
       "invalidAssignee": "You don't have permission to assign a task to that person.",
       "createFailed": "Could not assign the task. Please try again.",
@@ -494,6 +501,7 @@
     "confirm": "Confirm",
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please fill in a title and content.",
       "createFailed": "Could not publish the announcement. Please try again.",
       "notFound": "This news post no longer exists.",
@@ -520,6 +528,7 @@
       "cleared": "Announcement cleared.",
       "errors": {
         "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please write a message first.",
         "updateFailed": "Could not save. Please try again."
       }
@@ -570,7 +579,8 @@
         "invalidAvatarType": "Please choose a PNG or JPG image.",
         "avatarTooLarge": "Image must be under 5MB.",
         "uploadFailed": "Could not upload image. Please try again.",
-        "forbidden": "You don't have permission to do that."
+        "forbidden": "You don't have permission to do that.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again."
       }
     },
     "telegram": {
@@ -640,6 +650,7 @@
     },
     "errors": {
       "forbidden": "You don't have permission to do that.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "notConfigured": "Telegram integration isn't set up yet.",
       "invalidInput": "Please write a message before sending.",
       "webhookFailed": "Could not register the webhook. Check your Telegram settings."
@@ -698,6 +709,7 @@
     },
     "errors": {
       "forbidden": "You don't have permission to do that.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please fill in at least one field.",
       "alreadySubmitted": "You've already submitted your progress for this month.",
       "submitFailed": "Something went wrong. Please try again."
@@ -735,6 +747,7 @@
     "delete": "Delete entry",
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
     },
@@ -757,6 +770,7 @@
     "delete": "Delete entry",
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
     }
@@ -780,6 +794,7 @@
     "delete": "Delete mission",
     "errors": {
       "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
     }
@@ -815,6 +830,7 @@
       "errors": {
         "invalidInput": "Please check the fields and try again.",
         "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "updateFailed": "Could not save changes. Please try again."
       }
     },
@@ -835,6 +851,7 @@
       "punishmentReason": "Note (optional)",
       "errors": {
         "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please fill in all required fields.",
         "createFailed": "Could not save this. Please try again.",
         "invalidWarning": "This warning could not be found."
@@ -856,6 +873,7 @@
       "delete": "Delete duty",
       "errors": {
         "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please fill in all required fields.",
         "createFailed": "Could not add this duty. Please try again.",
         "deleteFailed": "Could not delete this duty. Please try again."
@@ -901,6 +919,7 @@
       "newEndDate": "New end date",
       "errors": {
         "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please fill in all required fields.",
         "createFailed": "Could not save this. Please try again.",
         "updateFailed": "Could not save changes. Please try again.",

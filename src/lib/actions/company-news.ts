@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
@@ -43,8 +43,8 @@ export async function createNewsAction(
   try {
     const { user } = await requireAdmin();
     actingUserId = user.id;
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = createNewsSchema.safeParse(Object.fromEntries(formData));

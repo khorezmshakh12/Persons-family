@@ -24,7 +24,7 @@ export async function updateLessonDateAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonDateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -50,7 +50,7 @@ export async function updateLessonTopicAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonTopicSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -90,7 +90,7 @@ export async function updateLessonGameLinkAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonGameLinkSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -126,7 +126,7 @@ export async function updateLessonPlanFieldAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = lessonPlanFieldSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -180,7 +180,7 @@ export async function updateLessonProcedureAction(
   steps: LessonProcedureStep[],
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonProcedureSchema.safeParse({ lessonId, steps });
   if (!parsed.success) return { error: 'invalidInput' };
@@ -269,7 +269,7 @@ export async function attachLessonMaterialAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = attachSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -311,7 +311,7 @@ export async function removeLessonMaterialAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = removeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

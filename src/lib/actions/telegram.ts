@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText } from '@/lib/telegram';
 
 export type TelegramActionState = { error?: string; success?: boolean } | undefined;
@@ -13,7 +13,7 @@ export type TelegramActionState = { error?: string; success?: boolean } | undefi
  * code shown on their own Settings page. */
 export async function createTelegramLinkTokenAction(): Promise<{ token?: string; error?: string }> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const supabase = await createClient();
   await supabase.from('telegram_link_tokens').delete().eq('profile_id', user.id);
@@ -28,7 +28,7 @@ export async function createTelegramLinkTokenAction(): Promise<{ token?: string;
 
 export async function disconnectTelegramAction(): Promise<{ error?: string; success?: boolean }> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('profiles').update({ telegram_id: null }).eq('id', user.id);
@@ -46,8 +46,8 @@ export async function sendBroadcastAction(
 ): Promise<TelegramActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   if (!isTelegramConfigured()) return { error: 'notConfigured' };
@@ -75,8 +75,8 @@ export async function sendBroadcastAction(
 export async function registerTelegramWebhookAction(): Promise<{ error?: string; success?: boolean }> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
   if (!telegramBot) return { error: 'notConfigured' };
 

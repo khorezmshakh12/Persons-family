@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/require-admin';
+import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
@@ -24,8 +24,8 @@ export async function assignMissionAction(
     ({
       user: { id: adminId },
     } = await requireAdmin());
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = assignSchema.safeParse(Object.fromEntries(formData));
@@ -63,7 +63,7 @@ export async function toggleMissionCompleteAction(
   formData: FormData,
 ): Promise<MissionActionState> {
   const { user } = await getAuthState();
-  if (!user) return { error: 'forbidden' };
+  if (!user) return { error: 'sessionExpired' };
 
   const parsed = toggleSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -95,8 +95,8 @@ export async function deleteMissionAction(
 ): Promise<MissionActionState> {
   try {
     await requireAdmin();
-  } catch {
-    return { error: 'forbidden' };
+  } catch (error) {
+    return { error: authErrorCode(error) };
   }
 
   const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
