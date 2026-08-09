@@ -178,6 +178,7 @@
     "confirm": "Tasdiqlash",
     "errors": {
       "invalidInput": "Barcha majburiy maydonlarni to'ldiring.",
+      "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "invalidPhone": "To'g'ri telefon raqamini kiriting.",
       "phoneTaken": "Bu telefon raqamiga ega xodim allaqachon mavjud.",
       "cannotAssignCeo": "Faqat bosh direktor CEO lavozimini belgilay oladi.",
@@ -332,6 +333,7 @@
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, murojaat sarlavhasini kiriting.",
+      "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "createFailed": "Murojaatni yuborib bo'lmadi. Qayta urinib ko'ring.",
       "invalidAssignee": "Sizda bu murojaatni ushbu shaxsga biriktirish uchun ruxsat yo'q.",
       "micDenied": "Mikrofonga ulanib bo'lmadi. Brauzer ruxsatlarini tekshiring.",
@@ -772,6 +774,7 @@
       "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
+      "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     }
   },

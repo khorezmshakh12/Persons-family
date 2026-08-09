@@ -60,10 +60,16 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
           <div className="flex flex-col gap-2">
             <Label htmlFor={`title-${staffId}`}>{t('entryTitle')}</Label>
             <Input id={`title-${staffId}`} name="title" placeholder={t('entryTitlePlaceholder')} required />
+            {state?.fieldErrors?.title && (
+              <p className="text-destructive text-xs">{t(`errors.${state.fieldErrors.title}`)}</p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`amount-${staffId}`}>{t('amount')}</Label>
             <Input id={`amount-${staffId}`} name="amount" type="number" step="0.01" required />
+            {state?.fieldErrors?.amount && (
+              <p className="text-destructive text-xs">{t(`errors.${state.fieldErrors.amount}`)}</p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`note-${staffId}`}>{t('note')}</Label>

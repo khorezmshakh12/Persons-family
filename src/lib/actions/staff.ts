@@ -12,9 +12,11 @@ import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 import { logSystemAction } from '@/lib/audit-log';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { INTERNSHIP_LEVELS, type InternshipLevel } from '@/lib/internship-level';
+import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 
 export type StaffActionState =
-  { error?: string; tempPassword?: string; userId?: string } | undefined;
+  | { error?: string; fieldErrors?: FieldErrors; tempPassword?: string; userId?: string }
+  | undefined;
 
 const ROLES = [
   'ceo',
@@ -123,7 +125,7 @@ async function createStaffRow(
   data: z.infer<typeof staffSchema> & { telegramId: number },
 ): Promise<StaffActionState> {
   const phone = normalizePhone(data.phone);
-  if (!phone) return { error: 'invalidPhone' };
+  if (!phone) return { error: 'invalidPhone', fieldErrors: { phone: 'invalidPhone' } };
 
   const admin = createAdminClient();
   const tempPassword = generateTempPassword();
@@ -195,7 +197,7 @@ export async function createStaffAction(
   }
 
   const parsed = staffSchema.extend({ telegramId: telegramIdField }).safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
+  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
   if (isProtectedRole(parsed.data.role) && actingProfile.role !== 'ceo') {
     return { error: assignRoleError(parsed.data.role) };
   }
@@ -221,7 +223,7 @@ export async function createAdminManagerAction(
   }
 
   const parsed = addAdminManagerSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
+  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   return createStaffRow(actingProfile, { ...parsed.data, role: 'admin_manager' });
 }
@@ -286,7 +288,7 @@ export async function updateStaffAction(
   }
 
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
+  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   const supabase = await createClient();
   const { data: target } = await supabase
@@ -311,7 +313,7 @@ export async function updateStaffAction(
   }
 
   const phone = normalizePhone(parsed.data.phone);
-  if (!phone) return { error: 'invalidPhone' };
+  if (!phone) return { error: 'invalidPhone', fieldErrors: { phone: 'invalidPhone' } };
 
   let avatarUrl: string | undefined;
   if (parsed.data.avatarPath) {

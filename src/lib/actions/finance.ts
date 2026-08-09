@@ -5,8 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
+import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 
-export type FinanceActionState = { error?: string } | undefined;
+export type FinanceActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
 const addEntrySchema = z.object({
   staffId: z.string().uuid(),
@@ -29,7 +30,7 @@ export async function addFinanceEntryAction(
   }
 
   const parsed = addEntrySchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
+  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   const supabase = await createClient();
   const { error } = await supabase.from('finance_entries').insert({

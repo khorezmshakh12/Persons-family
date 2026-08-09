@@ -35,6 +35,7 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -47,12 +48,14 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
     setOpen(next);
     if (!next) {
       setError(null);
+      setFieldErrors({});
       setTempPassword(null);
     }
   }
 
   function handleSubmit(formData: FormData) {
     setError(null);
+    setFieldErrors({});
     startTransition(async () => {
       const avatarFile = formData.get('avatar');
       formData.delete('avatar');
@@ -71,6 +74,7 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
       const result = await createStaffAction(undefined, formData);
       if (result?.error) {
         setError(result.error);
+        setFieldErrors(result.fieldErrors ?? {});
         return;
       }
 
@@ -119,24 +123,37 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="firstName">{t('firstName')}</Label>
                   <Input id="firstName" name="firstName" required />
+                  {fieldErrors.firstName && (
+                    <p className="text-destructive text-xs">{t(`errors.${fieldErrors.firstName}`)}</p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="lastName">{t('lastName')}</Label>
                   <Input id="lastName" name="lastName" required />
+                  {fieldErrors.lastName && (
+                    <p className="text-destructive text-xs">{t(`errors.${fieldErrors.lastName}`)}</p>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="phone">{t('phone')}</Label>
                 <Input id="phone" name="phone" type="tel" placeholder="+998 90 123 45 67" required />
+                {fieldErrors.phone && <p className="text-destructive text-xs">{t(`errors.${fieldErrors.phone}`)}</p>}
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="telegramId">{t('telegramId')}</Label>
                 <Input id="telegramId" name="telegramId" type="number" inputMode="numeric" required />
                 <p className="text-muted-foreground text-xs">{t('telegramIdHint')}</p>
+                {fieldErrors.telegramId && (
+                  <p className="text-destructive text-xs">{t(`errors.${fieldErrors.telegramId}`)}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="dateOfBirth">{t('dateOfBirth')}</Label>
                 <Input id="dateOfBirth" name="dateOfBirth" type="date" required />
+                {fieldErrors.dateOfBirth && (
+                  <p className="text-destructive text-xs">{t(`errors.${fieldErrors.dateOfBirth}`)}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="role">{t('role')}</Label>
@@ -158,7 +175,9 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
                 <Input id="avatar" name="avatar" type="file" accept="image/png,image/jpeg" />
                 <p className="text-muted-foreground text-xs">{t('avatarOptional')}</p>
               </div>
-              {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}
+              {error && Object.keys(fieldErrors).length === 0 && (
+                <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>
+              )}
               <DialogFooter>
                 <Button type="submit" loading={isPending}>
                   {isPending ? tCommon('loading') : t('create')}

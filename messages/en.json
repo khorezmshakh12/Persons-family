@@ -178,6 +178,7 @@
     "confirm": "Confirm",
     "errors": {
       "invalidInput": "Please fill in all required fields.",
+      "fieldInvalid": "This field is invalid.",
       "invalidPhone": "Enter a valid phone number.",
       "phoneTaken": "A staff member with this phone number already exists.",
       "cannotAssignCeo": "Only the CEO can grant the CEO role.",
@@ -332,6 +333,7 @@
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please enter a title for the issue.",
+      "fieldInvalid": "This field is invalid.",
       "createFailed": "Could not submit the issue. Please try again.",
       "invalidAssignee": "You don't have permission to assign an issue to that person.",
       "micDenied": "Couldn't access your microphone. Check your browser permissions.",
@@ -772,6 +774,7 @@
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
+      "fieldInvalid": "This field is invalid.",
       "updateFailed": "Could not save. Please try again."
     }
   },

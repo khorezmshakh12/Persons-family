@@ -9,8 +9,9 @@ import { getAuthState } from '@/lib/auth/session';
 import { allowedAssigneeRoles } from '@/lib/issue-roles';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
+import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 
-export type IssueActionState = { error?: string } | undefined;
+export type IssueActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
 const createIssueSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -32,7 +33,7 @@ export async function createIssueAction(
   if (!user || !profile) return { error: 'forbidden' };
 
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
+  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   const isAdmin = profile.role === 'ceo' || profile.role === 'it_developer';
   const supabase = await createClient();

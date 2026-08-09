@@ -151,6 +151,9 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">{t('titleLabel')}</Label>
             <Input id="title" name="title" required maxLength={200} />
+            {state?.fieldErrors?.title && (
+              <p className="text-destructive text-xs">{t(`errors.${state.fieldErrors.title}`)}</p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
@@ -214,7 +217,9 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
               </SelectContent>
             </Select>
           </div>
-          {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
+          {state?.error && !state.fieldErrors?.title && (
+            <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>
+          )}
           <DialogFooter>
             <Button type="submit" loading={isPending} disabled={isUploadingVoice || isRecording}>
               {isPending ? tCommon('loading') : t('submit')}
