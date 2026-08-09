@@ -96,7 +96,14 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
     return { checkedGroups: 0, incompleteTeachers: 0, skipped: 'sunday' as const };
   }
 
-  const parity: 'odd' | 'even' = checkDate.getUTCDate() % 2 === 1 ? 'odd' : 'even';
+  // "Odd/even days" is a weekday rotation (Mon/Wed/Fri vs Tue/Thu/Sat), not
+  // calendar-date-of-month parity — those two only agree on some days and
+  // silently drift apart on others (e.g. any week containing a Sunday),
+  // which used to make this check both flag groups with no class that day
+  // and skip the groups that actually had one. getUTCDay(): Mon=1, Wed=3,
+  // Fri=5 are odd; Tue=2, Thu=4, Sat=6 are even; Sun=0 is already handled
+  // above.
+  const parity: 'odd' | 'even' = checkDate.getUTCDay() % 2 === 1 ? 'odd' : 'even';
 
   // schedule_type is nullable; `.eq()` never matches null, so groups with
   // no defined odd/even schedule are excluded — we simply can't know
@@ -112,7 +119,7 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
 
   const { data: lessons } = await admin
     .from('course_lessons')
-    .select('group_id, topic, aim, language_focus, anticipated_problems, materials, homework, procedure')
+    .select('group_id, topic, aim, language_focus, anticipated_problems, homework')
     .in(
       'group_id',
       groups.map((g) => g.id),
@@ -166,23 +173,21 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
   return { checkedGroups: groups.length, incompleteTeachers: byTeacher.size };
 }
 
+// materials and procedure are intentionally not required here — teachers
+// only need to fill topic, aim, language_focus, anticipated_problems and
+// homework for a plan to count as complete.
 function isLessonPlanComplete(lesson: {
   topic: string | null;
   aim: string | null;
   language_focus: string | null;
   anticipated_problems: string | null;
-  materials: string | null;
   homework: string | null;
-  procedure: unknown;
 }): boolean {
-  const procedure = Array.isArray(lesson.procedure) ? lesson.procedure : [];
   return Boolean(
     lesson.topic?.trim() &&
       lesson.aim?.trim() &&
       lesson.language_focus?.trim() &&
       lesson.anticipated_problems?.trim() &&
-      lesson.materials?.trim() &&
-      lesson.homework?.trim() &&
-      procedure.length > 0,
+      lesson.homework?.trim(),
   );
 }
