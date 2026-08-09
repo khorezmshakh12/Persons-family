@@ -41,11 +41,15 @@ export default async function MissionsPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {(staff ?? []).map((person) => {
+          {(staff ?? []).map((person, index) => {
             const personMissions = missionsByStaffId.get(person.id) ?? [];
             const activeCount = personMissions.filter((m) => !m.is_completed).length;
             return (
-              <div key={person.id} className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+              <div
+                key={person.id}
+                style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
+                className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="font-semibold text-white">
                     {person.first_name} {person.last_name}

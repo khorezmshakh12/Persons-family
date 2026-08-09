@@ -66,7 +66,7 @@ export function AssignMissionDialog({ staffId }: { staffId: string }) {
             <Textarea id={`mdesc-${staffId}`} name="description" placeholder={t('descriptionPlaceholder')} />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={isPending} size="sm">
+            <Button type="submit" loading={isPending} size="sm">
               {isPending ? tCommon('loading') : t('assign')}
             </Button>
           </DialogFooter>

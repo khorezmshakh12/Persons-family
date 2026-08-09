@@ -46,11 +46,15 @@ export default async function FinancePage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {(staff ?? []).map((person) => {
+          {(staff ?? []).map((person, index) => {
             const personEntries = entriesByStaffId.get(person.id) ?? [];
             const net = netTotal(personEntries);
             return (
-              <div key={person.id} className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+              <div
+                key={person.id}
+                style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
+                className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="font-semibold text-white">
                     {person.first_name} {person.last_name}
@@ -92,7 +96,7 @@ export default async function FinancePage() {
         <p className="text-white/70">{t('subtitle')}</p>
       </div>
 
-      <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
+      <div className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-6')}>
         <span className="text-sm text-white/60">{t('netTotal')}</span>
         <span className={cn('text-2xl font-bold tabular-nums', net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
           {net >= 0 ? '+' : ''}

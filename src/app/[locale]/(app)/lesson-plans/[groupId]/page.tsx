@@ -110,7 +110,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
         <span className="font-semibold text-white">{group.name}</span>
       </div>
 
-      <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+      <div className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="tint" tint="teal" className="px-4 py-1.5 text-sm font-bold [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">

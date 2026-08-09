@@ -137,8 +137,13 @@ export default async function SelfDevelopmentPage({
             <p className="text-sm text-white/70">{t('thisMonth.noSubmissions')}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              {thisMonthSubmissions.map((s) => (
-                <SubmissionCard key={s.id} submission={s as unknown as Submission} isAdmin />
+              {thisMonthSubmissions.map((s, index) => (
+                <SubmissionCard
+                  key={s.id}
+                  submission={s as unknown as Submission}
+                  isAdmin
+                  delayMs={Math.min(index, 10) * 60}
+                />
               ))}
             </div>
           )}
@@ -152,8 +157,13 @@ export default async function SelfDevelopmentPage({
             <p className="text-sm text-white/70">{t('history.noSubmissions')}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              {historySubmissions.map((s) => (
-                <SubmissionCard key={s.id} submission={s as unknown as Submission} isAdmin />
+              {historySubmissions.map((s, index) => (
+                <SubmissionCard
+                  key={s.id}
+                  submission={s as unknown as Submission}
+                  isAdmin
+                  delayMs={Math.min(index, 10) * 60}
+                />
               ))}
             </div>
           )}
@@ -288,8 +298,13 @@ export default async function SelfDevelopmentPage({
           <p className="text-sm text-white/70">{t('noSubmissions')}</p>
         ) : (
           <div className="flex flex-col gap-4">
-            {(submissions ?? []).map((s) => (
-              <SubmissionCard key={s.id} submission={s as unknown as Submission} isAdmin={false} />
+            {(submissions ?? []).map((s, index) => (
+              <SubmissionCard
+                key={s.id}
+                submission={s as unknown as Submission}
+                isAdmin={false}
+                delayMs={Math.min(index, 10) * 60}
+              />
             ))}
           </div>
         )}

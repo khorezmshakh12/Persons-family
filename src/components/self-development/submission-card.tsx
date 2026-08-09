@@ -15,12 +15,23 @@ export type Submission = {
   author: { first_name: string; last_name: string; role: string; teacher_level: TeacherLevel } | null;
 };
 
-export async function SubmissionCard({ submission, isAdmin }: { submission: Submission; isAdmin: boolean }) {
+export async function SubmissionCard({
+  submission,
+  isAdmin,
+  delayMs = 0,
+}: {
+  submission: Submission;
+  isAdmin: boolean;
+  delayMs?: number;
+}) {
   const t = await getTranslations('selfDevelopment');
   const format = await getFormatter();
 
   return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6')}>
+    <div
+      style={{ animationDelay: `${delayMs}ms` }}
+      className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-3 p-6')}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col">
           {isAdmin && submission.author && (

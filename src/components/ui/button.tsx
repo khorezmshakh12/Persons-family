@@ -1,5 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -45,14 +46,27 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    /** Shows a spinning indicator in place of the button's own icon and
+     * disables it — the shared way to surface a pending Server Action
+     * instead of every call site swapping its own button text. */
+    loading?: boolean
+  }) {
   return (
     <ButtonPrimitive
       data-slot="button"
+      disabled={disabled || loading}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {loading && <Loader2 className="animate-spin" />}
+      {children}
+    </ButtonPrimitive>
   )
 }
 

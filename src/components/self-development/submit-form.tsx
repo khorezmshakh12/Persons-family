@@ -53,7 +53,7 @@ export function SubmitForm() {
         />
       </div>
       {state?.error && <p className="text-sm text-red-300">{t(`errors.${state.error}`)}</p>}
-      <Button type="submit" disabled={isPending} className="w-fit">
+      <Button type="submit" loading={isPending} className="w-fit">
         {isPending ? tCommon('loading') : t('submit')}
       </Button>
     </form>

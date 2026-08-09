@@ -20,12 +20,14 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
   isActive,
   isUnread,
   onSelect,
+  index,
 }: {
   person: StaffDirectoryEntry;
   state: ConversationState;
   isActive: boolean;
   isUnread: boolean;
   onSelect: (userId: string) => void;
+  index: number;
 }) {
   const t = useTranslations('chatHub');
   const initials = `${person.first_name[0]}${person.last_name[0]}`;
@@ -33,8 +35,9 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
     <button
       type="button"
       onClick={() => onSelect(person.id)}
+      style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }}
       className={cn(
-        'tap-scale flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
+        'tap-scale animate-fade-in-up flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
         isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10',
       )}
     >
@@ -89,7 +92,7 @@ function IncomingRequestCard({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-teal-300/30 bg-teal-400/10 p-3">
+    <div className="animate-pop-in flex flex-col gap-2 rounded-xl border border-teal-300/30 bg-teal-400/10 p-3">
       <div className="flex items-center gap-2">
         <Avatar className="size-7 shrink-0">
           <AvatarImage src={person.avatar_url ?? undefined} alt="" />
@@ -189,7 +192,7 @@ export function ChatSidebar({
       {visibleContacts.length === 0 ? (
         <p className="px-3 py-2 text-sm text-white/50">{t('noStaff')}</p>
       ) : (
-        visibleContacts.map((person) => (
+        visibleContacts.map((person, index) => (
           <ChatSidebarItem
             key={person.id}
             person={person}
@@ -197,6 +200,7 @@ export function ChatSidebar({
             isActive={active?.userId === person.id}
             isUnread={unreadDmUserIds.has(person.id)}
             onSelect={onSelect}
+            index={index}
           />
         ))
       )}

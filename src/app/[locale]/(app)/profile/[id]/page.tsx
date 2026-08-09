@@ -62,7 +62,10 @@ export default async function ProfileDetailPage({
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
       {isSelf && <MarkWarningsSeen />}
-      <div className={cn(GLASS_CARD, 'flex items-center gap-4 p-6')}>
+      <div
+        style={{ animationDelay: '0ms' }}
+        className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
+      >
         <Avatar className="size-16 border border-white/30">
           <AvatarImage src={target.avatar_url ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
@@ -81,24 +84,36 @@ export default async function ProfileDetailPage({
         </div>
       </div>
 
-      <ContactInfoCard profile={target} isSelf={isSelf} />
+      <div className="animate-fade-in-up" style={{ animationDelay: '70ms' }}>
+        <ContactInfoCard profile={target} isSelf={isSelf} />
+      </div>
 
       {canViewCeoScoped && (
-        <SelfDevelopmentSection
-          staffId={id}
-          isAdmin={isAdmin && !isSelf}
-          selectedMonth={month ?? 'all'}
-        />
+        <div className="animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+          <SelfDevelopmentSection
+            staffId={id}
+            isAdmin={isAdmin && !isSelf}
+            selectedMonth={month ?? 'all'}
+          />
+        </div>
       )}
 
-      <WarningsCard staffId={id} canManage={canManageWarnings} />
+      <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
+        <WarningsCard staffId={id} canManage={canManageWarnings} />
+      </div>
 
-      <BonusesPunishmentsCard staffId={id} canManage={canManage} />
+      <div className="animate-fade-in-up" style={{ animationDelay: '280ms' }}>
+        <BonusesPunishmentsCard staffId={id} canManage={canManage} />
+      </div>
 
       {canViewCeoScoped && (
         <>
-          <DutiesCard staffId={id} canManage={canManage} />
-          <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
+          <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+            <DutiesCard staffId={id} canManage={canManage} />
+          </div>
+          <div className="animate-fade-in-up" style={{ animationDelay: '420ms' }}>
+            <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
+          </div>
         </>
       )}
     </div>

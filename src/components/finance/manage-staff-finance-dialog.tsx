@@ -70,7 +70,7 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
             <Textarea id={`note-${staffId}`} name="note" placeholder={t('notePlaceholder')} />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={isPending} size="sm">
+            <Button type="submit" loading={isPending} size="sm">
               {isPending ? tCommon('loading') : t('addEntry')}
             </Button>
           </DialogFooter>

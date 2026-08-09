@@ -29,7 +29,13 @@ export function TempPasswordResult({
       </div>
       <div className="bg-muted flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-sm">
         <span className="flex-1 select-all">{tempPassword}</span>
-        <Button type="button" variant="ghost" size="icon-sm" onClick={handleCopy}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleCopy}
+          aria-label={copied ? t('copied') : t('copy')}
+        >
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
         </Button>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState, useTransition } from 'react';
+import { motion } from 'framer-motion';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Trash2, Check, CheckCheck, Reply, SmilePlus } from 'lucide-react';
@@ -75,7 +76,13 @@ function MessageBubbleComponent({
   }
 
   return (
-    <div className={cn('flex gap-3', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 14, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      className={cn('flex gap-3', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}
+    >
       <Avatar className="size-8 shrink-0">
         <AvatarImage src={sender?.avatar_url ?? undefined} alt="" />
         <AvatarFallback>{initials}</AvatarFallback>
@@ -236,7 +243,7 @@ function MessageBubbleComponent({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

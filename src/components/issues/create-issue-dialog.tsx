@@ -216,7 +216,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={isPending || isUploadingVoice || isRecording}>
+            <Button type="submit" loading={isPending} disabled={isUploadingVoice || isRecording}>
               {isPending ? tCommon('loading') : t('submit')}
             </Button>
           </DialogFooter>

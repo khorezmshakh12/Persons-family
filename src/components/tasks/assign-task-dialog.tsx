@@ -94,7 +94,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" loading={isPending}>
               {isPending ? tCommon('loading') : t('create')}
             </Button>
           </DialogFooter>

@@ -160,7 +160,7 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
               </div>
               {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}
               <DialogFooter>
-                <Button type="submit" disabled={isPending}>
+                <Button type="submit" loading={isPending}>
                   {isPending ? tCommon('loading') : t('create')}
                 </Button>
               </DialogFooter>
