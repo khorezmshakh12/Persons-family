@@ -29,7 +29,7 @@ function KanbanColumnImpl({
       ref={setNodeRef}
       className={cn(
         'flex flex-col gap-3 rounded-2xl p-2 transition-colors',
-        isOver && 'bg-teal-400/10 ring-2 ring-teal-300/40',
+        isOver && 'bg-white/10 ring-2 ring-white/40',
       )}
     >
       <h2 className="text-sm font-medium text-white">

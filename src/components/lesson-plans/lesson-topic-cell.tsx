@@ -39,7 +39,7 @@ export function LessonTopicCell({
       rows={1}
       maxLength={2000}
       placeholder={canEdit ? t('courseLessons.topicPlaceholder') : t('courseLessons.noTopic')}
-      className="min-h-8 w-56 resize-none rounded-lg border-dashed border-white/25 bg-white/5 text-xs font-medium text-white transition-colors placeholder:text-white/40 placeholder:italic focus-visible:border-solid focus-visible:border-teal-300/70 focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70"
+      className="min-h-8 w-56 resize-none rounded-lg border-dashed border-white/25 bg-white/5 text-xs font-medium text-white transition-colors placeholder:text-white/40 placeholder:italic focus-visible:border-solid focus-visible:border-white/70 focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70"
     />
   );
 }

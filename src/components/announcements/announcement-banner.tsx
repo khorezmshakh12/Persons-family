@@ -51,7 +51,7 @@ export function AnnouncementBanner({ initialMessage }: { initialMessage: string 
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -60, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed inset-x-0 top-0 z-100 flex items-center justify-center gap-3 bg-gradient-to-r from-teal-500 to-emerald-500 px-4 py-2.5 text-sm font-medium text-white shadow-lg"
+          className="fixed inset-x-0 top-0 z-100 flex items-center justify-center gap-3 bg-black px-4 py-2.5 text-sm font-medium text-white shadow-lg"
         >
           <span className="truncate">📢 {message}</span>
           <button

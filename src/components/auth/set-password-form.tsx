@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const FIELD_WRAPPER =
-  'flex items-center overflow-hidden rounded-xl border border-white/20 bg-white/10 shadow-sm backdrop-blur-sm transition-colors focus-within:border-teal-300/70 focus-within:ring-2 focus-within:ring-teal-300/20';
+  'flex items-center overflow-hidden rounded-xl border border-white/20 bg-white/10 shadow-sm backdrop-blur-sm transition-colors focus-within:border-white/70 focus-within:ring-2 focus-within:ring-white/20';
 const FIELD_INPUT =
   'h-auto rounded-none border-0 bg-transparent px-3 py-2.5 text-white shadow-none placeholder:text-white/35 focus-visible:ring-0';
 

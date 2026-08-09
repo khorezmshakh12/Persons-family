@@ -81,7 +81,7 @@ export function LessonProcedureTable({
                         disabled={isPending}
                         maxLength={key === 'stage' ? 200 : 50}
                         className={cn(
-                          'w-full rounded-md border border-dashed border-white/20 bg-transparent px-1.5 py-1 text-white outline-none transition-colors focus-visible:border-solid focus-visible:border-teal-300/70 disabled:opacity-70',
+                          'w-full rounded-md border border-dashed border-white/20 bg-transparent px-1.5 py-1 text-white outline-none transition-colors focus-visible:border-solid focus-visible:border-white/70 disabled:opacity-70',
                         )}
                       />
                     ) : (

@@ -90,7 +90,7 @@ export function CommandPalette() {
                 onSelect={() => go('/staff')}
                 className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/90 data-[selected=true]:bg-white/10"
               >
-                <Users className="size-4 shrink-0 text-teal-300" />
+                <Users className="size-4 shrink-0 text-white/70" />
                 {s.name}
               </Command.Item>
             ))}

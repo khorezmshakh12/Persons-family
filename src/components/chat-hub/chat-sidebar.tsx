@@ -61,7 +61,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
         />
       )}
       {isUnread && !isActive && (
-        <span className="size-2 shrink-0 rounded-full bg-teal-400" aria-hidden />
+        <span className="size-2 shrink-0 rounded-full bg-white" aria-hidden />
       )}
     </button>
   );
@@ -92,7 +92,7 @@ function IncomingRequestCard({
   }
 
   return (
-    <div className="animate-pop-in flex flex-col gap-2 rounded-xl border border-teal-300/30 bg-teal-400/10 p-3">
+    <div className="animate-pop-in flex flex-col gap-2 rounded-xl border border-white/30 bg-white/10 p-3">
       <div className="flex items-center gap-2">
         <Avatar className="size-7 shrink-0">
           <AvatarImage src={person.avatar_url ?? undefined} alt="" />

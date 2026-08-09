@@ -88,7 +88,7 @@ export function MissionsList({
                     'tap-scale flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50',
                     mission.is_completed
                       ? 'border-white/20 text-white/60 hover:bg-white/10'
-                      : 'border-teal-300/40 bg-teal-400/15 text-teal-200 hover:bg-teal-400/25',
+                      : 'border-white/40 bg-white/15 text-white hover:bg-white/25',
                   )}
                 >
                   {mission.is_completed ? <Undo2 className="size-3.5" /> : <Check className="size-3.5" />}

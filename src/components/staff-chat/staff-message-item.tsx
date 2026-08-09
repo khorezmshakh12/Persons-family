@@ -64,7 +64,7 @@ function StaffMessageItemComponent({
           <div
             className={cn(
               'rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap',
-              isOwn ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-white' : 'bg-white/10',
+              isOwn ? 'bg-white text-black' : 'bg-white/10',
             )}
           >
             {message.content}

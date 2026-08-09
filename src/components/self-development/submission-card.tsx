@@ -48,7 +48,7 @@ export async function SubmissionCard({
           </span>
         </div>
         {submission.ceo_score !== null && (
-          <span className="shrink-0 rounded-full bg-teal-400/20 px-3 py-1 text-xs font-bold text-teal-100">
+          <span className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
             {submission.ceo_score}/100
           </span>
         )}
@@ -78,7 +78,7 @@ export async function SubmissionCard({
       ) : submission.ceo_rating ? (
         <div className="flex flex-col gap-1 border-t border-white/10 pt-3">
           <span className="text-xs font-semibold text-white/60">{t('ceoRating')}</span>
-          <p className="text-sm whitespace-pre-wrap text-teal-200">{submission.ceo_rating}</p>
+          <p className="text-sm whitespace-pre-wrap text-white/80">{submission.ceo_rating}</p>
         </div>
       ) : (
         <p className="text-xs text-white/40 italic">{t('notRatedYet')}</p>

@@ -17,7 +17,7 @@ import type { TeacherLevel } from '@/lib/teacher-level';
 import type { Database } from '@/lib/supabase/types';
 
 const GLASS_INPUT =
-  'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-gray-300 focus-visible:border-teal-400 focus-visible:ring-0';
+  'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-gray-300 focus-visible:border-white focus-visible:ring-0';
 
 export function ProfileSection({
   userId,
@@ -102,7 +102,7 @@ export function ProfileSection({
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploadingAvatar}
           aria-label={t('changeAvatar')}
-          className="tap-scale group relative size-20 shrink-0 cursor-pointer rounded-full outline-none transition-transform duration-200 ease-bounce hover:scale-105 focus-visible:ring-2 focus-visible:ring-teal-400"
+          className="tap-scale group relative size-20 shrink-0 cursor-pointer rounded-full outline-none transition-transform duration-200 ease-bounce hover:scale-105 focus-visible:ring-2 focus-visible:ring-white"
         >
           <Avatar className="size-20 border border-white/30">
             <AvatarImage src={avatarUrl ?? undefined} alt="" />
@@ -185,7 +185,7 @@ export function ProfileSection({
         <Button
           type="submit"
           disabled={isPending}
-          className="w-fit bg-gradient-to-r from-teal-400 to-emerald-500 text-white hover:opacity-90"
+          className="w-fit"
         >
           {isPending ? t('saving') : t('saveChanges')}
         </Button>

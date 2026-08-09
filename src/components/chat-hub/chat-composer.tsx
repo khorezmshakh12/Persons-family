@@ -211,9 +211,9 @@ export function ChatComposer({
       <input type="hidden" name="receiverId" value={receiverId} />
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
       {replyTarget && (
-        <div className="flex items-center gap-2 rounded-lg border-l-2 border-teal-300 bg-white/10 px-3 py-1.5">
+        <div className="flex items-center gap-2 rounded-lg border-l-2 border-white/50 bg-white/10 px-3 py-1.5">
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-xs font-medium text-teal-200">{replyTarget.senderName}</span>
+            <span className="text-xs font-medium text-white/80">{replyTarget.senderName}</span>
             <span className="truncate text-xs text-white/60">
               {replyTarget.text ?? t(`mediaLabel.${replyTarget.mediaType}`)}
             </span>

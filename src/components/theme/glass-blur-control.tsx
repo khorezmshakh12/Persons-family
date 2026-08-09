@@ -36,7 +36,7 @@ export function GlassBlurControl() {
         value={glassBlur}
         onChange={(e) => setGlassBlur(Number(e.target.value))}
         aria-label={t('blurLabel')}
-        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-teal-400"
+        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
       />
 
       <button

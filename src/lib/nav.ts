@@ -16,6 +16,8 @@ export type NavItem = {
     | 'selfDevelopment'
     | 'finance'
     | 'missions'
+    | 'roadmap'
+    | 'projects'
     | 'profile'
     | 'settings';
   href: string;
@@ -40,6 +42,13 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },
   { key: 'missions', href: '/missions' },
+  // Roadmap (incl. its Monthly Goals section) and Project planning are
+  // CEO/Administrative Manager territory specifically — mirrors these two
+  // tables' RLS (public.is_admin() = role in ('ceo','admin_manager')),
+  // which never included IT Developer even after its rank elevation
+  // elsewhere. See requireCeoOrAdminManager().
+  { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
+  { key: 'projects', href: '/projects', roles: ['ceo', 'admin_manager'] },
   { key: 'profile', href: '/profile' },
   { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo'] },
   { key: 'settings', href: '/settings' },

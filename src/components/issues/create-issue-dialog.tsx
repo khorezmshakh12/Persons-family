@@ -188,7 +188,7 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
             )}
             {previewUrl && !isRecording && (
               <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
-                <Mic className="size-4 shrink-0 text-teal-300" />
+                <Mic className="size-4 shrink-0 text-white/70" />
                 <audio controls preload="metadata" src={previewUrl} className="h-8 min-w-0 flex-1" />
                 <button
                   type="button"

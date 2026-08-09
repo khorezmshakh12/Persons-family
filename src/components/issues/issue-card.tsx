@@ -87,7 +87,7 @@ function IssueCardImpl({
         {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
         {issue.voiceSignedUrl && (
           <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
-            <Mic className="size-4 shrink-0 text-teal-300" />
+            <Mic className="size-4 shrink-0 text-white/70" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-[11px] font-medium text-white/70">{t('voiceNote')}</span>
               <audio controls preload="none" src={issue.voiceSignedUrl} className="h-8 w-full" />

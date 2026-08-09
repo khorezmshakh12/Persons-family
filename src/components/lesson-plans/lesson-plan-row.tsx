@@ -61,7 +61,7 @@ export function LessonPlanRow({
             type="button"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
-            className="tap-scale flex items-center gap-1.5 rounded-full border border-teal-300/40 bg-teal-400/15 px-3 py-1.5 text-[11px] font-medium text-teal-200 transition-colors hover:bg-teal-400/25"
+            className="tap-scale flex items-center gap-1.5 rounded-full border border-white/40 bg-white/15 px-3 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-white/25"
           >
             {t('courseLessons.planButton')}
             <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} />

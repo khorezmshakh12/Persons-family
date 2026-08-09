@@ -59,3 +59,21 @@ export async function requireAdmin() {
   }
   return { user, profile };
 }
+
+/**
+ * Roadmap (roadmap_goals) and the Project section (future_projects) are
+ * CEO/Administrative Manager territory specifically — not the general
+ * requireAdmin() (ceo/it_developer) gate. This mirrors those two tables'
+ * existing RLS, which was already scoped to `public.is_admin()`
+ * (role in ('ceo','admin_manager')) since the original schema — IT
+ * Developer was deliberately never added to it when its rank was elevated
+ * elsewhere, so this keeps the app layer and the DB layer in sync.
+ */
+export async function requireCeoOrAdminManager() {
+  const { user, profile } = await getAuthState();
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) {
+    throw new ForbiddenError('CEO/Administrative Manager access required');
+  }
+  return { user, profile };
+}

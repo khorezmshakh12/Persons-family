@@ -7,10 +7,10 @@ import { cn } from '@/lib/utils';
 function intensityClass(count: number, max: number) {
   if (count === 0) return 'bg-white/5 text-white/40';
   const ratio = count / max;
-  if (ratio > 0.75) return 'bg-teal-400 text-slate-900 font-semibold';
-  if (ratio > 0.5) return 'bg-teal-400/70 text-white font-semibold';
-  if (ratio > 0.25) return 'bg-teal-400/40 text-white';
-  return 'bg-teal-400/20 text-white';
+  if (ratio > 0.75) return 'bg-white text-black font-semibold';
+  if (ratio > 0.5) return 'bg-white/70 text-black font-semibold';
+  if (ratio > 0.25) return 'bg-white/40 text-white';
+  return 'bg-white/20 text-white';
 }
 
 export async function ActivityHeatmap({

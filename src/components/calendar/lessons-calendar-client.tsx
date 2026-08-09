@@ -64,13 +64,13 @@ export function LessonsCalendarClient({
               onClick={() => setSelectedDay(day)}
               className={cn(
                 'tap-scale flex min-h-16 flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ease-bounce hover:scale-[1.04]',
-                isSelected ? 'border-teal-300/70 bg-teal-400/15' : 'border-white/10 bg-white/5 hover:bg-white/10',
-                day === today && !isSelected && 'ring-2 ring-teal-300/40',
+                isSelected ? 'border-white/70 bg-white/15' : 'border-white/10 bg-white/5 hover:bg-white/10',
+                day === today && !isSelected && 'ring-2 ring-white/40',
               )}
             >
               <span className="text-xs font-medium text-white/70">{day}</span>
               {events.length > 0 && (
-                <span className="rounded-full bg-teal-400/25 px-1.5 py-0.5 text-[10px] font-semibold text-teal-100">
+                <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                   {events.length}
                 </span>
               )}

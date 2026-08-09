@@ -56,7 +56,7 @@ export function CeoEvaluationPanel({
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-white/60">{t('ceoScore')}</span>
-          <span className="font-semibold tabular-nums text-teal-200">{score}/100</span>
+          <span className="font-semibold tabular-nums text-white">{score}/100</span>
         </div>
         <input
           type="range"
@@ -66,7 +66,7 @@ export function CeoEvaluationPanel({
           value={score}
           onChange={(e) => setScore(Number(e.target.value))}
           aria-label={t('ceoScore')}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-teal-400"
+          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
         />
       </div>
 

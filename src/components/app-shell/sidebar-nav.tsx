@@ -17,6 +17,8 @@ import {
   User,
   Wallet,
   Target,
+  Milestone,
+  FolderKanban,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -36,6 +38,8 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   selfDevelopment: TrendingUp,
   finance: Wallet,
   missions: Target,
+  roadmap: Milestone,
+  projects: FolderKanban,
   profile: User,
   settings: Settings,
 };
@@ -88,7 +92,7 @@ export function SidebarNav({
                   ? 'font-semibold text-white'
                   : 'font-medium text-white/70 hover:bg-white/10'
                 : active
-                  ? 'font-semibold text-teal-600 dark:text-teal-400'
+                  ? 'font-semibold text-foreground'
                   : 'text-muted-foreground hover:bg-muted font-medium',
             )}
           >
@@ -99,8 +103,8 @@ export function SidebarNav({
                 className={cn(
                   'absolute inset-0 rounded-md',
                   glass
-                    ? 'border border-teal-300/30 bg-teal-400/20'
-                    : 'bg-teal-50 dark:bg-teal-500/15',
+                    ? 'border border-white/30 bg-white/20'
+                    : 'bg-muted',
                 )}
               />
             )}

@@ -258,7 +258,7 @@ export default async function SelfDevelopmentPage({
 
       {performance && (
         <div className={cn(GLASS_CARD, 'flex flex-wrap items-center gap-3 p-6')}>
-          <Badge variant="tint" tint="teal" className="px-4 py-1.5 text-sm font-bold">
+          <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-bold">
             {tp('tier')}: {tp(`tierLabels.${performance.current_tier}`)}
           </Badge>
           <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-medium">

@@ -110,7 +110,7 @@ function MessageBubbleComponent({
             className={cn(
               'flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
               isOwn
-                ? 'bg-gradient-to-r from-teal-400 to-emerald-500 text-white'
+                ? 'bg-white text-black'
                 : 'bg-white/10 text-white',
             )}
           >
@@ -118,10 +118,10 @@ function MessageBubbleComponent({
               <div
                 className={cn(
                   'flex flex-col gap-0.5 rounded-lg border-l-2 px-2 py-1 text-xs',
-                  isOwn ? 'border-white/50 bg-black/10' : 'border-teal-300 bg-black/20',
+                  isOwn ? 'border-white/50 bg-black/10' : 'border-white/40 bg-black/20',
                 )}
               >
-                <span className={cn('font-medium', isOwn ? 'text-white/90' : 'text-teal-200')}>
+                <span className={cn('font-medium', isOwn ? 'text-white/90' : 'text-white/70')}>
                   {repliedQuote.senderName}
                 </span>
                 <span className={cn('truncate', isOwn ? 'text-white/70' : 'text-white/60')}>
@@ -231,7 +231,7 @@ function MessageBubbleComponent({
                   className={cn(
                     'tap-scale flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors',
                     reactedByMe
-                      ? 'border-teal-300 bg-teal-400/20 text-teal-100'
+                      ? 'border-white/60 bg-white/20 text-white'
                       : 'border-white/20 bg-white/10 text-white/70 hover:bg-white/20',
                   )}
                 >

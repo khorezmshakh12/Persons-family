@@ -25,7 +25,7 @@ export function AuthCard({
       <div className="flex flex-col items-center gap-1 text-center">
         <Image src="/logo.png" alt="Persons" width={56} height={56} priority className="drop-shadow-sm" />
         {tagline && (
-          <p className="mt-3 text-sm font-semibold tracking-wide text-teal-300">{tagline}</p>
+          <p className="mt-3 text-sm font-semibold tracking-wide text-white/80">{tagline}</p>
         )}
         <h1 className="font-heading mt-2 text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {title}

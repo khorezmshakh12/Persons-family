@@ -35,7 +35,6 @@ const badgeVariants = cva(
         orange: "border-orange-500/30 bg-orange-500/20 text-orange-50",
         amber: "border-amber-500/30 bg-amber-500/20 text-amber-100",
         red: "border-red-500/30 bg-red-500/20 text-red-50",
-        teal: "border-teal-300/30 bg-teal-400/15 text-white",
         slate: "border-white/20 bg-white/10 text-white/80",
       },
     },

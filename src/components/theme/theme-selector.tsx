@@ -24,7 +24,7 @@ export function ThemeSelector() {
             }}
             className={cn(
               'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-slate-900 transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
-              active ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
+              active ? 'border-white ring-2 ring-white/50' : 'border-white/20',
             )}
             aria-pressed={active}
           >
@@ -41,7 +41,7 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="animate-pop-in absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+              <span className="animate-pop-in absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-white text-black">
                 <Check className="size-3" />
               </span>
             )}
@@ -58,7 +58,7 @@ export function ThemeSelector() {
             onClick={() => setThemeMode('photo')}
             className={cn(
               'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-cover bg-center transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
-              active ? 'border-teal-400 ring-2 ring-teal-400/50' : 'border-white/20',
+              active ? 'border-white ring-2 ring-white/50' : 'border-white/20',
             )}
             style={{ backgroundImage: `url(${theme.url})` }}
             aria-pressed={active}
@@ -67,7 +67,7 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-teal-400 text-white">
+              <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-white text-black">
                 <Check className="size-3" />
               </span>
             )}
