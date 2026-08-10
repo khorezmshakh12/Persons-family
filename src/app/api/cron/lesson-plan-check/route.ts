@@ -128,49 +128,71 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
 
   const lessonByGroup = new Map((lessons ?? []).map((l) => [l.group_id, l]));
 
-  type Gap = { groupName: string; reason: 'missing' | 'incomplete' };
-  const byTeacher = new Map<string, { teacherName: string; gaps: Gap[] }>();
+  type GroupStatus = { groupName: string; status: 'complete' | 'missing' | 'incomplete' };
+  const byTeacher = new Map<string, { teacherName: string; groups: GroupStatus[] }>();
 
   for (const group of groups) {
     const lesson = lessonByGroup.get(group.id);
-    if (lesson && isLessonPlanComplete(lesson)) continue;
+    const status: GroupStatus['status'] =
+      lesson && isLessonPlanComplete(lesson) ? 'complete' : lesson ? 'incomplete' : 'missing';
 
     const teacherName = group.teacher ? `${group.teacher.first_name} ${group.teacher.last_name}` : "Noma'lum";
-    const entry = byTeacher.get(group.teacher_id) ?? { teacherName, gaps: [] };
-    entry.gaps.push({ groupName: group.name, reason: lesson ? 'incomplete' : 'missing' });
+    const entry = byTeacher.get(group.teacher_id) ?? { teacherName, groups: [] };
+    entry.groups.push({ groupName: group.name, status });
     byTeacher.set(group.teacher_id, entry);
-  }
-
-  if (byTeacher.size === 0) {
-    // A confirmation, not silence, so "nothing happened" is distinguishable
-    // from "the cron never ran" — matches every other automated report in
-    // this app always producing a visible signal.
-    await sendTelegramMessageToMany(
-      recipientChatIds,
-      `✅ <b>${escapeTelegramText(dateKey)}</b> — barcha ustozlar kunlik lesson planlarini to'liq yozishgan.`,
-    );
-    return { checkedGroups: groups.length, incompleteTeachers: 0 };
   }
 
   // Two renderings of the same data: `summary` is plain text for the
   // in-app bell (React escapes it as text, so it must not contain markup),
-  // `telegramText` adds Telegram's HTML formatting on top.
-  const plainLines: string[] = [];
-  const telegramLines = [`📋 Kunlik lesson plan hisoboti — ${dateKey}`, ''];
-  for (const { teacherName, gaps } of byTeacher.values()) {
-    const gapText = gaps
-      .map((g) => `${g.groupName} (${g.reason === 'missing' ? 'yozilmagan' : "to'liq emas"})`)
-      .join(', ');
-    plainLines.push(`${teacherName}: ${gapText}`);
-    telegramLines.push(`❗ <b>${escapeTelegramText(teacherName)}</b>: ${escapeTelegramText(gapText)}`);
+  // `telegramText` adds Telegram's HTML formatting on top. The bell alert
+  // stays gap-only by design (see lesson_plan_compliance_alerts' migration
+  // comment: a fully-compliant day inserts nothing so the CEO's bell only
+  // lights up when there's something to review) — but the group's Telegram
+  // report lists every teacher, completed groups included, so "who did
+  // their lesson plans today" is visible there too, not just who didn't.
+  const gapPlainLines: string[] = [];
+  const completedLines: string[] = [];
+  const gapLines: string[] = [];
+  let incompleteTeachers = 0;
+
+  for (const { teacherName, groups: groupStatuses } of byTeacher.values()) {
+    const completed = groupStatuses.filter((g) => g.status === 'complete');
+    const gaps = groupStatuses.filter((g) => g.status !== 'complete');
+
+    if (completed.length > 0) {
+      const doneText = completed.map((g) => g.groupName).join(', ');
+      completedLines.push(`✅ <b>${escapeTelegramText(teacherName)}</b>: ${escapeTelegramText(doneText)}`);
+    }
+
+    if (gaps.length > 0) {
+      incompleteTeachers += 1;
+      const gapText = gaps
+        .map((g) => `${g.groupName} (${g.status === 'missing' ? 'yozilmagan' : "to'liq emas"})`)
+        .join(', ');
+      gapPlainLines.push(`${teacherName}: ${gapText}`);
+      gapLines.push(`❗ <b>${escapeTelegramText(teacherName)}</b>: ${escapeTelegramText(gapText)}`);
+    }
   }
-  const summary = plainLines.join('\n');
+
+  const telegramLines = [`📋 Kunlik lesson plan hisoboti — ${dateKey}`, ''];
+  if (completedLines.length > 0) telegramLines.push(...completedLines);
+  if (gapLines.length > 0) {
+    if (completedLines.length > 0) telegramLines.push('');
+    telegramLines.push(...gapLines);
+  }
+  if (incompleteTeachers === 0) {
+    telegramLines.push('', "✅ Barcha ustozlar kunlik lesson planlarini to'liq yozishgan.");
+  }
   const telegramText = telegramLines.join('\n');
 
   await sendTelegramMessageToMany(recipientChatIds, telegramText);
-  await admin.from('lesson_plan_compliance_alerts').insert({ report_date: dateKey, summary });
 
-  return { checkedGroups: groups.length, incompleteTeachers: byTeacher.size };
+  if (incompleteTeachers > 0) {
+    const summary = gapPlainLines.join('\n');
+    await admin.from('lesson_plan_compliance_alerts').insert({ report_date: dateKey, summary });
+  }
+
+  return { checkedGroups: groups.length, incompleteTeachers };
 }
 
 // materials and procedure are intentionally not required here — teachers
