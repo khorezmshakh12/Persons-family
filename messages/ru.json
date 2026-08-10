@@ -31,7 +31,6 @@
     "finance": "Финансы",
     "missions": "Миссии",
     "roadmap": "Дорожная карта",
-    "projects": "Проекты",
     "settings": "Настройки",
     "profile": "Мой профиль"
   },
@@ -941,28 +940,6 @@
     "failureReasonPlaceholder": "Необязательные заметки о том, что пошло не так",
     "save": "Сохранить",
     "confirmDeleteTitle": "Удалить эту цель?",
-    "confirmDeleteDescription": "Это навсегда удалит «{title}».",
-    "confirm": "Удалить",
-    "errors": {
-      "forbidden": "У вас нет прав для этого действия.",
-      "sessionExpired": "Сессия истекла — обновите страницу и войдите снова.",
-      "invalidInput": "Проверьте введённые значения.",
-      "updateFailed": "Не удалось сохранить. Попробуйте снова."
-    }
-  },
-  "projects": {
-    "title": "Проекты",
-    "subtitle": "Будущие проекты на рассмотрении — видно только CEO и Административному менеджеру.",
-    "noProjects": "Пока нет проектов.",
-    "addProject": "Добавить проект",
-    "projectTitle": "Название",
-    "projectTitlePlaceholder": "напр. Мобильное приложение для родителей",
-    "initialSteps": "Первые шаги",
-    "initialStepsPlaceholder": "По одному шагу на строку",
-    "estimatedBudget": "Оценочный бюджет",
-    "projectAdded": "Проект добавлен.",
-    "deleteProject": "Удалить проект",
-    "confirmDeleteTitle": "Удалить этот проект?",
     "confirmDeleteDescription": "Это навсегда удалит «{title}».",
     "confirm": "Удалить",
     "errors": {

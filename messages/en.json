@@ -31,7 +31,6 @@
     "finance": "Finance",
     "missions": "Missions",
     "roadmap": "Roadmap",
-    "projects": "Projects",
     "settings": "Settings",
     "profile": "My Profile"
   },
@@ -941,28 +940,6 @@
     "failureReasonPlaceholder": "Optional notes on what went wrong",
     "save": "Save",
     "confirmDeleteTitle": "Delete this goal?",
-    "confirmDeleteDescription": "This will permanently delete \"{title}\".",
-    "confirm": "Delete",
-    "errors": {
-      "forbidden": "You don't have permission to do this.",
-      "sessionExpired": "Your session expired — please refresh the page and log in again.",
-      "invalidInput": "Please check the values you entered.",
-      "updateFailed": "Could not save. Please try again."
-    }
-  },
-  "projects": {
-    "title": "Projects",
-    "subtitle": "Future projects under consideration, visible only to CEO and Administrative Manager.",
-    "noProjects": "No projects yet.",
-    "addProject": "Add Project",
-    "projectTitle": "Title",
-    "projectTitlePlaceholder": "e.g. Mobile app for parents",
-    "initialSteps": "Initial steps",
-    "initialStepsPlaceholder": "One step per line",
-    "estimatedBudget": "Estimated budget",
-    "projectAdded": "Project added.",
-    "deleteProject": "Delete project",
-    "confirmDeleteTitle": "Delete this project?",
     "confirmDeleteDescription": "This will permanently delete \"{title}\".",
     "confirm": "Delete",
     "errors": {

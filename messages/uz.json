@@ -31,7 +31,6 @@
     "finance": "Finance",
     "missions": "Missions",
     "roadmap": "Yo'l xaritasi",
-    "projects": "Loyihalar",
     "settings": "Sozlamalar",
     "profile": "Mening profilim"
   },
@@ -941,28 +940,6 @@
     "failureReasonPlaceholder": "Ixtiyoriy izohlar — nima noto'g'ri ketdi",
     "save": "Saqlash",
     "confirmDeleteTitle": "Bu maqsad o'chirilsinmi?",
-    "confirmDeleteDescription": "\"{title}\" butunlay o'chiriladi.",
-    "confirm": "O'chirish",
-    "errors": {
-      "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
-      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
-      "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
-      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
-    }
-  },
-  "projects": {
-    "title": "Loyihalar",
-    "subtitle": "Ko'rib chiqilayotgan kelajakdagi loyihalar — faqat CEO va Administrative Manager uchun ko'rinadi.",
-    "noProjects": "Hozircha loyihalar yo'q.",
-    "addProject": "Loyiha qo'shish",
-    "projectTitle": "Sarlavha",
-    "projectTitlePlaceholder": "masalan: Ota-onalar uchun mobil ilova",
-    "initialSteps": "Dastlabki qadamlar",
-    "initialStepsPlaceholder": "Har bir qatorga bitta qadam",
-    "estimatedBudget": "Taxminiy byudjet",
-    "projectAdded": "Loyiha qo'shildi.",
-    "deleteProject": "Loyihani o'chirish",
-    "confirmDeleteTitle": "Bu loyiha o'chirilsinmi?",
     "confirmDeleteDescription": "\"{title}\" butunlay o'chiriladi.",
     "confirm": "O'chirish",
     "errors": {
