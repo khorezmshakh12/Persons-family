@@ -608,6 +608,57 @@ export type Database = {
           },
         ]
       }
+      income_roadmap_steps: {
+        Row: {
+          achieved_at: string | null
+          benefit_description: string
+          created_at: string
+          created_by: string | null
+          id: string
+          plan_id: string
+          status: string
+          target_amount: number
+          target_month: string
+        }
+        Insert: {
+          achieved_at?: string | null
+          benefit_description: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan_id: string
+          status?: string
+          target_amount: number
+          target_month: string
+        }
+        Update: {
+          achieved_at?: string | null
+          benefit_description?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan_id?: string
+          status?: string
+          target_amount?: number
+          target_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "income_roadmap_steps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "income_roadmap_steps_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "staff_income_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           assigned_to: string | null
@@ -666,6 +717,93 @@ export type Database = {
           {
             foreignKeyName: "issues_resolved_by_fkey"
             columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_entries: {
+        Row: {
+          actual_value: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          metric_id: string
+          month: string
+          target_value: number
+        }
+        Insert: {
+          actual_value?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metric_id: string
+          month: string
+          target_value: number
+        }
+        Update: {
+          actual_value?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metric_id?: string
+          month?: string
+          target_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_entries_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_metrics: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          staff_id: string
+          weight_percentage: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          staff_id: string
+          weight_percentage: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          staff_id?: string
+          weight_percentage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_metrics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_metrics_staff_id_fkey"
+            columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1334,6 +1472,51 @@ export type Database = {
           },
           {
             foreignKeyName: "staff_duties_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_income_plans: {
+        Row: {
+          base_monthly_income: number
+          created_at: string
+          created_by: string | null
+          id: string
+          staff_id: string
+          target_year_end_income: number
+          year: number
+        }
+        Insert: {
+          base_monthly_income: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          staff_id: string
+          target_year_end_income: number
+          year: number
+        }
+        Update: {
+          base_monthly_income?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          staff_id?: string
+          target_year_end_income?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_income_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_income_plans_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "profiles"

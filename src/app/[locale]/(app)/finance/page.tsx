@@ -1,11 +1,11 @@
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { GLASS_CARD } from '@/lib/glass';
+import { redirect, Link } from '@/i18n/navigation';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
-import { ManageStaffFinanceDialog } from '@/components/finance/manage-staff-finance-dialog';
-import { FinanceEntriesList, type FinanceEntry } from '@/components/finance/finance-entries-list';
+import type { FinanceEntry } from '@/components/finance/finance-entries-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,28 +50,25 @@ export default async function FinancePage() {
             const personEntries = entriesByStaffId.get(person.id) ?? [];
             const net = netTotal(personEntries);
             return (
-              <div
+              <Link
                 key={person.id}
+                href={`/finance/${person.id}`}
                 style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
-                className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
+                className={cn(GLASS_CARD, GLASS_INTERACTIVE, 'animate-fade-in-up flex items-center justify-between gap-3 p-6')}
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-semibold text-white">
-                    {person.first_name} {person.last_name}
-                  </span>
-                  <span
-                    className={cn(
-                      'text-lg font-bold tabular-nums',
-                      net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70',
-                    )}
-                  >
-                    {net >= 0 ? '+' : ''}
-                    {formatUZS(net)}
-                  </span>
-                </div>
-                <ManageStaffFinanceDialog staffId={person.id} />
-                <FinanceEntriesList entries={personEntries} isAdmin />
-              </div>
+                <span className="font-semibold text-white">
+                  {person.first_name} {person.last_name}
+                </span>
+                <span
+                  className={cn(
+                    'text-lg font-bold tabular-nums',
+                    net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70',
+                  )}
+                >
+                  {net >= 0 ? '+' : ''}
+                  {formatUZS(net)}
+                </span>
+              </Link>
             );
           })}
         </div>
@@ -79,37 +76,8 @@ export default async function FinancePage() {
     );
   }
 
-  const { data: entries } = await supabase
-    .from('finance_entries')
-    .select('*')
-    .eq('staff_id', user!.id)
-    .order('created_at', { ascending: false });
-
-  const net = netTotal(entries ?? []);
-
-  return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-          {t('title')}
-        </h1>
-        <p className="text-white/70">{t('subtitle')}</p>
-      </div>
-
-      <div className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-6')}>
-        <span className="text-sm text-white/60">{t('netTotal')}</span>
-        <span className={cn('text-2xl font-bold tabular-nums', net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
-          {net >= 0 ? '+' : ''}
-          {formatUZS(net)}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {t('history')}
-        </h2>
-        <FinanceEntriesList entries={(entries ?? []) as FinanceEntry[]} isAdmin={false} />
-      </div>
-    </div>
-  );
+  // Non-admin: their own ledger + KPI + Income Roadmap all live together on
+  // the per-staff detail page now, so this list page just forwards them.
+  const locale = await getLocale();
+  redirect({ href: `/finance/${user!.id}`, locale });
 }
