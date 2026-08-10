@@ -707,6 +707,7 @@
     "saving": "Saqlanmoqda...",
     "evaluationSaved": "Baholash saqlandi.",
     "teacherLevel": "Daraja",
+    "bonusAmount": "Bonus summasi (ixtiyoriy)",
     "progressChart": {
       "title": "Sizning Rivojlanishingiz",
       "noData": "Hali baholangan topshiriqlar yo'q — CEO birinchi bahoni qo'ygandan so'ng diagramma paydo bo'ladi."
@@ -862,11 +863,44 @@
     "missionTitlePlaceholder": "masalan: Onboarding ro'yxatini yakunlash",
     "description": "Tavsif",
     "descriptionPlaceholder": "Ixtiyoriy tafsilotlar",
-    "markComplete": "Bajarildi deb belgilash",
-    "markIncomplete": "Bajarilmagan deb belgilash",
-    "completed": "Bajarildi",
-    "active": "Faol",
+    "deadline": "Muddat",
+    "bonusAmount": "Bonus summasi (ixtiyoriy)",
+    "shortTerm": "Qisqa muddatli",
+    "longTerm": "Uzoq muddatli",
+    "noShortTerm": "Qisqa muddatli missiyalar yo'q.",
+    "noLongTerm": "Uzoq muddatli missiyalar yo'q.",
+    "start": "Boshlash",
+    "submit": "Topshirish",
+    "submissionNote": "Izoh",
+    "submissionNotePlaceholder": "Nima qilinganini yozing...",
+    "approve": "Tasdiqlash",
+    "reject": "Rad etish",
+    "rejectionNote": "Rad etish sababi",
+    "overdue": "Muddati o'tgan",
+    "countdownDaysHours": "{days} kun {hours} soat qoldi",
+    "countdownHours": "{hours} soat qoldi",
+    "statusLabels": {
+      "pending": "Kutilmoqda",
+      "in_progress": "Boshlandi",
+      "submitted": "Topshirildi",
+      "approved": "Tasdiqlandi",
+      "rejected": "Rad etildi"
+    },
     "delete": "Missiyani o'chirish",
+    "errors": {
+      "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
+      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
+      "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+    }
+  },
+  "salary": {
+    "title": "Salary",
+    "salaryLedger": "Maosh",
+    "missions": "Missiyalar",
+    "total": "Jami (Total)",
+    "totalCommentPlaceholder": "Izoh qo'shish...",
+    "commentSaved": "Izoh saqlandi.",
     "errors": {
       "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",

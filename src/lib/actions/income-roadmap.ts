@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -28,7 +28,7 @@ export async function upsertIncomePlanAction(
   formData: FormData,
 ): Promise<IncomeRoadmapActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -79,7 +79,7 @@ export async function addIncomeStepAction(
   try {
     ({
       user: { id: adminId },
-    } = await requireAdmin());
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -114,7 +114,7 @@ export async function markStepAchievedAction(
   formData: FormData,
 ): Promise<IncomeRoadmapActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -140,7 +140,7 @@ export async function deleteIncomeStepAction(
   formData: FormData,
 ): Promise<IncomeRoadmapActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }

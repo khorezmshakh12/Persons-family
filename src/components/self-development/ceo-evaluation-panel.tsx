@@ -8,6 +8,8 @@ import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { CurrencyInput } from '@/components/staff/currency-input';
 
 export function CeoEvaluationPanel({
   submissionId,
@@ -17,12 +19,19 @@ export function CeoEvaluationPanel({
   /** null for a non-teacher submission — the level Select only makes sense
    * for a teacher's career ladder, so it's simply omitted from the form. */
   currentLevel,
+  /** The cash bonus field only makes sense — and is only writable — for
+   * the CEO specifically, not IT Developer even though it shares the rest
+   * of this panel. */
+  isCeo,
+  currentBonusAmount,
 }: {
   submissionId: string;
   userId: string;
   currentRating: string | null;
   currentScore: number | null;
   currentLevel: TeacherLevel | null;
+  isCeo: boolean;
+  currentBonusAmount: number | null;
 }) {
   const t = useTranslations('selfDevelopment');
   const [score, setScore] = useState(currentScore ?? 50);
@@ -69,6 +78,13 @@ export function CeoEvaluationPanel({
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
         />
       </div>
+
+      {isCeo && (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={`bonus-${submissionId}`}>{t('bonusAmount')}</Label>
+          <CurrencyInput id={`bonus-${submissionId}`} name="bonusAmount" defaultValue={currentBonusAmount ?? 0} />
+        </div>
+      )}
 
       {currentLevel !== null && (
         <div className="flex flex-col gap-1">

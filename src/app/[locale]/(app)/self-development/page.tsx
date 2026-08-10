@@ -31,12 +31,13 @@ export default async function SelfDevelopmentPage({
   const { teacher } = await searchParams;
   const { user, profile } = await getAuthState();
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const isCeo = profile!.role === 'ceo';
   const supabase = await createClient();
 
   let query = supabase
     .from('self_development')
     .select(
-      'id, month, achievements, value_added, ceo_rating, ceo_score, user_id, author:profiles!self_development_user_id_fkey(first_name, last_name, role, teacher_level)',
+      'id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount, user_id, author:profiles!self_development_user_id_fkey(first_name, last_name, role, teacher_level)',
     )
     .order('month', { ascending: false });
 
@@ -142,6 +143,7 @@ export default async function SelfDevelopmentPage({
                   key={s.id}
                   submission={s as unknown as Submission}
                   isAdmin
+                  isCeo={isCeo}
                   delayMs={Math.min(index, 10) * 60}
                 />
               ))}
@@ -162,6 +164,7 @@ export default async function SelfDevelopmentPage({
                   key={s.id}
                   submission={s as unknown as Submission}
                   isAdmin
+                  isCeo={isCeo}
                   delayMs={Math.min(index, 10) * 60}
                 />
               ))}

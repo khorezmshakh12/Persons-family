@@ -1,10 +1,9 @@
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { GLASS_CARD } from '@/lib/glass';
+import { redirect, Link } from '@/i18n/navigation';
+import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
-import { AssignMissionDialog } from '@/components/missions/assign-mission-dialog';
-import { MissionsList, type MissionItem } from '@/components/missions/missions-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,14 +20,13 @@ export default async function MissionsPage() {
         .select('id, first_name, last_name, role')
         .eq('is_active', true)
         .order('first_name', { ascending: true }),
-      supabase.from('missions').select('*').order('created_at', { ascending: false }),
+      supabase.from('missions').select('staff_id, status'),
     ]);
 
-    const missionsByStaffId = new Map<string, MissionItem[]>();
+    const activeCountByStaffId = new Map<string, number>();
     for (const m of missions ?? []) {
-      const list = missionsByStaffId.get(m.staff_id) ?? [];
-      list.push(m);
-      missionsByStaffId.set(m.staff_id, list);
+      if (m.status === 'approved' || m.status === 'rejected') continue;
+      activeCountByStaffId.set(m.staff_id, (activeCountByStaffId.get(m.staff_id) ?? 0) + 1);
     }
 
     return (
@@ -41,47 +39,26 @@ export default async function MissionsPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {(staff ?? []).map((person, index) => {
-            const personMissions = missionsByStaffId.get(person.id) ?? [];
-            const activeCount = personMissions.filter((m) => !m.is_completed).length;
-            return (
-              <div
-                key={person.id}
-                style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
-                className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-semibold text-white">
-                    {person.first_name} {person.last_name}
-                  </span>
-                  <span className="text-sm text-white/60">{t('activeCount', { count: activeCount })}</span>
-                </div>
-                <AssignMissionDialog staffId={person.id} />
-                <MissionsList missions={personMissions} currentUserId={user!.id} isAdmin />
-              </div>
-            );
-          })}
+          {(staff ?? []).map((person, index) => (
+            <Link
+              key={person.id}
+              href={`/missions/${person.id}`}
+              style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
+              className={cn(GLASS_CARD, GLASS_INTERACTIVE, 'animate-fade-in-up flex items-center justify-between gap-3 p-6')}
+            >
+              <span className="font-semibold text-white">
+                {person.first_name} {person.last_name}
+              </span>
+              <span className="text-sm text-white/60">
+                {t('activeCount', { count: activeCountByStaffId.get(person.id) ?? 0 })}
+              </span>
+            </Link>
+          ))}
         </div>
       </div>
     );
   }
 
-  const { data: missions } = await supabase
-    .from('missions')
-    .select('*')
-    .eq('staff_id', user!.id)
-    .order('created_at', { ascending: false });
-
-  return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-          {t('title')}
-        </h1>
-        <p className="text-white/70">{t('subtitle')}</p>
-      </div>
-
-      <MissionsList missions={(missions ?? []) as MissionItem[]} currentUserId={user!.id} isAdmin={false} />
-    </div>
-  );
+  const locale = await getLocale();
+  redirect({ href: `/missions/${user!.id}`, locale });
 }

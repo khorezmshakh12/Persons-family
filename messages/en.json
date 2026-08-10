@@ -707,6 +707,7 @@
     "saving": "Saving...",
     "evaluationSaved": "Evaluation saved.",
     "teacherLevel": "Level",
+    "bonusAmount": "Bonus amount (optional)",
     "progressChart": {
       "title": "Your Progress",
       "noData": "No scored submissions yet — your chart will appear once the CEO reviews one."
@@ -862,11 +863,44 @@
     "missionTitlePlaceholder": "e.g. Complete onboarding checklist",
     "description": "Description",
     "descriptionPlaceholder": "Optional details",
-    "markComplete": "Mark complete",
-    "markIncomplete": "Mark incomplete",
-    "completed": "Completed",
-    "active": "Active",
+    "deadline": "Deadline",
+    "bonusAmount": "Bonus amount (optional)",
+    "shortTerm": "Short Term",
+    "longTerm": "Long Term",
+    "noShortTerm": "No short term missions.",
+    "noLongTerm": "No long term missions.",
+    "start": "Start",
+    "submit": "Submit",
+    "submissionNote": "Note",
+    "submissionNotePlaceholder": "Describe what was done...",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectionNote": "Rejection reason",
+    "overdue": "Overdue",
+    "countdownDaysHours": "{days}d {hours}h left",
+    "countdownHours": "{hours}h left",
+    "statusLabels": {
+      "pending": "Pending",
+      "in_progress": "In Progress",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
     "delete": "Delete mission",
+    "errors": {
+      "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
+      "invalidInput": "Please check the values you entered.",
+      "updateFailed": "Could not save. Please try again."
+    }
+  },
+  "salary": {
+    "title": "Salary",
+    "salaryLedger": "Salary",
+    "missions": "Missions",
+    "total": "Total",
+    "totalCommentPlaceholder": "Add a comment...",
+    "commentSaved": "Comment saved.",
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",

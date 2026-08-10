@@ -8,18 +8,21 @@ import { MonthPicker } from './month-picker';
 export async function SelfDevelopmentSection({
   staffId,
   isAdmin,
+  isCeo = false,
   selectedMonth,
 }: {
   staffId: string;
   /** CEO viewing someone else — reuses SubmissionCard's own rating panel. */
   isAdmin: boolean;
+  /** Gates the cash-bonus field specifically — narrower than isAdmin. */
+  isCeo?: boolean;
   selectedMonth: string;
 }) {
   const t = await getTranslations('profile.selfDevelopment');
   const supabase = await createClient();
   const { data: submissions } = await supabase
     .from('self_development')
-    .select('id, month, achievements, value_added, ceo_rating, ceo_score, user_id')
+    .select('id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount, user_id')
     .eq('user_id', staffId)
     .order('month', { ascending: false });
 
@@ -45,6 +48,7 @@ export async function SelfDevelopmentSection({
               key={s.id}
               submission={{ ...s, author: null } as Submission}
               isAdmin={isAdmin}
+              isCeo={isCeo}
             />
           ))}
         </div>

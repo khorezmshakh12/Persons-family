@@ -1002,33 +1002,51 @@ export type Database = {
       }
       missions: {
         Row: {
-          completed_at: string | null
+          approved_at: string | null
+          bonus_amount: number | null
           created_at: string
           created_by: string | null
+          deadline_date: string
           description: string | null
           id: string
-          is_completed: boolean
+          rejection_note: string | null
           staff_id: string
+          started_at: string | null
+          status: string
+          submission_note: string | null
+          submitted_at: string | null
           title: string
         }
         Insert: {
-          completed_at?: string | null
+          approved_at?: string | null
+          bonus_amount?: number | null
           created_at?: string
           created_by?: string | null
+          deadline_date: string
           description?: string | null
           id?: string
-          is_completed?: boolean
+          rejection_note?: string | null
           staff_id: string
+          started_at?: string | null
+          status?: string
+          submission_note?: string | null
+          submitted_at?: string | null
           title: string
         }
         Update: {
-          completed_at?: string | null
+          approved_at?: string | null
+          bonus_amount?: number | null
           created_at?: string
           created_by?: string | null
+          deadline_date?: string
           description?: string | null
           id?: string
-          is_completed?: boolean
+          rejection_note?: string | null
           staff_id?: string
+          started_at?: string | null
+          status?: string
+          submission_note?: string | null
+          submitted_at?: string | null
           title?: string
         }
         Relationships: [
@@ -1242,6 +1260,7 @@ export type Database = {
       self_development: {
         Row: {
           achievements: string | null
+          bonus_amount: number | null
           ceo_rating: string | null
           ceo_score: number | null
           created_at: string
@@ -1252,6 +1271,7 @@ export type Database = {
         }
         Insert: {
           achievements?: string | null
+          bonus_amount?: number | null
           ceo_rating?: string | null
           ceo_score?: number | null
           created_at?: string
@@ -1262,6 +1282,7 @@ export type Database = {
         }
         Update: {
           achievements?: string | null
+          bonus_amount?: number | null
           ceo_rating?: string | null
           ceo_score?: number | null
           created_at?: string
@@ -1571,6 +1592,42 @@ export type Database = {
           },
           {
             foreignKeyName: "staff_performance_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_salary_notes: {
+        Row: {
+          comment: string
+          staff_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          comment: string
+          staff_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          comment?: string
+          staff_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_salary_notes_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_salary_notes_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"

@@ -5,11 +5,9 @@ import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
-import { formatUZS } from '@/lib/format-currency';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ManageStaffFinanceDialog } from '@/components/finance/manage-staff-finance-dialog';
-import { FinanceEntriesList, type FinanceEntry } from '@/components/finance/finance-entries-list';
-import { KpiSection } from '@/components/kpi/kpi-section';
+import { type FinanceEntry } from '@/components/finance/finance-entries-list';
+import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
 
 export const dynamic = 'force-dynamic';
@@ -20,13 +18,13 @@ function netTotal(entries: { amount: number }[]) {
 
 export default async function StaffFinancePage({ params }: { params: Promise<{ staffId: string }> }) {
   const { staffId } = await params;
-  const t = await getTranslations('finance');
   const tStaff = await getTranslations('staff');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
 
   const isSelf = user!.id === staffId;
   const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const isCeo = profile!.role === 'ceo';
   if (!isSelf && !isAdmin) redirect({ href: '/dashboard', locale });
 
   const supabase = await createClient();
@@ -66,30 +64,19 @@ export default async function StaffFinancePage({ params }: { params: Promise<{ s
         </div>
       </div>
 
-      <div style={{ animationDelay: '70ms' }} className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-              {t('history')}
-            </h2>
-            <span
-              className={cn('text-lg font-bold tabular-nums', net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70')}
-            >
-              {net >= 0 ? '+' : ''}
-              {formatUZS(net)}
-            </span>
-          </div>
-          {isAdmin && <ManageStaffFinanceDialog staffId={staffId} />}
-        </div>
-        <FinanceEntriesList entries={(entries ?? []) as FinanceEntry[]} isAdmin={isAdmin} />
+      <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
+        <SalarySection
+          staffId={staffId}
+          isSelf={isSelf}
+          isCeo={isCeo}
+          isAdmin={isAdmin}
+          entries={(entries ?? []) as FinanceEntry[]}
+          net={net}
+        />
       </div>
 
       <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
-        <KpiSection staffId={staffId} canManage={isAdmin} />
-      </div>
-
-      <div style={{ animationDelay: '210ms' }} className="animate-fade-in-up">
-        <IncomeRoadmapSection staffId={staffId} canManage={isAdmin} />
+        <IncomeRoadmapSection staffId={staffId} canManage={isCeo} />
       </div>
     </div>
   );

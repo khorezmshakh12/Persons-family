@@ -707,6 +707,7 @@
     "saving": "Сохранение...",
     "evaluationSaved": "Оценка сохранена.",
     "teacherLevel": "Уровень",
+    "bonusAmount": "Сумма бонуса (необязательно)",
     "progressChart": {
       "title": "Ваш прогресс",
       "noData": "Пока нет оценённых заявок — график появится после первой оценки CEO."
@@ -862,11 +863,44 @@
     "missionTitlePlaceholder": "напр. Пройти адаптацию",
     "description": "Описание",
     "descriptionPlaceholder": "Необязательные детали",
-    "markComplete": "Отметить выполненной",
-    "markIncomplete": "Отметить невыполненной",
-    "completed": "Выполнено",
-    "active": "Активна",
+    "deadline": "Срок",
+    "bonusAmount": "Сумма бонуса (необязательно)",
+    "shortTerm": "Краткосрочные",
+    "longTerm": "Долгосрочные",
+    "noShortTerm": "Нет краткосрочных миссий.",
+    "noLongTerm": "Нет долгосрочных миссий.",
+    "start": "Начать",
+    "submit": "Сдать",
+    "submissionNote": "Комментарий",
+    "submissionNotePlaceholder": "Опишите, что было сделано...",
+    "approve": "Утвердить",
+    "reject": "Отклонить",
+    "rejectionNote": "Причина отклонения",
+    "overdue": "Срок истёк",
+    "countdownDaysHours": "Осталось {days} дн. {hours} ч.",
+    "countdownHours": "Осталось {hours} ч.",
+    "statusLabels": {
+      "pending": "Ожидает",
+      "in_progress": "В процессе",
+      "submitted": "Сдана",
+      "approved": "Утверждена",
+      "rejected": "Отклонена"
+    },
     "delete": "Удалить миссию",
+    "errors": {
+      "forbidden": "У вас нет прав для этого действия.",
+      "sessionExpired": "Сессия истекла — обновите страницу и войдите снова.",
+      "invalidInput": "Проверьте введённые значения.",
+      "updateFailed": "Не удалось сохранить. Попробуйте снова."
+    }
+  },
+  "salary": {
+    "title": "Зарплата",
+    "salaryLedger": "Зарплата",
+    "missions": "Миссии",
+    "total": "Итого (Total)",
+    "totalCommentPlaceholder": "Добавить комментарий...",
+    "commentSaved": "Комментарий сохранён.",
     "errors": {
       "forbidden": "У вас нет прав для этого действия.",
       "sessionExpired": "Сессия истекла — обновите страницу и войдите снова.",

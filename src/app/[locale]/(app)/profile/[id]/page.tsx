@@ -93,6 +93,7 @@ export default async function ProfileDetailPage({
           <SelfDevelopmentSection
             staffId={id}
             isAdmin={isAdmin && !isSelf}
+            isCeo={isCeo && !isSelf}
             selectedMonth={month ?? 'all'}
           />
         </div>

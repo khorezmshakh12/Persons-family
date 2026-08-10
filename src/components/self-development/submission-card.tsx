@@ -11,6 +11,7 @@ export type Submission = {
   value_added: string | null;
   ceo_rating: string | null;
   ceo_score: number | null;
+  bonus_amount: number | null;
   user_id: string;
   author: { first_name: string; last_name: string; role: string; teacher_level: TeacherLevel } | null;
 };
@@ -18,10 +19,14 @@ export type Submission = {
 export async function SubmissionCard({
   submission,
   isAdmin,
+  isCeo = false,
   delayMs = 0,
 }: {
   submission: Submission;
   isAdmin: boolean;
+  /** Gates the cash-bonus field specifically within the rating panel —
+   * narrower than isAdmin, which also covers IT Developer. */
+  isCeo?: boolean;
   delayMs?: number;
 }) {
   const t = await getTranslations('selfDevelopment');
@@ -74,6 +79,8 @@ export async function SubmissionCard({
           currentRating={submission.ceo_rating}
           currentScore={submission.ceo_score}
           currentLevel={submission.author?.role === 'teacher' ? submission.author.teacher_level : null}
+          isCeo={isCeo}
+          currentBonusAmount={submission.bonus_amount}
         />
       ) : submission.ceo_rating ? (
         <div className="flex flex-col gap-1 border-t border-white/10 pt-3">

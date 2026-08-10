@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -24,7 +24,7 @@ export async function addKpiMetricAction(
   formData: FormData,
 ): Promise<KpiActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -58,7 +58,7 @@ export async function updateKpiMetricAction(
   formData: FormData,
 ): Promise<KpiActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -84,7 +84,7 @@ export async function deleteKpiMetricAction(
   formData: FormData,
 ): Promise<KpiActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -117,7 +117,7 @@ export async function upsertKpiEntryAction(
   formData: FormData,
 ): Promise<KpiActionState> {
   try {
-    await requireAdmin();
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }

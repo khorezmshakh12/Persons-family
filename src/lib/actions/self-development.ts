@@ -61,26 +61,36 @@ const saveEvaluationSchema = z.object({
   ceoRating: z.string().trim().max(2000).optional().or(z.literal('')),
   ceoScore: z.coerce.number().int().min(1).max(100),
   level: z.enum(TEACHER_LEVELS as [string, ...string[]]).optional(),
+  bonusAmount: z.coerce.number().min(0).optional(),
 });
 
 export async function saveEvaluationAction(
   _prevState: SelfDevActionState,
   formData: FormData,
 ): Promise<SelfDevActionState> {
+  let callerRole: string;
   try {
-    await requireAdmin();
+    ({
+      profile: { role: callerRole },
+    } = await requireAdmin());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = saveEvaluationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  // A cash bonus is CEO-only — IT Developer can still rate/score a
+  // submission, just not attach money to it.
+  if (parsed.data.bonusAmount != null && parsed.data.bonusAmount > 0 && callerRole !== 'ceo') {
+    return { error: 'forbidden' };
+  }
 
   const supabase = await createClient();
 
   const devUpdates: SelfDevelopmentUpdate = {
     ceo_rating: parsed.data.ceoRating || null,
     ceo_score: parsed.data.ceoScore,
+    ...(callerRole === 'ceo' ? { bonus_amount: parsed.data.bonusAmount ?? null } : {}),
   };
   const { error: devError } = await supabase
     .from('self_development')
@@ -101,6 +111,7 @@ export async function saveEvaluationAction(
 
   revalidatePath('/[locale]/self-development', 'page');
   revalidatePath('/[locale]/staff', 'page');
+  revalidatePath(`/[locale]/finance/${parsed.data.userId}`, 'page');
   return { success: true };
 }
 

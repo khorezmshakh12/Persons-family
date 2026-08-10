@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CurrencyInput } from '@/components/staff/currency-input';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,20 @@ export function AssignMissionDialog({ staffId }: { staffId: string }) {
           <div className="flex flex-col gap-2">
             <Label htmlFor={`mdesc-${staffId}`}>{t('description')}</Label>
             <Textarea id={`mdesc-${staffId}`} name="description" placeholder={t('descriptionPlaceholder')} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`mdeadline-${staffId}`}>{t('deadline')}</Label>
+            <input
+              id={`mdeadline-${staffId}`}
+              name="deadlineDate"
+              type="date"
+              required
+              className="h-9 w-full rounded-lg border border-white/25 bg-white/5 px-3 text-sm text-white outline-none transition-colors focus-visible:border-white/70 [color-scheme:dark]"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`mbonus-${staffId}`}>{t('bonusAmount')}</Label>
+            <CurrencyInput id={`mbonus-${staffId}`} name="bonusAmount" defaultValue={0} />
           </div>
           <DialogFooter>
             <Button type="submit" loading={isPending} size="sm">
