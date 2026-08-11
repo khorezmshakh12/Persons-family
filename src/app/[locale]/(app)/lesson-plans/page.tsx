@@ -26,10 +26,14 @@ export default async function LessonPlansPage({
   const locale = await getLocale();
 
   // Administrative Manager has no lesson-plan visibility at all anymore —
-  // see 20260806110000_remove_admin_manager_lesson_plan_access.sql. The nav
-  // item is already hidden for this role (src/lib/nav.ts); this blocks a
-  // direct visit to the URL too.
-  if (profile!.role === 'admin_manager') redirect({ href: '/dashboard', locale });
+  // see 20260806110000_remove_admin_manager_lesson_plan_access.sql. IT
+  // Developer lost it too (Head Teacher takes its place — see
+  // 20260812090100_head_teacher_and_it_developer_rls.sql). The nav item is
+  // already hidden for both roles (src/lib/nav.ts); this blocks a direct
+  // visit to the URL too.
+  if (profile!.role === 'admin_manager' || profile!.role === 'it_developer') {
+    redirect({ href: '/dashboard', locale });
+  }
 
   const isTeacher = profile!.role === 'teacher';
   const supabase = await createClient();

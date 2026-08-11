@@ -35,12 +35,16 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const { user, profile } = await getAuthState();
   const locale = await getLocale();
 
-  // Administrative Manager has no lesson-plan visibility at all anymore —
-  // RLS on groups/course_lessons/etc. already denies the underlying rows
-  // (see 20260806110000_remove_admin_manager_lesson_plan_access.sql), but
-  // this gives a clean redirect instead of a bare 404 from the RLS-empty-row
-  // fallthrough below.
-  if (profile!.role === 'admin_manager') redirect({ href: '/dashboard', locale });
+  // Administrative Manager has no lesson-plan visibility at all anymore, and
+  // neither does IT Developer (Head Teacher takes its place) — RLS on
+  // groups/course_lessons/etc. already denies the underlying rows (see
+  // 20260806110000_remove_admin_manager_lesson_plan_access.sql and
+  // 20260812090100_head_teacher_and_it_developer_rls.sql), but this gives a
+  // clean redirect instead of a bare 404 from the RLS-empty-row fallthrough
+  // below.
+  if (profile!.role === 'admin_manager' || profile!.role === 'it_developer') {
+    redirect({ href: '/dashboard', locale });
+  }
 
   const supabase = await createClient();
 
@@ -55,7 +59,12 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   if (!group) notFound();
 
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
-  const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  // Head Teacher only got view + comment rights (mirrors lesson_comments_*
+  // RLS) — group management and content moderation (course_lessons_update /
+  // lesson_materials_*) stayed CEO-only, so isCeo itself must stay literal
+  // 'ceo' rather than folding head_teacher in here too.
+  const isCeo = profile!.role === 'ceo';
+  const isHeadTeacher = profile!.role === 'head_teacher';
   const isAssistant = profile!.role === 'assistant';
   // Only the assistant specifically assigned to this group counts as "the
   // group's TA" now — RLS already narrows their access to this group alone,
@@ -75,12 +84,12 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const canEditGroup = isOwnerTeacher || isCeo;
   // Course lesson permissions per spec: only the owning teacher sets
   // dates/topics/uploads; the CEO can additionally clear/delete a file;
-  // CEO/the assigned TA can comment, the teacher can't comment on their own
-  // lesson. Administrative Manager has no lesson-plan access at all now —
-  // see the redirect above.
+  // CEO/Head Teacher/the assigned TA can comment, the teacher can't comment
+  // on their own lesson. Administrative Manager and IT Developer have no
+  // lesson-plan access at all now — see the redirect above.
   const canEditLessonContent = isOwnerTeacher;
   const canDeleteLessonFiles = isOwnerTeacher || isCeo;
-  const canComment = isCeo || isAssignedTa;
+  const canComment = isCeo || isHeadTeacher || isAssignedTa;
   // Group staff chat: the owning teacher and assigned TA can read + post;
   // the CEO reads only ("monitor"). A non-assigned assistant never reaches
   // this branch (notFound() above already caught them).

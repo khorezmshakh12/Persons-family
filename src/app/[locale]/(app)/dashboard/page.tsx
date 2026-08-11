@@ -7,6 +7,7 @@ import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
 import { EmployeeGrowthChartCard } from '@/components/dashboard/employee-growth-chart-card';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
+import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons/glass-skeletons';
 
@@ -61,26 +62,30 @@ async function EmployeeGrowthChartSection({ delayMs }: { delayMs: number }) {
 // blocking on the slowest of several independent Supabase queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
-  // Administrative Manager now gets the same personal dashboard as a
-  // teacher (self-development chart, own stats) — see the role rework.
-  const isAdminRole = isCeo;
+  const isCeo = profile!.role === 'ceo';
+  const isHeadTeacher = profile!.role === 'head_teacher';
+  // Head Teacher gets a regular teacher's dashboard plus the Active
+  // Groups/Lesson Plans cards (RLS already scopes both platform-wide for
+  // it, same as CEO) — everyone else who isn't a teacher/assistant gets a
+  // personal Finance/Missions/Tasks view instead of company-wide totals
+  // that aren't relevant to their day-to-day (assistant keeps today's
+  // teacher-like treatment — it's still operationally lesson-plan-focused,
+  // unlike admin_manager/smm_mobilgrof/internship/it_developer).
+  const isTeacherTier = profile!.role === 'teacher' || profile!.role === 'assistant' || isHeadTeacher;
+  const isPersonalDashboard = !isCeo && !isTeacherTier;
   const analyticsHref = isCeo ? '/analytics' : undefined;
-  // Administrative Manager has no lesson-plan access at all anymore — see
-  // 20260806110000_remove_admin_manager_lesson_plan_access.sql.
-  const showLessonPlanCards = profile!.role !== 'admin_manager';
-  // SMM & Mobilograf shouldn't see headcount at all — not the admin "Total
-  // Staff" stat card (already gated by isAdminRole above) and not the
-  // non-admin Roles Breakdown donut either, which shows the same number.
-  const hideStaffCount = profile!.role === 'smm_mobilgrof';
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
       <Suspense fallback={<GlassStatsRowSkeleton />}>
-        <StatsRow isAdminRole={isAdminRole} showLessonPlanCards={showLessonPlanCards} />
+        <StatsRow
+          showTotalStaff={isCeo}
+          showLessonPlanCards={!isPersonalDashboard}
+          personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
+        />
       </Suspense>
 
-      {isAdminRole ? (
+      {isCeo ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<GlassCardSkeleton />}>
             <ActiveIssuesOverview delayMs={0} />
@@ -96,9 +101,9 @@ export default async function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {!hideStaffCount && (
+        {!isPersonalDashboard && (
           <Suspense fallback={<GlassCardSkeleton />}>
-            {isAdminRole ? (
+            {isCeo ? (
               <EmployeeGrowthChartSection delayMs={0} />
             ) : (
               <RolesDonutChart href={analyticsHref} delayMs={0} />
@@ -106,7 +111,11 @@ export default async function DashboardPage() {
           </Suspense>
         )}
         <Suspense fallback={<GlassCardSkeleton />}>
-          <ActivityHeatmap href="/calendar" delayMs={90} />
+          {isPersonalDashboard ? (
+            <TasksCalendar userId={user!.id} />
+          ) : (
+            <ActivityHeatmap href="/calendar" delayMs={90} />
+          )}
         </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
           <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />

@@ -31,9 +31,11 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'lessonPlans',
     href: '/lesson-plans',
-    // SMM & Mobilograf ranks below teacher/assistant and never sees lesson
-    // plans — they were previously (incorrectly) included here.
-    roles: ['ceo', 'it_developer', 'teacher', 'assistant'],
+    // IT Developer lost lesson-plan access entirely (view, comment, nav) —
+    // Head Teacher takes its place as the non-CEO role that can see every
+    // teacher's lesson plans and comment on them. SMM & Mobilograf ranks
+    // below teacher/assistant and never sees lesson plans either.
+    roles: ['ceo', 'head_teacher', 'teacher', 'assistant'],
   },
   { key: 'tasks', href: '/tasks' },
   { key: 'companyNews', href: '/company-news' },

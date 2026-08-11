@@ -22,6 +22,7 @@ const ROLES = [
   'ceo',
   'admin_manager',
   'teacher',
+  'head_teacher',
   'assistant',
   'smm_mobilgrof',
   'internship',

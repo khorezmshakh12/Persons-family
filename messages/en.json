@@ -99,7 +99,10 @@
       "totalStaff": "Total Staff",
       "activeGroups": "Active Groups",
       "lessonPlans": "Lesson Plans",
-      "chatActivity": "Chat Activity"
+      "chatActivity": "Chat Activity",
+      "finance": "Finance",
+      "missions": "Missions",
+      "tasks": "Tasks"
     },
     "rolesChart": {
       "title": "Roles Breakdown",
@@ -108,6 +111,12 @@
     "activityGrid": {
       "title": "Monthly Activity",
       "hint": "Darker cells mean more chat activity that day."
+    },
+    "tasksCalendar": {
+      "title": "Monthly Tasks",
+      "noTasksThisMonth": "No tasks due this month.",
+      "tasksOnDay": "Tasks on {date}",
+      "noTasksThisDay": "No tasks on this day."
     },
     "activeIssues": {
       "title": "Active Issues Overview",
@@ -144,6 +153,7 @@
       "ceo": "CEO / Founder",
       "admin_manager": "Administrative Manager",
       "teacher": "Teacher",
+      "head_teacher": "Head Teacher",
       "assistant": "Teacher Assistant",
       "smm_mobilgrof": "SMM & Mobilograf",
       "internship": "Intern",

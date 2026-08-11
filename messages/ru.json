@@ -99,7 +99,10 @@
       "totalStaff": "Всего сотрудников",
       "activeGroups": "Активные группы",
       "lessonPlans": "Планы уроков",
-      "chatActivity": "Активность чата"
+      "chatActivity": "Активность чата",
+      "finance": "Финансы",
+      "missions": "Миссии",
+      "tasks": "Задачи"
     },
     "rolesChart": {
       "title": "Распределение должностей",
@@ -108,6 +111,12 @@
     "activityGrid": {
       "title": "Активность за месяц",
       "hint": "Чем темнее ячейка, тем больше активности в чате в этот день."
+    },
+    "tasksCalendar": {
+      "title": "Задачи за месяц",
+      "noTasksThisMonth": "В этом месяце нет задач со сроком.",
+      "tasksOnDay": "Задачи на {date}",
+      "noTasksThisDay": "В этот день задач нет."
     },
     "activeIssues": {
       "title": "Обзор активных проблем",
@@ -144,6 +153,7 @@
       "ceo": "Генеральный директор",
       "admin_manager": "Административный менеджер",
       "teacher": "Учитель",
+      "head_teacher": "Старший учитель",
       "assistant": "Ассистент учителя",
       "smm_mobilgrof": "SMM и Мобилограф",
       "internship": "Стажёр",

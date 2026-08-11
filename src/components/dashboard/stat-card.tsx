@@ -37,7 +37,9 @@ export function StatCard({
   index = 0,
 }: {
   label: string;
-  value: number;
+  /** Usually a plain count; the Finance dashboard card passes a
+   * pre-formatted currency string (formatUZS) instead. */
+  value: number | string;
   icon: LucideIcon;
   tint: keyof typeof TINTS;
   changePercent: number;

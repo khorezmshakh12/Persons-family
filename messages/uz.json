@@ -99,7 +99,10 @@
       "totalStaff": "Jami Xodimlar",
       "activeGroups": "Faol Guruhlar",
       "lessonPlans": "Dars Rejalari",
-      "chatActivity": "Chat Faolligi"
+      "chatActivity": "Chat Faolligi",
+      "finance": "Moliya",
+      "missions": "Missiyalar",
+      "tasks": "Vazifalar"
     },
     "rolesChart": {
       "title": "Lavozimlar",
@@ -108,6 +111,12 @@
     "activityGrid": {
       "title": "Oylik Faollik",
       "hint": "Katak qanchalik to'q bo'lsa, o'sha kuni chat faolligi shuncha yuqori."
+    },
+    "tasksCalendar": {
+      "title": "Oylik Vazifalar",
+      "noTasksThisMonth": "Bu oyda muddati kelgan vazifalar yo'q.",
+      "tasksOnDay": "{date} kunidagi vazifalar",
+      "noTasksThisDay": "Bu kunda vazifa yo'q."
     },
     "activeIssues": {
       "title": "Faol Muammolar Ko'rinishi",
@@ -144,6 +153,7 @@
       "ceo": "Bosh direktor",
       "admin_manager": "Ma'muriy menejer",
       "teacher": "O'qituvchi",
+      "head_teacher": "Bosh o'qituvchi",
       "assistant": "O'qituvchi yordamchisi",
       "smm_mobilgrof": "SMM & Mobilograf",
       "internship": "Amaliyotchi",

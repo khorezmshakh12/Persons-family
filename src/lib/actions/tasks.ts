@@ -12,13 +12,12 @@ import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 export type TaskActionState = { error?: string } | undefined;
 
-/** The CEO can assign a task to anyone eligible; IT Developer's only
- * assigning power is the narrow admin_manager-only carve-out in
- * allowedTaskAssigneeRoles (re-validated below regardless of who's
- * calling), symmetric to its account-creation power in staff.ts. */
+/** CEO-only — IT Developer lost task assignment/edit/delete entirely
+ * (previously shared this with the CEO via a narrow admin_manager-only
+ * carve-out). */
 async function requireTaskAssigner() {
   const { user, profile } = await getAuthState();
-  if (!user || !profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+  if (!user || !profile || profile.role !== 'ceo') {
     throw new ForbiddenError('Task assignment access required');
   }
   return { user, profile };
