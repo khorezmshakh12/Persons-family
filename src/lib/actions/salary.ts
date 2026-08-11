@@ -30,6 +30,7 @@ export async function upsertSalaryNoteAction(
 
   const parsed = upsertNoteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('staff_salary_notes').upsert(

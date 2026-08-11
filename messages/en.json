@@ -886,6 +886,9 @@
       "rejected": "Rejected"
     },
     "delete": "Delete mission",
+    "confirmDeleteTitle": "Delete this mission?",
+    "confirmDeleteDescription": "This mission will be permanently deleted.",
+    "confirm": "Delete",
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",

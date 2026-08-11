@@ -8,6 +8,17 @@ import { markStepAchievedAction, deleteIncomeStepAction } from '@/lib/actions/in
 import { formatUZS } from '@/lib/format-currency';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 export type IncomeStep = {
   id: string;
@@ -27,6 +38,7 @@ export function RoadmapStepCard({
   canManage: boolean;
 }) {
   const t = useTranslations('incomeRoadmap');
+  const tCommon = useTranslations('common');
   const format = useFormatter();
   const [isPending, startTransition] = useTransition();
   const achieved = step.status === 'achieved';
@@ -88,17 +100,34 @@ export function RoadmapStepCard({
                 <Check className="size-3.5" />
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              aria-label={t('deleteStep')}
-              disabled={isPending}
-              onClick={handleDelete}
-              className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label={t('deleteStep')}
+                    disabled={isPending}
+                    className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                  />
+                }
+              >
+                <Trash2 className="size-3.5" />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmDeleteDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction type="button" disabled={isPending} onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+                    {t('confirm')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </div>

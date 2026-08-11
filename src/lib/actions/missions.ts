@@ -15,7 +15,11 @@ function revalidateMissions(staffId: string) {
   revalidatePath(`/[locale]/finance/${staffId}`, 'page');
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// Tashkent-local, not raw UTC — matches the cron job's reasoning
+// (lesson-plan-check/route.ts): using the UTC calendar date would reject a
+// deadline of "today" (Tashkent-local) as already-past during the first
+// few hours of the Tashkent day, since UTC hasn't rolled over yet.
+const todayStr = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
 const maxDeadlineStr = () => {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + 365);
@@ -59,7 +63,7 @@ export async function assignMissionAction(
     title: parsed.data.title,
     description: parsed.data.description || null,
     deadline_date: parsed.data.deadlineDate,
-    bonus_amount: parsed.data.bonusAmount || null,
+    bonus_amount: parsed.data.bonusAmount ?? null,
     created_by: adminId,
   });
   if (error) return { error: 'updateFailed' };

@@ -76,7 +76,7 @@ export default async function StaffFinancePage({ params }: { params: Promise<{ s
       </div>
 
       <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
-        <IncomeRoadmapSection staffId={staffId} canManage={isCeo} />
+        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} />
       </div>
     </div>
   );

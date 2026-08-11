@@ -60,7 +60,7 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-white/10 pt-4">
-        <KpiSection staffId={staffId} canManage={isCeo} />
+        <KpiSection staffId={staffId} canManage={isCeo && !isSelf} />
       </div>
 
       <div className="border-t border-white/10 pt-4">
@@ -72,7 +72,7 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-white/10 pt-4">
-        <SalaryTotal staffId={staffId} isCeo={isCeo} />
+        <SalaryTotal staffId={staffId} isCeo={isCeo && !isSelf} />
       </div>
     </div>
   );

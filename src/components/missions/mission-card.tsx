@@ -18,6 +18,17 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { CountdownTimer } from './countdown-timer';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 export type MissionItem = {
   id: string;
@@ -50,11 +61,14 @@ export function MissionCard({
   isCeo: boolean;
 }) {
   const t = useTranslations('missions');
+  const tCommon = useTranslations('common');
   const format = useFormatter();
   const isAssignee = mission.staff_id === currentUserId;
   const [isPending, startTransition] = useTransition();
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [note, setNote] = useState('');
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState('');
   const [submitState, submitFormAction, isSubmitPending] = useActionState<MissionActionState, FormData>(
     submitMissionAction,
     undefined,
@@ -65,7 +79,11 @@ export function MissionCard({
     else if (submitState && !submitState.error) setShowSubmitForm(false);
   }, [submitState, t]);
 
-  function runAction(action: (prev: MissionActionState, fd: FormData) => Promise<MissionActionState>, extra?: Record<string, string>) {
+  function runAction(
+    action: (prev: MissionActionState, fd: FormData) => Promise<MissionActionState>,
+    extra?: Record<string, string>,
+    onSuccess?: () => void,
+  ) {
     const formData = new FormData();
     formData.set('missionId', mission.id);
     formData.set('staffId', mission.staff_id);
@@ -73,6 +91,7 @@ export function MissionCard({
     startTransition(async () => {
       const result = await action(undefined, formData);
       if (result?.error) toast.error(t(`errors.${result.error}`));
+      else onSuccess?.();
     });
   }
 
@@ -109,15 +128,37 @@ export function MissionCard({
         <div className="flex shrink-0 items-center gap-2">
           {mission.status === 'in_progress' && <CountdownTimer deadlineDate={mission.deadline_date} />}
           {isCeo && (
-            <button
-              type="button"
-              onClick={() => runAction(deleteMissionAction)}
-              disabled={isPending}
-              aria-label={t('delete')}
-              className="tap-scale text-white/50 hover:text-red-400 disabled:opacity-50"
-            >
-              <Trash2 className="size-4" />
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    aria-label={t('delete')}
+                    className="tap-scale text-white/50 hover:text-red-400 disabled:opacity-50"
+                  />
+                }
+              >
+                <Trash2 className="size-4" />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('confirmDeleteDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => runAction(deleteMissionAction)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {t('confirm')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </div>
@@ -155,27 +196,67 @@ export function MissionCard({
       )}
 
       {isCeo && mission.status === 'submitted' && (
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            disabled={isPending}
-            onClick={() => runAction(approveMissionAction)}
-            className={cn('w-fit bg-emerald-600 hover:bg-emerald-700')}
-          >
-            {t('approve')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isPending}
-            onClick={() => runAction(rejectMissionAction)}
-            className="w-fit border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-          >
-            {t('reject')}
-          </Button>
-        </div>
+        <>
+          {!showRejectForm ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isPending}
+                onClick={() => runAction(approveMissionAction)}
+                className={cn('w-fit bg-emerald-600 hover:bg-emerald-700')}
+              >
+                {t('approve')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                onClick={() => setShowRejectForm(true)}
+                className="w-fit border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+              >
+                {t('reject')}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Textarea
+                value={rejectionNote}
+                onChange={(e) => setRejectionNote(e.target.value)}
+                placeholder={t('rejectionNote')}
+                rows={2}
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() =>
+                    runAction(rejectMissionAction, { rejectionNote }, () => {
+                      setShowRejectForm(false);
+                      setRejectionNote('');
+                    })
+                  }
+                  className="w-fit border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                >
+                  {t('reject')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => setShowRejectForm(false)}
+                  className="w-fit"
+                >
+                  {tCommon('cancel')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

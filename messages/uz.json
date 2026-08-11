@@ -886,6 +886,9 @@
       "rejected": "Rad etildi"
     },
     "delete": "Missiyani o'chirish",
+    "confirmDeleteTitle": "Bu missiya o'chirilsinmi?",
+    "confirmDeleteDescription": "Bu missiya butunlay o'chiriladi.",
+    "confirm": "O'chirish",
     "errors": {
       "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",

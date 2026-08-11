@@ -27,14 +27,20 @@ export async function upsertIncomePlanAction(
   _prevState: IncomeRoadmapActionState,
   formData: FormData,
 ): Promise<IncomeRoadmapActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = upsertPlanSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  // The CEO doesn't self-certify their own roadmap — mirrors the same rule
+  // on KPI scoring and self-development evaluations.
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('staff_income_plans').upsert(
@@ -86,6 +92,7 @@ export async function addIncomeStepAction(
 
   const parsed = addStepSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === adminId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('income_roadmap_steps').insert({
@@ -113,14 +120,18 @@ export async function markStepAchievedAction(
   _prevState: IncomeRoadmapActionState,
   formData: FormData,
 ): Promise<IncomeRoadmapActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = markAchievedSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -139,14 +150,18 @@ export async function deleteIncomeStepAction(
   _prevState: IncomeRoadmapActionState,
   formData: FormData,
 ): Promise<IncomeRoadmapActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = deleteStepSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('income_roadmap_steps').delete().eq('id', parsed.data.stepId);

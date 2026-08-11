@@ -23,14 +23,20 @@ export async function addKpiMetricAction(
   _prevState: KpiActionState,
   formData: FormData,
 ): Promise<KpiActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = addMetricSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  // The CEO doesn't self-score — mirrors SelfDevelopmentSection's
+  // `isAdmin && !isSelf` gate one section below on the same page.
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('kpi_metrics').insert({
@@ -57,14 +63,18 @@ export async function updateKpiMetricAction(
   _prevState: KpiActionState,
   formData: FormData,
 ): Promise<KpiActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = updateMetricSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -83,14 +93,18 @@ export async function deleteKpiMetricAction(
   _prevState: KpiActionState,
   formData: FormData,
 ): Promise<KpiActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = deleteMetricSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('kpi_metrics').delete().eq('id', parsed.data.metricId);
@@ -116,14 +130,18 @@ export async function upsertKpiEntryAction(
   _prevState: KpiActionState,
   formData: FormData,
 ): Promise<KpiActionState> {
+  let ceoId: string;
   try {
-    await requireCeo();
+    ({
+      user: { id: ceoId },
+    } = await requireCeo());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = upsertEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
   const supabase = await createClient();
   const { error } = await supabase.from('kpi_entries').upsert(
