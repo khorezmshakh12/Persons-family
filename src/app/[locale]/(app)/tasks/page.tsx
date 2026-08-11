@@ -12,10 +12,12 @@ export default async function TasksPage() {
   const t = await getTranslations('tasks');
   const { user, profile } = await getAuthState();
   const supabase = await createClient();
-  // CEO can assign to anyone eligible; IT Developer's only assigning power
-  // is the narrow admin_manager-only carve-out already baked into
-  // allowedTaskAssigneeRoles, reused as-is here.
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  // CEO-only: assigning, editing, and deleting tasks is a CEO power alone
+  // (requireTaskAssigner() in tasks.ts already enforces this) — IT Developer
+  // lost it entirely, so this must not fall back to is_admin()'s ceo+it_developer
+  // definition or the board shows Assign/Edit/Delete controls to IT Developer
+  // that every submit then rejects as forbidden.
+  const isAdmin = profile!.role === 'ceo';
 
   // Auto-hide (not delete): a "done" task older than a week just clutters
   // the board — the row itself is left alone, same precedent as the Issues
