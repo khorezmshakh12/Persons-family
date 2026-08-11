@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
+import packageJson from '../../../package.json';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { LogoutButton } from '@/components/auth/logout-button';
 import { BackgroundProvider } from '@/components/theme/background-context';
@@ -80,7 +81,7 @@ export async function AppShell({
                 <SidebarNav role={profile.role} glass />
                 <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
                 <span className="pt-3 text-center text-xs tracking-wider text-white/50">
-                  Persons ERP v1.7.0
+                  Persons ERP {packageJson.version}
                 </span>
               </aside>
 
