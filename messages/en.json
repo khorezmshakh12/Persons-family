@@ -102,7 +102,9 @@
       "chatActivity": "Chat Activity",
       "finance": "Finance",
       "missions": "Missions",
-      "tasks": "Tasks"
+      "tasks": "Tasks",
+      "showAmount": "Show amount",
+      "hideAmount": "Hide amount"
     },
     "rolesChart": {
       "title": "Roles Breakdown",

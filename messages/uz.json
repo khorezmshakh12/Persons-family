@@ -102,7 +102,9 @@
       "chatActivity": "Chat Faolligi",
       "finance": "Moliya",
       "missions": "Missiyalar",
-      "tasks": "Vazifalar"
+      "tasks": "Vazifalar",
+      "showAmount": "Summani ko'rsatish",
+      "hideAmount": "Summani yashirish"
     },
     "rolesChart": {
       "title": "Lavozimlar",

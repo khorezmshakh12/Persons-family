@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { MaskableStatValue } from './maskable-stat-value';
 
 const TINTS = {
   green: {
@@ -35,6 +36,7 @@ export function StatCard({
   sparkline,
   href,
   index = 0,
+  maskable = false,
 }: {
   label: string;
   /** Usually a plain count; the Finance dashboard card passes a
@@ -47,6 +49,9 @@ export function StatCard({
   href: string;
   /** Staggers this card's entrance animation behind the ones before it. */
   index?: number;
+  /** Salary figures start hidden behind an eye toggle every time the
+   * dashboard loads — nothing persisted, just masked-by-default privacy. */
+  maskable?: boolean;
 }) {
   const t = TINTS[tint];
   const max = Math.max(...sparkline, 1);
@@ -78,7 +83,7 @@ export function StatCard({
 
       <div className="mt-4 flex flex-col gap-0.5">
         <span className="font-heading text-3xl font-bold tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {value}
+          {maskable ? <MaskableStatValue value={String(value)} /> : value}
         </span>
         <span className="text-sm font-medium text-white/90">{label}</span>
       </div>

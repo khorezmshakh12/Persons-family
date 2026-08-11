@@ -14,6 +14,7 @@ type Card = {
   tint: 'green' | 'blue' | 'orange';
   buckets: number[];
   href: string;
+  maskable?: boolean;
 };
 
 export async function StatsRow({
@@ -61,6 +62,7 @@ export async function StatsRow({
         tint: 'green',
         buckets: financeBuckets,
         href: `/finance/${userId}`,
+        maskable: true,
       },
       {
         label: t('missions'),
@@ -93,6 +95,7 @@ export async function StatsRow({
             sparkline={c.buckets}
             href={c.href}
             index={index}
+            maskable={c.maskable}
           />
         ))}
       </div>

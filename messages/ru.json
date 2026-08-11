@@ -102,7 +102,9 @@
       "chatActivity": "Активность чата",
       "finance": "Финансы",
       "missions": "Миссии",
-      "tasks": "Задачи"
+      "tasks": "Задачи",
+      "showAmount": "Показать сумму",
+      "hideAmount": "Скрыть сумму"
     },
     "rolesChart": {
       "title": "Распределение должностей",
