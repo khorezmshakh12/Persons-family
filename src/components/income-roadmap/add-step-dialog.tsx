@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/staff/currency-input';
+import { DateInput } from '@/components/ui/date-input';
 import {
   Dialog,
   DialogContent,
@@ -59,13 +60,7 @@ export function AddStepDialog({ staffId, planId }: { staffId: string; planId: st
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`step-month-${planId}`}>{t('targetMonth')}</Label>
-            <input
-              id={`step-month-${planId}`}
-              name="targetMonth"
-              type="month"
-              required
-              className="h-9 w-full rounded-lg border border-white/25 bg-white/5 px-3 text-sm text-white outline-none transition-colors focus-visible:border-white/70 [color-scheme:dark]"
-            />
+            <DateInput id={`step-month-${planId}`} name="targetMonth" showDay={false} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`step-benefit-${planId}`}>{t('benefitDescription')}</Label>

@@ -126,7 +126,6 @@ export function MissionCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {mission.status === 'in_progress' && <CountdownTimer deadlineDate={mission.deadline_date} />}
           {isCeo && (
             <AlertDialog>
               <AlertDialogTrigger
@@ -162,6 +161,8 @@ export function MissionCard({
           )}
         </div>
       </div>
+
+      {mission.status === 'in_progress' && <CountdownTimer deadlineDate={mission.deadline_date} />}
 
       {isAssignee && mission.status === 'pending' && (
         <Button type="button" size="sm" disabled={isPending} onClick={() => runAction(startMissionAction)} className="w-fit">
