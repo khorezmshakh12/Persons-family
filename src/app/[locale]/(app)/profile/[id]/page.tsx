@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -14,9 +15,20 @@ import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
 import { DutiesCard } from '@/components/profile/duties-card';
 import { ContractsCard } from '@/components/profile/contracts-card';
+import { SectionErrorBoundary } from '@/components/profile/section-error-boundary';
+import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 
 export const dynamic = 'force-dynamic';
 
+// Every section below fetches its own data independently and streams in
+// behind its own Suspense boundary, wrapped in its own error boundary —
+// the same resilience pattern the dashboard already uses. Before this
+// rewrite, all six sections rendered as one synchronous block with no
+// isolation at all: one slow or transiently-failing query in ANY section
+// blocked (or crashed) the entire page, which was the actual root cause of
+// this page's recurring "sometimes doesn't load / kicks me out" bug —
+// wrapping each section individually means a single bad query now only
+// degrades that one card instead of taking the whole route down.
 export default async function ProfileDetailPage({
   params,
   searchParams,
@@ -27,21 +39,19 @@ export default async function ProfileDetailPage({
   const { id } = await params;
   const { month } = await searchParams;
   const tStaff = await getTranslations('staff');
+  const tProfile = await getTranslations('profile');
   const locale = await getLocale();
   const { user, profile: viewerProfile } = await getAuthState();
 
   const isSelf = user!.id === id;
   const isCeo = viewerProfile!.role === 'ceo';
-  // IT Developer ranks directly below CEO (requireAdmin()) and shares its
-  // reach here, short of managing a ceo/admin_manager account itself
-  // (isProtectedRole in staff.ts — not relevant on this page, which only
-  // ever shows warnings/bonuses/duties/contracts, none of which touch role
-  // or account identity).
-  const isAdmin = isCeo || viewerProfile!.role === 'it_developer';
+  // IT Developer has no elevated reach anywhere anymore — plain regular
+  // employee, same as any other non-admin role.
+  const isAdmin = isCeo;
   const isAdminManager = viewerProfile!.role === 'admin_manager';
-  // Warnings/bonuses/punishments are visible to CEO/IT Developer and
-  // Administrative Manager for anyone (mirrors is_ceo_or_admin_manager()
-  // RLS); self-development, duties, and contracts stay admin-or-self only
+  // Warnings/bonuses/punishments are visible to CEO and Administrative
+  // Manager for anyone (mirrors is_ceo_or_admin_manager() RLS);
+  // self-development, duties, and contracts stay admin-or-self only
   // (mirrors their own RLS, which never granted admin_manager access to
   // those tables).
   const canView = isSelf || isAdmin || isAdminManager;
@@ -50,6 +60,7 @@ export default async function ProfileDetailPage({
   const canViewCeoScoped = isSelf || isAdmin;
   const canManageWarnings = !isSelf && (isAdmin || isAdminManager);
   const canManage = !isSelf && isAdmin;
+  const sectionErrorMessage = tProfile('sectionError');
 
   const supabase = await createClient();
   const { data: target } = await supabase
@@ -85,35 +96,54 @@ export default async function ProfileDetailPage({
       </div>
 
       <div className="animate-fade-in-up" style={{ animationDelay: '70ms' }}>
-        <ContactInfoCard profile={target} isSelf={isSelf} />
+        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+          <Suspense fallback={<GlassCardSkeleton />}>
+            <ContactInfoCard profile={target} isSelf={isSelf} />
+          </Suspense>
+        </SectionErrorBoundary>
       </div>
 
       {canViewCeoScoped && (
         <div className="animate-fade-in-up" style={{ animationDelay: '140ms' }}>
-          <SelfDevelopmentSection
-            staffId={id}
-            isAdmin={isAdmin && !isSelf}
-            isCeo={isCeo && !isSelf}
-            selectedMonth={month ?? 'all'}
-          />
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
+            </Suspense>
+          </SectionErrorBoundary>
         </div>
       )}
 
       <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
-        <WarningsCard staffId={id} canManage={canManageWarnings} />
+        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+          <Suspense fallback={<GlassCardSkeleton />}>
+            <WarningsCard staffId={id} canManage={canManageWarnings} />
+          </Suspense>
+        </SectionErrorBoundary>
       </div>
 
       <div className="animate-fade-in-up" style={{ animationDelay: '280ms' }}>
-        <BonusesPunishmentsCard staffId={id} canManage={canManage} />
+        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+          <Suspense fallback={<GlassCardSkeleton />}>
+            <BonusesPunishmentsCard staffId={id} canManage={canManage} />
+          </Suspense>
+        </SectionErrorBoundary>
       </div>
 
       {canViewCeoScoped && (
         <>
           <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
-            <DutiesCard staffId={id} canManage={canManage} />
+            <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+              <Suspense fallback={<GlassCardSkeleton />}>
+                <DutiesCard staffId={id} canManage={canManage} />
+              </Suspense>
+            </SectionErrorBoundary>
           </div>
           <div className="animate-fade-in-up" style={{ animationDelay: '420ms' }}>
-            <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
+            <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+              <Suspense fallback={<GlassCardSkeleton />}>
+                <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
+              </Suspense>
+            </SectionErrorBoundary>
           </div>
         </>
       )}
