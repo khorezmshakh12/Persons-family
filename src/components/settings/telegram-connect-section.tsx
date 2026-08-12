@@ -3,15 +3,14 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Send, Unlink, Loader2 } from 'lucide-react';
-import { createTelegramLinkTokenAction, disconnectTelegramAction } from '@/lib/actions/telegram';
+import { Send, Loader2 } from 'lucide-react';
+import { createTelegramLinkTokenAction } from '@/lib/actions/telegram';
 import { Button } from '@/components/ui/button';
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 
-export function TelegramConnectSection({ isConnected: initialConnected }: { isConnected: boolean }) {
+export function TelegramConnectSection({ isConnected }: { isConnected: boolean }) {
   const t = useTranslations('settings.telegram');
-  const [isConnected, setIsConnected] = useState(initialConnected);
   const [isPending, startTransition] = useTransition();
   const [deepLink, setDeepLink] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -41,37 +40,13 @@ export function TelegramConnectSection({ isConnected: initialConnected }: { isCo
     });
   }
 
-  function handleDisconnect() {
-    startTransition(async () => {
-      const result = await disconnectTelegramAction();
-      if (result.error) {
-        toast.error(t('errors.updateFailed'));
-        return;
-      }
-      setIsConnected(false);
-      setDeepLink(null);
-      setQrDataUrl(null);
-      toast.success(t('disconnected'));
-    });
-  }
-
+  // Disconnecting is CEO-only now (see the Staff page) — a connected
+  // employee just sees their own status here, no unlink control.
   if (isConnected) {
     return (
-      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2 text-sm text-white">
-          <span className="size-2.5 rounded-full bg-emerald-400" />
-          {t('connected')}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleDisconnect}
-          disabled={isPending}
-          className="border-white/30 bg-white/10 text-white hover:bg-white/20"
-        >
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Unlink className="size-4" />}
-          {t('disconnect')}
-        </Button>
+      <div className="flex items-center gap-2 text-sm text-white">
+        <span className="size-2.5 rounded-full bg-emerald-400" />
+        {t('connected')}
       </div>
     );
   }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
-import { KeyRound, Ban, CheckCircle2, Trash2, MoreVertical } from 'lucide-react';
+import { KeyRound, Ban, CheckCircle2, Trash2, Unlink, MoreVertical } from 'lucide-react';
 import type { Profile } from '@/lib/auth/session';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import {
 import { ToggleActiveButton } from './toggle-active-button';
 import { ResetPasswordDialog } from './reset-password-dialog';
 import { DeleteStaffButton } from './delete-staff-button';
+import { DisconnectStaffTelegramButton } from './disconnect-staff-telegram-button';
 
 // Code-split: the heaviest dialog in the app (tabs, avatar upload) only
 // needs to load once someone actually opens it, instead of shipping in
@@ -23,7 +24,7 @@ const EditStaffDialog = dynamic(() =>
   import('./edit-staff-dialog').then((mod) => mod.EditStaffDialog),
 );
 
-type MenuAction = 'reset' | 'toggle' | 'delete' | null;
+type MenuAction = 'reset' | 'toggle' | 'delete' | 'disconnectTelegram' | null;
 
 // Edit stays a direct, always-visible action (the most common one); the
 // rest — reset password, deactivate/activate, delete — used to be four more
@@ -49,8 +50,9 @@ export function StaffRowActions({
   const canManage = isSelf || !(isProtectedRole && actingRole !== 'ceo');
   const canAssignCeo = actingRole === 'ceo';
   const canDeactivate = !isSelf;
-  const canDelete = !isSelf && (actingRole === 'ceo' || actingRole === 'it_developer');
-  const hasMenuActions = canDeactivate || canDelete;
+  const canDelete = !isSelf && actingRole === 'ceo';
+  const canManageTelegram = actingRole === 'ceo' && !!target.telegram_id;
+  const hasMenuActions = canDeactivate || canDelete || canManageTelegram;
 
   if (!canManage) return <span className="text-muted-foreground text-sm">—</span>;
 
@@ -84,6 +86,12 @@ export function StaffRowActions({
                 {target.is_active ? t('deactivate') : t('activate')}
               </DropdownMenuItem>
             )}
+            {canManageTelegram && (
+              <DropdownMenuItem onClick={() => setMenuAction('disconnectTelegram')}>
+                <Unlink />
+                {t('disconnectTelegram')}
+              </DropdownMenuItem>
+            )}
             {canDelete && (
               <DropdownMenuItem variant="destructive" onClick={() => setMenuAction('delete')}>
                 <Trash2 />
@@ -113,6 +121,13 @@ export function StaffRowActions({
           staffName={`${target.first_name} ${target.last_name}`}
           open={menuAction === 'delete'}
           onOpenChange={(open) => setMenuAction(open ? 'delete' : null)}
+        />
+      )}
+      {canManageTelegram && (
+        <DisconnectStaffTelegramButton
+          staffId={target.id}
+          open={menuAction === 'disconnectTelegram'}
+          onOpenChange={(open) => setMenuAction(open ? 'disconnectTelegram' : null)}
         />
       )}
     </div>

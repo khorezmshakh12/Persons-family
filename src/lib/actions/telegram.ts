@@ -1,9 +1,10 @@
 'use server';
 
 import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { requireAdmin, requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText } from '@/lib/telegram';
 
 export type TelegramActionState = { error?: string; success?: boolean } | undefined;
@@ -26,13 +27,30 @@ export async function createTelegramLinkTokenAction(): Promise<{ token?: string;
   return { token: data.token };
 }
 
-export async function disconnectTelegramAction(): Promise<{ error?: string; success?: boolean }> {
-  const { user } = await getAuthState();
-  if (!user) return { error: 'sessionExpired' };
+const idSchema = z.object({ id: z.string().uuid() });
+
+/** Disconnecting is CEO-only now — an employee can link their own Telegram
+ * (that's still self-service, see createTelegramLinkTokenAction) but
+ * can no longer unlink it themselves; only the CEO can, from the Staff
+ * page. */
+export async function adminDisconnectTelegramAction(
+  _prevState: TelegramActionState,
+  formData: FormData,
+): Promise<TelegramActionState> {
+  try {
+    await requireCeo();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = idSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('profiles').update({ telegram_id: null }).eq('id', user.id);
+  const { error } = await supabase.from('profiles').update({ telegram_id: null }).eq('id', parsed.data.id);
   if (error) return { error: 'updateFailed' };
+
+  revalidatePath('/[locale]/staff', 'page');
   return { success: true };
 }
 
@@ -57,7 +75,6 @@ export async function sendBroadcastAction(
 
   const supabase = await createClient();
   const { data: staff } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
-  console.log('Users retrieved from DB for notifications:', staff);
 
   try {
     const text = `📢 <b>E'lon</b>\n\n${escapeTelegramText(parsed.data.message)}`;
