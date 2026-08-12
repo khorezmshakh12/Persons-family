@@ -86,7 +86,7 @@ export type DeleteNewsResult = { error?: string };
 export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isAdmin = profile.role === 'ceo' || profile.role === 'it_developer';
+  const isAdmin = profile.role === 'ceo';
 
   const parsed = deleteNewsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

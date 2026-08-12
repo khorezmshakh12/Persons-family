@@ -19,7 +19,7 @@ export default async function IssuesPage() {
   const t = await getTranslations('issues');
   const { user, profile } = await getAuthState();
   const supabase = await createClient();
-  const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const isCeo = profile!.role === 'ceo';
   const isAdminManager = profile!.role === 'admin_manager';
 
   // Auto-hide (not delete): a "done" card older than a week just clutters

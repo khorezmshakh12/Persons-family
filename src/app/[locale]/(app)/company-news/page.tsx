@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function CompanyNewsPage() {
   const t = await getTranslations('companyNews');
   const { user, profile } = await getAuthState();
-  const isAdmin = profile?.role === 'ceo' || profile?.role === 'it_developer';
+  const isAdmin = profile?.role === 'ceo';
 
   const supabase = await createClient();
   const { data: news } = await supabase

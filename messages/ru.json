@@ -14,7 +14,12 @@
     "hidePassword": "Скрыть пароль",
     "errorTitle": "Что-то пошло не так",
     "errorDescription": "Попробуйте снова или обратитесь к администратору, если проблема повторяется.",
-    "tryAgain": "Попробовать снова"
+    "tryAgain": "Попробовать снова",
+    "dateInput": {
+      "day": "День",
+      "month": "Месяц",
+      "year": "Год"
+    }
   },
   "nav": {
     "dashboard": "Панель управления",
@@ -24,7 +29,6 @@
     "lessonPlans": "Доска планов уроков",
     "tasks": "Задачи",
     "companyNews": "Новости компании",
-    "staffChat": "Чат учителей/ассистентов",
     "telegramSetup": "Telegram",
     "selfDevelopment": "Саморазвитие",
     "performance": "Эффективность",
@@ -126,8 +130,8 @@
     },
     "employeeGrowth": {
       "title": "Месячный рост сотрудников",
-      "selectTeacher": "Выберите учителя",
-      "noTeachers": "Пока нет активных учителей."
+      "noTeachers": "Пока нет активных учителей.",
+      "noData": "Пока нет оценённых месяцев."
     }
   },
   "staff": {
@@ -188,6 +192,10 @@
     "confirmActivateDescription": "Он сможет снова войти с существующими учётными данными.",
     "confirmResetPasswordTitle": "Сбросить пароль этого сотрудника?",
     "confirmResetPasswordDescription": "Будет создан новый временный пароль, а активная сессия сотрудника завершится.",
+    "disconnectTelegram": "Отключить Telegram",
+    "telegramDisconnected": "Telegram отключён.",
+    "confirmDisconnectTelegramTitle": "Отключить Telegram этого сотрудника?",
+    "confirmDisconnectTelegramDescription": "Он не будет получать уведомления в Telegram, пока не подключится снова.",
     "confirm": "Подтвердить",
     "errors": {
       "invalidInput": "Пожалуйста, заполните все обязательные поля.",
@@ -452,7 +460,6 @@
     }
   },
   "staffChat": {
-    "title": "Чат учителей/ассистентов",
     "placeholder": "Напишите сообщение...",
     "send": "Отправить",
     "delete": "Удалить сообщение",
@@ -604,15 +611,12 @@
       "description": "Подключите свой Telegram, чтобы получать уведомления о новых обращениях, задачах и группах.",
       "connectButton": "Подключить Telegram",
       "connected": "Telegram подключён",
-      "disconnect": "Отключить",
-      "disconnected": "Telegram отключён.",
       "openBot": "Открыть Telegram-бота",
       "linkHint": "Откроет Telegram и запустит бота — аккаунт привяжется автоматически.",
       "qrAlt": "QR-код для подключения Telegram",
       "errors": {
         "notConfigured": "Интеграция с Telegram ещё не настроена. Обратитесь к администратору.",
-        "linkFailed": "Не удалось создать ссылку для подключения. Попробуйте снова.",
-        "updateFailed": "Что-то пошло не так. Попробуйте снова."
+        "linkFailed": "Не удалось создать ссылку для подключения. Попробуйте снова."
       }
     }
   },
@@ -888,8 +892,12 @@
     "reject": "Отклонить",
     "rejectionNote": "Причина отклонения",
     "overdue": "Срок истёк",
-    "countdownDaysHours": "Осталось {days} дн. {hours} ч.",
-    "countdownHours": "Осталось {hours} ч.",
+    "countdown": {
+      "days": "Дни",
+      "hours": "Часы",
+      "minutes": "Мин",
+      "seconds": "Сек"
+    },
     "statusLabels": {
       "pending": "Ожидает",
       "in_progress": "В процессе",
@@ -977,6 +985,7 @@
     "markReadFailed": "Не удалось отметить как прочитанное — оно всё ещё будет показано как непрочитанное."
   },
   "profile": {
+    "sectionError": "Не удалось загрузить этот раздел. Попробуйте обновить страницу.",
     "contactInfo": {
       "title": "Контактная информация",
       "phone": "Телефон",

@@ -118,9 +118,8 @@ export async function requestAvatarUploadUrlAction(
   return { path, token: data.token };
 }
 
-/** Shared account-creation core for both createStaffAction (ceo/admin_manager,
- * any role) and createAdminManagerAction (it_developer, admin_manager only)
- * — authorization happens entirely in the two callers before this runs. */
+/** Shared account-creation core for createStaffAction — authorization
+ * happens entirely in the caller before this runs. */
 async function createStaffRow(
   actingProfile: Pick<Profile, 'id'>,
   data: z.infer<typeof staffSchema> & { telegramId: number },
@@ -204,29 +203,6 @@ export async function createStaffAction(
   }
 
   return createStaffRow(actingProfile, parsed.data);
-}
-
-const addAdminManagerSchema = staffSchema.omit({ role: true }).extend({ telegramId: telegramIdField });
-
-/** Separate from createStaffAction's now-broad requireAdmin() access: an
- * Administrative Manager is a protected role (isProtectedRole), so
- * createStaffAction still rejects it for anyone but the CEO. This is IT
- * Developer's one narrow carve-out to still be able to create that one
- * specific role, predating (and narrower than) the general rank
- * elevation. */
-export async function createAdminManagerAction(
-  _prevState: StaffActionState,
-  formData: FormData,
-): Promise<StaffActionState> {
-  const { user, profile: actingProfile } = await getAuthState();
-  if (!user || !actingProfile || actingProfile.role !== 'it_developer') {
-    return { error: 'forbidden' };
-  }
-
-  const parsed = addAdminManagerSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
-
-  return createStaffRow(actingProfile, { ...parsed.data, role: 'admin_manager' });
 }
 
 /** Attaches an avatar already uploaded (via requestAvatarUploadUrlAction) to a staff profile. */

@@ -35,7 +35,7 @@ export async function createIssueAction(
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
-  const isAdmin = profile.role === 'ceo' || profile.role === 'it_developer';
+  const isAdmin = profile.role === 'ceo';
   const supabase = await createClient();
 
   let assignedTo: string | null = null;
@@ -180,7 +180,7 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
 
   const supabase = await createClient();
 
-  if (profile.role !== 'ceo' && profile.role !== 'it_developer') {
+  if (profile.role !== 'ceo') {
     const { data: existing } = await supabase
       .from('issues')
       .select('assigned_to')
@@ -218,7 +218,7 @@ export type DeleteIssueResult = { error?: string };
 export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isCeo = profile.role === 'ceo' || profile.role === 'it_developer';
+  const isCeo = profile.role === 'ceo';
 
   const parsed = deleteIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -254,7 +254,7 @@ export async function updateIssueAction(
 ): Promise<IssueActionState> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isCeo = profile.role === 'ceo' || profile.role === 'it_developer';
+  const isCeo = profile.role === 'ceo';
 
   const parsed = updateIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

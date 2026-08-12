@@ -19,14 +19,11 @@ export type Submission = {
 export async function SubmissionCard({
   submission,
   isAdmin,
-  isCeo = false,
   delayMs = 0,
 }: {
   submission: Submission;
+  /** Whoever can rate/score a submission at all — CEO-only. */
   isAdmin: boolean;
-  /** Gates the cash-bonus field specifically within the rating panel —
-   * narrower than isAdmin, which also covers IT Developer. */
-  isCeo?: boolean;
   delayMs?: number;
 }) {
   const t = await getTranslations('selfDevelopment');
@@ -79,7 +76,6 @@ export async function SubmissionCard({
           currentRating={submission.ceo_rating}
           currentScore={submission.ceo_score}
           currentLevel={submission.author?.role === 'teacher' ? submission.author.teacher_level : null}
-          isCeo={isCeo}
           currentBonusAmount={submission.bonus_amount}
         />
       ) : submission.ceo_rating ? (

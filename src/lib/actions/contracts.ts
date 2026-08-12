@@ -404,7 +404,7 @@ export async function requestContractFileReadUrlAction(
     .maybeSingle();
   if (!attachment) return { error: 'notFound' };
 
-  if (profile.role !== 'ceo' && profile.role !== 'it_developer') {
+  if (profile.role !== 'ceo') {
     const { data: contract } = await supabase
       .from('staff_contracts')
       .select('staff_id')

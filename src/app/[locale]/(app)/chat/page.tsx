@@ -37,21 +37,21 @@ export default async function ChatPage() {
     }
   }
 
-  // A bypass-eligible pair (either side ceo/it_developer) never sees the
-  // request step, even before any dm_conversations row exists — the row
-  // gets created transparently, already 'accepted', the moment they send
-  // their first message (see sendStaffChatAction). Without this, a brand
-  // new contact for a CEO would incorrectly show "Send chat request"
-  // instead of going straight to the composer.
-  const iAmBypass = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  // A bypass-eligible pair (either side ceo) never sees the request step,
+  // even before any dm_conversations row exists — the row gets created
+  // transparently, already 'accepted', the moment they send their first
+  // message (see sendStaffChatAction). Without this, a brand new contact
+  // for a CEO would incorrectly show "Send chat request" instead of going
+  // straight to the composer.
+  const iAmBypass = profile!.role === 'ceo';
   for (const s of staff ?? []) {
     if (conversationStates[s.id]) continue;
-    if (iAmBypass || s.role === 'ceo' || s.role === 'it_developer') {
+    if (iAmBypass || s.role === 'ceo') {
       conversationStates[s.id] = { kind: 'accepted', conversationId: '' };
     }
   }
 
-  const canModerateDmImportance = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const canModerateDmImportance = profile!.role === 'ceo';
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-5.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">

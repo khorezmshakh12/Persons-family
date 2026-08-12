@@ -355,9 +355,11 @@ export async function createLessonCommentAction(
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
 
-  // Administrative Manager no longer has any lesson-plan access — see
-  // 20260806110000_remove_admin_manager_lesson_plan_access.sql.
-  const isAuthorized = profile.role === 'ceo' || profile.role === 'it_developer' || profile.role === 'assistant';
+  // Administrative Manager and IT Developer have no lesson-plan access at
+  // all — see 20260806110000_remove_admin_manager_lesson_plan_access.sql
+  // and 20260812090100_head_teacher_and_it_developer_rls.sql. Head Teacher
+  // took IT Developer's place for viewing/commenting.
+  const isAuthorized = profile.role === 'ceo' || profile.role === 'head_teacher' || profile.role === 'assistant';
   if (!isAuthorized) return { error: 'forbidden' };
 
   const parsed = createCommentSchema.safeParse(Object.fromEntries(formData));

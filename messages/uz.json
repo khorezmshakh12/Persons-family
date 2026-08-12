@@ -14,7 +14,12 @@
     "hidePassword": "Parolni yashirish",
     "errorTitle": "Nimadir xato ketdi",
     "errorDescription": "Qayta urinib ko'ring yoki muammo davom etsa, administratorga murojaat qiling.",
-    "tryAgain": "Qayta urinish"
+    "tryAgain": "Qayta urinish",
+    "dateInput": {
+      "day": "Kun",
+      "month": "Oy",
+      "year": "Yil"
+    }
   },
   "nav": {
     "dashboard": "Boshqaruv paneli",
@@ -24,7 +29,6 @@
     "lessonPlans": "Dars Reja Taxtasi",
     "tasks": "Vazifalar",
     "companyNews": "Kompaniya Yangiliklari",
-    "staffChat": "O'qituvchi/TA Chat",
     "telegramSetup": "Telegram",
     "selfDevelopment": "O'z-o'zini Rivojlantirish",
     "performance": "Samaradorlik",
@@ -126,8 +130,8 @@
     },
     "employeeGrowth": {
       "title": "Xodimlarning Oylik O'sishi",
-      "selectTeacher": "O'qituvchini tanlang",
-      "noTeachers": "Hozircha faol o'qituvchilar yo'q."
+      "noTeachers": "Hozircha faol o'qituvchilar yo'q.",
+      "noData": "Hozircha baholangan oylar yo'q."
     }
   },
   "staff": {
@@ -188,6 +192,10 @@
     "confirmActivateDescription": "U mavjud login ma'lumotlari bilan qayta kira oladi.",
     "confirmResetPasswordTitle": "Ushbu xodimning parolini tiklaysizmi?",
     "confirmResetPasswordDescription": "Yangi vaqtinchalik parol yaratiladi va uning faol sessiyasi tugatiladi.",
+    "disconnectTelegram": "Telegramni uzish",
+    "telegramDisconnected": "Telegram uzildi.",
+    "confirmDisconnectTelegramTitle": "Ushbu xodimning Telegramini uzasizmi?",
+    "confirmDisconnectTelegramDescription": "U qayta ulamaguncha Telegram orqali bildirishnoma olmaydi.",
     "confirm": "Tasdiqlash",
     "errors": {
       "invalidInput": "Barcha majburiy maydonlarni to'ldiring.",
@@ -452,7 +460,6 @@
     }
   },
   "staffChat": {
-    "title": "O'qituvchi/TA Chat",
     "placeholder": "Xabar yozing...",
     "send": "Yuborish",
     "delete": "Xabarni o'chirish",
@@ -604,15 +611,12 @@
       "description": "Yangi murojaatlar, vazifalar va guruhlar haqida bildirishnoma olish uchun Telegramni ulang.",
       "connectButton": "Telegramni ulash",
       "connected": "Telegramga ulangan",
-      "disconnect": "Uzish",
-      "disconnected": "Telegram uzildi.",
       "openBot": "Telegram botni ochish",
       "linkHint": "Telegramni ochadi va botni ishga tushiradi — hisobingiz avtomatik ulanadi.",
       "qrAlt": "Telegramni ulash uchun QR kod",
       "errors": {
         "notConfigured": "Telegram integratsiyasi hali sozlanmagan. Administratorga murojaat qiling.",
-        "linkFailed": "Ulanish havolasini yaratib bo'lmadi. Qayta urinib ko'ring.",
-        "updateFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
+        "linkFailed": "Ulanish havolasini yaratib bo'lmadi. Qayta urinib ko'ring."
       }
     }
   },
@@ -888,8 +892,12 @@
     "reject": "Rad etish",
     "rejectionNote": "Rad etish sababi",
     "overdue": "Muddati o'tgan",
-    "countdownDaysHours": "{days} kun {hours} soat qoldi",
-    "countdownHours": "{hours} soat qoldi",
+    "countdown": {
+      "days": "Kun",
+      "hours": "Soat",
+      "minutes": "Daqiqa",
+      "seconds": "Soniya"
+    },
     "statusLabels": {
       "pending": "Kutilmoqda",
       "in_progress": "Boshlandi",
@@ -977,6 +985,7 @@
     "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
   },
   "profile": {
+    "sectionError": "Bu bo'limni yuklab bo'lmadi. Sahifani yangilab ko'ring.",
     "contactInfo": {
       "title": "Aloqa ma'lumotlari",
       "phone": "Telefon",

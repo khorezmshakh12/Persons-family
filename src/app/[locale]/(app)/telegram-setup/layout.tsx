@@ -6,7 +6,7 @@ export default async function TelegramSetupLayout({ children }: { children: Reac
   const { profile } = await getAuthState();
   const locale = await getLocale();
 
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+  if (!profile || profile.role !== 'ceo') {
     redirect({ href: '/dashboard', locale });
   }
 

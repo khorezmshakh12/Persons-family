@@ -11,17 +11,14 @@ import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 export type WarningActionState = { error?: string } | undefined;
 
-/** CEO, IT Developer, and Administrative Manager all issue warnings —
- * mirrors staff_warnings_insert's public.is_ceo_or_admin_manager() RLS
- * check (is_admin() there now covers ceo + it_developer). */
+/** CEO and Administrative Manager issue warnings — mirrors
+ * staff_warnings_insert's public.is_ceo_or_admin_manager() RLS check
+ * (is_admin() there is ceo-only again). */
 async function requireCeoOrAdminManager() {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
-  if (
-    !profile ||
-    (profile.role !== 'ceo' && profile.role !== 'it_developer' && profile.role !== 'admin_manager')
-  ) {
-    throw new ForbiddenError('CEO, IT Developer, or Administrative Manager access required');
+  if (!profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) {
+    throw new ForbiddenError('CEO or Administrative Manager access required');
   }
   return { user, profile };
 }

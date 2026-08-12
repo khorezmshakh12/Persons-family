@@ -8,14 +8,11 @@ import { MonthPicker } from './month-picker';
 export async function SelfDevelopmentSection({
   staffId,
   isAdmin,
-  isCeo = false,
   selectedMonth,
 }: {
   staffId: string;
   /** CEO viewing someone else — reuses SubmissionCard's own rating panel. */
   isAdmin: boolean;
-  /** Gates the cash-bonus field specifically — narrower than isAdmin. */
-  isCeo?: boolean;
   selectedMonth: string;
 }) {
   const t = await getTranslations('profile.selfDevelopment');
@@ -48,7 +45,6 @@ export async function SelfDevelopmentSection({
               key={s.id}
               submission={{ ...s, author: null } as Submission}
               isAdmin={isAdmin}
-              isCeo={isCeo}
             />
           ))}
         </div>

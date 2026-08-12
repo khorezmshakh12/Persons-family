@@ -32,10 +32,10 @@ export type ReadUrlResult = { signedUrl?: string; error?: string };
 // a board), so this needs a long expiry.
 const CHAT_MEDIA_READ_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 365 * 5;
 
-/** CEO and IT Developer are always reachable — no request/accept step in
- * either direction. Everyone else needs an accepted dm_conversations row
- * before they can exchange messages at all. */
-const BYPASS_ROLES = ['ceo', 'it_developer'];
+/** CEO is always reachable — no request/accept step in either direction.
+ * Everyone else needs an accepted dm_conversations row before they can
+ * exchange messages at all. */
+const BYPASS_ROLES = ['ceo'];
 
 const sendSchema = z
   .object({
@@ -331,8 +331,7 @@ export async function setDmConversationStatusAction(
   formData: FormData,
 ): Promise<StaffChatsActionState> {
   const { profile } = await getAuthState();
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer'))
-    return { error: 'forbidden' };
+  if (!profile || profile.role !== 'ceo') return { error: 'forbidden' };
 
   const parsed = dmStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

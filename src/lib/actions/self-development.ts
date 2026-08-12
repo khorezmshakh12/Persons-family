@@ -4,11 +4,10 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import type { Database } from '@/lib/supabase/types';
-import type { ScorePoint } from '@/components/self-development/self-development-chart';
 
 export type SelfDevActionState = { error?: string; success?: boolean } | undefined;
 
@@ -68,29 +67,21 @@ export async function saveEvaluationAction(
   _prevState: SelfDevActionState,
   formData: FormData,
 ): Promise<SelfDevActionState> {
-  let callerRole: string;
   try {
-    ({
-      profile: { role: callerRole },
-    } = await requireAdmin());
+    await requireCeo();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
   const parsed = saveEvaluationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-  // A cash bonus is CEO-only — IT Developer can still rate/score a
-  // submission, just not attach money to it.
-  if (parsed.data.bonusAmount != null && parsed.data.bonusAmount > 0 && callerRole !== 'ceo') {
-    return { error: 'forbidden' };
-  }
 
   const supabase = await createClient();
 
   const devUpdates: SelfDevelopmentUpdate = {
     ceo_rating: parsed.data.ceoRating || null,
     ceo_score: parsed.data.ceoScore,
-    ...(callerRole === 'ceo' ? { bonus_amount: parsed.data.bonusAmount ?? null } : {}),
+    bonus_amount: parsed.data.bonusAmount ?? null,
   };
   const { error: devError } = await supabase
     .from('self_development')
@@ -113,19 +104,4 @@ export async function saveEvaluationAction(
   revalidatePath('/[locale]/staff', 'page');
   revalidatePath(`/[locale]/finance/${parsed.data.userId}`, 'page');
   return { success: true };
-}
-
-/** Read-only lookup backing the dashboard's teacher-picker chart widget —
- * called on selection change from a client component, not a form submit. */
-export async function getTeacherSelfDevelopmentAction(teacherId: string): Promise<ScorePoint[]> {
-  await requireAdmin();
-
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('self_development')
-    .select('month, ceo_score')
-    .eq('user_id', teacherId)
-    .order('month', { ascending: true });
-
-  return (data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }));
 }

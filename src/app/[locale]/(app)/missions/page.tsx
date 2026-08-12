@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function MissionsPage() {
   const t = await getTranslations('missions');
   const { user, profile } = await getAuthState();
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const isAdmin = profile!.role === 'ceo';
   const supabase = await createClient();
 
   if (isAdmin) {

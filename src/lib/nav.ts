@@ -11,7 +11,6 @@ export type NavItem = {
     | 'lessonPlans'
     | 'tasks'
     | 'companyNews'
-    | 'staffChat'
     | 'telegramSetup'
     | 'selfDevelopment'
     | 'finance'
@@ -25,7 +24,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
-  { key: 'staff', href: '/staff', roles: ['ceo', 'it_developer'] },
+  { key: 'staff', href: '/staff', roles: ['ceo'] },
   { key: 'chat', href: '/chat' },
   { key: 'issues', href: '/issues' },
   {
@@ -39,14 +38,13 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { key: 'tasks', href: '/tasks' },
   { key: 'companyNews', href: '/company-news' },
-  { key: 'staffChat', href: '/staff-chat', roles: ['teacher', 'assistant', 'admin_manager'] },
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },
   { key: 'missions', href: '/missions' },
   // Roadmap (incl. its Monthly Goals section) is CEO/Administrative Manager
-  // territory specifically — mirrors its table's RLS (public.is_admin() =
-  // role in ('ceo','admin_manager')), which never included IT Developer even
-  // after its rank elevation elsewhere. See requireCeoOrAdminManager().
+  // territory specifically — mirrors its table's RLS (an explicit
+  // `current_role() in ('ceo','admin_manager')`, not the shared
+  // is_admin()). IT Developer, now a plain regular employee, never has it.
   { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
   { key: 'profile', href: '/profile' },
   { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo'] },

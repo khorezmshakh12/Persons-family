@@ -25,8 +25,8 @@ export function StaffChatRoom({
    * than let them hit a silent failure. */
   canPost?: boolean;
   /** Snippet mode for embedding inside a group page — shows only the last
-   * few messages and skips auto-scroll, instead of the full-height room
-   * used by the standalone /staff-chat page. */
+   * few messages and skips auto-scroll, instead of rendering as a
+   * full-height room. */
   compact?: boolean;
 }) {
   const t = useTranslations('staffChat');

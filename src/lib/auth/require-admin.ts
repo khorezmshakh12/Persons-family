@@ -27,11 +27,11 @@ export function authErrorCode(error: unknown): 'sessionExpired' | 'forbidden' {
  * assigned to it) are checked explicitly at their own call sites instead of
  * through a shared "is admin" gate.
  *
- * Reserved for the handful of actions that stay CEO-exclusive even after
- * IT Developer's rank elevation (see requireAdmin() below): deleting a
- * staff account, deleting a Contract/Duty/attachment, and anything in
- * admin-management.ts (which manages Administrative Manager accounts
- * themselves — a protected role).
+ * Reserved for actions that stay CEO-exclusive: deleting a staff account,
+ * deleting a Contract/Duty/attachment, and anything in admin-management.ts
+ * (which manages Administrative Manager accounts themselves — a protected
+ * role). IT Developer briefly shared this rank (see requireAdmin() below)
+ * but was reverted to a plain regular employee with no elevated reach.
  */
 export async function requireCeo() {
   const { user, profile } = await getAuthState();
@@ -43,18 +43,19 @@ export async function requireCeo() {
 }
 
 /**
- * IT Developer sits directly below CEO in rank and shares CEO's day-to-day
- * administrative authority (staff CRUD short of delete, tasks, issues,
- * company news, self-development evaluation, chat moderation, performance,
- * contracts & duties short of delete, warnings/punishments, telegram) —
- * mirrors public.is_admin() at the RLS layer, which was widened the same
- * way. Use requireCeo() instead for the narrower set of actions that stay
- * CEO-exclusive (see its own comment).
+ * CEO-only, mirroring public.is_admin() at the RLS layer. IT Developer used
+ * to share this (staff CRUD, tasks, issues, company news, self-development
+ * evaluation, chat moderation, contracts & duties, warnings/punishments,
+ * telegram) but that elevation was fully reverted — it's now a plain
+ * regular employee. This function is kept distinct from requireCeo() only
+ * because they're functionally identical for the moment; call sites were
+ * left as requireAdmin() rather than mass-renamed to lower the risk of the
+ * revert, not because it still grants anything requireCeo() doesn't.
  */
 export async function requireAdmin() {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+  if (!profile || profile.role !== 'ceo') {
     throw new ForbiddenError('Admin access required');
   }
   return { user, profile };
@@ -62,12 +63,11 @@ export async function requireAdmin() {
 
 /**
  * Roadmap (roadmap_goals) is CEO/Administrative Manager territory
- * specifically — not the general requireAdmin() (ceo/it_developer) gate.
- * Mirrors that table's existing RLS, which was already scoped to
- * `public.is_admin()` (role in ('ceo','admin_manager')) since the original
- * schema — IT Developer was deliberately never added to it when its rank
- * was elevated elsewhere, so this keeps the app layer and the DB layer in
- * sync.
+ * specifically — not the general requireAdmin() gate. Mirrors that table's
+ * RLS, which explicitly checks `current_role() in ('ceo','admin_manager')`
+ * rather than composing the shared is_admin() (a past version routed
+ * through is_admin() and silently drifted out of sync with this comment
+ * every time is_admin()'s own meaning changed — decoupled for good).
  */
 export async function requireCeoOrAdminManager() {
   const { user, profile } = await getAuthState();

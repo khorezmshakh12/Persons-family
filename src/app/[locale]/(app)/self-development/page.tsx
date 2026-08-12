@@ -30,8 +30,8 @@ export default async function SelfDevelopmentPage({
   const tp = await getTranslations('performance');
   const { teacher } = await searchParams;
   const { user, profile } = await getAuthState();
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
   const isCeo = profile!.role === 'ceo';
+  const isAdmin = isCeo;
   const supabase = await createClient();
 
   let query = supabase
@@ -143,7 +143,6 @@ export default async function SelfDevelopmentPage({
                   key={s.id}
                   submission={s as unknown as Submission}
                   isAdmin
-                  isCeo={isCeo}
                   delayMs={Math.min(index, 10) * 60}
                 />
               ))}
@@ -164,7 +163,6 @@ export default async function SelfDevelopmentPage({
                   key={s.id}
                   submission={s as unknown as Submission}
                   isAdmin
-                  isCeo={isCeo}
                   delayMs={Math.min(index, 10) * 60}
                 />
               ))}
@@ -281,7 +279,12 @@ export default async function SelfDevelopmentPage({
         </div>
         <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
           <span className="text-sm text-white/60">{tp('netTotal')}</span>
-          <span className={cn('text-2xl font-bold tabular-nums', net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+          <span
+            className={cn(
+              'text-2xl font-bold tabular-nums',
+              net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70',
+            )}
+          >
             {net >= 0 ? '+' : ''}
             {formatUZS(net)}
           </span>

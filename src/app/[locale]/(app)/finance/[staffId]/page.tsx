@@ -23,8 +23,8 @@ export default async function StaffFinancePage({ params }: { params: Promise<{ s
   const { user, profile } = await getAuthState();
 
   const isSelf = user!.id === staffId;
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
   const isCeo = profile!.role === 'ceo';
+  const isAdmin = isCeo;
   if (!isSelf && !isAdmin) redirect({ href: '/dashboard', locale });
 
   const supabase = await createClient();

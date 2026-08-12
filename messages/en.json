@@ -14,7 +14,12 @@
     "hidePassword": "Hide password",
     "errorTitle": "Something went wrong",
     "errorDescription": "Please try again, or contact an administrator if the problem persists.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "dateInput": {
+      "day": "Day",
+      "month": "Month",
+      "year": "Year"
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -24,7 +29,6 @@
     "lessonPlans": "Lesson Plan Board",
     "tasks": "Tasks",
     "companyNews": "Company News",
-    "staffChat": "Teacher/TA Chat",
     "telegramSetup": "Telegram",
     "selfDevelopment": "Self-Development",
     "performance": "Performance",
@@ -126,8 +130,8 @@
     },
     "employeeGrowth": {
       "title": "Employee Monthly Growth",
-      "selectTeacher": "Select a teacher",
-      "noTeachers": "No active teachers yet."
+      "noTeachers": "No active teachers yet.",
+      "noData": "No scored months yet."
     }
   },
   "staff": {
@@ -188,6 +192,10 @@
     "confirmActivateDescription": "They will be able to log in again with their existing credentials.",
     "confirmResetPasswordTitle": "Reset this staff member's password?",
     "confirmResetPasswordDescription": "A new temporary password will be generated and they'll be signed out of any active session.",
+    "disconnectTelegram": "Disconnect Telegram",
+    "telegramDisconnected": "Telegram disconnected.",
+    "confirmDisconnectTelegramTitle": "Disconnect this staff member's Telegram?",
+    "confirmDisconnectTelegramDescription": "They won't receive Telegram notifications until they reconnect.",
     "confirm": "Confirm",
     "errors": {
       "invalidInput": "Please fill in all required fields.",
@@ -452,7 +460,6 @@
     }
   },
   "staffChat": {
-    "title": "Teacher/TA Chat",
     "placeholder": "Write a message...",
     "send": "Send",
     "delete": "Delete message",
@@ -604,15 +611,12 @@
       "description": "Connect your Telegram account to get notified about new issues, tasks, and groups.",
       "connectButton": "Connect Telegram",
       "connected": "Connected to Telegram",
-      "disconnect": "Disconnect",
-      "disconnected": "Telegram disconnected.",
       "openBot": "Open Telegram bot",
       "linkHint": "Opens Telegram and starts the bot — your account links automatically.",
       "qrAlt": "QR code to connect Telegram",
       "errors": {
         "notConfigured": "Telegram integration isn't set up yet. Contact an administrator.",
-        "linkFailed": "Could not generate a connection link. Please try again.",
-        "updateFailed": "Something went wrong. Please try again."
+        "linkFailed": "Could not generate a connection link. Please try again."
       }
     }
   },
@@ -888,8 +892,12 @@
     "reject": "Reject",
     "rejectionNote": "Rejection reason",
     "overdue": "Overdue",
-    "countdownDaysHours": "{days}d {hours}h left",
-    "countdownHours": "{hours}h left",
+    "countdown": {
+      "days": "Days",
+      "hours": "Hours",
+      "minutes": "Min",
+      "seconds": "Sec"
+    },
     "statusLabels": {
       "pending": "Pending",
       "in_progress": "In Progress",
@@ -977,6 +985,7 @@
     "markReadFailed": "Couldn't sync that as read — it will still show as unread."
   },
   "profile": {
+    "sectionError": "This section couldn't load. Try refreshing the page.",
     "contactInfo": {
       "title": "Contact Information",
       "phone": "Phone",

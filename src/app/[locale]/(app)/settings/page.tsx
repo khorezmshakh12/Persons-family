@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage() {
   const t = await getTranslations('settings');
   const { user, profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const isCeo = profile!.role === 'ceo';
 
   let currentAnnouncement: string | null = null;
   if (isCeo) {

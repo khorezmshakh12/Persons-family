@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
   const { profile } = await getAuthState();
-  if (profile!.role !== 'ceo' && profile!.role !== 'it_developer') notFound();
+  if (profile!.role !== 'ceo') notFound();
 
   const t = await getTranslations('analytics');
   const supabase = await createClient();

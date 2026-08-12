@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthState } from '@/lib/auth/session';
-import { GLOBAL_STAFF_CHAT_ID } from '@/lib/staff-chat';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 
 export type StaffChatActionState = { error?: string } | undefined;
@@ -15,10 +14,7 @@ const sendMessageSchema = z.object({
 });
 
 /** Fire-and-forget notification for a group's 2-person teacher/TA chat
- * (conversation_id === that group's id). Deliberately skipped for
- * GLOBAL_STAFF_CHAT_ID — that room is a broadcast to every teacher/
- * assistant in the company, and pinging all of them on every message
- * would be spam, not a notification. */
+ * (conversation_id === that group's id). */
 async function notifyGroupChatMessage({
   conversationId,
   senderId,
@@ -32,7 +28,6 @@ async function notifyGroupChatMessage({
   content: string;
   supabase: Awaited<ReturnType<typeof createClient>>;
 }) {
-  if (conversationId === GLOBAL_STAFF_CHAT_ID) return;
   try {
     const { data: group } = await supabase
       .from('groups')

@@ -20,8 +20,8 @@ export default async function StaffMissionsPage({ params }: { params: Promise<{ 
   const { user, profile } = await getAuthState();
 
   const isSelf = user!.id === staffId;
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
   const isCeo = profile!.role === 'ceo';
+  const isAdmin = isCeo;
   if (!isSelf && !isAdmin) redirect({ href: '/dashboard', locale });
 
   const supabase = await createClient();
