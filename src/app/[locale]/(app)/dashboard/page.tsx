@@ -5,7 +5,7 @@ import { StatsRow } from '@/components/dashboard/stats-row';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
-import { EmployeeGrowthChartCard } from '@/components/dashboard/employee-growth-chart-card';
+import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
@@ -29,7 +29,11 @@ async function TeacherSelfDevelopmentCard({ userId, delayMs }: { userId: string;
   );
 }
 
-async function EmployeeGrowthChartSection({ delayMs }: { delayMs: number }) {
+// CEO-only: every active teacher's self-development score plotted as its
+// own line on one shared chart, rather than the old single-teacher picker —
+// pivoted here (one row per month, one column per teacher) so the client
+// component stays a dumb renderer with no data-fetching of its own.
+async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
   const supabase = await createClient();
   const { data: teachers } = await supabase
     .from('profiles')
@@ -38,20 +42,35 @@ async function EmployeeGrowthChartSection({ delayMs }: { delayMs: number }) {
     .eq('is_active', true)
     .order('first_name', { ascending: true });
 
-  const firstTeacher = teachers?.[0] ?? null;
-  const { data: points } = firstTeacher
-    ? await supabase
-        .from('self_development')
-        .select('month, ceo_score')
-        .eq('user_id', firstTeacher.id)
-        .order('month', { ascending: true })
-    : { data: null };
+  const teacherList = teachers ?? [];
+  const { data: scores } =
+    teacherList.length > 0
+      ? await supabase
+          .from('self_development')
+          .select('month, ceo_score, user_id')
+          .in(
+            'user_id',
+            teacherList.map((t) => t.id),
+          )
+          .not('ceo_score', 'is', null)
+          .order('month', { ascending: true })
+      : { data: null };
+
+  const monthsInOrder: string[] = [];
+  const rowByMonth = new Map<string, Record<string, number | null>>();
+  for (const s of scores ?? []) {
+    if (!rowByMonth.has(s.month)) {
+      monthsInOrder.push(s.month);
+      rowByMonth.set(s.month, {});
+    }
+    rowByMonth.get(s.month)![s.user_id] = s.ceo_score;
+  }
+  const data = monthsInOrder.map((month) => ({ month, ...rowByMonth.get(month) }));
 
   return (
-    <EmployeeGrowthChartCard
-      teachers={teachers ?? []}
-      initialTeacherId={firstTeacher?.id ?? null}
-      initialPoints={(points ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+    <TeacherProgressChartCard
+      teachers={teacherList.map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}` }))}
+      data={data}
       delayMs={delayMs}
     />
   );
@@ -104,7 +123,7 @@ export default async function DashboardPage() {
         {!isPersonalDashboard && (
           <Suspense fallback={<GlassCardSkeleton />}>
             {isCeo ? (
-              <EmployeeGrowthChartSection delayMs={0} />
+              <TeacherProgressChartSection delayMs={0} />
             ) : (
               <RolesDonutChart href={analyticsHref} delayMs={0} />
             )}
