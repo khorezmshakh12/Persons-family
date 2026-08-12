@@ -64,7 +64,7 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-white/10 pt-4">
-        <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} isCeo={isCeo && !isSelf} selectedMonth="all" />
+        <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} selectedMonth="all" />
       </div>
 
       <div className="border-t border-white/10 pt-4">

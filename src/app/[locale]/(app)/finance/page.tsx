@@ -5,6 +5,7 @@ import { redirect, Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
+import { MaskableStatValue } from '@/components/dashboard/maskable-stat-value';
 import type { FinanceEntry } from '@/components/finance/finance-entries-list';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ function netTotal(entries: { amount: number }[]) {
 export default async function FinancePage() {
   const t = await getTranslations('finance');
   const { user, profile } = await getAuthState();
-  const isAdmin = profile!.role === 'ceo' || profile!.role === 'it_developer';
+  const isAdmin = profile!.role === 'ceo';
   const supabase = await createClient();
 
   if (isAdmin) {
@@ -59,14 +60,11 @@ export default async function FinancePage() {
                 <span className="font-semibold text-white">
                   {person.first_name} {person.last_name}
                 </span>
-                <span
-                  className={cn(
-                    'text-lg font-bold tabular-nums',
-                    net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70',
-                  )}
-                >
-                  {net >= 0 ? '+' : ''}
-                  {formatUZS(net)}
+                <span className="text-lg font-bold tabular-nums">
+                  <MaskableStatValue
+                    value={`${net >= 0 ? '+' : ''}${formatUZS(net)}`}
+                    valueClassName={net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70'}
+                  />
                 </span>
               </Link>
             );

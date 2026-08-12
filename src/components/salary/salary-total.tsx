@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { createClient } from '@/lib/supabase/server';
 import { formatUZS } from '@/lib/format-currency';
+import { cn } from '@/lib/utils';
 import { SalaryNoteForm } from './salary-note-form';
 
 /** Independently sums every cash source that feeds a staff member's
@@ -35,7 +36,12 @@ export async function SalaryTotal({ staffId, isCeo }: { staffId: string; isCeo: 
     <div className="flex flex-col gap-3 rounded-xl border border-white/20 bg-white/10 p-4">
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold text-white/70">{t('total')}</span>
-        <span className={total >= 0 ? 'text-3xl font-bold tabular-nums text-emerald-400' : 'text-3xl font-bold tabular-nums text-red-400'}>
+        <span
+          className={cn(
+            'text-3xl font-bold tabular-nums',
+            total > 0 ? 'text-emerald-400' : total < 0 ? 'text-red-400' : 'text-white/70',
+          )}
+        >
           {total >= 0 ? '+' : ''}
           {formatUZS(total)}
         </span>
