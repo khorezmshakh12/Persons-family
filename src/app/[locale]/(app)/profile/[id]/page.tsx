@@ -29,15 +29,17 @@ export const dynamic = 'force-dynamic';
 // this page's recurring "sometimes doesn't load / kicks me out" bug —
 // wrapping each section individually means a single bad query now only
 // degrades that one card instead of taking the whole route down.
-export default async function ProfileDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ month?: string }>;
-}) {
-  const { id } = await params;
-  const { month } = await searchParams;
+//
+// Exported (not just the default below) so /profile/page.tsx can render a
+// viewer's own profile in place instead of redirect()-ing here — a
+// same-segment-tree redirect() out of a route that has a loading.tsx runs
+// in Next's "streaming" mode (a client-side meta-redirect rather than a
+// clean HTTP 307), which under Next 16's rewritten navigation/prefetch
+// layer was intermittently corrupting the client router's cache-node tree
+// on soft navigation and surfacing as a React #310 crash (a useMemo
+// dependency array changing size) — a white screen with no server-side
+// error at all. Same fix applied to /finance and /missions.
+export async function ProfileDetailContent({ id, month }: { id: string; month?: string }) {
   const tStaff = await getTranslations('staff');
   const tProfile = await getTranslations('profile');
   const locale = await getLocale();
@@ -149,4 +151,16 @@ export default async function ProfileDetailPage({
       )}
     </div>
   );
+}
+
+export default async function ProfileDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const { id } = await params;
+  const { month } = await searchParams;
+  return <ProfileDetailContent id={id} month={month} />;
 }

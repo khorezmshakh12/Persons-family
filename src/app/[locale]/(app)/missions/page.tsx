@@ -1,9 +1,10 @@
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { redirect, Link } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { MissionsDetailContent } from './[staffId]/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,8 @@ export default async function MissionsPage() {
     );
   }
 
-  const locale = await getLocale();
-  redirect({ href: `/missions/${user!.id}`, locale });
+  // Non-admin: their own missions render in place (used to redirect() to
+  // /missions/[own-id] — see the comment on ProfileDetailContent in
+  // profile/[id]/page.tsx for why that broke).
+  return <MissionsDetailContent staffId={user!.id} />;
 }

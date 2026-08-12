@@ -12,8 +12,11 @@ import { isShortTerm } from '@/lib/missions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function StaffMissionsPage({ params }: { params: Promise<{ staffId: string }> }) {
-  const { staffId } = await params;
+// Exported so /missions/page.tsx can render a non-admin viewer's own
+// missions page in place instead of redirect()-ing here — see the matching
+// comment on ProfileDetailContent (profile/[id]/page.tsx) for why that
+// redirect was crashing the client router under Next 16.
+export async function MissionsDetailContent({ staffId }: { staffId: string }) {
   const t = await getTranslations('missions');
   const tStaff = await getTranslations('staff');
   const locale = await getLocale();
@@ -100,4 +103,9 @@ export default async function StaffMissionsPage({ params }: { params: Promise<{ 
       </div>
     </div>
   );
+}
+
+export default async function StaffMissionsPage({ params }: { params: Promise<{ staffId: string }> }) {
+  const { staffId } = await params;
+  return <MissionsDetailContent staffId={staffId} />;
 }

@@ -1,12 +1,13 @@
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { redirect, Link } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { MaskableStatValue } from '@/components/dashboard/maskable-stat-value';
 import type { FinanceEntry } from '@/components/finance/finance-entries-list';
+import { FinanceDetailContent } from './[staffId]/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +76,8 @@ export default async function FinancePage() {
   }
 
   // Non-admin: their own ledger + KPI + Income Roadmap all live together on
-  // the per-staff detail page now, so this list page just forwards them.
-  const locale = await getLocale();
-  redirect({ href: `/finance/${user!.id}`, locale });
+  // the per-staff detail page now, so this list page renders it in place
+  // (used to redirect() to /finance/[own-id] — see the comment on
+  // ProfileDetailContent in profile/[id]/page.tsx for why that broke).
+  return <FinanceDetailContent staffId={user!.id} />;
 }

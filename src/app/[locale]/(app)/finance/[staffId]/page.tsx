@@ -16,8 +16,11 @@ function netTotal(entries: { amount: number }[]) {
   return entries.reduce((sum, e) => sum + e.amount, 0);
 }
 
-export default async function StaffFinancePage({ params }: { params: Promise<{ staffId: string }> }) {
-  const { staffId } = await params;
+// Exported so /finance/page.tsx can render a non-admin viewer's own finance
+// page in place instead of redirect()-ing here — see the matching comment
+// on ProfileDetailContent (profile/[id]/page.tsx) for why that redirect
+// was crashing the client router under Next 16.
+export async function FinanceDetailContent({ staffId }: { staffId: string }) {
   const tStaff = await getTranslations('staff');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
@@ -80,4 +83,9 @@ export default async function StaffFinancePage({ params }: { params: Promise<{ s
       </div>
     </div>
   );
+}
+
+export default async function StaffFinancePage({ params }: { params: Promise<{ staffId: string }> }) {
+  const { staffId } = await params;
+  return <FinanceDetailContent staffId={staffId} />;
 }

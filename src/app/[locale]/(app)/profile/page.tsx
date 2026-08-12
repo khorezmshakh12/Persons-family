@@ -1,11 +1,13 @@
-import { getLocale } from 'next-intl/server';
-import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
+import { ProfileDetailContent } from './[id]/page';
 
-// "My Profile" from the sidebar always resolves to the caller's own id —
-// same redirect-to-a-real-route precedent as performance/page.tsx.
+export const dynamic = 'force-dynamic';
+
+// "My Profile" from the sidebar renders the caller's own profile in place
+// rather than redirect()-ing to /profile/[id] — see the comment on
+// ProfileDetailContent for why that redirect was crashing the client
+// router under Next 16.
 export default async function ProfilePage() {
   const { user } = await getAuthState();
-  const locale = await getLocale();
-  redirect({ href: `/profile/${user!.id}`, locale });
+  return <ProfileDetailContent id={user!.id} />;
 }
