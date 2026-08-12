@@ -34,7 +34,7 @@ export function KpiScoreChart({ points }: { points: { month: string; score: numb
           <XAxis dataKey="label" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<CustomTooltip />} />
-          <Line type="monotone" dataKey="score" stroke="#2dd4bf" strokeWidth={2.5} dot={{ fill: '#2dd4bf', r: 3 }} />
+          <Line type="monotone" dataKey="score" stroke="#34d399" strokeWidth={2.5} dot={{ fill: '#34d399', r: 3 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

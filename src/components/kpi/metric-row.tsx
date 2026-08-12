@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
 import { upsertKpiEntryAction, deleteKpiMetricAction, type KpiActionState } from '@/lib/actions/kpi';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ManageMetricDialog } from './manage-metric-dialog';
 import {
   AlertDialog,
@@ -71,15 +72,9 @@ export function MetricRow({
           {metric.weight_percentage}%
         </span>
         {achievement != null && (
-          <span
-            className={
-              achievement >= 100
-                ? 'shrink-0 text-xs font-semibold text-emerald-400'
-                : 'shrink-0 text-xs font-semibold text-amber-300'
-            }
-          >
+          <Badge variant="tint" tint={achievement >= 100 ? 'green' : 'red'} className="shrink-0">
             {achievement}%
-          </span>
+          </Badge>
         )}
       </div>
 

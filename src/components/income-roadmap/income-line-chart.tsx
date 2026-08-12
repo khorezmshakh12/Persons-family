@@ -18,7 +18,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 function CustomDot({ cx, cy, payload }: { cx?: number; cy?: number; payload?: Point }) {
   if (cx == null || cy == null) return null;
-  return <circle cx={cx} cy={cy} r={4} fill={payload?.achieved ? '#2dd4bf' : 'rgba(255,255,255,0.4)'} />;
+  return <circle cx={cx} cy={cy} r={4} fill={payload?.achieved ? '#34d399' : 'rgba(255,255,255,0.4)'} />;
 }
 
 export function IncomeLineChart({
@@ -59,7 +59,7 @@ export function IncomeLineChart({
           <Line
             type="monotone"
             dataKey="amount"
-            stroke="#2dd4bf"
+            stroke="#34d399"
             strokeWidth={2.5}
             dot={<CustomDot />}
           />
