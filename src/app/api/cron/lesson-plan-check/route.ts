@@ -126,15 +126,28 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
     )
     .eq('lesson_date', dateKey);
 
-  const lessonByGroup = new Map((lessons ?? []).map((l) => [l.group_id, l]));
+  // A group can end up with more than one course_lessons row landing on the
+  // same date (e.g. a teacher re-dates a different lesson_number onto a day
+  // that already has one filled in). Supabase doesn't guarantee row order
+  // here, so picking "the" row for a group by just overwriting a Map entry
+  // was non-deterministic — a stray empty duplicate could silently shadow
+  // the teacher's actually-completed one and get reported as
+  // missing/incomplete. Keep every row per group and count the group as
+  // done if any one of them is complete.
+  const lessonsByGroup = new Map<string, NonNullable<typeof lessons>>();
+  for (const lesson of lessons ?? []) {
+    const bucket = lessonsByGroup.get(lesson.group_id) ?? [];
+    bucket.push(lesson);
+    lessonsByGroup.set(lesson.group_id, bucket);
+  }
 
   type GroupStatus = { groupName: string; status: 'complete' | 'missing' | 'incomplete' };
   const byTeacher = new Map<string, { teacherName: string; groups: GroupStatus[] }>();
 
   for (const group of groups) {
-    const lesson = lessonByGroup.get(group.id);
+    const groupLessons = lessonsByGroup.get(group.id) ?? [];
     const status: GroupStatus['status'] =
-      lesson && isLessonPlanComplete(lesson) ? 'complete' : lesson ? 'incomplete' : 'missing';
+      groupLessons.length === 0 ? 'missing' : groupLessons.some(isLessonPlanComplete) ? 'complete' : 'incomplete';
 
     const teacherName = group.teacher ? `${group.teacher.first_name} ${group.teacher.last_name}` : "Noma'lum";
     const entry = byTeacher.get(group.teacher_id) ?? { teacherName, groups: [] };
