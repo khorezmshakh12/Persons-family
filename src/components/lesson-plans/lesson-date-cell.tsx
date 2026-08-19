@@ -26,7 +26,10 @@ export function LessonDateCell({
     formData.set('lessonDate', value);
     startTransition(async () => {
       const result = await updateLessonDateAction(undefined, formData);
-      if (result?.error) toast.error(t(`errors.${result.error}`));
+      if (result?.error) {
+        toast.error(t(`errors.${result.error}`, result.errorParams));
+        setValue(lessonDate ?? '');
+      }
     });
   }
 

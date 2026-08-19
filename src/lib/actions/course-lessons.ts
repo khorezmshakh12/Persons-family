@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthState } from '@/lib/auth/session';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 
-export type LessonActionState = { error?: string } | undefined;
+export type LessonActionState = { error?: string; errorParams?: Record<string, string> } | undefined;
 export type UploadUrlResult = { path?: string; token?: string; error?: string; detail?: string };
 
 const updateLessonDateSchema = z.object({
@@ -30,9 +30,35 @@ export async function updateLessonDateAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   const supabase = await createClient();
+  const nextDate = parsed.data.lessonDate || null;
+
+  // Two lessons in the same group landing on the same date is what let a
+  // stray empty duplicate shadow a teacher's completed plan in the
+  // lesson-plan-check cron's per-group lookup and get reported to the
+  // CEO/Telegram group as "not done" even though the teacher had filled it
+  // in — see that route's dedup comment for the symptom this prevents at
+  // the source instead of only tolerating after the fact.
+  if (nextDate) {
+    const { data: current } = await supabase
+      .from('course_lessons')
+      .select('group_id')
+      .eq('id', parsed.data.lessonId)
+      .maybeSingle();
+    if (!current) return { error: 'updateFailed' };
+
+    const { data: conflict } = await supabase
+      .from('course_lessons')
+      .select('id')
+      .eq('group_id', current.group_id)
+      .eq('lesson_date', nextDate)
+      .neq('id', parsed.data.lessonId)
+      .maybeSingle();
+    if (conflict) return { error: 'dateTaken', errorParams: { date: nextDate } };
+  }
+
   const { error } = await supabase
     .from('course_lessons')
-    .update({ lesson_date: parsed.data.lessonDate || null })
+    .update({ lesson_date: nextDate })
     .eq('id', parsed.data.lessonId);
   if (error) return { error: 'updateFailed' };
 

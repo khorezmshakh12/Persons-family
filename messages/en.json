@@ -456,7 +456,8 @@
       "groupLimitReached": "You've reached the maximum of 50 groups.",
       "fileTooLarge": "File must be under 50MB.",
       "uploadFailed": "Could not upload the file. Please try again.",
-      "dateRequired": "Set the lesson's date first."
+      "dateRequired": "Set the lesson's date first.",
+      "dateTaken": "Another lesson in this group is already dated {date}. Change that one first."
     }
   },
   "staffChat": {
