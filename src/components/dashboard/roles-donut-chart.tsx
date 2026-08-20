@@ -10,7 +10,7 @@ const ROLE_ORDER = [
   'teacher',
   'head_teacher',
   'assistant',
-  'smm_mobilgrof',
+  'mmd',
   'internship',
   'it_developer',
 ] as const;
@@ -20,7 +20,7 @@ const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   teacher: '#22c55e',
   head_teacher: '#eab308',
   assistant: '#f97316',
-  smm_mobilgrof: '#ec4899',
+  mmd: '#ec4899',
   internship: '#14b8a6',
   it_developer: '#06b6d4',
 };

@@ -24,7 +24,7 @@ const ROLES = [
   'teacher',
   'head_teacher',
   'assistant',
-  'smm_mobilgrof',
+  'mmd',
   'internship',
   'it_developer',
 ] as const;

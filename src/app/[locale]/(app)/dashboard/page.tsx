@@ -89,7 +89,7 @@ export default async function DashboardPage() {
   // personal Finance/Missions/Tasks view instead of company-wide totals
   // that aren't relevant to their day-to-day (assistant keeps today's
   // teacher-like treatment — it's still operationally lesson-plan-focused,
-  // unlike admin_manager/smm_mobilgrof/internship/it_developer).
+  // unlike admin_manager/mmd/internship/it_developer).
   const isTeacherTier = profile!.role === 'teacher' || profile!.role === 'assistant' || isHeadTeacher;
   const isPersonalDashboard = !isCeo && !isTeacherTier;
   const analyticsHref = isCeo ? '/analytics' : undefined;

@@ -29,7 +29,7 @@ export async function StatsRow({
    * their own (RLS narrows it) — same flag, the row count just differs by
    * what the viewer's RLS lets the query return. */
   showLessonPlanCards: boolean;
-  /** Every other non-teacher role (assistant, admin_manager, smm_mobilgrof,
+  /** Every other non-teacher role (assistant, admin_manager, mmd,
    * internship, it_developer): a personal Finance/Missions/Tasks view
    * instead of company-wide totals that aren't relevant to their work.
    * Mutually exclusive with the two flags above. */
