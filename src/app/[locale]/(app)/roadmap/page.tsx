@@ -1,16 +1,15 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { CreateGoalDialog } from '@/components/roadmap/create-goal-dialog';
 import { GoalCard, type RoadmapGoal } from '@/components/roadmap/goal-card';
-import type { Database } from '@/lib/supabase/types';
 
 export const dynamic = 'force-dynamic';
 
-type Timeframe = Database['public']['Enums']['roadmap_timeframe'];
+type Timeframe = 'weekly' | 'monthly' | 'quarterly';
 const TIMEFRAMES: Timeframe[] = ['weekly', 'monthly', 'quarterly'];
 
 export default async function RoadmapPage() {
@@ -18,14 +17,13 @@ export default async function RoadmapPage() {
   if (profile!.role !== 'ceo' && profile!.role !== 'admin_manager') notFound();
 
   const t = await getTranslations('roadmap');
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('roadmap_goals')
-    .select('id, title, timeframe, status, progress_percentage, solution, failure_reason')
-    .order('created_at', { ascending: false });
+  const data = await sql<(RoadmapGoal & { timeframe: Timeframe })[]>`
+    select id, title, timeframe, status, progress_percentage, solution, failure_reason
+    from roadmap_goals order by created_at desc
+  `;
 
   const goalsByTimeframe = new Map<Timeframe, RoadmapGoal[]>();
-  for (const g of data ?? []) {
+  for (const g of data) {
     const list = goalsByTimeframe.get(g.timeframe) ?? [];
     list.push(g);
     goalsByTimeframe.set(g.timeframe, list);

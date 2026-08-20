@@ -36,7 +36,8 @@
     "missions": "Missions",
     "roadmap": "Yo'l xaritasi",
     "settings": "Sozlamalar",
-    "profile": "Mening profilim"
+    "profile": "Mening profilim",
+    "materials": "Materiallar"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -161,7 +162,7 @@
       "teacher": "O'qituvchi",
       "head_teacher": "Bosh o'qituvchi",
       "assistant": "O'qituvchi yordamchisi",
-      "smm_mobilgrof": "SMM & Mobilograf",
+      "mmd": "MMD",
       "internship": "Amaliyotchi",
       "it_developer": "IT dasturchi"
     },
@@ -456,7 +457,8 @@
       "groupLimitReached": "Siz 50 ta guruh chegarasiga yetdingiz.",
       "fileTooLarge": "Fayl 50MB dan kichik bo'lishi kerak.",
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
-      "dateRequired": "Avval darsning sanasini belgilang."
+      "dateRequired": "Avval darsning sanasini belgilang.",
+      "dateTaken": "Bu guruhning boshqa darsi allaqachon {date} sanasiga qo'yilgan. Avval o'shani o'zgartiring."
     }
   },
   "staffChat": {

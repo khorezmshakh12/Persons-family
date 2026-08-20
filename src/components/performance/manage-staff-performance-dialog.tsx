@@ -18,9 +18,18 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Database } from '@/lib/supabase/types';
-
-type StaffPerformance = Database['public']['Tables']['staff_performance']['Row'];
+type StaffPerformance = {
+  id: string;
+  staff_id: string;
+  bonus: number;
+  penalty: number;
+  notes: string | null;
+  updated_by: string | null;
+  updated_at: string;
+  current_tier: 'A' | 'B' | 'C';
+  months_in_tier: number;
+  weekly_progress_score: number;
+};
 
 export function ManageStaffPerformanceDialog({
   staffId,

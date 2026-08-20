@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
 import { cn } from '@/lib/utils';
 import { SalaryNoteForm } from './salary-note-form';
@@ -12,24 +12,26 @@ import { SalaryNoteForm } from './salary-note-form';
  * fetch independently too). */
 export async function SalaryTotal({ staffId, isCeo }: { staffId: string; isCeo: boolean }) {
   const t = await getTranslations('salary');
-  const supabase = await createClient();
 
-  const [{ data: financeEntries }, { data: performanceEntries }, { data: selfDev }, { data: missions }, { data: note }] =
-    await Promise.all([
-      supabase.from('finance_entries').select('amount').eq('staff_id', staffId),
-      supabase.from('performance_entries').select('entry_type, amount').eq('staff_id', staffId),
-      supabase.from('self_development').select('bonus_amount').eq('user_id', staffId),
-      supabase.from('missions').select('bonus_amount').eq('staff_id', staffId).eq('status', 'approved'),
-      supabase.from('staff_salary_notes').select('comment').eq('staff_id', staffId).maybeSingle(),
-    ]);
+  const [financeEntries, performanceEntries, selfDev, missions, [note]] = await Promise.all([
+    sql<{ amount: number }[]>`select amount from finance_entries where staff_id = ${staffId}`,
+    sql<{ entry_type: string; amount: number }[]>`
+      select entry_type, amount from performance_entries where staff_id = ${staffId}
+    `,
+    sql<{ bonus_amount: number | null }[]>`select bonus_amount from self_development where user_id = ${staffId}`,
+    sql<{ bonus_amount: number | null }[]>`
+      select bonus_amount from missions where staff_id = ${staffId} and status = 'approved'
+    `,
+    sql<{ comment: string }[]>`select comment from staff_salary_notes where staff_id = ${staffId}`,
+  ]);
 
-  const financeSum = (financeEntries ?? []).reduce((sum, e) => sum + e.amount, 0);
-  const performanceSum = (performanceEntries ?? []).reduce(
+  const financeSum = financeEntries.reduce((sum, e) => sum + e.amount, 0);
+  const performanceSum = performanceEntries.reduce(
     (sum, e) => sum + (e.entry_type === 'bonus' ? e.amount : -e.amount),
     0,
   );
-  const selfDevSum = (selfDev ?? []).reduce((sum, s) => sum + (s.bonus_amount ?? 0), 0);
-  const missionsSum = (missions ?? []).reduce((sum, m) => sum + (m.bonus_amount ?? 0), 0);
+  const selfDevSum = selfDev.reduce((sum, s) => sum + (s.bonus_amount ?? 0), 0);
+  const missionsSum = missions.reduce((sum, m) => sum + (m.bonus_amount ?? 0), 0);
   const total = financeSum + performanceSum + selfDevSum + missionsSum;
 
   return (

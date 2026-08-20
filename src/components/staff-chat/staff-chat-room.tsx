@@ -2,11 +2,14 @@
 
 import { useEffect, useOptimistic, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { createClient } from '@/lib/supabase/client';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { StaffMessageItem, type ChatSender } from './staff-message-item';
 import { StaffMessageComposer } from './staff-message-composer';
 
 type Message = { id: string; user_id: string; content: string; created_at: string };
+
+type FirestoreGroupChatMessage = { senderId: string; content: string; createdAt: string };
 
 export function StaffChatRoom({
   conversationId,
@@ -21,8 +24,8 @@ export function StaffChatRoom({
   staffMap: Record<string, ChatSender>;
   currentUserId: string;
   /** False for CEO/Admin "monitor" access to a group's staff chat — they
-   * can read but RLS would reject an insert, so hide the composer rather
-   * than let them hit a silent failure. */
+   * can read but the Server Action would reject an insert, so hide the
+   * composer rather than let them hit a silent failure. */
   canPost?: boolean;
   /** Snippet mode for embedding inside a group page — shows only the last
    * few messages and skips auto-scroll, instead of rendering as a
@@ -37,52 +40,53 @@ export function StaffChatRoom({
   );
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Live delivery via group_chats/{conversationId}/messages — mirrored by
+  // sendStaffChatMessageAction (lib/actions/staff-chat.ts) right after each
+  // Cloud SQL insert. See lib/gcp/firestoreAdmin.ts's
+  // mirrorGroupChatMessage() and firestore.rules' group_chat_meta-gated
+  // read rule (membership = the group's teacher + assigned TA, kept in
+  // sync by groups.ts).
+  //
+  // Note: message deletion (deleteStaffChatMessageAction) does not
+  // currently remove the mirrored Firestore doc, so a delete elsewhere
+  // won't live-propagate here — flagged, not fixed, since that action file
+  // was out of scope for this pass.
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
-
-      channel = supabase
-        .channel(`staff_chat_${conversationId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'staff_chat_messages',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload) => {
-            const newMessage = payload.new as Message;
-            setMessages((prev) => (prev.some((m) => m.id === newMessage.id) ? prev : [...prev, newMessage]));
-          },
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'staff_chat_messages',
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload) => {
-            const deletedId = (payload.old as { id: string }).id;
-            setMessages((prev) => prev.filter((m) => m.id !== deletedId));
-          },
-        )
-        .subscribe();
-    })();
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const messagesQuery = query(
+          collection(getRealtimeDb(), 'group_chats', conversationId, 'messages'),
+          orderBy('createdAt', 'asc'),
+        );
+        unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+          setMessages((prev) => {
+            const byId = new Map(prev.map((m) => [m.id, m]));
+            for (const change of snapshot.docChanges()) {
+              if (change.type === 'removed') {
+                byId.delete(change.doc.id);
+                continue;
+              }
+              const data = change.doc.data() as FirestoreGroupChatMessage;
+              byId.set(change.doc.id, {
+                id: change.doc.id,
+                user_id: data.senderId,
+                content: data.content,
+                created_at: data.createdAt,
+              });
+            }
+            return Array.from(byId.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));
+          });
+        });
+      })
+      .catch((error) => console.error('staff chat room realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
   }, [conversationId]);
 

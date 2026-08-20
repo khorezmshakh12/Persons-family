@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type KpiActionState = { error?: string } | undefined;
@@ -38,15 +38,12 @@ export async function addKpiMetricAction(
   // `isAdmin && !isSelf` gate one section below on the same page.
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('kpi_metrics').insert({
-    staff_id: parsed.data.staffId,
-    name: parsed.data.name,
-    weight_percentage: parsed.data.weightPercentage,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into kpi_metrics (staff_id, name, weight_percentage)
+    values (${parsed.data.staffId}, ${parsed.data.name}, ${parsed.data.weightPercentage})
+  `;
 
-  logSystemAction(supabase, 'kpi.metric_add', `Added KPI metric "${parsed.data.name}" for staff ${parsed.data.staffId}`);
+  logSystemAction('kpi.metric_add', `Added KPI metric "${parsed.data.name}" for staff ${parsed.data.staffId}`);
 
   revalidateFinance(parsed.data.staffId);
   return {};
@@ -76,12 +73,10 @@ export async function updateKpiMetricAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('kpi_metrics')
-    .update({ name: parsed.data.name, weight_percentage: parsed.data.weightPercentage })
-    .eq('id', parsed.data.metricId);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update kpi_metrics set name = ${parsed.data.name}, weight_percentage = ${parsed.data.weightPercentage}
+    where id = ${parsed.data.metricId}
+  `;
 
   revalidateFinance(parsed.data.staffId);
   return {};
@@ -106,9 +101,7 @@ export async function deleteKpiMetricAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('kpi_metrics').delete().eq('id', parsed.data.metricId);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from kpi_metrics where id = ${parsed.data.metricId}`;
 
   revalidateFinance(parsed.data.staffId);
   return {};
@@ -143,17 +136,13 @@ export async function upsertKpiEntryAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('kpi_entries').upsert(
-    {
-      metric_id: parsed.data.metricId,
-      month: parsed.data.month,
-      target_value: parsed.data.targetValue,
-      actual_value: parsed.data.actualValue ?? null,
-    },
-    { onConflict: 'metric_id,month' },
-  );
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    insert into kpi_entries (metric_id, month, target_value, actual_value)
+    values (${parsed.data.metricId}, ${parsed.data.month}, ${parsed.data.targetValue}, ${parsed.data.actualValue ?? null})
+    on conflict (metric_id, month) do update set
+      target_value = excluded.target_value,
+      actual_value = excluded.actual_value
+  `;
 
   revalidateFinance(parsed.data.staffId);
   return {};

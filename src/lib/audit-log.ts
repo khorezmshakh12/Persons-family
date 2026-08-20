@@ -1,17 +1,18 @@
-import type { createClient } from '@/lib/supabase/server';
+import 'server-only';
+import { sql } from '@/lib/db/client';
+import { getCurrentUser } from '@/lib/gcp/session';
 
 /**
- * Fire-and-forget audit trail entry, written via a security-definer RPC so
- * `user_id` is always the real caller (server-derived from their session),
- * never a client-supplied value. Never awaited by the caller for its result
- * — a logging failure must never block or fail the action it's describing.
+ * Fire-and-forget audit trail entry. `user_id` is always the real caller
+ * (server-derived from the session cookie), never a client-supplied value.
+ * Never awaited by the caller for its result — a logging failure must never
+ * block or fail the action it's describing.
  */
-export function logSystemAction(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  actionType: string,
-  description: string,
-) {
-  supabase.rpc('log_system_action', { p_action_type: actionType, p_description: description }).then(({ error }) => {
-    if (error) console.error('logSystemAction failed', actionType, error);
-  });
+export function logSystemAction(actionType: string, description: string) {
+  getCurrentUser()
+    .then((user) => sql`
+      insert into system_logs (user_id, action_type, description)
+      values (${user?.uid ?? null}, ${actionType}, ${description})
+    `)
+    .catch((error) => console.error('logSystemAction failed', actionType, error));
 }

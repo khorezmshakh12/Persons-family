@@ -4,8 +4,12 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Camera, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { updateOwnProfileAction, updateOwnAvatarAction, type ProfileActionState } from '@/lib/actions/profile';
+import {
+  updateOwnProfileAction,
+  updateOwnAvatarAction,
+  requestOwnAvatarUploadUrlAction,
+  type ProfileActionState,
+} from '@/lib/actions/profile';
 import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_FILE_BYTES } from '@/lib/avatar-constants';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -14,19 +18,17 @@ import { Label } from '@/components/ui/label';
 import { useProfile } from '@/components/app-shell/profile-context';
 import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import type { TeacherLevel } from '@/lib/teacher-level';
-import type { Database } from '@/lib/supabase/types';
+import type { Profile } from '@/lib/auth/session';
 
 const GLASS_INPUT =
   'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-gray-300 focus-visible:border-white focus-visible:ring-0';
 
 export function ProfileSection({
-  userId,
   role,
   teacherLevel,
 }: {
-  userId: string;
-  role: Database['public']['Enums']['staff_role'];
-  teacherLevel: TeacherLevel;
+  role: Profile['role'];
+  teacherLevel: TeacherLevel | null;
 }) {
   const t = useTranslations('settings.profile');
   const { firstName, lastName, avatarUrl, updateProfile } = useProfile();
@@ -67,18 +69,24 @@ export function ProfileSection({
 
     setIsUploadingAvatar(true);
     try {
-      const supabase = createClient();
-      const path = `${userId}/avatar.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (uploadError) {
-        console.error('Avatar upload failed', uploadError);
-        toast.error(`${t('errors.uploadFailed')}: ${uploadError.message}`);
+      const uploadUrlResult = await requestOwnAvatarUploadUrlAction(file.type);
+      if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.url) {
+        toast.error(t('errors.uploadFailed'));
         return;
       }
 
-      const result = await updateOwnAvatarAction(path);
+      const uploadResponse = await fetch(uploadUrlResult.url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!uploadResponse.ok) {
+        console.error('Avatar upload failed', uploadResponse.status, uploadResponse.statusText);
+        toast.error(`${t('errors.uploadFailed')}: ${uploadResponse.status}`);
+        return;
+      }
+
+      const result = await updateOwnAvatarAction(uploadUrlResult.path);
       if (result.error || !result.avatarUrl) {
         toast.error(t('errors.uploadFailed'));
         return;
@@ -131,7 +139,7 @@ export function ProfileSection({
             <p className="text-sm font-medium text-white">
               {firstName} {lastName}
             </p>
-            {role === 'teacher' && <TeacherLevelBadge level={teacherLevel} />}
+            {role === 'teacher' && teacherLevel && <TeacherLevelBadge level={teacherLevel} />}
           </div>
           <p className="text-xs text-white/60">{t('avatarHint')}</p>
         </div>

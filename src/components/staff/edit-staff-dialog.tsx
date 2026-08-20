@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { updateStaffAction, requestAvatarUploadUrlAction } from '@/lib/actions/staff';
 import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_FILE_BYTES } from '@/lib/avatar-constants';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ const ALL_ROLES = [
   'teacher',
   'head_teacher',
   'assistant',
-  'smm_mobilgrof',
+  'mmd',
   'internship',
   'it_developer',
 ] as const;
@@ -75,18 +74,17 @@ export function EditStaffDialog({
           avatarFile.name,
           avatarFile.type,
         );
-        if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.token) {
+        if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.url) {
           setError(uploadUrlResult.error ?? 'uploadFailed');
           return;
         }
 
-        const supabase = createClient();
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, avatarFile, {
-            contentType: avatarFile.type,
-          });
-        if (uploadError) {
+        const uploadResponse = await fetch(uploadUrlResult.url, {
+          method: 'PUT',
+          headers: { 'Content-Type': avatarFile.type },
+          body: avatarFile,
+        });
+        if (!uploadResponse.ok) {
           setError('uploadFailed');
           return;
         }
@@ -119,7 +117,7 @@ export function EditStaffDialog({
         <form action={handleSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={profile.id} />
           <input type="hidden" name="staffId" value={profile.id} />
-          {profile.role === 'teacher' && (
+          {profile.role === 'teacher' && profile.teacher_level && (
             <div className="flex items-center gap-2">
               <Label className="text-muted-foreground text-xs">{t('teacherLevel')}</Label>
               <TeacherLevelBadge level={profile.teacher_level} />
@@ -179,7 +177,7 @@ export function EditStaffDialog({
               id={`dob-${profile.id}`}
               name="dateOfBirth"
               type="date"
-              defaultValue={profile.date_of_birth}
+              defaultValue={profile.date_of_birth ?? undefined}
               required
             />
           </div>

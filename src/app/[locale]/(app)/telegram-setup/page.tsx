@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { isTelegramConfigured } from '@/lib/telegram';
 import { BroadcastForm } from '@/components/telegram/broadcast-form';
 import { WebhookRegisterButton } from '@/components/telegram/webhook-register-button';
@@ -9,11 +9,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function TelegramSetupPage() {
   const t = await getTranslations('telegramSetup');
-  const supabase = await createClient();
 
-  const { data: staff } = await supabase.from('profiles').select('telegram_id').eq('is_active', true);
-  const total = staff?.length ?? 0;
-  const connected = (staff ?? []).filter((s) => s.telegram_id !== null).length;
+  const staff = await sql<{ telegram_id: number | null }[]>`
+    select telegram_id from profiles where is_active = true
+  `;
+  const total = staff.length;
+  const connected = staff.filter((s) => s.telegram_id !== null).length;
   const configured = isTelegramConfigured();
 
   return (

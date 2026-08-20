@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
@@ -13,16 +13,15 @@ const STATUS_TINT: Record<string, 'slate' | 'amber'> = {
 export async function ActiveIssuesOverview({ delayMs = 0 }: { delayMs?: number } = {}) {
   const t = await getTranslations('dashboard.activeIssues');
   const tIssues = await getTranslations('issues');
-  const supabase = await createClient();
-
-  const { data: issues } = await supabase
-    .from('issues')
-    .select('id, title, status, assignee:profiles!issues_assigned_to_fkey(first_name, last_name)')
-    .neq('status', 'done')
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  const rows = issues ?? [];
+  // `assignee` was fetched in the original Supabase query (an embedded
+  // join) but never actually rendered below — dropped rather than ported,
+  // since it was dead data.
+  const rows = await sql<{ id: string; title: string; status: string }[]>`
+    select id, title, status from issues
+    where status <> 'done'
+    order by created_at desc
+    limit 5
+  `;
 
   return (
     <Link

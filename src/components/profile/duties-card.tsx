@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { AddDutyDialog } from './add-duty-dialog';
@@ -7,17 +7,20 @@ import { DutyRow } from './duty-row';
 
 export async function DutiesCard({ staffId, canManage }: { staffId: string; canManage: boolean }) {
   const t = await getTranslations('profile.duties');
-  const supabase = await createClient();
 
-  const [{ data: duties }, { data: contracts }] = await Promise.all([
-    supabase
-      .from('staff_duties')
-      .select('id, title, description, contract_id, contract:staff_contracts(title)')
-      .eq('staff_id', staffId)
-      .order('created_at', { ascending: false }),
+  const [duties, contracts] = await Promise.all([
+    sql<
+      { id: string; title: string; description: string | null; contract_id: string | null; contract_title: string | null }[]
+    >`
+      select d.id, d.title, d.description, d.contract_id, c.title as contract_title
+      from staff_duties d
+      left join staff_contracts c on c.id = d.contract_id
+      where d.staff_id = ${staffId}
+      order by d.created_at desc
+    `,
     canManage
-      ? supabase.from('staff_contracts').select('id, title').eq('staff_id', staffId)
-      : Promise.resolve({ data: null }),
+      ? sql<{ id: string; title: string }[]>`select id, title from staff_contracts where staff_id = ${staffId}`
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -26,9 +29,9 @@ export async function DutiesCard({ staffId, canManage }: { staffId: string; canM
         <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('title')}
         </h2>
-        {canManage && <AddDutyDialog staffId={staffId} contracts={contracts ?? []} />}
+        {canManage && <AddDutyDialog staffId={staffId} contracts={contracts} />}
       </div>
-      {!duties || duties.length === 0 ? (
+      {duties.length === 0 ? (
         <p className="text-sm text-white/60">{t('noDuties')}</p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -38,7 +41,7 @@ export async function DutiesCard({ staffId, canManage }: { staffId: string; canM
               id={duty.id}
               title={duty.title}
               description={duty.description}
-              contractTitle={duty.contract?.title ?? null}
+              contractTitle={duty.contract_title}
               canManage={canManage}
             />
           ))}

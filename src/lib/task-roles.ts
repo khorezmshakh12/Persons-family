@@ -15,7 +15,7 @@ export function allowedTaskAssigneeRoles(actingRole: StaffRole): StaffRole[] {
   const nonAdminRoles: StaffRole[] = [
     'teacher',
     'assistant',
-    'smm_mobilgrof',
+    'mmd',
     'internship',
     'it_developer',
     'head_teacher',

@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { AdminRowActions } from './admin-row-actions';
@@ -16,12 +17,15 @@ export async function AdminManagementSection() {
   const { profile } = await getAuthState();
   if (profile?.role !== 'ceo') return null;
 
-  const supabase = await createClient();
-  const { data: admins } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, phone, avatar_url, is_active')
-    .eq('role', 'admin_manager')
-    .order('first_name', { ascending: true });
+  const adminRows = await sql<
+    { id: string; first_name: string; last_name: string; phone: string; avatar_url: string | null; is_active: boolean }[]
+  >`
+    select id, first_name, last_name, phone, avatar_url, is_active
+    from profiles where role = 'admin_manager' order by first_name asc
+  `;
+  const admins = await Promise.all(
+    adminRows.map(async (admin) => ({ ...admin, avatarUrl: await resolveAvatarUrl(admin.avatar_url) })),
+  );
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
@@ -30,7 +34,7 @@ export async function AdminManagementSection() {
         <p className="text-sm text-white/60">{t('adminManagement.subtitle')}</p>
       </div>
 
-      {!admins || admins.length === 0 ? (
+      {admins.length === 0 ? (
         <p className="text-sm text-white/70">{t('adminManagement.noAdmins')}</p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -43,7 +47,7 @@ export async function AdminManagementSection() {
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="size-10 shrink-0">
-                    <AvatarImage src={admin.avatar_url ?? undefined} alt="" />
+                    <AvatarImage src={admin.avatarUrl ?? undefined} alt="" />
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">

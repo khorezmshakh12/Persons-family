@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { sql } from '@/lib/db/client';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
-
-type AdminClient = ReturnType<typeof createAdminClient>;
+import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
 
 // A run that's this far behind (e.g. the cron was broken for weeks) only
 // catches up this many most-recent days rather than replaying the whole gap
@@ -32,20 +31,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const admin = createAdminClient();
-
   // The Tashkent-local date the moment the cron fires *is* the day whose
   // plan-in-advance deadline (23:59 the night before) just passed — that's
   // the most recent day there's anything to check.
   const tashkentTodayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   const latestCheckable = new Date(`${tashkentTodayKey}T00:00:00Z`);
 
-  const { data: lastRun } = await admin
-    .from('lesson_plan_cron_runs')
-    .select('date_key')
-    .order('date_key', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [lastRun] = await sql<{ date_key: string }[]>`
+    select date_key from lesson_plan_cron_runs order by date_key desc limit 1
+  `;
 
   const start = new Date(latestCheckable);
   if (lastRun) {
@@ -65,26 +59,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, checked: [] });
   }
 
-  const [{ data: ceoProfiles }, { data: groupChats }] = await Promise.all([
-    admin.from('profiles').select('telegram_id').eq('role', 'ceo'),
-    admin.from('telegram_group_chats').select('chat_id'),
+  const [ceoProfiles, groupChats] = await Promise.all([
+    sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where role = 'ceo'`,
+    sql<{ chat_id: number }[]>`select chat_id from telegram_group_chats`,
   ]);
-  const recipientChatIds = [
-    ...(ceoProfiles ?? []).map((c) => c.telegram_id),
-    ...(groupChats ?? []).map((g) => g.chat_id),
-  ];
+  const recipientChatIds = [...ceoProfiles.map((c) => c.telegram_id), ...groupChats.map((g) => g.chat_id)];
 
   const results = [];
   for (const dateKey of dateKeys) {
-    const result = await checkOneDay(admin, dateKey, recipientChatIds);
-    await admin.from('lesson_plan_cron_runs').upsert({ date_key: dateKey }, { onConflict: 'date_key' });
+    const result = await checkOneDay(dateKey, recipientChatIds);
+    await sql`
+      insert into lesson_plan_cron_runs (date_key) values (${dateKey})
+      on conflict (date_key) do nothing
+    `;
     results.push({ dateKey, ...result });
   }
 
   return NextResponse.json({ ok: true, checked: results });
 }
 
-async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds: (number | null)[]) {
+async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[]) {
   const checkDate = new Date(`${dateKey}T00:00:00Z`);
 
   // The center runs a 6-day week — nobody has class on Sunday regardless of
@@ -105,38 +99,62 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
   // above.
   const parity: 'odd' | 'even' = checkDate.getUTCDay() % 2 === 1 ? 'odd' : 'even';
 
-  // schedule_type is nullable; `.eq()` never matches null, so groups with
-  // no defined odd/even schedule are excluded — we simply can't know
-  // whether they had class on `dateKey`.
-  const { data: groups } = await admin
-    .from('groups')
-    .select('id, name, teacher_id, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)')
-    .eq('schedule_type', parity);
+  // schedule_type is nullable; a plain equality check never matches null,
+  // so groups with no defined odd/even schedule are excluded — we simply
+  // can't know whether they had class on `dateKey`.
+  const groups = await sql<
+    { id: string; name: string; teacher_id: string; teacher_first_name: string | null; teacher_last_name: string | null }[]
+  >`
+    select g.id, g.name, g.teacher_id, t.first_name as teacher_first_name, t.last_name as teacher_last_name
+    from groups g
+    left join profiles t on t.id = g.teacher_id
+    where g.schedule_type = ${parity}
+  `;
 
-  if (!groups || groups.length === 0) {
+  if (groups.length === 0) {
     return { checkedGroups: 0, incompleteTeachers: 0 };
   }
 
-  const { data: lessons } = await admin
-    .from('course_lessons')
-    .select('group_id, topic, aim, language_focus, anticipated_problems, homework')
-    .in(
-      'group_id',
-      groups.map((g) => g.id),
-    )
-    .eq('lesson_date', dateKey);
+  const groupIds = groups.map((g) => g.id);
+  const lessons = await sql<
+    {
+      group_id: string;
+      topic: string | null;
+      aim: string | null;
+      language_focus: string | null;
+      anticipated_problems: string | null;
+      homework: string | null;
+    }[]
+  >`
+    select group_id, topic, aim, language_focus, anticipated_problems, homework
+    from course_lessons
+    where group_id in ${sql(groupIds)} and lesson_date = ${dateKey}
+  `;
 
-  const lessonByGroup = new Map((lessons ?? []).map((l) => [l.group_id, l]));
+  // A group can end up with more than one course_lessons row landing on the
+  // same date (e.g. a teacher re-dates a different lesson_number onto a day
+  // that already has one filled in). There's no ordering guarantee from
+  // Postgres without ORDER BY, so picking "the" row for a group by just
+  // overwriting a Map entry was non-deterministic — a stray empty duplicate
+  // could silently shadow the teacher's actually-completed one and get
+  // reported as missing/incomplete. Keep every row per group and count the
+  // group as done if any one of them is complete.
+  const lessonsByGroup = new Map<string, (typeof lessons)[number][]>();
+  for (const lesson of lessons) {
+    const bucket = lessonsByGroup.get(lesson.group_id) ?? [];
+    bucket.push(lesson);
+    lessonsByGroup.set(lesson.group_id, bucket);
+  }
 
   type GroupStatus = { groupName: string; status: 'complete' | 'missing' | 'incomplete' };
   const byTeacher = new Map<string, { teacherName: string; groups: GroupStatus[] }>();
 
   for (const group of groups) {
-    const lesson = lessonByGroup.get(group.id);
+    const groupLessons = lessonsByGroup.get(group.id) ?? [];
     const status: GroupStatus['status'] =
-      lesson && isLessonPlanComplete(lesson) ? 'complete' : lesson ? 'incomplete' : 'missing';
+      groupLessons.length === 0 ? 'missing' : groupLessons.some(isLessonPlanComplete) ? 'complete' : 'incomplete';
 
-    const teacherName = group.teacher ? `${group.teacher.first_name} ${group.teacher.last_name}` : "Noma'lum";
+    const teacherName = group.teacher_first_name ? `${group.teacher_first_name} ${group.teacher_last_name}` : "Noma'lum";
     const entry = byTeacher.get(group.teacher_id) ?? { teacherName, groups: [] };
     entry.groups.push({ groupName: group.name, status });
     byTeacher.set(group.teacher_id, entry);
@@ -189,7 +207,10 @@ async function checkOneDay(admin: AdminClient, dateKey: string, recipientChatIds
 
   if (incompleteTeachers > 0) {
     const summary = gapPlainLines.join('\n');
-    await admin.from('lesson_plan_compliance_alerts').insert({ report_date: dateKey, summary });
+    await sql`insert into lesson_plan_compliance_alerts (report_date, summary) values (${dateKey}, ${summary})`;
+    // Live-pushes the CEO's bell (see notification-bell.tsx, which listens
+    // to this same signal path alongside its own nav_badge_signals/{uid}).
+    await bumpSignal('board_signals/lesson_plan_alerts');
   }
 
   return { checkedGroups: groups.length, incompleteTeachers };

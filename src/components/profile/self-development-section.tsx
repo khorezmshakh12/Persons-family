@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
@@ -16,14 +16,24 @@ export async function SelfDevelopmentSection({
   selectedMonth: string;
 }) {
   const t = await getTranslations('profile.selfDevelopment');
-  const supabase = await createClient();
-  const { data: submissions } = await supabase
-    .from('self_development')
-    .select('id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount, user_id')
-    .eq('user_id', staffId)
-    .order('month', { ascending: false });
+  const all = await sql<
+    {
+      id: string;
+      month: string;
+      achievements: string | null;
+      value_added: string | null;
+      ceo_rating: string | null;
+      ceo_score: number | null;
+      bonus_amount: number | null;
+      user_id: string;
+    }[]
+  >`
+    select id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount::float8 as bonus_amount, user_id
+    from self_development
+    where user_id = ${staffId}
+    order by month desc
+  `;
 
-  const all = submissions ?? [];
   const filtered = selectedMonth === 'all' ? all : all.filter((s) => s.month === selectedMonth);
 
   return (

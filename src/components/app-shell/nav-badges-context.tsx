@@ -1,12 +1,12 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import { getNavBadgesAction } from '@/lib/actions/nav-badges';
 import type { NavItem } from '@/lib/nav';
 
 const NavBadgesContext = createContext<NavItem['key'][]>([]);
-
-type BadgeKey = Extract<NavItem['key'], 'tasks' | 'issues' | 'companyNews' | 'chat' | 'profile'>;
 
 /**
  * Keeps the sidebar's "new" dots (tasks/issues/companyNews/chat/profile —
@@ -45,127 +45,39 @@ export function NavBadgesProvider({
   }, [JSON.stringify(initialKeys)]);
 
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    const setBadge = (key: BadgeKey, active: boolean) => {
-      setKeys((prev) => {
-        if (prev.has(key) === active) return prev;
-        const next = new Set(prev);
-        if (active) next.add(key);
-        else next.delete(key);
-        return next;
-      });
+    // Every write path that touches tasks/issues/staff_chats/staff_warnings
+    // for this user bumps nav_badge_signals/{uid} (see
+    // lib/gcp/firestoreAdmin.ts's bumpNavBadgeSignal) — this just re-derives
+    // the true set of active dots from Cloud SQL whenever that fires, same
+    // as the old per-table resync but collapsed into one server round trip
+    // instead of five. company_news is broadcast to every active user
+    // rather than a per-user write, so it bumps the shared
+    // board_signals/company_news doc instead — everyone listens to that one
+    // too, on top of their own uid doc.
+    const refresh = async () => {
+      const nextKeys = await getNavBadgesAction();
+      if (!cancelled) setKeys(new Set(nextKeys));
     };
 
-    // Each handler re-derives the true count from the database rather than
-    // trusting the realtime payload alone — a bulk "mark seen" can still
-    // leave other unseen rows behind, so "this row turned seen" doesn't by
-    // itself mean the badge should clear. Mirrors NotificationBell's own
-    // resync-on-change pattern.
-    const refreshTasks = async () => {
-      const { count } = await supabase
-        .from('tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('assigned_to', userId)
-        .eq('is_seen', false);
-      if (!cancelled) setBadge('tasks', (count ?? 0) > 0);
-    };
-
-    const refreshIssues = async () => {
-      const { count } = await supabase
-        .from('issues')
-        .select('id', { count: 'exact', head: true })
-        .eq('assigned_to', userId)
-        .eq('is_seen', false);
-      if (!cancelled) setBadge('issues', (count ?? 0) > 0);
-    };
-
-    const refreshCompanyNews = async () => {
-      const { data } = await supabase.rpc('unseen_company_news_count');
-      if (!cancelled) setBadge('companyNews', (data ?? 0) > 0);
-    };
-
-    const refreshChat = async () => {
-      const { count } = await supabase
-        .from('staff_chats')
-        .select('id', { count: 'exact', head: true })
-        .eq('receiver_id', userId)
-        .eq('is_read', false);
-      if (!cancelled) setBadge('chat', (count ?? 0) > 0);
-    };
-
-    const refreshWarnings = async () => {
-      const { count } = await supabase
-        .from('staff_warnings')
-        .select('id', { count: 'exact', head: true })
-        .eq('staff_id', userId)
-        .eq('is_seen', false);
-      if (!cancelled) setBadge('profile', (count ?? 0) > 0);
-    };
-
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
-
-      channel = supabase
-        .channel('nav_badges')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${userId}` },
-          refreshTasks,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${userId}` },
-          refreshTasks,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'issues', filter: `assigned_to=eq.${userId}` },
-          refreshIssues,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'issues', filter: `assigned_to=eq.${userId}` },
-          refreshIssues,
-        )
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'company_news' }, refreshCompanyNews)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'company_news_reads', filter: `user_id=eq.${userId}` },
-          refreshCompanyNews,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'staff_chats', filter: `receiver_id=eq.${userId}` },
-          refreshChat,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'staff_chats', filter: `receiver_id=eq.${userId}` },
-          refreshChat,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
-          refreshWarnings,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
-          refreshWarnings,
-        )
-        .subscribe();
-    })();
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const db = getRealtimeDb();
+        const unsubUser = onSnapshot(doc(db, 'nav_badge_signals', userId), () => refresh());
+        const unsubNews = onSnapshot(doc(db, 'board_signals', 'company_news'), () => refresh());
+        unsubscribe = () => {
+          unsubUser();
+          unsubNews();
+        };
+      })
+      .catch((error) => console.error('nav badges realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
   }, [userId]);
 

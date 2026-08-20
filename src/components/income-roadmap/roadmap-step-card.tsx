@@ -24,7 +24,7 @@ export type IncomeStep = {
   id: string;
   target_amount: number;
   target_month: string;
-  benefit_description: string;
+  benefit_description: string | null;
   status: string;
 };
 

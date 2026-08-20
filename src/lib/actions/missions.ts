@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type MissionActionState = { error?: string } | undefined;
@@ -57,19 +57,12 @@ export async function assignMissionAction(
   const parsed = assignSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('missions').insert({
-    staff_id: parsed.data.staffId,
-    title: parsed.data.title,
-    description: parsed.data.description || null,
-    deadline_date: parsed.data.deadlineDate,
-    bonus_amount: parsed.data.bonusAmount ?? null,
-    created_by: adminId,
-  });
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    insert into missions (staff_id, title, description, deadline_date, bonus_amount, created_by)
+    values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.deadlineDate}, ${parsed.data.bonusAmount ?? null}, ${adminId})
+  `;
 
   logSystemAction(
-    supabase,
     'missions.assign',
     `Assigned mission "${parsed.data.title}" to staff ${parsed.data.staffId}, due ${parsed.data.deadlineDate}`,
   );
@@ -80,9 +73,11 @@ export async function assignMissionAction(
 
 const staffTransitionSchema = z.object({ missionId: z.string().uuid(), staffId: z.string().uuid() });
 
-/** Only the assignee — protect_mission_fields() enforces the pending ->
- * in_progress transition itself; this just needs to be the right person
- * making the request at all. */
+/** Only the assignee. The old protect_mission_fields() trigger enforced the
+ * pending -> in_progress transition (and stamped started_at) at the DB
+ * layer — Cloud SQL has no trigger layer here, so the same guard (only
+ * transition out of 'pending') and the started_at stamp are now done
+ * explicitly in this query instead. */
 export async function startMissionAction(
   _prevState: MissionActionState,
   formData: FormData,
@@ -94,9 +89,10 @@ export async function startMissionAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (user.id !== parsed.data.staffId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('missions').update({ status: 'in_progress' }).eq('id', parsed.data.missionId);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update missions set status = 'in_progress', started_at = now()
+    where id = ${parsed.data.missionId} and staff_id = ${parsed.data.staffId} and status = 'pending'
+  `;
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -108,6 +104,8 @@ const submitSchema = z.object({
   submissionNote: z.string().trim().min(1).max(2000),
 });
 
+/** Mirrors protect_mission_fields()'s in_progress -> submitted guard and
+ * submitted_at stamp (see startMissionAction's note). */
 export async function submitMissionAction(
   _prevState: MissionActionState,
   formData: FormData,
@@ -119,12 +117,10 @@ export async function submitMissionAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (user.id !== parsed.data.staffId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('missions')
-    .update({ status: 'submitted', submission_note: parsed.data.submissionNote })
-    .eq('id', parsed.data.missionId);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update missions set status = 'submitted', submission_note = ${parsed.data.submissionNote}, submitted_at = now()
+    where id = ${parsed.data.missionId} and staff_id = ${parsed.data.staffId} and status = 'in_progress'
+  `;
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -132,6 +128,8 @@ export async function submitMissionAction(
 
 const approveSchema = z.object({ missionId: z.string().uuid(), staffId: z.string().uuid() });
 
+/** Mirrors protect_mission_fields()'s submitted -> approved guard and
+ * approved_at stamp. */
 export async function approveMissionAction(
   _prevState: MissionActionState,
   formData: FormData,
@@ -145,11 +143,12 @@ export async function approveMissionAction(
   const parsed = approveSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('missions').update({ status: 'approved' }).eq('id', parsed.data.missionId);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update missions set status = 'approved', approved_at = now()
+    where id = ${parsed.data.missionId} and status = 'submitted'
+  `;
 
-  logSystemAction(supabase, 'missions.approve', `Approved mission ${parsed.data.missionId}`);
+  logSystemAction('missions.approve', `Approved mission ${parsed.data.missionId}`);
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -161,9 +160,13 @@ const rejectSchema = z.object({
   rejectionNote: z.string().trim().max(1000).optional().or(z.literal('')),
 });
 
-/** Rejecting reopens the mission (the trigger resets status to
- * in_progress) rather than leaving it in a dead-end state — the assignee
- * fixes it up and resubmits. */
+/** Rejecting reopens the mission rather than leaving it in a dead-end state
+ * — the assignee fixes it up and resubmits. The old trigger did this by
+ * writing status='rejected' and then immediately overriding it back to
+ * 'in_progress' (clearing submitted_at) inside the same BEFORE UPDATE fire;
+ * with no trigger layer, this just writes the final 'in_progress' state
+ * directly — 'rejected' was never a value anyone could observe even before
+ * (the override was synchronous), so this is behaviorally identical. */
 export async function rejectMissionAction(
   _prevState: MissionActionState,
   formData: FormData,
@@ -177,12 +180,10 @@ export async function rejectMissionAction(
   const parsed = rejectSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('missions')
-    .update({ status: 'rejected', rejection_note: parsed.data.rejectionNote || null })
-    .eq('id', parsed.data.missionId);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update missions set status = 'in_progress', rejection_note = ${parsed.data.rejectionNote || null}, submitted_at = null
+    where id = ${parsed.data.missionId} and status = 'submitted'
+  `;
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -203,9 +204,7 @@ export async function deleteMissionAction(
   const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('missions').delete().eq('id', parsed.data.missionId);
-  if (error) return { error: 'updateFailed' };
+  await sql`delete from missions where id = ${parsed.data.missionId}`;
 
   revalidateMissions(parsed.data.staffId);
   return {};

@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,7 @@ const ROLE_ORDER = [
   'teacher',
   'head_teacher',
   'assistant',
-  'smm_mobilgrof',
+  'mmd',
   'internship',
   'it_developer',
 ] as const;
@@ -20,7 +20,7 @@ const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   teacher: '#22c55e',
   head_teacher: '#eab308',
   assistant: '#f97316',
-  smm_mobilgrof: '#ec4899',
+  mmd: '#ec4899',
   internship: '#14b8a6',
   it_developer: '#06b6d4',
 };
@@ -36,15 +36,15 @@ export async function RolesDonutChart({
 } = {}) {
   const t = await getTranslations('dashboard.rolesChart');
   const tStaff = await getTranslations('staff');
-  const supabase = await createClient();
 
   const SIZE = large ? 220 : 160;
   const STROKE = large ? 28 : 22;
   const RADIUS = (SIZE - STROKE) / 2;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-  const { data } = await supabase.from('profiles').select('role').eq('is_active', true);
-  const rows = data ?? [];
+  const rows = await sql<{ role: (typeof ROLE_ORDER)[number] }[]>`
+    select role from profiles where is_active = true
+  `;
   const total = rows.length;
   const counts = ROLE_ORDER.map((role) => rows.filter((r) => r.role === role).length);
 

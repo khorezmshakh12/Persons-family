@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { firstOfCurrentMonth } from '@/lib/self-development';
@@ -10,36 +10,33 @@ import { KpiScoreChart } from './kpi-score-chart';
 
 export async function KpiSection({ staffId, canManage }: { staffId: string; canManage: boolean }) {
   const t = await getTranslations('kpi');
-  const supabase = await createClient();
   const month = firstOfCurrentMonth();
 
-  const { data: metrics } = await supabase
-    .from('kpi_metrics')
-    .select('id, name, weight_percentage')
-    .eq('staff_id', staffId)
-    .order('created_at', { ascending: true });
+  const metrics = await sql<{ id: string; name: string; weight_percentage: number }[]>`
+    select id, name, weight_percentage from kpi_metrics
+    where staff_id = ${staffId} order by created_at asc
+  `;
 
-  const metricIds = (metrics ?? []).map((m) => m.id);
-  const { data: entries } =
+  const metricIds = metrics.map((m) => m.id);
+  const entries =
     metricIds.length > 0
-      ? await supabase
-          .from('kpi_entries')
-          .select('metric_id, month, target_value, actual_value')
-          .in('metric_id', metricIds)
-          .order('month', { ascending: true })
-      : { data: [] };
+      ? await sql<{ metric_id: string; month: string; target_value: number; actual_value: number | null }[]>`
+          select metric_id, month, target_value, actual_value from kpi_entries
+          where metric_id in ${sql(metricIds)} order by month asc
+        `
+      : [];
 
-  const currentMonthEntries = (entries ?? []).filter((e) => e.month === month);
+  const currentMonthEntries = entries.filter((e) => e.month === month);
   const entryByMetricThisMonth = new Map(currentMonthEntries.map((e) => [e.metric_id, e]));
-  const overallScore = computeKpiScore(metrics ?? [], currentMonthEntries);
+  const overallScore = computeKpiScore(metrics, currentMonthEntries);
 
-  const monthsPresent = Array.from(new Set((entries ?? []).map((e) => e.month))).sort();
+  const monthsPresent = Array.from(new Set(entries.map((e) => e.month))).sort();
   const scoreHistory = monthsPresent
     .map((m) => ({
       month: m,
       score: computeKpiScore(
-        metrics ?? [],
-        (entries ?? []).filter((e) => e.month === m),
+        metrics,
+        entries.filter((e) => e.month === m),
       ),
     }))
     .filter((p): p is { month: string; score: number } => p.score !== null);
@@ -65,11 +62,11 @@ export async function KpiSection({ staffId, canManage }: { staffId: string; canM
         </span>
       </div>
 
-      {(metrics ?? []).length === 0 ? (
+      {metrics.length === 0 ? (
         <p className="text-sm text-white/60">{canManage ? t('noMetrics') : t('noMetricsSelf')}</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {(metrics ?? []).map((metric) => (
+          {metrics.map((metric) => (
             <MetricRow
               key={metric.id}
               staffId={staffId}

@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Plus, Mic, Square, Loader2, X } from 'lucide-react';
 import { createIssueAction, requestIssueVoiceUploadUrlAction, type IssueActionState } from '@/lib/actions/issues';
-import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -102,15 +101,19 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
         setIsUploadingVoice(true);
         try {
           const uploadUrlResult = await requestIssueVoiceUploadUrlAction(`voice-note-${Date.now()}.webm`);
-          if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.token) {
+          if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.url) {
             toast.error(t('errors.voiceUploadFailed'));
             return;
           }
-          const supabase = createClient();
-          const { error: uploadError } = await supabase.storage
-            .from('issue-voice-notes')
-            .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, blob, { contentType: 'audio/webm' });
-          if (uploadError) {
+          // The signed URL is pinned to 'audio/webm' server-side (see
+          // requestIssueVoiceUploadUrlAction) — must match exactly, same as
+          // the blob's own mime type set when it was created above.
+          const uploadResponse = await fetch(uploadUrlResult.url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'audio/webm' },
+            body: blob,
+          });
+          if (!uploadResponse.ok) {
             toast.error(t('errors.voiceUploadFailed'));
             return;
           }

@@ -5,7 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
+import { collection, doc, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import { getDmHistoryAction } from '@/lib/actions/staff-chats';
+import { markConversationReadAction } from '@/lib/actions/notifications';
 import { ChatSidebar } from './chat-sidebar';
 import { ConversationView } from './conversation-view';
 import type { ChatSender } from './message-bubble';
@@ -22,6 +25,22 @@ import { cn } from '@/lib/utils';
 function dmKey(a: string, b: string) {
   return [a, b].sort().join('::');
 }
+
+// Matches lib/gcp/firestoreAdmin.ts's conversationId() — the Firestore doc
+// id for a DM pair, distinct from dmKey() above (which is only this
+// component's own local state key, using "::" instead of "_").
+function firestoreConversationId(a: string, b: string) {
+  return [a, b].sort().join('_');
+}
+
+type FirestoreChatMessage = {
+  senderId: string;
+  receiverId: string;
+  messageText: string | null;
+  mediaUrl: string | null;
+  mediaType: ChatMediaType;
+  createdAt: string;
+};
 
 export function ChatHubClient({
   currentUserId,
@@ -107,30 +126,19 @@ export function ChatHubClient({
     if (loadedDmPairs.has(key)) return;
 
     const otherId = active.userId;
-    const supabase = createClient();
-    supabase
-      .from('staff_chats')
-      .select(
-        'id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions',
-      )
-      .or(
-        `and(sender_id.eq.${currentUserId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUserId})`,
-      )
-      .order('created_at', { ascending: true })
-      .limit(100)
-      .then(({ data, error }) => {
-        if (error) {
-          // Deliberately does NOT mark this pair as loaded on failure — the
-          // effect below re-runs the next time this DM is opened instead of
-          // permanently caching an empty conversation.
-          console.error('Failed to load DM history', error);
-          return;
-        }
+    getDmHistoryAction(otherId)
+      .then((data) => {
         setDmMessagesByPair((prev) => ({
           ...prev,
-          [key]: (data as unknown as StaffChatMessage[]) ?? [],
+          [key]: data as unknown as StaffChatMessage[],
         }));
         setLoadedDmPairs((prev) => new Set(prev).add(key));
+      })
+      .catch((error) => {
+        // Deliberately does NOT mark this pair as loaded on failure — the
+        // effect below re-runs the next time this DM is opened instead of
+        // permanently caching an empty conversation.
+        console.error('Failed to load DM history', error);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, activeConversationState.kind, currentUserId]);
@@ -147,10 +155,13 @@ export function ChatHubClient({
   }, [active]);
 
   // Read receipts: opening a DM marks every message the other person sent
-  // us as read. The RPC is the source of truth (security-definer, scoped to
-  // rows where we're genuinely the receiver); the local state update just
-  // flips the tick to blue immediately instead of waiting on the realtime
-  // UPDATE echo to round-trip back.
+  // us as read. The Server Action is the source of truth (scoped
+  // server-side to rows where we're genuinely the receiver); the local
+  // state update just flips the tick to blue immediately instead of
+  // waiting on a realtime echo (Firestore's mirrored message docs don't
+  // carry is_read at all — see the messages-listener effect below — so
+  // there is no echo to wait on anymore; this optimistic flip is now the
+  // only thing that ever sets it locally).
   useEffect(() => {
     if (!active || activeConversationState.kind !== 'accepted') return;
     const otherId = active.userId;
@@ -173,9 +184,14 @@ export function ChatHubClient({
 
     if (flippedIds.length === 0) return;
 
-    const supabase = createClient();
-    supabase.rpc('mark_conversation_read', { other_user_id: otherId }).then(({ error }) => {
-      if (error) {
+    markConversationReadAction(otherId)
+      .then(() => {
+        // The sidebar NAV's "chat" dot (NavBadgesProvider) is otherwise only
+        // realtime-driven, which has proven unreliable in practice — see the
+        // identical comment in notification-bell.tsx's handleChatClick.
+        router.refresh();
+      })
+      .catch((error) => {
         console.error('mark_conversation_read failed', error);
         // Revert exactly the messages this effect optimistically flipped —
         // the DB still has them unread, so the tick/sidebar dot should too.
@@ -188,105 +204,113 @@ export function ChatHubClient({
           };
         });
         toast.error(t('markReadFailed'));
-        return;
-      }
-      // The sidebar NAV's "chat" dot (NavBadgesProvider) is otherwise only
-      // realtime-driven, which has proven unreliable in practice — see the
-      // identical comment in notification-bell.tsx's handleChatClick.
-      router.refresh();
-    });
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, activeConversationState.kind, currentUserId]);
 
-  // Single realtime subscription for the whole table — RLS (which Realtime
-  // also enforces) already guarantees a client only ever receives rows it's
-  // allowed to see (its own DMs), so it's safe to route whatever arrives
-  // into the right bucket client-side rather than trying to express an OR
-  // filter server-side.
+  // Live message delivery for whichever DM is currently open — subscribes
+  // to that pair's Firestore messages subcollection (see
+  // lib/gcp/firestoreAdmin.ts's mirrorChatMessage(), which every confirmed
+  // send writes into). Only the active pair, not every known contact — see
+  // the sidebar-unread effect below for how *other* pairs are noticed.
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    if (!active) return;
+    const otherId = active.userId;
+    const key = dmKey(currentUserId, otherId);
+    const conversationId = firestoreConversationId(currentUserId, otherId);
+    let unsubscribe: (() => void) | undefined;
     let cancelled = false;
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
-
-      channel = supabase
-        .channel('staff_chats_hub')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'staff_chats' },
-          (payload) => {
-            const message = payload.new as StaffChatMessage;
-            const otherId =
-              message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
-            if (message.sender_id !== currentUserId && message.receiver_id !== currentUserId)
-              return;
-            const key = dmKey(currentUserId, otherId);
-            setDmMessagesByPair((prev) => {
-              const existing = prev[key] ?? [];
-              if (existing.some((m) => m.id === message.id)) return prev;
-              return { ...prev, [key]: [...existing, message] };
-            });
-            setLoadedDmPairs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-            const current = activeRef.current;
-            if (message.sender_id !== currentUserId && current?.userId !== otherId) {
-              setUnreadDmUserIds((prev) => new Set(prev).add(otherId));
-            }
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'staff_chats' },
-          (payload) => {
-            const updated = payload.new as StaffChatMessage;
-            const otherId =
-              updated.sender_id === currentUserId ? updated.receiver_id : updated.sender_id;
-            const key = dmKey(currentUserId, otherId);
-            setDmMessagesByPair((prev) =>
-              prev[key]
-                ? { ...prev, [key]: prev[key].map((m) => (m.id === updated.id ? updated : m)) }
-                : prev,
-            );
-            // A message from this sender was marked read somewhere else —
-            // the notification bell, another tab, opening this DM just now
-            // — so the sidebar dot should clear regardless of which path
-            // did it, not only the "this DM just became active" effect.
-            if (updated.is_read && updated.receiver_id === currentUserId) {
-              setUnreadDmUserIds((prev) => {
-                if (!prev.has(updated.sender_id)) return prev;
-                const next = new Set(prev);
-                next.delete(updated.sender_id);
-                return next;
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const messagesQuery = query(
+          collection(getRealtimeDb(), 'chats', conversationId, 'messages'),
+          orderBy('createdAt', 'asc'),
+        );
+        unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+          setDmMessagesByPair((prev) => {
+            const existing = prev[key] ?? [];
+            const byId = new Map(existing.map((m) => [m.id, m]));
+            for (const change of snapshot.docChanges()) {
+              if (change.type === 'removed') {
+                byId.delete(change.doc.id);
+                continue;
+              }
+              const data = change.doc.data() as FirestoreChatMessage;
+              const previousLocal = byId.get(change.doc.id);
+              byId.set(change.doc.id, {
+                // Firestore is trusted for message content (see brief), but
+                // is_read has no home there — preserve whatever local
+                // read-state this id already had (set only by the
+                // read-receipt effect above) rather than resetting it.
+                id: change.doc.id,
+                sender_id: data.senderId,
+                receiver_id: data.receiverId,
+                message_text: data.messageText,
+                media_url: data.mediaUrl,
+                media_type: data.mediaType,
+                created_at: data.createdAt,
+                is_read: previousLocal?.is_read ?? false,
+                pinned_at: previousLocal?.pinned_at ?? null,
+                reply_to_id: previousLocal?.reply_to_id ?? null,
+                reactions: previousLocal?.reactions ?? {},
               });
             }
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'staff_chats' },
-          (payload) => {
-            const deletedId = (payload.old as { id: string }).id;
-            setDmMessagesByPair((prev) => {
-              const next: Record<string, StaffChatMessage[]> = {};
-              for (const [key, list] of Object.entries(prev))
-                next[key] = list.filter((m) => m.id !== deletedId);
-              return next;
-            });
-          },
-        )
-        .subscribe();
-    })();
+            const next = Array.from(byId.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));
+            return { ...prev, [key]: next };
+          });
+          setLoadedDmPairs((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+        });
+      })
+      .catch((error) => console.error('chat hub realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
-  }, [currentUserId]);
+  }, [active, currentUserId]);
+
+  // Sidebar unread dots for pairs that aren't the currently-open one: one
+  // lightweight doc listener per known contact (bounded by the staff
+  // roster size) on chats/{pairId}'s updatedAt, which mirrorChatMessage()
+  // bumps on every send. The first snapshot per contact is treated as a
+  // baseline, not a new-message event — initialUnreadSenderIds already
+  // seeded whatever was unread as of the server render.
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribes: (() => void)[] = [];
+    const seenBaseline = new Map<string, number>();
+
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const db = getRealtimeDb();
+        for (const contact of staff) {
+          const conversationId = firestoreConversationId(currentUserId, contact.id);
+          const unsubscribe = onSnapshot(doc(db, 'chats', conversationId), (snapshot) => {
+            const updatedAtMs = snapshot.get('updatedAt')?.toMillis?.() ?? null;
+            if (updatedAtMs === null) return;
+            const baseline = seenBaseline.get(contact.id);
+            if (baseline === undefined) {
+              seenBaseline.set(contact.id, updatedAtMs);
+              return;
+            }
+            if (updatedAtMs === baseline) return;
+            seenBaseline.set(contact.id, updatedAtMs);
+            if (activeRef.current?.userId === contact.id) return; // active pair has its own listener
+            setUnreadDmUserIds((prev) => (prev.has(contact.id) ? prev : new Set(prev).add(contact.id)));
+          });
+          unsubscribes.push(unsubscribe);
+        }
+      })
+      .catch((error) => console.error('chat hub sidebar realtime sign-in failed', error));
+
+    return () => {
+      cancelled = true;
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [staff, currentUserId]);
 
   function handleOptimisticSend(partial: {
     messageText?: string;
@@ -312,9 +336,9 @@ export function ChatHubClient({
   }
 
   // Commits the send action's own confirmed row into real state right away
-  // — the sender doesn't wait on the Realtime INSERT echo (which is what
-  // let the optimistic bubble disappear for a beat once its transition
-  // settled, before that echo arrived to replace it). The realtime handler
+  // — the sender doesn't wait on the Firestore echo (which is what let the
+  // optimistic bubble disappear for a beat once its transition settled,
+  // before that echo arrived to replace it). The messages-listener effect
   // above already de-dupes by id, so when the echo does eventually land it
   // just no-ops instead of double-adding this message.
   function handleConfirmedSend(message: StaffChatMessage) {

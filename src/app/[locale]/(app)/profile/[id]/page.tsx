@@ -3,11 +3,13 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
+import type { TeacherLevel } from '@/lib/teacher-level';
 import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { WarningsCard } from '@/components/profile/warnings-card';
@@ -64,13 +66,24 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
   const canManage = !isSelf && isAdmin;
   const sectionErrorMessage = tProfile('sectionError');
 
-  const supabase = await createClient();
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, phone, emergency_contact, avatar_url, role, teacher_level, telegram_id')
-    .eq('id', id)
-    .maybeSingle();
+  const [target] = await sql<
+    {
+      id: string;
+      first_name: string;
+      last_name: string;
+      phone: string;
+      emergency_contact: string | null;
+      avatar_url: string | null;
+      role: string;
+      teacher_level: TeacherLevel | null;
+      telegram_id: number | null;
+    }[]
+  >`
+    select id, first_name, last_name, phone, emergency_contact, avatar_url, role, teacher_level, telegram_id
+    from profiles where id = ${id}
+  `;
   if (!target) notFound();
+  const avatarSignedUrl = await resolveAvatarUrl(target.avatar_url);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
@@ -80,7 +93,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
       >
         <Avatar className="size-16 border border-white/30">
-          <AvatarImage src={target.avatar_url ?? undefined} alt="" />
+          <AvatarImage src={avatarSignedUrl ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
             {target.first_name[0]}
             {target.last_name[0]}
@@ -92,7 +105,9 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-white/60">{tStaff(`roles.${target.role}`)}</span>
-            {target.role === 'teacher' && <TeacherLevelBadge level={target.teacher_level} />}
+            {target.role === 'teacher' && target.teacher_level && (
+              <TeacherLevelBadge level={target.teacher_level} />
+            )}
           </div>
         </div>
       </div>

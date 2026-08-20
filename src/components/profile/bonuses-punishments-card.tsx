@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import {
@@ -16,15 +16,25 @@ export async function BonusesPunishmentsCard({
   canManage: boolean;
 }) {
   const t = await getTranslations('profile.bonusesPunishments');
-  const supabase = await createClient();
 
-  const { data: entries } = await supabase
-    .from('performance_entries')
-    .select('id, entry_type, amount, reason, created_at, warning:staff_warnings(reason)')
-    .eq('staff_id', staffId)
-    .order('created_at', { ascending: false });
+  const entries = await sql<
+    {
+      id: string;
+      entry_type: 'bonus' | 'penalty';
+      amount: number;
+      reason: string | null;
+      created_at: string;
+      warning_reason: string | null;
+    }[]
+  >`
+    select pe.id, pe.entry_type, pe.amount::float8 as amount, pe.reason, pe.created_at, w.reason as warning_reason
+    from performance_entries pe
+    left join staff_warnings w on w.id = pe.warning_id
+    where pe.staff_id = ${staffId}
+    order by pe.created_at desc
+  `;
 
-  const rows = (entries ?? []).map((e) => ({ ...e, warningReason: e.warning?.reason ?? null }));
+  const rows = entries.map((e) => ({ ...e, warningReason: e.warning_reason }));
   const bonuses: PerformanceEntry[] = rows.filter((e) => e.entry_type === 'bonus');
   const punishments: PerformanceEntry[] = rows.filter((e) => e.entry_type === 'penalty');
 

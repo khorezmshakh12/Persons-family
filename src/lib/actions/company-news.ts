@@ -5,26 +5,23 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
 
 export type CompanyNewsActionState = { error?: string } | undefined;
 
 /** Fire-and-forget broadcast to every staff member with Telegram connected
  * — never let a Telegram hiccup affect the response to the admin who just
  * published the post (mirrors notifyIssueCreated in actions/issues.ts). */
-async function notifyCompanyNews({
-  title,
-  supabase,
-}: {
-  title: string;
-  supabase: Awaited<ReturnType<typeof createClient>>;
-}) {
+async function notifyCompanyNews({ title }: { title: string }) {
   try {
-    const { data: staff } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
+    const staff = await sql<{ telegram_id: number }[]>`
+      select telegram_id from profiles where telegram_id is not null
+    `;
     console.log('Users retrieved from DB for notifications:', staff);
     const text = `Kompaniya yangiligi: <b>${escapeTelegramText(title)}</b>`;
-    await sendTelegramMessageToMany((staff ?? []).map((s) => s.telegram_id), text);
+    await sendTelegramMessageToMany(staff.map((s) => s.telegram_id), text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -50,25 +47,25 @@ export async function createNewsAction(
   const parsed = createNewsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: inserted, error } = await supabase
-    .from('company_news')
-    .insert({
-      title: parsed.data.title,
-      content: parsed.data.content,
-      created_by: actingUserId,
-    })
-    .select('id')
-    .single();
-  if (error || !inserted) return { error: 'createFailed' };
+  const [inserted] = await sql<{ id: string }[]>`
+    insert into company_news (title, content, created_by)
+    values (${parsed.data.title}, ${parsed.data.content}, ${actingUserId})
+    returning id
+  `;
+  if (!inserted) return { error: 'createFailed' };
+
+  // This broadcasts to every active user's nav dot at once (company_news
+  // reads are per-user, not per-uid signal docs) — see
+  // nav-badges-context.tsx, which listens to this same shared doc.
+  await bumpSignal('board_signals/company_news');
 
   // The author already knows about their own post — no reason for it to
   // show up as "unread" for them on the sidebar dot. `after()` here too —
   // see staff-chats.ts's comment: Vercel can tear down a bare un-awaited
   // call before it finishes.
-  after(() => supabase.from('company_news_reads').insert({ news_id: inserted.id, user_id: actingUserId }));
+  after(() => sql`insert into company_news_reads (news_id, user_id) values (${inserted.id}, ${actingUserId})`);
 
-  after(() => notifyCompanyNews({ title: parsed.data.title, supabase }));
+  after(() => notifyCompanyNews({ title: parsed.data.title }));
 
   revalidatePath('/[locale]/company-news', 'page');
   revalidatePath('/[locale]/dashboard', 'page');
@@ -79,10 +76,7 @@ const deleteNewsSchema = z.object({ id: z.string().uuid() });
 
 export type DeleteNewsResult = { error?: string };
 
-/** Open to the post's own author or an admin — company_news_delete mirrors
- * this at the RLS layer (see issues_delete/deleteIssueAction for the same
- * pattern), so this lookup is defense in depth, not the only thing
- * standing between an unrelated staff member and someone else's post. */
+/** Open to the post's own author or an admin. */
 export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
@@ -91,17 +85,13 @@ export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsRe
   const parsed = deleteNewsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: news } = await supabase
-    .from('company_news')
-    .select('created_by')
-    .eq('id', parsed.data.id)
-    .maybeSingle();
+  const [news] = await sql<{ created_by: string }[]>`select created_by from company_news where id = ${parsed.data.id}`;
   if (!news) return { error: 'notFound' };
   if (!isAdmin && news.created_by !== user.id) return { error: 'forbidden' };
 
-  const { error } = await supabase.from('company_news').delete().eq('id', parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from company_news where id = ${parsed.data.id}`;
+
+  await bumpSignal('board_signals/company_news');
 
   revalidatePath('/[locale]/company-news', 'page');
   revalidatePath('/[locale]/dashboard', 'page');

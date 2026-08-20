@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -19,20 +19,21 @@ export default async function FinancePage() {
   const t = await getTranslations('finance');
   const { user, profile } = await getAuthState();
   const isAdmin = profile!.role === 'ceo';
-  const supabase = await createClient();
 
   if (isAdmin) {
-    const [{ data: staff }, { data: entries }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .eq('is_active', true)
-        .order('first_name', { ascending: true }),
-      supabase.from('finance_entries').select('*').order('created_at', { ascending: false }),
+    const [staff, entries] = await Promise.all([
+      sql<{ id: string; first_name: string; last_name: string; role: string }[]>`
+        select id, first_name, last_name, role from profiles
+        where is_active = true order by first_name asc
+      `,
+      sql<(FinanceEntry & { staff_id: string })[]>`
+        select id, staff_id, title, amount, note, created_at from finance_entries
+        order by created_at desc
+      `,
     ]);
 
     const entriesByStaffId = new Map<string, FinanceEntry[]>();
-    for (const e of entries ?? []) {
+    for (const e of entries) {
       const list = entriesByStaffId.get(e.staff_id) ?? [];
       list.push(e);
       entriesByStaffId.set(e.staff_id, list);
@@ -48,7 +49,7 @@ export default async function FinancePage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {(staff ?? []).map((person, index) => {
+          {staff.map((person, index) => {
             const personEntries = entriesByStaffId.get(person.id) ?? [];
             const net = netTotal(personEntries);
             return (

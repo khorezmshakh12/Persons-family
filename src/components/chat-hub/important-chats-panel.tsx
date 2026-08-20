@@ -4,8 +4,11 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Star, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { setDmConversationStatusAction } from '@/lib/actions/staff-chats';
+import {
+  setDmConversationStatusAction,
+  listDmConversationsForModerationAction,
+  type ModerationConversationRow,
+} from '@/lib/actions/staff-chats';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,12 +21,7 @@ import { cn } from '@/lib/utils';
 
 type ConversationStatus = 'normal' | 'important';
 
-type ConversationRow = {
-  id: string;
-  status: ConversationStatus;
-  one: { first_name: string; last_name: string } | null;
-  two: { first_name: string; last_name: string } | null;
-};
+type ConversationRow = ModerationConversationRow;
 
 /**
  * CEO/IT Developer only — a moderation view of who's DMing whom, not a
@@ -45,17 +43,11 @@ export function ImportantChatsPanel() {
 
   async function load(all: boolean) {
     setLoading(true);
-    const supabase = createClient();
-    let query = supabase
-      .from('dm_conversations')
-      .select(
-        'id, status, one:profiles!dm_conversations_participant_one_fkey(first_name,last_name), two:profiles!dm_conversations_participant_two_fkey(first_name,last_name)',
-      )
-      .order('created_at', { ascending: false });
-    if (!all) query = query.eq('status', 'important');
-    const { data, error } = await query;
-    if (!error) setConversations((data as unknown as ConversationRow[]) ?? []);
-    setLoading(false);
+    try {
+      setConversations(await listDmConversationsForModerationAction(all));
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleOpenChange(next: boolean) {

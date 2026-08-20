@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { TasksCalendarClient, type CalendarTask } from './tasks-calendar-client';
 
 /** Personal-dashboard tier's replacement for the chat-activity
@@ -6,24 +6,21 @@ import { TasksCalendarClient, type CalendarTask } from './tasks-calendar-client'
  * viewer's own tasks this month, no chat data involved), modeled on
  * LessonsCalendar's "click a day, see that day's items below" pattern. */
 export async function TasksCalendar({ userId }: { userId: string }) {
-  const supabase = await createClient();
-
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const startOfMonth = new Date(Date.UTC(year, month, 1));
   const endOfMonth = new Date(Date.UTC(year, month + 1, 1));
 
-  const { data } = await supabase
-    .from('tasks')
-    .select('id, title, status, deadline')
-    .eq('assigned_to', userId)
-    .gte('deadline', startOfMonth.toISOString())
-    .lt('deadline', endOfMonth.toISOString());
+  const data = await sql<{ id: string; title: string; status: string; deadline: string }[]>`
+    select id, title, status, deadline from tasks
+    where assigned_to = ${userId}
+      and deadline >= ${startOfMonth.toISOString()} and deadline < ${endOfMonth.toISOString()}
+  `;
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const tasksByDay: Record<number, CalendarTask[]> = {};
-  for (const row of data ?? []) {
+  for (const row of data) {
     const day = new Date(row.deadline).getDate();
     const bucket = tasksByDay[day] ?? [];
     bucket.push({ id: row.id, title: row.title, status: row.status });

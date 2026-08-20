@@ -1,6 +1,6 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Clock3 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { CreateContractDialog } from './create-contract-dialog';
@@ -33,15 +33,16 @@ export async function ContractsCard({
 }) {
   const t = await getTranslations('profile.contracts');
   const format = await getFormatter();
-  const supabase = await createClient();
 
-  const { data: contracts } = await supabase
-    .from('staff_contracts')
-    .select('id, title, start_date, end_date, status, created_at')
-    .eq('staff_id', staffId)
-    .order('created_at', { ascending: false });
+  const contracts = await sql<
+    { id: string; title: string; start_date: string; end_date: string | null; status: string; created_at: string }[]
+  >`
+    select id, title, start_date, end_date, status, created_at from staff_contracts
+    where staff_id = ${staffId}
+    order by created_at desc
+  `;
 
-  const hasActiveContract = (contracts ?? []).some((c) => c.status === 'active');
+  const hasActiveContract = contracts.some((c) => c.status === 'active');
 
   // Staff sees "Coming Soon" until the CEO has created an active contract
   // for them — the CEO always sees the real management UI instead (create/
@@ -56,21 +57,23 @@ export async function ContractsCard({
     );
   }
 
-  const contractIds = (contracts ?? []).map((c) => c.id);
-  const [{ data: attachments }, { data: requests }] = await Promise.all([
+  const contractIds = contracts.map((c) => c.id);
+  const [attachments, requests] = await Promise.all([
     contractIds.length > 0
-      ? supabase
-          .from('contract_attachments')
-          .select('id, contract_id, file_name, file_type')
-          .in('contract_id', contractIds)
-      : Promise.resolve({ data: [] }),
+      ? sql<{ id: string; contract_id: string; file_name: string; file_type: string | null }[]>`
+          select id, contract_id, file_name, file_type from contract_attachments
+          where contract_id in ${sql(contractIds)}
+        `
+      : Promise.resolve([]),
     contractIds.length > 0
-      ? supabase
-          .from('contract_requests')
-          .select('id, contract_id, request_type, status, reason, created_at')
-          .in('contract_id', contractIds)
-          .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [] }),
+      ? sql<
+          { id: string; contract_id: string; request_type: 'freeze' | 'extend'; status: string; reason: string | null; created_at: string }[]
+        >`
+          select id, contract_id, request_type, status, reason, created_at from contract_requests
+          where contract_id in ${sql(contractIds)}
+          order by created_at desc
+        `
+      : Promise.resolve([]),
   ]);
 
   return (
@@ -82,15 +85,13 @@ export async function ContractsCard({
         {canManage && <CreateContractDialog staffId={staffId} />}
       </div>
 
-      {!contracts || contracts.length === 0 ? (
+      {contracts.length === 0 ? (
         <p className="text-sm text-white/60">{t('noContracts')}</p>
       ) : (
         <div className="flex flex-col gap-4">
           {contracts.map((contract) => {
-            const contractAttachments = (attachments ?? []).filter(
-              (a) => a.contract_id === contract.id,
-            );
-            const contractRequests = (requests ?? []).filter((r) => r.contract_id === contract.id);
+            const contractAttachments = attachments.filter((a) => a.contract_id === contract.id);
+            const contractRequests = requests.filter((r) => r.contract_id === contract.id);
             const hasPendingRequest = contractRequests.some((r) => r.status === 'pending');
 
             return (

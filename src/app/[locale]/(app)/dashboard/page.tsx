@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { StatsRow } from '@/components/dashboard/stats-row';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
@@ -15,15 +15,14 @@ import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons
 export const dynamic = 'force-dynamic';
 
 async function TeacherSelfDevelopmentCard({ userId, delayMs }: { userId: string; delayMs: number }) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('self_development')
-    .select('month, ceo_score')
-    .eq('user_id', userId)
-    .order('month', { ascending: true });
+  const data = await sql<{ month: string; ceo_score: number | null }[]>`
+    select month, ceo_score from self_development
+    where user_id = ${userId}
+    order by month asc
+  `;
   return (
     <SelfDevelopmentLineChart
-      points={(data ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+      points={data.map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
       delayMs={delayMs}
     />
   );
@@ -34,31 +33,24 @@ async function TeacherSelfDevelopmentCard({ userId, delayMs }: { userId: string;
 // pivoted here (one row per month, one column per teacher) so the client
 // component stays a dumb renderer with no data-fetching of its own.
 async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
-  const supabase = await createClient();
-  const { data: teachers } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name')
-    .eq('role', 'teacher')
-    .eq('is_active', true)
-    .order('first_name', { ascending: true });
+  const teacherList = await sql<{ id: string; first_name: string; last_name: string }[]>`
+    select id, first_name, last_name from profiles
+    where role = 'teacher' and is_active = true
+    order by first_name asc
+  `;
 
-  const teacherList = teachers ?? [];
-  const { data: scores } =
+  const scores =
     teacherList.length > 0
-      ? await supabase
-          .from('self_development')
-          .select('month, ceo_score, user_id')
-          .in(
-            'user_id',
-            teacherList.map((t) => t.id),
-          )
-          .not('ceo_score', 'is', null)
-          .order('month', { ascending: true })
-      : { data: null };
+      ? await sql<{ month: string; ceo_score: number; user_id: string }[]>`
+          select month, ceo_score, user_id from self_development
+          where user_id in ${sql(teacherList.map((t) => t.id))} and ceo_score is not null
+          order by month asc
+        `
+      : [];
 
   const monthsInOrder: string[] = [];
   const rowByMonth = new Map<string, Record<string, number | null>>();
-  for (const s of scores ?? []) {
+  for (const s of scores) {
     if (!rowByMonth.has(s.month)) {
       monthsInOrder.push(s.month);
       rowByMonth.set(s.month, {});
@@ -78,7 +70,7 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
 
 // Every block fetches its own data and streams in behind its own Suspense
 // boundary, so the grid paints immediately instead of the whole page
-// blocking on the slowest of several independent Supabase queries.
+// blocking on the slowest of several independent database queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
   const isCeo = profile!.role === 'ceo';
@@ -89,7 +81,10 @@ export default async function DashboardPage() {
   // personal Finance/Missions/Tasks view instead of company-wide totals
   // that aren't relevant to their day-to-day (assistant keeps today's
   // teacher-like treatment — it's still operationally lesson-plan-focused,
-  // unlike admin_manager/smm_mobilgrof/internship/it_developer).
+  // unlike admin_manager/mmd/internship/it_developer). Teacher
+  // tier still gets its own Finance card alongside Active Groups/Lesson
+  // Plans — every non-CEO role sees their own earnings on the dashboard,
+  // just via a different card mix (see financeUserId on StatsRow).
   const isTeacherTier = profile!.role === 'teacher' || profile!.role === 'assistant' || isHeadTeacher;
   const isPersonalDashboard = !isCeo && !isTeacherTier;
   const analyticsHref = isCeo ? '/analytics' : undefined;
@@ -101,6 +96,7 @@ export default async function DashboardPage() {
           showTotalStaff={isCeo}
           showLessonPlanCards={!isPersonalDashboard}
           personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
+          financeUserId={isTeacherTier ? user!.id : undefined}
         />
       </Suspense>
 

@@ -5,8 +5,17 @@ import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Bell } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Link, useRouter } from '@/i18n/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import { getNotificationBellDataAction } from '@/lib/actions/notification-bell';
+import {
+  markConversationReadAction,
+  markIssueSeenAction,
+  markTasksSeenAction,
+  markWarningsSeenAction,
+  markLessonPlanAlertsSeenAction,
+} from '@/lib/actions/notifications';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -69,167 +78,46 @@ export function NotificationBell({
   const [unseenLessonPlanAlerts, setUnseenLessonPlanAlerts] = useState(initialUnseenLessonPlanAlerts);
   const [open, setOpen] = useState(false);
 
-  // Realtime keeps the bell live without a refetch: new DMs/reassigned
-  // issues addressed to this user push the badge up immediately, and the
-  // existing mark-read/mark-seen flows (opening a DM, visiting /issues)
-  // push it back down via the UPDATE branch below.
+  // Realtime keeps the bell live without a refetch: a Firestore signal doc
+  // changing (see lib/gcp/firestoreAdmin.ts's bumpNavBadgeSignal, called by
+  // every Server Action that touches staff_chats/issues/tasks/
+  // staff_warnings for this user) triggers a full resync from Cloud SQL —
+  // same "always re-derive the true set" reasoning as NavBadgesProvider,
+  // just returning the full item list here instead of a boolean.
+  // lesson_plan_compliance_alerts is a CEO-only broadcast (no per-user
+  // column), so it listens to the shared board_signals/lesson_plan_alerts
+  // doc instead of its own uid doc.
+  const resync = useCallback(async () => {
+    const data = await getNotificationBellDataAction();
+    setUnreadChats(data.unreadChats);
+    setUnseenIssues(data.unseenIssues);
+    setUnseenTasks(data.unseenTasks);
+    setUnseenWarnings(data.unseenWarnings);
+    setUnseenLessonPlanAlerts(data.unseenLessonPlanAlerts);
+  }, []);
+
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
-
-      channel = supabase
-        .channel('notification_bell')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'staff_chats', filter: `receiver_id=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as {
-              id: string;
-              sender_id: string;
-              message_text: string | null;
-              created_at: string;
-              is_read: boolean;
-            };
-            if (row.is_read) return;
-            setUnreadChats((prev) =>
-              prev.some((m) => m.id === row.id)
-                ? prev
-                : [
-                    { id: row.id, senderId: row.sender_id, messageText: row.message_text, createdAt: row.created_at },
-                    ...prev,
-                  ],
-            );
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'staff_chats', filter: `receiver_id=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; is_read: boolean };
-            if (row.is_read) setUnreadChats((prev) => prev.filter((m) => m.id !== row.id));
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'issues', filter: `assigned_to=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; title: string; created_at: string; is_seen: boolean };
-            if (row.is_seen) return;
-            setUnseenIssues((prev) =>
-              prev.some((i) => i.id === row.id)
-                ? prev
-                : [{ id: row.id, title: row.title, createdAt: row.created_at }, ...prev],
-            );
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'issues', filter: `assigned_to=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; title: string; created_at: string; is_seen: boolean };
-            setUnseenIssues((prev) => {
-              if (row.is_seen) return prev.filter((i) => i.id !== row.id);
-              if (prev.some((i) => i.id === row.id)) return prev;
-              return [{ id: row.id, title: row.title, createdAt: row.created_at }, ...prev];
-            });
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; title: string; created_at: string; is_seen: boolean };
-            if (row.is_seen) return;
-            setUnseenTasks((prev) =>
-              prev.some((task) => task.id === row.id)
-                ? prev
-                : [{ id: row.id, title: row.title, createdAt: row.created_at }, ...prev],
-            );
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'tasks', filter: `assigned_to=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; title: string; created_at: string; is_seen: boolean };
-            setUnseenTasks((prev) => {
-              if (row.is_seen) return prev.filter((task) => task.id !== row.id);
-              if (prev.some((task) => task.id === row.id)) return prev;
-              return [{ id: row.id, title: row.title, createdAt: row.created_at }, ...prev];
-            });
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; reason: string; created_at: string; is_seen: boolean };
-            if (row.is_seen) return;
-            setUnseenWarnings((prev) =>
-              prev.some((w) => w.id === row.id)
-                ? prev
-                : [{ id: row.id, reason: row.reason, createdAt: row.created_at }, ...prev],
-            );
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'staff_warnings', filter: `staff_id=eq.${userId}` },
-          (payload) => {
-            const row = payload.new as { id: string; reason: string; created_at: string; is_seen: boolean };
-            setUnseenWarnings((prev) => {
-              if (row.is_seen) return prev.filter((w) => w.id !== row.id);
-              if (prev.some((w) => w.id === row.id)) return prev;
-              return [{ id: row.id, reason: row.reason, createdAt: row.created_at }, ...prev];
-            });
-          },
-        )
-        // No `filter` here — unlike the other channels, this table has no
-        // per-recipient column (it's a CEO-only broadcast, not a per-staff
-        // record). Delivery is scoped entirely by the table's own
-        // CEO-only SELECT policy, the same "let RLS do the filtering"
-        // pattern chat-hub-client.tsx already relies on elsewhere.
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'lesson_plan_compliance_alerts' },
-          (payload) => {
-            const row = payload.new as { id: string; summary: string; created_at: string; is_seen: boolean };
-            if (row.is_seen) return;
-            setUnseenLessonPlanAlerts((prev) =>
-              prev.some((a) => a.id === row.id)
-                ? prev
-                : [{ id: row.id, summary: row.summary, createdAt: row.created_at }, ...prev],
-            );
-          },
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'lesson_plan_compliance_alerts' },
-          (payload) => {
-            const row = payload.new as { id: string; summary: string; created_at: string; is_seen: boolean };
-            setUnseenLessonPlanAlerts((prev) => {
-              if (row.is_seen) return prev.filter((a) => a.id !== row.id);
-              if (prev.some((a) => a.id === row.id)) return prev;
-              return [{ id: row.id, summary: row.summary, createdAt: row.created_at }, ...prev];
-            });
-          },
-        )
-        .subscribe();
-    })();
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const db = getRealtimeDb();
+        const unsubBadge = onSnapshot(doc(db, 'nav_badge_signals', userId), () => resync());
+        const unsubLessonPlan = onSnapshot(doc(db, 'board_signals', 'lesson_plan_alerts'), () => resync());
+        unsubscribe = () => {
+          unsubBadge();
+          unsubLessonPlan();
+        };
+      })
+      .catch((error) => console.error('notification bell realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
-  }, [userId]);
+  }, [userId, resync]);
 
   const totalCount =
     unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length + unseenLessonPlanAlerts.length;
@@ -281,15 +169,8 @@ export function NotificationBell({
     const removed = unreadChats.filter((m) => m.senderId === senderId);
     setUnreadChats((prev) => prev.filter((m) => m.senderId !== senderId));
     setOpen(false);
-    createClient()
-      .rpc('mark_conversation_read', { other_user_id: senderId })
-      .then(({ error }) => {
-        if (error) {
-          console.error('mark_conversation_read failed', error);
-          setUnreadChats((prev) => [...removed, ...prev]);
-          toast.error(t('markReadFailed'));
-          return;
-        }
+    markConversationReadAction(senderId)
+      .then(() => {
         // Sidebar nav's "chat" dot (NavBadgesProvider) is otherwise only
         // realtime-driven — that path has proven unreliable in practice
         // (confirmed: DB correctly flips is_read, but the dot can still be
@@ -297,6 +178,11 @@ export function NotificationBell({
         // server-computed initialKeys, the same deterministic fix already
         // used by MarkTasksSeen/MarkIssuesSeen.
         router.refresh();
+      })
+      .catch((error) => {
+        console.error('markConversationReadAction failed', error);
+        setUnreadChats((prev) => [...removed, ...prev]);
+        toast.error(t('markReadFailed'));
       });
   }
 
@@ -304,57 +190,49 @@ export function NotificationBell({
     const removed = unseenIssues.find((i) => i.id === issueId);
     setUnseenIssues((prev) => prev.filter((i) => i.id !== issueId));
     setOpen(false);
-    createClient()
-      .rpc('mark_issue_seen', { issue_id: issueId })
-      .then(({ error }) => {
-        if (error) {
-          console.error('mark_issue_seen failed', error);
-          if (removed) setUnseenIssues((prev) => [removed, ...prev]);
-          toast.error(t('markReadFailed'));
-          return;
-        }
+    markIssueSeenAction(issueId)
+      .then(() => {
         // See handleChatClick's comment — the sidebar nav dot is otherwise
         // realtime-only, which has proven unreliable in practice.
         router.refresh();
+      })
+      .catch((error) => {
+        console.error('markIssueSeenAction failed', error);
+        if (removed) setUnseenIssues((prev) => [removed, ...prev]);
+        toast.error(t('markReadFailed'));
       });
   }
 
-  // Tasks only expose a bulk "mark all seen" RPC (mirrors visiting /tasks
-  // via MarkTasksSeen) — there's no per-task equivalent of mark_issue_seen,
-  // so clicking any one task preview clears the whole task badge/list.
+  // Tasks only expose a bulk "mark all seen" action (mirrors visiting
+  // /tasks via MarkTasksSeen) — there's no per-task equivalent of
+  // markIssueSeenAction, so clicking any one task preview clears the whole
+  // task badge/list.
   function handleTaskClick() {
     const removed = unseenTasks;
     setUnseenTasks([]);
     setOpen(false);
-    createClient()
-      .rpc('mark_tasks_seen')
-      .then(({ error }) => {
-        if (error) {
-          console.error('mark_tasks_seen failed', error);
-          setUnseenTasks(removed);
-          toast.error(t('markReadFailed'));
-          return;
-        }
-        router.refresh();
+    markTasksSeenAction()
+      .then(() => router.refresh())
+      .catch((error) => {
+        console.error('markTasksSeenAction failed', error);
+        setUnseenTasks(removed);
+        toast.error(t('markReadFailed'));
       });
   }
 
-  // Warnings only expose a bulk "mark all seen" RPC (mirrors visiting one's
-  // own profile via MarkWarningsSeen) — same reasoning as handleTaskClick.
+  // Warnings only expose a bulk "mark all seen" action (mirrors visiting
+  // one's own profile via MarkWarningsSeen) — same reasoning as
+  // handleTaskClick.
   function handleWarningClick() {
     const removed = unseenWarnings;
     setUnseenWarnings([]);
     setOpen(false);
-    createClient()
-      .rpc('mark_warnings_seen')
-      .then(({ error }) => {
-        if (error) {
-          console.error('mark_warnings_seen failed', error);
-          setUnseenWarnings(removed);
-          toast.error(t('markReadFailed'));
-          return;
-        }
-        router.refresh();
+    markWarningsSeenAction()
+      .then(() => router.refresh())
+      .catch((error) => {
+        console.error('markWarningsSeenAction failed', error);
+        setUnseenWarnings(removed);
+        toast.error(t('markReadFailed'));
       });
   }
 
@@ -365,93 +243,22 @@ export function NotificationBell({
     const removed = unseenLessonPlanAlerts;
     setUnseenLessonPlanAlerts([]);
     setOpen(false);
-    createClient()
-      .rpc('mark_lesson_plan_alerts_seen')
-      .then(({ error }) => {
-        if (error) {
-          console.error('mark_lesson_plan_alerts_seen failed', error);
-          setUnseenLessonPlanAlerts(removed);
-          toast.error(t('markReadFailed'));
-          return;
-        }
-        router.refresh();
+    markLessonPlanAlertsSeenAction()
+      .then(() => router.refresh())
+      .catch((error) => {
+        console.error('markLessonPlanAlertsSeenAction failed', error);
+        setUnseenLessonPlanAlerts(removed);
+        toast.error(t('markReadFailed'));
       });
   }
 
   // Failsafe: every time the dropdown opens, re-read the absolute truth
   // from the database and reconcile local state to match it. This is what
-  // actually guarantees correctness regardless of any missed Realtime event
-  // or a mutation that failed without the user noticing the toast.
-  const resyncFromDatabase = useCallback(async () => {
-    const supabase = createClient();
-    const [{ data: chatRows }, { data: issueRows }, { data: taskRows }, { data: warningRows }, { data: lessonPlanAlertRows }] = await Promise.all([
-      supabase
-        .from('staff_chats')
-        .select('id, sender_id, message_text, created_at')
-        .eq('receiver_id', userId)
-        .eq('is_read', false)
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('issues')
-        .select('id, title, created_at')
-        .eq('assigned_to', userId)
-        .eq('is_seen', false)
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('tasks')
-        .select('id, title, created_at')
-        .eq('assigned_to', userId)
-        .eq('is_seen', false)
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('staff_warnings')
-        .select('id, reason, created_at')
-        .eq('staff_id', userId)
-        .eq('is_seen', false)
-        .order('created_at', { ascending: false })
-        .limit(50),
-      // No `.eq('staff_id', ...)` equivalent — RLS already restricts this
-      // table to CEO-only rows, so a non-CEO viewer simply gets back [].
-      supabase
-        .from('lesson_plan_compliance_alerts')
-        .select('id, summary, created_at')
-        .eq('is_seen', false)
-        .order('created_at', { ascending: false })
-        .limit(50),
-    ]);
-
-    if (chatRows) {
-      setUnreadChats(
-        chatRows.map((m) => ({
-          id: m.id,
-          senderId: m.sender_id,
-          messageText: m.message_text,
-          createdAt: m.created_at,
-        })),
-      );
-    }
-    if (issueRows) {
-      setUnseenIssues(issueRows.map((i) => ({ id: i.id, title: i.title, createdAt: i.created_at })));
-    }
-    if (taskRows) {
-      setUnseenTasks(taskRows.map((task) => ({ id: task.id, title: task.title, createdAt: task.created_at })));
-    }
-    if (warningRows) {
-      setUnseenWarnings(warningRows.map((w) => ({ id: w.id, reason: w.reason, createdAt: w.created_at })));
-    }
-    if (lessonPlanAlertRows) {
-      setUnseenLessonPlanAlerts(
-        lessonPlanAlertRows.map((a) => ({ id: a.id, summary: a.summary, createdAt: a.created_at })),
-      );
-    }
-  }, [userId]);
-
+  // actually guarantees correctness regardless of any missed Firestore
+  // signal or a mutation that failed without the user noticing the toast.
   useEffect(() => {
-    if (open) resyncFromDatabase();
-  }, [open, resyncFromDatabase]);
+    if (open) resync();
+  }, [open, resync]);
 
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>

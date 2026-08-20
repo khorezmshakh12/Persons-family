@@ -1,45 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { getCurrentAnnouncementAction } from '@/lib/actions/announcements';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 
 export function AnnouncementBanner({ initialMessage }: { initialMessage: string | null }) {
   const [message, setMessage] = useState(initialMessage);
   const [dismissed, setDismissed] = useState(false);
+  // Only reset the dismiss state on a genuine new message, not on every
+  // signal fire (clearAnnouncementAction bumps the signal too, and a
+  // publish immediately after a clear shouldn't un-dismiss a banner the
+  // viewer already closed for the *previous* message).
+  const previousMessage = useRef(initialMessage);
 
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
+    const refresh = async () => {
+      const next = await getCurrentAnnouncementAction();
       if (cancelled) return;
+      if (next !== previousMessage.current) {
+        previousMessage.current = next;
+        setDismissed(false);
+      }
+      setMessage(next);
+    };
 
-      channel = supabase
-        .channel('platform_announcements')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'platform_announcements' },
-          (payload) => {
-            setMessage((payload.new as { message: string }).message);
-            setDismissed(false);
-          },
-        )
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'platform_announcements' }, () => {
-          setMessage(null);
-        })
-        .subscribe();
-    })();
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        unsubscribe = onSnapshot(doc(getRealtimeDb(), 'announcements_signal', 'current'), () => refresh());
+      })
+      .catch((error) => console.error('announcement banner realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
   }, []);
 

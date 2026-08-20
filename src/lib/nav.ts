@@ -1,6 +1,12 @@
-import type { Database } from '@/lib/supabase/types';
-
-export type StaffRole = Database['public']['Enums']['staff_role'];
+export type StaffRole =
+  | 'ceo'
+  | 'admin_manager'
+  | 'teacher'
+  | 'head_teacher'
+  | 'assistant'
+  | 'mmd'
+  | 'internship'
+  | 'it_developer';
 
 export type NavItem = {
   key:
@@ -17,14 +23,36 @@ export type NavItem = {
     | 'missions'
     | 'roadmap'
     | 'profile'
-    | 'settings';
+    | 'settings'
+    | 'materials';
   href: string;
   roles?: StaffRole[];
+  /** Points at a different app on the shared gateway (see
+   * persons-staffs-gateway), not a route inside this Next.js app — must be
+   * rendered as a plain `<a>`, never the i18n `Link`, since basePath/locale
+   * prefixing would mangle the target. */
+  external?: boolean;
 };
+
+/**
+ * Who can see lesson plans at all. Exported (and reused as the nav entry's
+ * own `roles` below, so the two can't drift) because the lesson-plan pages
+ * have to re-check it server-side: this scoping used to come from the
+ * groups/course_lessons RLS policies, which returned zero rows to every
+ * other role, and with RLS gone a direct URL visit is otherwise ungated.
+ */
+export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant'];
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
-  { key: 'staff', href: '/staff', roles: ['ceo'] },
+  // Goes through the SSO handoff route, not straight to /materials, so
+  // clicking it doesn't drop the employee on Materials' login screen — see
+  // src/app/api/sso/materials/route.ts.
+  { key: 'materials', href: '/staff/api/sso/materials', external: true },
+  // IT Developer regained staff (employee) management specifically — see
+  // requireStaffManager() in lib/auth/require-admin.ts — but not the other
+  // CEO-only areas (roadmap, telegram setup, deleting a staff account).
+  { key: 'staff', href: '/staff', roles: ['ceo', 'it_developer'] },
   { key: 'chat', href: '/chat' },
   { key: 'issues', href: '/issues' },
   {
@@ -34,7 +62,7 @@ export const NAV_ITEMS: NavItem[] = [
     // Head Teacher takes its place as the non-CEO role that can see every
     // teacher's lesson plans and comment on them. SMM & Mobilograf ranks
     // below teacher/assistant and never sees lesson plans either.
-    roles: ['ceo', 'head_teacher', 'teacher', 'assistant'],
+    roles: LESSON_PLAN_ROLES,
   },
   { key: 'tasks', href: '/tasks' },
   { key: 'companyNews', href: '/company-news' },
@@ -51,6 +79,13 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'settings', href: '/settings' },
 ];
 
-export function navItemsForRole(role: StaffRole) {
-  return NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role));
+export function navItemsForRole(role: StaffRole, { materialsLinked = false }: { materialsLinked?: boolean } = {}) {
+  return NAV_ITEMS.filter((item) => {
+    if (item.roles && !item.roles.includes(role)) return false;
+    // Only shown once this employee's phone number is matched to an
+    // active Materials account (see checkMaterialsLink) — otherwise the
+    // link would just dump them on Materials' login screen.
+    if (item.key === 'materials' && !materialsLinked) return false;
+    return true;
+  });
 }

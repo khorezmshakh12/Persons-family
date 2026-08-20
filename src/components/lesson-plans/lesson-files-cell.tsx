@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { FileText, Paperclip, Trash2, Upload } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import {
   attachLessonMaterialAction,
   removeLessonMaterialAction,
@@ -41,10 +40,10 @@ export function LessonFilesCell({
   const t = useTranslations('lessonPlans');
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  // The Supabase JS storage client uploads via fetch(), which doesn't expose
-  // byte-level progress in the browser — this ramps smoothly toward ~90%
-  // while the request is in flight and snaps to 100% on completion, rather
-  // than showing a static/frozen bar for a 50MB upload.
+  // The signed-URL PUT below uses fetch(), which doesn't expose byte-level
+  // progress in the browser — this ramps smoothly toward ~90% while the
+  // request is in flight and snaps to 100% on completion, rather than
+  // showing a static/frozen bar for a 50MB upload.
   const [progress, setProgress] = useState(0);
   const [isRemovePending, startRemoveTransition] = useTransition();
 
@@ -65,19 +64,29 @@ export function LessonFilesCell({
     }, 200);
 
     try {
-      const uploadUrlResult = await requestLessonMaterialUploadUrlAction(lessonId, groupId, file.name);
-      if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.token) {
+      const uploadUrlResult = await requestLessonMaterialUploadUrlAction(
+        lessonId,
+        groupId,
+        file.name,
+        file.type || 'application/octet-stream',
+      );
+      if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.url) {
         const base = t(`errors.${uploadUrlResult.error ?? 'uploadFailed'}`);
         toast.error(uploadUrlResult.detail ? `${base}: ${uploadUrlResult.detail}` : base);
         return;
       }
 
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from('lesson_materials')
-        .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, file, { contentType: file.type });
-      if (uploadError) {
-        toast.error(`${t('errors.uploadFailed')}: ${uploadError.message}`);
+      // The signed URL is pinned server-side to this exact file's type (see
+      // requestLessonMaterialUploadUrlAction), so the PUT's Content-Type
+      // must match — GCS rejects a signed PUT whose Content-Type doesn't
+      // match what the URL was signed for.
+      const uploadResponse = await fetch(uploadUrlResult.url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      if (!uploadResponse.ok) {
+        toast.error(`${t('errors.uploadFailed')}: ${uploadResponse.status}`);
         return;
       }
 

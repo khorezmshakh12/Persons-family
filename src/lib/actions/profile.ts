@@ -2,7 +2,13 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { getAuth } from 'firebase-admin/auth';
+import { sql } from '@/lib/db/client';
+import { getFirebaseAdminApp } from '@/lib/gcp/credentials';
+import { getCurrentUser } from '@/lib/gcp/session';
+import { createSignedWriteUrl } from '@/lib/gcp/storage';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
+import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 
 export type ProfileActionState =
   { error?: string; success?: boolean; firstName?: string; lastName?: string } | undefined;
@@ -29,8 +35,11 @@ const profileSchema = z
 /**
  * Self-service equivalent of updateStaffAction in staff.ts, scoped to only
  * what any staff member may change about their own account: display name
- * and password. Role/phone/date_of_birth/is_active stay admin-only (enforced
- * again at the DB level by protect_profile_fields_trigger, not just here).
+ * and password. Role/phone/date_of_birth/is_active stay admin-only — that
+ * used to also be re-enforced at the DB level by
+ * protect_profile_fields_trigger; this action simply never writes those
+ * columns, which is now the only enforcement (the trigger wasn't part of
+ * the table/data migration to Cloud SQL).
  */
 export async function updateOwnProfileAction(
   _prevState: ProfileActionState,
@@ -50,23 +59,17 @@ export async function updateOwnProfileAction(
   const lastName = fullName.slice(spaceIdx + 1);
   if (!firstName || !lastName) return { error: 'invalidName' };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { error: 'sessionExpired' };
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ first_name: firstName, last_name: lastName })
-    .eq('id', user.id);
-  if (profileError) return { error: 'updateFailed' };
+  await sql`update profiles set first_name = ${firstName}, last_name = ${lastName} where id = ${user.uid}`;
 
   if (parsed.data.newPassword) {
-    const { error: authError } = await supabase.auth.updateUser({
-      password: parsed.data.newPassword,
-    });
-    if (authError) return { error: 'passwordUpdateFailed' };
+    try {
+      await getAuth(getFirebaseAdminApp()).updateUser(user.uid, { password: parsed.data.newPassword });
+    } catch {
+      return { error: 'passwordUpdateFailed' };
+    }
   }
 
   revalidatePath('/[locale]/settings', 'page');
@@ -77,10 +80,9 @@ const contactInfoSchema = z.object({
   emergencyContact: z.string().trim().max(255).optional().or(z.literal('')),
 });
 
-/** Self-service only — emergency_contact is deliberately not in
- * protect_profile_fields' blocked-fields list (unlike phone/DOB/role), so
- * profiles_update_self already permits this at the RLS layer. See
- * 20260803095000_profile_contact_info.sql for why the CEO doesn't get an
+/** Self-service only — emergency_contact was deliberately left out of the
+ * old protect_profile_fields blocked-fields list (unlike phone/DOB/role),
+ * so this has always been writable by the owner alone; the CEO has no
  * override path for someone else's contact info here. Email/address used
  * to be editable here too but aren't collected at all anymore — staff have
  * no use for them and they were never shown anywhere but this card. */
@@ -91,44 +93,53 @@ export async function updateOwnContactInfoAction(
   const parsed = contactInfoSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { error: 'sessionExpired' };
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ emergency_contact: parsed.data.emergencyContact || null })
-    .eq('id', user.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`update profiles set emergency_contact = ${parsed.data.emergencyContact || null} where id = ${user.uid}`;
 
   revalidatePath('/[locale]/profile/[id]', 'page');
   return { success: true };
 }
 
-/** Persists an avatar the browser already uploaded directly to the `avatars`
- * bucket (own-folder path, RLS-checked at the storage level — no signed URL
- * detour needed here since, unlike staff.ts's admin flow, the caller is
- * always uploading to their own path). */
-export async function updateOwnAvatarAction(
-  avatarPath: string,
-): Promise<{ avatarUrl?: string; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export type OwnAvatarUploadUrlResult = { path?: string; url?: string; error?: string };
+
+/**
+ * Issues a signed upload URL scoped to the caller's own avatar path.
+ * Replaces the old flow where the browser uploaded straight to Supabase
+ * Storage with storage-level RLS checking the own-folder path prefix —
+ * Cloud Storage has no equivalent client-side-authorized upload, so every
+ * upload now goes through a signed URL minted server-side (same pattern as
+ * staff.ts's requestAvatarUploadUrlAction, just self-scoped with no admin
+ * check needed).
+ */
+export async function requestOwnAvatarUploadUrlAction(fileType: string): Promise<OwnAvatarUploadUrlResult> {
+  const user = await getCurrentUser();
   if (!user) return { error: 'sessionExpired' };
 
-  if (!avatarPath.startsWith(`${user.id}/`)) return { error: 'forbidden' };
+  const ext = AVATAR_ALLOWED_TYPES[fileType];
+  if (!ext) return { error: 'invalidAvatarType' };
 
-  const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-  const { error } = await supabase
-    .from('profiles')
-    .update({ avatar_url: data.publicUrl })
-    .eq('id', user.id);
-  if (error) return { error: 'updateFailed' };
+  const path = `${user.uid}/avatar.${ext}`;
+  const url = await createSignedWriteUrl('avatars', path, fileType);
+  return { path, url };
+}
+
+/** Persists an avatar the browser already uploaded (via
+ * requestOwnAvatarUploadUrlAction above) to the `avatars` bucket. Stores
+ * just the private object path — there's no public URL to resolve here;
+ * callers resolve a fresh signed read URL wherever the avatar is displayed
+ * (see lib/gcp/avatarUrl.ts). */
+export async function updateOwnAvatarAction(avatarPath: string): Promise<{ error?: string; avatarUrl?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'sessionExpired' };
+
+  if (!avatarPath.startsWith(`${user.uid}/`)) return { error: 'forbidden' };
+
+  await sql`update profiles set avatar_url = ${avatarPath} where id = ${user.uid}`;
 
   revalidatePath('/[locale]/settings', 'page');
-  return { avatarUrl: data.publicUrl };
+  // A freshly-minted signed read URL, purely so the caller's UI can update
+  // immediately — the stored value is still just the private object path.
+  return { avatarUrl: (await resolveAvatarUrl(avatarPath)) ?? undefined };
 }

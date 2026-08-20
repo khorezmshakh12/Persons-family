@@ -1,5 +1,5 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { IssueWarningDialog } from './issue-warning-dialog';
@@ -15,15 +15,16 @@ export async function WarningsCard({
 }) {
   const t = await getTranslations('profile.warnings');
   const format = await getFormatter();
-  const supabase = await createClient();
 
-  const { data: warnings } = await supabase
-    .from('staff_warnings')
-    .select(
-      'id, reason, created_at, issuer:profiles!staff_warnings_issued_by_fkey(first_name, last_name)',
-    )
-    .eq('staff_id', staffId)
-    .order('created_at', { ascending: false });
+  const warnings = await sql<
+    { id: string; reason: string; created_at: string; issuer_first_name: string | null; issuer_last_name: string | null }[]
+  >`
+    select w.id, w.reason, w.created_at, issuer.first_name as issuer_first_name, issuer.last_name as issuer_last_name
+    from staff_warnings w
+    left join profiles issuer on issuer.id = w.issued_by
+    where w.staff_id = ${staffId}
+    order by w.created_at desc
+  `;
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
@@ -33,7 +34,7 @@ export async function WarningsCard({
         </h2>
         {canManage && <IssueWarningDialog staffId={staffId} />}
       </div>
-      {!warnings || warnings.length === 0 ? (
+      {warnings.length === 0 ? (
         <p className="text-sm text-white/60">{t('noWarnings')}</p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -48,10 +49,10 @@ export async function WarningsCard({
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}
-                  {w.issuer && (
+                  {w.issuer_first_name && (
                     <>
                       {' · '}
-                      {t('issuedBy', { name: `${w.issuer.first_name} ${w.issuer.last_name}` })}
+                      {t('issuedBy', { name: `${w.issuer_first_name} ${w.issuer_last_name}` })}
                     </>
                   )}
                 </span>

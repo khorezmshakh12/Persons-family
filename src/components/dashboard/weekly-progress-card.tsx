@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { TierBadge } from '@/components/staff/tier-badge';
 import { Progress } from '@/components/ui/progress';
 import { GLASS_CARD } from '@/lib/glass';
@@ -7,15 +7,15 @@ import { cn } from '@/lib/utils';
 
 export async function WeeklyProgressCard({ userId }: { userId: string | null }) {
   const t = await getTranslations('dashboard');
-  const supabase = await createClient();
 
-  const { data: performance } = userId
-    ? await supabase
-        .from('staff_performance')
-        .select('current_tier, months_in_tier, weekly_progress_score')
-        .eq('staff_id', userId)
-        .maybeSingle()
-    : { data: null };
+  const performance = userId
+    ? (
+        await sql<{ current_tier: 'A' | 'B' | 'C'; months_in_tier: number; weekly_progress_score: number }[]>`
+          select current_tier, months_in_tier, weekly_progress_score from staff_performance
+          where staff_id = ${userId}
+        `
+      )[0] ?? null
+    : null;
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>

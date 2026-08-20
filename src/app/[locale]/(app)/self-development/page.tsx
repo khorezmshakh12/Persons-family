@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { firstOfCurrentMonth, firstOfPreviousMonth } from '@/lib/self-development';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -32,67 +32,86 @@ export default async function SelfDevelopmentPage({
   const { user, profile } = await getAuthState();
   const isCeo = profile!.role === 'ceo';
   const isAdmin = isCeo;
-  const supabase = await createClient();
 
-  let query = supabase
-    .from('self_development')
-    .select(
-      'id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount, user_id, author:profiles!self_development_user_id_fkey(first_name, last_name, role, teacher_level)',
-    )
-    .order('month', { ascending: false });
+  const submissions = await sql<Submission[]>`
+    select
+      sd.id, sd.month, sd.achievements, sd.value_added, sd.ceo_rating, sd.ceo_score, sd.bonus_amount, sd.user_id,
+      case when p.id is null then null else
+        json_build_object('first_name', p.first_name, 'last_name', p.last_name, 'role', p.role, 'teacher_level', p.teacher_level)
+      end as author
+    from self_development sd
+    left join profiles p on p.id = sd.user_id
+    where ${isAdmin ? sql`true` : sql`sd.user_id = ${user!.id}`}
+    order by sd.month desc
+  `;
 
-  if (!isAdmin) query = query.eq('user_id', user!.id);
-
-  const { data: submissions } = await query;
-
-  const hasSubmittedThisMonth = !isAdmin && (submissions ?? []).some((s) => s.month === firstOfCurrentMonth());
+  const hasSubmittedThisMonth = !isAdmin && submissions.some((s) => s.month === firstOfCurrentMonth());
 
   if (isAdmin) {
     const currentMonth = firstOfCurrentMonth();
-    const thisMonthSubmissions = (submissions ?? []).filter((s) => s.month === currentMonth);
-    const historySubmissions = (submissions ?? []).filter((s) => s.month !== currentMonth);
+    const thisMonthSubmissions = submissions.filter((s) => s.month === currentMonth);
+    const historySubmissions = submissions.filter((s) => s.month !== currentMonth);
 
-    const [{ data: staff }, { data: performance }, { data: entries }, { data: lastMonthScores }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .eq('is_active', true)
-        .order('first_name', { ascending: true }),
-      supabase.from('staff_performance').select('*'),
-      supabase.from('performance_entries').select('*').order('created_at', { ascending: false }),
-      supabase
-        .from('self_development')
-        .select('ceo_score, author:profiles!self_development_user_id_fkey(first_name, last_name)')
-        .eq('month', firstOfPreviousMonth())
-        .not('ceo_score', 'is', null),
+    const [staff, performance, entries, lastMonthScores] = await Promise.all([
+      sql<{ id: string; first_name: string; last_name: string; role: string }[]>`
+        select id, first_name, last_name, role from profiles
+        where is_active = true order by first_name asc
+      `,
+      sql<
+        {
+          id: string;
+          staff_id: string;
+          bonus: number;
+          penalty: number;
+          notes: string | null;
+          updated_by: string | null;
+          updated_at: string;
+          current_tier: 'A' | 'B' | 'C';
+          months_in_tier: number;
+          weekly_progress_score: number;
+        }[]
+      >`
+        select id, staff_id, bonus, penalty, notes, updated_by, updated_at, current_tier, months_in_tier, weekly_progress_score
+        from staff_performance
+      `,
+      sql<(PerformanceEntry & { staff_id: string })[]>`
+        select id, entry_type, amount, reason, created_at, staff_id from performance_entries
+        order by created_at desc
+      `,
+      sql<{ ceo_score: number; author: { first_name: string; last_name: string } | null }[]>`
+        select sd.ceo_score,
+          case when p.id is null then null else json_build_object('first_name', p.first_name, 'last_name', p.last_name) end as author
+        from self_development sd
+        left join profiles p on p.id = sd.user_id
+        where sd.month = ${firstOfPreviousMonth()} and sd.ceo_score is not null
+      `,
     ]);
 
-    const lastMonthPoints: StaffScorePoint[] = (lastMonthScores ?? [])
+    const lastMonthPoints: StaffScorePoint[] = lastMonthScores
       .map((s) => ({
         name: s.author ? `${s.author.first_name} ${s.author.last_name}` : '—',
-        score: s.ceo_score as number,
+        score: s.ceo_score,
       }))
       .sort((a, b) => b.score - a.score);
 
-    const teacherList = (staff ?? []).filter((p) => p.role === 'teacher');
+    const teacherList = staff.filter((p) => p.role === 'teacher');
     const selectedTeacherId = teacher ?? teacherList[0]?.id;
-    const { data: teacherPoints } = selectedTeacherId
-      ? await supabase
-          .from('self_development')
-          .select('month, ceo_score')
-          .eq('user_id', selectedTeacherId)
-          .order('month', { ascending: true })
-      : { data: null };
+    const teacherPoints = selectedTeacherId
+      ? await sql<{ month: string; ceo_score: number | null }[]>`
+          select month, ceo_score from self_development
+          where user_id = ${selectedTeacherId} order by month asc
+        `
+      : [];
 
-    const performanceByStaffId = new Map((performance ?? []).map((p) => [p.staff_id, p]));
+    const performanceByStaffId = new Map(performance.map((p) => [p.staff_id, p]));
     const entriesByStaffId = new Map<string, PerformanceEntry[]>();
-    for (const e of entries ?? []) {
+    for (const e of entries) {
       const list = entriesByStaffId.get(e.staff_id) ?? [];
       list.push(e);
       entriesByStaffId.set(e.staff_id, list);
     }
 
-    const exportRows = (staff ?? []).map((person) => {
+    const exportRows = staff.map((person) => {
       const perf = performanceByStaffId.get(person.id);
       const net = netTotal(entriesByStaffId.get(person.id) ?? []);
       return {
@@ -141,7 +160,7 @@ export default async function SelfDevelopmentPage({
               {thisMonthSubmissions.map((s, index) => (
                 <SubmissionCard
                   key={s.id}
-                  submission={s as unknown as Submission}
+                  submission={s}
                   isAdmin
                   delayMs={Math.min(index, 10) * 60}
                 />
@@ -161,7 +180,7 @@ export default async function SelfDevelopmentPage({
               {historySubmissions.map((s, index) => (
                 <SubmissionCard
                   key={s.id}
-                  submission={s as unknown as Submission}
+                  submission={s}
                   isAdmin
                   delayMs={Math.min(index, 10) * 60}
                 />
@@ -187,7 +206,7 @@ export default async function SelfDevelopmentPage({
               rows={exportRows}
             />
           </div>
-          {(staff ?? []).map((person) => {
+          {staff.map((person) => {
             const perf = performanceByStaffId.get(person.id) ?? null;
             const personEntries = entriesByStaffId.get(person.id) ?? [];
             const net = netTotal(personEntries);
@@ -224,19 +243,18 @@ export default async function SelfDevelopmentPage({
     );
   }
 
-  const [{ data: performance }, { data: entries }] = await Promise.all([
-    supabase.from('staff_performance').select('*').eq('staff_id', user!.id).maybeSingle(),
-    supabase
-      .from('performance_entries')
-      .select('*')
-      .eq('staff_id', user!.id)
-      .order('created_at', { ascending: false }),
+  const [[performance], entries] = await Promise.all([
+    sql<{ current_tier: string; weekly_progress_score: number }[]>`
+      select current_tier, weekly_progress_score from staff_performance where staff_id = ${user!.id}
+    `,
+    sql<PerformanceEntry[]>`
+      select id, entry_type, amount, reason, created_at from performance_entries
+      where staff_id = ${user!.id} order by created_at desc
+    `,
   ]);
 
-  const totalBonus = (entries ?? []).filter((e) => e.entry_type === 'bonus').reduce((sum, e) => sum + e.amount, 0);
-  const totalPenalty = (entries ?? [])
-    .filter((e) => e.entry_type === 'penalty')
-    .reduce((sum, e) => sum + e.amount, 0);
+  const totalBonus = entries.filter((e) => e.entry_type === 'bonus').reduce((sum, e) => sum + e.amount, 0);
+  const totalPenalty = entries.filter((e) => e.entry_type === 'penalty').reduce((sum, e) => sum + e.amount, 0);
   const net = totalBonus - totalPenalty;
 
   return (
@@ -249,7 +267,7 @@ export default async function SelfDevelopmentPage({
       </div>
 
       <SelfDevelopmentLineChart
-        points={[...(submissions ?? [])].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+        points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
       />
 
       <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
@@ -293,24 +311,19 @@ export default async function SelfDevelopmentPage({
 
       <div className="flex flex-col gap-3">
         <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{tp('history')}</h2>
-        <PerformanceEntriesList entries={(entries ?? []) as PerformanceEntry[]} isAdmin={false} />
+        <PerformanceEntriesList entries={entries} isAdmin={false} />
       </div>
 
       <div className="flex flex-col gap-4">
         <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
           {t('yourSubmissions')}
         </h2>
-        {(submissions ?? []).length === 0 ? (
+        {submissions.length === 0 ? (
           <p className="text-sm text-white/70">{t('noSubmissions')}</p>
         ) : (
           <div className="flex flex-col gap-4">
-            {(submissions ?? []).map((s, index) => (
-              <SubmissionCard
-                key={s.id}
-                submission={s as unknown as Submission}
-                isAdmin={false}
-                delayMs={Math.min(index, 10) * 60}
-              />
+            {submissions.map((s, index) => (
+              <SubmissionCard key={s.id} submission={s} isAdmin={false} delayMs={Math.min(index, 10) * 60} />
             ))}
           </div>
         )}

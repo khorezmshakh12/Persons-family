@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { sql } from '@/lib/db/client';
+import { createSignedWriteUrl, createSignedReadUrl, deleteObject } from '@/lib/gcp/storage';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type ContractActionState = { error?: string } | undefined;
@@ -36,21 +36,12 @@ export async function createContractAction(
   const parsed = contractSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_contracts').insert({
-    staff_id: parsed.data.staffId,
-    title: parsed.data.title,
-    start_date: parsed.data.startDate,
-    end_date: parsed.data.endDate || null,
-    created_by: ceoId,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into staff_contracts (staff_id, title, start_date, end_date, created_by)
+    values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.startDate}, ${parsed.data.endDate || null}, ${ceoId})
+  `;
 
-  logSystemAction(
-    supabase,
-    'contract.create',
-    `Created contract "${parsed.data.title}" for staff ${parsed.data.staffId}`,
-  );
+  logSystemAction('contract.create', `Created contract "${parsed.data.title}" for staff ${parsed.data.staffId}`);
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -73,17 +64,14 @@ export async function updateContractAction(
   const parsed = updateContractSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('staff_contracts')
-    .update({
-      title: parsed.data.title,
-      start_date: parsed.data.startDate,
-      end_date: parsed.data.endDate || null,
-      ...(parsed.data.status ? { status: parsed.data.status } : {}),
-    })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update staff_contracts set
+      title = ${parsed.data.title},
+      start_date = ${parsed.data.startDate},
+      end_date = ${parsed.data.endDate || null},
+      status = coalesce(${parsed.data.status ?? null}, status)
+    where id = ${parsed.data.id}
+  `;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -104,9 +92,7 @@ export async function deleteContractAction(
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_contracts').delete().eq('id', parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from staff_contracts where id = ${parsed.data.id}`;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -137,15 +123,10 @@ export async function createDutyAction(
   const parsed = dutySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_duties').insert({
-    staff_id: parsed.data.staffId,
-    contract_id: parsed.data.contractId || null,
-    title: parsed.data.title,
-    description: parsed.data.description || null,
-    created_by: ceoId,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into staff_duties (staff_id, contract_id, title, description, created_by)
+    values (${parsed.data.staffId}, ${parsed.data.contractId || null}, ${parsed.data.title}, ${parsed.data.description || null}, ${ceoId})
+  `;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -164,9 +145,7 @@ export async function deleteDutyAction(
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_duties').delete().eq('id', parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from staff_duties where id = ${parsed.data.id}`;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -182,9 +161,9 @@ const contractRequestSchema = z.object({
   reason: z.string().trim().max(1000).optional().or(z.literal('')),
 });
 
-/** Staff-initiated only — mirrors contract_requests_insert_self's RLS check
- * (own contract, must currently be active). That check is re-verified here
- * so the error message is specific instead of a generic RLS failure. */
+/** Staff-initiated only — mirrors the old contract_requests_insert_self RLS
+ * check (own contract, must currently be active). Re-verified here so the
+ * error message is specific instead of a generic authorization failure. */
 export async function createContractRequestAction(
   _prevState: ContractActionState,
   formData: FormData,
@@ -195,22 +174,16 @@ export async function createContractRequestAction(
   const parsed = contractRequestSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: contract } = await supabase
-    .from('staff_contracts')
-    .select('staff_id, status')
-    .eq('id', parsed.data.contractId)
-    .maybeSingle();
+  const [contract] = await sql<{ staff_id: string; status: string }[]>`
+    select staff_id, status from staff_contracts where id = ${parsed.data.contractId}
+  `;
   if (!contract || contract.staff_id !== user.id) return { error: 'forbidden' };
   if (contract.status !== 'active') return { error: 'contractNotActive' };
 
-  const { error } = await supabase.from('contract_requests').insert({
-    contract_id: parsed.data.contractId,
-    staff_id: user.id,
-    request_type: parsed.data.requestType,
-    reason: parsed.data.reason || null,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into contract_requests (contract_id, staff_id, request_type, reason)
+    values (${parsed.data.contractId}, ${user.id}, ${parsed.data.requestType}, ${parsed.data.reason || null})
+  `;
 
   revalidatePath('/[locale]/self-development', 'page');
   return {};
@@ -242,36 +215,22 @@ export async function reviewContractRequestAction(
   const parsed = reviewRequestSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: request } = await supabase
-    .from('contract_requests')
-    .select('contract_id, request_type, status')
-    .eq('id', parsed.data.requestId)
-    .maybeSingle();
+  const [request] = await sql<{ contract_id: string; request_type: string; status: string }[]>`
+    select contract_id, request_type, status from contract_requests where id = ${parsed.data.requestId}
+  `;
   if (!request) return { error: 'notFound' };
   if (request.status !== 'pending') return { error: 'alreadyReviewed' };
 
-  const { error: reviewError } = await supabase
-    .from('contract_requests')
-    .update({
-      status: parsed.data.decision,
-      reviewed_by: ceoId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', parsed.data.requestId);
-  if (reviewError) return { error: 'updateFailed' };
+  await sql`
+    update contract_requests set status = ${parsed.data.decision}, reviewed_by = ${ceoId}, reviewed_at = now()
+    where id = ${parsed.data.requestId}
+  `;
 
   if (parsed.data.decision === 'approved') {
     if (request.request_type === 'freeze') {
-      await supabase
-        .from('staff_contracts')
-        .update({ status: 'frozen' })
-        .eq('id', request.contract_id);
+      await sql`update staff_contracts set status = 'frozen' where id = ${request.contract_id}`;
     } else if (request.request_type === 'extend' && parsed.data.newEndDate) {
-      await supabase
-        .from('staff_contracts')
-        .update({ end_date: parsed.data.newEndDate })
-        .eq('id', request.contract_id);
+      await sql`update staff_contracts set end_date = ${parsed.data.newEndDate} where id = ${request.contract_id}`;
     }
   }
 
@@ -281,18 +240,17 @@ export async function reviewContractRequestAction(
 }
 
 // Attachments -----------------------------------------------------------------
-// Goes through the admin (service-role) client, same as every upload path in
-// this app except avatars — see the note in
-// 20260713090000_restore_storage_write_policies.sql: storage.objects
-// INSERT/UPDATE/DELETE RLS policies don't reliably survive this project's
-// infra, so requireAdmin()/the ownership check here (not the policies defined
-// alongside the bucket) is the actual authorization boundary.
+// Authorization here is entirely in requireAdmin()/the ownership checks
+// below, not in bucket-level policy — there is no RLS-equivalent layer for
+// Cloud Storage, so the Server Action boundary is the real (and only)
+// authorization boundary, same as it effectively was before.
 
-export type ContractUploadUrlResult = { path?: string; token?: string; error?: string };
+export type ContractUploadUrlResult = { path?: string; url?: string; error?: string };
 
 export async function requestContractFileUploadUrlAction(
   contractId: string,
   fileName: string,
+  fileType: string,
 ): Promise<ContractUploadUrlResult> {
   try {
     await requireAdmin();
@@ -303,12 +261,12 @@ export async function requestContractFileUploadUrlAction(
   const sanitized = fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${contractId}/${crypto.randomUUID()}-${sanitized}`;
 
-  const { data, error } = await createAdminClient()
-    .storage.from('contract-files')
-    .createSignedUploadUrl(path);
-  if (error || !data) return { error: 'uploadFailed' };
-
-  return { path, token: data.token };
+  try {
+    const url = await createSignedWriteUrl('contract-files', path, fileType || 'application/octet-stream');
+    return { path, url };
+  } catch {
+    return { error: 'uploadFailed' };
+  }
 }
 
 const attachSchema = z.object({
@@ -334,15 +292,10 @@ export async function attachContractFileAction(
   const parsed = attachSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('contract_attachments').insert({
-    contract_id: parsed.data.contractId,
-    file_url: parsed.data.path,
-    file_name: parsed.data.fileName,
-    file_type: parsed.data.fileType || null,
-    uploaded_by: ceoId,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into contract_attachments (contract_id, file_url, file_name, file_type, uploaded_by)
+    values (${parsed.data.contractId}, ${parsed.data.path}, ${parsed.data.fileName}, ${parsed.data.fileType || null}, ${ceoId})
+  `;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -361,22 +314,18 @@ export async function deleteContractAttachmentAction(
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: attachment } = await supabase
-    .from('contract_attachments')
-    .select('file_url')
-    .eq('id', parsed.data.id)
-    .maybeSingle();
+  const [attachment] = await sql<{ file_url: string }[]>`
+    select file_url from contract_attachments where id = ${parsed.data.id}
+  `;
   if (!attachment) return { error: 'notFound' };
 
-  const { error } = await supabase.from('contract_attachments').delete().eq('id', parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from contract_attachments where id = ${parsed.data.id}`;
 
   // Best-effort storage cleanup after the row is gone — the DB row is the
   // source of truth for access control, so a failed object delete shouldn't
   // block removing the reference to it (mirrors deleteTaskAction-style
   // ordering: the authoritative record goes first).
-  await createAdminClient().storage.from('contract-files').remove([attachment.file_url]);
+  await deleteObject('contract-files', attachment.file_url).catch(() => {});
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -388,35 +337,30 @@ export type ContractReadUrlResult = { signedUrl?: string; error?: string };
 
 /** Signs a contract attachment for reading — the CEO can read any
  * attachment, a staff member only one on their own contract, re-checked
- * here since (per the note above) the actual storage RLS read policy isn't
- * a dependable boundary on this project. */
+ * here since (per the note above) there's no bucket-policy layer to rely
+ * on. */
 export async function requestContractFileReadUrlAction(
   attachmentId: string,
 ): Promise<ContractReadUrlResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { data: attachment } = await supabase
-    .from('contract_attachments')
-    .select('file_url, contract_id')
-    .eq('id', attachmentId)
-    .maybeSingle();
+  const [attachment] = await sql<{ file_url: string; contract_id: string }[]>`
+    select file_url, contract_id from contract_attachments where id = ${attachmentId}
+  `;
   if (!attachment) return { error: 'notFound' };
 
   if (profile.role !== 'ceo') {
-    const { data: contract } = await supabase
-      .from('staff_contracts')
-      .select('staff_id')
-      .eq('id', attachment.contract_id)
-      .maybeSingle();
+    const [contract] = await sql<{ staff_id: string }[]>`
+      select staff_id from staff_contracts where id = ${attachment.contract_id}
+    `;
     if (!contract || contract.staff_id !== user.id) return { error: 'forbidden' };
   }
 
-  const { data, error } = await createAdminClient()
-    .storage.from('contract-files')
-    .createSignedUrl(attachment.file_url, CONTRACT_FILE_READ_URL_EXPIRY_SECONDS);
-  if (error || !data) return { error: 'downloadFailed' };
-
-  return { signedUrl: data.signedUrl };
+  try {
+    const signedUrl = await createSignedReadUrl('contract-files', attachment.file_url, CONTRACT_FILE_READ_URL_EXPIRY_SECONDS);
+    return { signedUrl };
+  } catch {
+    return { error: 'downloadFailed' };
+  }
 }

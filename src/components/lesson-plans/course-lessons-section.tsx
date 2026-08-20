@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { sql } from '@/lib/db/client';
+import { createSignedReadUrl } from '@/lib/gcp/storage';
 import { CourseLessonsTable, type CourseLessonRow } from './course-lessons-table';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 import type { LessonAttachmentWithUrl } from './lesson-files-cell';
@@ -23,58 +23,61 @@ export async function CourseLessonsSection({
   currentUserId: string;
   viewerName: string;
 }) {
-  const supabase = await createClient();
-
-  const { data: lessonsData } = await supabase
-    .from('course_lessons')
-    .select(
-      'id, lesson_number, lesson_date, topic, game_link, aim, language_focus, anticipated_problems, materials, homework, procedure, attachments',
-    )
-    .eq('group_id', groupId)
-    .order('lesson_number', { ascending: true });
-  const lessons = lessonsData ?? [];
+  const lessons = await sql<
+    {
+      id: string;
+      lesson_number: number;
+      lesson_date: string | null;
+      topic: string | null;
+      game_link: string | null;
+      aim: string | null;
+      language_focus: string | null;
+      anticipated_problems: string | null;
+      materials: string | null;
+      homework: string | null;
+      procedure: LessonProcedureStep[];
+      attachments: LessonAttachment[];
+    }[]
+  >`
+    select id, lesson_number, lesson_date, topic, game_link, aim, language_focus, anticipated_problems,
+      materials, homework, procedure, attachments
+    from course_lessons where group_id = ${groupId} order by lesson_number asc
+  `;
 
   // Batch one signed-URL request for every attachment across all 24 lessons,
-  // instead of one round trip per file.
-  const allPaths = lessons.flatMap((l) => ((l.attachments as unknown as LessonAttachment[]) ?? []).map((a) => a.path));
+  // instead of one round trip per file. Caller access to this group is
+  // already gated by the parent page before this component renders, so
+  // signing every attachment path here doesn't widen anything.
+  const allPaths = lessons.flatMap((l) => (l.attachments ?? []).map((a) => a.path));
   const signedUrlByPath = new Map<string, string>();
   if (allPaths.length > 0) {
-    // Caller access to this group is already gated by the parent page before
-    // this component renders, so the admin client here (needed since storage
-    // RLS is missing on the new Frankfurt project) doesn't widen anything.
-    const { data: signedUrls } = await createAdminClient().storage.from('lesson_materials').createSignedUrls(allPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl && !s.error) signedUrlByPath.set(s.path ?? '', s.signedUrl);
-    }
+    const signedUrls = await Promise.all(
+      allPaths.map(async (path) => [path, await createSignedReadUrl('lesson_materials', path, 3600)] as const),
+    );
+    for (const [path, url] of signedUrls) signedUrlByPath.set(path, url);
   }
 
   const lessonIds = lessons.map((l) => l.id);
   const commentsByLesson = new Map<string, LessonComment[]>();
   if (lessonIds.length > 0) {
-    const { data: commentsRaw } = await supabase
-      .from('lesson_comments')
-      .select(
-        'id, comment_text, created_at, user_id, lesson_id, author:profiles!lesson_comments_user_id_fkey(first_name, last_name, role)',
-      )
-      .in('lesson_id', lessonIds)
-      .order('created_at', { ascending: true });
+    const commentsRaw = await sql<
+      { id: string; comment_text: string; created_at: string; user_id: string; lesson_id: string; first_name: string; last_name: string; role: string }[]
+    >`
+      select c.id, c.comment_text, c.created_at, c.user_id, c.lesson_id, p.first_name, p.last_name, p.role
+      from lesson_comments c
+      join profiles p on p.id = c.user_id
+      where c.lesson_id in ${sql(lessonIds)}
+      order by c.created_at asc
+    `;
 
-    for (const row of (commentsRaw as never as {
-      id: string;
-      comment_text: string;
-      created_at: string;
-      user_id: string;
-      lesson_id: string;
-      author: { first_name: string; last_name: string; role: string } | null;
-    }[]) ?? []) {
-      if (!row.author) continue;
+    for (const row of commentsRaw) {
       const comment: LessonComment = {
         id: row.id,
         comment_text: row.comment_text,
         created_at: row.created_at,
         user_id: row.user_id,
-        authorName: `${row.author.first_name} ${row.author.last_name}`,
-        authorRole: row.author.role as LessonCommentRole,
+        authorName: `${row.first_name} ${row.last_name}`,
+        authorRole: row.role as LessonCommentRole,
       };
       const bucket = commentsByLesson.get(row.lesson_id) ?? [];
       bucket.push(comment);
