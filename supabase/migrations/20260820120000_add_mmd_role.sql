@@ -1,0 +1,11 @@
+-- MMD replaces SMM & Mobilograf as the media department's staff role,
+-- broadened to cover any media-department employee rather than just the
+-- SMM/Mobilograf split specifically. Same precedent as smm_mobilgrof
+-- itself (20260808130000_merge_smm_mobilgrof_role.sql): a new enum value
+-- must land in its own committed transaction before any DML can reference
+-- it, so the data migration is a separate follow-up file. The old
+-- 'smm_mobilgrof' label (and 'smm'/'mobilgrof' before it) stays in the
+-- type permanently unused rather than removed — this project's precedent
+-- is additive-only for this enum, since Postgres can't drop an enum value
+-- without a full type recreation.
+alter type staff_role add value if not exists 'mmd';
