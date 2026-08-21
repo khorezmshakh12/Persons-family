@@ -8,10 +8,13 @@ import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
 // in one burst.
 const MAX_CATCHUP_DAYS = 7;
 
-// Paused 2026-08-21: the compliance report was misfiring, so sending is
-// switched off until it's reviewed and fixed. Flip back to false to resume
-// — nothing else about the check logic below has changed.
-const PAUSED = true;
+// Paused 2026-08-21 after the report started misfiring (a teacher who'd
+// filled in their plan still got flagged as missing) — root cause was
+// duplicate course_lessons rows on the same date shadowing the completed
+// one in this route's per-group lookup, non-deterministically depending on
+// row order. Fixed at the source in updateLessonDateAction (rejects a
+// second lesson landing on a date another one in the group already has),
+// so resuming here.
 
 // Vercel Cron (see vercel.json, "0 19 * * *" UTC = 00:00 Asia/Tashkent, no
 // DST) hits this once a day right as a new day rolls over. Teachers must
@@ -34,10 +37,6 @@ export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
-  if (PAUSED) {
-    return NextResponse.json({ ok: true, paused: true });
   }
 
   // The Tashkent-local date the moment the cron fires *is* the day whose
