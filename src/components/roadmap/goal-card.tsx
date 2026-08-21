@@ -18,9 +18,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import type { Database } from '@/lib/supabase/types';
-
-type RoadmapStatus = Database['public']['Enums']['roadmap_status'];
+type RoadmapStatus = 'pending' | 'done' | 'failed';
 
 export type RoadmapGoal = {
   id: string;

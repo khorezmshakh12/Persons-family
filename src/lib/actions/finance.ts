@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 
@@ -32,18 +32,12 @@ export async function addFinanceEntryAction(
   const parsed = addEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('finance_entries').insert({
-    staff_id: parsed.data.staffId,
-    title: parsed.data.title,
-    amount: parsed.data.amount,
-    note: parsed.data.note || null,
-    created_by: adminId,
-  });
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    insert into finance_entries (staff_id, title, amount, note, created_by)
+    values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.amount}, ${parsed.data.note || null}, ${adminId})
+  `;
 
   logSystemAction(
-    supabase,
     'finance.entry_add',
     `Added finance entry "${parsed.data.title}" (${parsed.data.amount}) for staff ${parsed.data.staffId}`,
   );
@@ -67,9 +61,7 @@ export async function deleteFinanceEntryAction(
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('finance_entries').delete().eq('id', parsed.data.entryId);
-  if (error) return { error: 'updateFailed' };
+  await sql`delete from finance_entries where id = ${parsed.data.entryId}`;
 
   revalidatePath('/[locale]/finance', 'page');
   return {};

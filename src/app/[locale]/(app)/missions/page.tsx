@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -12,20 +12,18 @@ export default async function MissionsPage() {
   const t = await getTranslations('missions');
   const { user, profile } = await getAuthState();
   const isAdmin = profile!.role === 'ceo';
-  const supabase = await createClient();
 
   if (isAdmin) {
-    const [{ data: staff }, { data: missions }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, first_name, last_name, role')
-        .eq('is_active', true)
-        .order('first_name', { ascending: true }),
-      supabase.from('missions').select('staff_id, status'),
+    const [staff, missions] = await Promise.all([
+      sql<{ id: string; first_name: string; last_name: string; role: string }[]>`
+        select id, first_name, last_name, role from profiles
+        where is_active = true order by first_name asc
+      `,
+      sql<{ staff_id: string; status: string }[]>`select staff_id, status from missions`,
     ]);
 
     const activeCountByStaffId = new Map<string, number>();
-    for (const m of missions ?? []) {
+    for (const m of missions) {
       if (m.status === 'approved' || m.status === 'rejected') continue;
       activeCountByStaffId.set(m.staff_id, (activeCountByStaffId.get(m.staff_id) ?? 0) + 1);
     }
@@ -40,7 +38,7 @@ export default async function MissionsPage() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {(staff ?? []).map((person, index) => (
+          {staff.map((person, index) => (
             <Link
               key={person.id}
               href={`/missions/${person.id}`}

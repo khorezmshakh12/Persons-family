@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DatabaseBackup, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { exportSystemBackupAction } from '@/lib/actions/admin-management';
 import { Button } from '@/components/ui/button';
 
 export function SystemHealthSection() {
@@ -14,30 +14,13 @@ export function SystemHealthSection() {
   async function handleBackup() {
     setIsPending(true);
     try {
-      const supabase = createClient();
-      // Every query goes through the CEO's own RLS-scoped session — this
-      // exports exactly what the CEO can already see across these tables,
-      // nothing more (no service-role bypass).
-      const [profiles, groups, lessons] = await Promise.all([
-        supabase.from('profiles').select('*'),
-        supabase.from('groups').select('*'),
-        supabase.from('course_lessons').select('*'),
-      ]);
-
-      if (profiles.error || groups.error || lessons.error) {
+      const result = await exportSystemBackupAction();
+      if (result.error || !result.backup) {
         toast.error(t('backupFailed'));
         return;
       }
 
-      const backup = {
-        exportedAt: new Date().toISOString(),
-        company: 'Persons Education Company',
-        profiles: profiles.data,
-        groups: groups.data,
-        courseLessons: lessons.data,
-      };
-
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(result.backup, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

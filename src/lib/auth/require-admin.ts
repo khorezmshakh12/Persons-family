@@ -62,6 +62,26 @@ export async function requireAdmin() {
 }
 
 /**
+ * Staff (employee) management — CEO and IT Developer. Deliberately narrower
+ * than a general re-elevation of requireAdmin(): IT Developer gets back
+ * exactly staff CRUD (create/edit/deactivate/reset-password), not the other
+ * areas requireAdmin() also gates (finance, contracts, warnings, etc.), and
+ * not staff *deletion* either — every staff.ts action still separately
+ * checks isProtectedRole()+actingProfile.role==='ceo' before touching a
+ * CEO/Admin-Manager account, and deleteStaffAction stays on requireAdmin()
+ * (CEO-only) specifically, matching StaffRowActions' own client-side
+ * `canDelete = !isSelf && actingRole === 'ceo'`.
+ */
+export async function requireStaffManager() {
+  const { user, profile } = await getAuthState();
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+    throw new ForbiddenError('Staff management access required');
+  }
+  return { user, profile };
+}
+
+/**
  * Roadmap (roadmap_goals) is CEO/Administrative Manager territory
  * specifically — not the general requireAdmin() gate. Mirrors that table's
  * RLS, which explicitly checks `current_role() in ('ceo','admin_manager')`

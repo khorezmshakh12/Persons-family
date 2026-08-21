@@ -3,10 +3,12 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
-import { getAuthState, type Profile } from '@/lib/auth/session';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { requireAdmin, requireStaffManager, authErrorCode } from '@/lib/auth/require-admin';
+import type { Profile } from '@/lib/auth/session';
+import { sql } from '@/lib/db/client';
+import { createIdentityUser, setUserPassword, deleteIdentityUser, updateIdentityUserEmail, setUserClaims } from '@/lib/gcp/adminAuth';
+import { revokeUserSessions } from '@/lib/gcp/session';
+import { createSignedWriteUrl } from '@/lib/gcp/storage';
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 import { logSystemAction } from '@/lib/audit-log';
@@ -63,14 +65,14 @@ function generateTempPassword() {
   return randomBytes(9).toString('base64url');
 }
 
-export type UploadUrlResult = { path?: string; token?: string; error?: string };
+export type UploadUrlResult = { path?: string; url?: string; error?: string };
 
 /**
- * Issues a signed upload URL so the admin's browser can send the avatar
- * straight to Supabase Storage — never through this Next.js server —
- * avoiding both Next's default 1MB Server Action body limit and Vercel's
- * hard 4.5MB serverless function payload limit. The RLS check for
- * `avatars_admin_manage` runs right here, at signed-URL creation time.
+ * Issues a signed upload URL so the admin's browser can PUT the avatar
+ * straight to Cloud Storage — never through this Next.js server — avoiding
+ * both Next's default 1MB Server Action body limit and any serverless
+ * function payload limit. Authorization runs right here, at signed-URL
+ * creation time.
  */
 export async function requestAvatarUploadUrlAction(
   targetUserId: string,
@@ -79,7 +81,7 @@ export async function requestAvatarUploadUrlAction(
 ): Promise<UploadUrlResult> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireStaffManager());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -87,15 +89,9 @@ export async function requestAvatarUploadUrlAction(
   const ext = AVATAR_ALLOWED_TYPES[fileType];
   if (!ext) return { error: 'invalidAvatarType' };
 
-  const supabase = await createClient();
-
   // The target may not have a profile row yet (mid-creation flow) — only
   // enforce the ceo-protection check when there's an existing row to check.
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', targetUserId)
-    .maybeSingle();
+  const [target] = await sql<{ role: string }[]>`select role from profiles where id = ${targetUserId}`;
   if (
     target &&
     targetUserId !== actingProfile.id &&
@@ -106,16 +102,8 @@ export async function requestAvatarUploadUrlAction(
   }
 
   const path = `${targetUserId}/avatar.${ext}`;
-  // Authorization is already fully enforced above (requireAdmin + the
-  // protected-role check), so this uses the admin client — see the note in
-  // requestLessonMaterialUploadUrlAction for why (missing storage RLS
-  // INSERT policies on the new Frankfurt project).
-  const { data, error } = await createAdminClient()
-    .storage.from('avatars')
-    .createSignedUploadUrl(path, { upsert: true });
-  if (error || !data) return { error: 'uploadFailed' };
-
-  return { path, token: data.token };
+  const url = await createSignedWriteUrl('avatars', path, fileType);
+  return { path, url };
 }
 
 /** Shared account-creation core for createStaffAction — authorization
@@ -127,35 +115,29 @@ async function createStaffRow(
   const phone = normalizePhone(data.phone);
   if (!phone) return { error: 'invalidPhone', fieldErrors: { phone: 'invalidPhone' } };
 
-  const admin = createAdminClient();
   const tempPassword = generateTempPassword();
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email: phoneToSyntheticEmail(phone),
-    password: tempPassword,
-    email_confirm: true,
-  });
-  if (createError || !created.user) {
-    return {
-      error: createError?.message.includes('already been registered')
-        ? 'phoneTaken'
-        : 'createFailed',
-    };
+  let createdUid: string;
+  try {
+    const user = await createIdentityUser({
+      email: phoneToSyntheticEmail(phone),
+      password: tempPassword,
+      role: data.role,
+      mustChangePassword: true,
+    });
+    createdUid = user.uid;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    return { error: message.includes('already exists') ? 'phoneTaken' : 'createFailed' };
   }
 
-  const supabase = await createClient();
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id: created.user.id,
-    phone,
-    first_name: data.firstName,
-    last_name: data.lastName,
-    date_of_birth: data.dateOfBirth,
-    role: data.role,
-    telegram_id: data.telegramId,
-    created_by: actingProfile.id,
-  });
-  if (profileError) {
-    await admin.auth.admin.deleteUser(created.user.id);
+  try {
+    await sql`
+      insert into profiles (id, phone, first_name, last_name, date_of_birth, role, telegram_id, created_by)
+      values (${createdUid}, ${phone}, ${data.firstName}, ${data.lastName}, ${data.dateOfBirth}, ${data.role}, ${data.telegramId}, ${actingProfile.id})
+    `;
+  } catch {
+    await deleteIdentityUser(createdUid);
     return { error: 'createFailed' };
   }
 
@@ -175,14 +157,10 @@ async function createStaffRow(
     console.error('Telegram welcome message failed:', error instanceof Error ? error.message : error);
   }
 
-  logSystemAction(
-    supabase,
-    'staff.create',
-    `Created staff member ${data.firstName} ${data.lastName} (${data.role})`,
-  );
+  logSystemAction('staff.create', `Created staff member ${data.firstName} ${data.lastName} (${data.role})`);
 
   revalidatePath('/[locale]/staff', 'page');
-  return { tempPassword, userId: created.user.id };
+  return { tempPassword, userId: createdUid };
 }
 
 export async function createStaffAction(
@@ -191,7 +169,7 @@ export async function createStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireStaffManager());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -212,17 +190,15 @@ export async function attachAvatarAction(
 ): Promise<{ error?: string }> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireStaffManager());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
 
-  const supabase = await createClient();
-
   // requestAvatarUploadUrlAction already gated the upload itself on this
   // same check — re-checked here since this action, called separately, is
   // otherwise an unguarded path to overwrite a protected account's avatar.
-  const { data: target } = await supabase.from('profiles').select('role').eq('id', targetUserId).maybeSingle();
+  const [target] = await sql<{ role: string }[]>`select role from profiles where id = ${targetUserId}`;
   if (
     target &&
     targetUserId !== actingProfile.id &&
@@ -232,12 +208,11 @@ export async function attachAvatarAction(
     return { error: manageRoleError(target.role) };
   }
 
-  const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-  const { error } = await supabase
-    .from('profiles')
-    .update({ avatar_url: data.publicUrl })
-    .eq('id', targetUserId);
-  if (error) return { error: 'updateFailed' };
+  // Avatars are served through the app's own signed-read proxy rather than
+  // a public bucket URL — bucket objects here are private (no public ACLs),
+  // so what's stored is just the object path; a fresh signed read URL is
+  // minted wherever it's displayed.
+  await sql`update profiles set avatar_url = ${avatarPath} where id = ${targetUserId}`;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -259,7 +234,7 @@ export async function updateStaffAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireStaffManager());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -267,12 +242,7 @@ export async function updateStaffAction(
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
-  const supabase = await createClient();
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', parsed.data.id)
-    .single();
+  const [target] = await sql<{ role: string; phone: string }[]>`select role, phone from profiles where id = ${parsed.data.id}`;
   if (!target) return { error: 'notFound' };
   const isSelf = parsed.data.id === actingProfile.id;
   if (!isSelf && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
@@ -292,27 +262,40 @@ export async function updateStaffAction(
   const phone = normalizePhone(parsed.data.phone);
   if (!phone) return { error: 'invalidPhone', fieldErrors: { phone: 'invalidPhone' } };
 
-  let avatarUrl: string | undefined;
-  if (parsed.data.avatarPath) {
-    avatarUrl = supabase.storage.from('avatars').getPublicUrl(parsed.data.avatarPath)
-      .data.publicUrl;
+  // Login is keyed by a synthetic email derived from phone (see
+  // lib/auth/phone.ts) — the Identity Platform account must be kept in
+  // sync whenever the phone actually changes, or the employee ends up
+  // locked out under both the old and new number. Done before the SQL
+  // update below so a conflict (someone else already has this number)
+  // fails loudly instead of leaving the profile row pointing at a phone
+  // that can't log in.
+  if (phone !== target.phone) {
+    try {
+      await updateIdentityUserEmail(parsed.data.id, phoneToSyntheticEmail(phone));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      return message.includes('already exists')
+        ? { error: 'phoneTaken', fieldErrors: { phone: 'invalidPhone' } }
+        : { error: 'updateFailed' };
+    }
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      first_name: parsed.data.firstName,
-      last_name: parsed.data.lastName,
-      phone,
-      date_of_birth: parsed.data.dateOfBirth,
-      role: parsed.data.role,
-      ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-      ...(parsed.data.role === 'internship' && parsed.data.internshipLevel
-        ? { internship_level: parsed.data.internshipLevel as InternshipLevel }
-        : {}),
-    })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  const internshipLevel =
+    parsed.data.role === 'internship' && parsed.data.internshipLevel
+      ? (parsed.data.internshipLevel as InternshipLevel)
+      : null;
+
+  await sql`
+    update profiles set
+      first_name = ${parsed.data.firstName},
+      last_name = ${parsed.data.lastName},
+      phone = ${phone},
+      date_of_birth = ${parsed.data.dateOfBirth},
+      role = ${parsed.data.role},
+      avatar_url = coalesce(${parsed.data.avatarPath || null}, avatar_url),
+      internship_level = coalesce(${internshipLevel}, internship_level)
+    where id = ${parsed.data.id}
+  `;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -326,7 +309,7 @@ export async function toggleStaffActiveAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireStaffManager());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -335,25 +318,17 @@ export async function toggleStaffActiveAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.id === actingProfile.id) return { error: 'cannotDeactivateSelf' };
 
-  const supabase = await createClient();
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('role, is_active')
-    .eq('id', parsed.data.id)
-    .single();
+  const [target] = await sql<{ role: string; is_active: boolean }[]>`
+    select role, is_active from profiles where id = ${parsed.data.id}
+  `;
   if (!target) return { error: 'notFound' };
   if (isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
     return { error: manageRoleError(target.role) };
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ is_active: !target.is_active })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`update profiles set is_active = ${!target.is_active} where id = ${parsed.data.id}`;
 
   logSystemAction(
-    supabase,
     target.is_active ? 'staff.deactivate' : 'staff.activate',
     `${target.is_active ? 'Deactivated' : 'Reactivated'} staff member ${parsed.data.id}`,
   );
@@ -362,13 +337,17 @@ export async function toggleStaffActiveAction(
   return {};
 }
 
-/** Permanent deletion, CEO-only, mirrors profiles_delete_ceo's RLS check
- * (self-delete blocked there too). Goes through the admin client's
- * deleteUser, same as every other identity-level staff action in this file
- * — profiles.id cascades from auth.users, so this removes the profile row
- * (and everything that references it) in one call, no separate table
- * delete needed. Target's name/role is captured before the delete for the
- * audit log, since the row won't exist to query afterward. */
+/** Permanent deletion, CEO-only (self-delete blocked too). Deletes the
+ * Identity Platform account and the profiles row as two explicit steps —
+ * unlike Supabase's auth.users cascade, Cloud SQL has no FK back to
+ * Identity Platform, so nothing here is atomic across the two systems. If
+ * the profile delete below fails after the identity delete above succeeds,
+ * the account is unrecoverable-by-login but its row lingers; that failure
+ * mode is judged acceptable (CEO-only, rare, and the row itself is harmless
+ * with no matching login) rather than adding compensating-transaction
+ * complexity for a permanent-delete action. Target's name/role is captured
+ * before the delete for the audit log, since the row won't exist to query
+ * afterward. */
 export async function deleteStaffAction(
   _prevState: StaffActionState,
   formData: FormData,
@@ -384,28 +363,22 @@ export async function deleteStaffAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.id === actingProfile.id) return { error: 'cannotDeleteSelf' };
 
-  const supabase = await createClient();
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('first_name, last_name, role')
-    .eq('id', parsed.data.id)
-    .maybeSingle();
+  const [target] = await sql<{ first_name: string; last_name: string; role: string }[]>`
+    select first_name, last_name, role from profiles where id = ${parsed.data.id}
+  `;
   if (!target) return { error: 'notFound' };
-  // This goes through the admin (service-role) client below, which bypasses
-  // RLS entirely — profiles_delete_admin's protected-role carve-out isn't
-  // in the path for this specific call, so it's re-checked here explicitly.
   if (isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
     return { error: manageRoleError(target.role) };
   }
 
-  const { error } = await createAdminClient().auth.admin.deleteUser(parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  try {
+    await deleteIdentityUser(parsed.data.id);
+  } catch {
+    return { error: 'deleteFailed' };
+  }
+  await sql`delete from profiles where id = ${parsed.data.id}`;
 
-  logSystemAction(
-    supabase,
-    'staff.delete',
-    `Deleted staff member ${target.first_name} ${target.last_name} (${target.role})`,
-  );
+  logSystemAction('staff.delete', `Deleted staff member ${target.first_name} ${target.last_name} (${target.role})`);
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -417,7 +390,7 @@ export async function resetStaffPasswordAction(
 ): Promise<StaffActionState> {
   let actingProfile;
   try {
-    ({ profile: actingProfile } = await requireAdmin());
+    ({ profile: actingProfile } = await requireStaffManager());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -425,12 +398,7 @@ export async function resetStaffPasswordAction(
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', parsed.data.id)
-    .single();
+  const [target] = await sql<{ role: string }[]>`select role from profiles where id = ${parsed.data.id}`;
   if (!target) return { error: 'notFound' };
   if (
     parsed.data.id !== actingProfile.id &&
@@ -441,17 +409,27 @@ export async function resetStaffPasswordAction(
   }
 
   const tempPassword = generateTempPassword();
-  const admin = createAdminClient();
-  const { error: authError } = await admin.auth.admin.updateUserById(parsed.data.id, {
-    password: tempPassword,
-  });
-  if (authError) return { error: 'updateFailed' };
+  try {
+    await setUserPassword(parsed.data.id, tempPassword);
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({ must_change_password: true })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`update profiles set must_change_password = true where id = ${parsed.data.id}`;
+  // Revoking alone isn't enough: it forces a fresh login, but a fresh
+  // login's session cookie is minted from an ID token that carries
+  // whatever custom claims were *last set* on the account — which, without
+  // this call, would still be the stale mustChangePassword:false from
+  // their previous successful password change. The claim and the DB
+  // column must always be updated together (see setPasswordAction), or
+  // proxy.ts's fast-path check and the page's own live-DB check disagree
+  // and produce the same /dashboard <-> /set-password redirect loop.
+  await setUserClaims(parsed.data.id, { role: target.role, mustChangePassword: true });
+  // Also revoke any already-live session for the target — otherwise an
+  // existing (pre-reset) cookie keeps working right up until it would
+  // naturally expire, up to 14 days, letting them skip the password change
+  // this reset was meant to force.
+  await revokeUserSessions(parsed.data.id);
 
   revalidatePath('/[locale]/staff', 'page');
   return { tempPassword };

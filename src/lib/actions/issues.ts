@@ -3,13 +3,15 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
+import type { StaffRole } from '@/lib/nav';
 import { allowedAssigneeRoles } from '@/lib/issue-roles';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
+import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
+import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 
 export type IssueActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
@@ -36,16 +38,13 @@ export async function createIssueAction(
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   const isAdmin = profile.role === 'ceo';
-  const supabase = await createClient();
 
   let assignedTo: string | null = null;
-  let assigneeProfile: { first_name: string; last_name: string; role: string } | null = null;
+  let assigneeProfile: { first_name: string; last_name: string; role: StaffRole } | null = null;
   if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
-    const { data: target } = await supabase
-      .from('profiles')
-      .select('first_name, last_name, role')
-      .eq('id', parsed.data.assignedTo)
-      .maybeSingle();
+    const [target] = await sql<{ first_name: string; last_name: string; role: StaffRole }[]>`
+      select first_name, last_name, role from profiles where id = ${parsed.data.assignedTo}
+    `;
     // Strict chain of command, re-checked here regardless of what the
     // client's dropdown offered — the dropdown options alone are not a
     // security boundary. Only CEO/IT Developer can assign to anyone;
@@ -59,20 +58,19 @@ export async function createIssueAction(
     assigneeProfile = target;
   }
 
-  // Defense in depth: the storage RLS already scopes uploads to the
-  // uploader's own folder, but double-check here too rather than trusting
-  // a client-supplied path unconditionally.
+  // Defense in depth: uploads are scoped to the uploader's own folder at
+  // signed-URL creation time, but double-check here too rather than
+  // trusting a client-supplied path unconditionally.
   const voiceUrl =
     parsed.data.voiceUrl && parsed.data.voiceUrl.startsWith(`${user.id}/`) ? parsed.data.voiceUrl : null;
 
-  const { error } = await supabase.from('issues').insert({
-    created_by: user.id,
-    title: parsed.data.title,
-    description: parsed.data.description || null,
-    assigned_to: assignedTo,
-    voice_url: voiceUrl,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into issues (created_by, title, description, assigned_to, voice_url)
+    values (${user.id}, ${parsed.data.title}, ${parsed.data.description || null}, ${assignedTo}, ${voiceUrl})
+  `;
+
+  await bumpBoardSignal('issues');
+  if (assignedTo) await bumpNavBadgeSignal(assignedTo);
 
   revalidatePath('/[locale]/issues', 'page');
 
@@ -91,7 +89,6 @@ export async function createIssueAction(
         reporterName: `${profile.first_name} ${profile.last_name}`,
         reporterTelegramId: profile.telegram_id,
         assigneeName: assigneeProfile ? `${assigneeProfile.first_name} ${assigneeProfile.last_name}` : null,
-        supabase,
       }),
     );
   }
@@ -104,20 +101,17 @@ async function notifyIssueCreated({
   reporterName,
   reporterTelegramId,
   assigneeName,
-  supabase,
 }: {
   title: string;
   reporterName: string;
   reporterTelegramId: number | null;
   assigneeName: string | null;
-  supabase: Awaited<ReturnType<typeof createClient>>;
 }) {
   try {
-    const { data: admins } = await supabase
-      .from('profiles')
-      .select('telegram_id')
-      .in('role', ['ceo', 'admin_manager'])
-      .not('telegram_id', 'is', null);
+    const admins = await sql<{ telegram_id: number }[]>`
+      select telegram_id from profiles
+      where role in ('ceo', 'admin_manager') and telegram_id is not null
+    `;
     console.log('Users retrieved from DB for notifications:', admins);
 
     const text = [
@@ -126,7 +120,7 @@ async function notifyIssueCreated({
       `<b>Kimga:</b> ${assigneeName ? escapeTelegramText(assigneeName) : 'Belgilanmagan'}`,
     ].join('\n');
 
-    const chatIds = [reporterTelegramId, ...(admins ?? []).map((a) => a.telegram_id)];
+    const chatIds = [reporterTelegramId, ...admins.map((a) => a.telegram_id)];
     await sendTelegramMessageToMany(chatIds, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
@@ -134,7 +128,7 @@ async function notifyIssueCreated({
 }
 
 const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });
-export type UploadUrlResult = { path?: string; token?: string; error?: string };
+export type UploadUrlResult = { path?: string; url?: string; error?: string };
 
 /** Mirrors requestChatMediaUploadUrlAction's signed-upload-url pattern
  * exactly, targeting the dedicated issue-voice-notes bucket instead. */
@@ -148,12 +142,8 @@ export async function requestIssueVoiceUploadUrlAction(fileName: string): Promis
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${user.id}/${crypto.randomUUID()}-${sanitized}`;
 
-  // Path is always scoped to the caller's own id — see the identical
-  // admin-client note in requestChatMediaUploadUrlAction.
-  const { data, error } = await createAdminClient().storage.from('issue-voice-notes').createSignedUploadUrl(path);
-  if (error || !data) return { error: 'uploadFailed' };
-
-  return { path, token: data.token };
+  const url = await createSignedWriteUrl('issue-voice-notes', path, 'audio/webm');
+  return { path, url };
 }
 
 const STATUSES = ['open', 'in_progress', 'done'] as const;
@@ -168,9 +158,8 @@ export type UpdateIssueStatusResult = { error?: string };
 /** CEO and IT Developer can change the status of any issue. An
  * Administrative Manager (no longer an admin role generally) may only
  * change the status of an issue currently assigned to them — everyone
- * else has no status-change capability here at all. Mirrors the
- * RLS/trigger carve-out on the issues table exactly (see
- * protect_issue_fields). */
+ * else has no status-change capability here at all. This app-layer check
+ * is now the only thing enforcing it (previously RLS/trigger-backed too). */
 export async function updateIssueStatusAction(formData: FormData): Promise<UpdateIssueStatusResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
@@ -178,43 +167,115 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-
   if (profile.role !== 'ceo') {
-    const { data: existing } = await supabase
-      .from('issues')
-      .select('assigned_to')
-      .eq('id', parsed.data.id)
-      .maybeSingle();
+    const [existing] = await sql<{ assigned_to: string | null }[]>`
+      select assigned_to from issues where id = ${parsed.data.id}
+    `;
     if (!existing || profile.role !== 'admin_manager' || existing.assigned_to !== user.id) {
       return { error: 'forbidden' };
     }
   }
 
-  const { error } = await supabase
-    .from('issues')
-    .update({
-      status: parsed.data.status,
-      resolved_by: parsed.data.status === 'done' ? user.id : null,
-      resolved_at: parsed.data.status === 'done' ? new Date().toISOString() : null,
-    })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update issues set
+      status = ${parsed.data.status},
+      resolved_by = ${parsed.data.status === 'done' ? user.id : null},
+      resolved_at = ${parsed.data.status === 'done' ? new Date().toISOString() : null}
+    where id = ${parsed.data.id}
+  `;
 
-  logSystemAction(supabase, 'issue.status_change', `Moved issue ${parsed.data.id} to "${parsed.data.status}"`);
+  await bumpBoardSignal('issues');
+  logSystemAction('issue.status_change', `Moved issue ${parsed.data.id} to "${parsed.data.status}"`);
 
   revalidatePath('/[locale]/issues', 'page');
   return {};
+}
+
+export type VisibleIssueRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: (typeof STATUSES)[number];
+  created_at: string;
+  created_by: string;
+  assigned_to: string | null;
+  voiceSignedUrl: string | null;
+  reporter: { first_name: string; last_name: string } | null;
+  assignee: { first_name: string; last_name: string } | null;
+  canChangeStatus: boolean;
+};
+
+const VOICE_URL_EXPIRY_SECONDS = 60 * 60;
+
+/**
+ * Re-fetch for IssuesBoard's live refresh, triggered whenever
+ * board_signals/issues changes in Firestore — see getVisibleTasksAction's
+ * comment in tasks.ts for why this re-derives the whole list rather than
+ * patching one row. Mirrors app/[locale]/(app)/issues/page.tsx's own query:
+ * visibility is is_admin() (ceo) OR reporter OR assignee (the old
+ * issues_select RLS policy, ported explicitly since RLS no longer exists),
+ * and a "done" issue resolved over a week ago is hidden from the board.
+ * Unlike the old browser-side Realtime handler, this can properly sign a
+ * fresh voice-note URL server-side instead of leaving it null.
+ */
+export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return [];
+  const isCeo = profile.role === 'ceo';
+  const isAdminManager = profile.role === 'admin_manager';
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const rows = await sql<
+    {
+      id: string;
+      title: string;
+      description: string | null;
+      status: (typeof STATUSES)[number];
+      created_at: string;
+      created_by: string;
+      assigned_to: string | null;
+      voice_url: string | null;
+      reporter_first_name: string | null;
+      reporter_last_name: string | null;
+      assignee_first_name: string | null;
+      assignee_last_name: string | null;
+    }[]
+  >`
+    select
+      i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
+      reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+      assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+    from issues i
+    left join profiles reporter on reporter.id = i.created_by
+    left join profiles assignee on assignee.id = i.assigned_to
+    where (${isCeo} or i.created_by = ${user.id} or i.assigned_to = ${user.id})
+      and (i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo})
+    order by i.created_at desc
+  `;
+
+  return Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      created_at: row.created_at,
+      created_by: row.created_by,
+      assigned_to: row.assigned_to,
+      voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
+      reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
+      assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
+      canChangeStatus: isCeo || (isAdminManager && row.assigned_to === user.id),
+    })),
+  );
 }
 
 const deleteIssueSchema = z.object({ id: z.string().uuid() });
 
 export type DeleteIssueResult = { error?: string };
 
-/** Open to the issue's own creator or an admin, at any status — issues_delete
- * mirrors this at the RLS layer, so this lookup is defense in depth, not the
- * only thing standing between an unrelated staff member and someone else's
- * issue. */
+/** Open to the issue's own creator or an admin, at any status. */
 export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
@@ -223,15 +284,14 @@ export async function deleteIssueAction(formData: FormData): Promise<DeleteIssue
   const parsed = deleteIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: issue } = await supabase.from('issues').select('created_by').eq('id', parsed.data.id).maybeSingle();
+  const [issue] = await sql<{ created_by: string }[]>`select created_by from issues where id = ${parsed.data.id}`;
   if (!issue) return { error: 'notFound' };
   if (!isCeo && issue.created_by !== user.id) return { error: 'forbidden' };
 
-  const { error } = await supabase.from('issues').delete().eq('id', parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from issues where id = ${parsed.data.id}`;
 
-  logSystemAction(supabase, 'issue.delete', `Deleted issue ${parsed.data.id}`);
+  await bumpBoardSignal('issues');
+  logSystemAction('issue.delete', `Deleted issue ${parsed.data.id}`);
 
   revalidatePath('/[locale]/issues', 'page');
   return {};
@@ -245,9 +305,7 @@ const updateIssueSchema = z.object({
 
 /** Text-only edit, open to the issue's own creator or an admin. Everything
  * else (status, assignee, voice note) stays admin-gated through the status
- * board / protect_issue_fields trigger — this action only ever touches
- * title/description, matching what that trigger allows a non-admin to
- * change. */
+ * board actions — this action only ever touches title/description. */
 export async function updateIssueAction(
   _prevState: IssueActionState,
   formData: FormData,
@@ -259,16 +317,16 @@ export async function updateIssueAction(
   const parsed = updateIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: issue } = await supabase.from('issues').select('created_by').eq('id', parsed.data.id).maybeSingle();
+  const [issue] = await sql<{ created_by: string }[]>`select created_by from issues where id = ${parsed.data.id}`;
   if (!issue) return { error: 'notFound' };
   if (!isCeo && issue.created_by !== user.id) return { error: 'forbidden' };
 
-  const { error } = await supabase
-    .from('issues')
-    .update({ title: parsed.data.title, description: parsed.data.description || null })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    update issues set title = ${parsed.data.title}, description = ${parsed.data.description || null}
+    where id = ${parsed.data.id}
+  `;
+
+  await bumpBoardSignal('issues');
 
   revalidatePath('/[locale]/issues', 'page');
   return {};

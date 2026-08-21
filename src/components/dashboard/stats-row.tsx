@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Users, Layers, CalendarDays, Wallet, Target, ListTodo } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { getAuthState } from '@/lib/auth/session';
 import { monthlyBuckets, momChangePercent } from '@/lib/dashboard-stats';
 import { formatUZS } from '@/lib/format-currency';
 import { StatCard } from './stat-card';
@@ -21,6 +22,7 @@ export async function StatsRow({
   showTotalStaff,
   showLessonPlanCards,
   personalDashboardUserId,
+  financeUserId,
 }: {
   /** CEO only. */
   showTotalStaff: boolean;
@@ -34,23 +36,33 @@ export async function StatsRow({
    * instead of company-wide totals that aren't relevant to their work.
    * Mutually exclusive with the two flags above. */
   personalDashboardUserId?: string;
+  /** Teacher/assistant/Head Teacher: adds their own Finance card alongside
+   * the Active Groups/Lesson Plans cards below, so every non-CEO role sees
+   * their own earnings on the dashboard, not just the personal-dashboard
+   * tier above. */
+  financeUserId?: string;
 }) {
   const t = await getTranslations('dashboard.stats');
-  const supabase = await createClient();
 
   if (personalDashboardUserId) {
     const userId = personalDashboardUserId;
-    const [{ data: financeRows }, { data: missionRows }, { data: taskRows }] = await Promise.all([
-      supabase.from('finance_entries').select('amount, created_at').eq('staff_id', userId),
-      supabase.from('missions').select('created_at, status').eq('staff_id', userId),
-      supabase.from('tasks').select('created_at, status').eq('assigned_to', userId),
+    const [financeRows, missionRows, taskRows] = await Promise.all([
+      sql<{ amount: number; created_at: string }[]>`
+        select amount, created_at from finance_entries where staff_id = ${userId}
+      `,
+      sql<{ created_at: string; status: string }[]>`
+        select created_at, status from missions where staff_id = ${userId}
+      `,
+      sql<{ created_at: string; status: string }[]>`
+        select created_at, status from tasks where assigned_to = ${userId}
+      `,
     ]);
 
-    const netFinance = (financeRows ?? []).reduce((sum, r) => sum + r.amount, 0);
-    const activeMissions = (missionRows ?? []).filter((m) => m.status !== 'approved' && m.status !== 'rejected');
-    const activeTasks = (taskRows ?? []).filter((task) => task.status !== 'done');
+    const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
+    const activeMissions = missionRows.filter((m) => m.status !== 'approved' && m.status !== 'rejected');
+    const activeTasks = taskRows.filter((task) => task.status !== 'done');
 
-    const financeBuckets = monthlyBuckets((financeRows ?? []).map((r) => r.created_at), MONTHS);
+    const financeBuckets = monthlyBuckets(financeRows.map((r) => r.created_at), MONTHS);
     const missionBuckets = monthlyBuckets(activeMissions.map((m) => m.created_at), MONTHS);
     const taskBuckets = monthlyBuckets(activeTasks.map((task) => task.created_at), MONTHS);
 
@@ -102,25 +114,46 @@ export async function StatsRow({
     );
   }
 
-  // Each RLS-scoped independently: profiles are visible platform-wide, but
-  // groups/course_lessons narrow to what the viewer's own role can see
-  // (their own groups for a teacher, assigned group for a TA, everything
-  // for CEO/Head Teacher) — so a non-admin's cards naturally read as "my"
-  // totals, not the company's, without any extra filtering logic here.
-  const [{ data: staffRows }, { data: groupRows }, { data: lessonRows }] = await Promise.all([
-    supabase.from('profiles').select('created_at, is_active'),
+  // profiles are visible platform-wide, but groups/course_lessons used to
+  // be narrowed by RLS to what the viewer's own role can see (their own
+  // groups for a teacher, assigned group for a TA, everything for CEO/
+  // Head Teacher) — RLS is gone, so that scoping (mirrors the old
+  // groups_select/course_lessons_select policies + is_group_owner/
+  // is_assigned_ta, pulled from the source DB) is replicated explicitly
+  // below, so a non-admin's cards keep reading as "my" totals, not the
+  // company's.
+  const { user, profile } = await getAuthState();
+  const isCeoOrHeadTeacher = profile?.role === 'ceo' || profile?.role === 'head_teacher';
+  const uid = user?.id ?? '';
+
+  const [staffRows, groupRows, lessonRows, financeRows] = await Promise.all([
+    sql<{ created_at: string; is_active: boolean }[]>`select created_at, is_active from profiles`,
     showLessonPlanCards
-      ? supabase.from('groups').select('created_at')
-      : Promise.resolve({ data: [] as { created_at: string }[] }),
+      ? sql<{ created_at: string }[]>`
+          select created_at from groups
+          where ${isCeoOrHeadTeacher} or teacher_id = ${uid} or assigned_ta_id = ${uid}
+        `
+      : Promise.resolve([]),
     showLessonPlanCards
-      ? supabase.from('course_lessons').select('created_at')
-      : Promise.resolve({ data: [] as { created_at: string }[] }),
+      ? sql<{ created_at: string }[]>`
+          select cl.created_at from course_lessons cl
+          join groups g on g.id = cl.group_id
+          where ${isCeoOrHeadTeacher} or g.teacher_id = ${uid} or g.assigned_ta_id = ${uid}
+        `
+      : Promise.resolve([]),
+    financeUserId
+      ? sql<{ amount: number; created_at: string }[]>`
+          select amount, created_at from finance_entries where staff_id = ${financeUserId}
+        `
+      : Promise.resolve([]),
   ]);
 
-  const activeStaff = (staffRows ?? []).filter((r) => r.is_active);
+  const activeStaff = staffRows.filter((r) => r.is_active);
   const staffBuckets = monthlyBuckets(activeStaff.map((r) => r.created_at), MONTHS);
-  const groupBuckets = monthlyBuckets((groupRows ?? []).map((r) => r.created_at), MONTHS);
-  const lessonBuckets = monthlyBuckets((lessonRows ?? []).map((r) => r.created_at), MONTHS);
+  const groupBuckets = monthlyBuckets(groupRows.map((r) => r.created_at), MONTHS);
+  const lessonBuckets = monthlyBuckets(lessonRows.map((r) => r.created_at), MONTHS);
+  const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
+  const financeBuckets = monthlyBuckets(financeRows.map((r) => r.created_at), MONTHS);
 
   const cards = [
     showTotalStaff && {
@@ -131,9 +164,18 @@ export async function StatsRow({
       buckets: staffBuckets,
       href: '/staff',
     },
+    financeUserId && {
+      label: t('finance'),
+      value: formatUZS(netFinance),
+      icon: Wallet,
+      tint: 'green' as const,
+      buckets: financeBuckets,
+      href: `/finance/${financeUserId}`,
+      maskable: true,
+    },
     showLessonPlanCards && {
       label: t('activeGroups'),
-      value: groupRows?.length ?? 0,
+      value: groupRows.length,
       icon: Layers,
       tint: 'blue' as const,
       buckets: groupBuckets,
@@ -141,7 +183,7 @@ export async function StatsRow({
     },
     showLessonPlanCards && {
       label: t('lessonPlans'),
-      value: lessonRows?.length ?? 0,
+      value: lessonRows.length,
       icon: CalendarDays,
       tint: 'orange' as const,
       buckets: lessonBuckets,

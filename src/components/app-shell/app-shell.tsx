@@ -23,7 +23,8 @@ import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
 import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
 import { TashkentClock } from './tashkent-clock';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import type { Profile } from '@/lib/auth/session';
 import type { NavItem } from '@/lib/nav';
 
@@ -39,6 +40,7 @@ export async function AppShell({
   initialUnseenWarnings,
   initialUnseenLessonPlanAlerts,
   newNavKeys,
+  materialsLinked = false,
   children,
 }: {
   profile: Profile;
@@ -50,16 +52,18 @@ export async function AppShell({
   initialUnseenWarnings: UnseenWarningItem[];
   initialUnseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
   newNavKeys: NavItem['key'][];
+  /** Whether this employee's phone number matches an active Materials
+   * account — see src/lib/sso/checkMaterialsLink.ts. */
+  materialsLinked?: boolean;
   children: ReactNode;
 }) {
   const t = await getTranslations('app');
-  const supabase = await createClient();
-  const { data: announcement } = await supabase
-    .from('platform_announcements')
-    .select('message')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [[announcement], initialAvatarUrl] = await Promise.all([
+    sql<{ message: string }[]>`
+      select message from platform_announcements order by created_at desc limit 1
+    `,
+    resolveAvatarUrl(profile.avatar_url),
+  ]);
 
   return (
     <BackgroundProvider>
@@ -67,7 +71,7 @@ export async function AppShell({
       <ProfileProvider
         initialFirstName={profile.first_name}
         initialLastName={profile.last_name}
-        initialAvatarUrl={profile.avatar_url}
+        initialAvatarUrl={initialAvatarUrl}
       >
         <PresenceProvider userId={userId}>
           <NavBadgesProvider userId={userId} initialKeys={newNavKeys}>
@@ -78,7 +82,7 @@ export async function AppShell({
                 <span className="font-heading mb-6 text-sm font-semibold tracking-tight text-white">
                   {t('name')}
                 </span>
-                <SidebarNav role={profile.role} glass />
+                <SidebarNav role={profile.role} materialsLinked={materialsLinked} glass />
                 <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
                 <span className="pt-3 text-center text-xs tracking-wider text-white/50">
                   Persons ERP {packageJson.version}
@@ -90,7 +94,7 @@ export async function AppShell({
                   a transformed ancestor can break position: sticky in some browsers. */}
                 <header className="sticky top-0 z-40 flex h-14 transform-gpu items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg will-change-transform">
                   <div className="flex items-center gap-2 md:hidden">
-                    <MobileNav role={profile.role} />
+                    <MobileNav role={profile.role} materialsLinked={materialsLinked} />
                     <span className="font-heading text-sm font-semibold tracking-tight text-white">
                       {t('name')}
                     </span>

@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { createStaffAction, requestAvatarUploadUrlAction, attachAvatarAction } from '@/lib/actions/staff';
 import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_FILE_BYTES } from '@/lib/avatar-constants';
 import { Button } from '@/components/ui/button';
@@ -79,23 +78,22 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
         return;
       }
 
-      // Uploads go straight from the browser to Supabase Storage using a
-      // signed URL, never through this Next.js server — that's what lets
-      // files exceed Vercel's 4.5MB serverless function payload limit.
+      // Uploads go straight from the browser to Cloud Storage using a
+      // one-shot signed PUT URL, never through this Next.js server —
+      // that's what lets files exceed a serverless function payload limit.
       if (avatarFile instanceof File && avatarFile.size > 0 && result?.userId) {
         const uploadUrlResult = await requestAvatarUploadUrlAction(
           result.userId,
           avatarFile.name,
           avatarFile.type,
         );
-        if (!uploadUrlResult.error && uploadUrlResult.path && uploadUrlResult.token) {
-          const supabase = createClient();
-          const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, avatarFile, {
-              contentType: avatarFile.type,
-            });
-          if (!uploadError) {
+        if (!uploadUrlResult.error && uploadUrlResult.path && uploadUrlResult.url) {
+          const uploadResponse = await fetch(uploadUrlResult.url, {
+            method: 'PUT',
+            headers: { 'Content-Type': avatarFile.type },
+            body: avatarFile,
+          });
+          if (uploadResponse.ok) {
             await attachAvatarAction(result.userId, uploadUrlResult.path);
           }
         }

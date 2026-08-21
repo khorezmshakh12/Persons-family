@@ -1,7 +1,8 @@
 /**
- * Staff log in with a phone number, but Supabase Auth is email/password under
- * the hood. We normalize every phone number to E.164 for Uzbekistan (+998...)
- * and derive a synthetic email from it that Supabase Auth actually stores.
+ * Staff log in with a phone number, but Identity Platform is email/password
+ * under the hood. We normalize every phone number to E.164 for Uzbekistan
+ * (+998...) and derive a synthetic email from it that Identity Platform
+ * actually stores.
  */
 
 const COUNTRY_CODE = '998';

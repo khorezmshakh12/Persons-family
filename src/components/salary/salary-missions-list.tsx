@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
 import { formatUZS } from '@/lib/format-currency';
@@ -18,12 +18,10 @@ const STATUS_TINT = {
 export async function SalaryMissionsList({ staffId }: { staffId: string }) {
   const t = await getTranslations('salary');
   const tMissions = await getTranslations('missions');
-  const supabase = await createClient();
-  const { data: missions } = await supabase
-    .from('missions')
-    .select('id, title, status, bonus_amount')
-    .eq('staff_id', staffId)
-    .order('created_at', { ascending: false });
+  const missions = await sql<{ id: string; title: string; status: string; bonus_amount: number | null }[]>`
+    select id, title, status, bonus_amount from missions
+    where staff_id = ${staffId} order by created_at desc
+  `;
 
   return (
     <div className="flex flex-col gap-2">
@@ -33,11 +31,11 @@ export async function SalaryMissionsList({ staffId }: { staffId: string }) {
           {tMissions('title')}
         </Link>
       </div>
-      {(missions ?? []).length === 0 ? (
+      {missions.length === 0 ? (
         <p className="text-sm text-white/60">{tMissions('noMissions')}</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {(missions ?? []).map((m) => (
+          {missions.map((m) => (
             <div
               key={m.id}
               className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"

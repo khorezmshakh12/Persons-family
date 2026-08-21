@@ -5,15 +5,14 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { ForbiddenError, SessionExpiredError, requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 
 export type WarningActionState = { error?: string } | undefined;
 
-/** CEO and Administrative Manager issue warnings — mirrors
- * staff_warnings_insert's public.is_ceo_or_admin_manager() RLS check
- * (is_admin() there is ceo-only again). */
+/** CEO and Administrative Manager issue warnings. */
 async function requireCeoOrAdminManager() {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
@@ -63,21 +62,17 @@ export async function issueWarningAction(
   const parsed = warningSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_warnings').insert({
-    staff_id: parsed.data.staffId,
-    reason: parsed.data.reason,
-    issued_by: issuerId,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into staff_warnings (staff_id, reason, issued_by)
+    values (${parsed.data.staffId}, ${parsed.data.reason}, ${issuerId})
+  `;
 
-  logSystemAction(supabase, 'warning.issue', `Issued a warning to staff ${parsed.data.staffId}`);
+  await bumpNavBadgeSignal(parsed.data.staffId);
+  logSystemAction('warning.issue', `Issued a warning to staff ${parsed.data.staffId}`);
 
-  const { data: recipient } = await supabase
-    .from('profiles')
-    .select('telegram_id')
-    .eq('id', parsed.data.staffId)
-    .maybeSingle();
+  const [recipient] = await sql<{ telegram_id: number | null }[]>`
+    select telegram_id from profiles where id = ${parsed.data.staffId}
+  `;
   // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
   // un-awaited fire-and-forget call before its Telegram send finishes.
   after(() =>
@@ -103,9 +98,7 @@ export async function deleteWarningAction(
   const parsed = deleteWarningSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_warnings').delete().eq('id', parsed.data.warningId);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from staff_warnings where id = ${parsed.data.warningId}`;
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -139,31 +132,19 @@ export async function assignPunishmentAction(
   const parsed = punishmentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-
-  // The RLS insert policy only checks that warning_id is non-null for an
-  // admin_manager caller, not that it actually belongs to this staff member
-  // — confirm that relationship here so a punishment can't be filed against
-  // the wrong person's warning.
-  const { data: warning } = await supabase
-    .from('staff_warnings')
-    .select('staff_id')
-    .eq('id', parsed.data.warningId)
-    .maybeSingle();
+  // Confirm the warning actually belongs to this staff member — a
+  // punishment must never be filed against the wrong person's warning.
+  const [warning] = await sql<{ staff_id: string }[]>`
+    select staff_id from staff_warnings where id = ${parsed.data.warningId}
+  `;
   if (!warning || warning.staff_id !== parsed.data.staffId) return { error: 'invalidWarning' };
 
-  const { error } = await supabase.from('performance_entries').insert({
-    staff_id: parsed.data.staffId,
-    entry_type: 'penalty',
-    amount: parsed.data.amount,
-    reason: parsed.data.reason || null,
-    created_by: actorId,
-    warning_id: parsed.data.warningId,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into performance_entries (staff_id, entry_type, amount, reason, created_by, warning_id)
+    values (${parsed.data.staffId}, 'penalty', ${parsed.data.amount}, ${parsed.data.reason || null}, ${actorId}, ${parsed.data.warningId})
+  `;
 
   logSystemAction(
-    supabase,
     'performance.punishment',
     `Assigned a punishment to staff ${parsed.data.staffId} for warning ${parsed.data.warningId}`,
   );

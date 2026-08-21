@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 
 export type SalaryActionState = { error?: string } | undefined;
 
@@ -32,12 +32,14 @@ export async function upsertSalaryNoteAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_salary_notes').upsert(
-    { staff_id: parsed.data.staffId, comment: parsed.data.comment, updated_by: ceoId, updated_at: new Date().toISOString() },
-    { onConflict: 'staff_id' },
-  );
-  if (error) return { error: 'updateFailed' };
+  await sql`
+    insert into staff_salary_notes (staff_id, comment, updated_by, updated_at)
+    values (${parsed.data.staffId}, ${parsed.data.comment}, ${ceoId}, now())
+    on conflict (staff_id) do update set
+      comment = excluded.comment,
+      updated_by = excluded.updated_by,
+      updated_at = excluded.updated_at
+  `;
 
   revalidatePath(`/[locale]/finance/${parsed.data.staffId}`, 'page');
   return {};

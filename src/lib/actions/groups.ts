@@ -3,10 +3,11 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
+import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -30,6 +31,8 @@ const groupSchema = z.object({
   ...configurationSchema.shape,
 });
 
+const GROUP_LIMIT_PER_TEACHER = 50;
+
 function normalizeScheduleType(value: string | undefined): 'odd' | 'even' | null {
   return value === 'odd' || value === 'even' ? value : null;
 }
@@ -47,15 +50,12 @@ function normalizeAssignedTaId(value: string | undefined): string | null {
   return value && value !== 'none' ? value : null;
 }
 
-/** Defense in depth: RLS doesn't itself check that assigned_ta_id points at
- * an actual assistant, since that's a cross-table business rule rather than
- * a per-row ownership check. */
-async function validateAssignedTa(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  assignedTaId: string,
-): Promise<boolean> {
-  const { data } = await supabase.from('profiles').select('role').eq('id', assignedTaId).maybeSingle();
-  return data?.role === 'assistant';
+/** Defense in depth: nothing else checks that assigned_ta_id points at an
+ * actual assistant, since that's a cross-table business rule rather than a
+ * per-row ownership check. */
+async function validateAssignedTa(assignedTaId: string): Promise<boolean> {
+  const [row] = await sql<{ role: string }[]>`select role from profiles where id = ${assignedTaId}`;
+  return row?.role === 'assistant';
 }
 
 export async function createGroupAction(
@@ -68,61 +68,64 @@ export async function createGroupAction(
   const parsed = groupSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
   const assignedTaId = normalizeAssignedTaId(parsed.data.assignedTaId);
 
-  if (assignedTaId && !(await validateAssignedTa(supabase, assignedTaId))) {
+  if (assignedTaId && !(await validateAssignedTa(assignedTaId))) {
     return { error: 'invalidInput' };
   }
 
-  const { data, error } = await supabase
-    .from('groups')
-    .insert({
-      teacher_id: user.id,
-      name: parsed.data.name,
-      assigned_ta_id: assignedTaId,
-      schedule_type: normalizeScheduleType(parsed.data.scheduleType),
-      course_name: parsed.data.courseName || null,
-      configuration: buildConfiguration(parsed.data),
-    })
-    .select('id')
-    .single();
+  // Ported from the old enforce_group_limit_trigger (a DB trigger, not
+  // RLS) — that trigger wasn't part of the table/data migration to Cloud
+  // SQL, so the cap is re-enforced here instead.
+  const [{ count }] = await sql<{ count: number }[]>`select count(*)::int from groups where teacher_id = ${user.id}`;
+  if (count >= GROUP_LIMIT_PER_TEACHER) return { error: 'groupLimitReached' };
 
-  if (error) {
-    if (error.message.includes('Group limit reached')) return { error: 'groupLimitReached' };
+  let groupId: string;
+  try {
+    const [created] = await sql<{ id: string }[]>`
+      insert into groups (teacher_id, name, assigned_ta_id, schedule_type, course_name, configuration)
+      values (
+        ${user.id}, ${parsed.data.name}, ${assignedTaId}, ${normalizeScheduleType(parsed.data.scheduleType)},
+        ${parsed.data.courseName || null}, ${sql.json(buildConfiguration(parsed.data))}
+      )
+      returning id
+    `;
+    groupId = created.id;
+  } catch {
     return { error: 'createFailed' };
   }
 
-  logSystemAction(supabase, 'group.create', `Created group "${parsed.data.name}"`);
+  // Keeps group_chat_meta/{groupId} in sync so the group's Firestore-backed
+  // teacher/TA chat thread knows who's allowed to read it (see
+  // firestore.rules + staff-chat.ts's sendStaffChatMessageAction).
+  await syncGroupChatMembers(groupId, user.id, assignedTaId);
+
+  logSystemAction('group.create', `Created group "${parsed.data.name}"`);
 
   revalidatePath('/[locale]/lesson-plans', 'page');
 
   // Fire-and-forget — the group is already created either way.
-  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
-  // un-awaited fire-and-forget call before its Telegram send finishes.
-  after(() => notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId, supabase }));
+  // See staff-chats.ts's `after()` comment — the platform can tear down a
+  // bare un-awaited fire-and-forget call before its Telegram send finishes.
+  after(() => notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId }));
 
-  return { groupId: data.id };
+  return { groupId };
 }
 
 async function notifyGroupCreated({
   name,
   teacherProfile,
   assignedTaId,
-  supabase,
 }: {
   name: string;
   teacherProfile: { first_name: string; last_name: string; telegram_id: number | null };
   assignedTaId: string | null;
-  supabase: Awaited<ReturnType<typeof createClient>>;
 }) {
   let taTelegramId: number | null = null;
   if (assignedTaId) {
-    const { data: ta } = await supabase
-      .from('profiles')
-      .select('telegram_id')
-      .eq('id', assignedTaId)
-      .maybeSingle();
+    const [ta] = await sql<{ telegram_id: number | null }[]>`
+      select telegram_id from profiles where id = ${assignedTaId}
+    `;
     taTelegramId = ta?.telegram_id ?? null;
   }
 
@@ -147,24 +150,34 @@ export async function updateGroupAction(
   const parsed = updateGroupSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
   const assignedTaId = normalizeAssignedTaId(parsed.data.assignedTaId);
 
-  if (assignedTaId && !(await validateAssignedTa(supabase, assignedTaId))) {
+  if (assignedTaId && !(await validateAssignedTa(assignedTaId))) {
     return { error: 'invalidInput' };
   }
 
-  const { error } = await supabase
-    .from('groups')
-    .update({
-      name: parsed.data.name,
-      assigned_ta_id: assignedTaId,
-      schedule_type: normalizeScheduleType(parsed.data.scheduleType),
-      course_name: parsed.data.courseName || null,
-      configuration: buildConfiguration(parsed.data),
-    })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  // Mirrors the old `groups_update` policy
+  // (`public.is_admin() or teacher_id = auth.uid()`, is_admin() now being
+  // CEO-only) — RLS used to narrow this update to the owning teacher, so
+  // without the extra predicate any employee could rename/reassign any
+  // group by posting its id.
+  const isCeo = profile.role === 'ceo';
+  const [updated] = await sql<{ teacher_id: string }[]>`
+    update groups set
+      name = ${parsed.data.name},
+      assigned_ta_id = ${assignedTaId},
+      schedule_type = ${normalizeScheduleType(parsed.data.scheduleType)},
+      course_name = ${parsed.data.courseName || null},
+      configuration = ${sql.json(buildConfiguration(parsed.data))}
+    where id = ${parsed.data.id} and (${isCeo} or teacher_id = ${user.id})
+    returning teacher_id
+  `;
+  if (!updated) return { error: 'forbidden' };
+
+  // assigned_ta_id may have just changed — re-sync the chat thread's
+  // membership so a newly-assigned TA can read/receive it immediately and
+  // a removed one loses access.
+  await syncGroupChatMembers(parsed.data.id, updated.teacher_id, assignedTaId);
 
   revalidatePath('/[locale]/lesson-plans', 'page');
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
@@ -180,8 +193,17 @@ export async function deleteGroupAction(formData: FormData): Promise<void> {
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
 
-  const supabase = await createClient();
-  await supabase.from('groups').delete().eq('id', parsed.data.id);
+  // Mirrors the old `groups_delete` policy
+  // (`public.is_admin() or teacher_id = auth.uid()`, is_admin() now being
+  // CEO-only) — the chat metadata is only torn down if the row really was
+  // this caller's to delete.
+  const isCeo = profile.role === 'ceo';
+  const [deleted] = await sql<{ id: string }[]>`
+    delete from groups where id = ${parsed.data.id} and (${isCeo} or teacher_id = ${user.id})
+    returning id
+  `;
+  if (!deleted) return;
+  await deleteGroupChatMeta(parsed.data.id);
 
   revalidatePath('/[locale]/lesson-plans', 'page');
 }

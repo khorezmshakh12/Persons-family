@@ -5,7 +5,9 @@ import nextDynamic from 'next/dynamic';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { Link, redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
+import { LESSON_PLAN_ROLES } from '@/lib/nav';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
@@ -35,28 +37,54 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const { user, profile } = await getAuthState();
   const locale = await getLocale();
 
-  // Administrative Manager has no lesson-plan visibility at all anymore, and
-  // neither does IT Developer (Head Teacher takes its place) — RLS on
-  // groups/course_lessons/etc. already denies the underlying rows (see
-  // 20260806110000_remove_admin_manager_lesson_plan_access.sql and
-  // 20260812090100_head_teacher_and_it_developer_rls.sql), but this gives a
-  // clean redirect instead of a bare 404 from the RLS-empty-row fallthrough
-  // below.
-  if (profile!.role === 'admin_manager' || profile!.role === 'it_developer') {
+  // Lesson-plan visibility is CEO / Head Teacher / owning teacher / assigned
+  // TA only (see 20260806110000_remove_admin_manager_lesson_plan_access.sql
+  // and 20260812090100_head_teacher_and_it_developer_rls.sql). This used to
+  // lean on RLS returning no row for anyone else, with the redirect just
+  // making that a clean bounce instead of a bare 404 — RLS is gone, so the
+  // allowlist is now the only thing enforcing it and must cover every role,
+  // not just the two that lost access.
+  if (!LESSON_PLAN_ROLES.includes(profile!.role)) {
     redirect({ href: '/dashboard', locale });
   }
 
-  const supabase = await createClient();
+  const [groupRow] = await sql<
+    {
+      id: string;
+      name: string;
+      teacher_id: string;
+      assigned_ta_id: string | null;
+      configuration: GroupConfiguration;
+      course_name: string | null;
+      schedule_type: 'odd' | 'even' | null;
+      teacher_first_name: string;
+      teacher_last_name: string;
+      teacher_avatar_url: string | null;
+    }[]
+  >`
+    select g.id, g.name, g.teacher_id, g.assigned_ta_id, g.configuration, g.course_name, g.schedule_type,
+      t.first_name as teacher_first_name, t.last_name as teacher_last_name, t.avatar_url as teacher_avatar_url
+    from groups g
+    join profiles t on t.id = g.teacher_id
+    where g.id = ${groupId}
+  `;
 
-  const { data: group } = await supabase
-    .from('groups')
-    .select(
-      'id, name, teacher_id, assigned_ta_id, configuration, course_name, schedule_type, teacher:profiles!groups_teacher_id_fkey(first_name, last_name, avatar_url)',
-    )
-    .eq('id', groupId)
-    .maybeSingle();
+  if (!groupRow) notFound();
 
-  if (!group) notFound();
+  const group = {
+    id: groupRow.id,
+    name: groupRow.name,
+    teacher_id: groupRow.teacher_id,
+    assigned_ta_id: groupRow.assigned_ta_id,
+    configuration: groupRow.configuration,
+    course_name: groupRow.course_name,
+    schedule_type: groupRow.schedule_type,
+    teacher: {
+      first_name: groupRow.teacher_first_name,
+      last_name: groupRow.teacher_last_name,
+      avatar_url: await resolveAvatarUrl(groupRow.teacher_avatar_url),
+    },
+  };
 
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
   // Head Teacher only got view + comment rights (mirrors lesson_comments_*
@@ -72,9 +100,11 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const isAssignedTa = isAssistant && group.assigned_ta_id === user!.id;
 
   // A different teacher (not the owner) should never see this group. An
-  // assistant who isn't the one assigned to this group shouldn't either —
-  // RLS would return no row for them anyway, but this gives a clean 404
-  // instead of relying solely on the RLS-empty-row fallthrough.
+  // assistant who isn't the one assigned to this group shouldn't either.
+  // These two used to be belt-and-braces on top of RLS returning no row;
+  // with RLS gone the group row above is fetched by id alone, so they are
+  // now the actual per-row gate (CEO/Head Teacher intentionally see every
+  // group, matching is_admin()/head_teacher in groups_select).
   if (profile!.role === 'teacher' && !isOwnerTeacher) notFound();
   if (isAssistant && !isAssignedTa) notFound();
 
@@ -100,13 +130,11 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
 
   let assistants: { id: string; first_name: string; last_name: string }[] = [];
   if (canEditGroup) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .eq('role', 'assistant')
-      .eq('is_active', true)
-      .order('first_name', { ascending: true });
-    assistants = data ?? [];
+    assistants = await sql<{ id: string; first_name: string; last_name: string }[]>`
+      select id, first_name, last_name from profiles
+      where role = 'assistant' and is_active = true
+      order by first_name asc
+    `;
   }
 
   return (

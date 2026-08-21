@@ -1,5 +1,5 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,6 @@ export async function ActivityHeatmap({
 } = {}) {
   const t = await getTranslations('dashboard.activityGrid');
   const format = await getFormatter();
-  const supabase = await createClient();
 
   const now = new Date();
   const year = now.getFullYear();
@@ -32,22 +31,20 @@ export async function ActivityHeatmap({
   const startOfMonth = new Date(year, month, 1);
   const endOfMonth = new Date(year, month + 1, 1);
 
-  const [{ data: rowsA }, { data: rowsB }] = await Promise.all([
-    supabase
-      .from('staff_chats')
-      .select('created_at')
-      .gte('created_at', startOfMonth.toISOString())
-      .lt('created_at', endOfMonth.toISOString()),
-    supabase
-      .from('staff_chat_messages')
-      .select('created_at')
-      .gte('created_at', startOfMonth.toISOString())
-      .lt('created_at', endOfMonth.toISOString()),
+  const [rowsA, rowsB] = await Promise.all([
+    sql<{ created_at: string }[]>`
+      select created_at from staff_chats
+      where created_at >= ${startOfMonth.toISOString()} and created_at < ${endOfMonth.toISOString()}
+    `,
+    sql<{ created_at: string }[]>`
+      select created_at from staff_chat_messages
+      where created_at >= ${startOfMonth.toISOString()} and created_at < ${endOfMonth.toISOString()}
+    `,
   ]);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const dayCounts = new Array(daysInMonth + 1).fill(0);
-  for (const row of [...(rowsA ?? []), ...(rowsB ?? [])]) {
+  for (const row of [...rowsA, ...rowsB]) {
     const d = new Date(row.created_at);
     dayCounts[d.getDate()] += 1;
   }

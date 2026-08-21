@@ -1,80 +1,93 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, type Timestamp } from 'firebase/firestore';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 
 const PresenceContext = createContext<Set<string>>(new Set());
 
-/** One shared Realtime Presence channel for the whole app — every signed-in
- * tab tracks its own user id, and every tab's context updates on each
- * join/leave. Only ever exposes "is this id currently online" from any
- * client component (staff table, chat sidebar, navbar), never anything
- * about WHAT another user is doing. */
+// A doc's lastSeenAt older than this is treated as offline — there's no
+// onDisconnect() here (that needs Realtime Database, not Firestore; see
+// lib/gcp/firestoreAdmin.ts's module comment for why this app uses a
+// heartbeat instead), so a closed tab is only ever detected by its
+// heartbeat going stale, never by an immediate server-side signal.
+const HEARTBEAT_INTERVAL_MS = 20_000;
+const STALE_AFTER_MS = 30_000;
+
+type PresenceDoc = { state: 'online' | 'offline'; lastSeenAt: Timestamp | null };
+
+/** One shared Firestore presence collection for the whole app — every
+ * signed-in tab writes its own heartbeat doc, and every tab's context
+ * recomputes the online set from the whole collection's snapshot. Only
+ * ever exposes "is this id currently online" from any client component
+ * (staff table, chat sidebar, navbar), never anything about WHAT another
+ * user is doing. */
 export function PresenceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
-    let cleanupListeners: (() => void) | undefined;
+    let unsubscribe: (() => void) | undefined;
+    let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
+    let staleCheckInterval: ReturnType<typeof setInterval> | undefined;
+    let latestDocs: Map<string, PresenceDoc> = new Map();
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
+    const recomputeOnline = () => {
+      const now = Date.now();
+      const next = new Set<string>();
+      for (const [uid, data] of latestDocs) {
+        const lastSeenMs = data.lastSeenAt?.toMillis() ?? 0;
+        if (data.state === 'online' && now - lastSeenMs < STALE_AFTER_MS) next.add(uid);
+      }
+      setOnlineUserIds(next);
+    };
 
-      channel = supabase.channel('presence:online', { config: { presence: { key: userId } } });
+    const writeHeartbeat = (state: 'online' | 'offline') => {
+      setDoc(doc(getRealtimeDb(), 'presence', userId), { state, lastSeenAt: serverTimestamp() }, { merge: true }).catch(
+        (error) => console.error('presence heartbeat failed', error),
+      );
+    };
 
-      const syncFromServer = () => setOnlineUserIds(new Set(Object.keys(channel!.presenceState())));
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const db = getRealtimeDb();
 
-      channel
-        // `sync` is the authoritative full snapshot and already reflects
-        // every join/leave, but `join`/`leave` are also handled explicitly
-        // so a single dropped `sync` frame can't leave a stale entry behind.
-        .on('presence', { event: 'sync' }, syncFromServer)
-        .on('presence', { event: 'join' }, syncFromServer)
-        .on('presence', { event: 'leave' }, syncFromServer)
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') await channel!.track({ online_at: new Date().toISOString() });
+        unsubscribe = onSnapshot(collection(db, 'presence'), (snapshot) => {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'removed') latestDocs.delete(change.doc.id);
+            else latestDocs.set(change.doc.id, change.doc.data() as PresenceDoc);
+          });
+          recomputeOnline();
         });
 
-      // A backgrounded tab (switched away, minimized, laptop lid closed)
-      // keeps its WebSocket open, so the server has no signal to remove it
-      // from presence until a much longer connection-timeout eventually
-      // fires — which is exactly the "everyone still shows online" reports.
-      // Untracking on hide and re-tracking on return closes that gap
-      // immediately instead of waiting on the server-side timeout.
-      const handleVisibilityChange = () => {
-        if (!channel) return;
-        if (document.visibilityState === 'hidden') {
-          channel.untrack();
-        } else {
-          channel.track({ online_at: new Date().toISOString() });
-        }
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
+        writeHeartbeat('online');
+        heartbeatInterval = setInterval(() => writeHeartbeat('online'), HEARTBEAT_INTERVAL_MS);
+        // Re-check staleness on a timer too — a user going stale doesn't by
+        // itself produce a new snapshot event for anyone else to react to.
+        staleCheckInterval = setInterval(recomputeOnline, 10_000);
 
-      // Best-effort: not guaranteed to complete on every browser/close path,
-      // but it makes a clean tab close reflect instantly rather than
-      // waiting on the connection to time out server-side.
-      const handleBeforeUnload = () => {
-        channel?.untrack();
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
+        const handleVisibilityChange = () => {
+          writeHeartbeat(document.visibilityState === 'hidden' ? 'offline' : 'online');
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      cleanupListeners = () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
-    })();
+        const handleBeforeUnload = () => writeHeartbeat('offline');
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+      })
+      .catch((error) => console.error('presence realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      cleanupListeners?.();
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (staleCheckInterval) clearInterval(staleCheckInterval);
+      writeHeartbeat('offline');
     };
   }, [userId]);
 

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireCeoOrAdminManager, authErrorCode } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type RoadmapActionState = { error?: string } | undefined;
@@ -26,14 +26,13 @@ export async function createRoadmapGoalAction(
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('roadmap_goals').insert({
-    title: parsed.data.title,
-    timeframe: parsed.data.timeframe,
-  });
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`insert into roadmap_goals (title, timeframe) values (${parsed.data.title}, ${parsed.data.timeframe})`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
-  logSystemAction(supabase, 'roadmap.create', `Added roadmap goal "${parsed.data.title}" (${parsed.data.timeframe})`);
+  logSystemAction('roadmap.create', `Added roadmap goal "${parsed.data.title}" (${parsed.data.timeframe})`);
 
   revalidatePath('/[locale]/roadmap', 'page');
   return {};
@@ -60,17 +59,18 @@ export async function updateRoadmapGoalAction(
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('roadmap_goals')
-    .update({
-      status: parsed.data.status,
-      progress_percentage: parsed.data.progressPercentage,
-      solution: parsed.data.solution || null,
-      failure_reason: parsed.data.failureReason || null,
-    })
-    .eq('id', parsed.data.goalId);
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`
+      update roadmap_goals set
+        status = ${parsed.data.status},
+        progress_percentage = ${parsed.data.progressPercentage},
+        solution = ${parsed.data.solution || null},
+        failure_reason = ${parsed.data.failureReason || null}
+      where id = ${parsed.data.goalId}
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/roadmap', 'page');
   return {};
@@ -91,9 +91,11 @@ export async function deleteRoadmapGoalAction(
   const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('roadmap_goals').delete().eq('id', parsed.data.goalId);
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`delete from roadmap_goals where id = ${parsed.data.goalId}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/roadmap', 'page');
   return {};

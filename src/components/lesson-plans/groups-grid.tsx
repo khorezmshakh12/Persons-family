@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { GroupCard, type GroupCardData } from '@/components/lesson-plans/group-card';
 
 const MAX_GROUPS_PER_TEACHER = 50;
@@ -18,29 +18,34 @@ export async function GroupsGrid({
   const t = await getTranslations('lessonPlans');
   const { profile } = await getAuthState();
   const isTeacher = profile!.role === 'teacher';
-  const supabase = await createClient();
+  const isAssistant = profile!.role === 'assistant';
+  const dayFilter = days === 'odd' || days === 'even' ? days : null;
+  const teacherFilter = !isTeacher && teacherId ? teacherId : null;
 
-  let query = supabase
-    .from('groups')
-    .select(
-      'id, name, course_name, schedule_type, teacher:profiles!groups_teacher_id_fkey(first_name, last_name)',
-    )
-    .order('created_at', { ascending: false });
+  const rows = await sql<
+    { id: string; name: string; course_name: string | null; schedule_type: string | null; teacher_first_name: string; teacher_last_name: string }[]
+  >`
+    select g.id, g.name, g.course_name, g.schedule_type,
+      t.first_name as teacher_first_name, t.last_name as teacher_last_name
+    from groups g
+    join profiles t on t.id = g.teacher_id
+    where (${isTeacher} = false or g.teacher_id = ${profile!.id})
+      -- TAs now only see the groups they're specifically assigned to, not
+      -- every group in the company (a deliberate narrowing from the earlier
+      -- broad-visibility precedent — see the assigned_ta migration).
+      and (${isAssistant} = false or g.assigned_ta_id = ${profile!.id})
+      and (${dayFilter}::text is null or g.schedule_type = ${dayFilter})
+      and (${teacherFilter}::uuid is null or g.teacher_id = ${teacherFilter})
+    order by g.created_at desc
+  `;
 
-  if (isTeacher) {
-    query = query.eq('teacher_id', profile!.id);
-  } else if (profile!.role === 'assistant') {
-    // TAs now only see the groups they're specifically assigned to, not
-    // every group in the company (a deliberate narrowing from the earlier
-    // broad-visibility precedent — see the assigned_ta migration).
-    query = query.eq('assigned_ta_id', profile!.id);
-  }
-
-  if (days === 'odd' || days === 'even') query = query.eq('schedule_type', days);
-  if (!isTeacher && teacherId) query = query.eq('teacher_id', teacherId);
-
-  const { data } = await query;
-  const groups = (data as unknown as GroupCardData[]) ?? [];
+  const groups: GroupCardData[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    course_name: r.course_name,
+    schedule_type: r.schedule_type,
+    teacher: { first_name: r.teacher_first_name, last_name: r.teacher_last_name },
+  })) as unknown as GroupCardData[];
 
   return (
     <div className="flex flex-col gap-3">

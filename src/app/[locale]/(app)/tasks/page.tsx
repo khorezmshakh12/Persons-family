@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { getVisibleTasksAction } from '@/lib/actions/tasks';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
 import { AssignTaskDialog } from '@/components/tasks/assign-task-dialog';
 import { TaskBoard } from '@/components/tasks/task-board';
@@ -11,7 +12,6 @@ export const dynamic = 'force-dynamic';
 export default async function TasksPage() {
   const t = await getTranslations('tasks');
   const { user, profile } = await getAuthState();
-  const supabase = await createClient();
   // CEO-only: assigning, editing, and deleting tasks is a CEO power alone
   // (requireTaskAssigner() in tasks.ts already enforces this) — IT Developer
   // lost it entirely, so this must not fall back to is_admin()'s ceo+it_developer
@@ -19,42 +19,33 @@ export default async function TasksPage() {
   // that every submit then rejects as forbidden.
   const isAdmin = profile!.role === 'ceo';
 
-  // Auto-hide (not delete): a "done" task older than a week just clutters
-  // the board — the row itself is left alone, same precedent as the Issues
-  // board's own resolved_at cutoff. Filtered at the DB level (not fetched
-  // then filtered in JS) so the query stays bounded as completed tasks
-  // accumulate over months instead of growing every page load forever.
-  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const sevenDaysAgo = new Date(now - SEVEN_DAYS_MS).toISOString();
-
-  // Strict visibility: a task is only ever fetched for its creator
-  // (assigned_by) or its assignee (assigned_to) — RLS's tasks_select
-  // enforces this too, but filtering explicitly here keeps the query
-  // itself honest about what it's allowed to return. Two `.or()` calls AND
-  // together (PostgREST combines successive filters with AND), giving
-  // "(mine) AND (not a stale done task)".
-  const [{ data: tasksData }, { data: assignees }] = await Promise.all([
-    supabase
-      .from('tasks')
-      .select(
-        'id, title, description, assigned_to, assigned_by, deadline, status, updated_at, assignee:profiles!tasks_assigned_to_fkey(first_name, last_name)',
-      )
-      .or(`assigned_by.eq.${user!.id},assigned_to.eq.${user!.id}`)
-      .or(`status.neq.done,updated_at.gte.${sevenDaysAgo}`)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .in('role', isAdmin ? allowedTaskAssigneeRoles(profile!.role) : ['teacher', 'assistant'])
-      .eq('is_active', true)
-      .order('first_name', { ascending: true }),
+  const [taskRows, assignees] = await Promise.all([
+    getVisibleTasksAction(),
+    sql<{ id: string; first_name: string; last_name: string }[]>`
+      select id, first_name, last_name from profiles
+      where role in ${sql(isAdmin ? allowedTaskAssigneeRoles(profile!.role) : ['teacher', 'assistant'])}
+        and is_active = true
+      order by first_name asc
+    `,
   ]);
 
-  const tasks = (tasksData ?? []).map((task) => ({
-    ...task,
-    is_overdue: task.status !== 'done' && new Date(task.deadline).getTime() < now,
-  }));
+  // Mirrors TaskBoard's own toTask() derivation exactly — this is just the
+  // initial server-rendered snapshot, TaskBoard re-derives the same shape
+  // itself on every board_signals/tasks-triggered refresh.
+  const now = Date.now();
+  const tasks = taskRows.map((row) => {
+    const assignee = assignees.find((a) => a.id === row.assigned_to);
+    return {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      assigned_to: row.assigned_to,
+      deadline: row.deadline,
+      status: row.status,
+      is_overdue: row.status !== 'done' && new Date(row.deadline).getTime() < now,
+      assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
+    };
+  });
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
@@ -63,9 +54,9 @@ export default async function TasksPage() {
         <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
           {t('title')}
         </h1>
-        {isAdmin && <AssignTaskDialog assignees={assignees ?? []} />}
+        {isAdmin && <AssignTaskDialog assignees={assignees} />}
       </div>
-      <TaskBoard tasks={tasks as never} isAdmin={isAdmin} assignees={assignees ?? []} currentUserId={user!.id} />
+      <TaskBoard tasks={tasks} isAdmin={isAdmin} assignees={assignees} currentUserId={user!.id} />
     </div>
   );
 }

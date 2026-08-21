@@ -4,7 +4,8 @@ import nextDynamic from 'next/dynamic';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { LESSON_PLAN_ROLES } from '@/lib/nav';
 import { GroupsGrid } from '@/components/lesson-plans/groups-grid';
 import { GroupFilters } from '@/components/lesson-plans/group-filters';
 import { GlassGroupGridSkeleton } from '@/components/skeletons/glass-skeletons';
@@ -25,41 +26,40 @@ export default async function LessonPlansPage({
   const { profile } = await getAuthState();
   const locale = await getLocale();
 
-  // Administrative Manager has no lesson-plan visibility at all anymore —
-  // see 20260806110000_remove_admin_manager_lesson_plan_access.sql. IT
-  // Developer lost it too (Head Teacher takes its place — see
-  // 20260812090100_head_teacher_and_it_developer_rls.sql). The nav item is
-  // already hidden for both roles (src/lib/nav.ts); this blocks a direct
-  // visit to the URL too.
-  if (profile!.role === 'admin_manager' || profile!.role === 'it_developer') {
+  // Lesson-plan visibility is CEO / Head Teacher / owning teacher / assigned
+  // TA only — see 20260806110000_remove_admin_manager_lesson_plan_access.sql
+  // (Administrative Manager dropped) and
+  // 20260812090100_head_teacher_and_it_developer_rls.sql (IT Developer
+  // dropped, Head Teacher taking its place). The nav item is already hidden
+  // for everyone else (src/lib/nav.ts); this blocks a direct visit to the URL
+  // too. Kept as an allowlist matching that nav entry rather than a denylist
+  // of the two roles that lost access — RLS used to return zero rows for any
+  // other role (mmd, internship), and with RLS gone a denylist
+  // would let those roles straight through.
+  if (!LESSON_PLAN_ROLES.includes(profile!.role)) {
     redirect({ href: '/dashboard', locale });
   }
 
   const isTeacher = profile!.role === 'teacher';
-  const supabase = await createClient();
 
   let assistants: { id: string; first_name: string; last_name: string }[] = [];
   if (isTeacher) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .eq('role', 'assistant')
-      .eq('is_active', true)
-      .order('first_name', { ascending: true });
-    assistants = data ?? [];
+    assistants = await sql<{ id: string; first_name: string; last_name: string }[]>`
+      select id, first_name, last_name from profiles
+      where role = 'assistant' and is_active = true
+      order by first_name asc
+    `;
   }
 
   // The "filter by teacher" dropdown only makes sense for a viewer who can
   // see more than one teacher's groups in the first place.
   let teachers: { id: string; first_name: string; last_name: string }[] = [];
   if (!isTeacher) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name')
-      .eq('role', 'teacher')
-      .eq('is_active', true)
-      .order('first_name', { ascending: true });
-    teachers = data ?? [];
+    teachers = await sql<{ id: string; first_name: string; last_name: string }[]>`
+      select id, first_name, last_name from profiles
+      where role = 'teacher' and is_active = true
+      order by first_name asc
+    `;
   }
 
   return (

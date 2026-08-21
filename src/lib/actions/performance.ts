@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type PerformanceActionState = { error?: string } | undefined;
@@ -33,22 +33,22 @@ export async function updateStaffTierAction(
   const parsed = tierSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_performance').upsert(
-    {
-      staff_id: parsed.data.staffId,
-      current_tier: parsed.data.currentTier,
-      months_in_tier: parsed.data.monthsInTier,
-      weekly_progress_score: parsed.data.weeklyProgressScore,
-      notes: parsed.data.notes || null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'staff_id' },
-  );
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`
+      insert into staff_performance (staff_id, current_tier, months_in_tier, weekly_progress_score, notes, updated_at)
+      values (${parsed.data.staffId}, ${parsed.data.currentTier}, ${parsed.data.monthsInTier}, ${parsed.data.weeklyProgressScore}, ${parsed.data.notes || null}, now())
+      on conflict (staff_id) do update set
+        current_tier = excluded.current_tier,
+        months_in_tier = excluded.months_in_tier,
+        weekly_progress_score = excluded.weekly_progress_score,
+        notes = excluded.notes,
+        updated_at = excluded.updated_at
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   logSystemAction(
-    supabase,
     'performance.tier_update',
     `Set tier ${parsed.data.currentTier} / ${parsed.data.weeklyProgressScore}% for staff ${parsed.data.staffId}`,
   );
@@ -80,18 +80,16 @@ export async function addPerformanceEntryAction(
   const parsed = addEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('performance_entries').insert({
-    staff_id: parsed.data.staffId,
-    entry_type: parsed.data.entryType,
-    amount: parsed.data.amount,
-    reason: parsed.data.reason || null,
-    created_by: adminId,
-  });
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`
+      insert into performance_entries (staff_id, entry_type, amount, reason, created_by)
+      values (${parsed.data.staffId}, ${parsed.data.entryType}, ${parsed.data.amount}, ${parsed.data.reason || null}, ${adminId})
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   logSystemAction(
-    supabase,
     `performance.${parsed.data.entryType}`,
     `Added a ${parsed.data.entryType} of ${parsed.data.amount} for staff ${parsed.data.staffId}`,
   );
@@ -115,9 +113,11 @@ export async function deletePerformanceEntryAction(
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('performance_entries').delete().eq('id', parsed.data.entryId);
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`delete from performance_entries where id = ${parsed.data.entryId}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/performance', 'page');
   return {};

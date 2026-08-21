@@ -1,6 +1,4 @@
-import type { Database } from '@/lib/supabase/types';
-
-export type TeacherLevel = Database['public']['Enums']['teacher_level'];
+export type TeacherLevel = 'C' | 'C+' | 'C++' | 'B' | 'B+' | 'B++' | 'A' | 'A+' | 'A++';
 
 export const TEACHER_LEVELS: TeacherLevel[] = ['C', 'C+', 'C++', 'B', 'B+', 'B++', 'A', 'A+', 'A++'];
 

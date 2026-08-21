@@ -2,13 +2,33 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
+import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 
 export type LessonActionState = { error?: string; errorParams?: Record<string, string> } | undefined;
-export type UploadUrlResult = { path?: string; token?: string; error?: string; detail?: string };
+export type UploadUrlResult = { path?: string; url?: string; error?: string; detail?: string };
+
+/**
+ * Reproduces the old `course_lessons_update` RLS policy
+ * (`public.is_group_owner(group_id) or public.current_role() = 'ceo'`, see
+ * the head_teacher/it_developer RLS migration) — with RLS gone, a bare
+ * `update course_lessons ... where id = $1` is no longer narrowed to the
+ * owning teacher by the database, so any signed-in employee could edit any
+ * group's lesson plan by posting someone else's lessonId. Every write below
+ * checks this first. `is_group_owner` was just
+ * `groups.teacher_id = auth.uid()`, so that's what the join checks.
+ */
+async function canWriteLesson(lessonId: string, uid: string, role: string | undefined): Promise<boolean> {
+  if (role === 'ceo') return true;
+  const [row] = await sql<{ id: string }[]>`
+    select cl.id from course_lessons cl
+    join groups g on g.id = cl.group_id
+    where cl.id = ${lessonId} and g.teacher_id = ${uid}
+  `;
+  return Boolean(row);
+}
 
 const updateLessonDateSchema = z.object({
   lessonId: z.string().uuid(),
@@ -23,44 +43,33 @@ export async function updateLessonDateAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonDateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
   const nextDate = parsed.data.lessonDate || null;
 
-  // Two lessons in the same group landing on the same date is what let a
-  // stray empty duplicate shadow a teacher's completed plan in the
-  // lesson-plan-check cron's per-group lookup and get reported to the
-  // CEO/Telegram group as "not done" even though the teacher had filled it
-  // in — see that route's dedup comment for the symptom this prevents at
-  // the source instead of only tolerating after the fact.
+  // Two lessons in the same group landing on the same date is exactly what
+  // let a stray empty duplicate shadow a teacher's completed plan and get
+  // reported to the CEO/Telegram as "not done" (see the lesson-plan-check
+  // cron's dedup comment — that's the symptom; this is the root cause).
+  // Nothing at the DB layer stops it, so it's enforced here instead, before
+  // the write, rather than only tolerated after the fact in the report.
   if (nextDate) {
-    const { data: current } = await supabase
-      .from('course_lessons')
-      .select('group_id')
-      .eq('id', parsed.data.lessonId)
-      .maybeSingle();
-    if (!current) return { error: 'updateFailed' };
-
-    const { data: conflict } = await supabase
-      .from('course_lessons')
-      .select('id')
-      .eq('group_id', current.group_id)
-      .eq('lesson_date', nextDate)
-      .neq('id', parsed.data.lessonId)
-      .maybeSingle();
+    const [conflict] = await sql<{ id: string }[]>`
+      select cl.id from course_lessons cl
+      where cl.group_id = (select group_id from course_lessons where id = ${parsed.data.lessonId})
+        and cl.lesson_date = ${nextDate}
+        and cl.id != ${parsed.data.lessonId}
+    `;
     if (conflict) return { error: 'dateTaken', errorParams: { date: nextDate } };
   }
 
-  const { error } = await supabase
-    .from('course_lessons')
-    .update({ lesson_date: nextDate })
-    .eq('id', parsed.data.lessonId);
-  if (error) return { error: 'updateFailed' };
+  await sql`update course_lessons set lesson_date = ${nextDate} where id = ${parsed.data.lessonId}`;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -75,29 +84,25 @@ export async function updateLessonTopicAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonTopicSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
   // The lesson's date must be set before anything else about it can be
-  // written — see the .not('lesson_date', 'is', null) filter below, which
-  // also doubles as the "does this row even match" check: a matched-but-
-  // unauthorized row is separately blocked by course_lessons' own RLS, so a
-  // null `data` here specifically means "no date yet" for the compliance
-  // check in /api/cron/lesson-plan-check to have something reliable to key
-  // off of.
-  const { data, error } = await supabase
-    .from('course_lessons')
-    .update({ topic: parsed.data.topic || null })
-    .eq('id', parsed.data.lessonId)
-    .not('lesson_date', 'is', null)
-    .select('id')
-    .maybeSingle();
-  if (error) return { error: 'updateFailed' };
-  if (!data) return { error: 'dateRequired' };
+  // written — see the `lesson_date is not null` filter below, which also
+  // doubles as the "does this row even match" check: a null result here
+  // specifically means "no date yet" for the compliance check in
+  // /api/cron/lesson-plan-check to have something reliable to key off of.
+  const [row] = await sql<{ id: string }[]>`
+    update course_lessons set topic = ${parsed.data.topic || null}
+    where id = ${parsed.data.lessonId} and lesson_date is not null
+    returning id
+  `;
+  if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -115,22 +120,20 @@ export async function updateLessonGameLinkAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonGameLinkSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('course_lessons')
-    .update({ game_link: parsed.data.gameLink || null })
-    .eq('id', parsed.data.lessonId)
-    .not('lesson_date', 'is', null)
-    .select('id')
-    .maybeSingle();
-  if (error) return { error: 'updateFailed' };
-  if (!data) return { error: 'dateRequired' };
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
+  const [row] = await sql<{ id: string }[]>`
+    update course_lessons set game_link = ${parsed.data.gameLink || null}
+    where id = ${parsed.data.lessonId} and lesson_date is not null
+    returning id
+  `;
+  if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -151,38 +154,25 @@ export async function updateLessonPlanFieldAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = lessonPlanFieldSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
   const { field, value } = parsed.data;
   const nextValue = value || null;
-  // A computed `{ [field]: ... }` key widens to `string`, which Supabase's
-  // generated Update type rejects — a switch keeps each branch's key a
-  // literal so it matches the real column type.
-  const updateData =
-    field === 'aim'
-      ? { aim: nextValue }
-      : field === 'language_focus'
-        ? { language_focus: nextValue }
-        : field === 'anticipated_problems'
-          ? { anticipated_problems: nextValue }
-          : field === 'materials'
-            ? { materials: nextValue }
-            : { homework: nextValue };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('course_lessons')
-    .update(updateData)
-    .eq('id', parsed.data.lessonId)
-    .not('lesson_date', 'is', null)
-    .select('id')
-    .maybeSingle();
-  if (error) return { error: 'updateFailed' };
-  if (!data) return { error: 'dateRequired' };
+  // `field` is enum-validated above (never raw user input), so it's safe to
+  // interpolate as an identifier via sql() — this keeps one query instead of
+  // a five-way switch building near-identical update statements.
+  const [row] = await sql<{ id: string }[]>`
+    update course_lessons set ${sql({ [field]: nextValue })}
+    where id = ${parsed.data.lessonId} and lesson_date is not null
+    returning id
+  `;
+  if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -205,22 +195,20 @@ export async function updateLessonProcedureAction(
   lessonId: string,
   steps: LessonProcedureStep[],
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = updateLessonProcedureSchema.safeParse({ lessonId, steps });
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('course_lessons')
-    .update({ procedure: parsed.data.steps })
-    .eq('id', parsed.data.lessonId)
-    .not('lesson_date', 'is', null)
-    .select('id')
-    .maybeSingle();
-  if (error) return { error: 'updateFailed' };
-  if (!data) return { error: 'dateRequired' };
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
+  const [row] = await sql<{ id: string }[]>`
+    update course_lessons set procedure = ${sql.json(parsed.data.steps)}
+    where id = ${parsed.data.lessonId} and lesson_date is not null
+    returning id
+  `;
+  if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -234,16 +222,17 @@ const uploadUrlSchema = z.object({
 
 /**
  * Issues a signed upload URL so the browser sends the file straight to
- * Supabase Storage — never through this Next.js server — avoiding both
- * Next's default 1MB Server Action body limit and Vercel's 4.5MB
- * serverless payload cap. Files are stored at
- * `${groupId}/${lessonId}/${uuid}-${fileName}` so storage RLS can check
- * group ownership from the first path segment.
+ * Cloud Storage — never through this Next.js server — avoiding both Next's
+ * default 1MB Server Action body limit and any serverless payload cap.
+ * Files are stored at `${groupId}/${lessonId}/${uuid}-${fileName}`; group
+ * and lesson ownership are checked explicitly below before minting the URL,
+ * since there's no storage-layer RLS anymore to fall back on.
  */
 export async function requestLessonMaterialUploadUrlAction(
   lessonId: string,
   groupId: string,
   fileName: string,
+  fileType: string,
 ): Promise<UploadUrlResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
@@ -251,34 +240,25 @@ export async function requestLessonMaterialUploadUrlAction(
   const parsed = uploadUrlSchema.safeParse({ lessonId, groupId, fileName });
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: group } = await supabase.from('groups').select('teacher_id').eq('id', groupId).maybeSingle();
+  const [group] = await sql<{ teacher_id: string | null }[]>`select teacher_id from groups where id = ${groupId}`;
   if (!group) return { error: 'forbidden' };
   if (group.teacher_id !== user.id) return { error: 'forbidden' };
 
-  // Confirm the lesson actually belongs to this group — the storage call
-  // below uses the admin client (see comment there), so this app-level check
-  // is now the only thing standing between the two path segments.
-  const { data: lesson } = await supabase.from('course_lessons').select('group_id').eq('id', lessonId).maybeSingle();
+  // Confirm the lesson actually belongs to this group — this app-level
+  // check is what stands between the two path segments now.
+  const [lesson] = await sql<{ group_id: string }[]>`select group_id from course_lessons where id = ${lessonId}`;
   if (!lesson || lesson.group_id !== groupId) return { error: 'forbidden' };
 
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${parsed.data.groupId}/${parsed.data.lessonId}/${crypto.randomUUID()}-${sanitized}`;
-  // Ownership is already fully verified above, so this uses the admin client
-  // (bypasses storage RLS) rather than the user's own session — the new
-  // Frankfurt project is missing its storage.objects INSERT policies post
-  // migration, and a database-side fix requires access we don't have from
-  // here. This keeps uploads working without depending on that RLS policy.
-  const { data, error } = await createAdminClient().storage.from('lesson_materials').createSignedUploadUrl(path);
-  if (error || !data) {
-    // Surface the raw Supabase error (e.g. "Bucket not found", "new row
-    // violates row-level security policy") so a migration/config bug is
-    // diagnosable from the toast instead of a generic "upload failed".
-    console.error('createSignedUploadUrl failed', error);
-    return { error: 'uploadFailed', detail: error?.message };
-  }
 
-  return { path, token: data.token };
+  try {
+    const url = await createSignedWriteUrl('lesson_materials', path, fileType || 'application/octet-stream');
+    return { path, url };
+  } catch (error) {
+    console.error('createSignedWriteUrl failed', error);
+    return { error: 'uploadFailed', detail: error instanceof Error ? error.message : undefined };
+  }
 }
 
 const attachSchema = z.object({
@@ -294,31 +274,33 @@ export async function attachLessonMaterialAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = attachSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: lesson } = await supabase
-    .from('course_lessons')
-    .select('attachments')
-    .eq('id', parsed.data.lessonId)
-    .maybeSingle();
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
+  // The uploaded object lives at `${groupId}/${lessonId}/...` (see
+  // requestLessonMaterialUploadUrlAction) — pin the recorded path to this
+  // lesson so a hand-crafted request can't attach an object belonging to
+  // another group's lesson, which would then be readable through this
+  // lesson's signed-read URLs.
+  if (!parsed.data.path.includes(`/${parsed.data.lessonId}/`)) return { error: 'forbidden' };
+
+  const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
+    select attachments from course_lessons where id = ${parsed.data.lessonId}
+  `;
   if (!lesson) return { error: 'forbidden' };
 
-  const attachments = (lesson.attachments as unknown as LessonAttachment[]) ?? [];
+  const attachments = lesson.attachments ?? [];
   const nextAttachments: LessonAttachment[] = [
     ...attachments,
     { path: parsed.data.path, name: parsed.data.name, type: parsed.data.type, size: parsed.data.size },
   ];
 
-  const { error } = await supabase
-    .from('course_lessons')
-    .update({ attachments: nextAttachments })
-    .eq('id', parsed.data.lessonId);
-  if (error) return { error: 'updateFailed' };
+  await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -330,40 +312,40 @@ const removeSchema = z.object({
 });
 
 /** Removes one attachment from the lesson's list and deletes the underlying
- * storage object. RLS additionally restricts this to the owning teacher or
- * the CEO, matching the "only CEO + assigned teacher can delete" spec. */
+ * storage object. Restricted to the owning teacher or the CEO, matching the
+ * original RLS-backed "only CEO + assigned teacher can delete" spec — that
+ * used to come from course_lessons_update + the lesson_materials storage
+ * policy, so it's checked here explicitly now rather than left to the
+ * caller. */
 export async function removeLessonMaterialAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const parsed = removeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: lesson } = await supabase
-    .from('course_lessons')
-    .select('attachments')
-    .eq('id', parsed.data.lessonId)
-    .maybeSingle();
+  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
+  const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
+    select attachments from course_lessons where id = ${parsed.data.lessonId}
+  `;
   if (!lesson) return { error: 'forbidden' };
 
-  const attachments = (lesson.attachments as unknown as LessonAttachment[]) ?? [];
+  const attachments = lesson.attachments ?? [];
+  // Only ever delete an object this lesson actually references — `path`
+  // arrives from the client, and the storage layer mints delete calls with
+  // no ownership check of its own (the old lesson_materials storage policy
+  // did that), so an unmatched path must not reach deleteObject().
+  const target = attachments.find((a) => a.path === parsed.data.path);
+  if (!target) return { error: 'forbidden' };
   const nextAttachments = attachments.filter((a) => a.path !== parsed.data.path);
 
-  const { error } = await supabase
-    .from('course_lessons')
-    .update({ attachments: nextAttachments })
-    .eq('id', parsed.data.lessonId);
-  if (error) return { error: 'updateFailed' };
+  await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
 
-  // The row update above is the real authorization gate (RLS-restricted to
-  // teacher-or-CEO) and already succeeded, so this uses the admin client —
-  // storage RLS itself is missing on the new Frankfurt project and would
-  // otherwise block the delete even though the caller is confirmed allowed.
-  await createAdminClient().storage.from('lesson_materials').remove([parsed.data.path]);
+  await deleteObject('lesson_materials', target.path);
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -382,22 +364,17 @@ export async function createLessonCommentAction(
   if (!user || !profile) return { error: 'forbidden' };
 
   // Administrative Manager and IT Developer have no lesson-plan access at
-  // all — see 20260806110000_remove_admin_manager_lesson_plan_access.sql
-  // and 20260812090100_head_teacher_and_it_developer_rls.sql. Head Teacher
-  // took IT Developer's place for viewing/commenting.
+  // all. Head Teacher took IT Developer's place for viewing/commenting.
   const isAuthorized = profile.role === 'ceo' || profile.role === 'head_teacher' || profile.role === 'assistant';
   if (!isAuthorized) return { error: 'forbidden' };
 
   const parsed = createCommentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('lesson_comments').insert({
-    lesson_id: parsed.data.lessonId,
-    user_id: user.id,
-    comment_text: parsed.data.commentText,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into lesson_comments (lesson_id, user_id, comment_text)
+    values (${parsed.data.lessonId}, ${user.id}, ${parsed.data.commentText})
+  `;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -406,14 +383,17 @@ export async function createLessonCommentAction(
 const idSchema = z.object({ id: z.string().uuid() });
 
 export async function deleteLessonCommentAction(formData: FormData): Promise<void> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return;
 
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
 
-  const supabase = await createClient();
-  await supabase.from('lesson_comments').delete().eq('id', parsed.data.id);
+  // Mirrors the old `lesson_comments_delete_own` policy
+  // (`user_id = auth.uid() or public.is_admin()`, is_admin() now being
+  // CEO-only) — without it any employee could delete anyone's comment by id.
+  const isCeo = profile?.role === 'ceo';
+  await sql`delete from lesson_comments where id = ${parsed.data.id} and (${isCeo} or user_id = ${user.id})`;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
 }

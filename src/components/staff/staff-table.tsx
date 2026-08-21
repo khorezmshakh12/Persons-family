@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { Link } from '@/i18n/navigation';
 import {
   Table,
@@ -29,16 +30,18 @@ export async function StaffTable({
   actingRole: Profile['role'];
 }) {
   const t = await getTranslations('staff');
-  const supabase = await createClient();
 
-  const { data: staff } = await supabase
-    .from('profiles')
-    .select(
-      'id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at, created_by, must_change_password, telegram_id, teacher_level, level_updated_at, internship_level, email, address, emergency_contact',
-    )
-    .order('created_at', { ascending: true });
+  const staffRows = await sql<Profile[]>`
+    select id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at,
+      created_by, must_change_password, telegram_id, teacher_level, level_updated_at, internship_level,
+      email, address, emergency_contact
+    from profiles order by created_at asc
+  `;
+  const staff = await Promise.all(
+    staffRows.map(async (person) => ({ ...person, avatarUrl: await resolveAvatarUrl(person.avatar_url) })),
+  );
 
-  const exportRows = (staff ?? []).map((person) => ({
+  const exportRows = staff.map((person) => ({
     name: `${person.first_name} ${person.last_name}`,
     phone: person.phone,
     role: person.role,
@@ -72,7 +75,7 @@ export async function StaffTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(staff ?? []).map((person, index) => (
+            {staff.map((person, index) => (
               <TableRow
                 key={person.id}
                 style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
@@ -82,7 +85,7 @@ export async function StaffTable({
                   <div className="flex items-center gap-3">
                     <div className="relative shrink-0">
                       <Avatar className="size-8">
-                        <AvatarImage src={person.avatar_url ?? undefined} alt="" />
+                        <AvatarImage src={person.avatarUrl ?? undefined} alt="" />
                         <AvatarFallback>
                           {person.first_name[0]}
                           {person.last_name[0]}
@@ -101,16 +104,16 @@ export async function StaffTable({
                 <TableCell>{person.phone}</TableCell>
                 <TableCell>{t(`roles.${person.role}`)}</TableCell>
                 <TableCell>
-                  {person.role === 'teacher' ? (
+                  {person.role === 'teacher' && person.teacher_level ? (
                     <div className="flex items-center gap-2">
                       <TeacherLevelBadge level={person.teacher_level} />
-                      {actingRole === 'ceo' && isLevelReviewDue(person.level_updated_at) && (
+                      {actingRole === 'ceo' && person.level_updated_at && isLevelReviewDue(person.level_updated_at) && (
                         <Badge variant="tint" tint="amber">
                           {t('table.reviewDue')}
                         </Badge>
                       )}
                     </div>
-                  ) : person.role === 'internship' ? (
+                  ) : person.role === 'internship' && person.internship_level ? (
                     <InternshipLevelBadge level={person.internship_level} />
                   ) : (
                     <span className="text-white/40">—</span>

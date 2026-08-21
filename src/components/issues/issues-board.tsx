@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { updateIssueStatusAction, deleteIssueAction } from '@/lib/actions/issues';
-import { createClient } from '@/lib/supabase/client';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { updateIssueStatusAction, deleteIssueAction, getVisibleIssuesAction } from '@/lib/actions/issues';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { KanbanColumn } from './kanban-column';
 import type { Issue } from './issue-card';
 
@@ -30,76 +31,34 @@ export function IssuesBoard({
 
   // Board used to only reflect the viewer's own drag/delete actions — an
   // issue someone else reported or reassigned while this page was open
-  // never appeared until a manual refresh. issues_select's RLS (is_admin()
-  // OR reporter OR assignee) can't be expressed as a single-column Realtime
-  // filter, so this subscribes with no filter and trusts Realtime's own RLS
-  // enforcement to only deliver rows this user may see — same pattern
-  // chat-hub-client.tsx already relies on. A changed/inserted row only
-  // carries raw columns (no joined reporter/assignee names, no re-signed
-  // voice URL), so each event re-fetches that one row with its joins
-  // through the browser client instead of hand-rolling the join client-side.
+  // never appeared until a manual refresh. board_signals/issues (bumped by
+  // every mutating issues.ts action) carries no row payload, so every fire
+  // re-fetches the caller's whole visible list via getVisibleIssuesAction —
+  // which re-applies the old issues_select RLS policy's scoping (is_admin()
+  // OR reporter OR assignee) explicitly, now that RLS itself is gone. This
+  // also fixes a real gap the old Realtime handler had: voice notes now get
+  // a proper signed URL on every refresh instead of staying null until the
+  // next full page load (signing needs the server, which this Server
+  // Action now is).
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    async function fetchAndUpsert(id: string) {
-      const { data } = await supabase
-        .from('issues')
-        .select(
-          'id, title, description, status, created_at, created_by, assigned_to, resolved_at, voice_url, reporter:profiles!issues_created_by_fkey(first_name, last_name), assignee:profiles!issues_assigned_to_fkey(first_name, last_name)',
-        )
-        .eq('id', id)
-        .maybeSingle();
-      if (!data || cancelled) return;
-      const canChangeStatus = isAdmin || (isAdminManager && data.assigned_to === currentUserId);
-      const issue: Issue = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        status: data.status,
-        created_at: data.created_at,
-        created_by: data.created_by,
-        // Voice notes need the admin (service-role) client to sign, which
-        // isn't available in the browser — a freshly live-inserted issue's
-        // recording just won't play until the next full page load.
-        voiceSignedUrl: null,
-        reporter: data.reporter,
-        assignee: data.assignee,
-        canChangeStatus,
-      };
-      setIssues((prev) =>
-        prev.some((i) => i.id === issue.id)
-          ? prev.map((i) => (i.id === issue.id ? issue : i))
-          : [issue, ...prev],
-      );
-    }
+    const refresh = async () => {
+      const rows = await getVisibleIssuesAction();
+      if (!cancelled) setIssues(rows);
+    };
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
-
-      channel = supabase
-        .channel('issues_board')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'issues' }, (payload) => {
-          fetchAndUpsert((payload.new as { id: string }).id);
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'issues' }, (payload) => {
-          fetchAndUpsert((payload.new as { id: string }).id);
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'issues' }, (payload) => {
-          const deletedId = (payload.old as { id: string }).id;
-          setIssues((prev) => prev.filter((i) => i.id !== deletedId));
-        })
-        .subscribe();
-    })();
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        unsubscribe = onSnapshot(doc(getRealtimeDb(), 'board_signals', 'issues'), () => refresh());
+      })
+      .catch((error) => console.error('issues board realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
   }, [currentUserId, isAdmin, isAdminManager]);
 
@@ -114,7 +73,7 @@ export function IssuesBoard({
 
     const previousIssues = issues;
     // Strict optimistic UI: the card jumps to its new column immediately,
-    // the Supabase round trip happens in the background. Only a failure
+    // the database round trip happens in the background. Only a failure
     // reverts the local state — the common case never waits on the network.
     setIssues((prev) => prev.map((i) => (i.id === issueId ? { ...i, status: nextStatus } : i)));
 

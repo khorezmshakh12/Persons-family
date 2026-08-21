@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { requireAdmin, requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText } from '@/lib/telegram';
@@ -16,15 +16,16 @@ export async function createTelegramLinkTokenAction(): Promise<{ token?: string;
   const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
-  const supabase = await createClient();
-  await supabase.from('telegram_link_tokens').delete().eq('profile_id', user.id);
-  const { data, error } = await supabase
-    .from('telegram_link_tokens')
-    .insert({ profile_id: user.id })
-    .select('token')
-    .single();
-  if (error || !data) return { error: 'linkFailed' };
-  return { token: data.token };
+  try {
+    await sql`delete from telegram_link_tokens where profile_id = ${user.id}`;
+    const [row] = await sql<{ token: string }[]>`
+      insert into telegram_link_tokens (profile_id) values (${user.id}) returning token
+    `;
+    if (!row) return { error: 'linkFailed' };
+    return { token: row.token };
+  } catch {
+    return { error: 'linkFailed' };
+  }
 }
 
 const idSchema = z.object({ id: z.string().uuid() });
@@ -46,9 +47,11 @@ export async function adminDisconnectTelegramAction(
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('profiles').update({ telegram_id: null }).eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`update profiles set telegram_id = null where id = ${parsed.data.id}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return { success: true };
@@ -73,12 +76,13 @@ export async function sendBroadcastAction(
   const parsed = broadcastSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: staff } = await supabase.from('profiles').select('telegram_id').not('telegram_id', 'is', null);
+  const staff = await sql<{ telegram_id: number }[]>`
+    select telegram_id from profiles where telegram_id is not null
+  `;
 
   try {
     const text = `📢 <b>E'lon</b>\n\n${escapeTelegramText(parsed.data.message)}`;
-    await sendTelegramMessageToMany((staff ?? []).map((s) => s.telegram_id), text);
+    await sendTelegramMessageToMany(staff.map((s) => s.telegram_id), text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

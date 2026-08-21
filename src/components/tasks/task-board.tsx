@@ -4,24 +4,15 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { updateTaskStatusAction, deleteTaskAction } from '@/lib/actions/tasks';
-import { createClient } from '@/lib/supabase/client';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { updateTaskStatusAction, deleteTaskAction, getVisibleTasksAction, type VisibleTaskRow } from '@/lib/actions/tasks';
+import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { TaskKanbanColumn } from './task-kanban-column';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
 
 const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
-
-type RawTaskRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  assigned_to: string;
-  assigned_by: string;
-  deadline: string;
-  status: TaskStatus;
-};
 
 export function TaskBoard({
   tasks: initialTasks,
@@ -40,18 +31,18 @@ export function TaskBoard({
 
   // Board used to only reflect the viewer's own drag/delete actions — a task
   // someone else assigned (or reassigned/updated) while this page was open
-  // never appeared until a manual refresh. RLS's tasks_select already scopes
-  // Realtime delivery to rows this user may see (creator or assignee, same
-  // as the server query above), so subscribing with no extra filter and
-  // trusting that — mirrors chat-hub-client.tsx's own realtime pattern —
-  // is enough; the sender_id/receiver_id-style guard below is just belt and
-  // suspenders in case a row for someone else's task ever slips through.
+  // never appeared until a manual refresh. board_signals/tasks (bumped by
+  // every mutating tasks.ts action, see lib/gcp/firestoreAdmin.ts) carries
+  // no row payload — just "something changed" — so every fire re-fetches
+  // the caller's whole visible list via getVisibleTasksAction, which
+  // re-applies the same creator-or-assignee scoping tasks/page.tsx's
+  // initial load used (task board authorization now lives entirely in that
+  // Server Action, not in a realtime filter).
   useEffect(() => {
-    const supabase = createClient();
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    function toTask(row: RawTaskRow): Task {
+    function toTask(row: VisibleTaskRow): Task {
       const assignee = assignees.find((a) => a.id === row.assigned_to);
       return {
         id: row.id,
@@ -65,44 +56,21 @@ export function TaskBoard({
       };
     }
 
-    function isVisible(row: RawTaskRow) {
-      return row.assigned_to === currentUserId || row.assigned_by === currentUserId;
-    }
+    const refresh = async () => {
+      const rows = await getVisibleTasksAction();
+      if (!cancelled) setTasks(rows.map(toTask));
+    };
 
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) supabase.realtime.setAuth(session.access_token);
-      if (cancelled) return;
-
-      channel = supabase
-        .channel('task_board')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks' }, (payload) => {
-          const row = payload.new as RawTaskRow;
-          if (!isVisible(row)) return;
-          setTasks((prev) => (prev.some((task) => task.id === row.id) ? prev : [toTask(row), ...prev]));
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, (payload) => {
-          const row = payload.new as RawTaskRow;
-          setTasks((prev) => {
-            if (!isVisible(row)) return prev.filter((task) => task.id !== row.id);
-            const next = toTask(row);
-            return prev.some((task) => task.id === row.id)
-              ? prev.map((task) => (task.id === row.id ? next : task))
-              : [next, ...prev];
-          });
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (payload) => {
-          const deletedId = (payload.old as { id: string }).id;
-          setTasks((prev) => prev.filter((task) => task.id !== deletedId));
-        })
-        .subscribe();
-    })();
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        unsubscribe = onSnapshot(doc(getRealtimeDb(), 'board_signals', 'tasks'), () => refresh());
+      })
+      .catch((error) => console.error('task board realtime sign-in failed', error));
 
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      unsubscribe?.();
     };
   }, [currentUserId, assignees]);
 
@@ -133,7 +101,7 @@ export function TaskBoard({
   }
 
   // Strict optimistic UI: the card is filtered out of local state instantly
-  // — before the Supabase delete() mutation is even awaited — which is what
+  // — before the delete Server Action is even awaited — which is what
   // makes the click feel instant instead of freezing the board until the
   // round trip resolves. Only a failure puts the card back and surfaces a
   // toast; the common (successful) case never waits on the network at all.

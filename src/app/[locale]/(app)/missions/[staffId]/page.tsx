@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,21 +28,17 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
   const isAdmin = isCeo;
   if (!isSelf && !isAdmin) redirect({ href: '/dashboard', locale });
 
-  const supabase = await createClient();
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, avatar_url, role')
-    .eq('id', staffId)
-    .maybeSingle();
+  const [target] = await sql<
+    { id: string; first_name: string; last_name: string; avatar_url: string | null; role: string }[]
+  >`select id, first_name, last_name, avatar_url, role from profiles where id = ${staffId}`;
   if (!target) notFound();
 
-  const { data: missions } = await supabase
-    .from('missions')
-    .select('*')
-    .eq('staff_id', staffId)
-    .order('deadline_date', { ascending: true });
+  const avatarSrc = await resolveAvatarUrl(target.avatar_url);
 
-  const all = (missions ?? []) as MissionItem[];
+  const all = await sql<MissionItem[]>`
+    select id, staff_id, title, description, deadline_date, bonus_amount, status, submission_note, rejection_note, created_at
+    from missions where staff_id = ${staffId} order by deadline_date asc
+  `;
   const shortTerm = all.filter((m) => isShortTerm(m.deadline_date));
   const longTerm = all.filter((m) => !isShortTerm(m.deadline_date));
 
@@ -52,7 +49,7 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
         className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
       >
         <Avatar className="size-16 border border-white/30">
-          <AvatarImage src={target.avatar_url ?? undefined} alt="" />
+          <AvatarImage src={avatarSrc ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
             {target.first_name[0]}
             {target.last_name[0]}

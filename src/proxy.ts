@@ -1,7 +1,7 @@
 import createIntlMiddleware from 'next-intl/middleware';
 import { NextResponse, type NextRequest } from 'next/server';
 import { routing, type AppLocale } from '@/i18n/routing';
-import { getSessionUser } from '@/lib/supabase/middleware';
+import { getSessionUser } from '@/lib/gcp/middleware';
 
 const handleI18nRouting = createIntlMiddleware(routing);
 
@@ -49,8 +49,18 @@ export default async function proxy(request: NextRequest) {
     });
   }
 
-  // Refresh the Supabase session (and mutate `request`'s cookies) *before*
-  // running the intl middleware below. next-intl snapshots `request.headers`
+  // NOTE: the true root ("/", i.e. "/staff" once the basePath is applied)
+  // 404s instead of next-intl's own middleware redirecting to the default
+  // locale — confirmed this is a Next.js + basePath interaction that
+  // serves a statically-cached 404 for this exact path WITHOUT ever
+  // invoking this middleware at all (an explicit early-return redirect
+  // right here, ahead of everything else, still didn't fire). Worked
+  // around one level up instead, in persons-staffs-gateway's own
+  // next.config.ts redirects(), which intercepts "/staff" before it ever
+  // reaches this app.
+
+  // Resolve the session (and mutate `request`'s cookies) *before* running
+  // the intl middleware below. next-intl snapshots `request.headers`
   // to build its own response, so if the auth refresh ran after that
   // snapshot, the refreshed session would never make it into this request's
   // render — only into the Set-Cookie header for the *next* request. That

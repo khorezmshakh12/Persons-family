@@ -4,7 +4,6 @@ import { useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { FileText, Paperclip, Trash2, Upload } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import {
   attachContractFileAction,
   deleteContractAttachmentAction,
@@ -37,18 +36,26 @@ export function ContractAttachmentsList({
 
     setIsUploading(true);
     try {
-      const uploadResult = await requestContractFileUploadUrlAction(contractId, file.name);
-      if (uploadResult.error || !uploadResult.path || !uploadResult.token) {
+      const uploadResult = await requestContractFileUploadUrlAction(
+        contractId,
+        file.name,
+        file.type || 'application/octet-stream',
+      );
+      if (uploadResult.error || !uploadResult.path || !uploadResult.url) {
         toast.error(t(`errors.${uploadResult.error ?? 'uploadFailed'}`));
         return;
       }
 
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from('contract-files')
-        .uploadToSignedUrl(uploadResult.path, uploadResult.token, file, { contentType: file.type });
-      if (uploadError) {
-        toast.error(`${t('errors.uploadFailed')}: ${uploadError.message}`);
+      // The signed URL is pinned server-side to this exact file's type (see
+      // requestContractFileUploadUrlAction) — the PUT's Content-Type must
+      // match exactly what GCS signed the URL for.
+      const putResponse = await fetch(uploadResult.url, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      });
+      if (!putResponse.ok) {
+        toast.error(`${t('errors.uploadFailed')}: ${putResponse.status}`);
         return;
       }
 

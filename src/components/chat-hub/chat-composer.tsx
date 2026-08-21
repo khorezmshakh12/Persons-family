@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Loader2, Mic, Paperclip, Send, Square, X } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import {
   requestChatMediaReadUrlAction,
   requestChatMediaUploadUrlAction,
@@ -108,19 +107,18 @@ export function ChatComposer({
     }
     setIsUploading(true);
     try {
-      const uploadUrlResult = await requestChatMediaUploadUrlAction(file.name);
-      if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.token) {
+      const uploadUrlResult = await requestChatMediaUploadUrlAction(file.name, file.type);
+      if (uploadUrlResult.error || !uploadUrlResult.path || !uploadUrlResult.url) {
         toast.error(t(`errors.${uploadUrlResult.error ?? 'uploadFailed'}`));
         return;
       }
 
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from('chat_media')
-        .uploadToSignedUrl(uploadUrlResult.path, uploadUrlResult.token, file, {
-          contentType: file.type,
-        });
-      if (uploadError) {
+      const uploadResponse = await fetch(uploadUrlResult.url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!uploadResponse.ok) {
         toast.error(t('errors.uploadFailed'));
         return;
       }

@@ -17,6 +17,7 @@ import {
   Wallet,
   Target,
   Milestone,
+  BookOpen,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -38,14 +39,19 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   roadmap: Milestone,
   profile: User,
   settings: Settings,
+  materials: BookOpen,
 };
 
 export function SidebarNav({
   role,
+  materialsLinked = false,
   onNavigate,
   glass = false,
 }: {
   role: StaffRole;
+  /** Whether this employee's phone number matches an active Materials
+   * account — hides the "Materials" item entirely when it doesn't. */
+  materialsLinked?: boolean;
   onNavigate?: () => void;
   /** True inside the glassmorphism desktop sidebar (over a dynamic photo
    * background); false inside the mobile Sheet, which keeps a normal
@@ -54,7 +60,7 @@ export function SidebarNav({
 }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
-  const items = navItemsForRole(role);
+  const items = navItemsForRole(role, { materialsLinked });
   // Live-updating "new" dot state — see NavBadgesProvider for why this
   // can't just be the static prop the layout computed at request time.
   const newKeys = useNavBadgeKeys();
@@ -68,30 +74,21 @@ export function SidebarNav({
     <nav className="flex flex-col gap-2">
       {items.map((item) => {
         const Icon = ICONS[item.key];
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = !item.external && (pathname === item.href || pathname.startsWith(`${item.href}/`));
 
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            onClick={onNavigate}
-            // Every dynamic route below has its own loading.tsx, so a full
-            // prefetch (not just the default up-to-loading-boundary prefetch)
-            // warms the actual page content in the background on hover/
-            // viewport-visibility — clicking a sidebar item then just swaps
-            // in an already-fetched response instead of starting cold.
-            prefetch
-            className={cn(
-              'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-transform duration-200 ease-bounce hover:scale-[1.02] active:scale-95',
-              glass
-                ? active
-                  ? 'font-semibold text-white'
-                  : 'font-medium text-white/70 hover:bg-white/10'
-                : active
-                  ? 'font-semibold text-foreground'
-                  : 'text-muted-foreground hover:bg-muted font-medium',
-            )}
-          >
+        const itemClassName = cn(
+          'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-transform duration-200 ease-bounce hover:scale-[1.02] active:scale-95',
+          glass
+            ? active
+              ? 'font-semibold text-white'
+              : 'font-medium text-white/70 hover:bg-white/10'
+            : active
+              ? 'font-semibold text-foreground'
+              : 'text-muted-foreground hover:bg-muted font-medium',
+        );
+
+        const content = (
+          <>
             {active && (
               <motion.span
                 layoutId={pillId}
@@ -112,6 +109,34 @@ export function SidebarNav({
                 aria-hidden
               />
             )}
+          </>
+        );
+
+        // Points at the Materials app on the other side of the gateway —
+        // a plain <a> (not the i18n Link) so basePath/locale prefixing
+        // doesn't mangle the cross-app URL.
+        if (item.external) {
+          return (
+            <a key={item.key} href={item.href} onClick={onNavigate} className={itemClassName}>
+              {content}
+            </a>
+          );
+        }
+
+        return (
+          <Link
+            key={item.key}
+            href={item.href}
+            onClick={onNavigate}
+            // Every dynamic route below has its own loading.tsx, so a full
+            // prefetch (not just the default up-to-loading-boundary prefetch)
+            // warms the actual page content in the background on hover/
+            // viewport-visibility — clicking a sidebar item then just swaps
+            // in an already-fetched response instead of starting cold.
+            prefetch
+            className={itemClassName}
+          >
+            {content}
           </Link>
         );
       })}

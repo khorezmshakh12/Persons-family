@@ -1,7 +1,8 @@
 /**
- * Bootstraps a staff account directly via the Supabase admin API. This is how
- * the very first CEO account gets created (before any admin UI exists to do
- * it) and doubles as a manual tool until Step 6's Staff Management UI lands.
+ * Bootstraps a staff account directly via Identity Platform + Cloud SQL. This
+ * is how the very first CEO account gets created (before any admin UI exists
+ * to do it) and doubles as a manual tool for one-off account creation outside
+ * the normal Staff Management UI.
  *
  * Usage:
  *   npx tsx scripts/create-staff.ts --phone +998901234567 --first-name Aziz \
@@ -13,7 +14,9 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 import { randomBytes } from 'node:crypto';
-import { createClient } from '@supabase/supabase-js';
+import { getAuth } from 'firebase-admin/auth';
+import { initializeApp, applicationDefault } from 'firebase-admin/app';
+import postgres from 'postgres';
 import { normalizePhone, phoneToSyntheticEmail } from '../src/lib/auth/phone';
 
 type Role = 'ceo' | 'admin_manager' | 'teacher' | 'assistant';
@@ -60,36 +63,36 @@ async function main() {
   const email = phoneToSyntheticEmail(phone);
   const tempPassword = generateTempPassword();
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password: tempPassword,
-    email_confirm: true,
+  const projectId = process.env.GCP_PROJECT_ID!;
+  const app = initializeApp({
+    credential: applicationDefault(),
+    projectId,
+    serviceAccountId: `app-runtime@${projectId}.iam.gserviceaccount.com`,
   });
+  const auth = getAuth(app);
+  const sql = postgres(process.env.DATABASE_URL!, { ssl: 'require' });
 
-  if (createError || !created.user) {
-    console.error('Failed to create auth user:', createError?.message);
+  let uid: string;
+  try {
+    const user = await auth.createUser({ email, password: tempPassword, emailVerified: true });
+    await auth.setCustomUserClaims(user.uid, { role, mustChangePassword: true });
+    uid = user.uid;
+  } catch (error) {
+    console.error('Failed to create Identity Platform user:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 
-  const { error: profileError } = await admin.from('profiles').insert({
-    id: created.user.id,
-    phone,
-    first_name: firstName,
-    last_name: lastName,
-    date_of_birth: dob,
-    role: role as Role,
-  });
-
-  if (profileError) {
-    console.error('Failed to create profile row:', profileError.message);
-    await admin.auth.admin.deleteUser(created.user.id);
+  try {
+    await sql`
+      insert into profiles (id, phone, first_name, last_name, date_of_birth, role)
+      values (${uid}, ${phone}, ${firstName}, ${lastName}, ${dob}, ${role})
+    `;
+  } catch (error) {
+    console.error('Failed to create profile row:', error instanceof Error ? error.message : error);
+    await auth.deleteUser(uid);
     process.exit(1);
+  } finally {
+    await sql.end();
   }
 
   console.log('Staff account created.');

@@ -1,5 +1,7 @@
 import { getFormatter, getTranslations } from 'next-intl/server';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
+import { getAuthState } from '@/lib/auth/session';
+import { unseenCompanyNewsCount } from '@/lib/nav-badges';
 import { companyNewsCutoff } from '@/lib/company-news';
 import { CompanyNewsInlineForm } from '@/components/dashboard/company-news-inline-form';
 import { GLASS_CARD } from '@/lib/glass';
@@ -14,16 +16,15 @@ export async function CompanyNewsCard({
 }) {
   const t = await getTranslations('dashboard');
   const format = await getFormatter();
-  const supabase = await createClient();
+  const { user } = await getAuthState();
 
-  const [{ data: news }, { data: unseenCount }] = await Promise.all([
-    supabase
-      .from('company_news')
-      .select('id, title, content, created_at')
-      .gte('created_at', companyNewsCutoff())
-      .order('created_at', { ascending: false })
-      .limit(3),
-    supabase.rpc('unseen_company_news_count'),
+  const [news, unseenCount] = await Promise.all([
+    sql<{ id: string; title: string; content: string; created_at: string }[]>`
+      select id, title, content, created_at from company_news
+      where created_at >= ${companyNewsCutoff()}
+      order by created_at desc limit 3
+    `,
+    user ? unseenCompanyNewsCount(user.id) : 0,
   ]);
 
   return (
@@ -36,14 +37,14 @@ export async function CompanyNewsCard({
         {/* Server-rendered fresh per visit, so "pop" on every load with
          * something unseen reads the same as "a new one just landed" —
          * no client-side realtime subscription needed for this card. */}
-        {!!unseenCount && unseenCount > 0 && (
+        {unseenCount > 0 && (
           <span className="animate-pop-in flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]">
             {unseenCount}
           </span>
         )}
       </div>
       {isAdmin && <CompanyNewsInlineForm />}
-      {!news || news.length === 0 ? (
+      {news.length === 0 ? (
         <p className="text-sm text-white/70">{t('companyNews.noNews')}</p>
       ) : (
         <div className="flex flex-col gap-4">

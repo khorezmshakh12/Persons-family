@@ -7,25 +7,21 @@ import { ProfileSection } from '@/components/settings/profile-section';
 import { TelegramConnectSection } from '@/components/settings/telegram-connect-section';
 import { AnnouncementSection } from '@/components/settings/announcement-section';
 import { SystemHealthSection } from '@/components/settings/system-health-section';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const t = await getTranslations('settings');
-  const { user, profile } = await getAuthState();
+  const { profile } = await getAuthState();
   const isCeo = profile!.role === 'ceo';
 
   let currentAnnouncement: string | null = null;
   if (isCeo) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from('platform_announcements')
-      .select('message')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    currentAnnouncement = data?.message ?? null;
+    const [row] = await sql<{ message: string }[]>`
+      select message from platform_announcements order by created_at desc limit 1
+    `;
+    currentAnnouncement = row?.message ?? null;
   }
 
   return (
@@ -35,7 +31,7 @@ export default async function SettingsPage() {
           <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('profile.cardTitle')}</h1>
           <p className="text-white/70">{t('profile.cardSubtitle')}</p>
         </div>
-        <ProfileSection userId={user!.id} role={profile!.role} teacherLevel={profile!.teacher_level} />
+        <ProfileSection role={profile!.role} teacherLevel={profile!.teacher_level} />
       </div>
 
       <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">

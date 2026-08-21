@@ -4,11 +4,12 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
 import type { StaffRole } from '@/lib/nav';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 
 export type TaskActionState = { error?: string } | undefined;
 
@@ -80,29 +81,23 @@ export async function assignTaskAction(
   const parsed = taskSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-
   // Strict chain of command, re-checked here regardless of what the
   // client's dropdown offered — the dropdown options alone are not a
   // security boundary (mirrors createIssueAction's re-validation).
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('role, telegram_id')
-    .eq('id', parsed.data.assignedTo)
-    .maybeSingle();
-  console.log('Users retrieved from DB for notifications:', target);
+  const [target] = await sql<{ role: StaffRole; telegram_id: number | null }[]>`
+    select role, telegram_id from profiles where id = ${parsed.data.assignedTo}
+  `;
   if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
     return { error: 'invalidAssignee' };
   }
 
-  const { error } = await supabase.from('tasks').insert({
-    title: parsed.data.title,
-    description: parsed.data.description || null,
-    assigned_to: parsed.data.assignedTo,
-    assigned_by: actingUserId,
-    deadline: parsed.data.deadline,
-  });
-  if (error) return { error: 'createFailed' };
+  await sql`
+    insert into tasks (title, description, assigned_to, assigned_by, deadline)
+    values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.deadline})
+  `;
+
+  await bumpBoardSignal('tasks');
+  await bumpNavBadgeSignal(parsed.data.assignedTo);
 
   // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
   // un-awaited fire-and-forget call before its Telegram send finishes.
@@ -138,37 +133,38 @@ export async function updateTaskAction(
   const parsed = updateTaskSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-
   // Strict visibility mirrors tasks_select: only the admin who originally
   // assigned this task may rewrite it, not every admin in the company.
-  const { data: existing } = await supabase
-    .from('tasks')
-    .select('assigned_by, status')
-    .eq('id', parsed.data.id)
-    .maybeSingle();
+  const [existing] = await sql<{ assigned_by: string; assigned_to: string; status: string }[]>`
+    select assigned_by, assigned_to, status from tasks where id = ${parsed.data.id}
+  `;
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
-  const { data: target } = await supabase
-    .from('profiles')
-    .select('role, telegram_id')
-    .eq('id', parsed.data.assignedTo)
-    .maybeSingle();
-  console.log('Users retrieved from DB for notifications:', target);
+  const [target] = await sql<{ role: StaffRole; telegram_id: number | null }[]>`
+    select role, telegram_id from profiles where id = ${parsed.data.assignedTo}
+  `;
   if (!target || !allowedTaskAssigneeRoles(actingRole).includes(target.role)) {
     return { error: 'invalidAssignee' };
   }
 
-  const { error } = await supabase
-    .from('tasks')
-    .update({
-      title: parsed.data.title,
-      description: parsed.data.description || null,
-      assigned_to: parsed.data.assignedTo,
-      deadline: parsed.data.deadline,
-    })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  // Mirrors the old reset_task_seen_on_reassign trigger: a genuine
+  // reassignment (not just re-saving the same assignee) clears is_seen so
+  // the new assignee's nav dot lights back up, same as a brand-new task.
+  const reassigned = parsed.data.assignedTo !== existing.assigned_to;
+
+  await sql`
+    update tasks set
+      title = ${parsed.data.title},
+      description = ${parsed.data.description || null},
+      assigned_to = ${parsed.data.assignedTo},
+      deadline = ${parsed.data.deadline}
+      ${reassigned ? sql`, is_seen = false` : sql``}
+    where id = ${parsed.data.id}
+  `;
+
+  await bumpBoardSignal('tasks');
+  await bumpNavBadgeSignal(parsed.data.assignedTo);
+  if (reassigned) await bumpNavBadgeSignal(existing.assigned_to);
 
   after(() =>
     notifyTaskAssigned({
@@ -192,11 +188,11 @@ const updateStatusSchema = z.object({
 
 export type UpdateTaskStatusResult = { error?: string };
 
-/** Only the assignee may change their own task's status — mirrors
- * protect_task_fields' `auth.uid() <> new.assigned_to` check at the DB
- * layer. Explicit here too rather than just letting the trigger's
- * exception bubble up, so a rejected drag gets a clean {error} response
- * instead of a raw Postgres error surfacing in the UI. */
+/** Only the assignee may change their own task's status — mirrors the old
+ * protect_task_fields trigger's `auth.uid() <> new.assigned_to` check,
+ * which no longer exists as a DB-level guard now that there's no
+ * database-side trigger layer; this app-layer check is now the only thing
+ * enforcing it, not defense in depth on top of one. */
 export async function updateTaskStatusAction(formData: FormData): Promise<UpdateTaskStatusResult> {
   const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
@@ -204,31 +200,59 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from('tasks')
-    .select('assigned_to')
-    .eq('id', parsed.data.id)
-    .maybeSingle();
+  const [existing] = await sql<{ assigned_to: string }[]>`select assigned_to from tasks where id = ${parsed.data.id}`;
   if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
 
-  const { error } = await supabase
-    .from('tasks')
-    .update({ status: parsed.data.status })
-    .eq('id', parsed.data.id);
-  if (error) return { error: 'updateFailed' };
+  await sql`update tasks set status = ${parsed.data.status} where id = ${parsed.data.id}`;
+
+  await bumpBoardSignal('tasks');
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
+}
+
+export type VisibleTaskRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  assigned_to: string;
+  assigned_by: string;
+  deadline: string;
+  status: (typeof STATUSES)[number];
+  updated_at: string;
+};
+
+/**
+ * Re-fetch for TaskBoard's live refresh, triggered whenever
+ * board_signals/tasks changes in Firestore (see lib/gcp/firestoreAdmin.ts's
+ * bumpBoardSignal) — Firestore only carries an empty "something changed"
+ * signal, no row payload, so the client re-derives the whole visible list
+ * from here rather than trying to patch one row in place. Mirrors
+ * app/[locale]/(app)/tasks/page.tsx's own query exactly: only the task's
+ * creator or assignee may see it, and a "done" task older than a week is
+ * hidden (not deleted) to keep the board from accumulating forever.
+ */
+export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
+  const { user } = await getAuthState();
+  if (!user) return [];
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  return sql<VisibleTaskRow[]>`
+    select id, title, description, assigned_to, assigned_by, deadline, status, updated_at
+    from tasks
+    where (assigned_by = ${user.id} or assigned_to = ${user.id})
+      and (status <> 'done' or updated_at >= ${sevenDaysAgo})
+    order by created_at desc
+  `;
 }
 
 const idSchema = z.object({ id: z.string().uuid() });
 
 export type DeleteTaskResult = { error?: string };
 
-/** Deletion is restricted to the task's own creator — tasks_delete_own
- * mirrors this at the RLS layer, so this check is defense in depth, not the
- * only thing standing between another admin and someone else's task. */
+/** Deletion is restricted to the task's own creator — this app-layer check
+ * is now the only thing enforcing that (previously RLS-backed too). */
 export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskResult> {
   let actingUserId: string;
   try {
@@ -241,16 +265,12 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from('tasks')
-    .select('assigned_by')
-    .eq('id', parsed.data.id)
-    .maybeSingle();
+  const [existing] = await sql<{ assigned_by: string }[]>`select assigned_by from tasks where id = ${parsed.data.id}`;
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
-  const { error } = await supabase.from('tasks').delete().eq('id', parsed.data.id);
-  if (error) return { error: 'deleteFailed' };
+  await sql`delete from tasks where id = ${parsed.data.id}`;
+
+  await bumpBoardSignal('tasks');
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};

@@ -36,7 +36,8 @@
     "missions": "Missions",
     "roadmap": "Roadmap",
     "settings": "Settings",
-    "profile": "My Profile"
+    "profile": "My Profile",
+    "materials": "Materials"
   },
   "auth": {
     "phone": "Phone number",

@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
 export type IncomeRoadmapActionState = { error?: string } | undefined;
@@ -42,20 +42,19 @@ export async function upsertIncomePlanAction(
   // on KPI scoring and self-development evaluations.
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('staff_income_plans').upsert(
-    {
-      staff_id: parsed.data.staffId,
-      year: parsed.data.year,
-      base_monthly_income: parsed.data.baseMonthlyIncome,
-      target_year_end_income: parsed.data.targetYearEndIncome,
-    },
-    { onConflict: 'staff_id,year' },
-  );
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`
+      insert into staff_income_plans (staff_id, year, base_monthly_income, target_year_end_income)
+      values (${parsed.data.staffId}, ${parsed.data.year}, ${parsed.data.baseMonthlyIncome}, ${parsed.data.targetYearEndIncome})
+      on conflict (staff_id, year) do update set
+        base_monthly_income = excluded.base_monthly_income,
+        target_year_end_income = excluded.target_year_end_income
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   logSystemAction(
-    supabase,
     'income_roadmap.plan_upsert',
     `Set ${parsed.data.year} income plan for staff ${parsed.data.staffId}: ${parsed.data.baseMonthlyIncome} -> ${parsed.data.targetYearEndIncome}`,
   );
@@ -94,18 +93,16 @@ export async function addIncomeStepAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === adminId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('income_roadmap_steps').insert({
-    plan_id: parsed.data.planId,
-    target_amount: parsed.data.targetAmount,
-    target_month: parsed.data.targetMonth,
-    benefit_description: parsed.data.benefitDescription,
-    created_by: adminId,
-  });
-  if (error) return { error: 'createFailed' };
+  try {
+    await sql`
+      insert into income_roadmap_steps (plan_id, target_amount, target_month, benefit_description, created_by)
+      values (${parsed.data.planId}, ${parsed.data.targetAmount}, ${parsed.data.targetMonth}, ${parsed.data.benefitDescription}, ${adminId})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   logSystemAction(
-    supabase,
     'income_roadmap.step_add',
     `Added income step ${parsed.data.targetAmount} for staff ${parsed.data.staffId}`,
   );
@@ -133,12 +130,13 @@ export async function markStepAchievedAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('income_roadmap_steps')
-    .update({ status: 'achieved', achieved_at: new Date().toISOString() })
-    .eq('id', parsed.data.stepId);
-  if (error) return { error: 'updateFailed' };
+  try {
+    await sql`
+      update income_roadmap_steps set status = 'achieved', achieved_at = now() where id = ${parsed.data.stepId}
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidateFinance(parsed.data.staffId);
   return {};
@@ -163,9 +161,11 @@ export async function deleteIncomeStepAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('income_roadmap_steps').delete().eq('id', parsed.data.stepId);
-  if (error) return { error: 'deleteFailed' };
+  try {
+    await sql`delete from income_roadmap_steps where id = ${parsed.data.stepId}`;
+  } catch {
+    return { error: 'deleteFailed' };
+  }
 
   revalidateFinance(parsed.data.staffId);
   return {};

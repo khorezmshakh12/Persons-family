@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { createClient } from '@/lib/supabase/server';
+import { sql } from '@/lib/db/client';
 import { StaffPerformanceChart } from '@/components/analytics/staff-performance-chart';
 import { RoadmapGoalsChart } from '@/components/analytics/roadmap-goals-chart';
 
@@ -12,23 +12,26 @@ export default async function AnalyticsPage() {
   if (profile!.role !== 'ceo') notFound();
 
   const t = await getTranslations('analytics');
-  const supabase = await createClient();
 
-  const [{ data: performance }, { data: goals }] = await Promise.all([
-    supabase
-      .from('staff_performance')
-      .select('weekly_progress_score, staff:profiles!staff_performance_staff_id_fkey(first_name, last_name)'),
-    supabase.from('roadmap_goals').select('title, progress_percentage, status'),
+  const [performance, goals] = await Promise.all([
+    sql<{ weekly_progress_score: number; first_name: string | null; last_name: string | null }[]>`
+      select sp.weekly_progress_score, p.first_name, p.last_name
+      from staff_performance sp
+      left join profiles p on p.id = sp.staff_id
+    `,
+    sql<{ title: string; progress_percentage: number; status: 'pending' | 'done' | 'failed' }[]>`
+      select title, progress_percentage, status from roadmap_goals
+    `,
   ]);
 
-  const staffPerformanceData = (performance ?? [])
-    .filter((p) => p.staff)
+  const staffPerformanceData = performance
+    .filter((p) => p.first_name)
     .map((p) => ({
-      name: `${p.staff!.first_name} ${p.staff!.last_name}`,
+      name: `${p.first_name} ${p.last_name}`,
       score: p.weekly_progress_score,
     }));
 
-  const roadmapGoalsData = (goals ?? []).map((g) => ({
+  const roadmapGoalsData = goals.map((g) => ({
     name: g.title,
     progress: g.progress_percentage,
     status: g.status,
