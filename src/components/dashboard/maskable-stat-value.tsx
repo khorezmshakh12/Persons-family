@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils';
 
 /** Masked by default every time it loads — nothing is persisted, so a
  * salary figure never shows up on screen until the viewer deliberately

@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code tooling, not app source (excluded from deploys via
+    // .gcloudignore/.dockerignore already).
+    ".agents/**",
   ]),
 ]);
 

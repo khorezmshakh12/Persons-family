@@ -3,8 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 
-const STATUSES = ['open', 'in_progress', 'done'] as const;
-type IssueStatus = (typeof STATUSES)[number];
+type IssueStatus = 'open' | 'in_progress' | 'done';
 
 const BADGE_VARIANT: Record<IssueStatus, 'outline' | 'secondary' | 'default'> = {
   open: 'outline',

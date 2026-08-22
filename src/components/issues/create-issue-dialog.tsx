@@ -74,7 +74,6 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
 
   useEffect(() => {
     return () => forceStopRecording();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleToggleRecording() {
