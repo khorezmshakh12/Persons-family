@@ -19,9 +19,14 @@ const MATERIALS_INTERNAL_URL =
 export async function checkMaterialsLink(phone: string): Promise<boolean> {
   try {
     const token = signSsoToken({ phone });
+    // 8s, not the original 3s: persons-education-app scales to zero when
+    // idle (see its Cloud Run min-instances), and a cold start there —
+    // container boot plus its own Cloud SQL connection setup — routinely
+    // ran past 3s, intermittently hiding this link for a request that
+    // would've succeeded a couple seconds later.
     const res = await fetch(`${MATERIALS_INTERNAL_URL}/materials/api/sso/check?token=${encodeURIComponent(token)}`, {
       cache: 'no-store',
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return false;
     const data = (await res.json()) as { linked?: boolean };
