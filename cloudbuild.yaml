@@ -1,0 +1,13 @@
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - persons-staff-app
+      - --source=.
+      - --region=europe-west3
+      - --quiet
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY
