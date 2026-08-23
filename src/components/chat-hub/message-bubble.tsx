@@ -143,11 +143,9 @@ function MessageBubbleComponent({
               />
             )}
             {message.media_type === 'video' && message.media_url && (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
               <video src={message.media_url} controls className="max-h-64 max-w-full rounded-lg" />
             )}
             {message.media_type === 'voice' && message.media_url && (
-              // eslint-disable-next-line jsx-a11y/media-has-caption
               <audio src={message.media_url} controls className="h-10 max-w-full" />
             )}
             {message.message_text && <span>{message.message_text}</span>}

@@ -1,0 +1,32 @@
+.git
+.gitignore
+
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# Claude Code / agent tooling — not app source
+.agents/
+.claude/
+skills-lock.json
+
+# stray local files not part of the app
+123.png
+auth_data.sql
+public_data.sql
+texnik_topshiriq.md
