@@ -70,7 +70,15 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="assignedTo">{t('assignee')}</Label>
-            <Select name="assignedTo">
+            {/* Unlike EditTaskDialog's Select, this one has no defaultValue
+             * (there's no existing assignee to pre-fill) — without `required`,
+             * the native hidden input backing this Select stays empty until
+             * clicked, and submitting without ever opening the dropdown
+             * silently reached the server as a blank assignedTo, failing
+             * assignTaskAction's zod validation with a generic error and no
+             * task created. `required` makes the browser block submission
+             * with a clear prompt instead. */}
+            <Select name="assignedTo" required>
               <SelectTrigger id="assignedTo" className="w-full">
                 <SelectValue>
                   {(value: string) => {
