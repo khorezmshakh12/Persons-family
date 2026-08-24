@@ -64,10 +64,14 @@ export async function createIssueAction(
   const voiceUrl =
     parsed.data.voiceUrl && parsed.data.voiceUrl.startsWith(`${user.id}/`) ? parsed.data.voiceUrl : null;
 
-  await sql`
-    insert into issues (created_by, title, description, assigned_to, voice_url)
-    values (${user.id}, ${parsed.data.title}, ${parsed.data.description || null}, ${assignedTo}, ${voiceUrl})
-  `;
+  try {
+    await sql`
+      insert into issues (created_by, title, description, assigned_to, voice_url)
+      values (${user.id}, ${parsed.data.title}, ${parsed.data.description || null}, ${assignedTo}, ${voiceUrl})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   await bumpBoardSignal('issues');
   if (assignedTo) await bumpNavBadgeSignal(assignedTo);

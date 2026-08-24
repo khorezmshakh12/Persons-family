@@ -36,10 +36,14 @@ export async function createContractAction(
   const parsed = contractSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    insert into staff_contracts (staff_id, title, start_date, end_date, created_by)
-    values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.startDate}, ${parsed.data.endDate || null}, ${ceoId})
-  `;
+  try {
+    await sql`
+      insert into staff_contracts (staff_id, title, start_date, end_date, created_by)
+      values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.startDate}, ${parsed.data.endDate || null}, ${ceoId})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   logSystemAction('contract.create', `Created contract "${parsed.data.title}" for staff ${parsed.data.staffId}`);
 
@@ -123,10 +127,14 @@ export async function createDutyAction(
   const parsed = dutySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    insert into staff_duties (staff_id, contract_id, title, description, created_by)
-    values (${parsed.data.staffId}, ${parsed.data.contractId || null}, ${parsed.data.title}, ${parsed.data.description || null}, ${ceoId})
-  `;
+  try {
+    await sql`
+      insert into staff_duties (staff_id, contract_id, title, description, created_by)
+      values (${parsed.data.staffId}, ${parsed.data.contractId || null}, ${parsed.data.title}, ${parsed.data.description || null}, ${ceoId})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -180,10 +188,14 @@ export async function createContractRequestAction(
   if (!contract || contract.staff_id !== user.id) return { error: 'forbidden' };
   if (contract.status !== 'active') return { error: 'contractNotActive' };
 
-  await sql`
-    insert into contract_requests (contract_id, staff_id, request_type, reason)
-    values (${parsed.data.contractId}, ${user.id}, ${parsed.data.requestType}, ${parsed.data.reason || null})
-  `;
+  try {
+    await sql`
+      insert into contract_requests (contract_id, staff_id, request_type, reason)
+      values (${parsed.data.contractId}, ${user.id}, ${parsed.data.requestType}, ${parsed.data.reason || null})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   revalidatePath('/[locale]/self-development', 'page');
   return {};
@@ -292,10 +304,14 @@ export async function attachContractFileAction(
   const parsed = attachSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    insert into contract_attachments (contract_id, file_url, file_name, file_type, uploaded_by)
-    values (${parsed.data.contractId}, ${parsed.data.path}, ${parsed.data.fileName}, ${parsed.data.fileType || null}, ${ceoId})
-  `;
+  try {
+    await sql`
+      insert into contract_attachments (contract_id, file_url, file_name, file_type, uploaded_by)
+      values (${parsed.data.contractId}, ${parsed.data.path}, ${parsed.data.fileName}, ${parsed.data.fileType || null}, ${ceoId})
+    `;
+  } catch {
+    return { error: 'uploadFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};

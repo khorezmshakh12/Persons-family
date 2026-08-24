@@ -57,10 +57,14 @@ export async function assignMissionAction(
   const parsed = assignSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    insert into missions (staff_id, title, description, deadline_date, bonus_amount, created_by)
-    values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.deadlineDate}, ${parsed.data.bonusAmount ?? null}, ${adminId})
-  `;
+  try {
+    await sql`
+      insert into missions (staff_id, title, description, deadline_date, bonus_amount, created_by)
+      values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.deadlineDate}, ${parsed.data.bonusAmount ?? null}, ${adminId})
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   logSystemAction(
     'missions.assign',

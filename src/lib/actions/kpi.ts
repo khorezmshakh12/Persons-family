@@ -38,10 +38,14 @@ export async function addKpiMetricAction(
   // `isAdmin && !isSelf` gate one section below on the same page.
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  await sql`
-    insert into kpi_metrics (staff_id, name, weight_percentage)
-    values (${parsed.data.staffId}, ${parsed.data.name}, ${parsed.data.weightPercentage})
-  `;
+  try {
+    await sql`
+      insert into kpi_metrics (staff_id, name, weight_percentage)
+      values (${parsed.data.staffId}, ${parsed.data.name}, ${parsed.data.weightPercentage})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   logSystemAction('kpi.metric_add', `Added KPI metric "${parsed.data.name}" for staff ${parsed.data.staffId}`);
 
@@ -136,13 +140,17 @@ export async function upsertKpiEntryAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  await sql`
-    insert into kpi_entries (metric_id, month, target_value, actual_value)
-    values (${parsed.data.metricId}, ${parsed.data.month}, ${parsed.data.targetValue}, ${parsed.data.actualValue ?? null})
-    on conflict (metric_id, month) do update set
-      target_value = excluded.target_value,
-      actual_value = excluded.actual_value
-  `;
+  try {
+    await sql`
+      insert into kpi_entries (metric_id, month, target_value, actual_value)
+      values (${parsed.data.metricId}, ${parsed.data.month}, ${parsed.data.targetValue}, ${parsed.data.actualValue ?? null})
+      on conflict (metric_id, month) do update set
+        target_value = excluded.target_value,
+        actual_value = excluded.actual_value
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidateFinance(parsed.data.staffId);
   return {};

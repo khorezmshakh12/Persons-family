@@ -62,10 +62,14 @@ export async function issueWarningAction(
   const parsed = warningSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    insert into staff_warnings (staff_id, reason, issued_by)
-    values (${parsed.data.staffId}, ${parsed.data.reason}, ${issuerId})
-  `;
+  try {
+    await sql`
+      insert into staff_warnings (staff_id, reason, issued_by)
+      values (${parsed.data.staffId}, ${parsed.data.reason}, ${issuerId})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   await bumpNavBadgeSignal(parsed.data.staffId);
   logSystemAction('warning.issue', `Issued a warning to staff ${parsed.data.staffId}`);
@@ -139,10 +143,14 @@ export async function assignPunishmentAction(
   `;
   if (!warning || warning.staff_id !== parsed.data.staffId) return { error: 'invalidWarning' };
 
-  await sql`
-    insert into performance_entries (staff_id, entry_type, amount, reason, created_by, warning_id)
-    values (${parsed.data.staffId}, 'penalty', ${parsed.data.amount}, ${parsed.data.reason || null}, ${actorId}, ${parsed.data.warningId})
-  `;
+  try {
+    await sql`
+      insert into performance_entries (staff_id, entry_type, amount, reason, created_by, warning_id)
+      values (${parsed.data.staffId}, 'penalty', ${parsed.data.amount}, ${parsed.data.reason || null}, ${actorId}, ${parsed.data.warningId})
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
 
   logSystemAction(
     'performance.punishment',

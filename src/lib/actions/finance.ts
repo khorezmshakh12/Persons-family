@@ -32,10 +32,14 @@ export async function addFinanceEntryAction(
   const parsed = addEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
-  await sql`
-    insert into finance_entries (staff_id, title, amount, note, created_by)
-    values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.amount}, ${parsed.data.note || null}, ${adminId})
-  `;
+  try {
+    await sql`
+      insert into finance_entries (staff_id, title, amount, note, created_by)
+      values (${parsed.data.staffId}, ${parsed.data.title}, ${parsed.data.amount}, ${parsed.data.note || null}, ${adminId})
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   logSystemAction(
     'finance.entry_add',

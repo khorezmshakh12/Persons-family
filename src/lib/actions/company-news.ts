@@ -47,11 +47,16 @@ export async function createNewsAction(
   const parsed = createNewsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const [inserted] = await sql<{ id: string }[]>`
-    insert into company_news (title, content, created_by)
-    values (${parsed.data.title}, ${parsed.data.content}, ${actingUserId})
-    returning id
-  `;
+  let inserted: { id: string } | undefined;
+  try {
+    [inserted] = await sql<{ id: string }[]>`
+      insert into company_news (title, content, created_by)
+      values (${parsed.data.title}, ${parsed.data.content}, ${actingUserId})
+      returning id
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
   if (!inserted) return { error: 'createFailed' };
 
   // This broadcasts to every active user's nav dot at once (company_news
