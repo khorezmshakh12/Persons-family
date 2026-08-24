@@ -37,13 +37,13 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const { user, profile } = await getAuthState();
   const locale = await getLocale();
 
-  // Lesson-plan visibility is CEO / Head Teacher / owning teacher / assigned
-  // TA only (see 20260806110000_remove_admin_manager_lesson_plan_access.sql
-  // and 20260812090100_head_teacher_and_it_developer_rls.sql). This used to
-  // lean on RLS returning no row for anyone else, with the redirect just
-  // making that a clean bounce instead of a bare 404 — RLS is gone, so the
-  // allowlist is now the only thing enforcing it and must cover every role,
-  // not just the two that lost access.
+  // Lesson-plan visibility is CEO / Head Teacher / IT Developer (view-only,
+  // re-added so it can investigate compliance-bot reports) / owning teacher
+  // / assigned TA only. This used to lean on RLS returning no row for
+  // anyone else, with the redirect just making that a clean bounce instead
+  // of a bare 404 — RLS is gone, so the allowlist (LESSON_PLAN_ROLES) is
+  // now the only thing enforcing it and must cover every role that should
+  // pass.
   if (!LESSON_PLAN_ROLES.includes(profile!.role)) {
     redirect({ href: '/dashboard', locale });
   }
@@ -115,8 +115,9 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   // Course lesson permissions per spec: only the owning teacher sets
   // dates/topics/uploads; the CEO can additionally clear/delete a file;
   // CEO/Head Teacher/the assigned TA can comment, the teacher can't comment
-  // on their own lesson. Administrative Manager and IT Developer have no
-  // lesson-plan access at all now — see the redirect above.
+  // on their own lesson. IT Developer is view-only (sees content, can't
+  // edit or comment) — Administrative Manager still has no lesson-plan
+  // access at all — see the redirect above.
   const canEditLessonContent = isOwnerTeacher;
   const canDeleteLessonFiles = isOwnerTeacher || isCeo;
   const canComment = isCeo || isHeadTeacher || isAssignedTa;

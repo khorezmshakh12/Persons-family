@@ -41,7 +41,12 @@ export type NavItem = {
  * groups/course_lessons RLS policies, which returned zero rows to every
  * other role, and with RLS gone a direct URL visit is otherwise ungated.
  */
-export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant'];
+// IT Developer was re-added here (view-only — see canEditLessonContent/
+// canComment in lesson-plans/[groupId]/page.tsx, both false for this role)
+// so it can see the same lesson-plan data the compliance bot is reporting on
+// when investigating a report — it had been deliberately excluded ("IT
+// Developer lost lesson-plan access entirely") in an earlier role rework.
+export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant', 'it_developer'];
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
@@ -58,10 +63,11 @@ export const NAV_ITEMS: NavItem[] = [
   {
     key: 'lessonPlans',
     href: '/lesson-plans',
-    // IT Developer lost lesson-plan access entirely (view, comment, nav) —
-    // Head Teacher takes its place as the non-CEO role that can see every
-    // teacher's lesson plans and comment on them. SMM & Mobilograf ranks
-    // below teacher/assistant and never sees lesson plans either.
+    // Head Teacher can see every teacher's lesson plans and comment on
+    // them; IT Developer can see them too (view-only, re-added — see
+    // LESSON_PLAN_ROLES' own comment) to investigate compliance-bot
+    // reports. MMD ranks below teacher/assistant and never sees lesson
+    // plans.
     roles: LESSON_PLAN_ROLES,
   },
   { key: 'tasks', href: '/tasks' },
