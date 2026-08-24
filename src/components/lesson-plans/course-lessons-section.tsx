@@ -37,11 +37,18 @@ export async function CourseLessonsSection({
       homework: string | null;
       procedure: LessonProcedureStep[];
       attachments: LessonAttachment[];
+      movedToDate: string | null;
+      movedFromDate: string | null;
+      moveReason: string | null;
     }[]
   >`
-    select id, lesson_number, lesson_date, topic, game_link, aim, language_focus, anticipated_problems,
-      materials, homework, procedure, attachments
-    from course_lessons where group_id = ${groupId} order by lesson_number asc
+    select cl.id, cl.lesson_number, cl.lesson_date, cl.topic, cl.game_link, cl.aim, cl.language_focus,
+      cl.anticipated_problems, cl.materials, cl.homework, cl.procedure, cl.attachments,
+      moved_to.lesson_date as "movedToDate", moved_from.lesson_date as "movedFromDate", cl.move_reason as "moveReason"
+    from course_lessons cl
+    left join course_lessons moved_to on moved_to.id = cl.moved_to_lesson_id
+    left join course_lessons moved_from on moved_from.id = cl.moved_from_lesson_id
+    where cl.group_id = ${groupId} order by cl.lesson_number asc
   `;
 
   // Batch one signed-URL request for every attachment across all 24 lessons,
@@ -105,6 +112,9 @@ export async function CourseLessonsSection({
       procedure: (l.procedure as unknown as LessonProcedureStep[]) ?? [],
       attachments: attachmentsWithUrl,
       comments: commentsByLesson.get(l.id) ?? [],
+      movedToDate: l.movedToDate,
+      movedFromDate: l.movedFromDate,
+      moveReason: l.moveReason,
     };
   });
 

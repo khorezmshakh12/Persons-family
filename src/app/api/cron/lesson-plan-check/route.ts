@@ -132,9 +132,10 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
       language_focus: string | null;
       anticipated_problems: string | null;
       homework: string | null;
+      moved_to_lesson_id: string | null;
     }[]
   >`
-    select group_id, topic, aim, language_focus, anticipated_problems, homework
+    select group_id, topic, aim, language_focus, anticipated_problems, homework, moved_to_lesson_id
     from course_lessons
     where group_id in ${sql(groupIds)} and lesson_date = ${dateKey}
   `;
@@ -159,8 +160,15 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
 
   for (const group of groups) {
     const groupLessons = lessonsByGroup.get(group.id) ?? [];
+    // A lesson whose content moved to another date (see moveLessonPlanAction)
+    // counts as done here — the teacher documented why with a required
+    // reason, tracked on the destination row, so this day isn't "missing."
     const status: GroupStatus['status'] =
-      groupLessons.length === 0 ? 'missing' : groupLessons.some(isLessonPlanComplete) ? 'complete' : 'incomplete';
+      groupLessons.length === 0
+        ? 'missing'
+        : groupLessons.some((l) => isLessonPlanComplete(l) || l.moved_to_lesson_id !== null)
+          ? 'complete'
+          : 'incomplete';
 
     const teacherName = group.teacher_first_name ? `${group.teacher_first_name} ${group.teacher_last_name}` : "Noma'lum";
     const entry = byTeacher.get(group.teacher_id) ?? { teacherName, groups: [] };

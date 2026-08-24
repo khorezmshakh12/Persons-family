@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { sql } from '@/lib/db/client';
+import { sql, toJson } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
@@ -346,6 +346,87 @@ export async function removeLessonMaterialAction(
   await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
 
   await deleteObject('lesson_materials', target.path);
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}
+
+const moveLessonSchema = z.object({
+  lessonId: z.string().uuid(),
+  targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  reason: z.string().trim().min(5).max(1000),
+});
+
+/**
+ * Moves a lesson plan's content to a different date's already-existing slot
+ * (see generateLessonSlotsForMonth — every group has a row for every
+ * non-Sunday date already) instead of leaving the original day looking
+ * "not done." The origin row keeps a pointer to where its content went
+ * rather than just going blank, and the destination row records where it
+ * came from and why — both required by design, not just recorded for
+ * audit: /api/cron/lesson-plan-check treats a moved-away origin day as
+ * compliant precisely because moved_to_lesson_id is set, so this is the
+ * only path that's allowed to leave a "complete" lesson's fields empty.
+ */
+export async function moveLessonPlanAction(_prevState: LessonActionState, formData: FormData): Promise<LessonActionState> {
+  const { user, profile } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = moveLessonSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+  const { lessonId, targetDate, reason } = parsed.data;
+
+  if (!(await canWriteLesson(lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+
+  const [origin] = await sql<
+    {
+      group_id: string;
+      lesson_date: string | null;
+      topic: string | null;
+      game_link: string | null;
+      aim: string | null;
+      language_focus: string | null;
+      anticipated_problems: string | null;
+      materials: string | null;
+      homework: string | null;
+      procedure: unknown;
+      attachments: unknown;
+      moved_to_lesson_id: string | null;
+    }[]
+  >`select * from course_lessons where id = ${lessonId}`;
+  if (!origin) return { error: 'forbidden' };
+  if (origin.moved_to_lesson_id) return { error: 'alreadyMoved' };
+  if (!origin.topic?.trim()) return { error: 'nothingToMove' };
+  if (origin.lesson_date === targetDate) return { error: 'moveSameDate' };
+
+  const [destination] = await sql<{ id: string; topic: string | null; moved_from_lesson_id: string | null }[]>`
+    select id, topic, moved_from_lesson_id from course_lessons
+    where group_id = ${origin.group_id} and lesson_date = ${targetDate}
+  `;
+  if (!destination) return { error: 'invalidDate' };
+  if (destination.topic?.trim() || destination.moved_from_lesson_id) {
+    return { error: 'dateTaken', errorParams: { date: targetDate } };
+  }
+
+  await sql.begin(async (tx) => {
+    await tx`
+      update course_lessons set
+        topic = ${origin.topic}, game_link = ${origin.game_link}, aim = ${origin.aim},
+        language_focus = ${origin.language_focus}, anticipated_problems = ${origin.anticipated_problems},
+        materials = ${origin.materials}, homework = ${origin.homework},
+        procedure = ${sql.json(toJson(origin.procedure))},
+        attachments = ${sql.json(toJson(origin.attachments))},
+        moved_from_lesson_id = ${lessonId}, moved_at = now(), move_reason = ${reason}
+      where id = ${destination.id}
+    `;
+    await tx`
+      update course_lessons set
+        topic = null, game_link = null, aim = null, language_focus = null, anticipated_problems = null,
+        materials = null, homework = null, procedure = '[]', attachments = '[]',
+        moved_to_lesson_id = ${destination.id}
+      where id = ${lessonId}
+    `;
+  });
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};

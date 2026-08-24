@@ -443,7 +443,15 @@
       "commentPlaceholder": "Write a comment...",
       "send": "Send",
       "deleteComment": "Delete comment",
-      "viewOnly": "You can view but not comment here."
+      "viewOnly": "You can view but not comment here.",
+      "move": "Move to another date",
+      "moveDialogTitle": "Move lesson plan",
+      "moveTargetDate": "Move to date",
+      "moveReason": "Reason for moving",
+      "moveReasonPlaceholder": "Why didn't this lesson happen as planned...",
+      "moveSubmit": "Move",
+      "movedToNote": "Moved to {date}",
+      "movedFromNote": "Moved from {date}"
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -458,7 +466,11 @@
       "fileTooLarge": "File must be under 50MB.",
       "uploadFailed": "Could not upload the file. Please try again.",
       "dateRequired": "Set the lesson's date first.",
-      "dateTaken": "Another lesson in this group is already dated {date}. Change that one first."
+      "dateTaken": "Another lesson in this group is already dated {date}. Change that one first.",
+      "alreadyMoved": "This lesson plan has already been moved.",
+      "nothingToMove": "Set a topic before moving this lesson plan.",
+      "moveSameDate": "Choose a different date to move to.",
+      "invalidDate": "That date isn't available yet."
     }
   },
   "staffChat": {

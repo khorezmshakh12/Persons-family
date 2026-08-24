@@ -22,6 +22,13 @@ export type CourseLessonRow = {
   procedure: LessonProcedureStep[];
   attachments: LessonAttachmentWithUrl[];
   comments: LessonComment[];
+  /** Set once this lesson's content has been moved to another date — see
+   * moveLessonPlanAction. `movedToDate` is that destination's own date, for
+   * display; the row's own content fields are empty in this state. */
+  movedToDate: string | null;
+  /** Set when this row received another lesson's content via a move. */
+  movedFromDate: string | null;
+  moveReason: string | null;
 };
 
 export function CourseLessonsTable({

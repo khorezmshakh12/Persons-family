@@ -8,6 +8,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
 import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
+import { generateLessonSlotsForMonth } from '@/lib/lesson-generation';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -93,6 +94,21 @@ export async function createGroupAction(
     groupId = created.id;
   } catch {
     return { error: 'createFailed' };
+  }
+
+  // New groups otherwise start with zero course_lessons rows and no way for
+  // the teacher to add one (the lesson-plans UI only edits pre-existing
+  // rows) — this used to be seeded by a Supabase-side mechanism that never
+  // got ported to Cloud SQL, so every group created since that migration
+  // silently had no lesson plan slots at all until this call.
+  const [todayY, todayM] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' })
+    .format(new Date())
+    .split('-')
+    .map(Number);
+  try {
+    await generateLessonSlotsForMonth(groupId, todayY, todayM);
+  } catch (error) {
+    console.error('generateLessonSlotsForMonth failed for new group', groupId, error);
   }
 
   // Keeps group_chat_meta/{groupId} in sync so the group's Firestore-backed

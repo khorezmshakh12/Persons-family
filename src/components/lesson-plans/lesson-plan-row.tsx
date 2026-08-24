@@ -11,6 +11,7 @@ import { LessonFilesCell } from './lesson-files-cell';
 import { LessonCommentsDrawer } from './lesson-comments-drawer';
 import { LessonPlanTextField } from './lesson-plan-text-field';
 import { LessonProcedureTable } from './lesson-procedure-table';
+import { MoveLessonDialog } from './move-lesson-dialog';
 import type { CourseLessonRow } from './course-lessons-table';
 
 function PlanFieldBlock({ label, children }: { label: string; children: React.ReactNode }) {
@@ -54,7 +55,24 @@ export function LessonPlanRow({
           <LessonDateCell lessonId={lesson.id} lessonDate={lesson.lesson_date} canEdit={canEditContent} />
         </td>
         <td className="px-4 py-3.5 align-top">
-          <LessonTopicCell lessonId={lesson.id} topic={lesson.topic} canEdit={canEditContent} />
+          {lesson.movedToDate ? (
+            <p className="w-56 text-xs text-white/50 italic">
+              {t('courseLessons.movedToNote', { date: lesson.movedToDate })}
+            </p>
+          ) : (
+            <div className="flex items-start gap-1">
+              <div className="flex flex-col gap-1">
+                {lesson.movedFromDate && (
+                  <p className="text-[10px] text-white/45 italic">
+                    {t('courseLessons.movedFromNote', { date: lesson.movedFromDate })}
+                    {lesson.moveReason ? ` — ${lesson.moveReason}` : ''}
+                  </p>
+                )}
+                <LessonTopicCell lessonId={lesson.id} topic={lesson.topic} canEdit={canEditContent} />
+              </div>
+              {canEditContent && lesson.topic?.trim() && <MoveLessonDialog lessonId={lesson.id} lessonDate={lesson.lesson_date} />}
+            </div>
+          )}
         </td>
         <td className="px-4 py-3.5 align-top">
           <button
