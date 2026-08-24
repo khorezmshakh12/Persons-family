@@ -9,6 +9,13 @@
  * detect this specific error shape and reload once automatically instead of
  * making the user work out that "refresh the page" is the fix.
  */
+// This app builds with Turbopack (see the Dockerfile's `next build`), not
+// webpack — the patterns above are webpack's own wording (ChunkLoadError,
+// "Loading chunk N failed") and never actually matched anything here, so
+// this recovery path silently never fired: every stale-tab-after-deploy hit
+// fell straight through to the raw error card instead of auto-reloading.
+// These match Turbopack's actual wording for the same failure (see
+// node_modules/next/dist/client/route-loader.js).
 export function isChunkLoadError(error: Error): boolean {
   return (
     error.name === 'ChunkLoadError' ||
@@ -16,7 +23,13 @@ export function isChunkLoadError(error: Error): boolean {
     /Failed to fetch dynamically imported module/i.test(error.message) ||
     /error loading dynamically imported module/i.test(error.message) ||
     /Importing a module script failed/i.test(error.message) ||
-    /Unable to preload CSS for/i.test(error.message)
+    /Unable to preload CSS for/i.test(error.message) ||
+    /^Failed to load script:/i.test(error.message) ||
+    /^Failed to load stylesheet:/i.test(error.message) ||
+    /^Failed to lookup route:/i.test(error.message) ||
+    /^Route did not complete loading:/i.test(error.message) ||
+    /^Failed to load client build manifest/i.test(error.message) ||
+    /^Failed to prefetch:/i.test(error.message)
   );
 }
 
