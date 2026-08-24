@@ -13,7 +13,7 @@
  */
 import { config } from 'dotenv';
 config({ path: '.env.local' });
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import postgres from 'postgres';
@@ -74,7 +74,11 @@ async function main() {
 
   let uid: string;
   try {
-    const user = await auth.createUser({ email, password: tempPassword, emailVerified: true });
+    // profiles.id is a uuid column, but an auto-generated Identity Platform
+    // uid isn't UUID-shaped — the insert below would fail with "invalid
+    // input syntax for type uuid" otherwise (see the identical fix in
+    // src/lib/actions/staff.ts's createStaffRow).
+    const user = await auth.createUser({ uid: randomUUID(), email, password: tempPassword, emailVerified: true });
     await auth.setCustomUserClaims(user.uid, { role, mustChangePassword: true });
     uid = user.uid;
   } catch (error) {

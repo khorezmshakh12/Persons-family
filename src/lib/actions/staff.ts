@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin, requireStaffManager, authErrorCode } from '@/lib/auth/require-admin';
 import type { Profile } from '@/lib/auth/session';
@@ -119,7 +119,16 @@ async function createStaffRow(
 
   let createdUid: string;
   try {
+    // profiles.id is a uuid column (carried over from the old Supabase
+    // auth.users.id, which was always a real UUID) — Identity Platform's
+    // own auto-generated uid is a 28-char non-UUID string, so leaving this
+    // unset made every new-staff insert below fail with "invalid input
+    // syntax for type uuid" and roll back the just-created auth user. A
+    // caller-supplied UUID satisfies both: it's what the profiles insert
+    // needs, and Identity Platform accepts any string up to 128 chars as
+    // a uid.
     const user = await createIdentityUser({
+      uid: randomUUID(),
       email: phoneToSyntheticEmail(phone),
       password: tempPassword,
       role: data.role,
