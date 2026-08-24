@@ -106,7 +106,14 @@ export async function registerTelegramWebhookAction(): Promise<{ error?: string;
   if (!appUrl || !secret) return { error: 'notConfigured' };
 
   try {
-    await telegramBot.telegram.setWebhook(`${appUrl}/api/telegram/webhook`, { secret_token: secret });
+    // NEXT_PUBLIC_APP_URL is the bare Cloud Run host — every real route
+    // (including this API one) actually lives under next.config.ts's
+    // basePath: '/staff'. Registering the unprefixed URL 404s on every
+    // delivery attempt; live getWebhookInfo confirmed exactly that ("Wrong
+    // response from the webhook: 404 Not Found", updates piling up
+    // undelivered) — same /staff-omission bug already hit twice today in
+    // the Cloud Scheduler job URLs.
+    await telegramBot.telegram.setWebhook(`${appUrl}/staff/api/telegram/webhook`, { secret_token: secret });
     return { success: true };
   } catch {
     return { error: 'webhookFailed' };

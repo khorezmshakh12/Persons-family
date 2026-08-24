@@ -61,11 +61,31 @@ export async function sendStaffChatMessageAction(
   const parsed = sendMessageSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidMessage' };
 
-  const [inserted] = await sql<{ id: string; created_at: string }[]>`
-    insert into staff_chat_messages (conversation_id, user_id, content)
-    values (${parsed.data.conversationId}, ${user.id}, ${parsed.data.content})
-    returning id, created_at
+  // sendMessageSchema only validates conversationId's *shape* (a uuid) — an
+  // authenticated teacher/assistant could otherwise post into any group's
+  // chat by supplying a different group's id, not just their own. Mirrors
+  // canWriteLesson's ownership check in course-lessons.ts.
+  const [group] = await sql<{ teacher_id: string | null; assigned_ta_id: string | null }[]>`
+    select teacher_id, assigned_ta_id from groups where id = ${parsed.data.conversationId}
   `;
+  if (!group || (group.teacher_id !== user.id && group.assigned_ta_id !== user.id)) {
+    return { error: 'forbidden' };
+  }
+
+  let inserted: { id: string; created_at: string } | undefined;
+  try {
+    [inserted] = await sql<{ id: string; created_at: string }[]>`
+      insert into staff_chat_messages (conversation_id, user_id, content)
+      values (${parsed.data.conversationId}, ${user.id}, ${parsed.data.content})
+      returning id, created_at
+    `;
+  } catch (error) {
+    // Mirrors staff-chats.ts's identical fix: a silent failure here used to
+    // make the optimistic bubble vanish with no explanation.
+    console.error('sendStaffChatMessageAction insert failed', error);
+    return { error: 'sendFailed' };
+  }
+  if (!inserted) return { error: 'sendFailed' };
 
   // Mirrors into group_chats/{groupId}/messages for instant delivery — see
   // lib/gcp/firestoreAdmin.ts's mirrorGroupChatMessage(). Membership for
