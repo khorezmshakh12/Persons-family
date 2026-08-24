@@ -46,9 +46,14 @@ async function notifyTaskAssigned({
 }) {
   if (!assigneeTelegramId) return;
   try {
+    // Cloud Run's container clock is UTC, and Intl formatting defaults to
+    // the runtime's own timezone when none is given — without an explicit
+    // timeZone this rendered every deadline 5 hours behind actual Tashkent
+    // time.
     const deadlineLabel = new Date(deadline).toLocaleString('uz-UZ', {
       dateStyle: 'medium',
       timeStyle: 'short',
+      timeZone: 'Asia/Tashkent',
     });
     const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}\nMuddati: ${escapeTelegramText(deadlineLabel)}`;
     await sendTelegramMessage(assigneeTelegramId, text);
