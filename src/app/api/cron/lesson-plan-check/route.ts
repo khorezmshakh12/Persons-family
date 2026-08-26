@@ -163,8 +163,18 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
     // A lesson whose content moved to another date (see moveLessonPlanAction)
     // counts as done here — the teacher documented why with a required
     // reason, tracked on the destination row, so this day isn't "missing."
+    //
+    // generateLessonSlotsForMonth pre-creates an empty row for every group
+    // on every non-Sunday date, so "no row at all" (the original meaning of
+    // 'missing') essentially never happens anymore — every group now has
+    // *a* row, just possibly a fully blank one. Without this check, a
+    // teacher who wrote literally nothing showed as "to'liq emas"
+    // (incomplete, implying partial progress) instead of "yozilmagan" (not
+    // written at all), which understates the gap.
+    const isBlank = (l: (typeof groupLessons)[number]) =>
+      !l.topic?.trim() && !l.aim?.trim() && !l.language_focus?.trim() && !l.anticipated_problems?.trim() && !l.homework?.trim();
     const status: GroupStatus['status'] =
-      groupLessons.length === 0
+      groupLessons.length === 0 || groupLessons.every((l) => isBlank(l) && l.moved_to_lesson_id === null)
         ? 'missing'
         : groupLessons.some((l) => isLessonPlanComplete(l) || l.moved_to_lesson_id !== null)
           ? 'complete'
