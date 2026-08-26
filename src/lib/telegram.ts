@@ -50,12 +50,27 @@ export async function sendTelegramMessage(chatId: string | number, text: string)
 /** Sends the same message to multiple chat ids, deduplicated, silently
  * skipping nulls (staff who haven't connected Telegram yet). Each send is
  * caught individually so one bad chat id (blocked bot, deleted account)
- * can't fail Promise.all and take the rest of the batch down with it. */
+ * can't fail Promise.all and take the rest of the batch down with it.
+ *
+ * Accepts string ids too — postgres-js returns `bigint` columns (like
+ * profiles.telegram_id and telegram_group_chats.chat_id, both bigint) as
+ * JS strings, not numbers, to avoid silent precision loss. A `typeof id
+ * === 'number'` filter here used to reject every one of those, silently
+ * emptying `unique` and skipping every send — no error, no log line, just
+ * a compliance report that quietly never left the database. Chat/user ids
+ * fit in a 52-bit range (Telegram's own guarantee), well inside
+ * Number.MAX_SAFE_INTEGER, so Number(id) is a safe, lossless conversion. */
 export async function sendTelegramMessageToMany(
-  chatIds: (number | null | undefined)[],
+  chatIds: (number | string | null | undefined)[],
   text: string,
 ): Promise<void> {
-  const unique = Array.from(new Set(chatIds.filter((id): id is number => typeof id === 'number')));
+  const unique = Array.from(
+    new Set(
+      chatIds
+        .map((id) => (typeof id === 'string' ? Number(id) : id))
+        .filter((id): id is number => typeof id === 'number' && Number.isFinite(id)),
+    ),
+  );
   await Promise.all(
     unique.map(async (id) => {
       try {
