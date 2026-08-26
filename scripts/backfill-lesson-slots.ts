@@ -1,6 +1,9 @@
 /**
  * One-time backfill: ensures every existing group has a course_lessons row
- * for every non-Sunday date in the current month. Fixes two things at once —
+ * for every date in the current month that matches its own weekly
+ * schedule_type (odd = Mon/Wed/Fri, even = Tue/Thu/Sat, Sunday always
+ * excluded — mirrors the lesson-plan-check cron's own weekday math, not
+ * date-of-month parity). Fixes two things at once —
  * the two groups created since the Cloud Run/Cloud SQL migration that have
  * zero lesson rows (no code path ever seeded them, see
  * generateLessonSlotsForMonth's comment in createGroupAction), and any gaps
@@ -35,16 +38,27 @@ function isSunday(dateKey: string): boolean {
   return new Date(`${dateKey}T00:00:00Z`).getUTCDay() === 0;
 }
 
+function weekdayParity(dateKey: string): 'odd' | 'even' {
+  return new Date(`${dateKey}T00:00:00Z`).getUTCDay() % 2 === 1 ? 'odd' : 'even';
+}
+
 function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
 async function generateLessonSlotsForMonth(groupId: string, year: number, month: number): Promise<number> {
+  const [group] = await sql<{ schedule_type: 'odd' | 'even' | null }[]>`
+    select schedule_type from groups where id = ${groupId}
+  `;
+  const scheduleType = group?.schedule_type ?? null;
+
   const total = daysInMonth(year, month);
   const dateKeys: string[] = [];
   for (let day = 1; day <= total; day += 1) {
     const dateKey = toDateKey(year, month, day);
-    if (!isSunday(dateKey)) dateKeys.push(dateKey);
+    if (isSunday(dateKey)) continue;
+    if (scheduleType && weekdayParity(dateKey) !== scheduleType) continue;
+    dateKeys.push(dateKey);
   }
   if (dateKeys.length === 0) return 0;
 

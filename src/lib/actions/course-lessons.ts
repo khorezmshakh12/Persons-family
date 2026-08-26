@@ -399,13 +399,27 @@ export async function moveLessonPlanAction(_prevState: LessonActionState, formDa
   if (!origin.topic?.trim()) return { error: 'nothingToMove' };
   if (origin.lesson_date === targetDate) return { error: 'moveSameDate' };
 
-  const [destination] = await sql<{ id: string; topic: string | null; moved_from_lesson_id: string | null }[]>`
+  let [destination] = await sql<{ id: string; topic: string | null; moved_from_lesson_id: string | null }[]>`
     select id, topic, moved_from_lesson_id from course_lessons
     where group_id = ${origin.group_id} and lesson_date = ${targetDate}
   `;
-  if (!destination) return { error: 'invalidDate' };
-  if (destination.topic?.trim() || destination.moved_from_lesson_id) {
+  if (destination && (destination.topic?.trim() || destination.moved_from_lesson_id)) {
     return { error: 'dateTaken', errorParams: { date: targetDate } };
+  }
+  // generateLessonSlotsForMonth only pre-creates a row on the group's own
+  // schedule_type days now, but a move is exactly the case where the
+  // teacher needs a day *outside* their normal rotation (a makeup class) —
+  // create the destination slot on the fly rather than requiring it to
+  // already exist.
+  if (!destination) {
+    const [{ maxNumber }] = await sql<{ maxNumber: number }[]>`
+      select coalesce(max(lesson_number), 0)::int as "maxNumber" from course_lessons where group_id = ${origin.group_id}
+    `;
+    [destination] = await sql<{ id: string; topic: string | null; moved_from_lesson_id: string | null }[]>`
+      insert into course_lessons (group_id, lesson_number, lesson_date)
+      values (${origin.group_id}, ${maxNumber + 1}, ${targetDate})
+      returning id, topic, moved_from_lesson_id
+    `;
   }
 
   await sql.begin(async (tx) => {
