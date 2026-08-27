@@ -7,6 +7,7 @@ import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import type { TeacherLevel } from '@/lib/teacher-level';
@@ -104,7 +105,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
             {target.first_name} {target.last_name}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-white/60">{tStaff(`roles.${target.role}`)}</span>
+            <span className="text-sm text-white/60">{roleLabel(tStaff, target.role)}</span>
             {target.role === 'teacher' && target.teacher_level && (
               <TeacherLevelBadge level={target.teacher_level} />
             )}

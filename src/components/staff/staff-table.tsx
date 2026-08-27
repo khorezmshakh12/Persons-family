@@ -18,6 +18,7 @@ import { StaffRowActions } from './staff-row-actions';
 import { TeacherLevelBadge } from './teacher-level-badge';
 import { InternshipLevelBadge } from './internship-level-badge';
 import { isLevelReviewDue } from '@/lib/teacher-level';
+import { roleLabel } from '@/lib/roles';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { ExportButtons } from '@/components/export/export-buttons';
@@ -102,7 +103,7 @@ export async function StaffTable({
                   </div>
                 </TableCell>
                 <TableCell>{person.phone}</TableCell>
-                <TableCell>{t(`roles.${person.role}`)}</TableCell>
+                <TableCell>{roleLabel(t, person.role)}</TableCell>
                 <TableCell>
                   {person.role === 'teacher' && person.teacher_level ? (
                     <div className="flex items-center gap-2">

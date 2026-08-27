@@ -6,6 +6,7 @@ import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type FinanceEntry } from '@/components/finance/finance-entries-list';
 import { SalarySection } from '@/components/salary/salary-section';
@@ -62,7 +63,7 @@ export async function FinanceDetailContent({ staffId }: { staffId: string }) {
           <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
             {target.first_name} {target.last_name}
           </h1>
-          <span className="text-sm text-white/60">{tStaff(`roles.${target.role}`)}</span>
+          <span className="text-sm text-white/60">{roleLabel(tStaff, target.role)}</span>
         </div>
       </div>
 

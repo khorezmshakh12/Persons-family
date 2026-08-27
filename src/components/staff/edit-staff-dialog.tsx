@@ -19,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeacherLevelBadge } from './teacher-level-badge';
 import { INTERNSHIP_LEVELS } from '@/lib/internship-level';
+import { roleLabel } from '@/lib/roles';
 import type { Profile } from '@/lib/auth/session';
 
 const ALL_ROLES = [
@@ -185,7 +186,7 @@ export function EditStaffDialog({
             <Label htmlFor={`role-${profile.id}`}>{t('role')}</Label>
             <Select name="role" defaultValue={profile.role}>
               <SelectTrigger id={`role-${profile.id}`} className="w-full">
-                <SelectValue>{(value: string) => t(`roles.${value}`)}</SelectValue>
+                <SelectValue>{(value: string) => roleLabel(t, value)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {roles.map((r) => (
