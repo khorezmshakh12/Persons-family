@@ -2,12 +2,11 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 // Aliased: this file also exports the route-segment config `dynamic` below.
 import nextDynamic from 'next/dynamic';
-import { getTranslations, getLocale } from 'next-intl/server';
-import { Link, redirect } from '@/i18n/navigation';
+import { getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
-import { LESSON_PLAN_ROLES } from '@/lib/nav';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
@@ -34,19 +33,9 @@ export const dynamic = 'force-dynamic';
 export default async function GroupPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const t = await getTranslations('lessonPlans');
+  // Role gating for this whole section happens in lesson-plans/layout.tsx —
+  // see its comment for why that redirect can't live here.
   const { user, profile } = await getAuthState();
-  const locale = await getLocale();
-
-  // Lesson-plan visibility is CEO / Head Teacher / IT Developer (view-only,
-  // re-added so it can investigate compliance-bot reports) / owning teacher
-  // / assigned TA only. This used to lean on RLS returning no row for
-  // anyone else, with the redirect just making that a clean bounce instead
-  // of a bare 404 — RLS is gone, so the allowlist (LESSON_PLAN_ROLES) is
-  // now the only thing enforcing it and must cover every role that should
-  // pass.
-  if (!LESSON_PLAN_ROLES.includes(profile!.role)) {
-    redirect({ href: '/dashboard', locale });
-  }
 
   const [groupRow] = await sql<
     {

@@ -1,11 +1,9 @@
 import { Suspense } from 'react';
 // Aliased: this file also exports the route-segment config `dynamic` below.
 import nextDynamic from 'next/dynamic';
-import { getTranslations, getLocale } from 'next-intl/server';
-import { redirect } from '@/i18n/navigation';
+import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { LESSON_PLAN_ROLES } from '@/lib/nav';
 import { GroupsGrid } from '@/components/lesson-plans/groups-grid';
 import { GroupFilters } from '@/components/lesson-plans/group-filters';
 import { GlassGroupGridSkeleton } from '@/components/skeletons/glass-skeletons';
@@ -23,22 +21,9 @@ export default async function LessonPlansPage({
 }) {
   const { days, teacher } = await searchParams;
   const t = await getTranslations('lessonPlans');
+  // Role gating for this whole section happens in lesson-plans/layout.tsx —
+  // see its comment for why that redirect can't live here.
   const { profile } = await getAuthState();
-  const locale = await getLocale();
-
-  // Lesson-plan visibility is CEO / Head Teacher / owning teacher / assigned
-  // TA only — see 20260806110000_remove_admin_manager_lesson_plan_access.sql
-  // (Administrative Manager dropped) and
-  // 20260812090100_head_teacher_and_it_developer_rls.sql (IT Developer
-  // dropped, Head Teacher taking its place). The nav item is already hidden
-  // for everyone else (src/lib/nav.ts); this blocks a direct visit to the URL
-  // too. Kept as an allowlist matching that nav entry rather than a denylist
-  // of the two roles that lost access — RLS used to return zero rows for any
-  // other role (mmd, internship), and with RLS gone a denylist
-  // would let those roles straight through.
-  if (!LESSON_PLAN_ROLES.includes(profile!.role)) {
-    redirect({ href: '/dashboard', locale });
-  }
 
   const isTeacher = profile!.role === 'teacher';
 
