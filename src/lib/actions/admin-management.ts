@@ -37,7 +37,11 @@ export async function toggleAdminActiveAction(
   const target = await requireAdminTarget(parsed.data.id);
   if (!target) return { error: 'notFound' };
 
-  await sql`update profiles set is_active = ${!target.is_active} where id = ${parsed.data.id}`;
+  try {
+    await sql`update profiles set is_active = ${!target.is_active} where id = ${parsed.data.id}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -74,7 +78,11 @@ export async function deleteAdminAction(
   } catch {
     return { error: 'deleteFailed' };
   }
-  await sql`delete from profiles where id = ${parsed.data.id}`;
+  try {
+    await sql`delete from profiles where id = ${parsed.data.id}`;
+  } catch {
+    return { error: 'deleteFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -132,7 +140,11 @@ export async function transferCeoRoleAction(
   const target = await requireAdminTarget(parsed.data.id);
   if (!target) return { error: 'notFound' };
 
-  await sql`update profiles set role = 'ceo' where id = ${parsed.data.id}`;
+  try {
+    await sql`update profiles set role = 'ceo' where id = ${parsed.data.id}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
