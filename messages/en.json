@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Persons Education Company"
+    "name": "Persons Education Company",
+    "description": "Persons Staff is the internal staff platform for Persons Education Company: lesson plans, schedules, tasks, finance and team communication in one place."
   },
   "common": {
     "save": "Save",

@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Persons Education Company"
+    "name": "Persons Education Company",
+    "description": "Persons Staff — внутренняя платформа для сотрудников Persons Education Company: планы уроков, расписания, задачи, финансы и общение команды в одном месте."
   },
   "common": {
     "save": "Сохранить",

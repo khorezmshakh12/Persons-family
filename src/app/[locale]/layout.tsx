@@ -49,7 +49,16 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'app' });
   return {
-    title: t('name'),
+    // The Cloud Run URL (NEXT_PUBLIC_APP_URL) is an implementation detail
+    // that shouldn't itself be indexed — persons-staffs.uz is the domain
+    // actually meant to surface in search, so metadata resolves against it
+    // regardless of which host served the response.
+    metadataBase: new URL('https://www.persons-staffs.uz'),
+    title: {
+      default: `Persons Staff | ${t('name')}`,
+      template: `%s | Persons Staff`,
+    },
+    description: t('description'),
   };
 }
 
