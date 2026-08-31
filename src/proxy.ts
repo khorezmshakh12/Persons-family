@@ -5,26 +5,32 @@ import { getSessionUser } from '@/lib/gcp/middleware';
 
 const handleI18nRouting = createIntlMiddleware(routing);
 
-// Kill switch for a full site lockout — set via `vercel --prod -e
-// MAINTENANCE_MODE=true` (a one-off deploy-scoped env var, not persisted to
-// the project's normal env var store) so turning it back off is just a
-// plain `vercel --prod` redeploy, no flag to remember to unset.
-const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
+// Kill switch for a full site lockout. Currently ON for the platform
+// upgrade — every request (including logged-in users) gets the maintenance
+// page and nothing else.
+//
+// TO BRING THE SITE BACK: change the line below to
+//   const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
+// and redeploy `main`.
+const MAINTENANCE_MODE = true;
 
 const MAINTENANCE_HTML = `<!DOCTYPE html>
 <html lang="uz">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Yangilanish jarayonida</title>
+<title>Texnik ishlar</title>
 <style>
-  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 24px; }
-  h1 { font-size: 1.4rem; font-weight: 600; margin: 0; max-width: 32rem; }
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 12px; font-family: system-ui, -apple-system, sans-serif;
+    background: #0f172a; color: #fff; text-align: center; padding: 24px; }
+  h1 { font-size: 1.5rem; font-weight: 600; margin: 0; max-width: 34rem; line-height: 1.4; }
+  p { margin: 0; font-size: 1rem; color: #94a3b8; max-width: 34rem; }
 </style>
 </head>
 <body>
-  <h1>Yangilanish jarayonida, Adminga murojat qiling!</h1>
+  <h1>Sayt tuzatish va yangilash ishlari olib borilyapti</h1>
+  <p>Iltimos, birozdan so'ng qayta urinib ko'ring.</p>
 </body>
 </html>`;
 
