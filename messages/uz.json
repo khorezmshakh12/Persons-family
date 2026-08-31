@@ -38,7 +38,8 @@
     "roadmap": "Yo'l xaritasi",
     "settings": "Sozlamalar",
     "profile": "Mening profilim",
-    "materials": "Materiallar"
+    "materials": "Materiallar",
+    "market": "Persons Market"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -452,7 +453,11 @@
       "moveReasonPlaceholder": "Nega dars reja bo'yicha o'tmadi...",
       "moveSubmit": "Ko'chirish",
       "movedToNote": "{date} sanasiga ko'chirildi",
-      "movedFromNote": "{date} sanasidan ko'chirilgan"
+      "movedFromNote": "{date} sanasidan ko'chirilgan",
+      "pastMonths": "O'tgan oylar",
+      "upcomingMonths": "Keyingi oylar",
+      "readOnly": "Faqat o'qish",
+      "noLessonsThisMonth": "Bu oy uchun hali darslar rejalashtirilmagan."
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -471,7 +476,22 @@
       "alreadyMoved": "Bu lesson plan allaqachon ko'chirilgan.",
       "nothingToMove": "Ko'chirishdan oldin mavzuni kiriting.",
       "moveSameDate": "Ko'chirish uchun boshqa sana tanlang.",
-      "invalidDate": "Bu sana hali mavjud emas."
+      "invalidDate": "Bu sana hali mavjud emas.",
+      "monthLocked": "Bu oy yopilgan — o'tgan oylardagi dars rejalari faqat o'qish uchun."
+    },
+    "months": {
+      "january": "Yanvar",
+      "february": "Fevral",
+      "march": "Mart",
+      "april": "Aprel",
+      "may": "May",
+      "june": "Iyun",
+      "july": "Iyul",
+      "august": "Avgust",
+      "september": "Sentabr",
+      "october": "Oktabr",
+      "november": "Noyabr",
+      "december": "Dekabr"
     }
   },
   "staffChat": {
@@ -519,10 +539,35 @@
       "invalidAssignee": "Sizda bu vazifani ushbu shaxsga biriktirish uchun ruxsat yo'q.",
       "createFailed": "Vazifani berib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
-      "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
+      "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring.",
+      "commentFailed": "Izohni yuborib bo'lmadi. Qayta urinib ko'ring.",
+      "loadFailed": "Izohlarni yuklab bo'lmadi. Qayta urinib ko'ring."
     },
     "deadline": "Muddat",
-    "overdue": "Muddati o'tgan"
+    "overdue": "Muddati o'tgan",
+    "comments": {
+      "title": "Izohlar",
+      "empty": "Hozircha izoh yo'q.",
+      "loading": "Izohlar yuklanmoqda…",
+      "placeholder": "Izoh yozing…",
+      "send": "Yuborish",
+      "deleteComment": "Izohni o'chirish",
+      "viewOnly": "Siz bu suhbatni faqat o'qishingiz mumkin."
+    },
+    "archive": {
+      "title": "Oylik arxiv",
+      "efficiency": "Samaradorlik {pct}%",
+      "totalDue": "Muddati bor: {count}",
+      "onTime": "O'z vaqtida: {count}",
+      "late": "Kechikkan: {count}",
+      "notDone": "Bajarilmagan: {count}",
+      "noTasks": "Bu oyda bajarilgan vazifalar yo'q.",
+      "onTimeBadge": "O'z vaqtida",
+      "lateBadge": "Kechikkan",
+      "completedOn": "Bajarildi {date}"
+    },
+    "starReward": "Yulduz mukofoti",
+    "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q."
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -748,7 +793,9 @@
       "invalidInput": "Iltimos, kamida bitta maydonni to'ldiring.",
       "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
       "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
-    }
+    },
+    "starAward": "Yulduz mukofoti",
+    "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi."
   },
   "performance": {
     "title": "Samaradorlik",
@@ -1119,6 +1166,58 @@
         "alreadyReviewed": "Bu so'rov allaqachon ko'rib chiqilgan.",
         "notFound": "Topilmadi."
       }
+    },
+    "stars": {
+      "title": "Yulduzlar",
+      "starCount": "{count} yulduz",
+      "noTransactions": "Hozircha yulduz harakatlari yo'q.",
+      "byName": "{name} tomonidan",
+      "source": {
+        "self_development": "O'z-o'zini rivojlantirish",
+        "task": "Vazifa",
+        "manual": "CEO mukofoti",
+        "purchase": "Persons Market xaridi",
+        "refund": "Qaytarildi",
+        "penalty": "Jarima"
+      },
+      "errors": {
+        "invalidInput": "Maydonlarni tekshirib, qayta urinib ko'ring.",
+        "forbidden": "Sizda bunga ruxsat yo'q.",
+        "sessionExpired": "Sessiya tugadi — sahifani yangilab, qayta kiring.",
+        "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+      }
+    }
+  },
+  "market": {
+    "title": "Persons Market",
+    "subtitle": "Yig'gan yulduzlaringizni sovg'alarga almashtiring.",
+    "yourBalance": "Sizning balansingiz",
+    "starCount": "{count} yulduz",
+    "itemsTitle": "Sovg'alar",
+    "noItems": "Hozircha sovg'alar yo'q.",
+    "unlimitedStock": "Cheklanmagan",
+    "stockLeft": "{count} ta qoldi",
+    "outOfStock": "Tugagan",
+    "myOrdersTitle": "Mening buyurtmalarim",
+    "noOrders": "Hali buyurtma bermagansiz.",
+    "status": {
+      "pending": "Kutilmoqda",
+      "approved": "Tasdiqlangan",
+      "rejected": "Rad etilgan",
+      "fulfilled": "Topshirilgan"
+    },
+    "errors": {
+      "invalidInput": "Maydonlarni tekshirib, qayta urinib ko'ring.",
+      "forbidden": "Sizda bunga ruxsat yo'q.",
+      "sessionExpired": "Sessiya tugadi — sahifani yangilab, qayta kiring.",
+      "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "itemNotFound": "Bu sovg'a topilmadi.",
+      "orderNotFound": "Bu buyurtma topilmadi.",
+      "alreadyDecided": "Bu buyurtma bo'yicha qaror allaqachon qabul qilingan.",
+      "itemInactive": "Bu sovg'a hozir mavjud emas.",
+      "outOfStock": "Bu sovg'a tugagan.",
+      "insufficientStars": "Yulduzlaringiz yetarli emas."
     }
   }
 }

@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
 import { createSignedReadUrl } from '@/lib/gcp/storage';
 import { CourseLessonsTable, type CourseLessonRow } from './course-lessons-table';
@@ -10,6 +11,7 @@ import type { LessonProcedureStep } from '@/lib/actions/course-lessons';
 // group page, matching the pattern used for the rest of this group-detail view.
 export async function CourseLessonsSection({
   groupId,
+  currentMonthKey,
   canEditContent,
   canDeleteFiles,
   canComment,
@@ -17,12 +19,15 @@ export async function CourseLessonsSection({
   viewerName,
 }: {
   groupId: string;
+  /** 'YYYY-MM' in Asia/Tashkent, decided by the page — see its comment. */
+  currentMonthKey: string;
   canEditContent: boolean;
   canDeleteFiles: boolean;
   canComment: boolean;
   currentUserId: string;
   viewerName: string;
 }) {
+  const t = await getTranslations('lessonPlans');
   const lessons = await sql<
     {
       id: string;
@@ -118,15 +123,86 @@ export async function CourseLessonsSection({
     };
   });
 
+  // The teacher's working view is this month and this month only; every
+  // other month is folded away behind its own collapsed header. A row with
+  // no date yet has no month to be filed under and would otherwise vanish
+  // from the page entirely — it stays in the current-month table, which is
+  // also the only place its date can still be set.
+  const monthOf = (row: CourseLessonRow) => (row.lesson_date ? row.lesson_date.slice(0, 7) : currentMonthKey);
+
+  const currentMonthRows = rows.filter((row) => monthOf(row) === currentMonthKey);
+  const byMonth = new Map<string, CourseLessonRow[]>();
+  for (const row of rows) {
+    const key = monthOf(row);
+    if (key === currentMonthKey) continue;
+    const bucket = byMonth.get(key) ?? [];
+    bucket.push(row);
+    byMonth.set(key, bucket);
+  }
+
+  const otherMonths = [...byMonth.keys()];
+  // Past: newest first, so last month is the one nearest to hand. Future
+  // months exist because slot generation runs a month ahead (see
+  // createGroupAction / the monthly cron) and because a lesson can be moved
+  // forward into one — they're collapsed like the past but stay editable,
+  // since nothing about them is closed yet.
+  const pastMonths = otherMonths.filter((key) => key < currentMonthKey).sort((a, b) => b.localeCompare(a));
+  const upcomingMonths = otherMonths.filter((key) => key > currentMonthKey).sort((a, b) => a.localeCompare(b));
+
   return (
-    <CourseLessonsTable
-      groupId={groupId}
-      lessons={rows}
-      canEditContent={canEditContent}
-      canDeleteFiles={canDeleteFiles}
-      canComment={canComment}
-      currentUserId={currentUserId}
-      viewerName={viewerName}
-    />
+    <div className="flex flex-col gap-4">
+      <CourseLessonsTable
+        groupId={groupId}
+        lessons={currentMonthRows}
+        canEditContent={canEditContent}
+        canDeleteFiles={canDeleteFiles}
+        canComment={canComment}
+        currentUserId={currentUserId}
+        viewerName={viewerName}
+      />
+
+      {upcomingMonths.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
+            {t('courseLessons.upcomingMonths')}
+          </h3>
+          {upcomingMonths.map((key) => (
+            <CourseLessonsTable
+              key={key}
+              groupId={groupId}
+              lessons={byMonth.get(key)!}
+              monthKey={key}
+              canEditContent={canEditContent}
+              canDeleteFiles={canDeleteFiles}
+              canComment={canComment}
+              currentUserId={currentUserId}
+              viewerName={viewerName}
+            />
+          ))}
+        </div>
+      )}
+
+      {pastMonths.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
+            {t('courseLessons.pastMonths')}
+          </h3>
+          {pastMonths.map((key) => (
+            <CourseLessonsTable
+              key={key}
+              groupId={groupId}
+              lessons={byMonth.get(key)!}
+              monthKey={key}
+              locked
+              canEditContent={canEditContent}
+              canDeleteFiles={canDeleteFiles}
+              canComment={canComment}
+              currentUserId={currentUserId}
+              viewerName={viewerName}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

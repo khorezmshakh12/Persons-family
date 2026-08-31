@@ -48,6 +48,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'app' });
+  const loginPath = `/staff/${locale}/login`;
   return {
     // The Cloud Run URL (NEXT_PUBLIC_APP_URL) is an implementation detail
     // that shouldn't itself be indexed — persons-staffs.uz is the domain
@@ -59,6 +60,32 @@ export async function generateMetadata({
       template: `%s | Persons Staff`,
     },
     description: t('description'),
+    applicationName: 'Persons Staff',
+    keywords: ['Persons Staff', 'Persons Education', 'persons-staffs.uz', 'xodimlar platformasi', 'staff platform'],
+    alternates: {
+      canonical: loginPath,
+      languages: {
+        uz: '/staff/uz/login',
+        ru: '/staff/ru/login',
+        en: '/staff/en/login',
+      },
+    },
+    openGraph: {
+      type: 'website',
+      siteName: 'Persons Staff',
+      url: loginPath,
+      title: `Persons Staff | ${t('name')}`,
+      description: t('description'),
+      locale,
+    },
+    robots: { index: true, follow: true },
+    // Drop the Google Search Console verification token into
+    // NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION (an env var on the Cloud Run
+    // service) — no code change needed to activate it once the request is
+    // approved.
+    verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+      : undefined,
   };
 }
 

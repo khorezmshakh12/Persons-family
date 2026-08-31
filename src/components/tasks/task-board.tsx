@@ -5,9 +5,16 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { updateTaskStatusAction, deleteTaskAction, getVisibleTasksAction, type VisibleTaskRow } from '@/lib/actions/tasks';
+import {
+  updateTaskStatusAction,
+  deleteTaskAction,
+  getVisibleTasksAction,
+  type MonthlyTaskArchiveEntry,
+  type VisibleTaskRow,
+} from '@/lib/actions/tasks';
 import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { TaskKanbanColumn } from './task-kanban-column';
+import { MonthlyArchive } from './monthly-archive';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
@@ -19,11 +26,17 @@ export function TaskBoard({
   isAdmin,
   assignees,
   currentUserId,
+  archive,
 }: {
   tasks: Task[];
   isAdmin: boolean;
   assignees: Assignee[];
   currentUserId: string;
+  /** Past Tashkent months of completed work, rendered under the columns.
+   * Server-prepared (see getMonthlyTaskArchiveAction) and static for the
+   * life of the page — a task completed now stays on the board until its
+   * month rolls over, so a live refresh can never move a row into it. */
+  archive: MonthlyTaskArchiveEntry[];
 }) {
   const t = useTranslations('tasks');
   const [tasks, setTasks] = useState(initialTasks);
@@ -49,9 +62,11 @@ export function TaskBoard({
         title: row.title,
         description: row.description,
         assigned_to: row.assigned_to,
+        // Fed through for TaskCard's comment gate (assignee / assigner / CEO).
+        assigned_by: row.assigned_by,
         deadline: row.deadline,
         status: row.status,
-        is_overdue: row.status !== 'done' && new Date(row.deadline).getTime() < Date.now(),
+        is_overdue: row.is_overdue,
         assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
       };
     }
@@ -121,22 +136,28 @@ export function TaskBoard({
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {COLUMNS.map((status) => (
-          <TaskKanbanColumn
-            key={status}
-            status={status}
-            label={t(`columns.${status}`)}
-            tasks={tasks.filter((task) => task.status === status)}
-            isAdmin={isAdmin}
-            assignees={assignees}
-            currentUserId={currentUserId}
-            emptyLabel={t('noTasks')}
-            onRequestDelete={handleRequestDelete}
-          />
-        ))}
-      </div>
-    </DndContext>
+    <div className="flex flex-col gap-8">
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+          {COLUMNS.map((status) => (
+            <TaskKanbanColumn
+              key={status}
+              status={status}
+              label={t(`columns.${status}`)}
+              tasks={tasks.filter((task) => task.status === status)}
+              isAdmin={isAdmin}
+              assignees={assignees}
+              currentUserId={currentUserId}
+              emptyLabel={t('noTasks')}
+              onRequestDelete={handleRequestDelete}
+              // Done piles up all month; one "Bajarilgan · N" row keeps the
+              // two active columns readable (spec #5). Still a drop target.
+              collapsible={status === 'done'}
+            />
+          ))}
+        </div>
+      </DndContext>
+      <MonthlyArchive months={archive} isAdmin={isAdmin} />
+    </div>
   );
 }

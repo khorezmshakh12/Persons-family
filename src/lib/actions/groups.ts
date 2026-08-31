@@ -9,6 +9,7 @@ import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
 import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
 import { generateLessonSlotsForMonth } from '@/lib/lesson-generation';
+import { currentMonthKey } from '@/lib/lesson-months';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -101,14 +102,25 @@ export async function createGroupAction(
   // rows) — this used to be seeded by a Supabase-side mechanism that never
   // got ported to Cloud SQL, so every group created since that migration
   // silently had no lesson plan slots at all until this call.
-  const [todayY, todayM] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' })
-    .format(new Date())
-    .split('-')
-    .map(Number);
-  try {
-    await generateLessonSlotsForMonth(groupId, todayY, todayM);
-  } catch (error) {
-    console.error('generateLessonSlotsForMonth failed for new group', groupId, error);
+  //
+  // Next month is seeded here too: the monthly generation cron only runs at
+  // the turn of the month, so a group created on e.g. the 28th would have
+  // had a handful of slots left in the current month and then nothing at all
+  // until the *following* month's run — one full month of blank lesson
+  // plans. Both calls are independent and idempotent (generateLessonSlots-
+  // ForMonth's own `where not exists` guard), so the cron re-running over
+  // next month later is a no-op rather than a duplicate.
+  const [thisYear, thisMonth] = currentMonthKey().split('-').map(Number);
+  const seedMonths: [number, number][] = [
+    [thisYear, thisMonth],
+    thisMonth === 12 ? [thisYear + 1, 1] : [thisYear, thisMonth + 1],
+  ];
+  for (const [year, month] of seedMonths) {
+    try {
+      await generateLessonSlotsForMonth(groupId, year, month);
+    } catch (error) {
+      console.error('generateLessonSlotsForMonth failed for new group', groupId, year, month, error);
+    }
   }
 
   // Keeps group_chat_meta/{groupId} in sync so the group's Firestore-backed

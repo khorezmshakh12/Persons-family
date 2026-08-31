@@ -9,6 +9,7 @@ import { GripVertical } from 'lucide-react';
 import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
+import { TaskCommentsDrawer } from './task-comments-drawer';
 import type { Assignee } from './assign-task-dialog';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
@@ -23,6 +24,13 @@ export type Task = {
   status: TaskStatus;
   is_overdue: boolean;
   assignee: { first_name: string; last_name: string } | null;
+  /** The CEO who assigned this task. Optional only because the board's
+   * snapshot mapping predates task comments — when it is absent the card
+   * falls back to "assignee or CEO", and createTaskCommentAction re-checks
+   * the assigner server-side either way. */
+  assigned_by?: string | null;
+  /** Server-rendered comment count for the closed drawer trigger. */
+  comment_count?: number;
 };
 
 function TaskCardImpl({
@@ -44,6 +52,12 @@ function TaskCardImpl({
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
   // `auth.uid() <> new.assigned_to` check.
   const canDrag = task.assigned_to === currentUserId;
+  // Spec #1: a task's thread belongs to the person who received it, the
+  // person who assigned it, and the CEO (isAdmin here is exactly
+  // `role === 'ceo'` — see tasks/page.tsx). This only decides whether the
+  // composer is shown; createTaskCommentAction re-checks it server-side.
+  const canComment =
+    isAdmin || task.assigned_to === currentUserId || task.assigned_by === currentUserId;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     disabled: !canDrag,
@@ -114,7 +128,16 @@ function TaskCardImpl({
             )}
           </span>
         </div>
-        <TaskStatusControl status={task.status} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TaskStatusControl status={task.status} />
+          <TaskCommentsDrawer
+            taskId={task.id}
+            taskTitle={task.title}
+            currentUserId={currentUserId}
+            canComment={canComment}
+            commentCount={task.comment_count ?? 0}
+          />
+        </div>
       </motion.div>
     </div>
   );

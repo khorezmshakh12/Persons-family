@@ -32,6 +32,7 @@ export function LessonCommentsDrawer({
   currentUserId,
   viewerName,
   canComment,
+  locked = false,
 }: {
   lessonId: string;
   lessonNumber: number;
@@ -39,6 +40,10 @@ export function LessonCommentsDrawer({
   currentUserId: string;
   viewerName: string;
   canComment: boolean;
+  /** The lesson's month is closed: its discussion is part of that finished
+   * record, so deleting your own comment is off the table too (the same rule
+   * deleteLessonCommentAction enforces server-side). Reading stays open. */
+  locked?: boolean;
 }) {
   const t = useTranslations('lessonPlans');
   const format = useFormatter();
@@ -125,7 +130,7 @@ export function LessonCommentsDrawer({
                     </div>
                     <p className="text-sm text-white/85">{c.comment_text}</p>
                   </div>
-                  {c.user_id === currentUserId && !isOptimistic && (
+                  {c.user_id === currentUserId && !isOptimistic && !locked && (
                     <button
                       type="button"
                       onClick={() => handleDelete(c.id)}

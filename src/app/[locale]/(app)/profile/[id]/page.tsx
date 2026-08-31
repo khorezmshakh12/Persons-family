@@ -13,6 +13,7 @@ import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import type { TeacherLevel } from '@/lib/teacher-level';
 import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
+import { StarBalanceCard } from '@/components/profile/star-balance-card';
 import { WarningsCard } from '@/components/profile/warnings-card';
 import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
@@ -121,8 +122,22 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </SectionErrorBoundary>
       </div>
 
+      {/* Stars are self-or-CEO, same scope as self-development —
+          getStarLedgerAction enforces that server-side too and returns []
+          for anyone else, so this gate only controls whether the card is
+          worth rendering at all. */}
       {canViewCeoScoped && (
         <div className="animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <StarBalanceCard staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+      )}
+
+      {canViewCeoScoped && (
+        <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
@@ -131,7 +146,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </div>
       )}
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
+      <div className="animate-fade-in-up" style={{ animationDelay: '280ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <WarningsCard staffId={id} canManage={canManageWarnings} />
@@ -139,7 +154,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </SectionErrorBoundary>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '280ms' }}>
+      <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <BonusesPunishmentsCard staffId={id} canManage={canManage} />
@@ -149,14 +164,14 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
 
       {canViewCeoScoped && (
         <>
-          <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+          <div className="animate-fade-in-up" style={{ animationDelay: '420ms' }}>
             <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
               <Suspense fallback={<GlassCardSkeleton />}>
                 <DutiesCard staffId={id} canManage={canManage} />
               </Suspense>
             </SectionErrorBoundary>
           </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '420ms' }}>
+          <div className="animate-fade-in-up" style={{ animationDelay: '490ms' }}>
             <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
               <Suspense fallback={<GlassCardSkeleton />}>
                 <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />

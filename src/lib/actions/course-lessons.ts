@@ -6,28 +6,45 @@ import { sql, toJson } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
+import { currentMonthKey, isPastMonth } from '@/lib/lesson-months';
 
 export type LessonActionState = { error?: string; errorParams?: Record<string, string> } | undefined;
 export type UploadUrlResult = { path?: string; url?: string; error?: string; detail?: string };
 
 /**
- * Reproduces the old `course_lessons_update` RLS policy
- * (`public.is_group_owner(group_id) or public.current_role() = 'ceo'`, see
- * the head_teacher/it_developer RLS migration) — with RLS gone, a bare
- * `update course_lessons ... where id = $1` is no longer narrowed to the
- * owning teacher by the database, so any signed-in employee could edit any
- * group's lesson plan by posting someone else's lessonId. Every write below
- * checks this first. `is_group_owner` was just
- * `groups.teacher_id = auth.uid()`, so that's what the join checks.
+ * Why a write to `lessonId` is refused, or null when it's allowed.
+ * `forbidden` is the ownership answer, `monthLocked` the calendar one — kept
+ * apart only so the UI can say which; both are hard denials.
  */
-async function canWriteLesson(lessonId: string, uid: string, role: string | undefined): Promise<boolean> {
-  if (role === 'ceo') return true;
-  const [row] = await sql<{ id: string }[]>`
-    select cl.id from course_lessons cl
+type LessonWriteDenial = 'forbidden' | 'monthLocked' | null;
+
+/**
+ * Two independent gates, both of which must pass (ownership AND month):
+ *
+ * 1. Ownership — reproduces the old `course_lessons_update` RLS policy
+ *    (`public.is_group_owner(group_id) or public.current_role() = 'ceo'`, see
+ *    the head_teacher/it_developer RLS migration). With RLS gone, a bare
+ *    `update course_lessons ... where id = $1` is no longer narrowed to the
+ *    owning teacher by the database, so any signed-in employee could edit
+ *    any group's lesson plan by posting someone else's lessonId.
+ *    `is_group_owner` was just `groups.teacher_id = auth.uid()`, so that's
+ *    what the join checks.
+ *
+ * 2. Month — a finished month's lesson plans are a closed record. This gate
+ *    is deliberately evaluated *before* the role branch, so it binds the CEO
+ *    exactly as it binds the owning teacher: nobody writes into a month the
+ *    compliance cron has already reported on.
+ */
+async function lessonWriteDenial(lessonId: string, uid: string, role: string | undefined): Promise<LessonWriteDenial> {
+  const [row] = await sql<{ lesson_date: string | null; teacher_id: string }[]>`
+    select cl.lesson_date, g.teacher_id from course_lessons cl
     join groups g on g.id = cl.group_id
-    where cl.id = ${lessonId} and g.teacher_id = ${uid}
+    where cl.id = ${lessonId}
   `;
-  return Boolean(row);
+  if (!row) return 'forbidden';
+  if (isPastMonth(row.lesson_date)) return 'monthLocked';
+  if (role === 'ceo') return null;
+  return row.teacher_id === uid ? null : 'forbidden';
 }
 
 const updateLessonDateSchema = z.object({
@@ -49,7 +66,8 @@ export async function updateLessonDateAction(
   const parsed = updateLessonDateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   const nextDate = parsed.data.lessonDate || null;
 
@@ -90,7 +108,8 @@ export async function updateLessonTopicAction(
   const parsed = updateLessonTopicSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   // The lesson's date must be set before anything else about it can be
   // written — see the `lesson_date is not null` filter below, which also
@@ -126,7 +145,8 @@ export async function updateLessonGameLinkAction(
   const parsed = updateLessonGameLinkSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   const [row] = await sql<{ id: string }[]>`
     update course_lessons set game_link = ${parsed.data.gameLink || null}
@@ -160,7 +180,8 @@ export async function updateLessonPlanFieldAction(
   const parsed = lessonPlanFieldSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   const { field, value } = parsed.data;
   const nextValue = value || null;
@@ -201,7 +222,8 @@ export async function updateLessonProcedureAction(
   const parsed = updateLessonProcedureSchema.safeParse({ lessonId, steps });
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   const [row] = await sql<{ id: string }[]>`
     update course_lessons set procedure = ${sql.json(parsed.data.steps)}
@@ -246,8 +268,14 @@ export async function requestLessonMaterialUploadUrlAction(
 
   // Confirm the lesson actually belongs to this group — this app-level
   // check is what stands between the two path segments now.
-  const [lesson] = await sql<{ group_id: string }[]>`select group_id from course_lessons where id = ${lessonId}`;
+  const [lesson] = await sql<{ group_id: string; lesson_date: string | null }[]>`
+    select group_id, lesson_date from course_lessons where id = ${lessonId}
+  `;
   if (!lesson || lesson.group_id !== groupId) return { error: 'forbidden' };
+  // A closed month takes no new material either — attachLessonMaterialAction
+  // would refuse the follow-up metadata write anyway, so don't mint a URL
+  // whose only possible outcome is an orphaned object in the bucket.
+  if (isPastMonth(lesson.lesson_date)) return { error: 'monthLocked' };
 
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
   const path = `${parsed.data.groupId}/${parsed.data.lessonId}/${crypto.randomUUID()}-${sanitized}`;
@@ -280,7 +308,8 @@ export async function attachLessonMaterialAction(
   const parsed = attachSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   // The uploaded object lives at `${groupId}/${lessonId}/...` (see
   // requestLessonMaterialUploadUrlAction) — pin the recorded path to this
@@ -327,7 +356,8 @@ export async function removeLessonMaterialAction(
   const parsed = removeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  if (!(await canWriteLesson(parsed.data.lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
 
   const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
     select attachments from course_lessons where id = ${parsed.data.lessonId}
@@ -376,7 +406,12 @@ export async function moveLessonPlanAction(_prevState: LessonActionState, formDa
   if (!parsed.success) return { error: 'invalidInput' };
   const { lessonId, targetDate, reason } = parsed.data;
 
-  if (!(await canWriteLesson(lessonId, user.id, profile?.role))) return { error: 'forbidden' };
+  const denial = await lessonWriteDenial(lessonId, user.id, profile?.role);
+  if (denial) return { error: denial };
+  // The origin row is covered by lessonWriteDenial above; the destination is
+  // a bare date rather than a row, so it's checked separately — otherwise a
+  // move would be a back door for writing content into a closed month.
+  if (isPastMonth(targetDate)) return { error: 'monthLocked' };
 
   const [origin] = await sql<
     {
@@ -466,6 +501,15 @@ export async function createLessonCommentAction(
   const parsed = createCommentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
+  // A past month is a closed record for commenters too — including the CEO,
+  // who is otherwise unrestricted here. (This is the only place the lesson
+  // row is read at all: the insert itself only needs the id.)
+  const [lesson] = await sql<{ lesson_date: string | null }[]>`
+    select lesson_date from course_lessons where id = ${parsed.data.lessonId}
+  `;
+  if (!lesson) return { error: 'forbidden' };
+  if (isPastMonth(lesson.lesson_date)) return { error: 'monthLocked' };
+
   await sql`
     insert into lesson_comments (lesson_id, user_id, comment_text)
     values (${parsed.data.lessonId}, ${user.id}, ${parsed.data.commentText})
@@ -488,7 +532,17 @@ export async function deleteLessonCommentAction(formData: FormData): Promise<voi
   // (`user_id = auth.uid() or public.is_admin()`, is_admin() now being
   // CEO-only) — without it any employee could delete anyone's comment by id.
   const isCeo = profile?.role === 'ceo';
-  await sql`delete from lesson_comments where id = ${parsed.data.id} and (${isCeo} or user_id = ${user.id})`;
+  // Same closed-month rule as posting one: a finished month's discussion is
+  // part of its record, so it can't be edited away afterwards either. The
+  // join keeps this in the single delete statement rather than a
+  // check-then-delete round trip.
+  await sql`
+    delete from lesson_comments c
+    using course_lessons cl
+    where c.lesson_id = cl.id and c.id = ${parsed.data.id}
+      and (${isCeo} or c.user_id = ${user.id})
+      and (cl.lesson_date is null or cl.lesson_date >= ${`${currentMonthKey()}-01`})
+  `;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
 }

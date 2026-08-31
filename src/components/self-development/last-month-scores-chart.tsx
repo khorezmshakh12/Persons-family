@@ -20,7 +20,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   return (
     <div className="rounded-lg border border-white/20 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-xl backdrop-blur-md">
       <div className="font-semibold">{label}</div>
-      <div>{payload[0].value}/100</div>
+      <div>{payload[0].value}</div>
     </div>
   );
 }
@@ -68,8 +68,7 @@ export function LastMonthScoresChart({ points }: { points: StaffScorePoint[] }) 
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
               <XAxis dataKey="name" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis
-                domain={[0, 100]}
-                ticks={[0, 20, 40, 60, 80, 100]}
+                domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 20) * 20)]}
                 stroke="rgba(255,255,255,0.75)"
                 fontSize={11}
                 tickLine={false}

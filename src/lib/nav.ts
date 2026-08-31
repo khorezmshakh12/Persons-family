@@ -22,6 +22,7 @@ export type NavItem = {
     | 'finance'
     | 'missions'
     | 'roadmap'
+    | 'market'
     | 'profile'
     | 'settings'
     | 'materials';
@@ -80,6 +81,10 @@ export const NAV_ITEMS: NavItem[] = [
   // `current_role() in ('ceo','admin_manager')`, not the shared
   // is_admin()). IT Developer, now a plain regular employee, never has it.
   { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
+  // Persons Market — where an employee spends the stars they've accumulated.
+  // No `roles`: everyone has a star balance, so everyone gets the shelf (the
+  // CEO's curation controls live on the same page, gated inside it).
+  { key: 'market', href: '/market' },
   { key: 'profile', href: '/profile' },
   { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo'] },
   { key: 'settings', href: '/settings' },

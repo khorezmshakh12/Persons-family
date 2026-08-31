@@ -51,7 +51,7 @@ export async function SubmissionCard({
         </div>
         {submission.ceo_score !== null && (
           <span className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
-            {submission.ceo_score}/100
+            {submission.ceo_score}
           </span>
         )}
       </div>

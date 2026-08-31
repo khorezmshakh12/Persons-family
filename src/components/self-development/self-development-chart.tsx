@@ -48,7 +48,7 @@ export function SelfDevelopmentChart({ points, title }: { points: ScorePoint[]; 
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
               <XAxis dataKey="label" stroke="rgba(255,255,255,0.5)" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis
-                domain={[0, 100]}
+                domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 20) * 20)]}
                 stroke="rgba(255,255,255,0.5)"
                 fontSize={11}
                 tickLine={false}

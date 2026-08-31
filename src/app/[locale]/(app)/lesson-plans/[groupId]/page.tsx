@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
+import { currentMonthKey } from '@/lib/lesson-months';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
@@ -118,6 +119,14 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
 
   const configuration = group.configuration as GroupConfiguration;
 
+  // Which month counts as "now" is decided here, once, in Tashkent time, and
+  // handed to the lessons section — so the table's current/past split and
+  // the server actions' past-month lock (lessonWriteDenial in
+  // actions/course-lessons.ts) are reading the same calendar. Everything
+  // before this month is rendered collapsed and read-only for every role,
+  // the CEO included.
+  const monthKey = currentMonthKey();
+
   let assistants: { id: string; first_name: string; last_name: string }[] = [];
   if (canEditGroup) {
     assistants = await sql<{ id: string; first_name: string; last_name: string }[]>`
@@ -189,6 +198,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
         <Suspense fallback={<GlassCourseLessonsSkeleton />}>
           <CourseLessonsSection
             groupId={group.id}
+            currentMonthKey={monthKey}
             canEditContent={canEditLessonContent}
             canDeleteFiles={canDeleteLessonFiles}
             canComment={canComment}

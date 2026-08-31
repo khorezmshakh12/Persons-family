@@ -38,7 +38,8 @@
     "roadmap": "Roadmap",
     "settings": "Settings",
     "profile": "My Profile",
-    "materials": "Materials"
+    "materials": "Materials",
+    "market": "Persons Market"
   },
   "auth": {
     "phone": "Phone number",
@@ -452,7 +453,11 @@
       "moveReasonPlaceholder": "Why didn't this lesson happen as planned...",
       "moveSubmit": "Move",
       "movedToNote": "Moved to {date}",
-      "movedFromNote": "Moved from {date}"
+      "movedFromNote": "Moved from {date}",
+      "pastMonths": "Past months",
+      "upcomingMonths": "Upcoming months",
+      "readOnly": "Read-only",
+      "noLessonsThisMonth": "No lessons scheduled for this month yet."
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -471,7 +476,22 @@
       "alreadyMoved": "This lesson plan has already been moved.",
       "nothingToMove": "Set a topic before moving this lesson plan.",
       "moveSameDate": "Choose a different date to move to.",
-      "invalidDate": "That date isn't available yet."
+      "invalidDate": "That date isn't available yet.",
+      "monthLocked": "That month is closed — past lesson plans are read-only."
+    },
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
     }
   },
   "staffChat": {
@@ -519,10 +539,35 @@
       "invalidAssignee": "You don't have permission to assign a task to that person.",
       "createFailed": "Could not assign the task. Please try again.",
       "updateFailed": "Could not save changes. Please try again.",
-      "deleteFailed": "Could not delete the task. Please try again."
+      "deleteFailed": "Could not delete the task. Please try again.",
+      "commentFailed": "Could not post the comment. Please try again.",
+      "loadFailed": "Could not load the comments. Please try again."
     },
     "deadline": "Deadline",
-    "overdue": "Overdue"
+    "overdue": "Overdue",
+    "comments": {
+      "title": "Comments",
+      "empty": "No comments yet.",
+      "loading": "Loading comments…",
+      "placeholder": "Write a comment…",
+      "send": "Send",
+      "deleteComment": "Delete comment",
+      "viewOnly": "You can only read this conversation."
+    },
+    "archive": {
+      "title": "Monthly archive",
+      "efficiency": "Efficiency {pct}%",
+      "totalDue": "Due: {count}",
+      "onTime": "On time: {count}",
+      "late": "Late: {count}",
+      "notDone": "Not done: {count}",
+      "noTasks": "No completed tasks this month.",
+      "onTimeBadge": "On time",
+      "lateBadge": "Late",
+      "completedOn": "Completed {date}"
+    },
+    "starReward": "Star reward",
+    "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none."
   },
   "companyNews": {
     "title": "Company News",
@@ -748,7 +793,9 @@
       "invalidInput": "Please fill in at least one field.",
       "alreadySubmitted": "You've already submitted your progress for this month.",
       "submitFailed": "Something went wrong. Please try again."
-    }
+    },
+    "starAward": "Star award",
+    "starAwardHint": "Separate from the score. The employee spends stars in Persons Market."
   },
   "performance": {
     "title": "Performance",
@@ -1119,6 +1166,58 @@
         "alreadyReviewed": "This request has already been reviewed.",
         "notFound": "Not found."
       }
+    },
+    "stars": {
+      "title": "Stars",
+      "starCount": "{count, plural, one {# star} other {# stars}}",
+      "noTransactions": "No star activity yet.",
+      "byName": "by {name}",
+      "source": {
+        "self_development": "Self-development",
+        "task": "Task",
+        "manual": "CEO award",
+        "purchase": "Persons Market purchase",
+        "refund": "Refund",
+        "penalty": "Penalty"
+      },
+      "errors": {
+        "invalidInput": "Please check the fields and try again.",
+        "forbidden": "You don't have permission to do this.",
+        "sessionExpired": "Your session expired — please refresh the page and log in again.",
+        "createFailed": "Could not save this. Please try again."
+      }
+    }
+  },
+  "market": {
+    "title": "Persons Market",
+    "subtitle": "Spend the stars you've earned.",
+    "yourBalance": "Your balance",
+    "starCount": "{count, plural, one {# star} other {# stars}}",
+    "itemsTitle": "Rewards",
+    "noItems": "No rewards available yet.",
+    "unlimitedStock": "Unlimited",
+    "stockLeft": "{count} left",
+    "outOfStock": "Out of stock",
+    "myOrdersTitle": "My orders",
+    "noOrders": "You haven't ordered anything yet.",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "fulfilled": "Fulfilled"
+    },
+    "errors": {
+      "invalidInput": "Please check the fields and try again.",
+      "forbidden": "You don't have permission to do this.",
+      "sessionExpired": "Your session expired — please refresh the page and log in again.",
+      "createFailed": "Could not save this. Please try again.",
+      "updateFailed": "Could not save changes. Please try again.",
+      "itemNotFound": "This reward could not be found.",
+      "orderNotFound": "This order could not be found.",
+      "alreadyDecided": "This order has already been decided.",
+      "itemInactive": "This reward is not available right now.",
+      "outOfStock": "This reward is out of stock.",
+      "insufficientStars": "You don't have enough stars."
     }
   }
 }

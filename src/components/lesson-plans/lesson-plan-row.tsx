@@ -26,6 +26,7 @@ function PlanFieldBlock({ label, children }: { label: string; children: React.Re
 export function LessonPlanRow({
   groupId,
   lesson,
+  locked = false,
   canEditContent,
   canDeleteFiles,
   canComment,
@@ -34,6 +35,11 @@ export function LessonPlanRow({
 }: {
   groupId: string;
   lesson: CourseLessonRow;
+  /** The lesson's month is closed. The caller has already forced the three
+   * permission flags to false; this additionally swaps the two cells that
+   * would otherwise render a *disabled input* (date, topic) for plain text,
+   * so a finished month reads as a record rather than as a dead form. */
+  locked?: boolean;
   canEditContent: boolean;
   canDeleteFiles: boolean;
   canComment: boolean;
@@ -52,7 +58,13 @@ export function LessonPlanRow({
           </span>
         </td>
         <td className="px-4 py-3.5 align-top">
-          <LessonDateCell lessonId={lesson.id} lessonDate={lesson.lesson_date} canEdit={canEditContent} />
+          {locked ? (
+            <span className="text-xs whitespace-nowrap text-white/75">
+              {lesson.lesson_date ?? t('courseLessons.notSet')}
+            </span>
+          ) : (
+            <LessonDateCell lessonId={lesson.id} lessonDate={lesson.lesson_date} canEdit={canEditContent} />
+          )}
         </td>
         <td className="px-4 py-3.5 align-top">
           {lesson.movedToDate ? (
@@ -68,7 +80,13 @@ export function LessonPlanRow({
                     {lesson.moveReason ? ` — ${lesson.moveReason}` : ''}
                   </p>
                 )}
-                <LessonTopicCell lessonId={lesson.id} topic={lesson.topic} canEdit={canEditContent} />
+                {locked ? (
+                  <p className={cn('w-56 text-xs', lesson.topic ? 'font-medium text-white/85' : 'text-white/40 italic')}>
+                    {lesson.topic || t('courseLessons.noTopic')}
+                  </p>
+                ) : (
+                  <LessonTopicCell lessonId={lesson.id} topic={lesson.topic} canEdit={canEditContent} />
+                )}
               </div>
               {canEditContent && lesson.topic?.trim() && <MoveLessonDialog lessonId={lesson.id} lessonDate={lesson.lesson_date} />}
             </div>
@@ -105,6 +123,7 @@ export function LessonPlanRow({
             currentUserId={currentUserId}
             viewerName={viewerName}
             canComment={canComment}
+            locked={locked}
           />
         </td>
       </tr>

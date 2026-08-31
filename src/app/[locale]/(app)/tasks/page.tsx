@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { getVisibleTasksAction } from '@/lib/actions/tasks';
+import { getMonthlyTaskArchiveAction, getVisibleTasksAction } from '@/lib/actions/tasks';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
 import { AssignTaskDialog } from '@/components/tasks/assign-task-dialog';
 import { TaskBoard } from '@/components/tasks/task-board';
@@ -19,8 +19,12 @@ export default async function TasksPage() {
   // that every submit then rejects as forbidden.
   const isAdmin = profile!.role === 'ceo';
 
-  const [taskRows, assignees] = await Promise.all([
+  // The board itself only carries active tasks plus the ones completed this
+  // Tashkent month (see getVisibleTasksAction) — everything finished before
+  // that is reachable through the monthly archive under the board.
+  const [taskRows, archive, assignees] = await Promise.all([
     getVisibleTasksAction(),
+    getMonthlyTaskArchiveAction(),
     sql<{ id: string; first_name: string; last_name: string }[]>`
       select id, first_name, last_name from profiles
       where role in ${sql(isAdmin ? allowedTaskAssigneeRoles(profile!.role) : ['teacher', 'assistant'])}
@@ -32,7 +36,6 @@ export default async function TasksPage() {
   // Mirrors TaskBoard's own toTask() derivation exactly — this is just the
   // initial server-rendered snapshot, TaskBoard re-derives the same shape
   // itself on every board_signals/tasks-triggered refresh.
-  const now = Date.now();
   const tasks = taskRows.map((row) => {
     const assignee = assignees.find((a) => a.id === row.assigned_to);
     return {
@@ -40,9 +43,11 @@ export default async function TasksPage() {
       title: row.title,
       description: row.description,
       assigned_to: row.assigned_to,
+      // Fed through for TaskCard's comment gate (assignee / assigner / CEO).
+      assigned_by: row.assigned_by,
       deadline: row.deadline,
       status: row.status,
-      is_overdue: row.status !== 'done' && new Date(row.deadline).getTime() < now,
+      is_overdue: row.is_overdue,
       assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
     };
   });
@@ -56,7 +61,13 @@ export default async function TasksPage() {
         </h1>
         {isAdmin && <AssignTaskDialog assignees={assignees} />}
       </div>
-      <TaskBoard tasks={tasks} isAdmin={isAdmin} assignees={assignees} currentUserId={user!.id} />
+      <TaskBoard
+        tasks={tasks}
+        isAdmin={isAdmin}
+        assignees={assignees}
+        currentUserId={user!.id}
+        archive={archive}
+      />
     </div>
   );
 }

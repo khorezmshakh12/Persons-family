@@ -3,13 +3,16 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
+import { getFormatter } from 'next-intl/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
+import { efficiencyForMonth, type EfficiencyStats } from '@/lib/task-efficiency';
 import type { StaffRole } from '@/lib/nav';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
+import { insertStarTransaction } from '@/lib/stars-write';
 
 export type TaskActionState = { error?: string } | undefined;
 
@@ -67,6 +70,11 @@ const taskSchema = z.object({
   description: z.string().trim().max(2000).optional().or(z.literal('')),
   assignedTo: z.string().uuid(),
   deadline: z.string().min(1),
+  // Optional star bounty the CEO attaches to a task; paid out to the
+  // assignee once, the first time the task reaches `done` (see
+  // updateTaskStatusAction). No upper bound — stars are deliberately
+  // uncapped. 0 / omitted = no reward.
+  starReward: z.coerce.number().int().min(0).optional(),
 });
 
 export async function assignTaskAction(
@@ -97,8 +105,8 @@ export async function assignTaskAction(
   }
 
   await sql`
-    insert into tasks (title, description, assigned_to, assigned_by, deadline)
-    values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.deadline})
+    insert into tasks (title, description, assigned_to, assigned_by, deadline, star_reward)
+    values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.deadline}, ${parsed.data.starReward ?? 0})
   `;
 
   await bumpBoardSignal('tasks');
@@ -157,15 +165,26 @@ export async function updateTaskAction(
   // the new assignee's nav dot lights back up, same as a brand-new task.
   const reassigned = parsed.data.assignedTo !== existing.assigned_to;
 
-  await sql`
-    update tasks set
-      title = ${parsed.data.title},
-      description = ${parsed.data.description || null},
-      assigned_to = ${parsed.data.assignedTo},
-      deadline = ${parsed.data.deadline}
-      ${reassigned ? sql`, is_seen = false` : sql``}
-    where id = ${parsed.data.id}
-  `;
+  // `updated_at` was never written after insert (AUD-20), so it silently
+  // stayed at the row's creation instant forever — every task edit now
+  // stamps it, the same as the status change below.
+  try {
+    await sql`
+      update tasks set
+        title = ${parsed.data.title},
+        description = ${parsed.data.description || null},
+        assigned_to = ${parsed.data.assignedTo},
+        deadline = ${parsed.data.deadline},
+        updated_at = now()
+        -- Only adjustable while the bounty hasn't been paid out yet.
+        ${parsed.data.starReward !== undefined ? sql`, star_reward = case when star_awarded_at is null then ${parsed.data.starReward} else star_reward end` : sql``}
+        ${reassigned ? sql`, is_seen = false` : sql``}
+      where id = ${parsed.data.id}
+    `;
+  } catch (error) {
+    console.error('updateTaskAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   await bumpBoardSignal('tasks');
   await bumpNavBadgeSignal(parsed.data.assignedTo);
@@ -205,10 +224,65 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const [existing] = await sql<{ assigned_to: string }[]>`select assigned_to from tasks where id = ${parsed.data.id}`;
+  const [existing] = await sql<{ assigned_to: string; assigned_by: string; status: string }[]>`
+    select assigned_to, assigned_by, status from tasks where id = ${parsed.data.id}
+  `;
   if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
 
-  await sql`update tasks set status = ${parsed.data.status} where id = ${parsed.data.id}`;
+  // `completed_at` is the only record of *when* a task was finished — the
+  // monthly archive groups by it and the weekly bot scores on-time vs late
+  // against it, so it must be stamped exactly once, here. Re-saving a task
+  // that is already done keeps the original completion instant (otherwise a
+  // no-op drag would silently carry a task into a later month); moving back
+  // out of `done` clears it, so a re-completion is stamped afresh.
+  const completedAt =
+    parsed.data.status === 'done'
+      ? existing.status === 'done'
+        ? sql`completed_at`
+        : sql`now()`
+      : sql`null`;
+
+  try {
+    await sql`
+      update tasks set
+        status = ${parsed.data.status},
+        completed_at = ${completedAt},
+        updated_at = now()
+      where id = ${parsed.data.id}
+    `;
+  } catch (error) {
+    console.error('updateTaskStatusAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  // Star bounty payout — only on the first transition into `done`, and only
+  // once. The `star_awarded_at is null` guard in the WHERE makes "award
+  // once" atomic even under a double-click / retry: at most one caller gets
+  // a row back and therefore writes the ledger entry.
+  if (parsed.data.status === 'done' && existing.status !== 'done') {
+    try {
+      const [awarded] = await sql<{ star_reward: number }[]>`
+        update tasks set star_awarded_at = now()
+        where id = ${parsed.data.id} and star_reward > 0 and star_awarded_at is null
+        returning star_reward
+      `;
+      if (awarded) {
+        await insertStarTransaction(sql, {
+          userId: existing.assigned_to,
+          delta: awarded.star_reward,
+          reason: 'Vazifa bajarildi',
+          sourceType: 'task',
+          sourceId: parsed.data.id,
+          createdBy: existing.assigned_by,
+        });
+        await bumpNavBadgeSignal(existing.assigned_to);
+      }
+    } catch (error) {
+      // The status change already committed — a stars hiccup must not turn
+      // a successful "mark done" into an error for the assignee.
+      console.error('task star payout failed', error instanceof Error ? error.message : error);
+    }
+  }
 
   await bumpBoardSignal('tasks');
 
@@ -224,32 +298,162 @@ export type VisibleTaskRow = {
   assigned_by: string;
   deadline: string;
   status: (typeof STATUSES)[number];
+  completed_at: string | null;
+  /** Derived in the query rather than from a render-time `Date.now()` — a
+   * clock read during render is impure (react-hooks/purity) and the DB is
+   * the one clock both the board and the archive already agree on. */
+  is_overdue: boolean;
   updated_at: string;
 };
+
+/**
+ * Start of the current Asia/Tashkent calendar month, as a timestamptz. The
+ * whole staff is in Tashkent and Cloud Run's clock is UTC, so the month
+ * boundary must be computed in that zone — `date_trunc('month', now())`
+ * alone would roll the board over five hours late.
+ */
+const currentMonthStart = () =>
+  sql`date_trunc('month', now() at time zone 'Asia/Tashkent') at time zone 'Asia/Tashkent'`;
 
 /**
  * Re-fetch for TaskBoard's live refresh, triggered whenever
  * board_signals/tasks changes in Firestore (see lib/gcp/firestoreAdmin.ts's
  * bumpBoardSignal) — Firestore only carries an empty "something changed"
  * signal, no row payload, so the client re-derives the whole visible list
- * from here rather than trying to patch one row in place. Mirrors
- * app/[locale]/(app)/tasks/page.tsx's own query exactly: only the task's
- * creator or assignee may see it, and a "done" task older than a week is
- * hidden (not deleted) to keep the board from accumulating forever.
+ * from here rather than trying to patch one row in place. tasks/page.tsx
+ * calls this same action for its own initial render, so there is exactly
+ * one definition of "visible": only the task's creator or assignee may see
+ * it, and a done task drops off the board once its month is over — it lives
+ * on in the monthly archive below the board
+ * (getMonthlyTaskArchiveAction), never deleted.
+ *
+ * The old window was `updated_at >= sevenDaysAgo`, which was doubly wrong:
+ * `updated_at` was never written after insert (AUD-20), so it really meant
+ * "created in the last 7 days", and a rolling 7-day window cuts the month
+ * the archive is keyed on in half.
  */
 export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
   const { user } = await getAuthState();
   if (!user) return [];
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
   return sql<VisibleTaskRow[]>`
-    select id, title, description, assigned_to, assigned_by, deadline, status, updated_at
+    select id, title, description, assigned_to, assigned_by, deadline, status, completed_at, updated_at,
+           (status <> 'done' and deadline < now()) as is_overdue
     from tasks
     where (assigned_by = ${user.id} or assigned_to = ${user.id})
-      and (status <> 'done' or updated_at >= ${sevenDaysAgo})
+      and (status <> 'done' or completed_at >= ${currentMonthStart()})
     order by created_at desc
   `;
+}
+
+export type ArchivedTaskRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  assigned_to: string;
+  deadline: string;
+  status: string;
+  completed_at: string | null;
+  assignee_first_name: string | null;
+  assignee_last_name: string | null;
+};
+
+export type MonthlyTaskArchiveEntry = {
+  /** 'YYYY-MM', Asia/Tashkent */
+  monthKey: string;
+  /** Month name localized to the caller's locale, e.g. "Avgust 2026". */
+  label: string;
+  stats: EfficiencyStats;
+  /** Every task the caller can see that was completed in this month. */
+  tasks: ArchivedTaskRow[];
+};
+
+type ArchiveQueryRow = ArchivedTaskRow & { completed_month: string | null };
+
+/** Drops the grouping-only column before the row crosses to the client. */
+function stripCompletedMonth(row: ArchiveQueryRow): ArchivedTaskRow {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    assigned_to: row.assigned_to,
+    deadline: row.deadline,
+    status: row.status,
+    completed_at: row.completed_at,
+    assignee_first_name: row.assignee_first_name,
+    assignee_last_name: row.assignee_last_name,
+  };
+}
+
+/**
+ * The past-months archive rendered under the board (spec #5). Same
+ * creator-or-assignee scoping as getVisibleTasksAction; one entry per past
+ * Tashkent month that has at least one completed task, newest first.
+ *
+ * The efficiency stats deliberately score a *wider* set than the listed
+ * tasks: `efficiencyForMonth` counts everything that was **due** in the
+ * month (a task due in March but never finished belongs in March's "not
+ * done" tally even though it has no completed_at at all), while the listed
+ * tasks are the ones actually **completed** in it. Hence the query pulls
+ * both and hands the whole set to efficiencyForMonth, which re-applies its
+ * own deadline window per month.
+ */
+export async function getMonthlyTaskArchiveAction(): Promise<MonthlyTaskArchiveEntry[]> {
+  const { user } = await getAuthState();
+  if (!user) return [];
+
+  let rows: ArchiveQueryRow[];
+  try {
+    rows = await sql<ArchiveQueryRow[]>`
+      select
+        t.id,
+        t.title,
+        t.description,
+        t.assigned_to,
+        t.deadline,
+        t.status,
+        t.completed_at,
+        p.first_name as assignee_first_name,
+        p.last_name  as assignee_last_name,
+        to_char(t.completed_at at time zone 'Asia/Tashkent', 'YYYY-MM') as completed_month
+      from tasks t
+      left join profiles p on p.id = t.assigned_to
+      where (t.assigned_by = ${user.id} or t.assigned_to = ${user.id})
+        and (t.completed_at < ${currentMonthStart()} or t.deadline < ${currentMonthStart()})
+      order by t.completed_at desc nulls last, t.deadline desc
+    `;
+  } catch (error) {
+    console.error(
+      'getMonthlyTaskArchiveAction failed',
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
+
+  const monthKeys = [
+    ...new Set(
+      rows
+        .filter((row) => row.status === 'done' && row.completed_month)
+        .map((row) => row.completed_month as string),
+    ),
+  ].sort((a, b) => b.localeCompare(a));
+
+  const format = await getFormatter();
+
+  return monthKeys.map((monthKey) => ({
+    monthKey,
+    // Parsed and formatted as UTC on purpose: the key is already a Tashkent
+    // month, so re-applying a zone here could name the neighbouring month.
+    label: format.dateTime(new Date(`${monthKey}-01T00:00:00Z`), {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+    stats: efficiencyForMonth(rows, monthKey),
+    tasks: rows
+      .filter((row) => row.status === 'done' && row.completed_month === monthKey)
+      .map(stripCompletedMonth),
+  }));
 }
 
 const idSchema = z.object({ id: z.string().uuid() });

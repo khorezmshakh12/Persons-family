@@ -29,7 +29,7 @@ export function CeoEvaluationPanel({
   currentBonusAmount: number | null;
 }) {
   const t = useTranslations('selfDevelopment');
-  const [score, setScore] = useState(currentScore ?? 50);
+  const [score, setScore] = useState(currentScore ?? 0);
   const [state, formAction, isPending] = useActionState<SelfDevActionState, FormData>(
     saveEvaluationAction,
     undefined,
@@ -60,17 +60,19 @@ export function CeoEvaluationPanel({
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-white/60">{t('ceoScore')}</span>
-          <span className="font-semibold tabular-nums text-white">{score}/100</span>
+          <span className="font-semibold tabular-nums text-white">{score}</span>
         </div>
+        {/* No ceiling — the CEO enters any number of points (spec: cheksiz
+            bal), so this is a free number field, not a 0–100 slider. */}
         <input
-          type="range"
+          type="number"
           name="ceoScore"
-          min={1}
-          max={100}
+          min={0}
+          step={1}
           value={score}
-          onChange={(e) => setScore(Number(e.target.value))}
+          onChange={(e) => setScore(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           aria-label={t('ceoScore')}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
+          className="w-full rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm tabular-nums text-white"
         />
       </div>
 
