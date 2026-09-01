@@ -79,11 +79,11 @@ export function SidebarNav({
         const active = !item.external && (pathname === item.href || pathname.startsWith(`${item.href}/`));
 
         const itemClassName = cn(
-          'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-transform duration-200 ease-bounce hover:scale-[1.02] active:scale-95',
+          'relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 ease-bounce hover:scale-[1.02] active:scale-95',
           glass
             ? active
               ? 'font-semibold text-white'
-              : 'font-medium text-white/70 hover:bg-white/10'
+              : 'font-medium text-white/70 hover:bg-white/10 hover:text-white'
             : active
               ? 'font-semibold text-foreground'
               : 'text-muted-foreground hover:bg-muted font-medium',
@@ -96,18 +96,18 @@ export function SidebarNav({
                 layoutId={pillId}
                 transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                 className={cn(
-                  'absolute inset-0 rounded-md',
+                  'absolute inset-0 rounded-xl',
                   glass
-                    ? 'border border-white/30 bg-white/20'
+                    ? 'border border-teal-400/35 bg-teal-500/20 shadow-[0_0_20px_rgba(45,212,191,0.25)]'
                     : 'bg-muted',
                 )}
               />
             )}
-            <Icon className="relative z-10 size-4" />
+            <Icon className={cn('relative z-10 size-4 transition-colors', active && 'text-teal-300')} />
             <span className="relative z-10">{t(item.key)}</span>
             {newKeys.includes(item.key) && (
               <span
-                className="relative z-10 ml-auto size-2 shrink-0 animate-pulse rounded-full bg-green-500"
+                className="relative z-10 ml-auto size-2 shrink-0 animate-pulse rounded-full bg-teal-400 shadow-[0_0_8px_#2dd4bf]"
                 aria-hidden
               />
             )}

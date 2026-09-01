@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DEFAULT_BACKGROUND, DEFAULT_VIDEO_THEME_ID, VIDEO_THEMES } from '@/lib/background-themes';
+import { DEFAULT_BACKGROUND, DEFAULT_VIDEO_THEME_ID, VIDEO_THEMES, DESIGN_VARIANTS } from '@/lib/background-themes';
 
 const STORAGE_KEY = 'app-background-url';
 const MODE_STORAGE_KEY = 'app-theme-mode';
@@ -66,8 +66,15 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     if (storedDesign) {
       setActiveDesignIdState(storedDesign);
       document.documentElement.setAttribute('data-design', storedDesign);
+      const variant = DESIGN_VARIANTS.find((v) => v.id === storedDesign);
+      if (variant && variant.url) {
+        setBackgroundUrlState(variant.url);
+        setThemeModeState('photo');
+      }
     } else {
       document.documentElement.setAttribute('data-design', 'aurora');
+      setBackgroundUrlState(DESIGN_VARIANTS[0].url);
+      setThemeModeState('photo');
     }
   }, []);
 
@@ -126,6 +133,17 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
   const setDesignVariant = useCallback((id: string) => {
     setActiveDesignIdState(id);
     document.documentElement.setAttribute('data-design', id);
+    const variant = DESIGN_VARIANTS.find((v) => v.id === id);
+    if (variant && variant.url) {
+      setBackgroundUrlState(variant.url);
+      setThemeModeState('photo');
+      try {
+        window.localStorage.setItem(STORAGE_KEY, variant.url);
+        window.localStorage.setItem(MODE_STORAGE_KEY, 'photo');
+      } catch {
+        // Non-fatal
+      }
+    }
     try {
       window.localStorage.setItem(DESIGN_STORAGE_KEY, id);
     } catch {
