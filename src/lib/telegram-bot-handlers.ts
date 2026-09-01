@@ -21,6 +21,9 @@ if (telegramBot) {
     `;
 
     if (!linkRow || new Date(linkRow.expires_at) < new Date()) {
+      // Clear a known-but-expired token so stale rows don't accumulate for
+      // users who let a link lapse and never retried.
+      if (linkRow) await sql`delete from telegram_link_tokens where token = ${token}`;
       await ctx.reply("Havola muddati o'tgan yoki noto'g'ri. Ilovadan qaytadan urinib ko'ring.");
       return;
     }

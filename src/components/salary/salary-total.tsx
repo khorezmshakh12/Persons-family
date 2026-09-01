@@ -13,14 +13,18 @@ import { SalaryNoteForm } from './salary-note-form';
 export async function SalaryTotal({ staffId, isCeo }: { staffId: string; isCeo: boolean }) {
   const t = await getTranslations('salary');
 
+  // amount / bonus_amount are `numeric` — postgres-js hands those back as
+  // strings, so `sum + e.amount` was string concatenation ("0" + "5000" ->
+  // "05000", and a single negative made the whole total NaN). Cast to
+  // float8 so every row arrives as a real number.
   const [financeEntries, performanceEntries, selfDev, missions, [note]] = await Promise.all([
-    sql<{ amount: number }[]>`select amount from finance_entries where staff_id = ${staffId}`,
+    sql<{ amount: number }[]>`select amount::float8 as amount from finance_entries where staff_id = ${staffId}`,
     sql<{ entry_type: string; amount: number }[]>`
-      select entry_type, amount from performance_entries where staff_id = ${staffId}
+      select entry_type, amount::float8 as amount from performance_entries where staff_id = ${staffId}
     `,
-    sql<{ bonus_amount: number | null }[]>`select bonus_amount from self_development where user_id = ${staffId}`,
+    sql<{ bonus_amount: number | null }[]>`select bonus_amount::float8 as bonus_amount from self_development where user_id = ${staffId}`,
     sql<{ bonus_amount: number | null }[]>`
-      select bonus_amount from missions where staff_id = ${staffId} and status = 'approved'
+      select bonus_amount::float8 as bonus_amount from missions where staff_id = ${staffId} and status = 'approved'
     `,
     sql<{ comment: string }[]>`select comment from staff_salary_notes where staff_id = ${staffId}`,
   ]);

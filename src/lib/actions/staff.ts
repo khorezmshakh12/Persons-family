@@ -251,7 +251,9 @@ export async function updateStaffAction(
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
-  const [target] = await sql<{ role: string; phone: string }[]>`select role, phone from profiles where id = ${parsed.data.id}`;
+  const [target] = await sql<{ role: string; phone: string; must_change_password: boolean }[]>`
+    select role, phone, must_change_password from profiles where id = ${parsed.data.id}
+  `;
   if (!target) return { error: 'notFound' };
   const isSelf = parsed.data.id === actingProfile.id;
   if (!isSelf && isProtectedRole(target.role) && actingProfile.role !== 'ceo') {
@@ -305,6 +307,24 @@ export async function updateStaffAction(
       internship_level = coalesce(${internshipLevel}, internship_level)
     where id = ${parsed.data.id}
   `;
+
+  // The Identity Platform custom claim carries the role too (proxy.ts reads
+  // it, and setPasswordAction rewrites the whole claim object from it). A
+  // role edit that doesn't push the claim leaves it stale until the user's
+  // next full login — so re-stamp it and revoke live sessions so the change
+  // takes effect now. Best-effort: the DB row is already the source of
+  // truth, a claim hiccup must not fail the edit.
+  if (parsed.data.role !== target.role) {
+    try {
+      await setUserClaims(parsed.data.id, {
+        role: parsed.data.role,
+        mustChangePassword: target.must_change_password,
+      });
+      await revokeUserSessions(parsed.data.id);
+    } catch (error) {
+      console.error('updateStaffAction: claim re-sync failed', error instanceof Error ? error.message : error);
+    }
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};

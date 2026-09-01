@@ -27,7 +27,7 @@ export default async function FinancePage() {
         where is_active = true order by first_name asc
       `,
       sql<(FinanceEntry & { staff_id: string })[]>`
-        select id, staff_id, title, amount, note, created_at from finance_entries
+        select id, staff_id, title, amount::float8 as amount, note, created_at from finance_entries
         order by created_at desc
       `,
     ]);

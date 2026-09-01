@@ -77,6 +77,7 @@ export async function SubmissionCard({
           currentRating={submission.ceo_rating}
           currentScore={submission.ceo_score}
           currentLevel={submission.author?.role === 'teacher' ? submission.author.teacher_level : null}
+          canSetLevel={submission.author?.role === 'teacher'}
           currentBonusAmount={submission.bonus_amount}
           currentStarAward={submission.star_award}
         />

@@ -19,6 +19,10 @@ export function CeoEvaluationPanel({
   /** null for a non-teacher submission — the level Select only makes sense
    * for a teacher's career ladder, so it's simply omitted from the form. */
   currentLevel,
+  /** True for any teacher submission — including one whose level hasn't been
+   * set yet (currentLevel === null), which used to hide the control and
+   * left new teachers un-levellable. */
+  canSetLevel = false,
   currentBonusAmount,
   currentStarAward,
 }: {
@@ -27,6 +31,7 @@ export function CeoEvaluationPanel({
   currentRating: string | null;
   currentScore: number | null;
   currentLevel: TeacherLevel | null;
+  canSetLevel?: boolean;
   currentBonusAmount: number | null;
   currentStarAward?: number | null;
 }) {
@@ -102,10 +107,10 @@ export function CeoEvaluationPanel({
         <CurrencyInput id={`bonus-${submissionId}`} name="bonusAmount" defaultValue={currentBonusAmount ?? 0} />
       </div>
 
-      {currentLevel !== null && (
+      {canSetLevel && (
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-white/60">{t('teacherLevel')}</label>
-          <Select name="level" defaultValue={currentLevel}>
+          <Select name="level" defaultValue={currentLevel ?? undefined}>
             <SelectTrigger className="w-full border-white/30 bg-white/10 text-white hover:bg-white/20">
               <SelectValue>{(value: string) => value}</SelectValue>
             </SelectTrigger>

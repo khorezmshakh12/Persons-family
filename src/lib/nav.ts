@@ -23,6 +23,7 @@ export type NavItem = {
     | 'missions'
     | 'roadmap'
     | 'market'
+    | 'analytics'
     | 'profile'
     | 'settings'
     | 'materials';
@@ -81,6 +82,10 @@ export const NAV_ITEMS: NavItem[] = [
   // `current_role() in ('ceo','admin_manager')`, not the shared
   // is_admin()). IT Developer, now a plain regular employee, never has it.
   { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
+  // Analytics (staff performance + roadmap-goals charts) — CEO-only, same as
+  // the page's own `notFound()` gate. Had no nav entry at all, so it was
+  // only reachable by typing the URL.
+  { key: 'analytics', href: '/analytics', roles: ['ceo'] },
   // Persons Market — where an employee spends the stars they've accumulated.
   // No `roles`: everyone has a star balance, so everyone gets the shelf (the
   // CEO's curation controls live on the same page, gated inside it).

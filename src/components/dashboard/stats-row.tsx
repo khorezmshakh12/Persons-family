@@ -48,7 +48,7 @@ export async function StatsRow({
     const userId = personalDashboardUserId;
     const [financeRows, missionRows, taskRows] = await Promise.all([
       sql<{ amount: number; created_at: string }[]>`
-        select amount, created_at from finance_entries where staff_id = ${userId}
+        select amount::float8 as amount, created_at from finance_entries where staff_id = ${userId}
       `,
       sql<{ created_at: string; status: string }[]>`
         select created_at, status from missions where staff_id = ${userId}
@@ -143,7 +143,7 @@ export async function StatsRow({
       : Promise.resolve([]),
     financeUserId
       ? sql<{ amount: number; created_at: string }[]>`
-          select amount, created_at from finance_entries where staff_id = ${financeUserId}
+          select amount::float8 as amount, created_at from finance_entries where staff_id = ${financeUserId}
         `
       : Promise.resolve([]),
   ]);

@@ -93,10 +93,17 @@ export async function startMissionAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (user.id !== parsed.data.staffId) return { error: 'forbidden' };
 
-  await sql`
-    update missions set status = 'in_progress', started_at = now()
-    where id = ${parsed.data.missionId} and staff_id = ${parsed.data.staffId} and status = 'pending'
-  `;
+  let res;
+  try {
+    res = await sql`
+      update missions set status = 'in_progress', started_at = now()
+      where id = ${parsed.data.missionId} and staff_id = ${parsed.data.staffId} and status = 'pending'
+    `;
+  } catch (error) {
+    console.error('startMissionAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+  if (res.count === 0) return { error: 'staleState' };
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -121,10 +128,17 @@ export async function submitMissionAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (user.id !== parsed.data.staffId) return { error: 'forbidden' };
 
-  await sql`
-    update missions set status = 'submitted', submission_note = ${parsed.data.submissionNote}, submitted_at = now()
-    where id = ${parsed.data.missionId} and staff_id = ${parsed.data.staffId} and status = 'in_progress'
-  `;
+  let res;
+  try {
+    res = await sql`
+      update missions set status = 'submitted', submission_note = ${parsed.data.submissionNote}, submitted_at = now()
+      where id = ${parsed.data.missionId} and staff_id = ${parsed.data.staffId} and status = 'in_progress'
+    `;
+  } catch (error) {
+    console.error('submitMissionAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+  if (res.count === 0) return { error: 'staleState' };
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -147,10 +161,17 @@ export async function approveMissionAction(
   const parsed = approveSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    update missions set status = 'approved', approved_at = now()
-    where id = ${parsed.data.missionId} and status = 'submitted'
-  `;
+  let res;
+  try {
+    res = await sql`
+      update missions set status = 'approved', approved_at = now()
+      where id = ${parsed.data.missionId} and status = 'submitted'
+    `;
+  } catch (error) {
+    console.error('approveMissionAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+  if (res.count === 0) return { error: 'staleState' };
 
   logSystemAction('missions.approve', `Approved mission ${parsed.data.missionId}`);
 
@@ -184,10 +205,17 @@ export async function rejectMissionAction(
   const parsed = rejectSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    update missions set status = 'in_progress', rejection_note = ${parsed.data.rejectionNote || null}, submitted_at = null
-    where id = ${parsed.data.missionId} and status = 'submitted'
-  `;
+  let res;
+  try {
+    res = await sql`
+      update missions set status = 'in_progress', rejection_note = ${parsed.data.rejectionNote || null}, submitted_at = null
+      where id = ${parsed.data.missionId} and status = 'submitted'
+    `;
+  } catch (error) {
+    console.error('rejectMissionAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+  if (res.count === 0) return { error: 'staleState' };
 
   revalidateMissions(parsed.data.staffId);
   return {};
@@ -208,7 +236,16 @@ export async function deleteMissionAction(
   const parsed = deleteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`delete from missions where id = ${parsed.data.missionId}`;
+  // An approved mission's bonus feeds the staff member's salary total —
+  // deleting it silently reduces their pay. Block it; a rejected/pending/
+  // in-progress mission is fine to remove.
+  try {
+    const res = await sql`delete from missions where id = ${parsed.data.missionId} and status <> 'approved'`;
+    if (res.count === 0) return { error: 'cannotDeleteApproved' };
+  } catch (error) {
+    console.error('deleteMissionAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   revalidateMissions(parsed.data.staffId);
   return {};

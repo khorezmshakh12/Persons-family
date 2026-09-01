@@ -22,7 +22,7 @@ export function KpiScoreChart({ points }: { points: { month: string; score: numb
   }
 
   const data = points.map((p) => ({
-    label: format.dateTime(new Date(p.month), { month: 'long', year: 'numeric' }),
+    label: format.dateTime(new Date(`${p.month}T00:00:00Z`), { month: 'long', year: 'numeric', timeZone: 'UTC' }),
     score: p.score,
   }));
 

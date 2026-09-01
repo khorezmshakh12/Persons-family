@@ -86,13 +86,17 @@ export async function saveEvaluationAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   try {
-    await sql`
+    // Bind to userId too — the id alone is trusted client input, and the
+    // level update + finance revalidation below key off userId, so a
+    // mismatched (id, userId) pair must not write to a third person's row.
+    const res = await sql`
       update self_development set
         ceo_rating = ${parsed.data.ceoRating || null},
         ceo_score = ${parsed.data.ceoScore},
         bonus_amount = ${parsed.data.bonusAmount ?? null}
-      where id = ${parsed.data.id}
+      where id = ${parsed.data.id} and user_id = ${parsed.data.userId}
     `;
+    if (res.count === 0) return { error: 'submitFailed' };
   } catch {
     return { error: 'submitFailed' };
   }

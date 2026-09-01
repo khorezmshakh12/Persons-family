@@ -19,7 +19,6 @@ async function notifyCompanyNews({ title }: { title: string }) {
     const staff = await sql<{ telegram_id: number }[]>`
       select telegram_id from profiles where telegram_id is not null
     `;
-    console.log('Users retrieved from DB for notifications:', staff);
     const text = `Kompaniya yangiligi: <b>${escapeTelegramText(title)}</b>`;
     await sendTelegramMessageToMany(staff.map((s) => s.telegram_id), text);
   } catch (error) {
@@ -94,7 +93,12 @@ export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsRe
   if (!news) return { error: 'notFound' };
   if (!isAdmin && news.created_by !== user.id) return { error: 'forbidden' };
 
-  await sql`delete from company_news where id = ${parsed.data.id}`;
+  try {
+    await sql`delete from company_news where id = ${parsed.data.id}`;
+  } catch (error) {
+    console.error('deleteNewsAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   await bumpSignal('board_signals/company_news');
 

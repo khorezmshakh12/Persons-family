@@ -19,6 +19,7 @@ import {
   Milestone,
   BookOpen,
   ShoppingBag,
+  BarChart3,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string }>>
   missions: Target,
   roadmap: Milestone,
   market: ShoppingBag,
+  analytics: BarChart3,
   profile: User,
   settings: Settings,
   materials: BookOpen,

@@ -3,24 +3,13 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { ForbiddenError, SessionExpiredError, requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
-import { getAuthState } from '@/lib/auth/session';
+import { requireAdmin, requireCeoOrAdminManager, authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 
 export type WarningActionState = { error?: string } | undefined;
-
-/** CEO and Administrative Manager issue warnings. */
-async function requireCeoOrAdminManager() {
-  const { user, profile } = await getAuthState();
-  if (!user) throw new SessionExpiredError('No session');
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'admin_manager')) {
-    throw new ForbiddenError('CEO or Administrative Manager access required');
-  }
-  return { user, profile };
-}
 
 const warningSchema = z.object({
   staffId: z.string().uuid(),
@@ -102,7 +91,12 @@ export async function deleteWarningAction(
   const parsed = deleteWarningSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`delete from staff_warnings where id = ${parsed.data.warningId}`;
+  try {
+    await sql`delete from staff_warnings where id = ${parsed.data.warningId}`;
+  } catch (error) {
+    console.error('deleteWarningAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};

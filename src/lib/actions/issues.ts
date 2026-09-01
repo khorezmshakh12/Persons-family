@@ -116,8 +116,6 @@ async function notifyIssueCreated({
       select telegram_id from profiles
       where role in ('ceo', 'admin_manager') and telegram_id is not null
     `;
-    console.log('Users retrieved from DB for notifications:', admins);
-
     const text = [
       `<b>Yangi murojaat:</b> ${escapeTelegramText(title)}`,
       `<b>Kimdan:</b> ${escapeTelegramText(reporterName)}`,
@@ -180,13 +178,18 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
     }
   }
 
-  await sql`
-    update issues set
-      status = ${parsed.data.status},
-      resolved_by = ${parsed.data.status === 'done' ? user.id : null},
-      resolved_at = ${parsed.data.status === 'done' ? new Date().toISOString() : null}
-    where id = ${parsed.data.id}
-  `;
+  try {
+    await sql`
+      update issues set
+        status = ${parsed.data.status},
+        resolved_by = ${parsed.data.status === 'done' ? user.id : null},
+        resolved_at = ${parsed.data.status === 'done' ? new Date().toISOString() : null}
+      where id = ${parsed.data.id}
+    `;
+  } catch (error) {
+    console.error('updateIssueStatusAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   await bumpBoardSignal('issues');
   logSystemAction('issue.status_change', `Moved issue ${parsed.data.id} to "${parsed.data.status}"`);
@@ -292,7 +295,12 @@ export async function deleteIssueAction(formData: FormData): Promise<DeleteIssue
   if (!issue) return { error: 'notFound' };
   if (!isCeo && issue.created_by !== user.id) return { error: 'forbidden' };
 
-  await sql`delete from issues where id = ${parsed.data.id}`;
+  try {
+    await sql`delete from issues where id = ${parsed.data.id}`;
+  } catch (error) {
+    console.error('deleteIssueAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   await bumpBoardSignal('issues');
   logSystemAction('issue.delete', `Deleted issue ${parsed.data.id}`);
@@ -325,10 +333,15 @@ export async function updateIssueAction(
   if (!issue) return { error: 'notFound' };
   if (!isCeo && issue.created_by !== user.id) return { error: 'forbidden' };
 
-  await sql`
-    update issues set title = ${parsed.data.title}, description = ${parsed.data.description || null}
-    where id = ${parsed.data.id}
-  `;
+  try {
+    await sql`
+      update issues set title = ${parsed.data.title}, description = ${parsed.data.description || null}
+      where id = ${parsed.data.id}
+    `;
+  } catch (error) {
+    console.error('updateIssueAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   await bumpBoardSignal('issues');
 

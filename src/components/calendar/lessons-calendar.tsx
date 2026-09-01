@@ -15,9 +15,14 @@ type LessonRow = {
 export async function LessonsCalendar() {
   const { user, profile } = await getAuthState();
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  // Calendar month + "today" in Asia/Tashkent — a UTC-derived month rolls
+  // over ~5 hours late, so just after midnight on the 1st the whole grid
+  // would show last month with no way to reach the current one.
+  const [year, mm, todayDate] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' })
+    .format(new Date())
+    .split('-')
+    .map(Number);
+  const month = mm - 1;
   const startOfMonth = new Date(Date.UTC(year, month, 1));
   const endOfMonth = new Date(Date.UTC(year, month + 1, 1));
 
@@ -42,7 +47,7 @@ export async function LessonsCalendar() {
       and (${canSeeAll} or g.teacher_id = ${user!.id} or g.assigned_ta_id = ${user!.id})
   `;
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const eventsByDay: Record<number, CalendarLesson[]> = {};
   for (const row of rows) {
     const day = new Date(`${row.lesson_date}T00:00:00Z`).getUTCDate();
@@ -71,7 +76,7 @@ export async function LessonsCalendar() {
       month={month}
       cells={cells}
       eventsByDay={eventsByDay}
-      today={now.getDate()}
+      today={todayDate}
     />
   );
 }

@@ -106,8 +106,13 @@ export async function setPasswordAction(
     // as the original Supabase behavior — the user stays logged in and
     // lands on /dashboard rather than being forced to log back in.
     await getAuth(getFirebaseAdminApp()).updateUser(user!.uid, { password: parsed.data.password });
+    // Read the role straight from the DB — `user.role` is whatever was
+    // baked into this (possibly months-old) session cookie, so a legacy or
+    // since-changed account would otherwise have its claim rewritten to a
+    // stale value, or the `?? 'teacher'` fallback would silently demote it.
+    const [dbProfile] = await sql<{ role: string }[]>`select role from profiles where id = ${user!.uid}`;
     await sql`update profiles set must_change_password = false where id = ${user!.uid}`;
-    await setUserClaims(user!.uid, { role: user!.role ?? 'teacher', mustChangePassword: false });
+    await setUserClaims(user!.uid, { role: dbProfile?.role ?? user!.role ?? 'teacher', mustChangePassword: false });
     // A claim update alone doesn't touch the *current* session cookie — it's
     // only baked in at mint time — so without reissuing it here, proxy.ts's
     // fast-path check (reads the claim) and this page's own live-DB check

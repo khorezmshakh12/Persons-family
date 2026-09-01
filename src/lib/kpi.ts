@@ -16,8 +16,15 @@ export function computeKpiScore(metrics: KpiMetric[], entries: KpiEntry[]): numb
   let weightTotal = 0;
   for (const metric of metrics) {
     const entry = entryByMetric.get(metric.id);
-    if (!entry || entry.actual_value == null || entry.target_value === 0) continue;
-    const achievement = Math.min(entry.actual_value / entry.target_value, 1.5) * 100;
+    if (!entry || entry.actual_value == null) continue;
+    // target_value / actual_value are `numeric` columns — postgres-js hands
+    // them back as strings, so `=== 0` never matched (`"0" === 0` is false)
+    // and a zero or blank target produced Infinity -> a silent 150%. Coerce
+    // and require a real positive target.
+    const target = Number(entry.target_value);
+    const actual = Number(entry.actual_value);
+    if (!(target > 0) || !Number.isFinite(actual)) continue;
+    const achievement = Math.min(Math.max(actual / target, 0), 1.5) * 100;
     weightedSum += metric.weight_percentage * achievement;
     weightTotal += metric.weight_percentage;
   }

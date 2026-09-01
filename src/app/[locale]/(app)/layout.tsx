@@ -61,7 +61,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         order by created_at desc limit 50
       `,
       computeNavBadgeKeys(user!.id),
-      checkMaterialsLink(profile!.phone),
+      // Don't let a cold start of the Materials service (which scales to
+      // zero) stall the whole app shell — cap the wait at 2.5s and just
+      // treat a slow check as "no link" for this render. The next
+      // navigation's check hits a warm service and the link appears.
+      Promise.race([
+        checkMaterialsLink(profile!.phone),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2500)),
+      ]),
     ]);
   // Real per-user "unseen" state — not a time-based heuristic — so each dot
   // clears the moment its page is visited (see MarkTasksSeen/MarkIssuesSeen/

@@ -4,10 +4,17 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { formatUZS } from '@/lib/format-currency';
 
-function toDisplay(raw: string) {
-  const digits = raw.replace(/[^\d]/g, '');
-  if (!digits) return '';
-  return formatUZS(Number(digits));
+/** Whole-som only. Any fractional part (a `numeric` bonus seeded as
+ * "5000.50") is rounded off rather than having its dot stripped, which used
+ * to turn 5000.5 into a displayed 50 005. */
+function toInteger(value: string | number): number {
+  const n = Math.round(Number(String(value).replace(/[^\d.]/g, '')));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toDisplay(raw: string | number) {
+  const n = toInteger(raw);
+  return n ? formatUZS(n) : '';
 }
 
 export function CurrencyInput({
@@ -19,8 +26,9 @@ export function CurrencyInput({
   id: string;
   defaultValue: number;
 }) {
-  const [display, setDisplay] = useState(() => toDisplay(String(defaultValue)));
-  const [raw, setRaw] = useState(() => String(defaultValue || ''));
+  const initial = toInteger(defaultValue);
+  const [display, setDisplay] = useState(() => (initial ? formatUZS(initial) : ''));
+  const [raw, setRaw] = useState(() => (initial ? String(initial) : ''));
 
   return (
     <>

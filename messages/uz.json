@@ -39,7 +39,8 @@
     "settings": "Sozlamalar",
     "profile": "Mening profilim",
     "materials": "Materiallar",
-    "market": "Persons Market"
+    "market": "Persons Market",
+    "analytics": "Analitika"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -612,7 +613,8 @@
         "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
         "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, avval xabar yozing.",
-        "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+        "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+        "publishFailed": "E'lonni chop etib bo'lmadi. Qayta urinib ko'ring."
       }
     },
     "systemHealth": {
@@ -860,7 +862,8 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
-      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring."
     }
   },
   "kpi": {
@@ -895,7 +898,8 @@
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "createFailed": "Ko'rsatkichni qo'shib bo'lmadi. Qayta urinib ko'ring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
-      "deleteFailed": "O'chirib bo'lmadi. Qayta urinib ko'ring."
+      "deleteFailed": "O'chirib bo'lmadi. Qayta urinib ko'ring.",
+      "notFound": "Bu ko'rsatkich topilmadi."
     }
   },
   "incomeRoadmap": {
@@ -980,7 +984,10 @@
       "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
-      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "staleState": "Bu missiya holati allaqachon o'zgargan. Sahifani yangilab, qayta urining.",
+      "deleteFailed": "Bu missiyani o'chirib bo'lmadi.",
+      "cannotDeleteApproved": "Tasdiqlangan missiyani o'chirib bo'lmaydi — uning bonusi maosh jamiga kiradi."
     }
   },
   "salary": {
@@ -1095,7 +1102,8 @@
         "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
         "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
         "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
-        "invalidWarning": "Ushbu ogohlantirish topilmadi."
+        "invalidWarning": "Ushbu ogohlantirish topilmadi.",
+        "deleteFailed": "Bu ogohlantirishni o'chirib bo'lmadi. Qayta urinib ko'ring."
       }
     },
     "bonusesPunishments": {

@@ -65,7 +65,12 @@ export async function deleteFinanceEntryAction(
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`delete from finance_entries where id = ${parsed.data.entryId}`;
+  try {
+    await sql`delete from finance_entries where id = ${parsed.data.entryId}`;
+  } catch (error) {
+    console.error('deleteFinanceEntryAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   revalidatePath('/[locale]/finance', 'page');
   return {};

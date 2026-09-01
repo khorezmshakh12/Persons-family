@@ -501,13 +501,18 @@ export async function createLessonCommentAction(
   const parsed = createCommentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  // A past month is a closed record for commenters too — including the CEO,
-  // who is otherwise unrestricted here. (This is the only place the lesson
-  // row is read at all: the insert itself only needs the id.)
-  const [lesson] = await sql<{ lesson_date: string | null }[]>`
-    select lesson_date from course_lessons where id = ${parsed.data.lessonId}
+  // A past month is a closed record for commenters too — including the CEO.
+  // An assistant may only comment on a group they are the assigned TA for
+  // (the page hides the composer for others, but the action is otherwise an
+  // unguarded path to any group's lesson thread — mirror the write actions'
+  // ownership check).
+  const [lesson] = await sql<{ lesson_date: string | null; assigned_ta_id: string | null }[]>`
+    select cl.lesson_date, g.assigned_ta_id
+    from course_lessons cl join groups g on g.id = cl.group_id
+    where cl.id = ${parsed.data.lessonId}
   `;
   if (!lesson) return { error: 'forbidden' };
+  if (profile.role === 'assistant' && lesson.assigned_ta_id !== user.id) return { error: 'forbidden' };
   if (isPastMonth(lesson.lesson_date)) return { error: 'monthLocked' };
 
   await sql`

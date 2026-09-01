@@ -32,14 +32,19 @@ export async function upsertSalaryNoteAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  await sql`
-    insert into staff_salary_notes (staff_id, comment, updated_by, updated_at)
-    values (${parsed.data.staffId}, ${parsed.data.comment}, ${ceoId}, now())
-    on conflict (staff_id) do update set
-      comment = excluded.comment,
-      updated_by = excluded.updated_by,
-      updated_at = excluded.updated_at
-  `;
+  try {
+    await sql`
+      insert into staff_salary_notes (staff_id, comment, updated_by, updated_at)
+      values (${parsed.data.staffId}, ${parsed.data.comment}, ${ceoId}, now())
+      on conflict (staff_id) do update set
+        comment = excluded.comment,
+        updated_by = excluded.updated_by,
+        updated_at = excluded.updated_at
+    `;
+  } catch (error) {
+    console.error('upsertSalaryNoteAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath(`/[locale]/finance/${parsed.data.staffId}`, 'page');
   return {};

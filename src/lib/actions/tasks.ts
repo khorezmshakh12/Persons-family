@@ -481,7 +481,12 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   const [existing] = await sql<{ assigned_by: string }[]>`select assigned_by from tasks where id = ${parsed.data.id}`;
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
-  await sql`delete from tasks where id = ${parsed.data.id}`;
+  try {
+    await sql`delete from tasks where id = ${parsed.data.id}`;
+  } catch (error) {
+    console.error('deleteTaskAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   await bumpBoardSignal('tasks');
 

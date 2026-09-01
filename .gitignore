@@ -42,3 +42,15 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Claude Code / agent tooling — not app source (already excluded from
+# deploys via .gcloudignore / .dockerignore)
+.agents/
+.claude/
+skills-lock.json
+
+# stray local files that aren't part of the app
+123.png
+auth_data.sql
+public_data.sql
+texnik_topshiriq.md

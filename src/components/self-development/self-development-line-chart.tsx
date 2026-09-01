@@ -36,7 +36,7 @@ export function SelfDevelopmentLineChart({
   const data = points
     .filter((p) => p.ceoScore !== null)
     .map((p) => ({
-      label: format.dateTime(new Date(p.month), { month: 'long', year: 'numeric' }),
+      label: format.dateTime(new Date(`${p.month}T00:00:00Z`), { month: 'long', year: 'numeric', timeZone: 'UTC' }),
       score: p.ceoScore as number,
     }));
 

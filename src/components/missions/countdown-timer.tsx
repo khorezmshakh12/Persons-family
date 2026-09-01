@@ -6,7 +6,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 function msRemaining(deadlineDate: string): number {
-  return new Date(`${deadlineDate}T23:59:59Z`).getTime() - Date.now();
+  // End of the deadline day in Asia/Tashkent (+05:00), not UTC — a plain
+  // `...T23:59:59Z` runs the clock ~5 hours past the actual Tashkent
+  // midnight before flipping to "overdue".
+  return new Date(`${deadlineDate}T23:59:59+05:00`).getTime() - Date.now();
 }
 
 function splitUnits(ms: number) {

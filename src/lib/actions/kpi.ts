@@ -77,10 +77,18 @@ export async function updateKpiMetricAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  await sql`
-    update kpi_metrics set name = ${parsed.data.name}, weight_percentage = ${parsed.data.weightPercentage}
-    where id = ${parsed.data.metricId}
-  `;
+  // Bind the metric to the submitted staffId so a mismatched pair can't
+  // slip the metric out from under the `staffId === ceoId` self-edit guard.
+  try {
+    const res = await sql`
+      update kpi_metrics set name = ${parsed.data.name}, weight_percentage = ${parsed.data.weightPercentage}
+      where id = ${parsed.data.metricId} and staff_id = ${parsed.data.staffId}
+    `;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch (error) {
+    console.error('updateKpiMetricAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   revalidateFinance(parsed.data.staffId);
   return {};
@@ -105,7 +113,12 @@ export async function deleteKpiMetricAction(
   if (!parsed.success) return { error: 'invalidInput' };
   if (parsed.data.staffId === ceoId) return { error: 'forbidden' };
 
-  await sql`delete from kpi_metrics where id = ${parsed.data.metricId}`;
+  try {
+    await sql`delete from kpi_metrics where id = ${parsed.data.metricId} and staff_id = ${parsed.data.staffId}`;
+  } catch (error) {
+    console.error('deleteKpiMetricAction failed', error instanceof Error ? error.message : error);
+    return { error: 'deleteFailed' };
+  }
 
   revalidateFinance(parsed.data.staffId);
   return {};

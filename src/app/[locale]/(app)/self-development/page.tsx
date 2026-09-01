@@ -76,7 +76,7 @@ export default async function SelfDevelopmentPage({
         from staff_performance
       `,
       sql<(PerformanceEntry & { staff_id: string })[]>`
-        select id, entry_type, amount, reason, created_at, staff_id from performance_entries
+        select id, entry_type, amount::float8 as amount, reason, created_at, staff_id from performance_entries
         order by created_at desc
       `,
       sql<{ ceo_score: number; author: { first_name: string; last_name: string } | null }[]>`
@@ -249,7 +249,7 @@ export default async function SelfDevelopmentPage({
       select current_tier, weekly_progress_score from staff_performance where staff_id = ${user!.id}
     `,
     sql<PerformanceEntry[]>`
-      select id, entry_type, amount, reason, created_at from performance_entries
+      select id, entry_type, amount::float8 as amount, reason, created_at from performance_entries
       where staff_id = ${user!.id} order by created_at desc
     `,
   ]);

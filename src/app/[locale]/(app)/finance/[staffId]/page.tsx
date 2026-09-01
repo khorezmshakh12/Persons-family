@@ -40,7 +40,7 @@ export async function FinanceDetailContent({ staffId }: { staffId: string }) {
   const avatarSrc = await resolveAvatarUrl(target.avatar_url);
 
   const entries = await sql<FinanceEntry[]>`
-    select id, title, amount, note, created_at from finance_entries
+    select id, title, amount::float8 as amount, note, created_at from finance_entries
     where staff_id = ${staffId} order by created_at desc
   `;
 

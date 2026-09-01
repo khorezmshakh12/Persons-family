@@ -39,7 +39,8 @@
     "settings": "Settings",
     "profile": "My Profile",
     "materials": "Materials",
-    "market": "Persons Market"
+    "market": "Persons Market",
+    "analytics": "Analytics"
   },
   "auth": {
     "phone": "Phone number",
@@ -612,7 +613,8 @@
         "forbidden": "You don't have permission to do this.",
         "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please write a message first.",
-        "updateFailed": "Could not save. Please try again."
+        "updateFailed": "Could not save. Please try again.",
+        "publishFailed": "Could not publish the announcement. Please try again."
       }
     },
     "systemHealth": {
@@ -860,7 +862,8 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
       "fieldInvalid": "This field is invalid.",
-      "updateFailed": "Could not save. Please try again."
+      "updateFailed": "Could not save. Please try again.",
+      "deleteFailed": "Could not delete this entry. Please try again."
     }
   },
   "kpi": {
@@ -895,7 +898,8 @@
       "invalidInput": "Please check the values you entered.",
       "createFailed": "Could not add the metric. Please try again.",
       "updateFailed": "Could not save. Please try again.",
-      "deleteFailed": "Could not delete. Please try again."
+      "deleteFailed": "Could not delete. Please try again.",
+      "notFound": "This metric could not be found."
     }
   },
   "incomeRoadmap": {
@@ -980,7 +984,10 @@
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
-      "updateFailed": "Could not save. Please try again."
+      "updateFailed": "Could not save. Please try again.",
+      "staleState": "This mission already moved on. Refresh and try again.",
+      "deleteFailed": "Could not delete this mission.",
+      "cannotDeleteApproved": "An approved mission cannot be deleted — its bonus is part of the salary total."
     }
   },
   "salary": {
@@ -1095,7 +1102,8 @@
         "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "invalidInput": "Please fill in all required fields.",
         "createFailed": "Could not save this. Please try again.",
-        "invalidWarning": "This warning could not be found."
+        "invalidWarning": "This warning could not be found.",
+        "deleteFailed": "Could not delete this warning. Please try again."
       }
     },
     "bonusesPunishments": {
