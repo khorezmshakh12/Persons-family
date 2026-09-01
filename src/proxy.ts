@@ -12,7 +12,7 @@ const handleI18nRouting = createIntlMiddleware(routing);
 // TO BRING THE SITE BACK: change the line below to
 //   const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
 // and redeploy `main`.
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
 
 const MAINTENANCE_HTML = `<!DOCTYPE html>
 <html lang="uz">
