@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { ChevronDown } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
@@ -40,6 +41,12 @@ export function TaskBoard({
 }) {
   const t = useTranslations('tasks');
   const [tasks, setTasks] = useState(initialTasks);
+  // The whole board collapses into a single header row — the columns (and
+  // the DndContext) only mount once it's opened. Default closed so /tasks
+  // opens as a compact summary, not a wall of cards. The realtime
+  // subscription below stays mounted regardless, so the count in the header
+  // is always live.
+  const [boardOpen, setBoardOpen] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   // Board used to only reflect the viewer's own drag/delete actions — a task
@@ -139,26 +146,45 @@ export function TaskBoard({
 
   return (
     <div className="flex flex-col gap-8">
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
-          {COLUMNS.map((status) => (
-            <TaskKanbanColumn
-              key={status}
-              status={status}
-              label={t(`columns.${status}`)}
-              tasks={tasks.filter((task) => task.status === status)}
-              isAdmin={isAdmin}
-              assignees={assignees}
-              currentUserId={currentUserId}
-              emptyLabel={t('noTasks')}
-              onRequestDelete={handleRequestDelete}
-              // Done piles up all month; one "Bajarilgan · N" row keeps the
-              // two active columns readable (spec #5). Still a drop target.
-              collapsible={status === 'done'}
-            />
-          ))}
-        </div>
-      </DndContext>
+      <div className="flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={() => setBoardOpen((open) => !open)}
+          aria-expanded={boardOpen}
+          className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left text-white backdrop-blur-md transition-colors hover:bg-white/15"
+        >
+          <span className="font-heading text-sm font-semibold [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            {t('boardToggle', { count: tasks.length })}
+          </span>
+          <ChevronDown
+            className={`size-5 shrink-0 transition-transform ${boardOpen ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </button>
+
+        {boardOpen && (
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+              {COLUMNS.map((status) => (
+                <TaskKanbanColumn
+                  key={status}
+                  status={status}
+                  label={t(`columns.${status}`)}
+                  tasks={tasks.filter((task) => task.status === status)}
+                  isAdmin={isAdmin}
+                  assignees={assignees}
+                  currentUserId={currentUserId}
+                  emptyLabel={t('noTasks')}
+                  onRequestDelete={handleRequestDelete}
+                  // Done piles up all month; one "Bajarilgan · N" row keeps the
+                  // two active columns readable (spec #5). Still a drop target.
+                  collapsible={status === 'done'}
+                />
+              ))}
+            </div>
+          </DndContext>
+        )}
+      </div>
       <MonthlyArchive months={archive} isAdmin={isAdmin} />
     </div>
   );

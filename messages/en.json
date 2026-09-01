@@ -567,7 +567,8 @@
       "completedOn": "Completed {date}"
     },
     "starReward": "Star reward",
-    "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none."
+    "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none.",
+    "boardToggle": "Tasks · {count}"
   },
   "companyNews": {
     "title": "Company News",
