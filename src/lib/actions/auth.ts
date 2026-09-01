@@ -54,7 +54,7 @@ export async function loginAction(
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, sessionCookie, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_APP_URL?.startsWith('http://localhost'),
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 14,
       path: '/',
@@ -118,7 +118,7 @@ export async function setPasswordAction(
     const sessionCookie = await reissueSessionCookie(user!.uid);
     (await cookies()).set(SESSION_COOKIE_NAME, sessionCookie, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_APP_URL?.startsWith('http://localhost'),
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 14,
       path: '/',

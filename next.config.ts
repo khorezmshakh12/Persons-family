@@ -43,6 +43,15 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'storage.googleapis.com' },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/uz',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);

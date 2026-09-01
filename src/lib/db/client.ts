@@ -48,7 +48,8 @@ function createClient() {
   if (!connectionString) {
     throw new Error("DATABASE_URL is required");
   }
-  return postgres(connectionString, { ssl: "require", ...poolOptions });
+  const isLocal = connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+  return postgres(connectionString, { ssl: isLocal ? false : "require", ...poolOptions });
 }
 
 export const sql = globalThis.__dbClient ?? createClient();
