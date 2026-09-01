@@ -5,6 +5,30 @@ import { getSessionUser } from '@/lib/gcp/middleware';
 
 const handleI18nRouting = createIntlMiddleware(routing);
 
+// Bump this string to force every browser to drop its HTTP cache once more.
+// A browser that hasn't sent back a matching `csd` cookie gets a
+// `Clear-Site-Data: "cache"` header exactly once (clears the network cache
+// and bfcache only — NOT cookies or storage, so the session survives) and
+// the cookie then suppresses it on every later request. This is what lets
+// users past a stale page (e.g. a maintenance 503 that a browser cached
+// with `retry-after`) without being told to clear the cache by hand.
+const CACHE_BUST_VERSION = '2026-09-01';
+
+function stampCache(request: NextRequest, response: NextResponse): NextResponse {
+  // Navigation HTML is user-specific and session-gated — it must never be
+  // reused from cache without revalidating against the server.
+  response.headers.set('Cache-Control', 'no-store, must-revalidate');
+  if (request.cookies.get('csd')?.value !== CACHE_BUST_VERSION) {
+    response.headers.set('Clear-Site-Data', '"cache"');
+    response.cookies.set('csd', CACHE_BUST_VERSION, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    });
+  }
+  return response;
+}
+
 // Kill switch for a full site lockout. Currently ON for the platform
 // upgrade — every request (including logged-in users) gets the maintenance
 // page and nothing else.
@@ -49,9 +73,13 @@ function copyCookies(from: NextResponse, to: NextResponse) {
 
 export default async function proxy(request: NextRequest) {
   if (MAINTENANCE_MODE) {
+    // No `retry-after` here any more — a browser that cached the 503 with a
+    // one-hour retry-after kept showing the maintenance page for up to an
+    // hour after the site was already back. `no-store` keeps this response
+    // out of the cache entirely.
     return new NextResponse(MAINTENANCE_HTML, {
       status: 503,
-      headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '3600' },
+      headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
     });
   }
 
@@ -85,7 +113,7 @@ export default async function proxy(request: NextRequest) {
   // The intl middleware already decided to redirect (e.g. "/" -> "/en").
   // Let that happen first; auth gating runs once the locale is in the URL.
   if (intlResponse.headers.get('location')) {
-    return intlResponse;
+    return stampCache(request, intlResponse);
   }
 
   const { locale, path } = localeAndPath(request.nextUrl.pathname);
@@ -95,23 +123,23 @@ export default async function proxy(request: NextRequest) {
     url.pathname = `/${locale}${target}`;
     url.search = '';
     if (params) for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-    return copyCookies(intlResponse, NextResponse.redirect(url));
+    return stampCache(request, copyCookies(intlResponse, NextResponse.redirect(url)));
   };
 
   if (!user) {
-    if (path === '/login') return intlResponse;
+    if (path === '/login') return stampCache(request, intlResponse);
     return redirectTo('/login', suspended ? { reason: 'suspended' } : undefined);
   }
 
   if (mustChangePassword) {
-    return path === '/set-password' ? intlResponse : redirectTo('/set-password');
+    return path === '/set-password' ? stampCache(request, intlResponse) : redirectTo('/set-password');
   }
 
   if (path === '/login' || path === '/set-password' || path === '/') {
     return redirectTo('/dashboard');
   }
 
-  return intlResponse;
+  return stampCache(request, intlResponse);
 }
 
 export const config = {
