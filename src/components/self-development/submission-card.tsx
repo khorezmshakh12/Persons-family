@@ -12,6 +12,7 @@ export type Submission = {
   ceo_rating: string | null;
   ceo_score: number | null;
   bonus_amount: number | null;
+  star_award?: number | null;
   user_id: string;
   author: { first_name: string; last_name: string; role: string; teacher_level: TeacherLevel } | null;
 };
@@ -77,6 +78,7 @@ export async function SubmissionCard({
           currentScore={submission.ceo_score}
           currentLevel={submission.author?.role === 'teacher' ? submission.author.teacher_level : null}
           currentBonusAmount={submission.bonus_amount}
+          currentStarAward={submission.star_award}
         />
       ) : submission.ceo_rating ? (
         <div className="flex flex-col gap-1 border-t border-white/10 pt-3">

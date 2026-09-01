@@ -67,6 +67,8 @@ export function TaskBoard({
         deadline: row.deadline,
         status: row.status,
         is_overdue: row.is_overdue,
+        comment_count: row.comment_count ?? 0,
+        star_reward: row.star_reward ?? 0,
         assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
       };
     }

@@ -25,10 +25,13 @@ export async function SelfDevelopmentSection({
       ceo_rating: string | null;
       ceo_score: number | null;
       bonus_amount: number | null;
+      star_award: number | null;
       user_id: string;
     }[]
   >`
-    select id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount::float8 as bonus_amount, user_id
+    select id, month, achievements, value_added, ceo_rating, ceo_score, bonus_amount::float8 as bonus_amount,
+           (select coalesce(sum(delta), 0)::int from star_transactions where source_type = 'self_development' and source_id = self_development.id) as star_award,
+           user_id
     from self_development
     where user_id = ${staffId}
     order by month desc

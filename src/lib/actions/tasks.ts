@@ -304,6 +304,8 @@ export type VisibleTaskRow = {
    * the one clock both the board and the archive already agree on. */
   is_overdue: boolean;
   updated_at: string;
+  comment_count: number;
+  star_reward?: number;
 };
 
 /**
@@ -338,7 +340,9 @@ export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
 
   return sql<VisibleTaskRow[]>`
     select id, title, description, assigned_to, assigned_by, deadline, status, completed_at, updated_at,
-           (status <> 'done' and deadline < now()) as is_overdue
+           (status <> 'done' and deadline < now()) as is_overdue,
+           (select count(*) from task_comments c where c.task_id = tasks.id)::int as comment_count,
+           star_reward
     from tasks
     where (assigned_by = ${user.id} or assigned_to = ${user.id})
       and (status <> 'done' or completed_at >= ${currentMonthStart()})

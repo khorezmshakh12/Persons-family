@@ -5,7 +5,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Star } from 'lucide-react';
 import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
@@ -31,6 +31,8 @@ export type Task = {
   assigned_by?: string | null;
   /** Server-rendered comment count for the closed drawer trigger. */
   comment_count?: number;
+  /** Optional star bounty attached by the CEO. */
+  star_reward?: number | null;
 };
 
 function TaskCardImpl({
@@ -88,6 +90,7 @@ function TaskCardImpl({
                     description: task.description,
                     assigned_to: task.assigned_to,
                     deadline: task.deadline,
+                    star_reward: task.star_reward,
                   }}
                   assignees={assignees}
                 />
@@ -129,7 +132,15 @@ function TaskCardImpl({
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TaskStatusControl status={task.status} />
+          <div className="flex items-center gap-2">
+            <TaskStatusControl status={task.status} />
+            {!!task.star_reward && task.star_reward > 0 && (
+              <Badge variant="tint" tint="amber" className="text-xs font-semibold gap-1">
+                <Star className="size-3 fill-amber-400 text-amber-400" />
+                +{task.star_reward}
+              </Badge>
+            )}
+          </div>
           <TaskCommentsDrawer
             taskId={task.id}
             taskTitle={task.title}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
 import { updateTaskAction, type TaskActionState } from '@/lib/actions/tasks';
@@ -32,6 +32,7 @@ export type EditableTask = {
   description: string | null;
   assigned_to: string;
   deadline: string;
+  star_reward?: number | null;
 };
 
 export function EditTaskDialog({ task, assignees }: { task: EditableTask; assignees: Assignee[] }) {
@@ -39,13 +40,19 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState<TaskActionState, FormData>(
-    updateTaskAction,
+    async (prev, formData) => {
+      const deadline = formData.get('deadline');
+      if (typeof deadline === 'string' && deadline) {
+        formData.set('deadline', fromDatetimeLocalValue(deadline));
+      }
+      const result = await updateTaskAction(prev, formData);
+      if (!result?.error) {
+        setOpen(false);
+      }
+      return result;
+    },
     undefined,
   );
-
-  useEffect(() => {
-    if (state && !state.error) setOpen(false);
-  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -65,16 +72,7 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
         <DialogHeader>
           <DialogTitle>{t('editTask')}</DialogTitle>
         </DialogHeader>
-        <form
-          action={(formData) => {
-            const deadline = formData.get('deadline');
-            if (typeof deadline === 'string' && deadline) {
-              formData.set('deadline', fromDatetimeLocalValue(deadline));
-            }
-            return formAction(formData);
-          }}
-          className="flex flex-col gap-4"
-        >
+        <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={task.id} />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`title-${task.id}`}>{t('titleLabel')}</Label>
@@ -125,6 +123,19 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
               defaultValue={toDatetimeLocalValue(task.deadline)}
               required
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`starReward-${task.id}`}>{t('starReward')}</Label>
+            <Input
+              id={`starReward-${task.id}`}
+              name="starReward"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={task.star_reward ?? 0}
+              placeholder="0"
+            />
+            <p className="text-xs text-white/60">{t('starRewardHint')}</p>
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>

@@ -36,6 +36,7 @@ export default async function SelfDevelopmentPage({
   const submissions = await sql<Submission[]>`
     select
       sd.id, sd.month, sd.achievements, sd.value_added, sd.ceo_rating, sd.ceo_score, sd.bonus_amount, sd.user_id,
+      (select coalesce(sum(delta), 0)::int from star_transactions where source_type = 'self_development' and source_id = sd.id) as star_award,
       case when p.id is null then null else
         json_build_object('first_name', p.first_name, 'last_name', p.last_name, 'role', p.role, 'teacher_level', p.teacher_level)
       end as author

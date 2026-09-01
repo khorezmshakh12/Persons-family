@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
-import { KeyRound, Ban, CheckCircle2, Trash2, Unlink, MoreVertical } from 'lucide-react';
+import { KeyRound, Ban, CheckCircle2, Trash2, Unlink, MoreVertical, Sparkles } from 'lucide-react';
 import type { Profile } from '@/lib/auth/session';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +16,7 @@ import { ToggleActiveButton } from './toggle-active-button';
 import { ResetPasswordDialog } from './reset-password-dialog';
 import { DeleteStaffButton } from './delete-staff-button';
 import { DisconnectStaffTelegramButton } from './disconnect-staff-telegram-button';
+import { AwardStarsDialog } from '@/components/profile/award-stars-dialog';
 
 // Code-split: the heaviest dialog in the app (tabs, avatar upload) only
 // needs to load once someone actually opens it, instead of shipping in
@@ -24,7 +25,7 @@ const EditStaffDialog = dynamic(() =>
   import('./edit-staff-dialog').then((mod) => mod.EditStaffDialog),
 );
 
-type MenuAction = 'reset' | 'toggle' | 'delete' | 'disconnectTelegram' | null;
+type MenuAction = 'reset' | 'toggle' | 'delete' | 'disconnectTelegram' | 'manageStars' | null;
 
 // Edit stays a direct, always-visible action (the most common one); the
 // rest — reset password, deactivate/activate, delete — used to be four more
@@ -42,6 +43,7 @@ export function StaffRowActions({
   actingRole: Profile['role'];
 }) {
   const t = useTranslations('staff');
+  const tStars = useTranslations('profile.stars');
   const [menuAction, setMenuAction] = useState<MenuAction>(null);
   const isSelf = target.id === currentUserId;
   // CEO and Admin Manager are equal for day-to-day operations, but managing
@@ -52,7 +54,8 @@ export function StaffRowActions({
   const canDeactivate = !isSelf;
   const canDelete = !isSelf && actingRole === 'ceo';
   const canManageTelegram = actingRole === 'ceo' && !!target.telegram_id;
-  const hasMenuActions = canDeactivate || canDelete || canManageTelegram;
+  const canAwardStars = actingRole === 'ceo' && !isSelf;
+  const hasMenuActions = canDeactivate || canDelete || canManageTelegram || canAwardStars;
 
   if (!canManage) return <span className="text-muted-foreground text-sm">—</span>;
 
@@ -92,6 +95,12 @@ export function StaffRowActions({
                 {t('disconnectTelegram')}
               </DropdownMenuItem>
             )}
+            {canAwardStars && (
+              <DropdownMenuItem onClick={() => setMenuAction('manageStars')}>
+                <Sparkles className="text-amber-400" />
+                {tStars('manageStars')}
+              </DropdownMenuItem>
+            )}
             {canDelete && (
               <DropdownMenuItem variant="destructive" onClick={() => setMenuAction('delete')}>
                 <Trash2 />
@@ -100,6 +109,15 @@ export function StaffRowActions({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+      )}
+
+      {canAwardStars && (
+        <AwardStarsDialog
+          userId={target.id}
+          staffName={`${target.first_name} ${target.last_name}`}
+          open={menuAction === 'manageStars'}
+          onOpenChange={(open) => setMenuAction(open ? 'manageStars' : null)}
+        />
       )}
 
       <ResetPasswordDialog

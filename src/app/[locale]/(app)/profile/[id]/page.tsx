@@ -130,7 +130,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         <div className="animate-fade-in-up" style={{ animationDelay: '140ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
-              <StarBalanceCard staffId={id} />
+              <StarBalanceCard staffId={id} canManage={canManage} />
             </Suspense>
           </SectionErrorBoundary>
         </div>

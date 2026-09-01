@@ -4,6 +4,8 @@ import { getStarBalance } from '@/lib/stars';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
+import { AwardStarsDialog } from './award-stars-dialog';
+
 /**
  * Stars are a standalone currency (see src/lib/stars.ts) — a balance is
  * never a stored column, it's the running sum of the append-only ledger,
@@ -14,7 +16,13 @@ import { cn } from '@/lib/utils';
  * reading anyone's) and returns [] otherwise, so this component can be
  * rendered without the caller re-deriving that.
  */
-export async function StarBalanceCard({ staffId }: { staffId: string }) {
+export async function StarBalanceCard({
+  staffId,
+  canManage,
+}: {
+  staffId: string;
+  canManage?: boolean;
+}) {
   const t = await getTranslations('profile.stars');
   const format = await getFormatter();
 
@@ -23,9 +31,12 @@ export async function StarBalanceCard({ staffId }: { staffId: string }) {
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {t('title')}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            {t('title')}
+          </h2>
+          {canManage && <AwardStarsDialog userId={staffId} />}
+        </div>
         <span className="font-heading text-2xl font-bold text-white">{t('starCount', { count: balance })}</span>
       </div>
 

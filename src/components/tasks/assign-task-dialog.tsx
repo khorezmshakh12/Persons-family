@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import { assignTaskAction, type TaskActionState } from '@/lib/actions/tasks';
@@ -32,13 +32,19 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [state, formAction, isPending] = useActionState<TaskActionState, FormData>(
-    assignTaskAction,
+    async (prev, formData) => {
+      const deadline = formData.get('deadline');
+      if (typeof deadline === 'string' && deadline) {
+        formData.set('deadline', fromDatetimeLocalValue(deadline));
+      }
+      const result = await assignTaskAction(prev, formData);
+      if (!result?.error) {
+        setOpen(false);
+      }
+      return result;
+    },
     undefined,
   );
-
-  useEffect(() => {
-    if (state && !state.error) setOpen(false);
-  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -50,16 +56,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
         <DialogHeader>
           <DialogTitle>{t('assignTask')}</DialogTitle>
         </DialogHeader>
-        <form
-          action={(formData) => {
-            const deadline = formData.get('deadline');
-            if (typeof deadline === 'string' && deadline) {
-              formData.set('deadline', fromDatetimeLocalValue(deadline));
-            }
-            return formAction(formData);
-          }}
-          className="flex flex-col gap-4"
-        >
+        <form action={formAction} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">{t('titleLabel')}</Label>
             <Input id="title" name="title" required maxLength={200} />
@@ -99,6 +96,19 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
           <div className="flex flex-col gap-2">
             <Label htmlFor="deadline">{t('deadline')}</Label>
             <Input id="deadline" name="deadline" type="datetime-local" required />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="starReward">{t('starReward')}</Label>
+            <Input
+              id="starReward"
+              name="starReward"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={0}
+              placeholder="0"
+            />
+            <p className="text-xs text-white/60">{t('starRewardHint')}</p>
           </div>
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>

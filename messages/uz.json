@@ -1185,7 +1185,15 @@
         "forbidden": "Sizda bunga ruxsat yo'q.",
         "sessionExpired": "Sessiya tugadi — sahifani yangilab, qayta kiring.",
         "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
-      }
+      },
+      "manageStars": "Yulduzlarni boshqarish",
+      "awardStars": "Yulduz berish",
+      "deductStars": "Yulduz yechish",
+      "amount": "Yulduzlar soni",
+      "reason": "Sabab",
+      "reasonPlaceholder": "Yulduz o'zgartirish sababi (ixtiyoriy)...",
+      "deductWarning": "Diqqat: Yulduz yechilganda xodimga avtomatik rasmiy ogohlantirish (warning) beriladi va Telegram orqali xabar yuboriladi.",
+      "success": "Yulduzlar muvaffaqiyatli yangilandi."
     }
   },
   "market": {
@@ -1218,6 +1226,47 @@
       "itemInactive": "Bu sovg'a hozir mavjud emas.",
       "outOfStock": "Bu sovg'a tugagan.",
       "insufficientStars": "Yulduzlaringiz yetarli emas."
+    },
+    "order": "Buyurtma berish",
+    "orderConfirm": "Buyurtmani tasdiqlash",
+    "orderConfirmDescription": "Haqiqatan ham {cost} yulduz evaziga \"{name}\" sovg'asiga buyurtma bermoqchimisiz?",
+    "orderSuccess": "Buyurtma berildi! Rahbariyat tasdiqlashi kutilmoqda.",
+    "remainingBalance": "Qoladigan balans: {count} yulduz",
+    "searchPlaceholder": "Sovg'alarni qidirish...",
+    "sortLowest": "Arzonroq",
+    "sortHighest": "Qimmatroq",
+    "allRewards": "Barcha sovg'alar",
+    "tabs": {
+      "shop": "Sovg'alar",
+      "myOrders": "Mening buyurtmalarim",
+      "admin": "Boshqaruv (CEO)"
+    },
+    "admin": {
+      "title": "Market boshqaruvi",
+      "pendingOrders": "Kutilayotgan buyurtmalar",
+      "noPendingOrders": "Kutilayotgan buyurtmalar yo'q.",
+      "catalogManagement": "Sovg'alar katalogi",
+      "addItem": "Sovg'a qo'shish",
+      "editItem": "Sovg'ani tahrirlash",
+      "name": "Sovg'a nomi",
+      "description": "Tavsif",
+      "imageUrl": "Rasm havolasi (URL)",
+      "starCost": "Narxi (yulduz)",
+      "stock": "Soni (omborda)",
+      "stockHint": "Cheklanmagan bo'lsa bo'sh qoldiring.",
+      "active": "Faol",
+      "inactive": "Nofaol",
+      "approve": "Tasdiqlash",
+      "approveSuccess": "Buyurtma tasdiqlandi.",
+      "reject": "Rad etish",
+      "rejectSuccess": "Buyurtma rad etildi va yulduzlar qaytarildi.",
+      "rejectPrompt": "Rad etish sababi (ixtiyoriy)",
+      "rejectWarning": "Buyurtma rad etilganda {name} ga {cost} yulduz avtomatik qaytariladi.",
+      "fulfill": "Topshirildi",
+      "fulfillSuccess": "Buyurtma topshirildi deb belgilandi.",
+      "orderedBy": "Buyurtmachi: {name}",
+      "note": "Izoh",
+      "itemSaved": "Sovg'a muvaffaqiyatli saqlandi."
     }
   }
 }

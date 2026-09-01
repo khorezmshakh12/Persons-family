@@ -1185,7 +1185,15 @@
         "forbidden": "You don't have permission to do this.",
         "sessionExpired": "Your session expired — please refresh the page and log in again.",
         "createFailed": "Could not save this. Please try again."
-      }
+      },
+      "manageStars": "Manage stars",
+      "awardStars": "Award stars",
+      "deductStars": "Deduct stars",
+      "amount": "Amount of stars",
+      "reason": "Reason",
+      "reasonPlaceholder": "Optional reason for this star adjustment...",
+      "deductWarning": "Warning: Deducting stars will automatically issue an official staff warning and send a Telegram notification to the employee.",
+      "success": "Stars updated successfully."
     }
   },
   "market": {
@@ -1218,6 +1226,47 @@
       "itemInactive": "This reward is not available right now.",
       "outOfStock": "This reward is out of stock.",
       "insufficientStars": "You don't have enough stars."
+    },
+    "order": "Order",
+    "orderConfirm": "Confirm Order",
+    "orderConfirmDescription": "Are you sure you want to order {name} for {cost, plural, one {# star} other {# stars}}?",
+    "orderSuccess": "Order placed successfully! Waiting for admin approval.",
+    "remainingBalance": "Remaining balance: {count, plural, one {# star} other {# stars}}",
+    "searchPlaceholder": "Search rewards...",
+    "sortLowest": "Lowest cost",
+    "sortHighest": "Highest cost",
+    "allRewards": "All rewards",
+    "tabs": {
+      "shop": "Rewards",
+      "myOrders": "My Orders",
+      "admin": "Curation (CEO)"
+    },
+    "admin": {
+      "title": "Market Curation",
+      "pendingOrders": "Pending Orders",
+      "noPendingOrders": "No pending orders.",
+      "catalogManagement": "Catalog Management",
+      "addItem": "Add Reward",
+      "editItem": "Edit Reward",
+      "name": "Reward name",
+      "description": "Description",
+      "imageUrl": "Image URL",
+      "starCost": "Cost (stars)",
+      "stock": "Stock quantity",
+      "stockHint": "Leave empty for unlimited stock.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "approve": "Approve",
+      "approveSuccess": "Order approved.",
+      "reject": "Reject",
+      "rejectSuccess": "Order rejected and stars refunded.",
+      "rejectPrompt": "Rejection Reason (optional)",
+      "rejectWarning": "Rejecting this order will automatically refund {cost, plural, one {# star} other {# stars}} back to {name}.",
+      "fulfill": "Mark Fulfilled",
+      "fulfillSuccess": "Order marked as fulfilled.",
+      "orderedBy": "Ordered by {name}",
+      "note": "Note",
+      "itemSaved": "Reward saved successfully."
     }
   }
 }

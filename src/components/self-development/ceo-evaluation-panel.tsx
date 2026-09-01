@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { saveEvaluationAction, type SelfDevActionState } from '@/lib/actions/self-development';
@@ -20,6 +20,7 @@ export function CeoEvaluationPanel({
    * for a teacher's career ladder, so it's simply omitted from the form. */
   currentLevel,
   currentBonusAmount,
+  currentStarAward,
 }: {
   submissionId: string;
   userId: string;
@@ -27,18 +28,20 @@ export function CeoEvaluationPanel({
   currentScore: number | null;
   currentLevel: TeacherLevel | null;
   currentBonusAmount: number | null;
+  currentStarAward?: number | null;
 }) {
   const t = useTranslations('selfDevelopment');
   const [score, setScore] = useState(currentScore ?? 0);
-  const [state, formAction, isPending] = useActionState<SelfDevActionState, FormData>(
-    saveEvaluationAction,
+  const [starAward, setStarAward] = useState(currentStarAward ?? 0);
+  const [, formAction, isPending] = useActionState<SelfDevActionState, FormData>(
+    async (prev, formData) => {
+      const result = await saveEvaluationAction(prev, formData);
+      if (result?.success) toast.success(t('evaluationSaved'));
+      else if (result?.error) toast.error(t(`errors.${result.error}`));
+      return result;
+    },
     undefined,
   );
-
-  useEffect(() => {
-    if (state?.success) toast.success(t('evaluationSaved'));
-    else if (state?.error) toast.error(t(`errors.${state.error}`));
-  }, [state, t]);
 
   return (
     <form action={formAction} className="flex flex-col gap-3 border-t border-white/10 pt-3">
@@ -74,6 +77,24 @@ export function CeoEvaluationPanel({
           aria-label={t('ceoScore')}
           className="w-full rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm tabular-nums text-white"
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-white/60">{t('starAward')}</span>
+          <span className="font-semibold tabular-nums text-white">{starAward}</span>
+        </div>
+        <input
+          type="number"
+          name="starAward"
+          min={0}
+          step={1}
+          value={starAward}
+          onChange={(e) => setStarAward(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          aria-label={t('starAward')}
+          className="w-full rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm tabular-nums text-white"
+        />
+        <p className="text-xs text-white/50">{t('starAwardHint')}</p>
       </div>
 
       <div className="flex flex-col gap-1">
