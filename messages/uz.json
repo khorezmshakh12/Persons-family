@@ -625,7 +625,12 @@
       "backupFailed": "Zaxira nusxa tayyorlab bo'lmadi. Qayta urinib ko'ring."
     },
     "themes": {
-      "nature": "Tabiat",
+      "aurora": "Shimol Yog'dusi (Zenith Aurora)",
+      "kyoto": "Yapon Bog'i (Kyoto Oasis)",
+      "midnight": "Tungi Hashamat (Midnight Velvet)",
+      "nordic": "Skandinaviya Tog'lari (Nordic Mist)",
+      "cosmic": "Koinot Ufqi (Cosmic Horizon)",
+      "nature": "Tabiat (Nature Calm)",
       "cinematic": "Kinematik (Video)",
       "vivid": "Yorqin (Video)"
     },

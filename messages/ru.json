@@ -625,9 +625,14 @@
       "backupFailed": "Не удалось подготовить резервную копию. Попробуйте снова."
     },
     "themes": {
-      "nature": "Природа",
-      "cinematic": "Кинематографичный (видео)",
-      "vivid": "Яркий (видео)"
+      "aurora": "Северное Сияние (Zenith Aurora)",
+      "kyoto": "Киотский Оазис (Kyoto Oasis)",
+      "midnight": "Полуночный Бархат (Midnight Velvet)",
+      "nordic": "Скандинавский Туман (Nordic Mist)",
+      "cosmic": "Космический Горизонт (Cosmic Horizon)",
+      "nature": "Природа (Nature Calm)",
+      "cinematic": "Кинематографичный (Видео)",
+      "vivid": "Яркий (Видео)"
     },
     "upload": {
       "button": "Выбрать изображение",

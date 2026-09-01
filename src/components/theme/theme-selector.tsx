@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 export function ThemeSelector() {
   const t = useTranslations('settings');
-  const { backgroundUrl, themeMode, setThemeMode, videoThemeId, setVideoThemeId } = useBackground();
+  const { backgroundUrl, setBackgroundUrl, themeMode, setThemeMode, videoThemeId, setVideoThemeId } = useBackground();
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -55,7 +55,10 @@ export function ThemeSelector() {
           <button
             key={theme.id}
             type="button"
-            onClick={() => setThemeMode('photo')}
+            onClick={() => {
+              setBackgroundUrl(theme.url);
+              setThemeMode('photo');
+            }}
             className={cn(
               'group relative flex aspect-video flex-col justify-end overflow-hidden rounded-xl border-2 bg-cover bg-center transition-transform duration-200 ease-bounce hover:scale-[1.03] active:scale-95',
               active ? 'border-white ring-2 ring-white/50' : 'border-white/20',

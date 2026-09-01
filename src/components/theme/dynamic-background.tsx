@@ -59,15 +59,17 @@ export function DynamicBackground() {
           alt=""
           fill
           priority
-          quality={75}
+          quality={80}
           sizes="100vw"
           unoptimized={isDataUrl}
-          className="object-cover object-center"
+          className="object-cover object-center transition-opacity duration-700"
         />
       </div>
-      {/* A constant dark scrim keeps white glass text legible regardless of
-          how bright the chosen photo is. */}
-      <div className="fixed inset-0 -z-10 bg-black/35" />
+      {/* Calming atmospheric ambient veil: slow 10s breathing pulse that ties
+          the photo backdrop into our glassmorphism and emerald/teal accents
+          without overpowering text contrast. */}
+      <div className="animate-ambient-pulse fixed inset-0 -z-10 bg-gradient-to-b from-black/50 via-teal-950/20 to-black/60 mix-blend-multiply pointer-events-none" />
+      <div className="fixed inset-0 -z-10 bg-black/35 pointer-events-none" />
     </>
   );
 }

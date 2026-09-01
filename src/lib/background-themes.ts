@@ -2,11 +2,33 @@ export type BackgroundTheme = { id: string; name: string; url: string };
 
 export const PRESET_THEMES: BackgroundTheme[] = [
   {
+    id: 'aurora',
+    name: 'Zenith Aurora',
+    url: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=2000',
+  },
+  {
+    id: 'kyoto',
+    name: 'Kyoto Oasis',
+    url: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=2000',
+  },
+  {
+    id: 'midnight',
+    name: 'Midnight Velvet',
+    url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=2000',
+  },
+  {
+    id: 'nordic',
+    name: 'Nordic Mist',
+    url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000',
+  },
+  {
+    id: 'cosmic',
+    name: 'Cosmic Horizon',
+    url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000',
+  },
+  {
     id: 'nature',
-    name: 'Nature',
-    // The original URL given for this theme 404s — the Unsplash photo ID no
-    // longer resolves. Swapped in a verified-live replacement matching the
-    // same theme.
+    name: 'Nature Calm',
     url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=2000',
   },
 ];

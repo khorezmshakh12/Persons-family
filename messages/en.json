@@ -625,7 +625,12 @@
       "backupFailed": "Could not prepare the backup. Please try again."
     },
     "themes": {
-      "nature": "Nature",
+      "aurora": "Zenith Aurora",
+      "kyoto": "Kyoto Oasis",
+      "midnight": "Midnight Velvet",
+      "nordic": "Nordic Mist",
+      "cosmic": "Cosmic Horizon",
+      "nature": "Nature Calm",
       "cinematic": "Cinematic (Video)",
       "vivid": "Vivid (Video)"
     },
