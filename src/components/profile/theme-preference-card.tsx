@@ -1,9 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Sparkles, Check, Palette, Mountain, Trees, Moon, Compass, Orbit } from 'lucide-react';
+import { Sparkles, Check, Palette, Layers, Cpu, LayoutGrid, Crown, Waves, Compass, Trees, Mountain, Orbit } from 'lucide-react';
 import { useBackground } from '@/components/theme/background-context';
-import { DESIGN_VARIANTS } from '@/lib/background-themes';
+import { DESIGN_VARIANTS, type DesignTheme } from '@/lib/background-themes';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -14,9 +14,19 @@ export function ThemePreferenceCard() {
   const ICONS: Record<string, typeof Sparkles> = {
     aurora: Sparkles,
     kyoto: Trees,
-    midnight: Moon,
+    midnight: Crown,
     nordic: Mountain,
     cosmic: Orbit,
+    studio: LayoutGrid,
+  };
+
+  const PREVIEW_BACKGROUNDS: Record<string, string> = {
+    aurora: 'bg-gradient-to-br from-teal-900/80 via-slate-900 to-emerald-950/80',
+    kyoto: 'bg-gradient-to-br from-emerald-950 via-teal-950 to-slate-950',
+    midnight: 'bg-gradient-to-br from-amber-950/60 via-slate-950 to-black',
+    nordic: 'bg-gradient-to-br from-sky-950 via-slate-900 to-slate-950',
+    cosmic: 'bg-gradient-to-tr from-purple-900/70 via-teal-900/60 to-slate-950',
+    studio: 'bg-[#0f131a]',
   };
 
   return (
@@ -27,20 +37,26 @@ export function ThemePreferenceCard() {
             <Palette className="size-5" />
           </div>
           <div className="flex flex-col">
-            <h2 className="font-heading text-lg font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-              Platforma Dizayni (5 xil variant)
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-lg font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+                Platforma Dizayni (6 xil variant)
+              </h2>
+              <span className="rounded-full bg-teal-400/20 px-2.5 py-0.5 text-[11px] font-semibold text-teal-300 border border-teal-400/30">
+                Zenith Aurora & Motion
+              </span>
+            </div>
             <p className="text-xs text-white/70">
-              Platformaning to&apos;liq ko&apos;rinishi, shisha uslubi va tinchlantiruvchi atmosferasini tanlang.
+              Shisha, Neomorfizm, Kiber yoki Bento kabi butunlay boshqa dizayn uslublarini profilingizdan tanlang.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {DESIGN_VARIANTS.map((design) => {
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {DESIGN_VARIANTS.map((design: DesignTheme) => {
           const isActive = activeDesignId === design.id;
           const IconComp = ICONS[design.id] ?? Compass;
+          const previewBg = PREVIEW_BACKGROUNDS[design.id] ?? 'bg-slate-900';
 
           return (
             <button
@@ -48,37 +64,55 @@ export function ThemePreferenceCard() {
               type="button"
               onClick={() => {
                 setDesignVariant(design.id);
-                setBackgroundUrl(design.url);
-                setThemeMode('photo');
+                if (design.url) {
+                  setBackgroundUrl(design.url);
+                  setThemeMode('photo');
+                }
               }}
               className={cn(
-                'group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 p-3 text-left transition-all duration-300 ease-bounce hover:scale-[1.03] active:scale-95',
+                'group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 p-4 text-left transition-all duration-300 ease-bounce hover:scale-[1.02] active:scale-95',
                 isActive
-                  ? 'border-white bg-white/20 shadow-[0_0_25px_rgba(255,255,255,0.3)] ring-2 ring-white/50'
-                  : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10',
+                  ? 'border-teal-400 bg-teal-500/15 shadow-[0_0_30px_rgba(45,212,191,0.3)] ring-2 ring-teal-400/50'
+                  : 'border-white/15 bg-white/5 hover:border-white/35 hover:bg-white/10',
               )}
             >
-              {/* Thumbnail Image Backdrop */}
-              <div className="relative mb-3 h-28 w-full overflow-hidden rounded-xl border border-white/15 bg-slate-900">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={design.url}
-                  alt={design.name}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-black/20 to-transparent" />
+              {/* Thumbnail / Motion Preview Box */}
+              <div
+                className={cn(
+                  'relative mb-3 h-28 w-full overflow-hidden rounded-xl border border-white/15',
+                  previewBg,
+                )}
+              >
+                {design.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={design.url}
+                    alt={design.name}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 opacity-70"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <IconComp className="size-10 text-white/30 transition-transform duration-300 group-hover:scale-110" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-black/30 to-transparent" />
 
                 {/* Active Check Badge */}
                 {isActive && (
-                  <span className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-emerald-400 text-slate-950 shadow-md font-bold">
+                  <span className="animate-pop-in absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-teal-400 text-slate-950 shadow-md font-bold">
                     <Check className="size-4" />
                   </span>
                 )}
 
-                {/* Theme Icon */}
-                <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-0.5 text-xs font-semibold text-white backdrop-blur-md">
-                  <IconComp className="size-3 text-amber-300" />
-                  {design.name}
+                {/* Badge Tag */}
+                <span className="absolute top-2 left-2 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-bold tracking-wider text-teal-300 uppercase backdrop-blur-md border border-white/10">
+                  {design.badge}
+                </span>
+
+                {/* Theme Name Overlay */}
+                <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
+                  <IconComp className="size-3.5 text-teal-300" />
+                  {design.styleName}
                 </span>
               </div>
 
@@ -89,7 +123,7 @@ export function ThemePreferenceCard() {
               </div>
 
               {/* Palette Color Dots */}
-              <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2">
+              <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2.5">
                 <div className="flex items-center gap-1.5">
                   {design.accentColors.map((color, idx) => (
                     <span
@@ -99,8 +133,8 @@ export function ThemePreferenceCard() {
                     />
                   ))}
                 </div>
-                <span className={cn('text-xs font-semibold', isActive ? 'text-emerald-300' : 'text-white/50')}>
-                  {isActive ? 'Faol' : 'Tanlash'}
+                <span className={cn('text-xs font-semibold', isActive ? 'text-teal-300' : 'text-white/50')}>
+                  {isActive ? 'Faol Uslub' : 'Tanlash'}
                 </span>
               </div>
             </button>

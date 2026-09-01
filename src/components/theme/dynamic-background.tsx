@@ -3,9 +3,10 @@
 import Image from 'next/image';
 import { useBackground } from './background-context';
 import { VIDEO_THEMES, DEFAULT_VIDEO_THEME_ID } from '@/lib/background-themes';
+import { AnimatedAmbientLayer } from './animated-ambient-layer';
 
 export function DynamicBackground() {
-  const { backgroundUrl, themeMode, videoThemeId } = useBackground();
+  const { backgroundUrl, themeMode, videoThemeId, activeDesignId } = useBackground();
 
   if (themeMode === 'video') {
     const videoTheme =
@@ -25,12 +26,6 @@ export function DynamicBackground() {
             src={videoTheme.url}
           />
         </div>
-        {/* Colour-harmony veil: ties the clip's own palette back to this
-            app's dark teal/glass theme (GLASS_CARD, the teal-400/emerald-500
-            accents used everywhere) rather than letting the footage read as
-            an unrelated layer. The slow pulse keeps the background quietly
-            alive even where the video itself is momentarily still. Some
-            themes (e.g. Vivid) opt out entirely and play completely raw. */}
         {videoTheme.overlay && (
           <>
             <div className="animate-ambient-pulse fixed inset-0 -z-10 bg-gradient-to-b from-black/60 via-teal-950/25 to-black/70 mix-blend-multiply" />
@@ -41,34 +36,42 @@ export function DynamicBackground() {
     );
   }
 
-  // Custom uploads are a client-generated data: URI — there's no remote
-  // resource for the optimizer to fetch/resize, so they skip it entirely.
-  // The Nature preset is a real Unsplash URL and gets full next/image
-  // treatment (resize, format conversion, responsive `sizes`).
-  const isDataUrl = backgroundUrl.startsWith('data:');
+  // Non-photo designs (e.g. living mesh, cyber, bento, neumorphism)
+  const isNonPhotoDesign =
+    activeDesignId === 'aurora_mesh' ||
+    activeDesignId === 'neumorphism' ||
+    activeDesignId === 'cyber_minimal' ||
+    activeDesignId === 'bento_modern';
+
+  if (isNonPhotoDesign) {
+    return (
+      <>
+        <AnimatedAmbientLayer />
+        <div className="fixed inset-0 -z-10 bg-black/20 pointer-events-none" />
+      </>
+    );
+  }
+
+  const isDataUrl = backgroundUrl?.startsWith('data:');
 
   return (
     <>
-      {/* bg-slate-900 shows instantly under a loading image so the page
-          never flashes blank white while the photo downloads. `fixed`
-          makes this the containing block next/image's `fill` needs. */}
       <div className="fixed inset-0 -z-20 bg-slate-900">
-        <Image
-          key={backgroundUrl}
-          src={backgroundUrl}
-          alt=""
-          fill
-          priority
-          quality={80}
-          sizes="100vw"
-          unoptimized={isDataUrl}
-          className="object-cover object-center transition-opacity duration-700"
-        />
+        {backgroundUrl && (
+          <Image
+            key={backgroundUrl}
+            src={backgroundUrl}
+            alt=""
+            fill
+            priority
+            quality={80}
+            sizes="100vw"
+            unoptimized={isDataUrl}
+            className="object-cover object-center transition-opacity duration-700"
+          />
+        )}
       </div>
-      {/* Calming atmospheric ambient veil: slow 10s breathing pulse that ties
-          the photo backdrop into our glassmorphism and emerald/teal accents
-          without overpowering text contrast. */}
-      <div className="animate-ambient-pulse fixed inset-0 -z-10 bg-gradient-to-b from-black/50 via-teal-950/20 to-black/60 mix-blend-multiply pointer-events-none" />
+      <AnimatedAmbientLayer />
       <div className="fixed inset-0 -z-10 bg-black/35 pointer-events-none" />
     </>
   );
