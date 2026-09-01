@@ -567,8 +567,7 @@
       "completedOn": "Bajarildi {date}"
     },
     "starReward": "Yulduz mukofoti",
-    "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q.",
-    "boardToggle": "Vazifalar · {count}"
+    "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q."
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
