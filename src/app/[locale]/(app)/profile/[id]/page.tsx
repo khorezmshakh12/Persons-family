@@ -19,6 +19,7 @@ import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
 import { DutiesCard } from '@/components/profile/duties-card';
 import { ContractsCard } from '@/components/profile/contracts-card';
+import { ThemePreferenceCard } from '@/components/profile/theme-preference-card';
 import { SectionErrorBoundary } from '@/components/profile/section-error-boundary';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 
@@ -121,6 +122,12 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           </Suspense>
         </SectionErrorBoundary>
       </div>
+
+      {isSelf && (
+        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+          <ThemePreferenceCard />
+        </div>
+      )}
 
       {/* Stars are self-or-CEO, same scope as self-development —
           getStarLedgerAction enforces that server-side too and returns []

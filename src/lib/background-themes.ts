@@ -1,5 +1,70 @@
 export type BackgroundTheme = { id: string; name: string; url: string };
 
+export type DesignTheme = {
+  id: string;
+  name: string;
+  subtitle: string;
+  tagline: string;
+  url: string;
+  type: 'photo' | 'video';
+  overlay?: boolean;
+  accentColors: string[];
+  glassBorder: string;
+};
+
+export const DESIGN_VARIANTS: DesignTheme[] = [
+  {
+    id: 'aurora',
+    name: 'Zenith Aurora',
+    subtitle: "Shimol Yog'dusi & Neomorphic Teal",
+    tagline: 'Tinchlantiruvchi zumrad-feruza nurlari va shaffof shisha',
+    url: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=2000',
+    type: 'photo',
+    accentColors: ['#2dd4bf', '#34d399', '#0d9488'],
+    glassBorder: 'border-teal-400/30',
+  },
+  {
+    id: 'kyoto',
+    name: 'Kyoto Oasis',
+    subtitle: "Yapon Bog'i & Zumrad Sokinlik",
+    tagline: "Ko'zni charchatmaydigan sokin bambukzor va daryo toshlari",
+    url: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=2000',
+    type: 'photo',
+    accentColors: ['#10b981', '#6ee7b7', '#065f46'],
+    glassBorder: 'border-emerald-400/30',
+  },
+  {
+    id: 'midnight',
+    name: 'Midnight Velvet',
+    subtitle: 'Tungi Hashamat & Oltin Yulduz',
+    tagline: "Elita boshqaruv uslubi va iliq oltin yorug'lik",
+    url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=2000',
+    type: 'photo',
+    accentColors: ['#fbbf24', '#f59e0b', '#d97706'],
+    glassBorder: 'border-amber-400/35',
+  },
+  {
+    id: 'nordic',
+    name: 'Nordic Mist',
+    subtitle: "Skandinaviya Tog'lari & Muz Kristali",
+    tagline: "Qorli cho'qqilar, sokin ko'l va toza havo minimalizmi",
+    url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000',
+    type: 'photo',
+    accentColors: ['#38bdf8', '#7dd3fc', '#0284c7'],
+    glassBorder: 'border-sky-300/35',
+  },
+  {
+    id: 'cosmic',
+    name: 'Cosmic Horizon',
+    subtitle: 'Koinot Ufqi & Cheksiz Ilhom',
+    tagline: "Binafsha galaktikalar, cheksiz ilhom va zamonaviy nurlanish",
+    url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000',
+    type: 'photo',
+    accentColors: ['#c084fc', '#a855f7', '#06b6d4'],
+    glassBorder: 'border-purple-400/35',
+  },
+];
+
 export const PRESET_THEMES: BackgroundTheme[] = [
   {
     id: 'aurora',

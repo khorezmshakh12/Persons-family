@@ -283,3 +283,51 @@
     backdrop-filter: blur(min(var(--glass-blur), 6px)) !important;
   }
 }
+
+/* 5 Distinct Design Themes - Full Platform Custom Styling */
+[data-design="aurora"] {
+  --theme-accent: #2dd4bf;
+  --theme-accent-glow: rgba(45, 212, 191, 0.4);
+  --theme-border-tint: rgba(45, 212, 191, 0.28);
+  --theme-card-tint: rgba(6, 30, 40, 0.45);
+}
+
+[data-design="kyoto"] {
+  --theme-accent: #10b981;
+  --theme-accent-glow: rgba(16, 185, 129, 0.4);
+  --theme-border-tint: rgba(52, 211, 153, 0.28);
+  --theme-card-tint: rgba(6, 44, 28, 0.45);
+}
+
+[data-design="midnight"] {
+  --theme-accent: #fbbf24;
+  --theme-accent-glow: rgba(251, 191, 36, 0.45);
+  --theme-border-tint: rgba(251, 191, 36, 0.35);
+  --theme-card-tint: rgba(10, 15, 30, 0.6);
+}
+
+[data-design="nordic"] {
+  --theme-accent: #38bdf8;
+  --theme-accent-glow: rgba(56, 189, 248, 0.4);
+  --theme-border-tint: rgba(255, 255, 255, 0.45);
+  --theme-card-tint: rgba(255, 255, 255, 0.14);
+}
+
+[data-design="cosmic"] {
+  --theme-accent: #c084fc;
+  --theme-accent-glow: rgba(192, 132, 252, 0.45);
+  --theme-border-tint: rgba(192, 132, 252, 0.35);
+  --theme-card-tint: rgba(20, 10, 45, 0.55);
+}
+
+/* Dynamic Glass Card Tint & Border integration */
+[data-design] [class*="bg-white/10"] {
+  background-color: var(--theme-card-tint, rgba(255, 255, 255, 0.1)) !important;
+  border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
+  box-shadow: 0 12px 35px var(--theme-accent-glow, rgba(0, 0, 0, 0.35));
+}
+
+[data-design] [class*="border-white/20"],
+[data-design] [class*="border-white/15"] {
+  border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
+}

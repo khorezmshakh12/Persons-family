@@ -7,6 +7,7 @@ const STORAGE_KEY = 'app-background-url';
 const MODE_STORAGE_KEY = 'app-theme-mode';
 const BLUR_STORAGE_KEY = 'app-glass-blur';
 const VIDEO_THEME_STORAGE_KEY = 'app-video-theme-id';
+const DESIGN_STORAGE_KEY = 'app-design-variant-id';
 
 export type ThemeMode = 'photo' | 'video';
 
@@ -25,6 +26,8 @@ type BackgroundContextValue = {
   setGlassBlur: (px: number) => void;
   videoThemeId: string;
   setVideoThemeId: (id: string) => void;
+  activeDesignId: string;
+  setDesignVariant: (id: string) => void;
 };
 
 const BackgroundContext = createContext<BackgroundContextValue | null>(null);
@@ -40,9 +43,10 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
   // 'video' (the looping cinematic clip) is the default background for
   // anyone who hasn't already picked a theme — see the effect below, which
   // still restores whatever a returning user previously chose.
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('video');
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('photo');
   const [glassBlur, setGlassBlurState] = useState(DEFAULT_GLASS_BLUR);
   const [videoThemeId, setVideoThemeIdState] = useState(DEFAULT_VIDEO_THEME_ID);
+  const [activeDesignId, setActiveDesignIdState] = useState('aurora');
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -57,6 +61,13 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     const storedVideoTheme = window.localStorage.getItem(VIDEO_THEME_STORAGE_KEY);
     if (storedVideoTheme && VIDEO_THEMES.some((v) => v.id === storedVideoTheme)) {
       setVideoThemeIdState(storedVideoTheme);
+    }
+    const storedDesign = window.localStorage.getItem(DESIGN_STORAGE_KEY);
+    if (storedDesign) {
+      setActiveDesignIdState(storedDesign);
+      document.documentElement.setAttribute('data-design', storedDesign);
+    } else {
+      document.documentElement.setAttribute('data-design', 'aurora');
     }
   }, []);
 
@@ -112,6 +123,16 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setDesignVariant = useCallback((id: string) => {
+    setActiveDesignIdState(id);
+    document.documentElement.setAttribute('data-design', id);
+    try {
+      window.localStorage.setItem(DESIGN_STORAGE_KEY, id);
+    } catch {
+      // Non-fatal — same reasoning as setBackgroundUrl above.
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       backgroundUrl,
@@ -122,8 +143,21 @@ export function BackgroundProvider({ children }: { children: ReactNode }) {
       setGlassBlur,
       videoThemeId,
       setVideoThemeId,
+      activeDesignId,
+      setDesignVariant,
     }),
-    [backgroundUrl, themeMode, setBackgroundUrl, setThemeMode, glassBlur, setGlassBlur, videoThemeId, setVideoThemeId],
+    [
+      backgroundUrl,
+      themeMode,
+      setBackgroundUrl,
+      setThemeMode,
+      glassBlur,
+      setGlassBlur,
+      videoThemeId,
+      setVideoThemeId,
+      activeDesignId,
+      setDesignVariant,
+    ],
   );
 
   return <BackgroundContext.Provider value={value}>{children}</BackgroundContext.Provider>;
