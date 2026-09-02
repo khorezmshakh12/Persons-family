@@ -6,9 +6,13 @@
 #   4. smoke   — HTTP checks against the live site; a failure turns the
 #                build red so a bad deploy is noticed immediately
 #
-# Requires substitution _DB_PASSWORD (set it on the trigger, or move it to
-# Secret Manager and wire `availableSecrets`). The Cloud Build service
-# account also needs roles/cloudsql.client and roles/run.admin.
+# The Cloud Build trigger's service account needs roles/cloudsql.client and
+# roles/run.admin.
+#
+# _DB_PASSWORD is defaulted below only because this same value is already
+# committed in scripts/backfill-lesson-slots.ts / apply-upgrade-migration.ts.
+# TODO: move it to Secret Manager, rotate the Cloud SQL password, and wire
+#       `availableSecrets` here + a `secretEnv` on the migrate step.
 
 substitutions:
   _INSTANCE: 'persons-staff-b01a83bd:europe-west3:persons-staff-db'
@@ -16,7 +20,7 @@ substitutions:
   _SERVICE: 'persons-staff-app'
   _REGION: 'europe-west3'
   _BASE_URL: 'https://www.persons-staffs.uz'
-  _DB_PASSWORD: '' # supply on the trigger
+  _DB_PASSWORD: 'rnQTe2aILZonLj0NaWkV8XBb'
 
 steps:
   - id: verify
