@@ -30,6 +30,20 @@ function createClient() {
         serialize: (x: string) => x,
         parse: (x: string) => x,
       },
+      // `numeric` / `decimal` otherwise arrive as strings (postgres-js
+      // preserves arbitrary precision). Code all over this app then
+      // `+`-reduces those: "0" + "5000" -> "05000", and a single negative
+      // makes the whole total NaN (the AUD-09..13 bug class). Every numeric
+      // column here holds a small som or points value, well inside Number's
+      // safe range, so parse straight to a JS number and end that class at
+      // the source. If a genuinely huge fixed-point column is ever added,
+      // cast it to text in that one query instead.
+      numeric: {
+        to: 1700,
+        from: [1700],
+        serialize: (x: number | string) => String(x),
+        parse: (x: string) => Number(x),
+      },
     },
   };
 

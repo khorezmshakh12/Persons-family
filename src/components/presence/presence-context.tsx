@@ -30,7 +30,7 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
     let unsubscribe: (() => void) | undefined;
     let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
     let staleCheckInterval: ReturnType<typeof setInterval> | undefined;
-    let latestDocs: Map<string, PresenceDoc> = new Map();
+    const latestDocs: Map<string, PresenceDoc> = new Map();
 
     const recomputeOnline = () => {
       const now = Date.now();

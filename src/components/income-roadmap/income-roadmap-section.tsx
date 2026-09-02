@@ -3,6 +3,7 @@ import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
+import { tashkentYmd } from '@/lib/time';
 import { IncomePlanDialog } from './income-plan-dialog';
 import { AddStepDialog } from './add-step-dialog';
 import { RoadmapStepCard } from './roadmap-step-card';
@@ -10,7 +11,7 @@ import { IncomeLineChart } from './income-line-chart';
 
 export async function IncomeRoadmapSection({ staffId, canManage }: { staffId: string; canManage: boolean }) {
   const t = await getTranslations('incomeRoadmap');
-  const year = new Date().getFullYear();
+  const year = tashkentYmd().year;
 
   const [plan] = await sql<
     { id: string; year: number; base_monthly_income: number; target_year_end_income: number }[]

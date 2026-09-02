@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { upsertIncomePlanAction, type IncomeRoadmapActionState } from '@/lib/actions/income-roadmap';
+import { tashkentYmd } from '@/lib/time';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { CurrencyInput } from '@/components/staff/currency-input';
@@ -27,7 +28,7 @@ export function IncomePlanDialog({ staffId, plan }: { staffId: string; plan?: Pl
     upsertIncomePlanAction,
     undefined,
   );
-  const year = plan?.year ?? new Date().getFullYear();
+  const year = plan?.year ?? tashkentYmd().year;
 
   useEffect(() => {
     if (state?.error) {
