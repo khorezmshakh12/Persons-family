@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { createMarketItemAction, type MarketActionState } from '@/lib/actions/market';
+import { MarketImageField } from './market-image-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,7 @@ export function CreateItemDialog() {
   const t = useTranslations('market');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [state, formAction, isPending] = useActionState<MarketActionState, FormData>(
     async (prev, formData) => {
@@ -56,7 +58,16 @@ export function CreateItemDialog() {
           <DialogTitle className="text-white">{t('admin.addItem')}</DialogTitle>
         </DialogHeader>
 
-        <form action={formAction} className="flex flex-col gap-4">
+        <form
+          action={formAction}
+          onSubmit={(e) => {
+            if (isUploadingImage) {
+              e.preventDefault();
+              toast.error(t('admin.uploadInProgress'));
+            }
+          }}
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-2">
             <Label htmlFor="create-name">{t('admin.name')}</Label>
             <Input
@@ -82,14 +93,8 @@ export function CreateItemDialog() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="create-imageUrl">{t('admin.imageUrl')}</Label>
-            <Input
-              id="create-imageUrl"
-              name="imageUrl"
-              maxLength={2000}
-              placeholder="https://..."
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
-            />
+            <Label>{t('admin.imageLabel')}</Label>
+            <MarketImageField name="imageUrl" onUploadingChange={setIsUploadingImage} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -134,7 +139,7 @@ export function CreateItemDialog() {
             </Button>
             <Button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isUploadingImage}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
             >
               {isPending ? tCommon('loading') : t('admin.addItem')}
