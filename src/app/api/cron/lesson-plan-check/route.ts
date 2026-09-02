@@ -67,9 +67,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, checked: [] });
   }
 
+  // TELEGRAM_REPORT_CHAT_IDS (comma-separated) pins the compliance report to
+  // explicit group chats. When it's set, the auto-registered
+  // telegram_group_chats table is ignored entirely — so adding the bot to
+  // an unrelated group can't leak the internal teacher-by-teacher report
+  // there. Unset = previous behaviour (every registered group).
+  const pinnedChatIds = (process.env.TELEGRAM_REPORT_CHAT_IDS ?? '')
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n) && n !== 0);
+
   const [ceoProfiles, groupChats] = await Promise.all([
     sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where role = 'ceo'`,
-    sql<{ chat_id: number }[]>`select chat_id from telegram_group_chats`,
+    pinnedChatIds.length > 0
+      ? Promise.resolve(pinnedChatIds.map((chat_id) => ({ chat_id })))
+      : sql<{ chat_id: number }[]>`select chat_id from telegram_group_chats`,
   ]);
   const recipientChatIds = [...ceoProfiles.map((c) => c.telegram_id), ...groupChats.map((g) => g.chat_id)];
 

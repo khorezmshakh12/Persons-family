@@ -1,6 +1,7 @@
 import 'server-only';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getFirebaseAdminApp } from './credentials';
+import { sql } from '../db/client';
 
 const db = () => getFirestore(getFirebaseAdminApp());
 
@@ -110,7 +111,13 @@ export async function syncGroupChatMembers(
   teacherId: string | null,
   assignedTaId: string | null,
 ): Promise<void> {
-  const members = [teacherId, assignedTaId].filter((id): id is string => Boolean(id));
+  // The CEO monitors every group chat read-only (the composer is already
+  // hidden for them client-side). Firestore rules can't see roles, so the
+  // CEO's uid has to be in `members` or their onSnapshot listener is
+  // denied and the "monitor" view shows only the server-rendered backlog,
+  // never live messages.
+  const ceoRows = await sql<{ id: string }[]>`select id from profiles where role = 'ceo' and is_active = true`;
+  const members = [...new Set([teacherId, assignedTaId, ...ceoRows.map((r) => r.id)].filter((id): id is string => Boolean(id)))];
   await db().doc(`group_chat_meta/${groupId}`).set({ members }, { merge: false });
 }
 

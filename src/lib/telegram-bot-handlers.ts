@@ -54,4 +54,15 @@ if (telegramBot) {
       on conflict (chat_id) do update set title = excluded.title
     `;
   });
+
+  // When the bot is removed from (or leaves) a group, drop that chat so the
+  // lesson-plan-check cron stops broadcasting the internal compliance
+  // report there. Pair this with TELEGRAM_REPORT_CHAT_IDS (see the cron) to
+  // pin reporting to a known group regardless of what else is registered.
+  telegramBot.on('my_chat_member', async (ctx) => {
+    const status = ctx.myChatMember.new_chat_member.status;
+    if (status === 'left' || status === 'kicked') {
+      await sql`delete from telegram_group_chats where chat_id = ${ctx.chat.id}`;
+    }
+  });
 }

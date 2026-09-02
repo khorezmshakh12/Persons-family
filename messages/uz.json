@@ -310,7 +310,8 @@
       "startPrompt": "Siz {name} bilan hali yozishmagansiz.",
       "sendRequest": "So'rov yuborish",
       "sending": "Yuborilmoqda...",
-      "waitingForApproval": "{name}ga so'rov yuborildi — javobini kuting."
+      "waitingForApproval": "{name}ga so'rov yuborildi — javobini kuting.",
+      "incomingPrompt": "{name} siz bilan suhbat boshlamoqchi."
     }
   },
   "issues": {

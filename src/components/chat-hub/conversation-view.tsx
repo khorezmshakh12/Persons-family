@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, MessageSquarePlus, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { sendChatRequestAction } from '@/lib/actions/staff-chats';
+import { sendChatRequestAction, respondToDmRequestAction } from '@/lib/actions/staff-chats';
 import { MessageBubble, type ChatSender } from './message-bubble';
 import { ChatComposer } from './chat-composer';
 import type { ActiveConversation, ChatQuote, ConversationState, StaffChatMessage } from './types';
@@ -137,6 +137,23 @@ export function ConversationView({
     });
   }
 
+  // A request the *other* side sent, opened here via the notification-bell
+  // deep link (/chat?with=<id>) rather than the sidebar's accept/decline
+  // card — without this branch it fell through to the composer, which only
+  // ever returned `chatNotAccepted` on send.
+  function handleRespond(decision: 'accept' | 'decline') {
+    if (conversationState.kind !== 'pendingIncoming') return;
+    const { conversationId } = conversationState;
+    startRequestTransition(async () => {
+      const formData = new FormData();
+      formData.set('conversationId', conversationId);
+      formData.set('decision', decision);
+      const result = await respondToDmRequestAction(undefined, formData);
+      if (result?.error) toast.error(t(`errors.${result.error}`));
+      else onSendRequest();
+    });
+  }
+
   if (!active) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
@@ -183,6 +200,24 @@ export function ConversationView({
           <p className="text-sm text-white/60">
             {t('requests.waitingForApproval', { name: headerName })}
           </p>
+        </div>
+      ) : conversationState.kind === 'pendingIncoming' ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <MessageSquarePlus className="size-8 text-white/30" />
+          <p className="text-sm text-white/60">{t('requests.incomingPrompt', { name: headerName })}</p>
+          <div className="flex gap-2">
+            <Button type="button" onClick={() => handleRespond('accept')} disabled={isRequestPending}>
+              {t('requests.accept')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleRespond('decline')}
+              disabled={isRequestPending}
+            >
+              {t('requests.decline')}
+            </Button>
+          </div>
         </div>
       ) : (
         <>

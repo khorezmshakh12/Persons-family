@@ -310,7 +310,8 @@
       "startPrompt": "Вы ещё не переписывались с {name}.",
       "sendRequest": "Отправить запрос",
       "sending": "Отправка...",
-      "waitingForApproval": "Запрос отправлен {name} — ожидайте ответа."
+      "waitingForApproval": "Запрос отправлен {name} — ожидайте ответа.",
+      "incomingPrompt": "{name} хочет начать с вами чат."
     }
   },
   "issues": {

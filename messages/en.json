@@ -310,7 +310,8 @@
       "startPrompt": "You haven't chatted with {name} yet.",
       "sendRequest": "Send chat request",
       "sending": "Sending...",
-      "waitingForApproval": "Request sent to {name} — waiting for them to accept."
+      "waitingForApproval": "Request sent to {name} — waiting for them to accept.",
+      "incomingPrompt": "{name} wants to start a chat with you."
     }
   },
   "issues": {
