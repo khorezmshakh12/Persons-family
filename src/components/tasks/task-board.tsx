@@ -152,9 +152,8 @@ export function TaskBoard({
               currentUserId={currentUserId}
               emptyLabel={t('noTasks')}
               onRequestDelete={handleRequestDelete}
-              // Done piles up all month; one "Bajarilgan · N" row keeps the
-              // two active columns readable (spec #5). Still a drop target.
-              collapsible={status === 'done'}
+              collapsible={true}
+              defaultExpanded={status !== 'done'}
             />
           ))}
         </div>
