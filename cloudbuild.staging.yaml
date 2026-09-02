@@ -1,22 +1,18 @@
-# Production deploy pipeline (trigger: push to main).
-#   1. verify  — typecheck + lint (the Docker build only runs `next build`)
-#   2. migrate — apply any pending supabase/migrations/*.sql to the prod DB
-#                BEFORE the new code goes live, so schema is never behind
-#   3. deploy  — build the container from source and roll it out
-#   4. smoke   — HTTP checks against the live site; a failure turns the
-#                build red so a bad deploy is noticed immediately
+# Staging deploy pipeline (trigger: push to the `staging` branch).
+# Same shape as cloudbuild.yaml but targets the persons-staff-app-staging
+# Cloud Run service and the app_staging database. Push here, verify it
+# works, THEN merge to main.
 #
-# Requires substitution _DB_PASSWORD (set it on the trigger, or move it to
-# Secret Manager and wire `availableSecrets`). The Cloud Build service
-# account also needs roles/cloudsql.client and roles/run.admin.
+# Requires substitution _DB_PASSWORD. Set _BASE_URL to the staging service
+# URL once it exists (scripts/setup-staging.sh prints it).
 
 substitutions:
   _INSTANCE: 'persons-staff-b01a83bd:europe-west3:persons-staff-db'
-  _DB_NAME: 'app'
-  _SERVICE: 'persons-staff-app'
+  _DB_NAME: 'app_staging'
+  _SERVICE: 'persons-staff-app-staging'
   _REGION: 'europe-west3'
-  _BASE_URL: 'https://www.persons-staffs.uz'
-  _DB_PASSWORD: '' # supply on the trigger
+  _BASE_URL: '' # set to the staging run.app URL on the trigger
+  _DB_PASSWORD: ''
 
 steps:
   - id: verify
@@ -65,7 +61,7 @@ steps:
       - -c
       - |
         set -e
-        BASE_URL="${_BASE_URL}" npx tsx scripts/smoke.ts
+        if [ -n "${_BASE_URL}" ]; then BASE_URL="${_BASE_URL}" npx tsx scripts/smoke.ts; else echo "skip smoke: _BASE_URL not set"; fi
 
 timeout: 1800s
 options:

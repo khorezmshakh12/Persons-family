@@ -1,0 +1,41 @@
+name: CI
+
+# Static gate for every push and PR: typecheck, lint, production build.
+# No deploy, no database — that path is cloudbuild.yaml on push to main.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint
+
+      - name: Build
+        run: npx next build
+        env:
+          # next build needs these present to not throw at import time;
+          # they're never used for a real connection during the build.
+          DATABASE_URL: postgres://placeholder@localhost:5432/placeholder
+          NEXT_PUBLIC_APP_URL: https://www.persons-staffs.uz
