@@ -3,6 +3,9 @@ import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { tashkentYmd, tashkentMidnight, TASHKENT_TZ } from '@/lib/time';
+
+const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TASHKENT_TZ });
 
 function intensityClass(count: number, max: number) {
   if (count === 0) return 'bg-white/5 text-white/40';
@@ -25,11 +28,13 @@ export async function ActivityHeatmap({
   const t = await getTranslations('dashboard.activityGrid');
   const format = await getFormatter();
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const startOfMonth = new Date(year, month, 1);
-  const endOfMonth = new Date(year, month + 1, 1);
+  // Month + "today" in Asia/Tashkent, not the server's UTC clock.
+  const { year, month: mm, day: today } = tashkentYmd();
+  const month = mm - 1;
+  const startOfMonth = tashkentMidnight(`${year}-${String(mm).padStart(2, '0')}-01`);
+  const nextY = mm === 12 ? year + 1 : year;
+  const nextMm = mm === 12 ? 1 : mm + 1;
+  const endOfMonth = tashkentMidnight(`${nextY}-${String(nextMm).padStart(2, '0')}-01`);
 
   const [rowsA, rowsB] = await Promise.all([
     sql<{ created_at: string }[]>`
@@ -42,16 +47,16 @@ export async function ActivityHeatmap({
     `,
   ]);
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth = new Date(Date.UTC(year, mm, 0)).getUTCDate();
   const dayCounts = new Array(daysInMonth + 1).fill(0);
   for (const row of [...rowsA, ...rowsB]) {
-    const d = new Date(row.created_at);
-    dayCounts[d.getDate()] += 1;
+    const day = Number(dayFmt.format(new Date(row.created_at)).split('-')[2]);
+    dayCounts[day] += 1;
   }
   const maxCount = Math.max(...dayCounts, 1);
 
   // Monday-first grid, matching the uz/ru convention this app otherwise uses.
-  const firstWeekday = (startOfMonth.getDay() + 6) % 7;
+  const firstWeekday = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
   const cells: (number | null)[] = [
     ...Array(firstWeekday).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
@@ -64,14 +69,16 @@ export async function ActivityHeatmap({
     format.dateTime(new Date(2024, 0, 1 + i), { weekday: 'narrow' }),
   );
 
-  const today = now.getDate();
-
   const content = (
     <>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
         <span className="text-xs font-medium text-white/60 capitalize">
-          {format.dateTime(now, { month: 'long', year: 'numeric' })}
+          {format.dateTime(new Date(`${year}-${String(mm).padStart(2, '0')}-01T00:00:00Z`), {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })}
         </span>
       </div>
       <div className={cn('grid grid-cols-7 text-center', large ? 'gap-2' : 'gap-1.5')}>

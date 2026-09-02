@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "verify": "tsc --noEmit && eslint && next build",
+    "migrate": "tsx scripts/migrate.ts",
+    "migrate:dry": "tsx scripts/migrate.ts --dry-run",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
