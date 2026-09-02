@@ -19,9 +19,8 @@ steps:
     name: 'node:24'
     entrypoint: bash
     args:
-      - -c
+      - -ceu
       - |
-        set -e
         npm ci
         npx tsc --noEmit
         npx eslint
@@ -30,18 +29,14 @@ steps:
     name: 'node:24'
     entrypoint: bash
     args:
-      - -c
+      - -ceu
       - |
-        set -e
         curl -sSL -o /workspace/cloud-sql-proxy \
           https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.15.3/cloud-sql-proxy.linux.amd64
         chmod +x /workspace/cloud-sql-proxy
         /workspace/cloud-sql-proxy "${_INSTANCE}" --port 5432 &
-        PROXY_PID=$!
-        sleep 6
-        DATABASE_URL="postgres://postgres:${_DB_PASSWORD}@127.0.0.1:5432/${_DB_NAME}" \
-          npx tsx scripts/migrate.ts
-        kill $PROXY_PID || true
+        sleep 8
+        DATABASE_URL="postgres://postgres:${_DB_PASSWORD}@127.0.0.1:5432/${_DB_NAME}" npx tsx scripts/migrate.ts
 
   - id: deploy
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -58,10 +53,8 @@ steps:
     name: 'node:24'
     entrypoint: bash
     args:
-      - -c
-      - |
-        set -e
-        if [ -n "${_BASE_URL}" ]; then BASE_URL="${_BASE_URL}" npx tsx scripts/smoke.ts; else echo "skip smoke: _BASE_URL not set"; fi
+      - -ceu
+      - if [ -n "${_BASE_URL}" ]; then BASE_URL="${_BASE_URL}" npx tsx scripts/smoke.ts; else echo "skip smoke - _BASE_URL not set"; fi
 
 timeout: 1800s
 options:
