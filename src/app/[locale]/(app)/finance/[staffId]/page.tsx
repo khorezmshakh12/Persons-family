@@ -22,7 +22,13 @@ function netTotal(entries: { amount: number }[]) {
 // page in place instead of redirect()-ing here — see the matching comment
 // on ProfileDetailContent (profile/[id]/page.tsx) for why that redirect
 // was crashing the client router under Next 16.
-export async function FinanceDetailContent({ staffId }: { staffId: string }) {
+export async function FinanceDetailContent({
+  staffId,
+  searchParams,
+}: {
+  staffId: string;
+  searchParams?: Promise<{ incomeYear?: string }> | { incomeYear?: string };
+}) {
   const tStaff = await getTranslations('staff');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
@@ -31,6 +37,10 @@ export async function FinanceDetailContent({ staffId }: { staffId: string }) {
   const isCeo = profile!.role === 'ceo';
   const isAdmin = isCeo;
   if (!isSelf && !isAdmin) redirect({ href: '/dashboard', locale });
+
+  const sp = searchParams instanceof Promise ? await searchParams : searchParams;
+  const yearParam = sp?.incomeYear ? Number(sp.incomeYear) : undefined;
+  const year = Number.isFinite(yearParam) ? yearParam : undefined;
 
   const [target] = await sql<
     { id: string; first_name: string; last_name: string; avatar_url: string | null; role: string }[]
@@ -79,13 +89,19 @@ export async function FinanceDetailContent({ staffId }: { staffId: string }) {
       </div>
 
       <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
-        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} />
+        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} />
       </div>
     </div>
   );
 }
 
-export default async function StaffFinancePage({ params }: { params: Promise<{ staffId: string }> }) {
+export default async function StaffFinancePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ staffId: string }>;
+  searchParams: Promise<{ incomeYear?: string }>;
+}) {
   const { staffId } = await params;
-  return <FinanceDetailContent staffId={staffId} />;
+  return <FinanceDetailContent staffId={staffId} searchParams={searchParams} />;
 }
