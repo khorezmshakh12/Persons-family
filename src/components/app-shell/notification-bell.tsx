@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Bell } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Link, useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { getNotificationBellDataAction } from '@/lib/actions/notification-bell';
 import {
@@ -68,7 +68,6 @@ export function NotificationBell({
   profileNames: Record<string, string>;
 }) {
   const t = useTranslations('notifications');
-  const router = useRouter();
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
@@ -165,42 +164,52 @@ export function NotificationBell({
   // listens for this same row change. If the mutation itself fails, the
   // optimistic removal is reverted and surfaced as a toast instead of
   // silently leaving the client and database out of sync.
+  //
+  // Deliberately NO router.refresh() chained onto these mutations — that is
+  // what used to stop a notification from opening at all. Since the Cloud
+  // SQL migration these mark-seen calls are Server Actions, so each one is
+  // dispatched into Next's router action queue the moment it's called and
+  // becomes the queue's pending action. The <Link>'s own ACTION_NAVIGATE
+  // fires immediately after this handler returns (next/link runs the
+  // caller's onClick first, then navigates), which discards that pending
+  // server action and takes over the slot. When the discarded action's
+  // response finally lands, the queue clears its pending slot even though
+  // the navigation is still in flight — so a router.refresh() in the
+  // mutation's .then() found an "idle" queue and ran straight away against
+  // the *pre-click* router state. Resolving after the navigation, it then
+  // overwrote it: the dropdown closed, the row was correctly marked seen,
+  // and the user was left sitting on the page they clicked from.
+  //
+  // Nothing is lost by dropping it. Every destination refreshes the sidebar
+  // dots itself once it has actually mounted — MarkTasksSeen (/tasks),
+  // MarkIssuesSeen (/issues), MarkWarningsSeen (own /profile/<id>) and
+  // chat-hub-client's own markConversationReadAction all do mark-seen +
+  // router.refresh() *after* the navigation has committed, so there is
+  // nothing left to race — and every mark-seen query also bumps
+  // nav_badge_signals/{uid} (see lib/db/queries/mark-seen.ts), which
+  // NavBadgesProvider listens to and re-derives from. ('lessonPlans' isn't
+  // a sidebar badge key at all — see computeNavBadgeKeys — so that one's
+  // refresh never cleared anything in the first place.)
   function handleChatClick(senderId: string) {
     const removed = unreadChats.filter((m) => m.senderId === senderId);
     setUnreadChats((prev) => prev.filter((m) => m.senderId !== senderId));
     setOpen(false);
-    markConversationReadAction(senderId)
-      .then(() => {
-        // Sidebar nav's "chat" dot (NavBadgesProvider) is otherwise only
-        // realtime-driven — that path has proven unreliable in practice
-        // (confirmed: DB correctly flips is_read, but the dot can still be
-        // left stuck). router.refresh() re-runs the (app) layout's
-        // server-computed initialKeys, the same deterministic fix already
-        // used by MarkTasksSeen/MarkIssuesSeen.
-        router.refresh();
-      })
-      .catch((error) => {
-        console.error('markConversationReadAction failed', error);
-        setUnreadChats((prev) => [...removed, ...prev]);
-        toast.error(t('markReadFailed'));
-      });
+    markConversationReadAction(senderId).catch((error) => {
+      console.error('markConversationReadAction failed', error);
+      setUnreadChats((prev) => [...removed, ...prev]);
+      toast.error(t('markReadFailed'));
+    });
   }
 
   function handleIssueClick(issueId: string) {
     const removed = unseenIssues.find((i) => i.id === issueId);
     setUnseenIssues((prev) => prev.filter((i) => i.id !== issueId));
     setOpen(false);
-    markIssueSeenAction(issueId)
-      .then(() => {
-        // See handleChatClick's comment — the sidebar nav dot is otherwise
-        // realtime-only, which has proven unreliable in practice.
-        router.refresh();
-      })
-      .catch((error) => {
-        console.error('markIssueSeenAction failed', error);
-        if (removed) setUnseenIssues((prev) => [removed, ...prev]);
-        toast.error(t('markReadFailed'));
-      });
+    markIssueSeenAction(issueId).catch((error) => {
+      console.error('markIssueSeenAction failed', error);
+      if (removed) setUnseenIssues((prev) => [removed, ...prev]);
+      toast.error(t('markReadFailed'));
+    });
   }
 
   // Tasks only expose a bulk "mark all seen" action (mirrors visiting
@@ -211,13 +220,11 @@ export function NotificationBell({
     const removed = unseenTasks;
     setUnseenTasks([]);
     setOpen(false);
-    markTasksSeenAction()
-      .then(() => router.refresh())
-      .catch((error) => {
-        console.error('markTasksSeenAction failed', error);
-        setUnseenTasks(removed);
-        toast.error(t('markReadFailed'));
-      });
+    markTasksSeenAction().catch((error) => {
+      console.error('markTasksSeenAction failed', error);
+      setUnseenTasks(removed);
+      toast.error(t('markReadFailed'));
+    });
   }
 
   // Warnings only expose a bulk "mark all seen" action (mirrors visiting
@@ -227,29 +234,27 @@ export function NotificationBell({
     const removed = unseenWarnings;
     setUnseenWarnings([]);
     setOpen(false);
-    markWarningsSeenAction()
-      .then(() => router.refresh())
-      .catch((error) => {
-        console.error('markWarningsSeenAction failed', error);
-        setUnseenWarnings(removed);
-        toast.error(t('markReadFailed'));
-      });
+    markWarningsSeenAction().catch((error) => {
+      console.error('markWarningsSeenAction failed', error);
+      setUnseenWarnings(removed);
+      toast.error(t('markReadFailed'));
+    });
   }
 
   // Bulk mark-seen, same reasoning as handleTaskClick/handleWarningClick —
   // there's no per-alert equivalent, and clicking any one preview clears
-  // the whole section.
+  // the whole section. Unlike tasks/issues/warnings, /lesson-plans has no
+  // mark-seen component of its own, so this is the only thing that clears
+  // these alerts.
   function handleLessonPlanAlertClick() {
     const removed = unseenLessonPlanAlerts;
     setUnseenLessonPlanAlerts([]);
     setOpen(false);
-    markLessonPlanAlertsSeenAction()
-      .then(() => router.refresh())
-      .catch((error) => {
-        console.error('markLessonPlanAlertsSeenAction failed', error);
-        setUnseenLessonPlanAlerts(removed);
-        toast.error(t('markReadFailed'));
-      });
+    markLessonPlanAlertsSeenAction().catch((error) => {
+      console.error('markLessonPlanAlertsSeenAction failed', error);
+      setUnseenLessonPlanAlerts(removed);
+      toast.error(t('markReadFailed'));
+    });
   }
 
   // Failsafe: every time the dropdown opens, re-read the absolute truth

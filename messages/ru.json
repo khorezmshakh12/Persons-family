@@ -136,6 +136,13 @@
       "title": "Месячный рост сотрудников",
       "noTeachers": "Пока нет активных учителей.",
       "noData": "Пока нет оценённых месяцев."
+    },
+    "starLeaderboard": {
+      "title": "Рейтинг звёзд",
+      "subtitle": "Лучшие сотрудники по количеству звёзд",
+      "you": "Вы",
+      "noStars": "Пока никто не заработал звёзд.",
+      "starCount": "{count, plural, one {# звезда} few {# звезды} other {# звёзд}}"
     }
   },
   "staff": {
@@ -935,8 +942,71 @@
       "invalidInput": "Проверьте введённые значения.",
       "createFailed": "Не удалось добавить. Попробуйте снова.",
       "updateFailed": "Не удалось сохранить. Попробуйте снова.",
-      "deleteFailed": "Не удалось удалить. Попробуйте снова."
-    }
+      "deleteFailed": "Не удалось удалить. Попробуйте снова.",
+      "notFound": "Запись не найдена."
+    },
+    "year": "Год",
+    "years": "Годы",
+    "deletePlan": "Удалить план",
+    "confirmDeletePlanTitle": "Удалить этот план?",
+    "confirmDeletePlanDescription": "Весь месячный план и все вехи за этот год будут удалены.",
+    "planDeleted": "План удалён.",
+    "baselineMonthlyIncome": "Базовый месячный доход",
+    "notes": "Заметки",
+    "status": {
+      "draft": "Черновик",
+      "active": "Активный",
+      "archived": "В архиве"
+    },
+    "monthlyPlan": "План и факт по месяцам",
+    "editPlanCurve": "Редактировать план на 12 месяцев",
+    "planCurveSaved": "Месячный план сохранён.",
+    "fillFlat": "Заполнить одинаково",
+    "fillRamp": "Линейный рост",
+    "month": "Месяц",
+    "planned": "План",
+    "actual": "Факт",
+    "variance": "Отклонение",
+    "variancePct": "Отклонение, %",
+    "growth": "Рост",
+    "cumulativePlanned": "План нарастающим итогом",
+    "cumulativeActual": "Факт нарастающим итогом",
+    "tabMonthly": "По месяцам",
+    "tabCumulative": "Нарастающим итогом",
+    "notReported": "Не внесено",
+    "recordActual": "Внести факт",
+    "actualRecorded": "Факт внесён.",
+    "clearActual": "Очистить факт",
+    "confirmClearActualTitle": "Очистить факт за месяц?",
+    "confirmClearActualDescription": "Месяц вернётся в состояние «не внесено».",
+    "monthNote": "Заметка к месяцу",
+    "attainment": "Выполнение плана",
+    "avgMonthlyGrowth": "Средний рост в месяц",
+    "projectedYearTotal": "Прогноз за год",
+    "plannedYear": "План на год",
+    "ofPlanned": "из {amount} по плану",
+    "growthOnBaseline": "+{percent}% к базе",
+    "milestones": "Вехи",
+    "noMilestones": "Вех пока нет.",
+    "addMilestone": "Добавить веху",
+    "editMilestone": "Редактировать веху",
+    "milestoneTitle": "Название",
+    "targetIncome": "Целевой доход",
+    "criteria": "Что для этого нужно",
+    "criteriaPlaceholder": "например: открытие новых групп, рост набора, расширение продаж",
+    "statusLabel": "Статус",
+    "milestoneStatus": {
+      "planned": "Запланировано",
+      "in_progress": "В процессе",
+      "achieved": "Достигнуто",
+      "missed": "Не выполнено"
+    },
+    "milestoneAdded": "Веха добавлена.",
+    "milestoneSaved": "Веха сохранена.",
+    "milestoneDeleted": "Веха удалена.",
+    "deleteMilestone": "Удалить веху",
+    "chartAriaMonthly": "График планового и фактического дохода по месяцам",
+    "chartAriaCumulative": "График дохода нарастающим итогом"
   },
   "missions": {
     "title": "Миссии",
@@ -1239,7 +1309,9 @@
       "alreadyDecided": "По этому заказу уже принято решение.",
       "itemInactive": "Этот приз сейчас недоступен.",
       "outOfStock": "Этого приза нет в наличии.",
-      "insufficientStars": "Недостаточно звёзд."
+      "insufficientStars": "Недостаточно звёзд.",
+      "invalidImageType": "Используйте изображение PNG, JPG или WebP.",
+      "uploadFailed": "Не удалось загрузить изображение. Попробуйте снова."
     },
     "order": "Заказать",
     "orderConfirm": "Подтверждение заказа",

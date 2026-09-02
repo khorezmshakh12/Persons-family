@@ -4,8 +4,8 @@ import { sql } from '@/lib/db/client';
 import { StatsRow } from '@/components/dashboard/stats-row';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
-import { RolesDonutChart } from '@/components/dashboard/roles-donut-chart';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
+import { StarLeaderboard } from '@/components/dashboard/star-leaderboard';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
@@ -87,7 +87,6 @@ export default async function DashboardPage() {
   // just via a different card mix (see financeUserId on StatsRow).
   const isTeacherTier = profile!.role === 'teacher' || profile!.role === 'assistant' || isHeadTeacher;
   const isPersonalDashboard = !isCeo && !isTeacherTier;
-  const analyticsHref = isCeo ? '/analytics' : undefined;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
@@ -116,15 +115,20 @@ export default async function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {!isPersonalDashboard && (
+        {/* The role/"rules" breakdown is CEO-only now — no other role sees
+            it. Only the CEO gets this chart cell. */}
+        {isCeo && (
           <Suspense fallback={<GlassCardSkeleton />}>
-            {isCeo ? (
-              <TeacherProgressChartSection delayMs={0} />
-            ) : (
-              <RolesDonutChart href={analyticsHref} delayMs={0} />
-            )}
+            <TeacherProgressChartSection delayMs={0} />
           </Suspense>
         )}
+        {/* Stars are company-wide and everyone earns them, so the
+            leaderboard is the one card here with no role gate. For non-CEO
+            roles it takes over the cell the CEO-only chart leaves empty;
+            for the CEO it's a fourth card that wraps onto the next row. */}
+        <Suspense fallback={<GlassCardSkeleton />}>
+          <StarLeaderboard currentUserId={user!.id} delayMs={isCeo ? 90 : 0} />
+        </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
           {isPersonalDashboard ? (
             <TasksCalendar userId={user!.id} />

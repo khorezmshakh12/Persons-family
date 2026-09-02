@@ -252,6 +252,8 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                         <img
                           src={item.image_url}
                           alt={item.name}
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (
@@ -441,7 +443,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                       {item.image_url ? (
                         <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-white/15">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                          <img src={item.image_url} alt={item.name} referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover" />
                         </div>
                       ) : (
                         <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/30">

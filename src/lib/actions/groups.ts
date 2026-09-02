@@ -8,7 +8,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
 import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
-import { generateLessonSlotsForMonth } from '@/lib/lesson-generation';
+import { generateLessonSlotsForMonth, pruneOffScheduleBlankSlots } from '@/lib/lesson-generation';
 import { currentMonthKey } from '@/lib/lesson-months';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
@@ -50,6 +50,17 @@ function buildConfiguration(data: z.infer<typeof configurationSchema>) {
 
 function normalizeAssignedTaId(value: string | undefined): string | null {
   return value && value !== 'none' ? value : null;
+}
+
+/**
+ * The two months lesson slots are maintained for: the current Tashkent month
+ * and the next one. Derived from `currentMonthKey()` (Asia/Tashkent), never
+ * the server's own UTC clock — on the 1st of a month those disagree for the
+ * first five hours, which would seed/reconcile the wrong pair of months.
+ */
+function openMonths(): [number, number][] {
+  const [year, month] = currentMonthKey().split('-').map(Number);
+  return [[year, month], month === 12 ? [year + 1, 1] : [year, month + 1]];
 }
 
 /** Defense in depth: nothing else checks that assigned_ta_id points at an
@@ -110,12 +121,7 @@ export async function createGroupAction(
   // plans. Both calls are independent and idempotent (generateLessonSlots-
   // ForMonth's own `where not exists` guard), so the cron re-running over
   // next month later is a no-op rather than a duplicate.
-  const [thisYear, thisMonth] = currentMonthKey().split('-').map(Number);
-  const seedMonths: [number, number][] = [
-    [thisYear, thisMonth],
-    thisMonth === 12 ? [thisYear + 1, 1] : [thisYear, thisMonth + 1],
-  ];
-  for (const [year, month] of seedMonths) {
+  for (const [year, month] of openMonths()) {
     try {
       await generateLessonSlotsForMonth(groupId, year, month);
     } catch (error) {
@@ -190,17 +196,53 @@ export async function updateGroupAction(
   // without the extra predicate any employee could rename/reassign any
   // group by posting its id.
   const isCeo = profile.role === 'ceo';
-  const [updated] = await sql<{ teacher_id: string }[]>`
-    update groups set
-      name = ${parsed.data.name},
-      assigned_ta_id = ${assignedTaId},
-      schedule_type = ${normalizeScheduleType(parsed.data.scheduleType)},
-      course_name = ${parsed.data.courseName || null},
-      configuration = ${sql.json(buildConfiguration(parsed.data))}
-    where id = ${parsed.data.id} and (${isCeo} or teacher_id = ${user.id})
-    returning teacher_id
-  `;
+  const scheduleType = normalizeScheduleType(parsed.data.scheduleType);
+
+  // The `previous` CTE reads the row as it was at the start of this
+  // statement, so the old schedule_type comes back from the same atomic
+  // write that sets the new one — no separate read that another update
+  // could slip in between.
+  let updated: { teacher_id: string; previousScheduleType: 'odd' | 'even' | null } | undefined;
+  try {
+    [updated] = await sql<{ teacher_id: string; previousScheduleType: 'odd' | 'even' | null }[]>`
+      with previous as (select id, schedule_type from groups where id = ${parsed.data.id})
+      update groups g set
+        name = ${parsed.data.name},
+        assigned_ta_id = ${assignedTaId},
+        schedule_type = ${scheduleType},
+        course_name = ${parsed.data.courseName || null},
+        configuration = ${sql.json(buildConfiguration(parsed.data))}
+      from previous p
+      where g.id = p.id and (${isCeo} or g.teacher_id = ${user.id})
+      returning g.teacher_id, p.schedule_type as "previousScheduleType"
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
   if (!updated) return { error: 'forbidden' };
+
+  // A changed odd/even rotation makes the group's existing course_lessons
+  // rows land on days it no longer meets on (and leaves its real new days
+  // with no slot to write in at all) — the monthly generator only ever adds
+  // rows, so without this the lesson plan keeps showing the old rotation
+  // until someone notices. Reconciled over the same two months new groups
+  // are seeded for, and only over slots nothing has been written into (see
+  // pruneOffScheduleBlankSlots): a filled or moved lesson on a now-off day
+  // stays exactly where it is.
+  //
+  // Best-effort, like the seeding in createGroupAction: the group itself is
+  // already updated, so a failure here is logged rather than reported back
+  // as if the save hadn't happened.
+  if (updated.previousScheduleType !== scheduleType) {
+    for (const [year, month] of openMonths()) {
+      try {
+        await pruneOffScheduleBlankSlots(parsed.data.id, year, month);
+        await generateLessonSlotsForMonth(parsed.data.id, year, month);
+      } catch (error) {
+        console.error('lesson slot reconcile failed for group', parsed.data.id, year, month, error);
+      }
+    }
+  }
 
   // assigned_ta_id may have just changed — re-sync the chat thread's
   // membership so a newly-assigned TA can read/receive it immediately and
