@@ -21,7 +21,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Match the Dockerfile (node:24-slim) and local dev — npm's
+          # lockfile resolution differs enough between majors that `npm ci`
+          # passes on one and not the other.
+          node-version: '24'
           cache: 'npm'
 
       - run: npm ci
