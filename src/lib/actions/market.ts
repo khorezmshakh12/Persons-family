@@ -215,6 +215,46 @@ export async function setMarketItemActiveAction(
   return {};
 }
 
+const deleteItemSchema = z.object({ itemId: z.string().uuid() });
+
+/**
+ * Hard-deletes a shelf item. Refused when the item has any order history —
+ * `market_orders.item_id` has no cascade and, more importantly, those rows are
+ * employees' star-spend records that must not vanish. In that case the CEO
+ * deactivates the item instead (`setMarketItemActiveAction`).
+ */
+export async function deleteMarketItemAction(
+  _prevState: MarketActionState,
+  formData: FormData,
+): Promise<MarketActionState> {
+  try {
+    await requireCeo();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = deleteItemSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  try {
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from market_orders where item_id = ${parsed.data.itemId}
+    `;
+    if (count > 0) return { error: 'itemHasOrders' };
+
+    const rows = await sql<{ id: string }[]>`
+      delete from market_items where id = ${parsed.data.itemId} returning id
+    `;
+    if (rows.length === 0) return { error: 'itemNotFound' };
+  } catch {
+    return { error: 'deleteFailed' };
+  }
+
+  logSystemAction('market.item.delete', `Deleted market item ${parsed.data.itemId}`);
+  revalidateMarket();
+  return {};
+}
+
 // ---------------------------------------------------------------------------
 // CEO — order decisions
 // ---------------------------------------------------------------------------
@@ -381,7 +421,12 @@ export type MarketItemRow = {
   id: string;
   name: string;
   description: string | null;
+  /** Signed, short-lived URL ready to drop into an <img src>. Re-minted every fetch. */
   image_url: string | null;
+  /** The value actually stored in the DB — a bucket object path or a legacy http(s)
+   *  URL. This is what an edit form must submit back when the image is unchanged;
+   *  never round-trip `image_url`, it expires. */
+  image_path: string | null;
   star_cost: number;
   stock: number | null;
   is_active: boolean;
@@ -430,7 +475,11 @@ export async function getMarketAction(): Promise<MarketView> {
   ]);
 
   const itemsWithImages = await Promise.all(
-    items.map(async (i) => ({ ...i, image_url: await resolveImage(i.image_url) })),
+    items.map(async (i) => ({
+      ...i,
+      image_path: i.image_url,
+      image_url: await resolveImage(i.image_url),
+    })),
   );
   return { balance, items: itemsWithImages, orders };
 }
@@ -475,7 +524,11 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
   ]);
 
   const itemsWithImages = await Promise.all(
-    items.map(async (i) => ({ ...i, image_url: await resolveImage(i.image_url) })),
+    items.map(async (i) => ({
+      ...i,
+      image_path: i.image_url,
+      image_url: await resolveImage(i.image_url),
+    })),
   );
   return { allowed: true, items: itemsWithImages, pendingOrders };
 }

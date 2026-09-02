@@ -2,8 +2,10 @@ import { getTranslations } from 'next-intl/server';
 import { Users, Layers, CalendarDays, Wallet, Target, ListTodo } from 'lucide-react';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { monthlyBuckets, momChangePercent } from '@/lib/dashboard-stats';
+import { monthlyBuckets, monthlyAmountBuckets, momChangePercent } from '@/lib/dashboard-stats';
 import { formatUZS } from '@/lib/format-currency';
+import { tashkentMonthKey } from '@/lib/time';
+import { efficiencyForMonth } from '@/lib/task-efficiency';
 import { StatCard } from './stat-card';
 
 const MONTHS = 6;
@@ -16,6 +18,7 @@ type Card = {
   buckets: number[];
   href: string;
   maskable?: boolean;
+  percent: number;
 };
 
 export async function StatsRow({
@@ -53,8 +56,8 @@ export async function StatsRow({
       sql<{ created_at: string; status: string }[]>`
         select created_at, status from missions where staff_id = ${userId}
       `,
-      sql<{ created_at: string; status: string }[]>`
-        select created_at, status from tasks where assigned_to = ${userId}
+      sql<{ created_at: string; status: string; deadline: string; completed_at: string | null }[]>`
+        select created_at, status, deadline, completed_at from tasks where assigned_to = ${userId}
       `,
     ]);
 
@@ -62,9 +65,29 @@ export async function StatsRow({
     const activeMissions = missionRows.filter((m) => m.status !== 'approved' && m.status !== 'rejected');
     const activeTasks = taskRows.filter((task) => task.status !== 'done');
 
-    const financeBuckets = monthlyBuckets(financeRows.map((r) => r.created_at), MONTHS);
-    const missionBuckets = monthlyBuckets(activeMissions.map((m) => m.created_at), MONTHS);
-    const taskBuckets = monthlyBuckets(activeTasks.map((task) => task.created_at), MONTHS);
+    // 1. Finance: sum of amounts per month for sparkline + safe MoM change
+    const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
+    const financeChange = momChangePercent(financeBuckets);
+
+    // 2. Missions: all mission count per month for sparkline + mission completion rate %
+    const missionBuckets = monthlyBuckets(
+      missionRows.map((m) => m.created_at),
+      MONTHS,
+    );
+    const approvedMissions = missionRows.filter((m) => m.status === 'approved');
+    const missionPercent =
+      missionRows.length === 0
+        ? 100
+        : Math.round((approvedMissions.length / missionRows.length) * 100);
+
+    // 3. Tasks: all task count per month for sparkline + current month efficiency %
+    const taskBuckets = monthlyBuckets(
+      taskRows.map((task) => task.created_at),
+      MONTHS,
+    );
+    const currentMonth = tashkentMonthKey();
+    const taskStats = efficiencyForMonth(taskRows, currentMonth);
+    const taskPercent = taskStats.efficiencyPct;
 
     const cards: Card[] = [
       {
@@ -73,6 +96,7 @@ export async function StatsRow({
         icon: Wallet,
         tint: 'green',
         buckets: financeBuckets,
+        percent: financeChange,
         href: `/finance/${userId}`,
         maskable: true,
       },
@@ -82,6 +106,7 @@ export async function StatsRow({
         icon: Target,
         tint: 'blue',
         buckets: missionBuckets,
+        percent: missionPercent,
         href: `/missions/${userId}`,
       },
       {
@@ -90,6 +115,7 @@ export async function StatsRow({
         icon: ListTodo,
         tint: 'orange',
         buckets: taskBuckets,
+        percent: taskPercent,
         href: '/tasks',
       },
     ];
@@ -103,7 +129,7 @@ export async function StatsRow({
             value={c.value}
             icon={c.icon}
             tint={c.tint}
-            changePercent={momChangePercent(c.buckets)}
+            changePercent={c.percent}
             sparkline={c.buckets}
             href={c.href}
             index={index}
@@ -149,19 +175,20 @@ export async function StatsRow({
   ]);
 
   const activeStaff = staffRows.filter((r) => r.is_active);
-  const staffBuckets = monthlyBuckets(activeStaff.map((r) => r.created_at), MONTHS);
+  const staffBuckets = monthlyBuckets(staffRows.map((r) => r.created_at), MONTHS);
   const groupBuckets = monthlyBuckets(groupRows.map((r) => r.created_at), MONTHS);
   const lessonBuckets = monthlyBuckets(lessonRows.map((r) => r.created_at), MONTHS);
   const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
-  const financeBuckets = monthlyBuckets(financeRows.map((r) => r.created_at), MONTHS);
+  const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
 
-  const cards = [
+  const cards: Card[] = [
     showTotalStaff && {
       label: t('totalStaff'),
       value: activeStaff.length,
       icon: Users,
       tint: 'green' as const,
       buckets: staffBuckets,
+      percent: momChangePercent(staffBuckets),
       href: '/staff',
     },
     financeUserId && {
@@ -170,6 +197,7 @@ export async function StatsRow({
       icon: Wallet,
       tint: 'green' as const,
       buckets: financeBuckets,
+      percent: momChangePercent(financeBuckets),
       href: `/finance/${financeUserId}`,
       maskable: true,
     },
@@ -179,6 +207,7 @@ export async function StatsRow({
       icon: Layers,
       tint: 'blue' as const,
       buckets: groupBuckets,
+      percent: momChangePercent(groupBuckets),
       href: '/lesson-plans',
     },
     showLessonPlanCards && {
@@ -187,6 +216,7 @@ export async function StatsRow({
       icon: CalendarDays,
       tint: 'orange' as const,
       buckets: lessonBuckets,
+      percent: momChangePercent(lessonBuckets),
       href: '/lesson-plans',
     },
   ].filter(Boolean) as Card[];
@@ -200,10 +230,11 @@ export async function StatsRow({
           value={c.value}
           icon={c.icon}
           tint={c.tint}
-          changePercent={momChangePercent(c.buckets)}
+          changePercent={c.percent}
           sparkline={c.buckets}
           href={c.href}
           index={index}
+          maskable={c.maskable}
         />
       ))}
     </div>

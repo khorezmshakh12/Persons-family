@@ -30,10 +30,53 @@ export function monthlyBuckets(timestamps: (string | null)[], months: number): n
   return buckets.map((b) => b.count);
 }
 
-/** Percent change between the last two buckets (this month vs. last month). */
+/** Oldest-to-newest sum of money amounts per calendar month, for the last `months`
+ * months (including the current one). */
+export function monthlyAmountBuckets(
+  entries: { amount: number; created_at: string | null }[],
+  months: number,
+): number[] {
+  const { year: nowYear, month: nowMonth } = tashkentYmd();
+  const buckets = Array.from({ length: months }, (_, i) => {
+    let y = nowYear;
+    let m = nowMonth - (months - 1 - i);
+    while (m <= 0) {
+      m += 12;
+      y -= 1;
+    }
+    return { year: y, month: m, sum: 0 };
+  });
+
+  for (const entry of entries) {
+    if (!entry.created_at) continue;
+    const [y, m] = monthFmt.format(new Date(entry.created_at)).split('-').map(Number);
+    const bucket = buckets.find((b) => b.year === y && b.month === m);
+    if (bucket) bucket.sum += entry.amount;
+  }
+
+  return buckets.map((b) => Math.round(b.sum));
+}
+
+/** Percent change between the last two buckets (this month vs. last month).
+ * If the current month has 0 (e.g. month just started and entries haven't arrived yet),
+ * we check the previous month's trend rather than falsely reporting -100%. */
 export function momChangePercent(buckets: number[]): number {
   const last = buckets[buckets.length - 1] ?? 0;
   const prev = buckets[buckets.length - 2] ?? 0;
-  if (prev === 0) return last > 0 ? 100 : 0;
-  return Math.round(((last - prev) / prev) * 100);
+  const prevPrev = buckets[buckets.length - 3] ?? 0;
+
+  if (last > 0) {
+    if (prev === 0) return 100;
+    return Math.round(((last - prev) / prev) * 100);
+  }
+
+  // Current month has 0 so far
+  if (prev > 0) {
+    if (prevPrev > 0) {
+      return Math.round(((prev - prevPrev) / prevPrev) * 100);
+    }
+    return 0;
+  }
+
+  return 0;
 }
