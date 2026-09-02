@@ -5,6 +5,7 @@ import { StatsRow } from '@/components/dashboard/stats-row';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
+import { StarLeaderboard } from '@/components/dashboard/star-leaderboard';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
@@ -121,6 +122,13 @@ export default async function DashboardPage() {
             <TeacherProgressChartSection delayMs={0} />
           </Suspense>
         )}
+        {/* Stars are company-wide and everyone earns them, so the
+            leaderboard is the one card here with no role gate. For non-CEO
+            roles it takes over the cell the CEO-only chart leaves empty;
+            for the CEO it's a fourth card that wraps onto the next row. */}
+        <Suspense fallback={<GlassCardSkeleton />}>
+          <StarLeaderboard currentUserId={user!.id} delayMs={isCeo ? 90 : 0} />
+        </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
           {isPersonalDashboard ? (
             <TasksCalendar userId={user!.id} />

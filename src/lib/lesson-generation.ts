@@ -79,6 +79,71 @@ export async function generateLessonSlotsForMonth(groupId: string, year: number,
   return created.length;
 }
 
+/**
+ * The mirror image of `generateLessonSlotsForMonth`: removes the rows in that
+ * month which the group's *current* schedule_type says it never meets on
+ * (the complement of what the generator would create — Sundays plus the
+ * wrong weekday parity), so that changing a group from 'odd' to 'even' (or
+ * back) doesn't leave the old rotation's days sitting in the lesson plan
+ * next to the new ones.
+ *
+ * Only ever deletes a slot nothing has happened on yet:
+ *   - `topic is null` and neither side of a move (`moved_from_lesson_id` /
+ *     `moved_to_lesson_id` both null) — a moved row is part of an audit
+ *     trail that points at another row, and a topic is a teacher's work.
+ *   - plus, as defense in depth, every other authored field still empty and
+ *     no comments on it. The five plan fields, the game link, the procedure
+ *     steps and the attachments can each be filled in *without* a topic
+ *     (they're separate single-column actions, see course-lessons.ts), and
+ *     deleting one of those would silently destroy a teacher's work — and,
+ *     for a row with comments, take the discussion with it. These
+ *     conditions only ever make the delete narrower, never wider.
+ *
+ * A group with no schedule_type set is left alone entirely: the generator's
+ * fallback for it is "every non-Sunday date", so nothing is off-schedule.
+ *
+ * Returns how many rows were actually removed.
+ */
+export async function pruneOffScheduleBlankSlots(groupId: string, year: number, month: number): Promise<number> {
+  const [group] = await sql<{ schedule_type: 'odd' | 'even' | null }[]>`
+    select schedule_type from groups where id = ${groupId}
+  `;
+  const scheduleType = group?.schedule_type ?? null;
+  if (!scheduleType) return 0;
+
+  const total = daysInMonth(year, month);
+  const offScheduleKeys: string[] = [];
+  for (let day = 1; day <= total; day += 1) {
+    const dateKey = toDateKey(year, month, day);
+    // Same two rules as the generator, just negated — keep them identical.
+    if (!isSunday(dateKey) && weekdayParity(dateKey) === scheduleType) continue;
+    offScheduleKeys.push(dateKey);
+  }
+  if (offScheduleKeys.length === 0) return 0;
+
+  const removed = await sql<{ id: string }[]>`
+    delete from course_lessons cl
+    where cl.group_id = ${groupId}
+      and cl.lesson_date in (select d from unnest(${offScheduleKeys}::date[]) as d)
+      and cl.topic is null
+      and cl.moved_from_lesson_id is null
+      and cl.moved_to_lesson_id is null
+      and cl.game_link is null
+      and cl.aim is null
+      and cl.language_focus is null
+      and cl.anticipated_problems is null
+      and cl.materials is null
+      and cl.homework is null
+      -- ::jsonb so this holds whichever of json/jsonb the column is, and
+      -- compares as a value (not text), so whitespace can't fool it.
+      and coalesce(cl.procedure::jsonb, '[]'::jsonb) = '[]'::jsonb
+      and coalesce(cl.attachments::jsonb, '[]'::jsonb) = '[]'::jsonb
+      and not exists (select 1 from lesson_comments lc where lc.lesson_id = cl.id)
+    returning cl.id
+  `;
+  return removed.length;
+}
+
 /** Every group, for wiring into the monthly cron and the one-time backfill script. */
 export async function getAllGroupIds(): Promise<string[]> {
   const rows = await sql<{ id: string }[]>`select id from groups`;
