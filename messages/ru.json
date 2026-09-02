@@ -1239,7 +1239,9 @@
       "alreadyDecided": "По этому заказу уже принято решение.",
       "itemInactive": "Этот приз сейчас недоступен.",
       "outOfStock": "Этого приза нет в наличии.",
-      "insufficientStars": "Недостаточно звёзд."
+      "insufficientStars": "Недостаточно звёзд.",
+      "invalidImageType": "Используйте изображение PNG, JPG или WebP.",
+      "uploadFailed": "Не удалось загрузить изображение. Попробуйте снова."
     },
     "order": "Заказать",
     "orderConfirm": "Подтверждение заказа",

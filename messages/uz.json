@@ -1239,7 +1239,9 @@
       "alreadyDecided": "Bu buyurtma bo'yicha qaror allaqachon qabul qilingan.",
       "itemInactive": "Bu sovg'a hozir mavjud emas.",
       "outOfStock": "Bu sovg'a tugagan.",
-      "insufficientStars": "Yulduzlaringiz yetarli emas."
+      "insufficientStars": "Yulduzlaringiz yetarli emas.",
+      "invalidImageType": "PNG, JPG yoki WebP rasm yuklang.",
+      "uploadFailed": "Rasmni yuklab bo'lmadi. Qayta urinib ko'ring."
     },
     "order": "Buyurtma berish",
     "orderConfirm": "Buyurtmani tasdiqlash",

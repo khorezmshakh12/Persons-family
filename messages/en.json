@@ -1239,7 +1239,9 @@
       "alreadyDecided": "This order has already been decided.",
       "itemInactive": "This reward is not available right now.",
       "outOfStock": "This reward is out of stock.",
-      "insufficientStars": "You don't have enough stars."
+      "insufficientStars": "You don't have enough stars.",
+      "invalidImageType": "Use a PNG, JPG or WebP image.",
+      "uploadFailed": "Could not upload the image. Please try again."
     },
     "order": "Order",
     "orderConfirm": "Confirm Order",

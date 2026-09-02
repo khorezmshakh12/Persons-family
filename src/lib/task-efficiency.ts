@@ -9,8 +9,10 @@ import { tashkentTodayKey } from '@/lib/upcoming-birthdays';
  * `completed_at <= deadline`. Everything else that was due in the window is
  * either done-late or not-done.
  *
- * efficiency % = round(doneOnTime / totalDue * 100); a week with nothing
- * due is reported as 100 (nothing to miss), never NaN.
+ * efficiency % = round((doneOnTime - doneLate) / totalDue * 100), floored
+ * at 0 — a late task is a *minus*, not just a zero, so finishing everything
+ * late scores 0, not 100. A week with nothing due is reported as 100
+ * (nothing to miss), never NaN.
  */
 
 export type WeekWindow = {
@@ -106,7 +108,8 @@ export function efficiencyForWeek(tasks: TaskLike[], week: WeekWindow): Efficien
     }
   }
 
-  const efficiencyPct = totalDue === 0 ? 100 : Math.round((doneOnTime / totalDue) * 100);
+  const efficiencyPct =
+    totalDue === 0 ? 100 : Math.max(0, Math.round(((doneOnTime - doneLate) / totalDue) * 100));
   return { totalDue, doneOnTime, doneLate, notDone, efficiencyPct };
 }
 

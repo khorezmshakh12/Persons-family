@@ -8,8 +8,57 @@ import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { getStarBalance } from '@/lib/stars';
 import { insertStarTransaction } from '@/lib/stars-write';
+import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 
 export type MarketActionState = { error?: string } | undefined;
+
+// Market item images live in the chat_media bucket under a market/ prefix
+// (private, same as avatars) — pasted image-search URLs like the Yandex
+// thumbnail ones don't hotlink from another origin, which is why every
+// image "disappeared". `image_url` now stores either a bucket object path
+// (uploaded) or, for legacy rows, a full http(s) URL.
+const MARKET_IMAGE_TYPES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+const MARKET_IMAGE_TTL = 60 * 60; // 1h, re-minted every fetch
+
+async function resolveImage(stored: string | null): Promise<string | null> {
+  if (!stored) return null;
+  if (/^https?:\/\//i.test(stored)) return stored; // legacy pasted URL — pass through
+  try {
+    return await createSignedReadUrl('chat_media', stored, MARKET_IMAGE_TTL);
+  } catch (error) {
+    console.error('market resolveImage failed', stored, error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+export type MarketImageUploadResult = { path?: string; url?: string; error?: string };
+
+/** CEO issues a signed PUT so the browser uploads straight to Cloud Storage. */
+export async function requestMarketImageUploadUrlAction(
+  fileName: string,
+  fileType: string,
+): Promise<MarketImageUploadResult> {
+  try {
+    await requireCeo();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const ext = MARKET_IMAGE_TYPES[fileType];
+  if (!ext) return { error: 'invalidImageType' };
+  const safe = fileName.replace(/[^\w.\-]+/g, '_').slice(-60);
+  const path = `market/${crypto.randomUUID()}-${safe || 'image'}.${ext}`;
+  try {
+    const url = await createSignedWriteUrl('chat_media', path, fileType);
+    return { path, url };
+  } catch (error) {
+    console.error('requestMarketImageUploadUrlAction failed', error instanceof Error ? error.message : error);
+    return { error: 'uploadFailed' };
+  }
+}
 
 /**
  * Thrown inside a `sql.begin` callback so the whole transaction rolls back,
@@ -380,7 +429,10 @@ export async function getMarketAction(): Promise<MarketView> {
     `,
   ]);
 
-  return { balance, items, orders };
+  const itemsWithImages = await Promise.all(
+    items.map(async (i) => ({ ...i, image_url: await resolveImage(i.image_url) })),
+  );
+  return { balance, items: itemsWithImages, orders };
 }
 
 export type MarketAdminOrderRow = MarketOrderRow & {
@@ -422,5 +474,8 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
     `,
   ]);
 
-  return { allowed: true, items, pendingOrders };
+  const itemsWithImages = await Promise.all(
+    items.map(async (i) => ({ ...i, image_url: await resolveImage(i.image_url) })),
+  );
+  return { allowed: true, items: itemsWithImages, pendingOrders };
 }
