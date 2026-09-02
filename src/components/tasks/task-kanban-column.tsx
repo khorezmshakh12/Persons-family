@@ -17,7 +17,8 @@ function TaskKanbanColumnImpl({
   currentUserId,
   emptyLabel,
   onRequestDelete,
-  collapsible = false,
+  collapsible = true,
+  defaultExpanded = true,
 }: {
   status: TaskStatus;
   label: string;
@@ -27,14 +28,11 @@ function TaskKanbanColumnImpl({
   currentUserId: string;
   emptyLabel: string;
   onRequestDelete: (task: Task) => void;
-  /** Done column only: every card folds into the one "label · N" header
-   * (spec #5) so a month of completed work can't bury the active columns.
-   * The column stays a drop target while collapsed — dropping a card in
-   * just bumps the count. */
   collapsible?: boolean;
+  defaultExpanded?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const showCards = !collapsible || expanded;
 
   return (
