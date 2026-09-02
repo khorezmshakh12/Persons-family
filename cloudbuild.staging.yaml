@@ -11,7 +11,7 @@ substitutions:
   _DB_NAME: 'app_staging'
   _SERVICE: 'persons-staff-app-staging'
   _REGION: 'europe-west3'
-  _BASE_URL: '' # set to the staging run.app URL on the trigger
+  _BASE_URL: 'https://persons-staff-app-staging-121315485439.europe-west3.run.app'
   _DB_PASSWORD: 'rnQTe2aILZonLj0NaWkV8XBb' # TODO: Secret Manager (see cloudbuild.yaml)
 
 steps:
