@@ -215,6 +215,46 @@ export async function setMarketItemActiveAction(
   return {};
 }
 
+const deleteItemSchema = z.object({ itemId: z.string().uuid() });
+
+/**
+ * Hard-deletes a shelf item. Refused when the item has any order history —
+ * `market_orders.item_id` has no cascade and, more importantly, those rows are
+ * employees' star-spend records that must not vanish. In that case the CEO
+ * deactivates the item instead (`setMarketItemActiveAction`).
+ */
+export async function deleteMarketItemAction(
+  _prevState: MarketActionState,
+  formData: FormData,
+): Promise<MarketActionState> {
+  try {
+    await requireCeo();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = deleteItemSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  try {
+    const [{ count }] = await sql<{ count: number }[]>`
+      select count(*)::int as count from market_orders where item_id = ${parsed.data.itemId}
+    `;
+    if (count > 0) return { error: 'itemHasOrders' };
+
+    const rows = await sql<{ id: string }[]>`
+      delete from market_items where id = ${parsed.data.itemId} returning id
+    `;
+    if (rows.length === 0) return { error: 'itemNotFound' };
+  } catch {
+    return { error: 'deleteFailed' };
+  }
+
+  logSystemAction('market.item.delete', `Deleted market item ${parsed.data.itemId}`);
+  revalidateMarket();
+  return {};
+}
+
 // ---------------------------------------------------------------------------
 // CEO — order decisions
 // ---------------------------------------------------------------------------

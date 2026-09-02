@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { OrderRewardDialog } from './order-reward-dialog';
 import { CreateItemDialog } from './create-item-dialog';
 import { EditItemDialog } from './edit-item-dialog';
+import { DeleteItemDialog } from './delete-item-dialog';
 import { DecideOrderActions } from './decide-order-dialog';
 
 type MarketViewProps = {
@@ -467,6 +468,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                       </span>
                       <ItemActiveToggle item={item} />
                       <EditItemDialog item={item} />
+                      <DeleteItemDialog item={item} />
                     </div>
                   </div>
                 ))}
