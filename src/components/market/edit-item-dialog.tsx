@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
 import { updateMarketItemAction, type MarketActionState, type MarketItemRow } from '@/lib/actions/market';
+import { MarketImageField } from './market-image-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
   const t = useTranslations('market');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [state, formAction, isPending] = useActionState<MarketActionState, FormData>(
     async (prev, formData) => {
@@ -57,7 +59,16 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
           <DialogTitle className="text-white">{t('admin.editItem')}</DialogTitle>
         </DialogHeader>
 
-        <form action={formAction} className="flex flex-col gap-4">
+        <form
+          action={formAction}
+          onSubmit={(e) => {
+            if (isUploadingImage) {
+              e.preventDefault();
+              toast.error(t('admin.uploadInProgress'));
+            }
+          }}
+          className="flex flex-col gap-4"
+        >
           <input type="hidden" name="itemId" value={item.id} />
 
           <div className="flex flex-col gap-2">
@@ -85,13 +96,12 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={`edit-imageUrl-${item.id}`}>{t('admin.imageUrl')}</Label>
-            <Input
-              id={`edit-imageUrl-${item.id}`}
+            <Label>{t('admin.imageLabel')}</Label>
+            <MarketImageField
               name="imageUrl"
-              defaultValue={item.image_url ?? ''}
-              maxLength={2000}
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              defaultValue={item.image_url}
+              initialStored={item.image_path}
+              onUploadingChange={setIsUploadingImage}
             />
           </div>
 
@@ -138,7 +148,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
             </Button>
             <Button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isUploadingImage}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
             >
               {isPending ? tCommon('loading') : tCommon('save')}

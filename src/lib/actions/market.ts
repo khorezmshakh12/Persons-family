@@ -381,7 +381,12 @@ export type MarketItemRow = {
   id: string;
   name: string;
   description: string | null;
+  /** Signed, short-lived URL ready to drop into an <img src>. Re-minted every fetch. */
   image_url: string | null;
+  /** The value actually stored in the DB — a bucket object path or a legacy http(s)
+   *  URL. This is what an edit form must submit back when the image is unchanged;
+   *  never round-trip `image_url`, it expires. */
+  image_path: string | null;
   star_cost: number;
   stock: number | null;
   is_active: boolean;
@@ -430,7 +435,11 @@ export async function getMarketAction(): Promise<MarketView> {
   ]);
 
   const itemsWithImages = await Promise.all(
-    items.map(async (i) => ({ ...i, image_url: await resolveImage(i.image_url) })),
+    items.map(async (i) => ({
+      ...i,
+      image_path: i.image_url,
+      image_url: await resolveImage(i.image_url),
+    })),
   );
   return { balance, items: itemsWithImages, orders };
 }
@@ -475,7 +484,11 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
   ]);
 
   const itemsWithImages = await Promise.all(
-    items.map(async (i) => ({ ...i, image_url: await resolveImage(i.image_url) })),
+    items.map(async (i) => ({
+      ...i,
+      image_path: i.image_url,
+      image_url: await resolveImage(i.image_url),
+    })),
   );
   return { allowed: true, items: itemsWithImages, pendingOrders };
 }
