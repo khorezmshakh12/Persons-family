@@ -18,38 +18,42 @@ import {
 // server-only functions themselves. Each derives the caller from the
 // session rather than trusting a client-supplied id, same as the old
 // security-definer RPCs did with auth.uid().
+//
+// The boolean return is "did this actually flip a row" — the client
+// components use it to skip a pointless router.refresh() when there was
+// nothing to mark. Callers that don't care can ignore it.
 
-export async function markTasksSeenAction(): Promise<void> {
+export async function markTasksSeenAction(): Promise<boolean> {
   const { user } = await getAuthState();
-  if (user) await markTasksSeen(user.id);
+  return user ? markTasksSeen(user.id) : false;
 }
 
-export async function markIssuesSeenAction(): Promise<void> {
+export async function markIssuesSeenAction(): Promise<boolean> {
   const { user } = await getAuthState();
-  if (user) await markIssuesSeen(user.id);
+  return user ? markIssuesSeen(user.id) : false;
 }
 
-export async function markIssueSeenAction(issueId: string): Promise<void> {
+export async function markIssueSeenAction(issueId: string): Promise<boolean> {
   const { user } = await getAuthState();
-  if (user) await markIssueSeen(user.id, issueId);
+  return user ? markIssueSeen(user.id, issueId) : false;
 }
 
-export async function markWarningsSeenAction(): Promise<void> {
+export async function markWarningsSeenAction(): Promise<boolean> {
   const { user } = await getAuthState();
-  if (user) await markWarningsSeen(user.id);
+  return user ? markWarningsSeen(user.id) : false;
 }
 
-export async function markCompanyNewsSeenAction(): Promise<void> {
+export async function markCompanyNewsSeenAction(): Promise<boolean> {
   const { user } = await getAuthState();
-  if (user) await markCompanyNewsSeen(user.id);
+  return user ? markCompanyNewsSeen(user.id) : false;
 }
 
-export async function markLessonPlanAlertsSeenAction(): Promise<void> {
+export async function markLessonPlanAlertsSeenAction(): Promise<boolean> {
   const { profile } = await getAuthState();
-  if (profile) await markLessonPlanAlertsSeen(profile.role);
+  return profile ? markLessonPlanAlertsSeen(profile.role) : false;
 }
 
-export async function markConversationReadAction(otherUserId: string): Promise<void> {
+export async function markConversationReadAction(otherUserId: string): Promise<boolean> {
   const { user } = await getAuthState();
-  if (user) await markConversationRead(user.id, otherUserId);
+  return user ? markConversationRead(user.id, otherUserId) : false;
 }

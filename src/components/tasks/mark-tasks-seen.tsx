@@ -15,16 +15,15 @@ export function MarkTasksSeen() {
   useEffect(() => {
     // Mount-only — see mark-company-news-seen.tsx: next-intl's useRouter()
     // returns a fresh ref each render, so `[router]` + router.refresh() here
-    // is an infinite action/refresh loop.
+    // is an infinite action/refresh loop. Only refresh when a row actually
+    // flipped, so a re-run can never cascade.
     if (ran.current) return;
     ran.current = true;
     markTasksSeenAction()
-      .then(() => {
+      .then((changed) => {
         // Clears the sidebar's green dot immediately — the layout that
-        // renders it is a cached Server Component, so without this it
-        // would only pick up the now-seen state on the next full
-        // navigation/reload.
-        router.refresh();
+        // renders it is a cached Server Component.
+        if (changed) router.refresh();
       })
       .catch((error) => console.error('markTasksSeenAction failed', error));
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -28,3 +28,12 @@ Full workflow: **`DEVELOPMENT.md`**. The essentials:
   `must_change_password`, also `setUserClaims` + `revokeUserSessions`.
 - Schema changes: add `supabase/migrations/<timestamp>_<name>.sql` (a
   self-contained `begin; … commit;`), never hand-run SQL. `npm run migrate`.
+- **`useEffect` render loops.** `useRouter()` from `@/i18n/navigation`
+  returns a NEW object every render, so `useEffect(() => { … router.refresh() },
+  [router])` re-arms itself forever — an unbounded `POST /<page>` + RSC
+  storm that CI (`tsc`/`eslint`/`next build`) does not catch. Any effect that
+  calls a Server Action or `router.refresh()` must run mount-only (`[]` + a
+  ran-once ref) and should no-op when nothing changed (the `mark-*-seen`
+  helpers return a `boolean` for exactly this). Never put `router`, or any
+  hook result that isn't provably stable, in a dep array alongside a call
+  that re-renders.
