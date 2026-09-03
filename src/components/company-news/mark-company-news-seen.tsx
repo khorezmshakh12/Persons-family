@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { markCompanyNewsSeenAction } from '@/lib/actions/notifications';
 import { useRouter } from '@/i18n/navigation';
 
@@ -9,12 +9,21 @@ import { useRouter } from '@/i18n/navigation';
 // is safe. Mirrors components/issues/mark-issues-seen.tsx.
 export function MarkCompanyNewsSeen() {
   const router = useRouter();
+  const ran = useRef(false);
 
   useEffect(() => {
+    // Mount-only. `useRouter()` from next-intl returns a NEW object on every
+    // render, so listing it in the dep array while calling `router.refresh()`
+    // inside the effect is an infinite loop: refresh() -> re-render -> new
+    // router ref -> effect re-runs -> action + refresh() -> ... This pegged
+    // the dashboard with a POST/RSC storm for every logged-in user.
+    if (ran.current) return;
+    ran.current = true;
     markCompanyNewsSeenAction()
       .then(() => router.refresh()) // Clears the sidebar's green dot immediately — see mark-tasks-seen.tsx.
       .catch((error) => console.error('markCompanyNewsSeenAction failed', error));
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return null;
 }
