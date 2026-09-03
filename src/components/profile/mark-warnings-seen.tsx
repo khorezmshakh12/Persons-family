@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { markWarningsSeenAction } from '@/lib/actions/notifications';
 import { useRouter } from '@/i18n/navigation';
 
@@ -9,8 +9,14 @@ import { useRouter } from '@/i18n/navigation';
 // Mirrors components/tasks/mark-tasks-seen.tsx exactly.
 export function MarkWarningsSeen() {
   const router = useRouter();
+  const ran = useRef(false);
 
   useEffect(() => {
+    // Mount-only — see mark-company-news-seen.tsx: next-intl's useRouter()
+    // returns a fresh ref each render, so `[router]` + router.refresh() here
+    // is an infinite action/refresh loop.
+    if (ran.current) return;
+    ran.current = true;
     markWarningsSeenAction()
       .then(() => {
         // Clears the sidebar's green dot immediately — the layout that
@@ -20,7 +26,8 @@ export function MarkWarningsSeen() {
         router.refresh();
       })
       .catch((error) => console.error('markWarningsSeenAction failed', error));
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return null;
 }
