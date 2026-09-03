@@ -14,11 +14,14 @@ export function MarkIssuesSeen() {
   useEffect(() => {
     // Mount-only — see mark-company-news-seen.tsx: next-intl's useRouter()
     // returns a fresh ref each render, so `[router]` + router.refresh() here
-    // is an infinite action/refresh loop.
+    // is an infinite action/refresh loop. Only refresh when a row actually
+    // flipped, so a re-run can never cascade.
     if (ran.current) return;
     ran.current = true;
     markIssuesSeenAction()
-      .then(() => router.refresh()) // Clears the sidebar's green dot immediately — see mark-tasks-seen.tsx.
+      .then((changed) => {
+        if (changed) router.refresh(); // Clears the sidebar's green dot immediately.
+      })
       .catch((error) => console.error('markIssuesSeenAction failed', error));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
