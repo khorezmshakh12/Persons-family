@@ -30,6 +30,34 @@ export function monthlyBuckets(timestamps: (string | null)[], months: number): n
   return buckets.map((b) => b.count);
 }
 
+/** Running total of rows as of the end of each of the last `months`
+ * Asia/Tashkent months (oldest→newest). Unlike monthlyBuckets (new rows
+ * per month) this is cumulative, so its last value == timestamps.length
+ * and its MoM change tracks the same "total" a headline count shows. */
+export function cumulativeMonthlyBuckets(timestamps: (string | null)[], months: number): number[] {
+  const { year: nowYear, month: nowMonth } = tashkentYmd(); // month is 1-12
+  const buckets = Array.from({ length: months }, (_, i) => {
+    let y = nowYear;
+    let m = nowMonth - (months - 1 - i);
+    while (m <= 0) {
+      m += 12;
+      y -= 1;
+    }
+    return { key: y * 12 + m, count: 0 };
+  });
+
+  for (const ts of timestamps) {
+    if (!ts) continue;
+    const [y, m] = monthFmt.format(new Date(ts)).split('-').map(Number);
+    const tsKey = y * 12 + m;
+    for (const bucket of buckets) {
+      if (tsKey <= bucket.key) bucket.count += 1;
+    }
+  }
+
+  return buckets.map((b) => b.count);
+}
+
 /** Oldest-to-newest sum of money amounts per calendar month, for the last `months`
  * months (including the current one). */
 export function monthlyAmountBuckets(

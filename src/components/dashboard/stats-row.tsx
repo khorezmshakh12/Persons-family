@@ -2,7 +2,12 @@ import { getTranslations } from 'next-intl/server';
 import { Users, Layers, CalendarDays, Wallet, Target, ListTodo } from 'lucide-react';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { monthlyBuckets, monthlyAmountBuckets, momChangePercent } from '@/lib/dashboard-stats';
+import {
+  monthlyBuckets,
+  monthlyAmountBuckets,
+  cumulativeMonthlyBuckets,
+  momChangePercent,
+} from '@/lib/dashboard-stats';
 import { formatUZS } from '@/lib/format-currency';
 import { tashkentMonthKey } from '@/lib/time';
 import { efficiencyForMonth } from '@/lib/task-efficiency';
@@ -69,16 +74,22 @@ export async function StatsRow({
     const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
     const financeChange = momChangePercent(financeBuckets);
 
-    // 2. Missions: all mission count per month for sparkline + mission completion rate %
+    // 2. Missions: all mission count per month for sparkline + current-month
+    // completion rate % (of missions created this Tashkent month, the share
+    // that are approved; 100 if none were created — nothing to miss).
     const missionBuckets = monthlyBuckets(
       missionRows.map((m) => m.created_at),
       MONTHS,
     );
-    const approvedMissions = missionRows.filter((m) => m.status === 'approved');
+    const missionMonth = tashkentMonthKey();
+    const missionsThisMonth = missionRows.filter(
+      (m) => tashkentMonthKey(new Date(m.created_at)) === missionMonth,
+    );
+    const approvedThisMonth = missionsThisMonth.filter((m) => m.status === 'approved');
     const missionPercent =
-      missionRows.length === 0
+      missionsThisMonth.length === 0
         ? 100
-        : Math.round((approvedMissions.length / missionRows.length) * 100);
+        : Math.round((approvedThisMonth.length / missionsThisMonth.length) * 100);
 
     // 3. Tasks: all task count per month for sparkline + current month efficiency %
     const taskBuckets = monthlyBuckets(
@@ -175,9 +186,12 @@ export async function StatsRow({
   ]);
 
   const activeStaff = staffRows.filter((r) => r.is_active);
-  const staffBuckets = monthlyBuckets(staffRows.map((r) => r.created_at), MONTHS);
-  const groupBuckets = monthlyBuckets(groupRows.map((r) => r.created_at), MONTHS);
-  const lessonBuckets = monthlyBuckets(lessonRows.map((r) => r.created_at), MONTHS);
+  // Count cards (Total Staff / Active Groups / Lesson Plans): headline is a
+  // running total, so the sparkline + trend run on the cumulative row count
+  // over time — its last value equals the headline — not on new rows/month.
+  const staffBuckets = cumulativeMonthlyBuckets(activeStaff.map((r) => r.created_at), MONTHS);
+  const groupBuckets = cumulativeMonthlyBuckets(groupRows.map((r) => r.created_at), MONTHS);
+  const lessonBuckets = cumulativeMonthlyBuckets(lessonRows.map((r) => r.created_at), MONTHS);
   const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
   const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
 
