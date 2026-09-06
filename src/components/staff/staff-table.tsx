@@ -32,10 +32,17 @@ export async function StaffTable({
 }) {
   const t = await getTranslations('staff');
 
+  // Pay is CEO-only. The row objects flow all the way to EditStaffDialog (a
+  // client component), so for a non-CEO staff manager (IT Developer)
+  // monthly_salary must not even be selected — it would otherwise sit in
+  // the serialized props of a field they can't see. `0` keeps the type
+  // whole without disclosing anything.
+  const isCeo = actingRole === 'ceo';
   const staffRows = await sql<Profile[]>`
     select id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at,
       created_by, must_change_password, telegram_id, teacher_level, level_updated_at, internship_level,
-      email, address, emergency_contact, monthly_salary
+      email, address, emergency_contact,
+      ${isCeo ? sql`monthly_salary` : sql`0 as monthly_salary`}
     from profiles order by created_at asc
   `;
   const staff = await Promise.all(

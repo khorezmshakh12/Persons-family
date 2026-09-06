@@ -134,8 +134,9 @@
     },
     "employeeGrowth": {
       "title": "Месячный рост сотрудников",
-      "noTeachers": "Пока нет активных учителей.",
-      "noData": "Пока нет оценённых месяцев."
+      "noTeachers": "Пока нет оценённых сотрудников.",
+      "noData": "Пока нет оценённых месяцев.",
+      "expand": "Развернуть"
     },
     "starLeaderboard": {
       "title": "Рейтинг звёзд",
@@ -588,7 +589,9 @@
     },
     "deadlinePreset": "{hours} ч",
     "moveUp": "Вверх",
-    "moveDown": "Вниз"
+    "moveDown": "Вниз",
+    "showMore": "Показать больше",
+    "showLess": "Свернуть"
   },
   "companyNews": {
     "title": "Новости компании",

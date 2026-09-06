@@ -43,7 +43,7 @@ function TaskKanbanColumnImpl({
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col gap-3 rounded-2xl p-2 transition-colors',
+        'flex flex-col gap-3 rounded-2xl p-1.5 sm:p-2 transition-colors min-w-0 w-full overflow-hidden',
         isOver && 'bg-white/10 ring-2 ring-white/40',
       )}
     >
@@ -53,9 +53,9 @@ function TaskKanbanColumnImpl({
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
             aria-expanded={expanded}
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/15 hover:border-white/30"
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/15 hover:border-white/30 min-w-0"
           >
-            <span className="font-semibold">
+            <span className="font-semibold truncate">
               {label} · {tasks.length}
             </span>
             <ChevronDown
@@ -64,7 +64,7 @@ function TaskKanbanColumnImpl({
           </button>
         </h2>
       ) : (
-        <h2 className="text-sm font-semibold text-white px-1">
+        <h2 className="text-sm font-semibold text-white px-1 truncate">
           {label} ({tasks.length})
         </h2>
       )}
@@ -76,10 +76,10 @@ function TaskKanbanColumnImpl({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="flex flex-col gap-3 overflow-hidden"
+            className="flex flex-col gap-3 min-w-0 w-full overflow-hidden"
           >
             {tasks.length === 0 ? (
-              <p className="text-sm text-white/60 px-1 py-1">{emptyLabel}</p>
+              <p className="text-sm text-white/60 px-2 py-2">{emptyLabel}</p>
             ) : (
               tasks.map((task) => (
                 <TaskCard
@@ -101,4 +101,3 @@ function TaskKanbanColumnImpl({
 }
 
 export const TaskKanbanColumn = memo(TaskKanbanColumnImpl);
-

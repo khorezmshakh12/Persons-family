@@ -134,8 +134,9 @@
     },
     "employeeGrowth": {
       "title": "Xodimlarning Oylik O'sishi",
-      "noTeachers": "Hozircha faol o'qituvchilar yo'q.",
-      "noData": "Hozircha baholangan oylar yo'q."
+      "noTeachers": "Hozircha baholangan xodimlar yo'q.",
+      "noData": "Hozircha baholangan oylar yo'q.",
+      "expand": "Kattalashtirish"
     },
     "starLeaderboard": {
       "title": "Yulduzlar reytingi",
@@ -588,7 +589,9 @@
     },
     "deadlinePreset": "{hours} soat",
     "moveUp": "Yuqoriga",
-    "moveDown": "Pastga"
+    "moveDown": "Pastga",
+    "showMore": "Ko'proq ko'rish",
+    "showLess": "Kamroq ko'rish"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",

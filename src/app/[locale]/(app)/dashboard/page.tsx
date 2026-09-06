@@ -28,14 +28,17 @@ async function TeacherSelfDevelopmentCard({ userId, delayMs }: { userId: string;
   );
 }
 
-// CEO-only: every active teacher's self-development score plotted as its
-// own line on one shared chart, rather than the old single-teacher picker —
-// pivoted here (one row per month, one column per teacher) so the client
-// component stays a dumb renderer with no data-fetching of its own.
+// CEO-only: every active staff member's self-development score plotted as
+// its own line on one shared chart (not just teachers — self-development is
+// company-wide), pivoted here (one row per month, one column per person) so
+// the client component stays a dumb renderer with no data-fetching of its
+// own. Only people who have actually been scored at least once carry a line;
+// an employee the CEO hasn't reviewed yet has no "growth" to draw and would
+// just be an empty legend entry.
 async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
-  const teacherList = await sql<{ id: string; first_name: string; last_name: string }[]>`
+  const staffList = await sql<{ id: string; first_name: string; last_name: string }[]>`
     select id, first_name, last_name from profiles
-    where role = 'teacher' and is_active = true
+    where is_active = true and role <> 'ceo'
     order by first_name asc
   `;
 
@@ -47,16 +50,21 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
   // date_trunc also folds any row that wasn't stored on the 1st into its
   // own month, so two entries can't produce two adjacent X points.
   const scores =
-    teacherList.length > 0
+    staffList.length > 0
       ? await sql<{ month: string; ceo_score: number; user_id: string }[]>`
           select to_char(date_trunc('month', month), 'YYYY-MM-DD') as month,
                  ceo_score,
                  user_id
           from self_development
-          where user_id in ${sql(teacherList.map((t) => t.id))} and ceo_score is not null
+          where user_id in ${sql(staffList.map((t) => t.id))} and ceo_score is not null
           order by date_trunc('month', month) asc
         `
       : [];
+
+  // Only the people who actually have a scored month get a line — keeps the
+  // legend and the plot legible when the company has many employees.
+  const scoredIds = new Set(scores.map((s) => s.user_id));
+  const seriesList = staffList.filter((s) => scoredIds.has(s.id));
 
   const rowByMonth = new Map<string, Record<string, number | null>>();
   for (const s of scores) {
@@ -68,7 +76,7 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
     row[s.user_id] = s.ceo_score;
   }
 
-  const teacherIds = teacherList.map((t) => t.id);
+  const teacherIds = seriesList.map((t) => t.id);
   // Sorted here instead of relying on the query's ordering surviving the
   // pivot — `YYYY-MM-01` strings sort lexicographically == chronologically.
   // Every teacher gets an explicit `null` for a month they weren't scored
@@ -83,7 +91,7 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
 
   return (
     <TeacherProgressChartCard
-      teachers={teacherList.map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}` }))}
+      teachers={seriesList.map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}` }))}
       data={data}
       delayMs={delayMs}
     />

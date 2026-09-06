@@ -134,8 +134,9 @@
     },
     "employeeGrowth": {
       "title": "Employee Monthly Growth",
-      "noTeachers": "No active teachers yet.",
-      "noData": "No scored months yet."
+      "noTeachers": "No employees have been scored yet.",
+      "noData": "No scored months yet.",
+      "expand": "Expand"
     },
     "starLeaderboard": {
       "title": "Stars Leaderboard",
@@ -588,7 +589,9 @@
     },
     "deadlinePreset": "{hours} h",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "companyNews": {
     "title": "Company News",

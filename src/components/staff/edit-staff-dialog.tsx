@@ -198,17 +198,24 @@ export function EditStaffDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`monthlySalary-${profile.id}`}>{t('monthlySalary')}</Label>
-            {/* Same whole-som formatted field the rest of the app uses for
-                money; it posts the raw digits through a hidden input, and
-                an empty value leaves the stored salary untouched. */}
-            <CurrencyInput
-              id={`monthlySalary-${profile.id}`}
-              name="monthlySalary"
-              defaultValue={profile.monthly_salary ?? 0}
-            />
-          </div>
+          {/* Salary is CEO-only — the rest of the Edit Staff form is open to
+              IT Developer too (requireStaffManager), but pay is not. The
+              field simply isn't rendered for a non-CEO staff manager, and
+              updateStaffAction ignores `monthlySalary` from anyone but the
+              CEO regardless of what the form submits. */}
+          {canAssignCeo && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`monthlySalary-${profile.id}`}>{t('monthlySalary')}</Label>
+              {/* Same whole-som formatted field the rest of the app uses for
+                  money; it posts the raw digits through a hidden input, and
+                  an empty value leaves the stored salary untouched. */}
+              <CurrencyInput
+                id={`monthlySalary-${profile.id}`}
+                name="monthlySalary"
+                defaultValue={profile.monthly_salary ?? 0}
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor={`avatar-${profile.id}`}>{t('avatar')}</Label>
             <Input id={`avatar-${profile.id}`} name="avatar" type="file" accept="image/png,image/jpeg" />
