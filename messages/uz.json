@@ -377,6 +377,22 @@
       "notFound": "Bu murojaat endi mavjud emas.",
       "notDone": "Faqat bajarilgan murojaatlarni o'chirish mumkin.",
       "deleteFailed": "Murojaatni o'chirib bo'lmadi. Qayta urinib ko'ring."
+    },
+    "stats": {
+      "title": "Hal qilish ko‘rsatkichlari",
+      "subtitle": "O‘qituvchilar va xodimlar ko‘targan muammolarni qanchalik hal qildik.",
+      "noData": "Hozircha murojaat ma’lumotlari yo‘q.",
+      "days": "{count} kun",
+      "tiles": {
+        "total": "Jami murojaatlar",
+        "resolved": "Hal qilingan",
+        "resolutionRate": "Hal qilish darajasi",
+        "avgResolution": "O‘rtacha hal qilish vaqti"
+      },
+      "byMonth": "Oxirgi 6 oy",
+      "monthCounts": "{created} ta kelgan · {resolved} ta hal qilingan",
+      "byRole": "Kim ko‘targaniga ko‘ra",
+      "roleCounts": "{raised} ta ko‘targan · {resolved} ta hal qilingan"
     }
   },
   "lessonPlans": {

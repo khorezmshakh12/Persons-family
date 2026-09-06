@@ -377,6 +377,22 @@
       "notFound": "That issue no longer exists.",
       "notDone": "Only resolved issues can be deleted.",
       "deleteFailed": "Could not delete the issue. Please try again."
+    },
+    "stats": {
+      "title": "Resolution overview",
+      "subtitle": "How well we've resolved the problems teachers and staff raised.",
+      "noData": "No issue data yet.",
+      "days": "{count} days",
+      "tiles": {
+        "total": "Total issues",
+        "resolved": "Resolved",
+        "resolutionRate": "Resolution rate",
+        "avgResolution": "Avg. resolution time"
+      },
+      "byMonth": "Last 6 months",
+      "monthCounts": "{created} raised · {resolved} resolved",
+      "byRole": "By who raised it",
+      "roleCounts": "{raised} raised · {resolved} resolved"
     }
   },
   "lessonPlans": {

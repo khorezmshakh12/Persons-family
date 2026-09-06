@@ -3,8 +3,10 @@ import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { getVisibleIssuesAction } from '@/lib/actions/issues';
+import { getIssueStatsAction } from '@/lib/actions/issue-stats';
 import { CreateIssueDialog } from '@/components/issues/create-issue-dialog';
 import { IssuesBoard } from '@/components/issues/issues-board';
+import { IssuesStats } from '@/components/issues/issues-stats';
 import { MarkIssuesSeen } from '@/components/issues/mark-issues-seen';
 import type { Issue } from '@/components/issues/issue-card';
 
@@ -23,12 +25,13 @@ export default async function IssuesPage() {
   // every active staff member — the old chain-of-command scoping
   // (allowedAssigneeRoles) only existed for non-CEO reporters and is gone.
   // Run alongside the issues fetch below — the two are independent.
-  const [issues, assignees] = await Promise.all([
+  const [issues, assignees, issueStats] = await Promise.all([
     getVisibleIssuesAction(),
     sql<{ id: string; first_name: string; last_name: string }[]>`
       select id, first_name, last_name from profiles
       where is_active = true order by first_name asc
     `,
+    getIssueStatsAction(),
   ]);
 
   return (
@@ -38,6 +41,7 @@ export default async function IssuesPage() {
         <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
         <CreateIssueDialog assignees={assignees} />
       </div>
+      <IssuesStats stats={issueStats.data ?? null} />
       <IssuesBoard issues={issues as unknown as Issue[]} />
     </div>
   );
