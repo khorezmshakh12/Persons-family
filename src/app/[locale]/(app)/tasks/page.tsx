@@ -50,6 +50,9 @@ export default async function TasksPage() {
       is_overdue: row.is_overdue,
       comment_count: row.comment_count ?? 0,
       star_reward: row.star_reward ?? 0,
+      // Deducted from the assignee when the task is completed after its
+      // deadline (see updateTaskStatusAction).
+      star_penalty: row.star_penalty ?? 0,
       // Board position within the status column — the list already arrives
       // ordered by it, this only rides along so an optimistic reorder has
       // something to reconcile against.
