@@ -304,6 +304,14 @@ export async function updateStaffAction(
       ? (parsed.data.internshipLevel as InternshipLevel)
       : null;
 
+  // Pay is CEO-only. requireStaffManager() also lets IT Developer in for the
+  // rest of the form, so `monthlySalary` from anyone but the CEO is dropped
+  // here regardless of what the client submitted (the field also isn't
+  // rendered for them — see EditStaffDialog). null => the coalesce below
+  // leaves the stored salary untouched.
+  const monthlySalary =
+    actingProfile.role === 'ceo' ? (parsed.data.monthlySalary ?? null) : null;
+
   // monthly_salary doesn't touch role / must_change_password, so no
   // setUserClaims + revokeUserSessions is needed for it (the role branch
   // below still handles those for a real role change).
@@ -317,7 +325,7 @@ export async function updateStaffAction(
         role = ${parsed.data.role},
         avatar_url = coalesce(${parsed.data.avatarPath || null}, avatar_url),
         internship_level = coalesce(${internshipLevel}, internship_level),
-        monthly_salary = coalesce(${parsed.data.monthlySalary ?? null}, monthly_salary)
+        monthly_salary = coalesce(${monthlySalary}, monthly_salary)
       where id = ${parsed.data.id}
     `;
   } catch {
