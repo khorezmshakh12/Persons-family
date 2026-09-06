@@ -588,7 +588,9 @@
     },
     "deadlinePreset": "{hours} h",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "showMore": "Show more",
+    "showLess": "Show less"
   },
   "companyNews": {
     "title": "Company News",

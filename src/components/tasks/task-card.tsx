@@ -1,11 +1,11 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, GripVertical, Minus, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, Minus, Star, ExternalLink } from 'lucide-react';
 import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
@@ -42,6 +42,35 @@ export type Task = {
   sort_order?: number;
 };
 
+/** Render text with auto-detected URLs as clickable, breakable external links. */
+function FormattedDescription({ text }: { text: string }) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (urlRegex.test(part)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-0.5 font-medium text-sky-300 underline underline-offset-2 transition-colors hover:text-sky-200 break-all"
+            >
+              <span>{part}</span>
+              <ExternalLink className="size-3 shrink-0 inline opacity-70" />
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 function TaskCardImpl({
   task,
   isAdmin,
@@ -60,6 +89,8 @@ function TaskCardImpl({
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // Status is the assignee's own progress report — not even the admin who
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
   // `auth.uid() <> new.assigned_to` check.
@@ -80,44 +111,55 @@ function TaskCardImpl({
     disabled: !canDrag,
   });
 
+  const isLongDescription =
+    !!task.description && (task.description.length > 90 || task.description.includes('\n'));
+
   return (
     <div
       ref={setNodeRef}
       style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}
+      className="w-full min-w-0 max-w-full"
     >
       <motion.div
         layout={!isDragging}
         initial={{ opacity: 0, y: 14, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging ? undefined : { scale: 1.015 }}
+        whileHover={isDragging ? undefined : { scale: 1.01 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
+        className={cn(
+          GLASS_CARD,
+          'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-white/15',
+          isDragging && 'opacity-40',
+        )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="font-medium">{task.title}</span>
+        {/* Card Header: Title + Action Buttons */}
+        <div className="flex items-start justify-between gap-2 min-w-0">
+          <span className="min-w-0 flex-1 font-semibold text-white leading-snug break-words [overflow-wrap:anywhere] text-sm sm:text-base">
+            {task.title}
+          </span>
           <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
             {canReorder && (
-              <div className="flex gap-0.5">
+              <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
                 <button
                   type="button"
                   onClick={() => onMove(task, 'up')}
                   aria-label={t('moveUp')}
-                  className="rounded p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
+                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
                 >
-                  <ChevronUp className="size-4" />
+                  <ChevronUp className="size-3.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => onMove(task, 'down')}
                   aria-label={t('moveDown')}
-                  className="rounded p-1 text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
+                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
                 >
-                  <ChevronDown className="size-4" />
+                  <ChevronDown className="size-3.5" />
                 </button>
               </div>
             )}
             {isAdmin && (
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
                 <EditTaskDialog
                   task={{
                     id: task.id,
@@ -146,32 +188,66 @@ function TaskCardImpl({
             )}
           </div>
         </div>
-        {task.description && <p className="text-sm text-white/70">{task.description}</p>}
-        <div className="flex flex-col gap-1 text-xs text-white/60">
+
+        {/* Card Description: Collapsible with formatted links and strict overflow wrap */}
+        {task.description && (
+          <div className="flex flex-col min-w-0 w-full">
+            <div
+              className={cn(
+                'text-sm text-white/80 whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] leading-relaxed select-text',
+                isLongDescription && !isExpanded && 'line-clamp-2 sm:line-clamp-3',
+              )}
+            >
+              <FormattedDescription text={task.description} />
+            </div>
+            {isLongDescription && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                <span>{isExpanded ? t('showLess') : t('showMore')}</span>
+                <ChevronDown
+                  className={cn('size-3.5 transition-transform duration-200', isExpanded && 'rotate-180')}
+                />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Assignee & Deadline */}
+        <div className="flex flex-col gap-1 text-xs text-white/60 min-w-0">
           {isAdmin && task.assignee && (
-            <span>
+            <span className="truncate font-medium text-white/75">
               {task.assignee.first_name} {task.assignee.last_name}
             </span>
           )}
           <span
             className={cn(
-              'flex items-center gap-1.5',
+              'flex items-center gap-1.5 flex-wrap',
               task.is_overdue && 'font-semibold text-red-400',
             )}
           >
-            {format.dateTime(new Date(task.deadline), {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })}
+            <span>
+              {format.dateTime(new Date(task.deadline), {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            </span>
             {task.is_overdue && (
-              <Badge variant="tint" tint="red" className="text-[10px] tracking-wide uppercase">
+              <Badge variant="tint" tint="red" className="text-[10px] tracking-wide uppercase px-1.5 py-0.5">
                 {t('overdue')}
               </Badge>
             )}
           </span>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+
+        {/* Footer: Status, Stars, and Comments */}
+        <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-1 border-t border-white/10">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <TaskStatusControl status={task.status} />
             {!!task.star_reward && task.star_reward > 0 && (
               <Badge variant="tint" tint="amber" className="text-xs font-semibold gap-1">

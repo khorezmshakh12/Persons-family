@@ -588,7 +588,9 @@
     },
     "deadlinePreset": "{hours} soat",
     "moveUp": "Yuqoriga",
-    "moveDown": "Pastga"
+    "moveDown": "Pastga",
+    "showMore": "Ko'proq ko'rish",
+    "showLess": "Kamroq ko'rish"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
