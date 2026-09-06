@@ -24,6 +24,9 @@ export interface Profile {
   address: string | null;
   emergency_contact: string | null;
   internship_level: InternshipLevel | null;
+  /** Editable monthly salary amount (numeric, parsed to a JS number by
+   * db/client.ts). Defaults to 0; set from the Edit Staff dialog. */
+  monthly_salary: number;
 }
 
 /**

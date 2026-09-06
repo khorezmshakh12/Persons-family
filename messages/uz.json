@@ -156,6 +156,7 @@
     "telegramId": "Telegram ID",
     "telegramIdHint": "Raqamli ID olish uchun Telegram'da @userinfobot botiga yozishni so'rang.",
     "dateOfBirth": "Tug'ilgan sana",
+    "monthlySalary": "Oylik maosh",
     "role": "Lavozim",
     "avatar": "Profil rasmi",
     "avatarOptional": "Ixtiyoriy — PNG yoki JPG, 5MB gacha.",
@@ -576,7 +577,18 @@
       "completedOn": "Bajarildi {date}"
     },
     "starReward": "Yulduz mukofoti",
-    "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q."
+    "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q.",
+    "filters": {
+      "searchPlaceholder": "Vazifalarni qidirish…",
+      "allAssignees": "Barcha ijrochilar",
+      "overdueOnly": "Faqat muddati o'tgan",
+      "clear": "Tozalash"
+    },
+    "deadlinePreset": "{hours} soat",
+    "moveUp": "Yuqoriga",
+    "moveDown": "Pastga",
+    "dismissCard": "Kartani yig'ish",
+    "restoreCard": "Kartani ochish"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -705,6 +717,15 @@
     "roadmapGoals": {
       "title": "Yo'l Xaritasi Maqsadlari",
       "noData": "Hozircha yo'l xaritasi maqsadlari yo'q."
+    },
+    "adminKpi": {
+      "title": "Administratsiya jamoasi KPI",
+      "subtitle": "Administratsiya jamoasining so'nggi 12 oydagi oylik vazifa samaradorligi.",
+      "efficiency": "Samaradorlik",
+      "onTime": "Muddatida",
+      "late": "Kechikkan",
+      "notDone": "Bajarilmagan",
+      "noData": "So'nggi 12 oyda administratsiya jamoasiga vazifalar bo'lmagan."
     }
   },
   "commandPalette": {

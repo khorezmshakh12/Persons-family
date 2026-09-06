@@ -4,6 +4,10 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { StaffPerformanceChart } from '@/components/analytics/staff-performance-chart';
 import { RoadmapGoalsChart } from '@/components/analytics/roadmap-goals-chart';
+import { AdminTeamKpiChart } from '@/components/analytics/admin-team-kpi-chart';
+import { getAdminTeamKpiAction } from '@/lib/actions/analytics';
+import { GLASS_CARD } from '@/lib/glass';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +17,9 @@ export default async function AnalyticsPage() {
 
   const t = await getTranslations('analytics');
 
-  const [performance, goals] = await Promise.all([
+  // The action re-checks requireCeo() itself — the notFound() above only
+  // gates this page's render, never the action's own POST endpoint.
+  const [performance, goals, adminKpi] = await Promise.all([
     sql<{ weekly_progress_score: number; first_name: string | null; last_name: string | null }[]>`
       select sp.weekly_progress_score, p.first_name, p.last_name
       from staff_performance sp
@@ -22,6 +28,7 @@ export default async function AnalyticsPage() {
     sql<{ title: string; progress_percentage: number; status: 'pending' | 'done' | 'failed' }[]>`
       select title, progress_percentage, status from roadmap_goals
     `,
+    getAdminTeamKpiAction(),
   ]);
 
   const staffPerformanceData = performance
@@ -30,6 +37,12 @@ export default async function AnalyticsPage() {
       name: `${p.first_name} ${p.last_name}`,
       score: p.weekly_progress_score,
     }));
+
+  // Every month in the range comes back, so "empty" means the Administration
+  // team had nothing due in the whole 12-month window — a chart of twelve
+  // flat 100%s would just be misleading.
+  const adminKpiMonths = adminKpi.data ?? [];
+  const hasAdminKpi = adminKpiMonths.some((m) => m.due > 0);
 
   const roadmapGoalsData = goals.map((g) => ({
     name: g.title,
@@ -50,6 +63,20 @@ export default async function AnalyticsPage() {
         <StaffPerformanceChart data={staffPerformanceData} />
         <RoadmapGoalsChart data={roadmapGoalsData} />
       </div>
+
+      {hasAdminKpi ? (
+        <AdminTeamKpiChart data={adminKpiMonths} />
+      ) : (
+        <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+          <div>
+            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+              {t('adminKpi.title')}
+            </h2>
+            <p className="mt-1 text-sm text-white/70">{t('adminKpi.subtitle')}</p>
+          </div>
+          <p className="text-sm text-white/70">{t('adminKpi.noData')}</p>
+        </div>
+      )}
     </div>
   );
 }

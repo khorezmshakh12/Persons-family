@@ -50,6 +50,10 @@ export default async function TasksPage() {
       is_overdue: row.is_overdue,
       comment_count: row.comment_count ?? 0,
       star_reward: row.star_reward ?? 0,
+      // Board position within the status column — the list already arrives
+      // ordered by it, this only rides along so an optimistic reorder has
+      // something to reconcile against.
+      sort_order: row.sort_order ?? 0,
       assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
     };
   });

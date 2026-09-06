@@ -235,6 +235,14 @@ const updateSchema = staffSchema.extend({
   // teacher_level which only ever changes through the Self-Development
   // review flow.
   internshipLevel: z.enum(INTERNSHIP_LEVELS as [string, ...string[]]).optional(),
+  // Left blank (or not submitted at all) means "don't touch it" — an empty
+  // string would otherwise coerce to 0 and silently wipe the stored salary,
+  // so it's normalized to undefined before the number check and written
+  // through a coalesce below.
+  monthlySalary: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    z.coerce.number().min(0).optional(),
+  ),
 });
 
 export async function updateStaffAction(
@@ -296,17 +304,25 @@ export async function updateStaffAction(
       ? (parsed.data.internshipLevel as InternshipLevel)
       : null;
 
-  await sql`
-    update profiles set
-      first_name = ${parsed.data.firstName},
-      last_name = ${parsed.data.lastName},
-      phone = ${phone},
-      date_of_birth = ${parsed.data.dateOfBirth},
-      role = ${parsed.data.role},
-      avatar_url = coalesce(${parsed.data.avatarPath || null}, avatar_url),
-      internship_level = coalesce(${internshipLevel}, internship_level)
-    where id = ${parsed.data.id}
-  `;
+  // monthly_salary doesn't touch role / must_change_password, so no
+  // setUserClaims + revokeUserSessions is needed for it (the role branch
+  // below still handles those for a real role change).
+  try {
+    await sql`
+      update profiles set
+        first_name = ${parsed.data.firstName},
+        last_name = ${parsed.data.lastName},
+        phone = ${phone},
+        date_of_birth = ${parsed.data.dateOfBirth},
+        role = ${parsed.data.role},
+        avatar_url = coalesce(${parsed.data.avatarPath || null}, avatar_url),
+        internship_level = coalesce(${internshipLevel}, internship_level),
+        monthly_salary = coalesce(${parsed.data.monthlySalary ?? null}, monthly_salary)
+      where id = ${parsed.data.id}
+    `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   // The Identity Platform custom claim carries the role too (proxy.ts reads
   // it, and setPasswordAction rewrites the whole claim object from it). A

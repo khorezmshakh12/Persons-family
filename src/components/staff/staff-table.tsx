@@ -35,7 +35,7 @@ export async function StaffTable({
   const staffRows = await sql<Profile[]>`
     select id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at,
       created_by, must_change_password, telegram_id, teacher_level, level_updated_at, internship_level,
-      email, address, emergency_contact
+      email, address, emergency_contact, monthly_salary
     from profiles order by created_at asc
   `;
   const staff = await Promise.all(

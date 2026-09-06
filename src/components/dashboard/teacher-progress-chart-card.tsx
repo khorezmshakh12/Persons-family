@@ -10,28 +10,53 @@ export type TeacherProgressRow = { month: string } & Record<string, number | nul
 
 const LINE_COLORS = ['#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#22d3ee', '#fb923c', '#f87171'];
 
+/** Suffix for the month-over-month delta carried alongside each teacher's
+ * score on the same row (see `withDeltas`). Not plotted — read back by the
+ * tooltip so "Growth" is an actual number, not just a slope. */
+const DELTA_SUFFIX = '__delta';
+
+type TooltipEntry = {
+  value: number;
+  name: string;
+  color: string;
+  dataKey?: string | number;
+  payload?: Record<string, number | null | string>;
+};
+
 function CustomTooltip({
   active,
   payload,
   label,
 }: {
   active?: boolean;
-  payload?: { value: number; name: string; color: string }[];
+  payload?: TooltipEntry[];
   label?: string;
 }) {
-  if (!active || !payload?.length) return null;
+  // A teacher with no score in this month is a gap, not a "— :" row.
+  const entries = payload?.filter((p) => typeof p.value === 'number') ?? [];
+  if (!active || entries.length === 0) return null;
   return (
     <div className="rounded-lg border border-white/20 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-xl backdrop-blur-md">
       <div className="mb-1 font-semibold">{label}</div>
       <div className="flex flex-col gap-0.5">
-        {payload.map((p) => (
-          <div key={p.name} className="flex items-center gap-1.5">
-            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
-            <span>
-              {p.name}: {p.value}
-            </span>
-          </div>
-        ))}
+        {entries.map((p) => {
+          const delta = p.payload?.[`${String(p.dataKey)}${DELTA_SUFFIX}`];
+          const hasDelta = typeof delta === 'number' && delta !== 0;
+          return (
+            <div key={p.name} className="flex items-center gap-1.5">
+              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+              <span>
+                {p.name}: {p.value}
+              </span>
+              {hasDelta && (
+                <span className={(delta as number) > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                  {(delta as number) > 0 ? '+' : '−'}
+                  {Math.abs(delta as number)}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -61,10 +86,50 @@ export function TeacherProgressChartCard({
     );
   }
 
-  const chartData = data.map((row) => ({
-    ...row,
-    label: format.dateTime(new Date(`${row.month}T00:00:00Z`), { month: 'short', year: 'numeric', timeZone: 'UTC' }),
-  }));
+  /** Builds the axis label from the year+month parts instead of parsing the
+   * whole value: `month` should arrive as `YYYY-MM-01`, but anything else
+   * (a full timestamp, an empty string) would otherwise reach
+   * `format.dateTime` as an Invalid Date and throw "Invalid time value",
+   * blanking the entire card. Unparseable values fall back to the raw text. */
+  function monthLabel(month: string) {
+    const parts = /^(\d{4})-(\d{2})/.exec(month);
+    if (!parts) return month;
+    return format.dateTime(new Date(Date.UTC(Number(parts[1]), Number(parts[2]) - 1, 1)), {
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
+
+  // Month-over-month delta per teacher, measured against that teacher's own
+  // previous *scored* month, so a gap doesn't reset the comparison.
+  const lastScore = new Map<string, number>();
+  const chartData = data.map((row) => {
+    const deltas: Record<string, number | null> = {};
+    for (const teacher of teachers) {
+      const value = row[teacher.id];
+      if (typeof value !== 'number') continue;
+      const previous = lastScore.get(teacher.id);
+      deltas[`${teacher.id}${DELTA_SUFFIX}`] = previous === undefined ? null : value - previous;
+      lastScore.set(teacher.id, value);
+    }
+    return { ...row, ...deltas, label: monthLabel(String(row.month)) };
+  });
+
+  // A fixed 0..100 floor flattened every real month-to-month move into a
+  // straight line (and the score is uncapped since the CHECK constraint was
+  // dropped). Frame the actual range instead, padded so the top and bottom
+  // points aren't glued to the axis.
+  const values = data.flatMap((row) =>
+    teachers.map((teacher) => row[teacher.id]).filter((v): v is number => typeof v === 'number'),
+  );
+  const dataMin = values.length ? Math.min(...values) : 0;
+  const dataMax = values.length ? Math.max(...values) : 100;
+  const pad = Math.max(5, Math.round((dataMax - dataMin) * 0.2));
+  const yDomain: [number, number] = [
+    Math.max(0, Math.floor((dataMin - pad) / 5) * 5),
+    Math.ceil((dataMax + pad) / 5) * 5,
+  ];
 
   return (
     <div
@@ -82,7 +147,8 @@ export function TeacherProgressChartCard({
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
               <XAxis dataKey="label" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis
-                domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 20) * 20)]}
+                domain={yDomain}
+                allowDecimals={false}
                 stroke="rgba(255,255,255,0.75)"
                 fontSize={11}
                 tickLine={false}
@@ -98,7 +164,12 @@ export function TeacherProgressChartCard({
                   name={teacher.name}
                   stroke={LINE_COLORS[i % LINE_COLORS.length]}
                   strokeWidth={2}
-                  dot={{ r: 2 }}
+                  // Filled and large enough to read on its own: a teacher
+                  // with a single scored month draws no line segment at
+                  // all, so the dot is the entire data point.
+                  dot={{ r: 3, fill: LINE_COLORS[i % LINE_COLORS.length], strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                  isAnimationActive={false}
                   connectNulls
                 />
               ))}

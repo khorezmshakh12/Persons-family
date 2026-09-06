@@ -156,6 +156,7 @@
     "telegramId": "Telegram ID",
     "telegramIdHint": "Ask them to message @userinfobot on Telegram to get their numeric ID.",
     "dateOfBirth": "Date of birth",
+    "monthlySalary": "Monthly salary",
     "role": "Role",
     "avatar": "Profile picture",
     "avatarOptional": "Optional — PNG or JPG, up to 5MB.",
@@ -576,7 +577,18 @@
       "completedOn": "Completed {date}"
     },
     "starReward": "Star reward",
-    "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none."
+    "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none.",
+    "filters": {
+      "searchPlaceholder": "Search tasks…",
+      "allAssignees": "All assignees",
+      "overdueOnly": "Overdue only",
+      "clear": "Clear"
+    },
+    "deadlinePreset": "{hours} h",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "dismissCard": "Minimize card",
+    "restoreCard": "Expand card"
   },
   "companyNews": {
     "title": "Company News",
@@ -705,6 +717,15 @@
     "roadmapGoals": {
       "title": "Roadmap Goals",
       "noData": "No roadmap goals yet."
+    },
+    "adminKpi": {
+      "title": "Administration Team KPI",
+      "subtitle": "Monthly task efficiency of the Administration team over the last 12 months.",
+      "efficiency": "Efficiency",
+      "onTime": "On time",
+      "late": "Late",
+      "notDone": "Not done",
+      "noData": "No Administration team tasks in the last 12 months."
     }
   },
   "commandPalette": {

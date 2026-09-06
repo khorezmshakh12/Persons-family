@@ -11,6 +11,20 @@ import { SESSION_COOKIE_NAME } from "./session";
  * a plain passthrough rather than something that needs cookies copied onto
  * it. Kept as an object return (rather than a bare user) to match the
  * shape proxy.ts already expects.
+ *
+ * IMPORTANT — this is a LOCAL check only (`verifySessionCookie(cookie)` with
+ * no `checkRevoked`). Passing `checkRevoked: true` here made a network call
+ * to Identity Platform on *every* request in the middleware hot path; when
+ * that call flaked (cold instance, transient 5xx, quota) the `catch` below
+ * silently returned `user: null` for that one request, and because
+ * proxy.ts sends "/login -> /dashboard when logged in" and "/dashboard ->
+ * /login when not", an intermittent failure turned into a tight
+ * /login <-> /dashboard 307 redirect loop that locked people out.
+ * Revocation / deactivation is still enforced authoritatively one layer up:
+ * getAuthState() in lib/auth/session.ts does a live `profiles.is_active`
+ * read on the (app) layout and every protected page and bounces a
+ * deactivated user (and it re-reads `role` live too, so a demotion takes
+ * effect on the next navigation regardless of the stale cookie claim).
  */
 export async function getSessionUser(request: NextRequest) {
   const response = NextResponse.next({ request });
@@ -19,7 +33,7 @@ export async function getSessionUser(request: NextRequest) {
   if (!cookie) return { user: null, mustChangePassword: false, suspended: false, response };
 
   try {
-    const decoded = await getAuth(getFirebaseAdminApp()).verifySessionCookie(cookie, true);
+    const decoded = await getAuth(getFirebaseAdminApp()).verifySessionCookie(cookie);
     return {
       user: { id: decoded.uid },
       // Mirrored into the session cookie as a custom claim (see
@@ -33,10 +47,10 @@ export async function getSessionUser(request: NextRequest) {
       response,
     };
   } catch {
-    // Covers both "invalid/expired cookie" and "revoked" (checkRevoked:
-    // true above) — a deactivated staff member's session was revoked by
-    // getAuthState()/session.ts the moment their profile was found
-    // inactive, so a stale cookie here always means "treat as logged out".
+    // Invalid signature or expired cookie only (no revocation check here by
+    // design — see the note above). A genuinely revoked-but-unexpired
+    // cookie is caught by getAuthState()'s live is_active read on the very
+    // next page render.
     return { user: null, mustChangePassword: false, suspended: false, response };
   }
 }
