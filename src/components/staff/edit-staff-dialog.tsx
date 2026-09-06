@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TeacherLevelBadge } from './teacher-level-badge';
+import { CurrencyInput } from './currency-input';
 import { INTERNSHIP_LEVELS } from '@/lib/internship-level';
 import { roleLabel } from '@/lib/roles';
 import type { Profile } from '@/lib/auth/session';
@@ -196,6 +197,17 @@ export function EditStaffDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`monthlySalary-${profile.id}`}>{t('monthlySalary')}</Label>
+            {/* Same whole-som formatted field the rest of the app uses for
+                money; it posts the raw digits through a hidden input, and
+                an empty value leaves the stored salary untouched. */}
+            <CurrencyInput
+              id={`monthlySalary-${profile.id}`}
+              name="monthlySalary"
+              defaultValue={profile.monthly_salary ?? 0}
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`avatar-${profile.id}`}>{t('avatar')}</Label>

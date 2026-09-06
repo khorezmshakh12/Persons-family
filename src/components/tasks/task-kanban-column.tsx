@@ -18,6 +18,9 @@ function TaskKanbanColumnImpl({
   currentUserId,
   emptyLabel,
   onRequestDelete,
+  onMove,
+  dismissedIds,
+  onToggleDismiss,
   collapsible = true,
   defaultExpanded = true,
 }: {
@@ -29,6 +32,12 @@ function TaskKanbanColumnImpl({
   currentUserId: string;
   emptyLabel: string;
   onRequestDelete: (task: Task) => void;
+  /** Move a card one place up/down within this column (see TaskBoard). */
+  onMove: (task: Task, direction: 'up' | 'down') => void;
+  /** Viewer-local minimised card ids — owned by the board so a single
+   * localStorage-backed set serves all three columns. */
+  dismissedIds: ReadonlySet<string>;
+  onToggleDismiss: (task: Task) => void;
   collapsible?: boolean;
   defaultExpanded?: boolean;
 }) {
@@ -86,6 +95,9 @@ function TaskKanbanColumnImpl({
                   assignees={assignees}
                   currentUserId={currentUserId}
                   onRequestDelete={onRequestDelete}
+                  onMove={onMove}
+                  dismissed={dismissedIds.has(task.id)}
+                  onToggleDismiss={onToggleDismiss}
                 />
               ))
             )}

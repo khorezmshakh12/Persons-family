@@ -9,16 +9,12 @@ function KanbanColumnImpl({
   status,
   label,
   issues,
-  isAdmin,
-  currentUserId,
   emptyLabel,
   onRequestDelete,
 }: {
   status: Issue['status'];
   label: string;
   issues: Issue[];
-  isAdmin: boolean;
-  currentUserId: string;
   emptyLabel: string;
   onRequestDelete: (issue: Issue) => void;
 }) {
@@ -40,13 +36,7 @@ function KanbanColumnImpl({
           <p className="text-sm text-white/60">{emptyLabel}</p>
         ) : (
           issues.map((issue) => (
-            <IssueCard
-              key={issue.id}
-              issue={issue}
-              isAdmin={isAdmin}
-              currentUserId={currentUserId}
-              onRequestDelete={onRequestDelete}
-            />
+            <IssueCard key={issue.id} issue={issue} onRequestDelete={onRequestDelete} />
           ))
         )}
       </div>

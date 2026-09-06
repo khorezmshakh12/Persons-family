@@ -306,6 +306,11 @@ export type VisibleTaskRow = {
   updated_at: string;
   comment_count: number;
   star_reward?: number;
+  /** Manual board position within the card's own status column, ascending.
+   * Every row starts at 0 (see 20260906120100_add_tasks_sort_order.sql), so
+   * `created_at desc` remains the effective tie-break until a column is
+   * actually reordered — see reorderTaskAction. */
+  sort_order: number;
 };
 
 /**
@@ -342,12 +347,101 @@ export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
     select id, title, description, assigned_to, assigned_by, deadline, status, completed_at, updated_at,
            (status <> 'done' and deadline < now()) as is_overdue,
            (select count(*) from task_comments c where c.task_id = tasks.id)::int as comment_count,
-           star_reward
+           star_reward, sort_order
     from tasks
     where (assigned_by = ${user.id} or assigned_to = ${user.id})
       and (status <> 'done' or completed_at >= ${currentMonthStart()})
-    order by created_at desc
+    order by sort_order asc, created_at desc
   `;
+}
+
+const reorderSchema = z.object({
+  id: z.string().uuid(),
+  direction: z.enum(['up', 'down']),
+});
+
+export type ReorderTaskResult = { error?: string };
+
+/**
+ * Move a card one position up or down inside its own status column
+ * (TaskCard's ▲/▼ buttons). Deliberately separate from the drag-and-drop
+ * status change: dragging moves a card *between* columns
+ * (updateTaskStatusAction), this reorders *within* one.
+ *
+ * Scope: the sibling list is exactly what getVisibleTasksAction would return
+ * for this caller, narrowed to the target's status — same
+ * creator-or-assignee visibility and the same "done drops off once its month
+ * is over" window — so the server can never reorder a row the caller cannot
+ * see, and the client's optimistic swap over its own column is looking at
+ * the identical list.
+ *
+ * Why renumber instead of swapping two values: every pre-existing row sits
+ * at the `0` default, and swapping 0 with 0 is a no-op that would make the
+ * very first click on any column do nothing. Assigning each sibling its
+ * current visible index (with the two entries exchanged) is well-defined
+ * from that all-zero start state, and degenerates to a plain swap once a
+ * column has been numbered.
+ */
+export async function reorderTaskAction(formData: FormData): Promise<ReorderTaskResult> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = reorderSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const [target] = await sql<{ assigned_to: string; assigned_by: string; status: string }[]>`
+    select assigned_to, assigned_by, status from tasks where id = ${parsed.data.id}
+  `;
+  // Same rule the board's own visibility uses — a task you can't see is
+  // indistinguishable from one that doesn't exist.
+  if (!target || (target.assigned_by !== user.id && target.assigned_to !== user.id)) {
+    return { error: 'forbidden' };
+  }
+
+  let siblings: { id: string }[];
+  try {
+    siblings = await sql<{ id: string }[]>`
+      select id
+      from tasks
+      where (assigned_by = ${user.id} or assigned_to = ${user.id})
+        and status = ${target.status}
+        and (status <> 'done' or completed_at >= ${currentMonthStart()})
+      order by sort_order asc, created_at desc
+    `;
+  } catch (error) {
+    console.error('reorderTaskAction read failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  const index = siblings.findIndex((row) => row.id === parsed.data.id);
+  // Off the board entirely (a done task from a previous month) — nothing to
+  // reorder, but not an error worth toasting at the viewer.
+  if (index === -1) return {};
+
+  const neighbour = parsed.data.direction === 'up' ? index - 1 : index + 1;
+  // Already at the top/bottom of its column: successful no-op.
+  if (neighbour < 0 || neighbour >= siblings.length) return {};
+
+  const ids = siblings.map((row) => row.id);
+  [ids[index], ids[neighbour]] = [ids[neighbour], ids[index]];
+  const orders = ids.map((_, position) => position);
+
+  try {
+    await sql`
+      update tasks as t
+      set sort_order = v.ord
+      from (select * from unnest(${ids}::uuid[], ${orders}::int[]) as x(id, ord)) as v
+      where t.id = v.id and t.sort_order is distinct from v.ord
+    `;
+  } catch (error) {
+    console.error('reorderTaskAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  await bumpBoardSignal('tasks');
+
+  revalidatePath('/[locale]/tasks', 'page');
+  return {};
 }
 
 export type ArchivedTaskRow = {
@@ -401,6 +495,11 @@ function stripCompletedMonth(row: ArchiveQueryRow): ArchivedTaskRow {
  * tasks are the ones actually **completed** in it. Hence the query pulls
  * both and hands the whole set to efficiencyForMonth, which re-applies its
  * own deadline window per month.
+ *
+ * Ordering stays `completed_at desc` on purpose: `sort_order` is a *live
+ * board* position inside one status column, and reordering today's pending
+ * column must not shuffle a finished month's history. The archive is a
+ * chronological record, so it keeps ordering by when work was completed.
  */
 export async function getMonthlyTaskArchiveAction(): Promise<MonthlyTaskArchiveEntry[]> {
   const { user } = await getAuthState();

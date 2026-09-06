@@ -46,9 +46,13 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
       from staff_chats where receiver_id = ${user.id} and is_read = false
       order by created_at desc limit 50
     `,
+    // Issues is CEO-exclusive (see actions/issues.ts + nav.ts) — a non-CEO
+    // can no longer open /issues, so they must not get bell entries for one
+    // either, even if a stale row still points `assigned_to` at them.
     sql<UnseenIssueItem[]>`
       select id, title, created_at as "createdAt" from issues
       where assigned_to = ${user.id} and is_seen = false
+        and exists (select 1 from profiles where id = ${user.id} and role = 'ceo')
       order by created_at desc limit 50
     `,
     sql<UnseenTaskItem[]>`

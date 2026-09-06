@@ -23,22 +23,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { fromDatetimeLocalValue } from '@/lib/format-date';
+import { fromDatetimeLocalValue, toDatetimeLocalValue } from '@/lib/format-date';
 
 export type Assignee = { id: string; first_name: string; last_name: string };
+
+/** MVP shortcuts for the most common deadlines. */
+const DEADLINE_PRESET_HOURS = [6, 12, 24] as const;
+
+/** now + N hours, rendered in the browser's local time because that is the
+ * only thing `datetime-local` understands — the existing
+ * fromDatetimeLocalValue() call on submit is still what turns it into a real
+ * instant. Deliberately module scope, and only ever called from a click
+ * handler: reading the clock is fine there, it is doing it during render
+ * that would be impure. */
+function presetDeadlineValue(hours: number): string {
+  return toDatetimeLocalValue(new Date(Date.now() + hours * 3600_000).toISOString());
+}
 
 export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
   const t = useTranslations('tasks');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  // The deadline input is the one controlled field in this form, because the
+  // presets below have to write into it. Everything else stays uncontrolled.
+  const [deadline, setDeadline] = useState('');
   const [state, formAction, isPending] = useActionState<TaskActionState, FormData>(
     async (prev, formData) => {
-      const deadline = formData.get('deadline');
-      if (typeof deadline === 'string' && deadline) {
-        formData.set('deadline', fromDatetimeLocalValue(deadline));
+      const value = formData.get('deadline');
+      if (typeof value === 'string' && value) {
+        formData.set('deadline', fromDatetimeLocalValue(value));
       }
       const result = await assignTaskAction(prev, formData);
       if (!result?.error) {
+        setDeadline('');
         setOpen(false);
       }
       return result;
@@ -95,7 +112,27 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="deadline">{t('deadline')}</Label>
-            <Input id="deadline" name="deadline" type="datetime-local" required />
+            <Input
+              id="deadline"
+              name="deadline"
+              type="datetime-local"
+              required
+              value={deadline}
+              onChange={(event) => setDeadline(event.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              {DEADLINE_PRESET_HOURS.map((hours) => (
+                <Button
+                  key={hours}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeadline(presetDeadlineValue(hours))}
+                >
+                  {t('deadlinePreset', { hours })}
+                </Button>
+              ))}
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="starReward">{t('starReward')}</Label>

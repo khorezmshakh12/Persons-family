@@ -12,19 +12,10 @@ import type { Issue } from './issue-card';
 
 const COLUMNS: Issue['status'][] = ['open', 'in_progress', 'done'];
 
-export function IssuesBoard({
-  issues: initialIssues,
-  isAdmin,
-  isAdminManager,
-  currentUserId,
-}: {
-  issues: Issue[];
-  isAdmin: boolean;
-  /** Grants change-status on an issue currently assigned to this viewer,
-   * even though they're not `isAdmin` — mirrors updateIssueStatusAction. */
-  isAdminManager: boolean;
-  currentUserId: string;
-}) {
+// Issues is CEO-exclusive (the page 404s for everyone else), so there is no
+// per-viewer capability left to thread through the board: the viewer can
+// always drag, edit and delete every card.
+export function IssuesBoard({ issues: initialIssues }: { issues: Issue[] }) {
   const t = useTranslations('issues');
   const [issues, setIssues] = useState(initialIssues);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -33,9 +24,8 @@ export function IssuesBoard({
   // issue someone else reported or reassigned while this page was open
   // never appeared until a manual refresh. board_signals/issues (bumped by
   // every mutating issues.ts action) carries no row payload, so every fire
-  // re-fetches the caller's whole visible list via getVisibleIssuesAction —
-  // which re-applies the old issues_select RLS policy's scoping (is_admin()
-  // OR reporter OR assignee) explicitly, now that RLS itself is gone. This
+  // re-fetches the whole board via getVisibleIssuesAction — which re-checks
+  // CEO itself and applies the same recency rule as the page. This
   // also fixes a real gap the old Realtime handler had: voice notes now get
   // a proper signed URL on every refresh instead of staying null until the
   // next full page load (signing needs the server, which this Server
@@ -60,7 +50,7 @@ export function IssuesBoard({
       cancelled = true;
       unsubscribe?.();
     };
-  }, [currentUserId, isAdmin, isAdminManager]);
+  }, []);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -119,8 +109,6 @@ export function IssuesBoard({
             status={status}
             label={t(`columns.${status}`)}
             issues={issues.filter((issue) => issue.status === status)}
-            isAdmin={isAdmin}
-            currentUserId={currentUserId}
             emptyLabel={t('noIssuesInColumn')}
             onRequestDelete={handleRequestDelete}
           />

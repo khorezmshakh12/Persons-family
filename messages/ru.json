@@ -156,6 +156,7 @@
     "telegramId": "Telegram ID",
     "telegramIdHint": "Попросите написать боту @userinfobot в Telegram, чтобы получить числовой ID.",
     "dateOfBirth": "Дата рождения",
+    "monthlySalary": "Месячная зарплата",
     "role": "Роль",
     "avatar": "Фотография профиля",
     "avatarOptional": "Необязательно — PNG или JPG, до 5 МБ.",
@@ -576,7 +577,18 @@
       "completedOn": "Выполнено {date}"
     },
     "starReward": "Награда звёздами",
-    "starRewardHint": "Звёзды, начисляемые исполнителю после выполнения задачи. 0 — нет."
+    "starRewardHint": "Звёзды, начисляемые исполнителю после выполнения задачи. 0 — нет.",
+    "filters": {
+      "searchPlaceholder": "Поиск задач…",
+      "allAssignees": "Все исполнители",
+      "overdueOnly": "Только просроченные",
+      "clear": "Сбросить"
+    },
+    "deadlinePreset": "{hours} ч",
+    "moveUp": "Вверх",
+    "moveDown": "Вниз",
+    "dismissCard": "Свернуть карточку",
+    "restoreCard": "Развернуть карточку"
   },
   "companyNews": {
     "title": "Новости компании",
@@ -705,6 +717,15 @@
     "roadmapGoals": {
       "title": "Цели дорожной карты",
       "noData": "Пока нет целей дорожной карты."
+    },
+    "adminKpi": {
+      "title": "KPI команды администрации",
+      "subtitle": "Ежемесячная эффективность задач команды администрации за последние 12 месяцев.",
+      "efficiency": "Эффективность",
+      "onTime": "В срок",
+      "late": "С опозданием",
+      "notDone": "Не выполнено",
+      "noData": "За последние 12 месяцев у команды администрации не было задач."
     }
   },
   "commandPalette": {

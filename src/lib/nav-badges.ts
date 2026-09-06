@@ -14,7 +14,13 @@ import type { NavItem } from '@/lib/nav';
 export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'][]> {
   const [[tasks], [issues], [companyNews], [chat], [warnings]] = await Promise.all([
     sql<{ count: number }[]>`select count(*)::int from tasks where assigned_to = ${userId} and is_seen = false`,
-    sql<{ count: number }[]>`select count(*)::int from issues where assigned_to = ${userId} and is_seen = false`,
+    // Issues is CEO-exclusive now — only light the dot for the CEO, never
+    // for a non-CEO still carrying a stale `assigned_to` row.
+    sql<{ count: number }[]>`
+      select count(*)::int from issues
+      where assigned_to = ${userId} and is_seen = false
+        and exists (select 1 from profiles where id = ${userId} and role = 'ceo')
+    `,
     sql<{ count: number }[]>`
       select count(*)::int from company_news cn
       where cn.created_at >= now() - interval '7 days'

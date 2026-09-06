@@ -18,8 +18,8 @@ const EMPTY: CommandSearchResult = { staff: [], groups: [], issues: [] };
  * same as before):
  *   - groups: visible to ceo/head_teacher, the owning teacher, or the
  *     assigned TA (mirrors groups_select + is_assigned_ta()).
- *   - issues: visible to ceo (mirrors is_admin()), the creator, or the
- *     assignee (mirrors issues_select).
+ *   - issues: CEO-exclusive now (the whole Issues module is — see
+ *     actions/issues.ts) — a non-CEO gets no issue results at all.
  * So results never exceed what the searcher could already see one page at
  * a time — this just searches across pages at once.
  */
@@ -49,7 +49,7 @@ export async function searchCommandPaletteAction(query: string): Promise<Command
     sql<{ id: string; title: string }[]>`
       select id, title from issues
       where title ilike ${pattern}
-        and (${isCeo} or created_by = ${user.id} or assigned_to = ${user.id})
+        and ${isCeo}
       limit 5
     `,
   ]);
