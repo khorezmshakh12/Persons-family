@@ -33,6 +33,7 @@ export type EditableTask = {
   assigned_to: string;
   deadline: string;
   star_reward?: number | null;
+  star_penalty?: number | null;
 };
 
 export function EditTaskDialog({ task, assignees }: { task: EditableTask; assignees: Assignee[] }) {
@@ -137,7 +138,20 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
             />
             <p className="text-xs text-white/60">{t('starRewardHint')}</p>
           </div>
-          {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`starPenalty-${task.id}`}>{t('starPenalty')}</Label>
+            <Input
+              id={`starPenalty-${task.id}`}
+              name="starPenalty"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={task.star_penalty ?? 0}
+              placeholder="0"
+            />
+            <p className="text-xs text-white/60">{t('starPenaltyHint')}</p>
+          </div>
+          {state?.error &&<p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
               {isPending ? tCommon('loading') : t('saveChanges')}

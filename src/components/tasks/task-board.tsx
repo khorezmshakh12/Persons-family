@@ -21,7 +21,6 @@ import {
   EMPTY_TASK_FILTERS,
   type TaskFilters,
 } from './task-filter-bar';
-import { useDismissedTasks } from './use-dismissed-tasks';
 import { MonthlyArchive } from './monthly-archive';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
@@ -51,30 +50,9 @@ export function TaskBoard({
   // Pure view state: narrowing what's already loaded, never a re-fetch — so
   // it survives (and re-applies to) every realtime refresh below untouched.
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
-  const { dismissed, toggleDismissed, clearDismissed } = useDismissedTasks();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const visibleTasks = useMemo(() => applyTaskFilters(tasks, filters), [tasks, filters]);
-
-  // Conditional reset (spec 3d): completing a task drops its stored
-  // "minimised" flag, so it comes back at full size — and stays that way if
-  // it's later dragged back out of `done`.
-  //
-  // The dep is a plain string, and clearDismissed is a stable useCallback
-  // that returns without touching state when there is nothing to clear, so
-  // this settles in one pass: the ids leave `dismissed`, the key becomes ''
-  // and the next run exits immediately. It touches localStorage only — no
-  // Server Action, no router.refresh, nothing that could re-render its own
-  // way back in (AGENTS.md render-loop guardrail).
-  const doneDismissedKey = tasks
-    .filter((task) => task.status === 'done' && dismissed.has(task.id))
-    .map((task) => task.id)
-    .sort()
-    .join(',');
-  useEffect(() => {
-    if (!doneDismissedKey) return;
-    clearDismissed(doneDismissedKey.split(','));
-  }, [doneDismissedKey, clearDismissed]);
 
   // Board used to only reflect the viewer's own drag/delete actions — a task
   // someone else assigned (or reassigned/updated) while this page was open
@@ -103,6 +81,9 @@ export function TaskBoard({
         is_overdue: row.is_overdue,
         comment_count: row.comment_count ?? 0,
         star_reward: row.star_reward ?? 0,
+        // Deducted from the assignee when the task is completed after its
+        // deadline (see updateTaskStatusAction).
+        star_penalty: row.star_penalty ?? 0,
         // Rows already arrive ordered by (sort_order, created_at desc); the
         // value rides along so a reorder has something to reconcile.
         sort_order: row.sort_order ?? 0,
@@ -152,13 +133,6 @@ export function TaskBoard({
         toast.error(t(`errors.${result.error}`));
       }
     })();
-  }
-
-  /** Viewer-local only: collapsing a card writes to localStorage, never to
-   * the database, so two people looking at the same task see their own
-   * arrangement. */
-  function handleToggleDismiss(task: Task) {
-    toggleDismissed(task.id);
   }
 
   /**
@@ -240,8 +214,6 @@ export function TaskBoard({
               emptyLabel={t('noTasks')}
               onRequestDelete={handleRequestDelete}
               onMove={handleMove}
-              dismissedIds={dismissed}
-              onToggleDismiss={handleToggleDismiss}
               collapsible={true}
               defaultExpanded={status !== 'done'}
             />

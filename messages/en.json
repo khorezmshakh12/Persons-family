@@ -578,6 +578,8 @@
     },
     "starReward": "Star reward",
     "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none.",
+    "starPenalty": "Star penalty",
+    "starPenaltyHint": "Stars deducted from the assignee if the task is completed after its deadline. 0 = none.",
     "filters": {
       "searchPlaceholder": "Search tasks…",
       "allAssignees": "All assignees",
@@ -586,9 +588,7 @@
     },
     "deadlinePreset": "{hours} h",
     "moveUp": "Move up",
-    "moveDown": "Move down",
-    "dismissCard": "Minimize card",
-    "restoreCard": "Expand card"
+    "moveDown": "Move down"
   },
   "companyNews": {
     "title": "Company News",

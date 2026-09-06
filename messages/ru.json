@@ -578,6 +578,8 @@
     },
     "starReward": "Награда звёздами",
     "starRewardHint": "Звёзды, начисляемые исполнителю после выполнения задачи. 0 — нет.",
+    "starPenalty": "Штраф звёздами",
+    "starPenaltyHint": "Звёзды, списываемые у исполнителя, если задача выполнена после дедлайна. 0 — нет.",
     "filters": {
       "searchPlaceholder": "Поиск задач…",
       "allAssignees": "Все исполнители",
@@ -586,9 +588,7 @@
     },
     "deadlinePreset": "{hours} ч",
     "moveUp": "Вверх",
-    "moveDown": "Вниз",
-    "dismissCard": "Свернуть карточку",
-    "restoreCard": "Развернуть карточку"
+    "moveDown": "Вниз"
   },
   "companyNews": {
     "title": "Новости компании",

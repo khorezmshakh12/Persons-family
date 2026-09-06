@@ -76,9 +76,37 @@ export function ChatHubClient({
   const appliedDeepLinkRef = useRef<string | null>(null);
   useEffect(() => {
     const withUserId = searchParams.get('with');
-    if (!withUserId || appliedDeepLinkRef.current === withUserId) return;
+    if (!withUserId) {
+      // No deep link in the URL (either there never was one, or the block
+      // below just consumed it) — re-arm so the *next* `?with=` navigation
+      // is applied even if it names the same contact as the last one.
+      appliedDeepLinkRef.current = null;
+      return;
+    }
+    if (appliedDeepLinkRef.current === withUserId) return;
     appliedDeepLinkRef.current = withUserId;
     setActive({ userId: withUserId });
+
+    // Consume the deep link. Leaving `?with=X` in the URL meant a later
+    // bell click on X pointed at the URL we were already on: the canonical
+    // URL doesn't change, so `searchParams` never changes, this effect
+    // never re-runs and nothing opens — the "the notification doesn't
+    // open" half of the report, hit whenever you'd since switched to a
+    // different contact in the sidebar.
+    //
+    // `history.replaceState`, not `router.replace`: Next syncs
+    // `useSearchParams` from the native History API *without* an RSC round
+    // trip (next docs, "Native History API"). It re-runs this effect
+    // exactly once more, on the now-`with`-less URL, where the early
+    // return above stops it — it cannot re-arm itself.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('with');
+    const rest = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      rest ? `${window.location.pathname}?${rest}` : window.location.pathname,
+    );
   }, [searchParams]);
   const [dmMessagesByPair, setDmMessagesByPair] = useState<Record<string, StaffChatMessage[]>>({});
   const [loadedDmPairs, setLoadedDmPairs] = useState<Set<string>>(new Set());
@@ -154,6 +182,24 @@ export function ChatHubClient({
     });
   }, [active]);
 
+  // Id of the newest message the *other* side sent in the currently-open
+  // DM, as far as this client knows — `null` until that pair's history has
+  // loaded (or if they've never sent anything). This is only ever used as a
+  // *signature* for the read-receipt effect below: it changes when a
+  // genuinely newer inbound message lands and at no other time. A
+  // re-render, a `router.refresh()`, a new `conversationStates` object, or
+  // the optimistic is_read flip all leave it byte-identical, which is what
+  // keeps that effect from re-arming.
+  const latestInboundMessageId = useMemo(() => {
+    if (!active) return null;
+    const messages = dmMessagesByPair[dmKey(currentUserId, active.userId)];
+    if (!messages) return null;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].sender_id === active.userId) return messages[i].id;
+    }
+    return null;
+  }, [active, currentUserId, dmMessagesByPair]);
+
   // Read receipts: opening a DM marks every message the other person sent
   // us as read. The Server Action is the source of truth (scoped
   // server-side to rows where we're genuinely the receiver); the local
@@ -162,10 +208,32 @@ export function ChatHubClient({
   // carry is_read at all — see the messages-listener effect below — so
   // there is no echo to wait on anymore; this optimistic flip is now the
   // only thing that ever sets it locally).
+  //
+  // THE BUG: this used to bail out (`if (flippedIds.length === 0) return`)
+  // before ever calling the Server Action, i.e. it only marked a
+  // conversation read when this client *already had* unread rows for it in
+  // `dmMessagesByPair`. On a first open that map is empty — the history
+  // fetch is a separate, still-in-flight effect — so opening a chat did
+  // nothing at all server-side, and the sidebar dot, the nav "chat" badge
+  // and the bell's unreadChats (all three derived from
+  // `staff_chats.is_read`) stayed lit. It only ever appeared to work on the
+  // *second* open of the same conversation, once the history had landed.
+  //
+  // The call is now driven by "which conversation is open, and what's the
+  // newest thing they've said in it" instead — which also covers a message
+  // arriving while the thread is already open. Three independent things
+  // stop it re-arming: the signature can't change on a re-render, the ref
+  // admits one call per signature, and a redundant call returns `false`
+  // from the action (0 rows flipped) so no `router.refresh()` follows.
+  const markedReadSignatureRef = useRef<string | null>(null);
   useEffect(() => {
     if (!active || activeConversationState.kind !== 'accepted') return;
     const otherId = active.userId;
     const key = dmKey(currentUserId, otherId);
+
+    const signature = `${key}|${latestInboundMessageId ?? ''}`;
+    if (markedReadSignatureRef.current === signature) return;
+    markedReadSignatureRef.current = signature;
 
     let flippedIds: string[] = [];
     setDmMessagesByPair((prev) => {
@@ -182,17 +250,23 @@ export function ChatHubClient({
       };
     });
 
-    if (flippedIds.length === 0) return;
-
     markConversationReadAction(otherId)
-      .then(() => {
-        // The sidebar NAV's "chat" dot (NavBadgesProvider) is otherwise only
-        // realtime-driven, which has proven unreliable in practice — see the
-        // identical comment in notification-bell.tsx's handleChatClick.
-        router.refresh();
+      .then((marked) => {
+        // `marked` is "did this actually flip a row" (see
+        // lib/db/queries/mark-seen.ts) — the boolean exists precisely so a
+        // no-op mark-read can't trigger a full RSC refetch. Only a real
+        // flip refreshes: the sidebar NAV's "chat" dot (NavBadgesProvider)
+        // is otherwise only realtime-driven, which has proven unreliable in
+        // practice — see the identical comment in notification-bell.tsx's
+        // handleChatClick.
+        if (marked) router.refresh();
       })
       .catch((error) => {
         console.error('mark_conversation_read failed', error);
+        // Let a later re-open retry instead of caching the failure for the
+        // lifetime of the page. Clearing the ref doesn't re-run this effect
+        // by itself (refs aren't reactive), so this can't spin.
+        markedReadSignatureRef.current = null;
         // Revert exactly the messages this effect optimistically flipped —
         // the DB still has them unread, so the tick/sidebar dot should too.
         setDmMessagesByPair((prev) => {
@@ -205,8 +279,11 @@ export function ChatHubClient({
         });
         toast.error(t('markReadFailed'));
       });
+    // `router` is deliberately NOT a dep — useRouter() from
+    // @/i18n/navigation returns a new object every render, and this effect
+    // calls a Server Action + router.refresh() (see AGENTS.md).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, activeConversationState.kind, currentUserId]);
+  }, [active, activeConversationState.kind, currentUserId, latestInboundMessageId]);
 
   // Live message delivery for whichever DM is currently open — subscribes
   // to that pair's Firestore messages subcollection (see

@@ -147,7 +147,20 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
             />
             <p className="text-xs text-white/60">{t('starRewardHint')}</p>
           </div>
-          {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="starPenalty">{t('starPenalty')}</Label>
+            <Input
+              id="starPenalty"
+              name="starPenalty"
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={0}
+              placeholder="0"
+            />
+            <p className="text-xs text-white/60">{t('starPenaltyHint')}</p>
+          </div>
+          {state?.error &&<p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>
             <Button type="submit" loading={isPending}>
               {isPending ? tCommon('loading') : t('create')}

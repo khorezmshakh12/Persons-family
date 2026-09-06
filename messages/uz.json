@@ -578,6 +578,8 @@
     },
     "starReward": "Yulduz mukofoti",
     "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q.",
+    "starPenalty": "Yulduz jarimasi",
+    "starPenaltyHint": "Vazifa muddatidan kech bajarilsa, ijrochidan ayiriladigan yulduzlar. 0 = yo'q.",
     "filters": {
       "searchPlaceholder": "Vazifalarni qidirish…",
       "allAssignees": "Barcha ijrochilar",
@@ -586,9 +588,7 @@
     },
     "deadlinePreset": "{hours} soat",
     "moveUp": "Yuqoriga",
-    "moveDown": "Pastga",
-    "dismissCard": "Kartani yig'ish",
-    "restoreCard": "Kartani ochish"
+    "moveDown": "Pastga"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",

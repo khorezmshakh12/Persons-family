@@ -75,6 +75,11 @@ const taskSchema = z.object({
   // updateTaskStatusAction). No upper bound — stars are deliberately
   // uncapped. 0 / omitted = no reward.
   starReward: z.coerce.number().int().min(0).optional(),
+  // The mirror image of starReward: deducted from the assignee once, the
+  // first time the task reaches `done` *after* its deadline (see
+  // updateTaskStatusAction). Stored as a positive magnitude — the sign is
+  // applied at ledger-write time. 0 / omitted = no penalty.
+  starPenalty: z.coerce.number().int().min(0).optional(),
 });
 
 export async function assignTaskAction(
@@ -105,8 +110,8 @@ export async function assignTaskAction(
   }
 
   await sql`
-    insert into tasks (title, description, assigned_to, assigned_by, deadline, star_reward)
-    values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.deadline}, ${parsed.data.starReward ?? 0})
+    insert into tasks (title, description, assigned_to, assigned_by, deadline, star_reward, star_penalty)
+    values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.deadline}, ${parsed.data.starReward ?? 0}, ${parsed.data.starPenalty ?? 0})
   `;
 
   await bumpBoardSignal('tasks');
@@ -178,6 +183,9 @@ export async function updateTaskAction(
         updated_at = now()
         -- Only adjustable while the bounty hasn't been paid out yet.
         ${parsed.data.starReward !== undefined ? sql`, star_reward = case when star_awarded_at is null then ${parsed.data.starReward} else star_reward end` : sql``}
+        -- Same rule for the fine: once it has actually been deducted, the
+        -- ledger entry is the record and the amount stops being editable.
+        ${parsed.data.starPenalty !== undefined ? sql`, star_penalty = case when star_penalty_applied_at is null then ${parsed.data.starPenalty} else star_penalty end` : sql``}
         ${reassigned ? sql`, is_seen = false` : sql``}
       where id = ${parsed.data.id}
     `;
@@ -224,8 +232,18 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const [existing] = await sql<{ assigned_to: string; assigned_by: string; status: string }[]>`
-    select assigned_to, assigned_by, status from tasks where id = ${parsed.data.id}
+  const [existing] = await sql<
+    {
+      assigned_to: string;
+      assigned_by: string;
+      status: string;
+      deadline: string;
+      star_penalty: number;
+      star_penalty_applied_at: string | null;
+    }[]
+  >`
+    select assigned_to, assigned_by, status, deadline, star_penalty, star_penalty_applied_at
+    from tasks where id = ${parsed.data.id}
   `;
   if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
 
@@ -242,45 +260,86 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
         : sql`now()`
       : sql`null`;
 
+  // `completed_at` comes back out of the same statement that wrote it, so
+  // the on-time/late decision below is made against the instant Postgres
+  // actually stamped — not a second, slightly different read of a different
+  // (Node) clock. Both it and `deadline` are timestamptz, i.e. absolute
+  // instants, so the comparison is zone-free and needs no Tashkent helper.
+  let completedInstant: string | null = null;
   try {
-    await sql`
+    const [updated] = await sql<{ completed_at: string | null }[]>`
       update tasks set
         status = ${parsed.data.status},
         completed_at = ${completedAt},
         updated_at = now()
       where id = ${parsed.data.id}
+      returning completed_at
     `;
+    completedInstant = updated?.completed_at ?? null;
   } catch (error) {
     console.error('updateTaskStatusAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
   }
 
-  // Star bounty payout — only on the first transition into `done`, and only
-  // once. The `star_awarded_at is null` guard in the WHERE makes "award
-  // once" atomic even under a double-click / retry: at most one caller gets
-  // a row back and therefore writes the ledger entry.
+  // Stars settle exactly once, on the first transition into `done`, and the
+  // deadline decides which way they go: finish on time and the CEO's bounty
+  // is paid out, finish late and their fine is deducted instead. The two are
+  // mutually exclusive — a late task earns nothing, it only costs.
+  //
+  // Each branch's `… is null` guard lives in the WHERE, so "settle once"
+  // stays atomic under a double-click or a retry: at most one caller gets a
+  // row back and therefore writes the ledger entry.
   if (parsed.data.status === 'done' && existing.status !== 'done') {
+    // No stamp back (the row vanished mid-flight) or no deadline to judge
+    // against: fall back to treating it as on time, so a data oddity can
+    // never invent a fine nobody earned.
+    const completedMs = completedInstant ? new Date(completedInstant).getTime() : Date.now();
+    const deadlineMs = existing.deadline ? new Date(existing.deadline).getTime() : Number.NaN;
+    const isLate = Number.isFinite(deadlineMs) && completedMs > deadlineMs;
+
     try {
-      const [awarded] = await sql<{ star_reward: number }[]>`
-        update tasks set star_awarded_at = now()
-        where id = ${parsed.data.id} and star_reward > 0 and star_awarded_at is null
-        returning star_reward
-      `;
-      if (awarded) {
-        await insertStarTransaction(sql, {
-          userId: existing.assigned_to,
-          delta: awarded.star_reward,
-          reason: 'Vazifa bajarildi',
-          sourceType: 'task',
-          sourceId: parsed.data.id,
-          createdBy: existing.assigned_by,
-        });
-        await bumpNavBadgeSignal(existing.assigned_to);
+      if (isLate) {
+        const [applied] = await sql<{ star_penalty: number }[]>`
+          update tasks set star_penalty_applied_at = now()
+          where id = ${parsed.data.id} and star_penalty > 0 and star_penalty_applied_at is null
+          returning star_penalty
+        `;
+        if (applied) {
+          await insertStarTransaction(sql, {
+            userId: existing.assigned_to,
+            // The column holds a positive magnitude; the ledger is what
+            // carries the sign (insertStarTransaction takes a negative
+            // delta — same shape as a CEO deduction or a Market purchase).
+            delta: -applied.star_penalty,
+            reason: 'Vazifa kech bajarildi',
+            sourceType: 'task',
+            sourceId: parsed.data.id,
+            createdBy: existing.assigned_by,
+          });
+          await bumpNavBadgeSignal(existing.assigned_to);
+        }
+      } else {
+        const [awarded] = await sql<{ star_reward: number }[]>`
+          update tasks set star_awarded_at = now()
+          where id = ${parsed.data.id} and star_reward > 0 and star_awarded_at is null
+          returning star_reward
+        `;
+        if (awarded) {
+          await insertStarTransaction(sql, {
+            userId: existing.assigned_to,
+            delta: awarded.star_reward,
+            reason: 'Vazifa bajarildi',
+            sourceType: 'task',
+            sourceId: parsed.data.id,
+            createdBy: existing.assigned_by,
+          });
+          await bumpNavBadgeSignal(existing.assigned_to);
+        }
       }
     } catch (error) {
       // The status change already committed — a stars hiccup must not turn
       // a successful "mark done" into an error for the assignee.
-      console.error('task star payout failed', error instanceof Error ? error.message : error);
+      console.error('task star settlement failed', error instanceof Error ? error.message : error);
     }
   }
 
@@ -306,6 +365,9 @@ export type VisibleTaskRow = {
   updated_at: string;
   comment_count: number;
   star_reward?: number;
+  /** Positive magnitude of the fine deducted when this task is completed
+   * after its deadline; 0 = none. */
+  star_penalty?: number;
   /** Manual board position within the card's own status column, ascending.
    * Every row starts at 0 (see 20260906120100_add_tasks_sort_order.sql), so
    * `created_at desc` remains the effective tie-break until a column is
@@ -347,7 +409,7 @@ export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
     select id, title, description, assigned_to, assigned_by, deadline, status, completed_at, updated_at,
            (status <> 'done' and deadline < now()) as is_overdue,
            (select count(*) from task_comments c where c.task_id = tasks.id)::int as comment_count,
-           star_reward, sort_order
+           star_reward, star_penalty, sort_order
     from tasks
     where (assigned_by = ${user.id} or assigned_to = ${user.id})
       and (status <> 'done' or completed_at >= ${currentMonthStart()})
