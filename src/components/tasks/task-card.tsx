@@ -1,9 +1,9 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ChevronUp, GripVertical, Minus, Star, ExternalLink } from 'lucide-react';
 import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
@@ -13,6 +13,7 @@ import type { Assignee } from './assign-task-dialog';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { durations, springs } from '@/lib/motion';
 
 export type Task = {
   id: string;
@@ -100,9 +101,22 @@ function TaskCardImpl({
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
+  const shouldReduce = useReducedMotion();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [pulseGlow, setPulseGlow] = useState<'amber' | 'teal' | null>(null);
   const isOverlay = variant === 'overlay';
   const isPreview = variant === 'preview';
+  const prevStatusRef = useRef<TaskStatus>(task.status);
+
+  useEffect(() => {
+    if (prevStatusRef.current !== task.status) {
+      const glowType = task.status === 'done' ? 'amber' : 'teal';
+      prevStatusRef.current = task.status;
+      setPulseGlow(glowType);
+      const timer = setTimeout(() => setPulseGlow(null), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [task.status]);
 
   // Status is the assignee's own progress report — not even the admin who
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
@@ -136,16 +150,28 @@ function TaskCardImpl({
     <div ref={setNodeRef} className="w-full min-w-0 max-w-full">
       <motion.div
         layout={!isDragging && !isOverlay}
-        initial={isOverlay ? false : { opacity: 0, y: 14, scale: 0.94 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging || isOverlay ? undefined : { scale: 1.01 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        initial={isOverlay || shouldReduce ? false : { opacity: 0, y: 14, scale: 0.94 }}
+        animate={{
+          opacity: 1,
+          y: 0,
+          scale: 1,
+        }}
+        exit={shouldReduce ? { opacity: 0 } : { opacity: 0, scale: 0.92, transition: { duration: durations.fast } }}
+        whileHover={isDragging || isOverlay || shouldReduce ? undefined : { y: -2, scale: 1.01 }}
+        transition={{
+          layout: shouldReduce ? { duration: 0 } : springs.snappy,
+          type: 'spring',
+          stiffness: springs.bouncy.stiffness,
+          damping: springs.bouncy.damping,
+        }}
         className={cn(
           GLASS_CARD,
-          'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-white/15',
+          'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-white/15 transition-colors duration-300',
           isDragging && !isPreview && 'opacity-40',
           isPreview && 'opacity-60 border-2 border-dashed border-white/70',
           isOverlay && 'cursor-grabbing shadow-2xl ring-2 ring-white/40',
+          pulseGlow === 'amber' && 'border-amber-400/80 shadow-[0_0_25px_rgba(251,191,36,0.45)] ring-1 ring-amber-400/60',
+          pulseGlow === 'teal' && 'border-teal-400/80 shadow-[0_0_25px_rgba(45,212,191,0.45)] ring-1 ring-teal-400/60',
         )}
       >
         {/* Card Header: Title + Action Buttons */}
@@ -160,7 +186,7 @@ function TaskCardImpl({
                   type="button"
                   onClick={() => onMove(task, 'up')}
                   aria-label={t('moveUp')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white tap-scale"
                 >
                   <ChevronUp className="size-3.5" />
                 </button>
@@ -168,7 +194,7 @@ function TaskCardImpl({
                   type="button"
                   onClick={() => onMove(task, 'down')}
                   aria-label={t('moveDown')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white tap-scale"
                 >
                   <ChevronDown className="size-3.5" />
                 </button>
@@ -197,7 +223,7 @@ function TaskCardImpl({
                 {...listeners}
                 {...attributes}
                 aria-label={t('dragHandle')}
-                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing tap-scale"
               >
                 <GripVertical className="size-4" />
               </button>
@@ -223,7 +249,7 @@ function TaskCardImpl({
                   e.stopPropagation();
                   setIsExpanded(!isExpanded);
                 }}
-                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors tap-scale"
               >
                 <span>{isExpanded ? t('showLess') : t('showMore')}</span>
                 <ChevronDown

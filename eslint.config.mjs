@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     // Claude Code tooling, not app source (excluded from deploys via
     // .gcloudignore/.dockerignore already).
     ".agents/**",
+    ".claude/**",
   ]),
   {
     // The newest eslint-plugin-react-hooks ships these as errors; this repo

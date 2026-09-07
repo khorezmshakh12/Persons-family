@@ -1,8 +1,13 @@
+'use client';
+
 import type { LucideIcon } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from '@/i18n/navigation';
-import { GLASS_INTERACTIVE, GLASS_CARD } from '@/lib/glass';
+import { GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { MaskableStatValue } from './maskable-stat-value';
+import { AnimatedCounter } from '@/components/ui/animated-counter';
+import { durations, springs, easings } from '@/lib/motion';
 
 const TINTS = {
   green: {
@@ -52,62 +57,85 @@ export function StatCard({
   maskable?: boolean;
 }) {
   const t = TINTS[tint];
+  const shouldReduce = useReducedMotion();
   const isPositive = changePercent >= 0;
 
-  // Scale the bars across the series' own min..max rather than 0..max.
-  // These series are running totals (see stats-row), so on 0..max a run like
-  // 40,41,…,45 renders as six near-identical full bars that read as flat
-  // while the badge says "up" — and any negative point (a net balance can go
-  // below zero) collapsed onto the same MIN_BAR floor as a small positive
-  // one. Baselining on min makes the bars show the move the badge reports.
-  const max = Math.max(...sparkline);
-  const min = Math.min(...sparkline);
+  const max = Math.max(...sparkline, 0);
+  const min = Math.min(...sparkline, 0);
   const range = max - min;
   const barHeight = (v: number) =>
     range === 0 ? (max > 0 ? 100 : MIN_BAR) : MIN_BAR + ((v - min) / range) * (100 - MIN_BAR);
 
   return (
-    <Link
-      href={href}
-      style={{ animationDelay: `${index * 70}ms` }}
-      className={cn(
-        'animate-fade-in-up flex transform-gpu flex-col overflow-hidden rounded-2xl p-5 text-white shadow-xl backdrop-blur-xl will-change-transform border border-white/15 bg-white/10 transition-all duration-300',
-        t.glow,
-        GLASS_INTERACTIVE,
-      )}
+    <motion.div
+      initial={shouldReduce ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: durations.base,
+        delay: index * 0.045,
+        ease: easings.standard,
+      }}
+      className="w-full min-w-0"
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className={cn('flex size-11 items-center justify-center rounded-xl backdrop-blur-md', t.iconBg)}>
-          <Icon className="size-5" />
-        </span>
-        <span
-          className={cn(
-            'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-md border shadow-sm',
-            isPositive
-              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30 shadow-[0_0_10px_rgba(52,211,153,0.2)]'
-              : 'bg-rose-500/20 text-rose-300 border-rose-400/30 shadow-[0_0_10px_rgba(244,63,94,0.2)]',
-          )}
-        >
-          {isPositive ? '↗' : '↘'} {Math.abs(changePercent)}%
-        </span>
-      </div>
+      <Link
+        href={href}
+        className={cn(
+          'flex transform-gpu flex-col overflow-hidden rounded-2xl p-5 text-white shadow-xl backdrop-blur-xl will-change-transform border border-white/15 bg-white/10 transition-all duration-300',
+          t.glow,
+          GLASS_INTERACTIVE,
+        )}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <span className={cn('flex size-11 items-center justify-center rounded-xl backdrop-blur-md', t.iconBg)}>
+            <Icon className="size-5" />
+          </span>
+          <motion.span
+            initial={shouldReduce ? false : { opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              duration: durations.base,
+              delay: shouldReduce ? 0 : 0.22,
+              ease: easings.emphasized,
+            }}
+            className={cn(
+              'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-md border shadow-sm',
+              isPositive
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30 shadow-[0_0_10px_rgba(52,211,153,0.2)]'
+                : 'bg-rose-500/20 text-rose-300 border-rose-400/30 shadow-[0_0_10px_rgba(244,63,94,0.2)]',
+            )}
+          >
+            {isPositive ? '↗' : '↘'} {Math.abs(changePercent)}%
+          </motion.span>
+        </div>
 
-      <div className="mt-4 flex flex-col gap-0.5">
-        <span className="font-heading text-3xl font-bold tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {maskable ? <MaskableStatValue value={String(value)} /> : value}
-        </span>
-        <span className="text-sm font-medium text-white/80">{label}</span>
-      </div>
+        <div className="mt-4 flex flex-col gap-0.5">
+          <span className="font-heading text-3xl font-bold tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            {maskable ? (
+              <MaskableStatValue value={String(value)} />
+            ) : (
+              <AnimatedCounter value={value} duration={durations.slow} />
+            )}
+          </span>
+          <span className="text-sm font-medium text-white/80">{label}</span>
+        </div>
 
-      <div className="mt-4 flex h-8 items-end gap-1.5">
-        {sparkline.map((v, i) => (
-          <span
-            key={i}
-            className={cn('flex-1 rounded-t-sm transition-all duration-300', t.bar)}
-            style={{ height: `${barHeight(v)}%` }}
-          />
-        ))}
-      </div>
-    </Link>
+        <div className="mt-4 flex h-8 items-end gap-1.5">
+          {sparkline.map((v, i) => (
+            <motion.span
+              key={i}
+              initial={shouldReduce ? false : { height: '0%' }}
+              animate={{ height: `${barHeight(v)}%` }}
+              transition={{
+                delay: shouldReduce ? 0 : 0.1 + i * 0.03,
+                type: 'spring',
+                stiffness: springs.snappy.stiffness,
+                damping: springs.snappy.damping,
+              }}
+              className={cn('flex-1 rounded-t-sm transition-colors duration-300', t.bar)}
+            />
+          ))}
+        </div>
+      </Link>
+    </motion.div>
   );
 }
