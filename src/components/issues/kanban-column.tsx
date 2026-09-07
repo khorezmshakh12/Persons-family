@@ -10,12 +10,14 @@ function KanbanColumnImpl({
   label,
   issues,
   emptyLabel,
+  readOnly,
   onRequestDelete,
 }: {
   status: Issue['status'];
   label: string;
   issues: Issue[];
   emptyLabel: string;
+  readOnly: boolean;
   onRequestDelete: (issue: Issue) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -36,7 +38,7 @@ function KanbanColumnImpl({
           <p className="text-sm text-white/60">{emptyLabel}</p>
         ) : (
           issues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} onRequestDelete={onRequestDelete} />
+            <IssueCard key={issue.id} issue={issue} readOnly={readOnly} onRequestDelete={onRequestDelete} />
           ))
         )}
       </div>

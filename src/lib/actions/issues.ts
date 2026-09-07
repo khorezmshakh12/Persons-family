@@ -3,18 +3,31 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
+import { getAuthState } from '@/lib/auth/session';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 
-// The whole Issues module is CEO-exclusive: no other role can report, view,
-// or manage an issue. Every action below re-checks that itself with
-// requireCeo() — the page's own notFound() guard only gates rendering, not
-// the POST endpoints underneath it.
+// Issues is a CEO-managed board, but reporting is open to everyone: any
+// signed-in staff member may create an issue (it's auto-assigned to the
+// CEO) and read back the ones they raised. Managing the board — status
+// changes, text edits, deletion, the resolution-stats panel — stays
+// CEO-only. Every action below re-checks its own gate; the page's guard
+// only shapes what renders, not the POST endpoints underneath it.
 
 export type IssueActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
+
+/** Non-CEO reporters have no assignee picker — their issue always routes to
+ * the active CEO. Null (issue created unassigned) only if there somehow
+ * isn't one. */
+async function ceoUserId(): Promise<string | null> {
+  const [row] = await sql<{ id: string }[]>`
+    select id from profiles where role = 'ceo' and is_active = true order by created_at asc limit 1
+  `;
+  return row?.id ?? null;
+}
 
 const createIssueSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -32,28 +45,30 @@ export async function createIssueAction(
   _prevState: IssueActionState,
   formData: FormData,
 ): Promise<IssueActionState> {
-  let userId;
-  try {
-    ({
-      user: { id: userId },
-    } = await requireCeo());
-  } catch (error) {
-    return { error: authErrorCode(error) };
-  }
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  const userId = user.id;
+  const isCeo = profile.role === 'ceo';
 
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   // The CEO may delegate to any active staff member, so the only server-side
   // re-validation left is that the target actually exists and is active —
-  // the client's dropdown options are not a security boundary.
+  // the client's dropdown options are not a security boundary. A non-CEO
+  // reporter has no picker at all: whatever the form posts is ignored and
+  // the issue routes straight to the CEO.
   let assignedTo: string | null = null;
-  if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
-    const [target] = await sql<{ id: string }[]>`
-      select id from profiles where id = ${parsed.data.assignedTo} and is_active = true
-    `;
-    if (!target) return { error: 'invalidAssignee' };
-    assignedTo = target.id;
+  if (isCeo) {
+    if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
+      const [target] = await sql<{ id: string }[]>`
+        select id from profiles where id = ${parsed.data.assignedTo} and is_active = true
+      `;
+      if (!target) return { error: 'invalidAssignee' };
+      assignedTo = target.id;
+    }
+  } else {
+    assignedTo = await ceoUserId();
   }
 
   // Defense in depth: uploads are scoped to the uploader's own folder at
@@ -85,14 +100,9 @@ export type UploadUrlResult = { path?: string; url?: string; error?: string };
 /** Mirrors requestChatMediaUploadUrlAction's signed-upload-url pattern
  * exactly, targeting the dedicated issue-voice-notes bucket instead. */
 export async function requestIssueVoiceUploadUrlAction(fileName: string): Promise<UploadUrlResult> {
-  let userId;
-  try {
-    ({
-      user: { id: userId },
-    } = await requireCeo());
-  } catch (error) {
-    return { error: authErrorCode(error) };
-  }
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  const userId = user.id;
 
   const parsed = uploadUrlSchema.safeParse({ fileName });
   if (!parsed.success) return { error: 'invalidInput' };
@@ -165,67 +175,80 @@ export type VisibleIssueRow = {
 
 const VOICE_URL_EXPIRY_SECONDS = 60 * 60;
 
+type IssueQueryRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: (typeof STATUSES)[number];
+  created_at: string;
+  created_by: string;
+  assigned_to: string | null;
+  voice_url: string | null;
+  reporter_first_name: string | null;
+  reporter_last_name: string | null;
+  assignee_first_name: string | null;
+  assignee_last_name: string | null;
+};
+
+async function toVisibleIssueRow(row: IssueQueryRow): Promise<VisibleIssueRow> {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    created_at: row.created_at,
+    created_by: row.created_by,
+    assigned_to: row.assigned_to,
+    voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
+    reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
+    assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
+  };
+}
+
 /**
  * Re-fetch for IssuesBoard's live refresh, triggered whenever
  * board_signals/issues changes in Firestore — see getVisibleTasksAction's
  * comment in tasks.ts for why this re-derives the whole list rather than
- * patching one row. Mirrors app/[locale]/(app)/issues/page.tsx's own query:
- * the caller is always the CEO, who sees every issue, so the only filter
- * left is the board's recency rule — a "done" issue resolved over a week
- * ago drops off. Unlike the old browser-side Realtime handler, this can
+ * patching one row. The CEO sees the whole board, so the only filter left
+ * is the recency rule — a "done" issue resolved over a week ago drops off.
+ * A non-CEO caller sees only the issues they raised (created_by = self),
+ * same recency rule. Unlike the old browser-side Realtime handler, this can
  * properly sign a fresh voice-note URL server-side instead of leaving it
  * null.
  */
 export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
-  try {
-    await requireCeo();
-  } catch {
-    return [];
-  }
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return [];
+  const isCeo = profile.role === 'ceo';
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const rows = await sql<
-    {
-      id: string;
-      title: string;
-      description: string | null;
-      status: (typeof STATUSES)[number];
-      created_at: string;
-      created_by: string;
-      assigned_to: string | null;
-      voice_url: string | null;
-      reporter_first_name: string | null;
-      reporter_last_name: string | null;
-      assignee_first_name: string | null;
-      assignee_last_name: string | null;
-    }[]
-  >`
-    select
-      i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
-      reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
-      assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
-    from issues i
-    left join profiles reporter on reporter.id = i.created_by
-    left join profiles assignee on assignee.id = i.assigned_to
-    where i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo}
-    order by i.created_at desc
-  `;
+  const rows = isCeo
+    ? await sql<IssueQueryRow[]>`
+        select
+          i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
+          reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+          assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+        from issues i
+        left join profiles reporter on reporter.id = i.created_by
+        left join profiles assignee on assignee.id = i.assigned_to
+        where i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo}
+        order by i.created_at desc
+      `
+    : await sql<IssueQueryRow[]>`
+        select
+          i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
+          reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+          assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+        from issues i
+        left join profiles reporter on reporter.id = i.created_by
+        left join profiles assignee on assignee.id = i.assigned_to
+        where i.created_by = ${user.id}
+          and (i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo})
+        order by i.created_at desc
+      `;
 
-  return Promise.all(
-    rows.map(async (row) => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      status: row.status,
-      created_at: row.created_at,
-      created_by: row.created_by,
-      assigned_to: row.assigned_to,
-      voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
-      reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
-      assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
-    })),
-  );
+  return Promise.all(rows.map(toVisibleIssueRow));
 }
 
 const deleteIssueSchema = z.object({ id: z.string().uuid() });
