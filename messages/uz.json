@@ -602,6 +602,23 @@
       "lateBadge": "Kechikkan",
       "completedOn": "Bajarildi {date}"
     },
+    "stats": {
+      "title": "Vazifalar bo'yicha samaradorligim",
+      "subtitle": "O'zingizga biriktirilgan vazifalar qanday ketayapti — bu raqamlarni faqat siz ko'rasiz.",
+      "noData": "Hozircha vazifalar bo'yicha ma'lumot yo'q.",
+      "days": "{count} kun",
+      "tiles": {
+        "total": "Jami vazifalar",
+        "done": "Bajarilgan",
+        "completionRate": "Bajarilish ulushi",
+        "avgCompletion": "O'rtacha bajarish vaqti"
+      },
+      "onTime": "O'z vaqtida: {count}",
+      "late": "Kechikkan: {count}",
+      "notDone": "Muddati o'tgan: {count}",
+      "byMonth": "Oxirgi 6 oy",
+      "monthCounts": "{due} muddatli · {onTime} o'z vaqtida · {late} kechikkan"
+    },
     "starReward": "Yulduz mukofoti",
     "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q.",
     "starPenalty": "Yulduz jarimasi",

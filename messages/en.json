@@ -602,6 +602,23 @@
       "lateBadge": "Late",
       "completedOn": "Completed {date}"
     },
+    "stats": {
+      "title": "My task performance",
+      "subtitle": "How your own assigned tasks are going — these numbers are yours alone.",
+      "noData": "No task data yet.",
+      "days": "{count} days",
+      "tiles": {
+        "total": "Total tasks",
+        "done": "Completed",
+        "completionRate": "Completion rate",
+        "avgCompletion": "Avg. completion time"
+      },
+      "onTime": "On time: {count}",
+      "late": "Late: {count}",
+      "notDone": "Overdue: {count}",
+      "byMonth": "Last 6 months",
+      "monthCounts": "{due} due · {onTime} on time · {late} late"
+    },
     "starReward": "Star reward",
     "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none.",
     "starPenalty": "Star penalty",
