@@ -222,7 +222,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         {activeTab === 'shop' && (
           <motion.div
             key="tab-shop"
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springs.snappy}
@@ -263,14 +263,14 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {shopItems.map((item, index) => {
+                {shopItems.map((item) => {
                   const isOutOfStock = item.stock !== null && item.stock <= 0;
                   return (
                     <motion.div
                       key={item.id}
-                      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                      initial={false}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ ...springs.gentle, delay: Math.min(index, 8) * 0.04 }}
+                      transition={springs.gentle}
                       className={cn(
                         GLASS_CARD,
                         'group flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-300 hover:border-white/35 hover:-translate-y-1',
@@ -347,7 +347,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         {activeTab === 'myOrders' && (
           <motion.div
             key="tab-myOrders"
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springs.snappy}
@@ -419,7 +419,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         {activeTab === 'admin' && adminView.allowed && (
           <motion.div
             key="tab-admin"
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springs.snappy}

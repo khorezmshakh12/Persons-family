@@ -75,10 +75,10 @@ export function NewsList({
             <motion.div
               key={item.id}
               layout
-              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              initial={false}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.94, y: -8, transition: { duration: 0.15 } }}
-              transition={{ ...springs.gentle, delay: Math.min(index, 6) * 0.04 }}
+              transition={springs.gentle}
               className={cn(GLASS_CARD, 'flex flex-col gap-2 p-6')}
             >
               <div className="flex items-start justify-between gap-2">

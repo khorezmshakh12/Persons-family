@@ -177,7 +177,7 @@ export function MissionCard({
           {!showSubmitForm ? (
             <motion.div
               key="submit-btn"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={false}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={springs.snappy}
@@ -230,7 +230,7 @@ export function MissionCard({
           {!showRejectForm ? (
             <motion.div
               key="action-buttons"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={false}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={springs.snappy}

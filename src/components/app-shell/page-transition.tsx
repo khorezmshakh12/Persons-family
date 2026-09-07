@@ -22,9 +22,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={pathname}
-        initial={{ opacity: 0, y: shouldReduce ? 0 : 4 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: shouldReduce ? 0 : -4 }}
+        exit={{ opacity: shouldReduce ? 1 : 0.8, y: shouldReduce ? 0 : -4 }}
         transition={{ duration: durations.base, ease: easings.standard }}
       >
         {children}

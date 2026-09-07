@@ -107,81 +107,91 @@ export function CourseLessonsTable({
     );
   }
 
+  const tableContent = (
+    <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+      <thead>
+        <tr className="border-b border-white/15">
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.lessonNumber')}
+          </th>
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.date')}
+          </th>
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.topic')}
+          </th>
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.description')}
+          </th>
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.gameLink')}
+          </th>
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.files')}
+          </th>
+          <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+            {t('courseLessons.comments')}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {lessons.map((lesson) => (
+          <LessonPlanRow
+            key={lesson.id}
+            groupId={groupId}
+            lesson={lesson}
+            locked={locked}
+            canEditContent={rowCanEdit}
+            canDeleteFiles={rowCanDelete}
+            canComment={rowCanComment}
+            currentUserId={currentUserId}
+            viewerName={viewerName}
+          />
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
     <div className={cn(GLASS_CARD, 'overflow-hidden')}>
-      {collapsible && (
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={expanded}
-          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.06]"
-        >
-          <ChevronDown className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-180')} />
-          <span>{monthLabel}</span>
-          <span className="text-xs font-normal text-white/45">({lessons.length})</span>
-          {locked && (
-            <span className="ml-auto flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/55">
-              <Lock className="size-3" />
-              {t('courseLessons.readOnly')}
-            </span>
-          )}
-        </button>
-      )}
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            variants={accordion}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className={cn('overflow-x-auto', collapsible && 'border-t border-white/10')}
+      {collapsible ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={expanded}
+            className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.06]"
           >
-            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/15">
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.lessonNumber')}
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.date')}
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.topic')}
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.description')}
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.gameLink')}
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.files')}
-                  </th>
-                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                    {t('courseLessons.comments')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lessons.map((lesson) => (
-                  <LessonPlanRow
-                    key={lesson.id}
-                    groupId={groupId}
-                    lesson={lesson}
-                    locked={locked}
-                    canEditContent={rowCanEdit}
-                    canDeleteFiles={rowCanDelete}
-                    canComment={rowCanComment}
-                    currentUserId={currentUserId}
-                    viewerName={viewerName}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <ChevronDown className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-180')} />
+            <span>{monthLabel}</span>
+            <span className="text-xs font-normal text-white/45">({lessons.length})</span>
+            {locked && (
+              <span className="ml-auto flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/55">
+                <Lock className="size-3" />
+                {t('courseLessons.readOnly')}
+              </span>
+            )}
+          </button>
+
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                variants={accordion}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="overflow-x-auto border-t border-white/10"
+              >
+                {tableContent}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      ) : (
+        <div className="overflow-x-auto">
+          {tableContent}
+        </div>
+      )}
     </div>
   );
 }

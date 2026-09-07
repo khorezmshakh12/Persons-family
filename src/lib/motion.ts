@@ -53,8 +53,9 @@ export const popIn: Variants = {
 };
 
 export const staggerContainer: Variants = {
-  initial: {},
+  initial: { opacity: 1 },
   animate: {
+    opacity: 1,
     transition: {
       staggerChildren: 0.045,
       delayChildren: 0.02,
@@ -144,7 +145,7 @@ export function useMotion() {
       fadeInUp: shouldReduce ? reducedFadeIn : fadeInUp,
       popIn: shouldReduce ? reducedFadeIn : popIn,
       staggerContainer: shouldReduce
-        ? { initial: {}, animate: { transition: { staggerChildren: 0, delayChildren: 0 } } }
+        ? { initial: { opacity: 1 }, animate: { opacity: 1, transition: { staggerChildren: 0, delayChildren: 0 } } }
         : staggerContainer,
       accordion: shouldReduce ? reducedAccordion : accordion,
       overlayScrim: shouldReduce
