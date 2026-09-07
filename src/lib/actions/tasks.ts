@@ -2,7 +2,6 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { getFormatter } from 'next-intl/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
@@ -33,9 +32,21 @@ const TASK_STATUS_LABELS: Record<string, string> = {
   done: 'Bajarildi',
 };
 
-/** Fire-and-forget notification to the assignee — never let a Telegram
- * hiccup affect the response to the admin who just assigned/edited the
- * task (mirrors notifyIssueCreated in actions/issues.ts). */
+/** Notification to the assignee. Swallows its own errors, so a Telegram
+ * hiccup can never affect the response to the admin who just assigned or
+ * edited the task (mirrors notifyIssueAssigned in actions/issues.ts).
+ *
+ * Awaited inline by its callers, deliberately NOT dispatched through
+ * `after()`. `after()` was the correct fix on Vercel, where it maps to the
+ * platform's `waitUntil` and keeps the function alive (see 3a0960d) — but
+ * production moved to Cloud Run in 4fa7c88, and there is no `waitUntil`
+ * there. The callback just runs once the response is flushed, and Cloud
+ * Run throttles a container's CPU to ~0 the instant its request finishes
+ * (the deploy in cloudbuild.yaml sets no --no-cpu-throttling), so the
+ * in-flight fetch to api.telegram.org stalls and dies with the instance.
+ * That is why the deadline-reminder cron kept delivering while this never
+ * did: the cron awaits its sends mid-request. Awaiting costs one round
+ * trip and is the only thing that actually makes delivery reliable. */
 async function notifyTaskAssigned({
   title,
   status,
@@ -117,16 +128,13 @@ export async function assignTaskAction(
   await bumpBoardSignal('tasks');
   await bumpNavBadgeSignal(parsed.data.assignedTo);
 
-  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
-  // un-awaited fire-and-forget call before its Telegram send finishes.
-  after(() =>
-    notifyTaskAssigned({
-      title: parsed.data.title,
-      status: 'pending',
-      deadline: parsed.data.deadline,
-      assigneeTelegramId: target.telegram_id,
-    }),
-  );
+  // Awaited, not `after()`ed — see notifyTaskAssigned's comment.
+  await notifyTaskAssigned({
+    title: parsed.data.title,
+    status: 'pending',
+    deadline: parsed.data.deadline,
+    assigneeTelegramId: target.telegram_id,
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -198,14 +206,13 @@ export async function updateTaskAction(
   await bumpNavBadgeSignal(parsed.data.assignedTo);
   if (reassigned) await bumpNavBadgeSignal(existing.assigned_to);
 
-  after(() =>
-    notifyTaskAssigned({
-      title: parsed.data.title,
-      status: existing.status,
-      deadline: parsed.data.deadline,
-      assigneeTelegramId: target.telegram_id,
-    }),
-  );
+  // Awaited, not `after()`ed — see notifyTaskAssigned's comment.
+  await notifyTaskAssigned({
+    title: parsed.data.title,
+    status: existing.status,
+    deadline: parsed.data.deadline,
+    assigneeTelegramId: target.telegram_id,
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
