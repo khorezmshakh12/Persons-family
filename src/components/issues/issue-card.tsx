@@ -55,8 +55,8 @@ function IssueCardImpl({
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="font-medium">{issue.title}</span>
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <span className="min-w-0 flex-1 font-medium break-words [overflow-wrap:anywhere]">{issue.title}</span>
           {!readOnly && (
             <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
               <div className="flex gap-1">
