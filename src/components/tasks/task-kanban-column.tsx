@@ -3,11 +3,12 @@
 import { memo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
+import { springs, fadeInUp, staggerContainer } from '@/lib/motion';
 
 function TaskKanbanColumnImpl({
   status,
@@ -43,15 +44,11 @@ function TaskKanbanColumnImpl({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const shouldReduce = useReducedMotion();
 
   // A collapsed column still accepts a drop, but the drop would land out of
   // sight — so a card hovering here opens it, and it stays open so the card
-  // is still visible once the drop lands. This is React's "adjust state
-  // while rendering" pattern rather than an effect: it converges in one
-  // extra render (the guard is false as soon as `expanded` is true) instead
-  // of painting the collapsed column first and cascading a second commit.
-  // The header toggle keeps working exactly as before — `isOver` is only
-  // ever true mid-drag, when the button can't be clicked anyway.
+  // is still visible once the drop lands.
   if (isOver && !expanded) setExpanded(true);
 
   const showCards = !collapsible || expanded;
@@ -70,14 +67,18 @@ function TaskKanbanColumnImpl({
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
             aria-expanded={expanded}
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/15 hover:border-white/30 min-w-0"
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/15 hover:border-white/30 min-w-0 tap-scale"
           >
             <span className="font-semibold truncate">
               {label} · {tasks.length}
             </span>
-            <ChevronDown
-              className={cn('size-4 shrink-0 text-white/70 transition-transform duration-200', expanded && 'rotate-180')}
-            />
+            <motion.div
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={shouldReduce ? { duration: 0 } : springs.gentle}
+              className="shrink-0 text-white/70"
+            >
+              <ChevronDown className="size-4" />
+            </motion.div>
           </button>
         </h2>
       ) : (
@@ -92,24 +93,32 @@ function TaskKanbanColumnImpl({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            transition={shouldReduce ? { duration: 0 } : springs.gentle}
             className="flex flex-col gap-3 min-w-0 w-full overflow-hidden"
           >
             {tasks.length === 0 ? (
               <p className="text-sm text-white/60 px-2 py-2">{emptyLabel}</p>
             ) : (
-              tasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isAdmin={isAdmin}
-                  assignees={assignees}
-                  currentUserId={currentUserId}
-                  onRequestDelete={onRequestDelete}
-                  onMove={onMove}
-                  variant={task.id === previewTaskId ? 'preview' : 'default'}
-                />
-              ))
+              <motion.div
+                variants={shouldReduce ? undefined : staggerContainer}
+                initial={shouldReduce ? false : "initial"}
+                animate="animate"
+                className="flex flex-col gap-3 min-w-0 w-full"
+              >
+                {tasks.map((task) => (
+                  <motion.div key={task.id} variants={shouldReduce ? undefined : fadeInUp}>
+                    <TaskCard
+                      task={task}
+                      isAdmin={isAdmin}
+                      assignees={assignees}
+                      currentUserId={currentUserId}
+                      onRequestDelete={onRequestDelete}
+                      onMove={onMove}
+                      variant={task.id === previewTaskId ? 'preview' : 'default'}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
             )}
           </motion.div>
         )}

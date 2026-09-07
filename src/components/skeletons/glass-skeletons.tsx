@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** Pulsing frosted block — the glassmorphism-styled equivalent of the
  * shadcn `Skeleton` primitive (`bg-muted` reads wrong over a photo backdrop). */
 function GlassBar({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-md bg-white/15', className)} />;
+  return <div className={cn('animate-shimmer rounded-md bg-white/15', className)} />;
 }
 
 /** Matches the shape of a single dashboard card (CompanyNewsCard, WeeklyProgressCard). */

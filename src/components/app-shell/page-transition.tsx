@@ -4,9 +4,11 @@ import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from '@/i18n/navigation';
 import { clearChunkErrorGuard } from '@/lib/chunk-error';
+import { useMotion } from '@/lib/motion';
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { shouldReduce, durations, easings } = useMotion();
 
   // Any successful render here means the app is healthy on the current
   // bundle, so clear the chunk-error reload guard — otherwise a tab that
@@ -20,10 +22,10 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={pathname}
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -16, scale: 0.98 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        initial={{ opacity: 0, y: shouldReduce ? 0 : 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: shouldReduce ? 0 : -4 }}
+        transition={{ duration: durations.base, ease: easings.standard }}
       >
         {children}
       </motion.div>
