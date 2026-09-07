@@ -1,14 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  MeasuringStrategy,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { updateIssueStatusAction, deleteIssueAction, getVisibleIssuesAction } from '@/lib/actions/issues';
 import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { KanbanColumn } from './kanban-column';
-import type { Issue } from './issue-card';
+import { IssueCard, type Issue } from './issue-card';
 
 const COLUMNS: Issue['status'][] = ['open', 'in_progress', 'done'];
 
@@ -24,7 +34,62 @@ export function IssuesBoard({
 }) {
   const t = useTranslations('issues');
   const [issues, setIssues] = useState(initialIssues);
+  // Live-drag state. Neither of these touches `issues` — the real move still
+  // only happens in handleDragEnd — they just drive where the card is
+  // *rendered* while the pointer is still down.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overStatus, setOverStatus] = useState<Issue['status'] | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const activeIssue = activeId ? (issues.find((i) => i.id === activeId) ?? null) : null;
+
+  // Split once per `issues` change so a drag-over below only has to rebuild
+  // the two columns it actually affects — the other column keeps its array
+  // identity and stays skipped by KanbanColumn's memo.
+  const baseColumns = useMemo(() => {
+    const map = new Map<Issue['status'], Issue[]>();
+    for (const status of COLUMNS) map.set(status, []);
+    for (const issue of issues) map.get(issue.status)?.push(issue);
+    return map;
+  }, [issues]);
+
+  // Provisional placement: while the pointer is over a column the card
+  // doesn't belong to yet, render it there (and out of its home column).
+  const { columns, previewStatus } = useMemo(() => {
+    if (!activeIssue || !overStatus || activeIssue.status === overStatus) {
+      return { columns: baseColumns, previewStatus: null };
+    }
+    const next = new Map(baseColumns);
+    next.set(
+      activeIssue.status,
+      (baseColumns.get(activeIssue.status) ?? []).filter((i) => i.id !== activeIssue.id),
+    );
+    next.set(overStatus, [...(baseColumns.get(overStatus) ?? []), activeIssue]);
+    return { columns: next, previewStatus: overStatus };
+  }, [baseColumns, activeIssue, overStatus]);
+
+  // `over.id` is a column droppable id, but resolve through the cards too so
+  // a stray id can never be written to the database as a status.
+  function resolveStatus(overId: string | number | undefined | null): Issue['status'] | null {
+    if (overId == null) return null;
+    const id = String(overId);
+    if ((COLUMNS as string[]).includes(id)) return id as Issue['status'];
+    return issues.find((issue) => issue.id === id)?.status ?? null;
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+    setOverStatus(null);
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    setOverStatus(resolveStatus(event.over?.id));
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+    setOverStatus(null);
+  }
 
   // Board used to only reflect the viewer's own drag/delete actions — an
   // issue someone else reported or reassigned while this page was open
@@ -60,12 +125,17 @@ export function IssuesBoard({
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    // Drop the provisional placement first: from here on the card's position
+    // comes from `issues` itself (optimistically below), so the two never
+    // both claim the move.
+    setActiveId(null);
+    setOverStatus(null);
     if (!over) return;
 
     const issueId = String(active.id);
-    const nextStatus = over.id as Issue['status'];
+    const nextStatus = resolveStatus(over.id);
     const current = issues.find((i) => i.id === issueId);
-    if (!current || current.status === nextStatus) return;
+    if (!nextStatus || !current || current.status === nextStatus) return;
 
     const previousIssues = issues;
     // Strict optimistic UI: the card jumps to its new column immediately,
@@ -107,22 +177,42 @@ export function IssuesBoard({
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      // The provisional placement reflows both columns mid-drag, so the
+      // droppable rects captured at drag start go stale immediately.
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
       <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
         {COLUMNS.map((status) => (
           <KanbanColumn
             key={status}
             status={status}
             label={t(`columns.${status}`)}
-            issues={issues.filter((issue) => issue.status === status)}
+            issues={columns.get(status) ?? []}
             emptyLabel={t('noIssuesInColumn')}
             readOnly={readOnly}
             onRequestDelete={handleRequestDelete}
+            previewIssueId={previewStatus === status ? activeId : null}
             collapsible={true}
             defaultExpanded={status !== 'done'}
           />
         ))}
       </div>
+      <DragOverlay dropAnimation={null}>
+        {activeIssue ? (
+          <IssueCard
+            issue={activeIssue}
+            readOnly={readOnly}
+            onRequestDelete={handleRequestDelete}
+            variant="overlay"
+          />
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

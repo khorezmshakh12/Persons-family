@@ -14,6 +14,7 @@ function KanbanColumnImpl({
   emptyLabel,
   readOnly,
   onRequestDelete,
+  previewIssueId = null,
   collapsible = true,
   defaultExpanded = true,
 }: {
@@ -23,11 +24,27 @@ function KanbanColumnImpl({
   emptyLabel: string;
   readOnly: boolean;
   onRequestDelete: (issue: Issue) => void;
+  /** Id of the card this column is only *provisionally* holding, because a
+   * drag is hovering here and hasn't been dropped yet. Non-null on exactly
+   * one column at a time — and it's the prop that lets `memo` know the
+   * hovered column has to re-render mid-drag. */
+  previewIssueId?: string | null;
   collapsible?: boolean;
   defaultExpanded?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const [expanded, setExpanded] = useState(defaultExpanded);
+
+  // A collapsed column still accepts a drop, but the drop would land out of
+  // sight — so a card hovering here opens it, and it stays open so the card
+  // is still visible once the drop lands. This is React's "adjust state
+  // while rendering" pattern rather than an effect: it converges in one
+  // extra render (the guard is false as soon as `expanded` is true) instead
+  // of painting the collapsed column first and cascading a second commit.
+  // The header toggle keeps working exactly as before — `isOver` is only
+  // ever true mid-drag, when the button can't be clicked anyway.
+  if (isOver && !expanded) setExpanded(true);
+
   const showCards = !collapsible || expanded;
 
   return (
@@ -73,7 +90,13 @@ function KanbanColumnImpl({
               <p className="text-sm text-white/60 px-2 py-2">{emptyLabel}</p>
             ) : (
               issues.map((issue) => (
-                <IssueCard key={issue.id} issue={issue} readOnly={readOnly} onRequestDelete={onRequestDelete} />
+                <IssueCard
+                  key={issue.id}
+                  issue={issue}
+                  readOnly={readOnly}
+                  onRequestDelete={onRequestDelete}
+                  variant={issue.id === previewIssueId ? 'preview' : 'default'}
+                />
               ))
             )}
           </motion.div>
