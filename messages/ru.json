@@ -364,6 +364,15 @@
       "created": "Создано",
       "status": "Статус"
     },
+    "archive": {
+      "title": "Ежемесячный архив",
+      "resolved": "Решено: {count}",
+      "raised": "Отправлено: {count}",
+      "resolvedOn": "Решено {date}",
+      "reportedBy": "От {name}",
+      "assignedTo": "Кому {name}",
+      "noIssues": "В этом месяце нет решённых обращений."
+    },
     "errors": {
       "forbidden": "У вас нет прав для этого действия.",
       "sessionExpired": "Сессия истекла — обновите страницу и войдите снова.",

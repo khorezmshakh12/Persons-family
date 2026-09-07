@@ -364,6 +364,15 @@
       "created": "Created",
       "status": "Status"
     },
+    "archive": {
+      "title": "Monthly archive",
+      "resolved": "Resolved: {count}",
+      "raised": "Raised: {count}",
+      "resolvedOn": "Resolved {date}",
+      "reportedBy": "By {name}",
+      "assignedTo": "To {name}",
+      "noIssues": "No resolved issues this month."
+    },
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",

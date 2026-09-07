@@ -1,11 +1,12 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { getVisibleIssuesAction } from '@/lib/actions/issues';
+import { getMonthlyIssueArchiveAction, getVisibleIssuesAction } from '@/lib/actions/issues';
 import { getIssueStatsAction } from '@/lib/actions/issue-stats';
 import { CreateIssueDialog } from '@/components/issues/create-issue-dialog';
 import { IssuesBoard } from '@/components/issues/issues-board';
 import { IssuesStats } from '@/components/issues/issues-stats';
+import { MonthlyIssueArchive } from '@/components/issues/monthly-issue-archive';
 import { MarkIssuesSeen } from '@/components/issues/mark-issues-seen';
 import type { Issue } from '@/components/issues/issue-card';
 
@@ -24,7 +25,10 @@ export default async function IssuesPage() {
   // and the resolution-stats panel. Every issues.ts Server Action re-checks
   // its own gate (create/report is open to all; status/edit/delete stay
   // CEO-only), so this page-level split is presentation, not the boundary.
-  const [issues, assignees, issueStats] = await Promise.all([
+  // The archive under the board carries every *past* Tashkent month that
+  // resolved an issue, scoped exactly like getVisibleIssuesAction (CEO: all;
+  // anyone else: only the issues they raised).
+  const [issues, assignees, issueStats, issueArchive] = await Promise.all([
     getVisibleIssuesAction(),
     isCeo
       ? sql<{ id: string; first_name: string; last_name: string }[]>`
@@ -35,6 +39,7 @@ export default async function IssuesPage() {
     isCeo
       ? getIssueStatsAction()
       : Promise.resolve({ data: undefined } as Awaited<ReturnType<typeof getIssueStatsAction>>),
+    getMonthlyIssueArchiveAction(),
   ]);
 
   return (
@@ -46,6 +51,7 @@ export default async function IssuesPage() {
       </div>
       {isCeo && <IssuesStats stats={issueStats.data ?? null} />}
       <IssuesBoard issues={issues as unknown as Issue[]} readOnly={!isCeo} />
+      <MonthlyIssueArchive months={issueArchive} />
     </div>
   );
 }

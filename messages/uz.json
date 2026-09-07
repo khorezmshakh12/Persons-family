@@ -364,6 +364,15 @@
       "created": "Yaratilgan",
       "status": "Holat"
     },
+    "archive": {
+      "title": "Oylik arxiv",
+      "resolved": "Hal qilingan: {count}",
+      "raised": "Yuborilgan: {count}",
+      "resolvedOn": "Hal qilindi {date}",
+      "reportedBy": "Kimdan: {name}",
+      "assignedTo": "Kimga: {name}",
+      "noIssues": "Bu oyda hal qilingan murojaatlar yo'q."
+    },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
