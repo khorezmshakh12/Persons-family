@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { deleteNewsAction } from '@/lib/actions/company-news';
 import { DeleteNewsButton } from './delete-news-button';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { springs } from '@/lib/motion';
 
 type NewsItem = {
   id: string;
@@ -66,32 +68,38 @@ export function NewsList({
 
   return (
     <div className="flex flex-col gap-4">
-      {news.map((item, index) => {
-        const canDelete = isAdmin || item.created_by === currentUserId;
-        return (
-          <div
-            key={item.id}
-            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-            className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-2 p-6')}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="font-heading text-lg font-medium">{item.title}</h2>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-white/60">
-                  {format.dateTime(new Date(item.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
-                </span>
-                {canDelete && <DeleteNewsButton onConfirm={() => handleRequestDelete(item)} />}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {news.map((item, index) => {
+          const canDelete = isAdmin || item.created_by === currentUserId;
+          return (
+            <motion.div
+              key={item.id}
+              layout
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94, y: -8, transition: { duration: 0.15 } }}
+              transition={{ ...springs.gentle, delay: Math.min(index, 6) * 0.04 }}
+              className={cn(GLASS_CARD, 'flex flex-col gap-2 p-6')}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="font-heading text-lg font-medium">{item.title}</h2>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-white/60">
+                    {format.dateTime(new Date(item.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                  {canDelete && <DeleteNewsButton onConfirm={() => handleRequestDelete(item)} />}
+                </div>
               </div>
-            </div>
-            <p className="text-sm whitespace-pre-wrap text-white/80">{item.content}</p>
-            {item.author && (
-              <span className="text-xs text-white/60">
-                {t('postedBy', { name: `${item.author.first_name} ${item.author.last_name}` })}
-              </span>
-            )}
-          </div>
-        );
-      })}
+              <p className="text-sm whitespace-pre-wrap text-white/80">{item.content}</p>
+              {item.author && (
+                <span className="text-xs text-white/60">
+                  {t('postedBy', { name: `${item.author.first_name} ${item.author.last_name}` })}
+                </span>
+              )}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }

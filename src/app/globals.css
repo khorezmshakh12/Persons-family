@@ -254,6 +254,21 @@
   animation: shimmer 1.8s infinite;
 }
 
+/* Telegram QR scanner laser beam animation */
+@keyframes laser-scan {
+  0% {
+    top: 0%;
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.9;
+  }
+  100% {
+    top: 96%;
+    opacity: 0.2;
+  }
+}
+
 /* Slow ambient breathing for the "Cinematic" video background's
    colour-harmony veil (see dynamic-background.tsx) — keeps the scene
    quietly alive even when the footage itself is momentarily still,

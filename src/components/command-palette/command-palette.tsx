@@ -68,13 +68,20 @@ export function CommandPalette() {
       contentClassName="overflow-hidden rounded-2xl border border-white/20 bg-slate-900/80 text-white shadow-2xl backdrop-blur-xl"
     >
       <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-        <Search className="size-4 shrink-0 text-white/50" />
+        <Search className="size-4 shrink-0 text-teal-400" />
         <Command.Input
           value={query}
           onValueChange={setQuery}
           placeholder={t('placeholder')}
           className="w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
         />
+        {isPending ? (
+          <span className="size-3.5 shrink-0 rounded-full border-2 border-teal-400 border-t-transparent animate-spin" />
+        ) : (
+          <kbd className="hidden sm:inline-flex items-center rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-white/50">
+            ESC
+          </kbd>
+        )}
       </div>
       <Command.List className="max-h-80 overflow-y-auto p-2">
         {!isPending && query.trim().length >= 2 && !hasResults && (

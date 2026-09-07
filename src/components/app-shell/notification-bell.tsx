@@ -16,6 +16,8 @@ import {
   markWarningsSeenAction,
   markLessonPlanAlertsSeenAction,
 } from '@/lib/actions/notifications';
+import { motion } from 'framer-motion';
+import { springs } from '@/lib/motion';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -278,12 +280,15 @@ export function NotificationBell({
       >
         <Bell key={shakeKey} className={cn('size-4.5', shakeKey > 0 && 'animate-shake')} />
         {totalCount > 0 && (
-          <span
+          <motion.span
             key={totalCount}
-            className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]"
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 20 }}
+            className="absolute -top-1 -right-1 flex min-w-[1.15rem] items-center justify-center rounded-full bg-red-500 px-1 py-0.5 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(239,68,68,0.9)] ring-2 ring-slate-900/60"
           >
             {totalCount > 9 ? '9+' : totalCount}
-          </span>
+          </motion.span>
         )}
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
