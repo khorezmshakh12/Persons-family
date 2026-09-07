@@ -171,6 +171,128 @@
   animation: fade-in-up 0.5s both var(--ease-bounce);
 }
 
+/* Modern entrance set — all `both` fill so the resting state before the
+   animation is the `from` frame and the browser ALWAYS runs them to `to`.
+   There is no JS gate, so unlike a framer `initial`/`animate` these can
+   never strand content invisible. Stagger a group by putting
+   `style={{ animationDelay }}` on each child (see the grids that use it).
+   Every one is disabled wholesale in the prefers-reduced-motion block. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.45s both var(--ease-snappy);
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-fade-in-scale {
+  animation: fade-in-scale 0.5s both var(--ease-bounce);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise-in {
+  animation: rise-in 0.6s both var(--ease-bounce);
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s both var(--ease-bounce);
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s both var(--ease-bounce);
+}
+
+/* Route-level enter: the whole page content wrapper. Short + no vertical
+   travel on the parent (children do their own), so navigation still feels
+   instant. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-page-enter {
+  animation: page-enter 0.32s both var(--ease-snappy);
+}
+
+/* Static-group stagger: a container that cascades its direct children in.
+   Use for fixed-length groups (KPI strips, toolbars); dynamic lists set
+   their own inline animationDelay instead. */
+.stagger > * {
+  animation: fade-in-up 0.5s both var(--ease-bounce);
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 55ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 110ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 165ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 220ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 275ms;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 330ms;
+}
+.stagger > *:nth-child(n + 8) {
+  animation-delay: 385ms;
+}
+
 /* Spring pop for anything that should announce itself — a badge count
    ticking up, a toast, a freshly-inserted list item. Overshoots past 100%
    then settles, which is what makes it read as "alive" rather than a flat
@@ -288,10 +410,17 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-fade-in-scale,
+  .animate-rise-in,
+  .animate-slide-in-right,
+  .animate-slide-in-left,
+  .animate-page-enter,
+  .stagger > *,
   .animate-pop-in,
   .animate-shake,
   .animate-ambient-pulse {
-    animation: none;
+    animation: none !important;
   }
   .animate-shimmer::after {
     animation: none;

@@ -1,14 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from '@/i18n/navigation';
 import { clearChunkErrorGuard } from '@/lib/chunk-error';
-import { useMotion } from '@/lib/motion';
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { shouldReduce, durations, easings } = useMotion();
 
   // Any successful render here means the app is healthy on the current
   // bundle, so clear the chunk-error reload guard — otherwise a tab that
@@ -18,17 +15,15 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     clearChunkErrorGuard();
   }, [pathname]);
 
+  // Keyed by pathname so React remounts on navigation and the CSS enter
+  // animation re-runs. Deliberately a plain CSS animation (`both` fill),
+  // not a framer initial/animate: this wraps every page in the app, and a
+  // stalled JS animation here would blank the whole screen. CSS can't
+  // strand it, and dropping the AnimatePresence "wait for exit" round-trip
+  // keeps navigation feeling instant.
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={pathname}
-        initial={false}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: shouldReduce ? 1 : 0.8, y: shouldReduce ? 0 : -4 }}
-        transition={{ duration: durations.base, ease: easings.standard }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div key={pathname} className="animate-page-enter">
+      {children}
+    </div>
   );
 }

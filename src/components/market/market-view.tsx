@@ -263,17 +263,15 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {shopItems.map((item) => {
+                {shopItems.map((item, index) => {
                   const isOutOfStock = item.stock !== null && item.stock <= 0;
                   return (
-                    <motion.div
+                    <div
                       key={item.id}
-                      initial={false}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={springs.gentle}
+                      style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
                       className={cn(
                         GLASS_CARD,
-                        'group flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-300 hover:border-white/35 hover:-translate-y-1',
+                        'animate-fade-in-up group flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-300 hover:border-white/35 hover:-translate-y-1',
                       )}
                     >
                       {/* Thumbnail */}
@@ -335,7 +333,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           <OrderRewardDialog item={item} balance={balance} />
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
