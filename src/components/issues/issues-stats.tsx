@@ -1,13 +1,11 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { motion, useReducedMotion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { roleLabel } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 import type { IssueStats } from '@/lib/actions/issue-stats';
-import { AnimatedCounter } from '@/components/ui/animated-counter';
-import { durations, springs, easings } from '@/lib/motion';
 
 /**
  * Pure renderer for the Issues statistics panel — the page fetches the
@@ -18,7 +16,6 @@ import { durations, springs, easings } from '@/lib/motion';
 export function IssuesStats({ stats }: { stats: IssueStats | null }) {
   const t = useTranslations('issues.stats');
   const tStaff = useTranslations('staff');
-  const shouldReduce = useReducedMotion();
 
   if (!stats) {
     return (
@@ -29,13 +26,12 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
   const { overall, byMonth, byReporterRole } = stats;
 
   const tiles = [
-    { key: 'total', value: overall.total, isNumeric: true },
-    { key: 'resolved', value: overall.resolved, isNumeric: true },
-    { key: 'resolutionRate', value: `${overall.resolutionRate}%`, isNumeric: true },
+    { key: 'total', value: String(overall.total) },
+    { key: 'resolved', value: String(overall.resolved) },
+    { key: 'resolutionRate', value: `${overall.resolutionRate}%` },
     {
       key: 'avgResolution',
       value: overall.avgResolutionDays == null ? '—' : t('days', { count: overall.avgResolutionDays }),
-      isNumeric: false,
     },
   ];
 
@@ -50,27 +46,14 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
 
       {/* Top strip: stat tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {tiles.map((tile, i) => (
-          <motion.div
+        {tiles.map((tile) => (
+          <div
             key={tile.key}
-            initial={shouldReduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: durations.base,
-              delay: shouldReduce ? 0 : i * 0.04,
-              ease: easings.standard,
-            }}
             className="flex flex-col gap-1 rounded-xl bg-white/5 px-3 py-3"
           >
-            <span className="text-2xl font-bold tracking-tight text-white">
-              {tile.isNumeric ? (
-                <AnimatedCounter value={tile.value} duration={durations.slow} />
-              ) : (
-                tile.value
-              )}
-            </span>
+            <span className="text-2xl font-bold tracking-tight text-white">{tile.value}</span>
             <span className="text-xs text-white/60">{t(`tiles.${tile.key}`)}</span>
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -81,28 +64,20 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
           <p className="text-sm text-white/60">{t('noData')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {byMonth.map((month, idx) => (
+            {byMonth.map((month) => (
               <li key={month.monthKey} className="flex items-center gap-3 text-xs">
                 <span className="w-20 shrink-0 capitalize text-white/80">{month.label}</span>
                 <span className="w-28 shrink-0 text-white/60">
                   {t('monthCounts', { created: month.created, resolved: month.resolved })}
                 </span>
                 <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                  <motion.div
-                    initial={shouldReduce ? false : { scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{
-                      delay: shouldReduce ? 0 : 0.15 + idx * 0.05,
-                      type: 'spring',
-                      stiffness: springs.snappy.stiffness,
-                      damping: springs.snappy.damping,
-                    }}
-                    style={{ originX: 0, width: `${month.resolutionRate}%` }}
+                  <div
                     className="absolute inset-y-0 left-0 rounded-full bg-emerald-400/80"
+                    style={{ width: `${month.resolutionRate}%` }}
                   />
                 </div>
                 <span className="w-10 shrink-0 text-right tabular-nums text-white/70">
-                  <AnimatedCounter value={`${month.resolutionRate}%`} duration={durations.slow} />
+                  {month.resolutionRate}%
                 </span>
               </li>
             ))}
@@ -125,9 +100,15 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
                 <span className="font-medium text-white/90">{roleLabel(tStaff, row.role)}</span>
                 <span className="flex items-center gap-2 text-white/60">
                   <span>{t('roleCounts', { raised: row.raised, resolved: row.resolved })}</span>
-                  <span className="shrink-0 tabular-nums font-semibold text-white/90">
-                    <AnimatedCounter value={`${row.resolutionRate}%`} duration={durations.slow} />
-                  </span>
+                  <Badge
+                    variant="tint"
+                    tint={
+                      row.resolutionRate >= 67 ? 'green' : row.resolutionRate >= 34 ? 'amber' : 'blue'
+                    }
+                    className="shrink-0 tabular-nums"
+                  >
+                    {row.resolutionRate}%
+                  </Badge>
                 </span>
               </li>
             ))}

@@ -280,7 +280,7 @@ export function NotificationBell({
         {totalCount > 0 && (
           <span
             key={totalCount}
-            className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.15rem] items-center justify-center rounded-full bg-red-500 px-1 py-0.5 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(239,68,68,0.9)] ring-2 ring-slate-900/60"
+            className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]"
           >
             {totalCount > 9 ? '9+' : totalCount}
           </span>

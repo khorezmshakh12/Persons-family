@@ -22,13 +22,5 @@ export function TashkentClock() {
     return () => clearInterval(id);
   }, []);
 
-  if (!now) return null;
-
-  return (
-    <span suppressHydrationWarning className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider text-white/80">
-      <span className="size-1.5 rounded-full bg-teal-400 animate-pulse shadow-[0_0_6px_#2dd4bf]" />
-      <span className="text-white/60 font-sans text-[11px]">Toshkent:</span>
-      <span className="font-semibold text-white/90 tabular-nums">{formatter.format(now)}</span>
-    </span>
-  );
+  return <span suppressHydrationWarning>{now ? `Tashkent vaqti: ${formatter.format(now)}` : null}</span>;
 }

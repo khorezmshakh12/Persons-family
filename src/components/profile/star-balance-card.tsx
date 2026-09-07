@@ -2,7 +2,6 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { getStarLedgerAction } from '@/lib/actions/stars';
 import { getStarBalance } from '@/lib/stars';
 import { GLASS_CARD } from '@/lib/glass';
-import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { cn } from '@/lib/utils';
 
 import { AwardStarsDialog } from './award-stars-dialog';
@@ -38,12 +37,7 @@ export async function StarBalanceCard({
           </h2>
           {canManage && <AwardStarsDialog userId={staffId} />}
         </div>
-        <div className="font-heading flex items-center gap-1.5 text-2xl font-bold text-white">
-          <AnimatedCounter value={balance} />
-          <span className="text-sm font-normal text-white/70">
-            {t('starCount', { count: balance }).replace(/^[0-9\s]+/, '')}
-          </span>
-        </div>
+        <span className="font-heading text-2xl font-bold text-white">{t('starCount', { count: balance })}</span>
       </div>
 
       {ledger.length === 0 ? (

@@ -96,7 +96,7 @@ export function SidebarNav({
             {active && (
               <motion.span
                 layoutId={pillId}
-                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                 className={cn(
                   'absolute inset-0 rounded-xl',
                   glass
@@ -109,7 +109,7 @@ export function SidebarNav({
             <span className="relative z-10">{t(item.key)}</span>
             {newKeys.includes(item.key) && (
               <span
-                className="animate-pop-in relative z-10 ml-auto size-2 shrink-0 rounded-full bg-teal-400 shadow-[0_0_8px_#2dd4bf]"
+                className="relative z-10 ml-auto size-2 shrink-0 animate-pulse rounded-full bg-teal-400 shadow-[0_0_8px_#2dd4bf]"
                 aria-hidden
               />
             )}

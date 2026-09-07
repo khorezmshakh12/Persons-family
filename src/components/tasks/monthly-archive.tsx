@@ -3,12 +3,10 @@
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import type { ArchivedTaskRow, MonthlyTaskArchiveEntry } from '@/lib/actions/tasks';
-import { springs, accordion, fadeInUp, staggerContainer } from '@/lib/motion';
 
 /**
  * Past months' completed tasks, stacked under the board (spec #5). The board
@@ -25,10 +23,9 @@ export function MonthlyArchive({
 }: {
   months: MonthlyTaskArchiveEntry[];
   isAdmin: boolean;
-  }) {
+}) {
   const t = useTranslations('tasks.archive');
   const format = useFormatter();
-  const shouldReduce = useReducedMotion();
   const [openMonth, setOpenMonth] = useState<string | null>(null);
 
   if (months.length === 0) return null;
@@ -47,67 +44,44 @@ export function MonthlyArchive({
                 type="button"
                 onClick={() => setOpenMonth(isOpen ? null : month.monthKey)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 tap-scale"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5"
               >
                 <span className="font-medium capitalize">{month.label}</span>
                 <span className="flex shrink-0 items-center gap-2 text-sm text-white/70">
                   <span>{t('efficiency', { pct: month.stats.efficiencyPct })}</span>
-                  <motion.div
-                    animate={{ rotate: isOpen ? 180 : 0 }}
-                    transition={shouldReduce ? { duration: 0 } : springs.gentle}
-                    className="shrink-0"
-                  >
-                    <ChevronDown className="size-4" />
-                  </motion.div>
+                  <ChevronDown className={cn('size-4 transition-transform', isOpen && 'rotate-180')} />
                 </span>
               </button>
 
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    key="content"
-                    variants={shouldReduce ? undefined : accordion}
-                    initial={shouldReduce ? false : "initial"}
-                    animate="animate"
-                    exit="exit"
-                    className="overflow-hidden"
-                  >
-                    <div className="flex flex-col gap-3 border-t border-white/15 px-4 py-3">
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/70">
-                        <span>{t('totalDue', { count: month.stats.totalDue })}</span>
-                        <span>{t('onTime', { count: month.stats.doneOnTime })}</span>
-                        <span>{t('late', { count: month.stats.doneLate })}</span>
-                        <span>{t('notDone', { count: month.stats.notDone })}</span>
-                      </div>
+              {isOpen && (
+                <div className="flex flex-col gap-3 border-t border-white/15 px-4 py-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/70">
+                    <span>{t('totalDue', { count: month.stats.totalDue })}</span>
+                    <span>{t('onTime', { count: month.stats.doneOnTime })}</span>
+                    <span>{t('late', { count: month.stats.doneLate })}</span>
+                    <span>{t('notDone', { count: month.stats.notDone })}</span>
+                  </div>
 
-                      {month.tasks.length === 0 ? (
-                        <p className="text-sm text-white/60">{t('noTasks')}</p>
-                      ) : (
-                        <motion.ul
-                          variants={shouldReduce ? undefined : staggerContainer}
-                          initial={shouldReduce ? false : "initial"}
-                          animate="animate"
-                          className="flex flex-col gap-2"
-                        >
-                          {month.tasks.map((task) => (
-                            <motion.div key={task.id} variants={shouldReduce ? undefined : fadeInUp}>
-                              <ArchivedTask
-                                task={task}
-                                isAdmin={isAdmin}
-                                completedLabel={
-                                  task.completed_at
-                                    ? format.dateTime(new Date(task.completed_at), { dateStyle: 'medium' })
-                                    : null
-                                }
-                              />
-                            </motion.div>
-                          ))}
-                        </motion.ul>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  {month.tasks.length === 0 ? (
+                    <p className="text-sm text-white/60">{t('noTasks')}</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {month.tasks.map((task) => (
+                        <ArchivedTask
+                          key={task.id}
+                          task={task}
+                          isAdmin={isAdmin}
+                          completedLabel={
+                            task.completed_at
+                              ? format.dateTime(new Date(task.completed_at), { dateStyle: 'medium' })
+                              : null
+                          }
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -126,6 +100,8 @@ function ArchivedTask({
   completedLabel: string | null;
 }) {
   const t = useTranslations('tasks.archive');
+  // Same rule the weekly bot scores on: on time = finished at or before the
+  // deadline instant, not merely on the deadline's calendar day.
   const isLate = task.completed_at
     ? new Date(task.completed_at).getTime() > new Date(task.deadline).getTime()
     : false;
