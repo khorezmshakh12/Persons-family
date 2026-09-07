@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  MeasuringStrategy,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
   updateTaskStatusAction,
@@ -22,7 +32,7 @@ import {
   type TaskFilters,
 } from './task-filter-bar';
 import { MonthlyArchive } from './monthly-archive';
-import type { Task } from './task-card';
+import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
 
@@ -50,9 +60,41 @@ export function TaskBoard({
   // Pure view state: narrowing what's already loaded, never a re-fetch — so
   // it survives (and re-applies to) every realtime refresh below untouched.
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
+  // Live-drag state. Neither of these touches `tasks` — the real move still
+  // only happens in handleDragEnd — they just drive where the card is
+  // *rendered* while the pointer is still down.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const visibleTasks = useMemo(() => applyTaskFilters(tasks, filters), [tasks, filters]);
+
+  const activeTask = activeId ? (visibleTasks.find((task) => task.id === activeId) ?? null) : null;
+
+  // Split once per visible-list change so a drag-over below only has to
+  // rebuild the two columns it actually affects — the other column keeps its
+  // array identity and stays skipped by TaskKanbanColumn's memo.
+  const baseColumns = useMemo(() => {
+    const map = new Map<TaskStatus, Task[]>();
+    for (const status of COLUMNS) map.set(status, []);
+    for (const task of visibleTasks) map.get(task.status)?.push(task);
+    return map;
+  }, [visibleTasks]);
+
+  // Provisional placement: while the pointer is over a column the card
+  // doesn't belong to yet, render it there (and out of its home column).
+  const { columns, previewStatus } = useMemo(() => {
+    if (!activeTask || !overStatus || activeTask.status === overStatus) {
+      return { columns: baseColumns, previewStatus: null };
+    }
+    const next = new Map(baseColumns);
+    next.set(
+      activeTask.status,
+      (baseColumns.get(activeTask.status) ?? []).filter((task) => task.id !== activeTask.id),
+    );
+    next.set(overStatus, [...(baseColumns.get(overStatus) ?? []), activeTask]);
+    return { columns: next, previewStatus: overStatus };
+  }, [baseColumns, activeTask, overStatus]);
 
   // Board used to only reflect the viewer's own drag/delete actions — a task
   // someone else assigned (or reassigned/updated) while this page was open
@@ -109,14 +151,42 @@ export function TaskBoard({
     };
   }, [currentUserId, assignees]);
 
+  // `over.id` is a column droppable id, but resolve through the cards too so
+  // a stray id can never be written to the database as a status.
+  function resolveStatus(overId: string | number | undefined | null): TaskStatus | null {
+    if (overId == null) return null;
+    const id = String(overId);
+    if ((COLUMNS as string[]).includes(id)) return id as TaskStatus;
+    return tasks.find((task) => task.id === id)?.status ?? null;
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+    setOverStatus(null);
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    setOverStatus(resolveStatus(event.over?.id));
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+    setOverStatus(null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    // Drop the provisional placement first: from here on the card's position
+    // comes from `tasks` itself (optimistically below), so the two never both
+    // claim the move.
+    setActiveId(null);
+    setOverStatus(null);
     if (!over) return;
 
     const taskId = String(active.id);
-    const nextStatus = over.id as TaskStatus;
+    const nextStatus = resolveStatus(over.id);
     const current = tasks.find((task) => task.id === taskId);
-    if (!current || current.status === nextStatus) return;
+    if (!nextStatus || !current || current.status === nextStatus) return;
 
     const previousTasks = tasks;
     setTasks((prev) =>
@@ -200,25 +270,48 @@ export function TaskBoard({
         isAdmin={isAdmin}
         assignees={assignees}
       />
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        // The provisional placement reflows both columns mid-drag, so the
+        // droppable rects captured at drag start go stale immediately.
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
           {COLUMNS.map((status) => (
             <TaskKanbanColumn
               key={status}
               status={status}
               label={t(`columns.${status}`)}
-              tasks={visibleTasks.filter((task) => task.status === status)}
+              tasks={columns.get(status) ?? []}
               isAdmin={isAdmin}
               assignees={assignees}
               currentUserId={currentUserId}
               emptyLabel={t('noTasks')}
               onRequestDelete={handleRequestDelete}
               onMove={handleMove}
+              previewTaskId={previewStatus === status ? activeId : null}
               collapsible={true}
               defaultExpanded={status !== 'done'}
             />
           ))}
         </div>
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? (
+            <TaskCard
+              task={activeTask}
+              isAdmin={isAdmin}
+              assignees={assignees}
+              currentUserId={currentUserId}
+              onRequestDelete={handleRequestDelete}
+              onMove={handleMove}
+              variant="overlay"
+            />
+          ) : null}
+        </DragOverlay>
       </DndContext>
       <MonthlyArchive months={archive} isAdmin={isAdmin} />
     </div>

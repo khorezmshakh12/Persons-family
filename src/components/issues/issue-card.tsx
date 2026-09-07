@@ -3,7 +3,6 @@
 import { memo } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
 import { Mic, GripVertical } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
@@ -24,10 +23,21 @@ export type Issue = {
   assignee: { first_name: string; last_name: string } | null;
 };
 
+/**
+ * - `default` — the card sitting in its own status column.
+ * - `preview` — the *provisional* placement rendered inside the column the
+ *   pointer is currently over, before the drop actually happens. Still the
+ *   real draggable (same id, so dnd-kit keeps a mounted active node the whole
+ *   drag), just drawn as a dashed placeholder.
+ * - `overlay` — the copy inside `<DragOverlay>` that follows the cursor.
+ */
+export type IssueCardVariant = 'default' | 'preview' | 'overlay';
+
 function IssueCardImpl({
   issue,
   onRequestDelete,
   readOnly = false,
+  variant = 'default',
 }: {
   issue: Issue;
   /** The board owns the mutation + optimistic remove/restore, the same way
@@ -36,24 +46,38 @@ function IssueCardImpl({
   /** A non-CEO viewer sees their own reported issues but can't act on them —
    * no drag handle, no edit/delete, no status control. */
   readOnly?: boolean;
+  variant?: IssueCardVariant;
 }) {
   const t = useTranslations('issues');
   const format = useFormatter();
+  const isOverlay = variant === 'overlay';
+  const isPreview = variant === 'preview';
   // Only the CEO manages the board; a non-CEO viewer gets a read-only card.
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: issue.id,
-    disabled: readOnly,
+  // The overlay copy must never register under the real card's id — that
+  // would be a second draggable for the same issue — so it takes a suffixed,
+  // permanently disabled registration instead.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: isOverlay ? `${issue.id}__overlay` : issue.id,
+    disabled: readOnly || isOverlay,
   });
 
   return (
-    <div ref={setNodeRef} style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}>
+    // No transform here on purpose: the <DragOverlay> copy is what follows the
+    // cursor, so translating this node too would show the card twice.
+    <div ref={setNodeRef}>
       <motion.div
-        layout={!isDragging}
-        initial={{ opacity: 0, y: 14, scale: 0.94 }}
+        layout={!isDragging && !isOverlay}
+        initial={isOverlay ? false : { opacity: 0, y: 14, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging ? undefined : { scale: 1.015 }}
+        whileHover={isDragging || isOverlay ? undefined : { scale: 1.015 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
+        className={cn(
+          GLASS_CARD,
+          'flex flex-col gap-3 p-6',
+          isDragging && !isPreview && 'opacity-40',
+          isPreview && 'opacity-60 border-2 border-dashed border-white/70',
+          isOverlay && 'cursor-grabbing shadow-2xl ring-2 ring-white/40',
+        )}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
           <span className="min-w-0 flex-1 font-medium break-words [overflow-wrap:anywhere]">{issue.title}</span>

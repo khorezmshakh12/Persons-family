@@ -3,7 +3,6 @@
 import { memo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp, GripVertical, Minus, Star, ExternalLink } from 'lucide-react';
 import { TaskStatusControl, type TaskStatus } from './task-status-control';
@@ -71,6 +70,16 @@ function FormattedDescription({ text }: { text: string }) {
   );
 }
 
+/**
+ * - `default` — the card sitting in its own status column.
+ * - `preview` — the *provisional* placement rendered inside the column the
+ *   pointer is currently over, before the drop actually happens. Still the
+ *   real draggable (same id, so dnd-kit keeps a mounted active node the whole
+ *   drag), just drawn as a dashed placeholder.
+ * - `overlay` — the copy inside `<DragOverlay>` that follows the cursor.
+ */
+export type TaskCardVariant = 'default' | 'preview' | 'overlay';
+
 function TaskCardImpl({
   task,
   isAdmin,
@@ -78,6 +87,7 @@ function TaskCardImpl({
   currentUserId,
   onRequestDelete,
   onMove,
+  variant = 'default',
 }: {
   task: Task;
   isAdmin: boolean;
@@ -86,10 +96,13 @@ function TaskCardImpl({
   onRequestDelete: (task: Task) => void;
   /** Move this card one place up/down inside its own status column. */
   onMove: (task: Task, direction: 'up' | 'down') => void;
+  variant?: TaskCardVariant;
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
   const [isExpanded, setIsExpanded] = useState(false);
+  const isOverlay = variant === 'overlay';
+  const isPreview = variant === 'preview';
 
   // Status is the assignee's own progress report — not even the admin who
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
@@ -106,30 +119,33 @@ function TaskCardImpl({
   // `assigned_by === user.id || assigned_to === user.id` check exactly (a
   // CEO who didn't assign the task can't see it on this board at all).
   const canReorder = task.assigned_to === currentUserId || task.assigned_by === currentUserId;
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
-    disabled: !canDrag,
+  // The overlay copy must never register under the real card's id — that
+  // would be a second draggable for the same task — so it takes a suffixed,
+  // permanently disabled registration instead.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: isOverlay ? `${task.id}__overlay` : task.id,
+    disabled: !canDrag || isOverlay,
   });
 
   const isLongDescription =
     !!task.description && (task.description.length > 90 || task.description.includes('\n'));
 
   return (
-    <div
-      ref={setNodeRef}
-      style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}
-      className="w-full min-w-0 max-w-full"
-    >
+    // No transform here on purpose: the <DragOverlay> copy is what follows the
+    // cursor, so translating this node too would show the card twice.
+    <div ref={setNodeRef} className="w-full min-w-0 max-w-full">
       <motion.div
-        layout={!isDragging}
-        initial={{ opacity: 0, y: 14, scale: 0.94 }}
+        layout={!isDragging && !isOverlay}
+        initial={isOverlay ? false : { opacity: 0, y: 14, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging ? undefined : { scale: 1.01 }}
+        whileHover={isDragging || isOverlay ? undefined : { scale: 1.01 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(
           GLASS_CARD,
           'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-white/15',
-          isDragging && 'opacity-40',
+          isDragging && !isPreview && 'opacity-40',
+          isPreview && 'opacity-60 border-2 border-dashed border-white/70',
+          isOverlay && 'cursor-grabbing shadow-2xl ring-2 ring-white/40',
         )}
       >
         {/* Card Header: Title + Action Buttons */}
