@@ -2,9 +2,11 @@
 
 import Image from 'next/image';
 import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
-import { durations, easings } from '@/lib/motion';
 
+// No entrance animation here: the login card is the gate to the whole app,
+// so it must never depend on framer-motion hydrating. A stuck `initial`
+// state (opacity 0) hid the whole form in production — hotfix reverts this
+// surface to a plain, always-visible card.
 export function AuthCard({
   title,
   subtitle,
@@ -17,10 +19,7 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: durations.slow, ease: easings.emphasized }}
+    <div
       className="relative z-10 w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-10 text-white shadow-2xl backdrop-blur-md"
     >
       <div className="flex flex-col items-center gap-1 text-center">
@@ -53,6 +52,6 @@ export function AuthCard({
       </div>
 
       <div className="mt-8">{children}</div>
-    </motion.div>
+    </div>
   );
 }
