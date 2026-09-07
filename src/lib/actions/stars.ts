@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
+import { getFormatter } from 'next-intl/server';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
@@ -154,4 +155,103 @@ export async function getStarLedgerAction(userId?: string): Promise<StarLedgerEn
     order by t.created_at desc
     limit 50
   `;
+}
+
+export type ArchivedStarRow = {
+  id: string;
+  /** Signed: > 0 earned, < 0 spent/deducted. */
+  delta: number;
+  reason: string | null;
+  source_type: StarSourceType;
+  created_at: string;
+};
+
+export type MonthlyStarsArchiveEntry = {
+  /** 'YYYY-MM', Asia/Tashkent. */
+  monthKey: string;
+  /** Month name localized to the caller's locale, e.g. "August 2026". */
+  label: string;
+  /** sum(delta) — may be negative. Always `earned - spent`. */
+  net: number;
+  /** Total of the positive deltas. */
+  earned: number;
+  /** Total of the negative deltas, as a positive magnitude. */
+  spent: number;
+  /** Newest first. */
+  transactions: ArchivedStarRow[];
+};
+
+/**
+ * Past months' star ledger for one user, one entry per Tashkent month that
+ * has at least one transaction, newest first — the collapsed-archive shape
+ * getMonthlyTaskArchiveAction returns for the task board, applied to the
+ * ledger StarBalanceCard renders live.
+ *
+ * Same visibility rule as getStarLedgerAction above (own ledger, or the CEO
+ * reading anyone's) — that is the only gate, the table has no RLS. Unlike
+ * that one this never throws: an unauthorized caller and a broken query both
+ * come back as [], so a failure degrades this section rather than the page.
+ *
+ * Deliberately unbounded where getStarLedgerAction stops at 50 rows: this IS
+ * the full history, and its per-month totals have to add up to the balance,
+ * which a truncated list could not do.
+ */
+export async function getMonthlyStarsArchiveAction(
+  userId?: string,
+): Promise<MonthlyStarsArchiveEntry[]> {
+  try {
+    const { user, profile } = await getAuthState();
+    if (!user) return [];
+
+    const targetId = userId ?? user.id;
+    if (targetId !== user.id && profile?.role !== 'ceo') return [];
+    if (!z.string().uuid().safeParse(targetId).success) return [];
+
+    const rows = await sql<(ArchivedStarRow & { month_key: string })[]>`
+      select t.id, t.delta, t.reason, t.source_type, t.created_at,
+             to_char(t.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month_key
+      from star_transactions t
+      where t.user_id = ${targetId}
+        -- Strictly before the current Tashkent month; the boundary must be
+        -- computed in that zone (see actions/tasks.ts), not in the server's UTC.
+        and t.created_at < date_trunc('month', now() at time zone 'Asia/Tashkent') at time zone 'Asia/Tashkent'
+      order by t.created_at desc
+    `;
+    if (rows.length === 0) return [];
+
+    const format = await getFormatter();
+    const byMonth = new Map<string, ArchivedStarRow[]>();
+    for (const { month_key: monthKey, ...tx } of rows) {
+      const bucket = byMonth.get(monthKey);
+      if (bucket) bucket.push(tx);
+      else byMonth.set(monthKey, [tx]);
+    }
+
+    return [...byMonth.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([monthKey, transactions]) => {
+        const earned = transactions.reduce((sum, tx) => (tx.delta > 0 ? sum + tx.delta : sum), 0);
+        const spent = transactions.reduce((sum, tx) => (tx.delta < 0 ? sum - tx.delta : sum), 0);
+        return {
+          monthKey,
+          // Parsed and formatted as UTC on purpose: the key is already a
+          // Tashkent month, so re-applying a zone could name its neighbour.
+          label: format.dateTime(new Date(`${monthKey}-01T00:00:00Z`), {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          }),
+          net: earned - spent,
+          earned,
+          spent,
+          transactions,
+        };
+      });
+  } catch (error) {
+    console.error(
+      'getMonthlyStarsArchiveAction failed',
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
 }
