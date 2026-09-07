@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Palette, LayoutGrid, Crown, Compass, Trees, Mountain, Orbit } from 'lucide-react';
+import { Sparkles, Check, Palette, LayoutGrid, Crown, Compass, Trees, Mountain, Orbit } from 'lucide-react';
 import { useBackground } from '@/components/theme/background-context';
 import { DESIGN_VARIANTS, type DesignTheme } from '@/lib/background-themes';
 import { GLASS_CARD } from '@/lib/glass';
