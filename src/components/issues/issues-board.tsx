@@ -12,10 +12,16 @@ import type { Issue } from './issue-card';
 
 const COLUMNS: Issue['status'][] = ['open', 'in_progress', 'done'];
 
-// Issues is CEO-exclusive (the page 404s for everyone else), so there is no
-// per-viewer capability left to thread through the board: the viewer can
-// always drag, edit and delete every card.
-export function IssuesBoard({ issues: initialIssues }: { issues: Issue[] }) {
+// The board is CEO-managed: only the CEO can drag, edit or delete a card.
+// A non-CEO viewer gets the same three columns but read-only — no drag
+// handles, no edit/delete buttons, no status control — via `readOnly`.
+export function IssuesBoard({
+  issues: initialIssues,
+  readOnly = false,
+}: {
+  issues: Issue[];
+  readOnly?: boolean;
+}) {
   const t = useTranslations('issues');
   const [issues, setIssues] = useState(initialIssues);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -102,7 +108,7 @@ export function IssuesBoard({ issues: initialIssues }: { issues: Issue[] }) {
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
         {COLUMNS.map((status) => (
           <KanbanColumn
             key={status}
@@ -110,7 +116,10 @@ export function IssuesBoard({ issues: initialIssues }: { issues: Issue[] }) {
             label={t(`columns.${status}`)}
             issues={issues.filter((issue) => issue.status === status)}
             emptyLabel={t('noIssuesInColumn')}
+            readOnly={readOnly}
             onRequestDelete={handleRequestDelete}
+            collapsible={true}
+            defaultExpanded={status !== 'done'}
           />
         ))}
       </div>

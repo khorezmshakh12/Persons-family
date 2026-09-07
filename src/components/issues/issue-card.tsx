@@ -27,17 +27,23 @@ export type Issue = {
 function IssueCardImpl({
   issue,
   onRequestDelete,
+  readOnly = false,
 }: {
   issue: Issue;
   /** The board owns the mutation + optimistic remove/restore, the same way
    * it already does for drag-and-drop status changes. */
   onRequestDelete: (issue: Issue) => void;
+  /** A non-CEO viewer sees their own reported issues but can't act on them —
+   * no drag handle, no edit/delete, no status control. */
+  readOnly?: boolean;
 }) {
   const t = useTranslations('issues');
   const format = useFormatter();
-  // The only viewer of this board is the CEO (IssuesPage 404s everyone
-  // else), so every card is always draggable, editable and deletable.
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: issue.id });
+  // Only the CEO manages the board; a non-CEO viewer gets a read-only card.
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: issue.id,
+    disabled: readOnly,
+  });
 
   return (
     <div ref={setNodeRef} style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}>
@@ -49,23 +55,25 @@ function IssueCardImpl({
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="font-medium">{issue.title}</span>
-          <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
-            <div className="flex gap-1">
-              <EditIssueDialog issue={{ id: issue.id, title: issue.title, description: issue.description }} />
-              <DeleteIssueButton onConfirm={() => onRequestDelete(issue)} />
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <span className="min-w-0 flex-1 font-medium break-words [overflow-wrap:anywhere]">{issue.title}</span>
+          {!readOnly && (
+            <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
+              <div className="flex gap-1">
+                <EditIssueDialog issue={{ id: issue.id, title: issue.title, description: issue.description }} />
+                <DeleteIssueButton onConfirm={() => onRequestDelete(issue)} />
+              </div>
+              <button
+                type="button"
+                {...listeners}
+                {...attributes}
+                aria-label={t('dragHandle')}
+                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+              >
+                <GripVertical className="size-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              {...listeners}
-              {...attributes}
-              aria-label={t('dragHandle')}
-              className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
-            >
-              <GripVertical className="size-4" />
-            </button>
-          </div>
+          )}
         </div>
         {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
         {issue.voiceSignedUrl && (
@@ -90,7 +98,7 @@ function IssueCardImpl({
           </span>
           <span>{format.dateTime(new Date(issue.created_at), { dateStyle: 'medium' })}</span>
         </div>
-        <IssueStatusControl status={issue.status} />
+        {!readOnly && <IssueStatusControl status={issue.status} />}
       </motion.div>
     </div>
   );

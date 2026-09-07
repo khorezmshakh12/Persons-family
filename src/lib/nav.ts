@@ -61,11 +61,12 @@ export const NAV_ITEMS: NavItem[] = [
   // CEO-only areas (roadmap, telegram setup, deleting a staff account).
   { key: 'staff', href: '/staff', roles: ['ceo', 'it_developer'] },
   { key: 'chat', href: '/chat' },
-  // Issues is CEO-exclusive — the Administrative Manager (and every other
-  // role) lost all access to reporting, viewing, and managing issues. The
-  // page itself re-checks with `notFound()` and every issues.ts Server
-  // Action re-checks CEO, independent of this nav gate.
-  { key: 'issues', href: '/issues', roles: ['ceo'] },
+  // Any staff member can report an issue and see the ones they raised.
+  // Managing the board — status changes, reassignment, deletion, the
+  // resolution-stats panel — stays CEO-only; the /issues page and every
+  // issues.ts Server Action enforce that themselves, independent of this
+  // nav entry being ungated.
+  { key: 'issues', href: '/issues' },
   {
     key: 'lessonPlans',
     href: '/lesson-plans',
