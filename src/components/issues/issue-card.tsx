@@ -99,7 +99,9 @@ function IssueCardImpl({
             </div>
           )}
         </div>
-        {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
+        {issue.description && (
+          <p className="text-sm text-white/70 break-words [overflow-wrap:anywhere]">{issue.description}</p>
+        )}
         {issue.voiceSignedUrl && (
           <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
             <Mic className="size-4 shrink-0 text-white/70" />
