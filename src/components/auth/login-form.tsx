@@ -8,7 +8,7 @@ import { loginAction, type AuthActionState } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { fadeInUp, staggerContainer, springs } from '@/lib/motion';
+import { fadeInUp, staggerContainer } from '@/lib/motion';
 
 const FIELD_WRAPPER =
   'flex items-center overflow-hidden rounded-xl border border-white/20 bg-white/10 shadow-sm backdrop-blur-sm transition-all duration-200 focus-within:border-teal-400/60 focus-within:ring-2 focus-within:ring-teal-400/30 focus-within:shadow-[0_0_12px_rgba(45,212,191,0.2)]';
