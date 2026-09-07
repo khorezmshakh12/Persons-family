@@ -2,7 +2,6 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { getFormatter } from 'next-intl/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
@@ -33,9 +32,26 @@ const TASK_STATUS_LABELS: Record<string, string> = {
   done: 'Bajarildi',
 };
 
-/** Fire-and-forget notification to the assignee — never let a Telegram
- * hiccup affect the response to the admin who just assigned/edited the
- * task (mirrors notifyIssueCreated in actions/issues.ts). */
+/** Notification to the assignee. Swallows its own errors, so a Telegram
+ * hiccup can never affect the response to the admin who just assigned or
+ * edited the task (mirrors notifyIssueAssigned in actions/issues.ts).
+ *
+ * Awaited inline by its callers, deliberately NOT dispatched through
+ * `after()`. `after()` was the correct fix on Vercel, where it maps to the
+ * platform's `waitUntil` and extends the invocation until the send settles
+ * (see 3a0960d) — but production moved to Cloud Run in 4fa7c88. Next's own
+ * docs (node_modules/next/dist/docs, guides/self-hosting#after) list
+ * `after` as supported on a Node/Docker server, with the caveat that the
+ * platform must "allow a configurable drain period (10-30 seconds is
+ * recommended) to ensure all background work completes". Cloud Run does
+ * the opposite by default: it throttles a container's CPU to ~0 the
+ * instant a request finishes (the deploy in cloudbuild.yaml passes no
+ * --no-cpu-throttling), so the callback gets essentially no CPU and the
+ * in-flight fetch to api.telegram.org stalls until the instance is reaped.
+ * That is why the deadline-reminder cron kept delivering while this never
+ * did: the cron awaits its sends mid-request. Awaiting costs one round
+ * trip and is the only thing that makes delivery reliable here without an
+ * infrastructure change. */
 async function notifyTaskAssigned({
   title,
   status,
@@ -117,16 +133,13 @@ export async function assignTaskAction(
   await bumpBoardSignal('tasks');
   await bumpNavBadgeSignal(parsed.data.assignedTo);
 
-  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
-  // un-awaited fire-and-forget call before its Telegram send finishes.
-  after(() =>
-    notifyTaskAssigned({
-      title: parsed.data.title,
-      status: 'pending',
-      deadline: parsed.data.deadline,
-      assigneeTelegramId: target.telegram_id,
-    }),
-  );
+  // Awaited, not `after()`ed — see notifyTaskAssigned's comment.
+  await notifyTaskAssigned({
+    title: parsed.data.title,
+    status: 'pending',
+    deadline: parsed.data.deadline,
+    assigneeTelegramId: target.telegram_id,
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -198,14 +211,13 @@ export async function updateTaskAction(
   await bumpNavBadgeSignal(parsed.data.assignedTo);
   if (reassigned) await bumpNavBadgeSignal(existing.assigned_to);
 
-  after(() =>
-    notifyTaskAssigned({
-      title: parsed.data.title,
-      status: existing.status,
-      deadline: parsed.data.deadline,
-      assigneeTelegramId: target.telegram_id,
-    }),
-  );
+  // Awaited, not `after()`ed — see notifyTaskAssigned's comment.
+  await notifyTaskAssigned({
+    title: parsed.data.title,
+    status: existing.status,
+    deadline: parsed.data.deadline,
+    assigneeTelegramId: target.telegram_id,
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};

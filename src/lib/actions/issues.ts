@@ -9,6 +9,7 @@ import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 // Issues is a CEO-managed board, but reporting is open to everyone: any
 // signed-in staff member may create an issue (it's auto-assigned to the
@@ -27,6 +28,29 @@ async function ceoUserId(): Promise<string | null> {
     select id from profiles where role = 'ceo' and is_active = true order by created_at asc limit 1
   `;
   return row?.id ?? null;
+}
+
+/** Notification to whoever the new issue lands on — the CEO for a staff
+ * report, or the person the CEO delegated it to. Swallows its own errors,
+ * so a Telegram hiccup can never affect the response to the person who
+ * just submitted the issue (mirrors notifyTaskAssigned in actions/tasks.ts,
+ * including why it is awaited inline instead of dispatched via `after()`). */
+async function notifyIssueAssigned({
+  title,
+  reporterName,
+  assigneeTelegramId,
+}: {
+  title: string;
+  reporterName: string;
+  assigneeTelegramId: number | null;
+}) {
+  if (!assigneeTelegramId) return;
+  try {
+    const text = `Sizga yangi murojaat biriktirildi: <b>${escapeTelegramText(title)}</b>\nKimdan: ${escapeTelegramText(reporterName)}`;
+    await sendTelegramMessage(assigneeTelegramId, text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
 }
 
 const createIssueSchema = z.object({
@@ -88,6 +112,21 @@ export async function createIssueAction(
 
   await bumpBoardSignal('issues');
   if (assignedTo) await bumpNavBadgeSignal(assignedTo);
+
+  // The assignee's own Telegram id isn't on either branch above (the CEO
+  // path selects only `id`, and ceoUserId() likewise), so look it up once
+  // here. Skipped when the reporter assigned the issue to themselves —
+  // nobody needs a Telegram ping about their own submission.
+  if (assignedTo && assignedTo !== userId) {
+    const [assignee] = await sql<{ telegram_id: number | null }[]>`
+      select telegram_id from profiles where id = ${assignedTo}
+    `;
+    await notifyIssueAssigned({
+      title: parsed.data.title,
+      reporterName: `${profile.first_name} ${profile.last_name}`,
+      assigneeTelegramId: assignee?.telegram_id ?? null,
+    });
+  }
 
   revalidatePath('/[locale]/issues', 'page');
 
