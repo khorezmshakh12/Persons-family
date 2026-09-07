@@ -1,14 +1,12 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-import { Sparkles, Check, Palette, Layers, Cpu, LayoutGrid, Crown, Waves, Compass, Trees, Mountain, Orbit } from 'lucide-react';
+import { Check, Palette, LayoutGrid, Crown, Compass, Trees, Mountain, Orbit } from 'lucide-react';
 import { useBackground } from '@/components/theme/background-context';
 import { DESIGN_VARIANTS, type DesignTheme } from '@/lib/background-themes';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
 export function ThemePreferenceCard() {
-  const t = useTranslations('settings');
   const { activeDesignId, setDesignVariant, setBackgroundUrl, setThemeMode } = useBackground();
 
   const ICONS: Record<string, typeof Sparkles> = {

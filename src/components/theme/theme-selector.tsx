@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { useBackground } from './background-context';
 import { PRESET_THEMES, VIDEO_THEMES } from '@/lib/background-themes';
@@ -41,9 +42,14 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="animate-pop-in absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-white text-black">
-                <Check className="size-3" />
-              </span>
+              <motion.span
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 20 }}
+                className="absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-white text-black shadow-md"
+              >
+                <Check className="size-3 stroke-[3]" />
+              </motion.span>
             )}
           </button>
         );
@@ -71,9 +77,14 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-white text-black">
-                <Check className="size-3" />
-              </span>
+              <motion.span
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 20 }}
+                className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-white text-black shadow-md"
+              >
+                <Check className="size-3 stroke-[3]" />
+              </motion.span>
             )}
           </button>
         );

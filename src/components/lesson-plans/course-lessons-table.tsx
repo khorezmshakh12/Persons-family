@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Lock } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { GLASS_CARD } from '@/lib/glass';
+import { accordion, springs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { LessonPlanRow } from './lesson-plan-row';
 import type { LessonAttachmentWithUrl } from './lesson-files-cell';
@@ -125,52 +127,61 @@ export function CourseLessonsTable({
           )}
         </button>
       )}
-      {expanded && (
-        <div className={cn('overflow-x-auto', collapsible && 'border-t border-white/10')}>
-          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-white/15">
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.lessonNumber')}
-                </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.date')}
-                </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.topic')}
-                </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.description')}
-                </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.gameLink')}
-                </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.files')}
-                </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
-                  {t('courseLessons.comments')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {lessons.map((lesson) => (
-                <LessonPlanRow
-                  key={lesson.id}
-                  groupId={groupId}
-                  lesson={lesson}
-                  locked={locked}
-                  canEditContent={rowCanEdit}
-                  canDeleteFiles={rowCanDelete}
-                  canComment={rowCanComment}
-                  currentUserId={currentUserId}
-                  viewerName={viewerName}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            variants={accordion}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className={cn('overflow-x-auto', collapsible && 'border-t border-white/10')}
+          >
+            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/15">
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.lessonNumber')}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.date')}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.topic')}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.description')}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.gameLink')}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.files')}
+                  </th>
+                  <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                    {t('courseLessons.comments')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {lessons.map((lesson) => (
+                  <LessonPlanRow
+                    key={lesson.id}
+                    groupId={groupId}
+                    lesson={lesson}
+                    locked={locked}
+                    canEditContent={rowCanEdit}
+                    canDeleteFiles={rowCanDelete}
+                    canComment={rowCanComment}
+                    currentUserId={currentUserId}
+                    viewerName={viewerName}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
