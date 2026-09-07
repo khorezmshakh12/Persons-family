@@ -27,6 +27,9 @@ const TINTS = {
   },
 } as const;
 
+/** Floor (in %) for the shortest sparkline bar, so it stays visible. */
+const MIN_BAR = 15;
+
 export function StatCard({
   label,
   value,
@@ -49,8 +52,19 @@ export function StatCard({
   maskable?: boolean;
 }) {
   const t = TINTS[tint];
-  const max = Math.max(...sparkline, 1);
   const isPositive = changePercent >= 0;
+
+  // Scale the bars across the series' own min..max rather than 0..max.
+  // These series are running totals (see stats-row), so on 0..max a run like
+  // 40,41,…,45 renders as six near-identical full bars that read as flat
+  // while the badge says "up" — and any negative point (a net balance can go
+  // below zero) collapsed onto the same MIN_BAR floor as a small positive
+  // one. Baselining on min makes the bars show the move the badge reports.
+  const max = Math.max(...sparkline);
+  const min = Math.min(...sparkline);
+  const range = max - min;
+  const barHeight = (v: number) =>
+    range === 0 ? (max > 0 ? 100 : MIN_BAR) : MIN_BAR + ((v - min) / range) * (100 - MIN_BAR);
 
   return (
     <Link
@@ -90,7 +104,7 @@ export function StatCard({
           <span
             key={i}
             className={cn('flex-1 rounded-t-sm transition-all duration-300', t.bar)}
-            style={{ height: `${Math.max((v / max) * 100, 15)}%` }}
+            style={{ height: `${barHeight(v)}%` }}
           />
         ))}
       </div>
