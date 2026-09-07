@@ -108,11 +108,8 @@ export function SidebarNav({
             <Icon className={cn('relative z-10 size-4 transition-colors', active && 'text-teal-300')} />
             <span className="relative z-10">{t(item.key)}</span>
             {newKeys.includes(item.key) && (
-              <motion.span
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 20 }}
-                className="relative z-10 ml-auto size-2 shrink-0 rounded-full bg-teal-400 shadow-[0_0_8px_#2dd4bf]"
+              <span
+                className="animate-pop-in relative z-10 ml-auto size-2 shrink-0 rounded-full bg-teal-400 shadow-[0_0_8px_#2dd4bf]"
                 aria-hidden
               />
             )}

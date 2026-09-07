@@ -40,7 +40,7 @@ export function SalaryNoteForm({
       {!editing ? (
         <motion.button
           key="view"
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={springs.snappy}

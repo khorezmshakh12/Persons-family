@@ -63,7 +63,7 @@ export function TelegramConnectSection({ isConnected }: { isConnected: boolean }
         {!deepLink ? (
           <motion.div
             key="connect-btn"
-            initial={{ opacity: 0 }}
+            initial={false}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={springs.snappy}

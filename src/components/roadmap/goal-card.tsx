@@ -129,7 +129,7 @@ export function GoalCard({ goal }: { goal: RoadmapGoal }) {
         </div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {status === 'done' && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}

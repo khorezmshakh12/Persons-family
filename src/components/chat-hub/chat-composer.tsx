@@ -236,14 +236,10 @@ export function ChatComposer({
         )}
       </AnimatePresence>
       {isRecording && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-2 text-xs font-medium text-red-400"
-        >
+        <div className="flex items-center gap-2 text-xs font-medium text-red-400">
           <span className="size-2 animate-ping rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" aria-hidden />
           {t('recording')}
-        </motion.div>
+        </div>
       )}
       <div className="flex items-end gap-1.5">
         <input

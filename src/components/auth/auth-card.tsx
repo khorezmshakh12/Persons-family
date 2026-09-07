@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
 
 export function AuthCard({
   title,
@@ -16,12 +15,7 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="relative z-10 w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-10 text-white shadow-2xl backdrop-blur-md"
-    >
+    <div className="animate-fade-in-up relative z-10 w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-10 text-white shadow-2xl backdrop-blur-md">
       <div className="flex flex-col items-center gap-1 text-center">
         {/* unoptimized: next/image's optimizer doesn't correctly prefix the
          * basePath onto its internal url= query param when this app is
@@ -52,6 +46,7 @@ export function AuthCard({
       </div>
 
       <div className="mt-8">{children}</div>
-    </motion.div>
+    </div>
   );
 }
+

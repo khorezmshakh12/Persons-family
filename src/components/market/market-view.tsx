@@ -222,7 +222,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         {activeTab === 'shop' && (
           <motion.div
             key="tab-shop"
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springs.snappy}
@@ -266,14 +266,12 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                 {shopItems.map((item, index) => {
                   const isOutOfStock = item.stock !== null && item.stock <= 0;
                   return (
-                    <motion.div
+                    <div
                       key={item.id}
-                      initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ ...springs.gentle, delay: Math.min(index, 8) * 0.04 }}
+                      style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
                       className={cn(
                         GLASS_CARD,
-                        'group flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-300 hover:border-white/35 hover:-translate-y-1',
+                        'animate-fade-in-up group flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-300 hover:border-white/35 hover:-translate-y-1',
                       )}
                     >
                       {/* Thumbnail */}
@@ -335,7 +333,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           <OrderRewardDialog item={item} balance={balance} />
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
@@ -347,7 +345,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         {activeTab === 'myOrders' && (
           <motion.div
             key="tab-myOrders"
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springs.snappy}
@@ -419,7 +417,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         {activeTab === 'admin' && adminView.allowed && (
           <motion.div
             key="tab-admin"
-            initial={{ opacity: 0, y: 8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springs.snappy}
