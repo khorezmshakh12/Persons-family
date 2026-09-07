@@ -15,6 +15,10 @@ import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { StarBalanceCard } from '@/components/profile/star-balance-card';
 import { WarningsCard } from '@/components/profile/warnings-card';
+import { MonthlyWarningsArchive } from '@/components/profile/monthly-warnings-archive';
+import { MonthlyStarsArchive } from '@/components/profile/monthly-stars-archive';
+import { getMonthlyWarningsArchiveAction } from '@/lib/actions/warnings';
+import { getMonthlyStarsArchiveAction } from '@/lib/actions/stars';
 import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
 import { DutiesCard } from '@/components/profile/duties-card';
@@ -24,6 +28,21 @@ import { SectionErrorBoundary } from '@/components/profile/section-error-boundar
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 
 export const dynamic = 'force-dynamic';
+
+/* Both archives below are thin async wrappers so each one streams behind its
+ * own Suspense boundary, exactly like the cards they sit under — fetching
+ * them in the page body instead would block the whole profile on a query
+ * that only feeds one collapsed section. Both actions carry their own
+ * visibility gate and return [] rather than throwing, and both components
+ * render nothing on an empty list, so a staff member with no history simply
+ * sees no archive. */
+async function WarningsArchiveSection({ staffId }: { staffId: string }) {
+  return <MonthlyWarningsArchive months={await getMonthlyWarningsArchiveAction(staffId)} />;
+}
+
+async function StarsArchiveSection({ staffId }: { staffId: string }) {
+  return <MonthlyStarsArchive months={await getMonthlyStarsArchiveAction(staffId)} />;
+}
 
 // Every section below fetches its own data independently and streams in
 // behind its own Suspense boundary, wrapped in its own error boundary —
@@ -144,6 +163,16 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       )}
 
       {canViewCeoScoped && (
+        <div className="animate-fade-in-up" style={{ animationDelay: '170ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={null}>
+              <StarsArchiveSection staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+      )}
+
+      {canViewCeoScoped && (
         <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
@@ -157,6 +186,14 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <WarningsCard staffId={id} canManage={canManageWarnings} />
+          </Suspense>
+        </SectionErrorBoundary>
+      </div>
+
+      <div className="animate-fade-in-up" style={{ animationDelay: '310ms' }}>
+        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+          <Suspense fallback={null}>
+            <WarningsArchiveSection staffId={id} />
           </Suspense>
         </SectionErrorBoundary>
       </div>

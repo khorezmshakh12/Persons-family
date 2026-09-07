@@ -1332,6 +1332,17 @@
       "reasonPlaceholder": "Optional reason for this star adjustment...",
       "deductWarning": "Warning: Deducting stars will automatically issue an official staff warning and send a Telegram notification to the employee.",
       "success": "Stars updated successfully."
+    },
+    "warningsArchive": {
+      "title": "Warnings archive",
+      "count": "{count, plural, one {# warning} other {# warnings}}",
+      "issuedBy": "issued by {name}"
+    },
+    "starsArchive": {
+      "title": "Star archive",
+      "net": "Net {net}",
+      "earned": "Earned: {count}",
+      "spent": "Spent: {count}"
     }
   },
   "market": {

@@ -1332,6 +1332,17 @@
       "reasonPlaceholder": "Yulduz o'zgartirish sababi (ixtiyoriy)...",
       "deductWarning": "Diqqat: Yulduz yechilganda xodimga avtomatik rasmiy ogohlantirish (warning) beriladi va Telegram orqali xabar yuboriladi.",
       "success": "Yulduzlar muvaffaqiyatli yangilandi."
+    },
+    "warningsArchive": {
+      "title": "Ogohlantirishlar arxivi",
+      "count": "{count, plural, one {# ta ogohlantirish} other {# ta ogohlantirish}}",
+      "issuedBy": "{name} tomonidan berilgan"
+    },
+    "starsArchive": {
+      "title": "Yulduzlar arxivi",
+      "net": "Jami {net}",
+      "earned": "Olingan: {count}",
+      "spent": "Sarflangan: {count}"
     }
   },
   "market": {
