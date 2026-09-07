@@ -82,16 +82,25 @@ export const accordion: Variants = {
   },
 };
 
+/**
+ * Backdrop scrim for overlays (dialogs, sheets, drawers).
+ *
+ * Only `opacity` animates. The blur is held *static* at `blur(12px)` across
+ * initial/animate/exit so the compositor rasterises the blurred layer once and
+ * merely fades it — animating `backdropFilter` instead forces a full-viewport
+ * backdrop re-blur on every frame, which is one of the most expensive things a
+ * page can do. Consumers get a pre-blurred scrim that fades in and out.
+ */
 export const overlayScrim: Variants = {
-  initial: { opacity: 0, backdropFilter: 'blur(0px)' },
+  initial: { opacity: 0, backdropFilter: 'blur(12px)' },
   animate: {
     opacity: 1,
-    backdropFilter: 'blur(16px)',
+    backdropFilter: 'blur(12px)',
     transition: { duration: durations.base, ease: easings.emphasized },
   },
   exit: {
     opacity: 0,
-    backdropFilter: 'blur(0px)',
+    backdropFilter: 'blur(12px)',
     transition: { duration: durations.fast, ease: easings.standard },
   },
 };
@@ -139,7 +148,11 @@ export function useMotion() {
         : staggerContainer,
       accordion: shouldReduce ? reducedAccordion : accordion,
       overlayScrim: shouldReduce
-        ? { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0 } }, exit: { opacity: 0, transition: { duration: 0 } } }
+        ? {
+            initial: { opacity: 0, backdropFilter: 'blur(12px)' },
+            animate: { opacity: 1, backdropFilter: 'blur(12px)', transition: { duration: 0 } },
+            exit: { opacity: 0, backdropFilter: 'blur(12px)', transition: { duration: 0 } },
+          }
         : overlayScrim,
     },
   };

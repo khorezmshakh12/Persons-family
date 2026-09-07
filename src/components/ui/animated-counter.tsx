@@ -5,15 +5,16 @@ import { useReducedMotion } from 'framer-motion';
 import { durations } from '@/lib/motion';
 
 /**
- * Cubic bezier evaluation helper for emphasized ease [0.05, 0.7, 0.1, 1].
+ * Ease-out curve for the count-up, applied to linear progress `t` in [0, 1].
+ *
+ * A real cubic-bezier ease needs the curve's x(t) solved for each frame's
+ * elapsed fraction; feeding elapsed time straight in as the bezier parameter
+ * gives a different (and wrong) curve. This is the standard easeOutCubic
+ * instead — cheap, strictly monotonic, f(0) = 0, f(1) = 1 — which is close
+ * enough in feel to the emphasized ease for a number ticking up.
  */
-function cubicBezier(t: number): number {
-  // Approximate standard emphasized ease [0.05, 0.7, 0.1, 1]
-  const p1y = 0.7;
-  const p2y = 1.0;
-  // Standard bezier formula with p0=0, p3=1
-  const u = 1 - t;
-  return 3 * u * u * t * p1y + 3 * u * t * t * p2y + t * t * t;
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }
 
 export function AnimatedCounter({
@@ -57,7 +58,7 @@ export function AnimatedCounter({
     const step = (timestamp: number) => {
       if (!startTimestamp) startTimestamp = timestamp;
       const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
-      const easedProgress = cubicBezier(progress);
+      const easedProgress = easeOutCubic(progress);
       const current = startVal + (endVal - startVal) * easedProgress;
 
       setDisplayValue(current);

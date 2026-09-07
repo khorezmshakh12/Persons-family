@@ -4,6 +4,7 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { motion, useReducedMotion } from "framer-motion"
 import { InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { durations, easings } from "@/lib/motion"
 
 function AnimatedCheckIcon({ className }: { className?: string }) {
   const shouldReduce = useReducedMotion()
@@ -23,7 +24,7 @@ function AnimatedCheckIcon({ className }: { className?: string }) {
         d="M8 12.5l2.5 2.5 5.5-5.5"
         initial={shouldReduce ? { pathLength: 1 } : { pathLength: 0 }}
         animate={{ pathLength: 1 }}
-        transition={{ duration: 0.32, ease: [0.05, 0.7, 0.1, 1] }}
+        transition={{ duration: durations.slow, ease: easings.emphasized }}
       />
     </svg>
   )
