@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
-import { springs, fadeInUp, staggerContainer } from '@/lib/motion';
+import { springs, durations, easings } from '@/lib/motion';
 
 function TaskKanbanColumnImpl({
   status,
@@ -48,7 +48,12 @@ function TaskKanbanColumnImpl({
 
   // A collapsed column still accepts a drop, but the drop would land out of
   // sight — so a card hovering here opens it, and it stays open so the card
-  // is still visible once the drop lands.
+  // is still visible once the drop lands. This is React's "adjust state
+  // while rendering" pattern rather than an effect: it converges in one
+  // extra render (the guard is false as soon as `expanded` is true) instead
+  // of painting the collapsed column first and cascading a second commit.
+  // The header toggle keeps working exactly as before — `isOver` is only
+  // ever true mid-drag, when the button can't be clicked anyway.
   if (isOver && !expanded) setExpanded(true);
 
   const showCards = !collapsible || expanded;
@@ -93,30 +98,38 @@ function TaskKanbanColumnImpl({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={shouldReduce ? { duration: 0 } : springs.gentle}
+            transition={
+              shouldReduce
+                ? { duration: 0 }
+                : { duration: durations.base, ease: easings.standard }
+            }
             className="flex flex-col gap-3 min-w-0 w-full overflow-hidden"
           >
             {tasks.length === 0 ? (
               <p className="text-sm text-white/60 px-2 py-2">{emptyLabel}</p>
             ) : (
+              // Mount-only fade for the list as a whole. Deliberately NOT a
+              // stagger of per-card wrappers: the live drag preview splices
+              // the dragged card in and out of this list mid-drag, so any
+              // per-item entrance would re-fire on every hover and fight both
+              // the `preview` variant and the DragOverlay.
               <motion.div
-                variants={shouldReduce ? undefined : staggerContainer}
-                initial={shouldReduce ? false : "initial"}
-                animate="animate"
+                initial={shouldReduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: durations.base, ease: easings.standard }}
                 className="flex flex-col gap-3 min-w-0 w-full"
               >
                 {tasks.map((task) => (
-                  <motion.div key={task.id} variants={shouldReduce ? undefined : fadeInUp}>
-                    <TaskCard
-                      task={task}
-                      isAdmin={isAdmin}
-                      assignees={assignees}
-                      currentUserId={currentUserId}
-                      onRequestDelete={onRequestDelete}
-                      onMove={onMove}
-                      variant={task.id === previewTaskId ? 'preview' : 'default'}
-                    />
-                  </motion.div>
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    isAdmin={isAdmin}
+                    assignees={assignees}
+                    currentUserId={currentUserId}
+                    onRequestDelete={onRequestDelete}
+                    onMove={onMove}
+                    variant={task.id === previewTaskId ? 'preview' : 'default'}
+                  />
                 ))}
               </motion.div>
             )}
@@ -127,4 +140,7 @@ function TaskKanbanColumnImpl({
   );
 }
 
+// A card moving within/into one column re-renders only that column — the
+// other columns' subtrees are skipped entirely, which is what actually
+// makes the drag feel instant on a board with many cards.
 export const TaskKanbanColumn = memo(TaskKanbanColumnImpl);
