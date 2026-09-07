@@ -3,17 +3,22 @@ import { Users, Layers, CalendarDays, Wallet, Target, ListTodo } from 'lucide-re
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import {
-  monthlyBuckets,
-  monthlyAmountBuckets,
   cumulativeMonthlyBuckets,
+  cumulativeMonthlyAmountBuckets,
   momChangePercent,
+  lastPoint,
 } from '@/lib/dashboard-stats';
 import { formatUZS } from '@/lib/format-currency';
-import { tashkentMonthKey } from '@/lib/time';
-import { efficiencyForMonth } from '@/lib/task-efficiency';
 import { StatCard } from './stat-card';
 
 const MONTHS = 6;
+
+// Every card on this row is built series-first: `buckets` is the metric's
+// value at the end of each of the last MONTHS Asia/Tashkent months, the
+// headline is that series' last point (`lastPoint`), and the badge is that
+// series' last-vs-previous change (`momChangePercent`). Nothing here may
+// measure the headline, the sparkline or the badge a second, separate way —
+// that divergence is exactly what made these cards contradict each other.
 
 type Card = {
   label: string;
@@ -61,72 +66,56 @@ export async function StatsRow({
       sql<{ created_at: string; status: string }[]>`
         select created_at, status from missions where staff_id = ${userId}
       `,
-      sql<{ created_at: string; status: string; deadline: string; completed_at: string | null }[]>`
-        select created_at, status, deadline, completed_at from tasks where assigned_to = ${userId}
+      sql<{ created_at: string; status: string }[]>`
+        select created_at, status from tasks where assigned_to = ${userId}
       `,
     ]);
 
-    const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
     const activeMissions = missionRows.filter((m) => m.status !== 'approved' && m.status !== 'rejected');
     const activeTasks = taskRows.filter((task) => task.status !== 'done');
 
-    // 1. Finance: sum of amounts per month for sparkline + safe MoM change
-    const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
-    const financeChange = momChangePercent(financeBuckets);
-
-    // 2. Missions: all mission count per month for sparkline + current-month
-    // completion rate % (of missions created this Tashkent month, the share
-    // that are approved; 100 if none were created — nothing to miss).
-    const missionBuckets = monthlyBuckets(
-      missionRows.map((m) => m.created_at),
+    // 1. Finance: the running net balance at each Tashkent month end, so the
+    // last bar is the headline net total rather than this month's net alone.
+    const financeBuckets = cumulativeMonthlyAmountBuckets(financeRows, MONTHS);
+    // 2/3. Missions & Tasks: the headline counts what is still open, so the
+    // series counts the same open rows by the month they were raised in —
+    // the backlog as it built up. Its last point is that open count.
+    const missionBuckets = cumulativeMonthlyBuckets(
+      activeMissions.map((m) => m.created_at),
       MONTHS,
     );
-    const missionMonth = tashkentMonthKey();
-    const missionsThisMonth = missionRows.filter(
-      (m) => tashkentMonthKey(new Date(m.created_at)) === missionMonth,
-    );
-    const approvedThisMonth = missionsThisMonth.filter((m) => m.status === 'approved');
-    const missionPercent =
-      missionsThisMonth.length === 0
-        ? 100
-        : Math.round((approvedThisMonth.length / missionsThisMonth.length) * 100);
-
-    // 3. Tasks: all task count per month for sparkline + current month efficiency %
-    const taskBuckets = monthlyBuckets(
-      taskRows.map((task) => task.created_at),
+    const taskBuckets = cumulativeMonthlyBuckets(
+      activeTasks.map((task) => task.created_at),
       MONTHS,
     );
-    const currentMonth = tashkentMonthKey();
-    const taskStats = efficiencyForMonth(taskRows, currentMonth);
-    const taskPercent = taskStats.efficiencyPct;
 
     const cards: Card[] = [
       {
         label: t('finance'),
-        value: formatUZS(netFinance),
+        value: formatUZS(lastPoint(financeBuckets)),
         icon: Wallet,
         tint: 'green',
         buckets: financeBuckets,
-        percent: financeChange,
+        percent: momChangePercent(financeBuckets),
         href: `/finance/${userId}`,
         maskable: true,
       },
       {
         label: t('missions'),
-        value: activeMissions.length,
+        value: lastPoint(missionBuckets),
         icon: Target,
         tint: 'blue',
         buckets: missionBuckets,
-        percent: missionPercent,
+        percent: momChangePercent(missionBuckets),
         href: `/missions/${userId}`,
       },
       {
         label: t('tasks'),
-        value: activeTasks.length,
+        value: lastPoint(taskBuckets),
         icon: ListTodo,
         tint: 'orange',
         buckets: taskBuckets,
-        percent: taskPercent,
+        percent: momChangePercent(taskBuckets),
         href: '/tasks',
       },
     ];
@@ -192,13 +181,15 @@ export async function StatsRow({
   const staffBuckets = cumulativeMonthlyBuckets(activeStaff.map((r) => r.created_at), MONTHS);
   const groupBuckets = cumulativeMonthlyBuckets(groupRows.map((r) => r.created_at), MONTHS);
   const lessonBuckets = cumulativeMonthlyBuckets(lessonRows.map((r) => r.created_at), MONTHS);
-  const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
-  const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
+  // Finance is a running net balance too, so its series has to be cumulative
+  // as well — on monthlyAmountBuckets the last bar was only this month's net
+  // while the headline showed the all-time total.
+  const financeBuckets = cumulativeMonthlyAmountBuckets(financeRows, MONTHS);
 
   const cards: Card[] = [
     showTotalStaff && {
       label: t('totalStaff'),
-      value: activeStaff.length,
+      value: lastPoint(staffBuckets),
       icon: Users,
       tint: 'green' as const,
       buckets: staffBuckets,
@@ -207,7 +198,7 @@ export async function StatsRow({
     },
     financeUserId && {
       label: t('finance'),
-      value: formatUZS(netFinance),
+      value: formatUZS(lastPoint(financeBuckets)),
       icon: Wallet,
       tint: 'green' as const,
       buckets: financeBuckets,
@@ -217,7 +208,7 @@ export async function StatsRow({
     },
     showLessonPlanCards && {
       label: t('activeGroups'),
-      value: groupRows.length,
+      value: lastPoint(groupBuckets),
       icon: Layers,
       tint: 'blue' as const,
       buckets: groupBuckets,
@@ -226,7 +217,7 @@ export async function StatsRow({
     },
     showLessonPlanCards && {
       label: t('lessonPlans'),
-      value: lessonRows.length,
+      value: lastPoint(lessonBuckets),
       icon: CalendarDays,
       tint: 'orange' as const,
       buckets: lessonBuckets,
