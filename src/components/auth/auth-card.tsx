@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { springs, durations, easings } from '@/lib/motion';
+import { durations, easings } from '@/lib/motion';
 
 export function AuthCard({
   title,
