@@ -108,7 +108,7 @@ export function IssuesBoard({
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
         {COLUMNS.map((status) => (
           <KanbanColumn
             key={status}
@@ -118,6 +118,8 @@ export function IssuesBoard({
             emptyLabel={t('noIssuesInColumn')}
             readOnly={readOnly}
             onRequestDelete={handleRequestDelete}
+            collapsible={true}
+            defaultExpanded={status !== 'done'}
           />
         ))}
       </div>
