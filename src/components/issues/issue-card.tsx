@@ -125,7 +125,7 @@ function IssueCardImpl({
           )}
         </div>
         {issue.description && (
-          <p className="text-sm text-white/75 whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] leading-relaxed">
+          <p className="text-sm text-white/75 whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">
             {issue.description}
           </p>
         )}
