@@ -38,15 +38,20 @@ const TASK_STATUS_LABELS: Record<string, string> = {
  *
  * Awaited inline by its callers, deliberately NOT dispatched through
  * `after()`. `after()` was the correct fix on Vercel, where it maps to the
- * platform's `waitUntil` and keeps the function alive (see 3a0960d) — but
- * production moved to Cloud Run in 4fa7c88, and there is no `waitUntil`
- * there. The callback just runs once the response is flushed, and Cloud
- * Run throttles a container's CPU to ~0 the instant its request finishes
- * (the deploy in cloudbuild.yaml sets no --no-cpu-throttling), so the
- * in-flight fetch to api.telegram.org stalls and dies with the instance.
+ * platform's `waitUntil` and extends the invocation until the send settles
+ * (see 3a0960d) — but production moved to Cloud Run in 4fa7c88. Next's own
+ * docs (node_modules/next/dist/docs, guides/self-hosting#after) list
+ * `after` as supported on a Node/Docker server, with the caveat that the
+ * platform must "allow a configurable drain period (10-30 seconds is
+ * recommended) to ensure all background work completes". Cloud Run does
+ * the opposite by default: it throttles a container's CPU to ~0 the
+ * instant a request finishes (the deploy in cloudbuild.yaml passes no
+ * --no-cpu-throttling), so the callback gets essentially no CPU and the
+ * in-flight fetch to api.telegram.org stalls until the instance is reaped.
  * That is why the deadline-reminder cron kept delivering while this never
  * did: the cron awaits its sends mid-request. Awaiting costs one round
- * trip and is the only thing that actually makes delivery reliable. */
+ * trip and is the only thing that makes delivery reliable here without an
+ * infrastructure change. */
 async function notifyTaskAssigned({
   title,
   status,
