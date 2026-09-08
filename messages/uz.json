@@ -1181,7 +1181,9 @@
     "lessonPlanAlerts": "Lesson plan hisobotlari",
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
-    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
+    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi.",
+    "muteSound": "Bildirishnoma ovozini o'chirish",
+    "unmuteSound": "Bildirishnoma ovozini yoqish"
   },
   "profile": {
     "sectionError": "Bu bo'limni yuklab bo'lmadi. Sahifani yangilab ko'ring.",

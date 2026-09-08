@@ -1181,7 +1181,9 @@
     "lessonPlanAlerts": "Lesson plan reports",
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
-    "markReadFailed": "Couldn't sync that as read — it will still show as unread."
+    "markReadFailed": "Couldn't sync that as read — it will still show as unread.",
+    "muteSound": "Mute notification sound",
+    "unmuteSound": "Unmute notification sound"
   },
   "profile": {
     "sectionError": "This section couldn't load. Try refreshing the page.",

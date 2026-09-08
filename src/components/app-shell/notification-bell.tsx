@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Bell } from 'lucide-react';
+import { Bell, Volume2, VolumeX } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Link } from '@/i18n/navigation';
@@ -18,6 +18,7 @@ import {
 } from '@/lib/actions/notifications';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { useNotificationChime } from './use-notification-chime';
 
 export type UnreadChatItem = {
   id: string;
@@ -121,20 +122,35 @@ export function NotificationBell({
   const totalCount =
     unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length + unseenLessonPlanAlerts.length;
 
-  // A little attention wiggle on the bell itself (not just the badge) the
-  // moment a *new* item lands — skips the initial mount (that's just the
-  // server-rendered starting count, not a "new" arrival) and skips drops
-  // (marking something read shouldn't shake anything). Bumping shakeKey
-  // remounts the icon under a fresh `key`, which restarts the CSS animation
-  // — simpler than juggling animation-restart timers.
+  // A little attention wiggle on the bell itself (not just the badge), plus a
+  // short chime, the moment a *new* item lands — skips the initial mount
+  // (that's just the server-rendered starting count, not a "new" arrival) and
+  // skips drops (marking something read shouldn't shake or beep at anyone).
+  // Bumping shakeKey remounts the icon under a fresh `key`, which restarts
+  // the CSS animation — simpler than juggling animation-restart timers. The
+  // badge gets the same treatment for free: it's keyed on `totalCount`, so a
+  // changed count remounts it and replays `.animate-pop-in` (transform-only,
+  // so even a stalled animation leaves the number readable).
+  //
+  // The ref comparison is the whole guard. The effect depends on nothing but
+  // `totalCount` and `play` (a stable useCallback that never changes
+  // identity), so it cannot re-arm itself, and a re-render at an unchanged
+  // count is a no-op.
+  //
+  // prefers-reduced-motion is handled entirely in globals.css, where both
+  // `.animate-shake` and `.animate-pop-in` collapse to `animation: none` —
+  // which is why nothing here checks for it. The chime is a separate channel
+  // and stays on regardless; muting it is its own control below.
   const previousCountRef = useRef<number | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
+  const { play, muted, toggleMuted } = useNotificationChime();
   useEffect(() => {
     if (previousCountRef.current !== null && totalCount > previousCountRef.current) {
       setShakeKey((k) => k + 1);
+      play();
     }
     previousCountRef.current = totalCount;
-  }, [totalCount]);
+  }, [totalCount, play]);
 
   // One preview row per sender (their latest unread message), newest first.
   const chatPreviews = Array.from(
@@ -266,139 +282,158 @@ export function NotificationBell({
   }, [open, resync]);
 
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-      <PopoverPrimitive.Trigger
-        render={
-          <button
-            type="button"
-            aria-label={t('title')}
-            className="relative flex size-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition-transform duration-200 ease-bounce hover:scale-110 hover:bg-white/20 active:scale-90"
-          />
-        }
+    <div className="flex items-center gap-1">
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger
+          render={
+            <button
+              type="button"
+              aria-label={t('title')}
+              className="relative flex size-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition-transform duration-200 ease-bounce hover:scale-110 hover:bg-white/20 active:scale-90"
+            />
+          }
+        >
+          <Bell key={shakeKey} className={cn('size-4.5', shakeKey > 0 && 'animate-shake')} />
+          {totalCount > 0 && (
+            <span
+              key={totalCount}
+              className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]"
+            >
+              {totalCount > 9 ? '9+' : totalCount}
+            </span>
+          )}
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Positioner align="end" sideOffset={10} className="z-50 outline-none">
+            <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-80 max-w-[90vw] flex-col gap-3 p-4')}>
+              <h3 className="text-sm font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h3>
+              {totalCount === 0 ? (
+                <p className="text-sm text-white/60">{t('empty')}</p>
+              ) : (
+                <div className="flex max-h-96 flex-col gap-4 overflow-y-auto">
+                  {chatPreviews.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                        {t('messages')}
+                      </p>
+                      {chatPreviews.map((m) => (
+                        <Link
+                          key={m.id}
+                          href={`/chat?with=${m.senderId}`}
+                          onClick={() => handleChatClick(m.senderId)}
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                        >
+                          <span className="text-sm font-medium text-white">
+                            {profileNames[m.senderId] ?? t('unknownSender')}
+                          </span>
+                          <span className="truncate text-xs text-white/60">{m.messageText ?? t('mediaMessage')}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {issuePreviews.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                        {t('issues')}
+                      </p>
+                      {issuePreviews.map((issue) => (
+                        <Link
+                          key={issue.id}
+                          href="/issues"
+                          onClick={() => handleIssueClick(issue.id)}
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                        >
+                          <span className="truncate text-sm font-medium text-white">{issue.title}</span>
+                          <span className="text-xs text-white/60">
+                            {format.relativeTime(new Date(issue.createdAt), now)}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {taskPreviews.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                        {t('tasks')}
+                      </p>
+                      {taskPreviews.map((task) => (
+                        <Link
+                          key={task.id}
+                          href="/tasks"
+                          onClick={handleTaskClick}
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                        >
+                          <span className="truncate text-sm font-medium text-white">{task.title}</span>
+                          <span className="text-xs text-white/60">
+                            {format.relativeTime(new Date(task.createdAt), now)}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {warningPreviews.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                        {t('warnings')}
+                      </p>
+                      {warningPreviews.map((warning) => (
+                        <Link
+                          key={warning.id}
+                          href={`/profile/${userId}`}
+                          onClick={handleWarningClick}
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                        >
+                          <span className="truncate text-sm font-medium text-white">{warning.reason}</span>
+                          <span className="text-xs text-white/60">
+                            {format.relativeTime(new Date(warning.createdAt), now)}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {lessonPlanAlertPreviews.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                        {t('lessonPlanAlerts')}
+                      </p>
+                      {lessonPlanAlertPreviews.map((alert) => (
+                        <Link
+                          key={alert.id}
+                          href="/lesson-plans"
+                          onClick={handleLessonPlanAlertClick}
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                        >
+                          <span className="whitespace-pre-line text-sm font-medium text-white">{alert.summary}</span>
+                          <span className="text-xs text-white/60">
+                            {format.relativeTime(new Date(alert.createdAt), now)}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </PopoverPrimitive.Popup>
+          </PopoverPrimitive.Positioner>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
+
+      {/* Per-device sound switch, sitting right next to the thing it
+          silences so it is findable the first time the chime surprises
+          someone. Sound is on by default, and the choice lives in
+          localStorage rather than on the profile row because it is about
+          *this* device's speakers - a shared front-desk machine, a laptop in
+          a quiet staff room - not about the person. */}
+      <button
+        type="button"
+        onClick={toggleMuted}
+        aria-pressed={muted}
+        aria-label={muted ? t('unmuteSound') : t('muteSound')}
+        title={muted ? t('unmuteSound') : t('muteSound')}
+        className="tap-scale flex size-8 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
       >
-        <Bell key={shakeKey} className={cn('size-4.5', shakeKey > 0 && 'animate-shake')} />
-        {totalCount > 0 && (
-          <span
-            key={totalCount}
-            className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]"
-          >
-            {totalCount > 9 ? '9+' : totalCount}
-          </span>
-        )}
-      </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Positioner align="end" sideOffset={10} className="z-50 outline-none">
-          <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-80 max-w-[90vw] flex-col gap-3 p-4')}>
-            <h3 className="text-sm font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h3>
-            {totalCount === 0 ? (
-              <p className="text-sm text-white/60">{t('empty')}</p>
-            ) : (
-              <div className="flex max-h-96 flex-col gap-4 overflow-y-auto">
-                {chatPreviews.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
-                      {t('messages')}
-                    </p>
-                    {chatPreviews.map((m) => (
-                      <Link
-                        key={m.id}
-                        href={`/chat?with=${m.senderId}`}
-                        onClick={() => handleChatClick(m.senderId)}
-                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
-                      >
-                        <span className="text-sm font-medium text-white">
-                          {profileNames[m.senderId] ?? t('unknownSender')}
-                        </span>
-                        <span className="truncate text-xs text-white/60">{m.messageText ?? t('mediaMessage')}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {issuePreviews.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
-                      {t('issues')}
-                    </p>
-                    {issuePreviews.map((issue) => (
-                      <Link
-                        key={issue.id}
-                        href="/issues"
-                        onClick={() => handleIssueClick(issue.id)}
-                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
-                      >
-                        <span className="truncate text-sm font-medium text-white">{issue.title}</span>
-                        <span className="text-xs text-white/60">
-                          {format.relativeTime(new Date(issue.createdAt), now)}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {taskPreviews.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
-                      {t('tasks')}
-                    </p>
-                    {taskPreviews.map((task) => (
-                      <Link
-                        key={task.id}
-                        href="/tasks"
-                        onClick={handleTaskClick}
-                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
-                      >
-                        <span className="truncate text-sm font-medium text-white">{task.title}</span>
-                        <span className="text-xs text-white/60">
-                          {format.relativeTime(new Date(task.createdAt), now)}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {warningPreviews.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
-                      {t('warnings')}
-                    </p>
-                    {warningPreviews.map((warning) => (
-                      <Link
-                        key={warning.id}
-                        href={`/profile/${userId}`}
-                        onClick={handleWarningClick}
-                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
-                      >
-                        <span className="truncate text-sm font-medium text-white">{warning.reason}</span>
-                        <span className="text-xs text-white/60">
-                          {format.relativeTime(new Date(warning.createdAt), now)}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                {lessonPlanAlertPreviews.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
-                      {t('lessonPlanAlerts')}
-                    </p>
-                    {lessonPlanAlertPreviews.map((alert) => (
-                      <Link
-                        key={alert.id}
-                        href="/lesson-plans"
-                        onClick={handleLessonPlanAlertClick}
-                        className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
-                      >
-                        <span className="whitespace-pre-line text-sm font-medium text-white">{alert.summary}</span>
-                        <span className="text-xs text-white/60">
-                          {format.relativeTime(new Date(alert.createdAt), now)}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </PopoverPrimitive.Popup>
-        </PopoverPrimitive.Positioner>
-      </PopoverPrimitive.Portal>
-    </PopoverPrimitive.Root>
+        {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+      </button>
+    </div>
   );
 }
