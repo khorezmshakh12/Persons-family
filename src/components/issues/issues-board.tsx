@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   DndContext,
-  DragOverlay,
   MeasuringStrategy,
   PointerSensor,
   useSensor,
@@ -17,6 +16,7 @@ import {
 import { doc, onSnapshot } from 'firebase/firestore';
 import { updateIssueStatusAction, deleteIssueAction, getVisibleIssuesAction } from '@/lib/actions/issues';
 import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import { KanbanDragOverlay } from '@/components/kanban-drag-overlay';
 import { KanbanColumn } from './kanban-column';
 import { IssueCard, type Issue } from './issue-card';
 
@@ -203,7 +203,10 @@ export function IssuesBoard({
           />
         ))}
       </div>
-      <DragOverlay dropAnimation={null}>
+      {/* Portalled out of the app shell's transformed <main> so the fixed
+       * overlay is positioned against the viewport and tracks the pointer
+       * 1:1 — see KanbanDragOverlay. */}
+      <KanbanDragOverlay>
         {activeIssue ? (
           <IssueCard
             issue={activeIssue}
@@ -212,7 +215,7 @@ export function IssuesBoard({
             variant="overlay"
           />
         ) : null}
-      </DragOverlay>
+      </KanbanDragOverlay>
     </DndContext>
   );
 }
