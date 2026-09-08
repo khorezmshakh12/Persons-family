@@ -4,14 +4,28 @@ import { memo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, ChevronUp, GripVertical, Minus, Star, ExternalLink } from 'lucide-react';
-import { TaskStatusControl, type TaskStatus } from './task-status-control';
+import {
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Minus,
+  Star,
+  ExternalLink,
+  Hourglass,
+  Paperclip,
+  Undo2,
+} from 'lucide-react';
+import { TaskStatusControl } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
 import { TaskCommentsDrawer } from './task-comments-drawer';
+import { TaskAttachmentsDrawer } from './task-attachments-drawer';
+import { TaskStageActions } from './task-stage-actions';
+import { TaskStageProgress } from './task-stage-progress';
 import type { Assignee } from './assign-task-dialog';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
+import { isTaskUnderReview, type TaskStatus } from '@/lib/task-status';
 import { cn } from '@/lib/utils';
 
 export type Task = {
@@ -30,6 +44,14 @@ export type Task = {
   assigned_by?: string | null;
   /** Server-rendered comment count for the closed drawer trigger. */
   comment_count?: number;
+  /** Same idea for the attachments drawer. */
+  attachment_count?: number;
+  /** The CEO ticked "the employee must upload a file" — approval routes this
+   * task through `awaiting_upload` instead of straight to `done`. */
+  requires_proof?: boolean;
+  /** The CEO's mandatory explanation from the last rejection. Shown to the
+   * assignee until they resubmit (submitTaskAction clears it). */
+  rejection_reason?: string | null;
   /** Optional star bounty attached by the CEO, paid out when the task is
    * completed on time. */
   star_reward?: number | null;
@@ -113,7 +135,23 @@ function TaskCardImpl({
   // Status is the assignee's own progress report — not even the admin who
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
   // `auth.uid() <> new.assigned_to` check.
-  const canDrag = task.assigned_to === currentUserId;
+  //
+  // A task under review (`submitted` / `awaiting_upload`) is frozen: the
+  // assignee has handed it in and only the CEO's approve/reject — or the
+  // proof upload — moves it from here. updateTaskStatusAction rejects such a
+  // drag with `underReview`; not registering the handle at all is the same
+  // rule stated where the user can see it.
+  const underReview = isTaskUnderReview(task.status);
+  const canDrag = task.assigned_to === currentUserId && !underReview;
+  const isAssignee = task.assigned_to === currentUserId;
+  // The CEO who assigned it. `assigned_by` is optional on this type (the
+  // board's older snapshot mapping predates it), so a missing value falls
+  // back to the plain admin flag — every review action re-checks both the
+  // role and `assigned_by` server-side regardless.
+  const isReviewer = task.assigned_by ? task.assigned_by === currentUserId : isAdmin;
+  // Rejections are addressed to the assignee, so the banner is theirs; the
+  // CEO already knows what they wrote. Cleared on resubmit.
+  const showRejection = !!task.rejection_reason && isAssignee && task.status === 'in_progress';
   // Spec #1: a task's thread belongs to the person who received it, the
   // person who assigned it, and the CEO (isAdmin here is exactly
   // `role === 'ceo'` — see tasks/page.tsx). This only decides whether the
