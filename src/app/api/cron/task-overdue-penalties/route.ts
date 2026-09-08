@@ -3,6 +3,7 @@ import { sql } from '@/lib/db/client';
 import { insertStarTransaction } from '@/lib/stars-write';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
+import { TASK_OPEN_STATUSES } from '@/lib/task-status';
 
 // Auto-apply a task's star_penalty once its deadline has passed while it is
 // still not done. updateTaskStatusAction settles the fine only when the
@@ -44,13 +45,22 @@ export async function GET(req: NextRequest) {
 
   // Overdue, still open, carrying an unpaid fine. One row per task — the
   // assignee only.
+  //
+  // "Still open" is now `status in ('pending','in_progress')`, not
+  // `status <> 'done'`: a task sitting at `submitted` or `awaiting_upload`
+  // has already been handed in, and the delay from there on is the CEO's
+  // review time, not the assignee's. Charging it here would fine someone for
+  // their reviewer being slow — and would also pre-empt rejectTaskAction,
+  // which is what applies this same fine when the CEO turns the work down.
+  // Under the old `<> 'done'` predicate every submitted task past its
+  // deadline would have been charged within ~15 minutes.
   const rows = await sql<
     { id: string; star_penalty: number; assigned_to: string; telegram_id: number | null }[]
   >`
     select t.id, t.star_penalty, t.assigned_to, p.telegram_id
     from tasks t
     join profiles p on p.id = t.assigned_to
-    where t.status <> 'done'
+    where t.status in ${sql([...TASK_OPEN_STATUSES])}
       and t.deadline < now()
       and t.star_penalty > 0
       and t.star_penalty_applied_at is null
