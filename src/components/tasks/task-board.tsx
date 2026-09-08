@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   DndContext,
-  DragOverlay,
   MeasuringStrategy,
   PointerSensor,
   useSensor,
@@ -24,6 +23,7 @@ import {
   type VisibleTaskRow,
 } from '@/lib/actions/tasks';
 import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import { KanbanDragOverlay } from '@/components/kanban-drag-overlay';
 import { TaskKanbanColumn } from './task-kanban-column';
 import {
   TaskFilterBar,
@@ -299,7 +299,10 @@ export function TaskBoard({
             />
           ))}
         </div>
-        <DragOverlay dropAnimation={null}>
+        {/* Portalled out of the app shell's transformed <main> so the fixed
+         * overlay is positioned against the viewport and tracks the pointer
+         * 1:1 — see KanbanDragOverlay. */}
+        <KanbanDragOverlay>
           {activeTask ? (
             <TaskCard
               task={activeTask}
@@ -311,7 +314,7 @@ export function TaskBoard({
               variant="overlay"
             />
           ) : null}
-        </DragOverlay>
+        </KanbanDragOverlay>
       </DndContext>
       <MonthlyArchive months={archive} isAdmin={isAdmin} />
     </div>
