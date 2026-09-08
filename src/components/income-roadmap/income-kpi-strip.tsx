@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Target, Zap, Award, Sparkles, Minus } from 'lucide-react';
 import type { IncomeRoadmapHeader, IncomeRoadmapTotals } from './data';
 import { formatUZS } from '@/lib/format-currency';
@@ -46,9 +47,12 @@ export function IncomeKpiStrip({
           : 'text-white/70';
 
   return (
-    <div className="stagger grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {/* 1. Baseline */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 0 }}
         className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
       >
         <div className="flex items-center justify-between gap-2">
@@ -63,10 +67,13 @@ export function IncomeKpiStrip({
           </span>
           <span className="text-[11px] text-white/40">{t('planned')}</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* 2. Year-end Target */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 0.04 }}
         className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
       >
         <div className="flex items-center justify-between gap-2">
@@ -90,10 +97,13 @@ export function IncomeKpiStrip({
               : '—'}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* 3. Attainment to Date */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 0.08 }}
         className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
       >
         <div className="flex items-center justify-between gap-2">
@@ -122,10 +132,13 @@ export function IncomeKpiStrip({
             </span>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 4. Avg. Monthly Growth */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 0.12 }}
         className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
       >
         <div className="flex items-center justify-between gap-2">
@@ -148,10 +161,13 @@ export function IncomeKpiStrip({
             {totals?.reportedMonths ? `${totals.reportedMonths} ${t('month').toLowerCase()}` : '—'}
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* 5. Projected Year Total */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 0.16 }}
         className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm sm:col-span-2 md:col-span-1"
       >
         <div className="flex items-center justify-between gap-2">
@@ -168,7 +184,7 @@ export function IncomeKpiStrip({
             {totals ? t('ofPlanned', { amount: formatUZS(totals.plannedYear) }) : '—'}
           </span>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

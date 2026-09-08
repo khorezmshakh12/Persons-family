@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from '@/i18n/navigation';
 import { clearChunkErrorGuard } from '@/lib/chunk-error';
 
@@ -15,11 +16,17 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     clearChunkErrorGuard();
   }, [pathname]);
 
-  // No animation on this wrapper. It sits above every authenticated page,
-  // so anything that can leave it at opacity:0 (a stalled framer
-  // initial/animate, or a `both`-fill CSS keyframe that starts hidden)
-  // blanks the entire app. Per-page and per-component entrances still
-  // animate; the app-wide wrapper stays a plain, always-visible element.
-  // Keyed by pathname so a route change gets a fresh subtree.
-  return <div key={pathname}>{children}</div>;
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -16, scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
 }

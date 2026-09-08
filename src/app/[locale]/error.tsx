@@ -31,11 +31,7 @@ export default function Error({
   }, [error]);
 
   return (
-    // Solid dark ground: this boundary sits above the (app) layout, so when
-    // it catches it also unmounts the app's DynamicBackground. Without an
-    // opaque background here the glass card renders white-on-white and the
-    // error reads as a blank screen.
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+    <div className="flex min-h-[70vh] items-center justify-center p-6">
       <div className={cn(GLASS_CARD, 'flex max-w-md flex-col items-center gap-4 p-8 text-center')}>
         <div className="flex size-14 items-center justify-center rounded-full border border-red-400/30 bg-red-500/15">
           <AlertTriangle className="size-7 text-red-300" />

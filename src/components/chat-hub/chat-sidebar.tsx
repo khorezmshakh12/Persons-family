@@ -61,7 +61,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
         />
       )}
       {isUnread && !isActive && (
-        <span className="size-2 shrink-0 rounded-full bg-teal-400 shadow-[0_0_8px_#2dd4bf] animate-pulse" aria-hidden />
+        <span className="size-2 shrink-0 rounded-full bg-white" aria-hidden />
       )}
     </button>
   );

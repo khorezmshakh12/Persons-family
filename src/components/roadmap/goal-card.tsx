@@ -1,7 +1,6 @@
 'use client';
 
 import { useActionState, useEffect, useState, useTransition } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Loader2, Trash2 } from 'lucide-react';
@@ -129,44 +128,30 @@ export function GoalCard({ goal }: { goal: RoadmapGoal }) {
         </div>
       </div>
 
-      <AnimatePresence initial={false}>
-        {status === 'done' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
-            className="flex flex-col gap-1 overflow-hidden"
-          >
-            <label className="text-xs text-white/60">{t('solution')}</label>
-            <textarea
-              name="solution"
-              defaultValue={goal.solution ?? ''}
-              placeholder={t('solutionPlaceholder')}
-              rows={2}
-              className={FIELD}
-            />
-          </motion.div>
-        )}
-        {status === 'failed' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
-            className="flex flex-col gap-1 overflow-hidden"
-          >
-            <label className="text-xs text-white/60">{t('failureReason')}</label>
-            <textarea
-              name="failureReason"
-              defaultValue={goal.failure_reason ?? ''}
-              placeholder={t('failureReasonPlaceholder')}
-              rows={2}
-              className={FIELD}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {status === 'done' && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-white/60">{t('solution')}</label>
+          <textarea
+            name="solution"
+            defaultValue={goal.solution ?? ''}
+            placeholder={t('solutionPlaceholder')}
+            rows={2}
+            className={FIELD}
+          />
+        </div>
+      )}
+      {status === 'failed' && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-white/60">{t('failureReason')}</label>
+          <textarea
+            name="failureReason"
+            defaultValue={goal.failure_reason ?? ''}
+            placeholder={t('failureReasonPlaceholder')}
+            rows={2}
+            className={FIELD}
+          />
+        </div>
+      )}
 
       <Button type="submit" size="sm" loading={isPending} className="w-fit self-end">
         {t('save')}

@@ -3,7 +3,6 @@
 import { useActionState, useEffect, useState, useTransition } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 import {
   startMissionAction,
@@ -19,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { CountdownTimer } from './countdown-timer';
 import { cn } from '@/lib/utils';
-import { springs } from '@/lib/motion';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -173,29 +171,13 @@ export function MissionCard({
       )}
 
       {isAssignee && mission.status === 'in_progress' && (
-        <AnimatePresence mode="wait" initial={false}>
+        <>
           {!showSubmitForm ? (
-            <motion.div
-              key="submit-btn"
-              initial={false}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={springs.snappy}
-            >
-              <Button type="button" size="sm" onClick={() => setShowSubmitForm(true)} className="w-fit">
-                {t('submit')}
-              </Button>
-            </motion.div>
+            <Button type="button" size="sm" onClick={() => setShowSubmitForm(true)} className="w-fit">
+              {t('submit')}
+            </Button>
           ) : (
-            <motion.form
-              key="submit-form"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={springs.gentle}
-              action={submitFormAction}
-              className="flex flex-col gap-2 overflow-hidden"
-            >
+            <form action={submitFormAction} className="flex flex-col gap-2">
               <input type="hidden" name="missionId" value={mission.id} />
               <input type="hidden" name="staffId" value={mission.staff_id} />
               <Textarea
@@ -206,36 +188,18 @@ export function MissionCard({
                 required
                 rows={2}
               />
-              <div className="flex items-center gap-2">
-                <Button type="submit" size="sm" loading={isSubmitPending} className="w-fit">
-                  {t('submit')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSubmitForm(false)}
-                  className="w-fit"
-                >
-                  {tCommon('cancel')}
-                </Button>
-              </div>
-            </motion.form>
+              <Button type="submit" size="sm" loading={isSubmitPending} className="w-fit">
+                {t('submit')}
+              </Button>
+            </form>
           )}
-        </AnimatePresence>
+        </>
       )}
 
       {isCeo && mission.status === 'submitted' && (
-        <AnimatePresence mode="wait" initial={false}>
+        <>
           {!showRejectForm ? (
-            <motion.div
-              key="action-buttons"
-              initial={false}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={springs.snappy}
-              className="flex items-center gap-2"
-            >
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 size="sm"
@@ -255,16 +219,9 @@ export function MissionCard({
               >
                 {t('reject')}
               </Button>
-            </motion.div>
+            </div>
           ) : (
-            <motion.div
-              key="reject-form"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={springs.gentle}
-              className="flex flex-col gap-2 overflow-hidden"
-            >
+            <div className="flex flex-col gap-2">
               <Textarea
                 value={rejectionNote}
                 onChange={(e) => setRejectionNote(e.target.value)}
@@ -298,9 +255,9 @@ export function MissionCard({
                   {tCommon('cancel')}
                 </Button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </>
       )}
     </div>
   );

@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Loader2, Mic, Paperclip, Send, Square, X } from 'lucide-react';
@@ -209,35 +208,27 @@ export function ChatComposer({
     >
       <input type="hidden" name="receiverId" value={receiverId} />
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
-      <AnimatePresence>
-        {replyTarget && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: 10 }}
-            animate={{ opacity: 1, height: 'auto', y: 0 }}
-            exit={{ opacity: 0, height: 0, y: 10 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-            className="flex items-center gap-2 rounded-lg border-l-2 border-teal-400 bg-white/10 px-3 py-1.5 shadow-sm"
+      {replyTarget && (
+        <div className="flex items-center gap-2 rounded-lg border-l-2 border-white/50 bg-white/10 px-3 py-1.5">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="text-xs font-medium text-white/80">{replyTarget.senderName}</span>
+            <span className="truncate text-xs text-white/60">
+              {replyTarget.text ?? t(`mediaLabel.${replyTarget.mediaType}`)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onClearReply}
+            aria-label={t('cancelReply')}
+            className="tap-scale shrink-0 text-white/50 hover:text-white"
           >
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-xs font-semibold text-teal-300">{replyTarget.senderName}</span>
-              <span className="truncate text-xs text-white/70">
-                {replyTarget.text ?? t(`mediaLabel.${replyTarget.mediaType}`)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={onClearReply}
-              aria-label={t('cancelReply')}
-              className="tap-scale shrink-0 text-white/50 hover:text-white"
-            >
-              <X className="size-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
       {isRecording && (
-        <div className="flex items-center gap-2 text-xs font-medium text-red-400">
-          <span className="size-2 animate-ping rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" aria-hidden />
+        <div className="flex items-center gap-2 text-xs text-red-300">
+          <span className="size-2 animate-pulse rounded-full bg-red-400" aria-hidden />
           {t('recording')}
         </div>
       )}
