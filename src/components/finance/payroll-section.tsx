@@ -10,7 +10,7 @@ import {
   addFinanceEntryAction,
   type FinanceActionState,
 } from '@/lib/actions/finance';
-import { shiftPeriod, type PayrollSummary } from '@/lib/payroll';
+import type { PayrollSummary } from '@/lib/payroll';
 import { formatUZS } from '@/lib/format-currency';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,14 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
+
+/** Shift a 'YYYY-MM-01' key by whole months (kept here so this client
+ * component doesn't pull in the server-only payroll module). */
+function shiftPeriod(period: string, months: number): string {
+  const [y, mo] = period.split('-').map(Number);
+  const total = y * 12 + (mo - 1) + months;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-01`;
+}
 
 function periodLabel(period: string, locale: string) {
   return new Date(`${period}T00:00:00Z`).toLocaleDateString(locale, {
