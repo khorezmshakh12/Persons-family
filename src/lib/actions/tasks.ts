@@ -234,8 +234,8 @@ export async function updateTaskAction(
         assigned_to = ${parsed.data.assignedTo},
         deadline = ${parsed.data.deadline},
         -- Freely editable right up until the CEO approves: after that the
-        -- flag has already decided whether the task went to `done` or to
-        -- `awaiting_upload`, and flipping it would strand the card.
+        -- flag has already decided whether the task went to done or to
+        -- awaiting_upload, and flipping it would strand the card.
         requires_proof = case when reviewed_at is null then ${parsed.data.requiresProof} else requires_proof end,
         updated_at = now()
         -- Only adjustable while the bounty hasn't been paid out yet.
