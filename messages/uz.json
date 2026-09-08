@@ -112,7 +112,13 @@
       "missions": "Missiyalar",
       "tasks": "Vazifalar",
       "showAmount": "Summani ko'rsatish",
-      "hideAmount": "Summani yashirish"
+      "hideAmount": "Summani yashirish",
+      "period": {
+        "label": "Davr",
+        "daily": "Kunlik",
+        "weekly": "Haftalik",
+        "monthly": "Oylik"
+      }
     },
     "rolesChart": {
       "title": "Lavozimlar",

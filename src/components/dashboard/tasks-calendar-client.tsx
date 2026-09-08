@@ -39,8 +39,13 @@ export function TasksCalendarClient({
   const format = useFormatter();
   const [selectedDay, setSelectedDay] = useState<number | null>(today);
 
+  // Jan 1 2024 was a Monday — a stable Monday to read each weekday's
+  // locale-correct label off, in Mon..Sun order. Built as a UTC instant and
+  // formatted in UTC: `new Date(2024, 0, 1)` is the *viewer's* local midnight,
+  // which the Tashkent-pinned formatter can push onto the previous day (and
+  // the whole label row one weekday out) for anyone east of Tashkent.
   const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
-    format.dateTime(new Date(2024, 0, 1 + i), { weekday: 'short' }),
+    format.dateTime(new Date(Date.UTC(2024, 0, 1 + i)), { weekday: 'short', timeZone: 'UTC' }),
   );
 
   const maxCount = Math.max(...Object.values(tasksByDay).map((tasks) => tasks.length), 1);
@@ -52,7 +57,11 @@ export function TasksCalendarClient({
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
         <span className="text-xs font-medium text-white/60 capitalize">
-          {format.dateTime(new Date(year, month, 1), { month: 'long', year: 'numeric' })}
+          {format.dateTime(new Date(Date.UTC(year, month, 1)), {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })}
         </span>
       </div>
 
@@ -95,7 +104,14 @@ export function TasksCalendarClient({
         <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
           <h3 className="text-sm font-semibold text-white">
             {t('tasksOnDay', {
-              date: format.dateTime(new Date(year, month, selectedDay), { day: 'numeric', month: 'long' }),
+              // Same reason as the weekday labels above: the year/month/day
+              // are already Tashkent calendar parts, so they must be rendered
+              // as a UTC instant, not re-interpreted through a second zone.
+              date: format.dateTime(new Date(Date.UTC(year, month, selectedDay)), {
+                day: 'numeric',
+                month: 'long',
+                timeZone: 'UTC',
+              }),
             })}
           </h3>
           {selectedTasks.length === 0 ? (

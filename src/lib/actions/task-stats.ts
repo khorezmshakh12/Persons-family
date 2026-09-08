@@ -52,7 +52,7 @@ export type TaskStats = {
     late: number;
     /** Past its deadline and still not done. */
     notDone: number;
-    /** 0-100, rounded. 100 when there are no tasks at all. */
+    /** 0-100, rounded. 0 when there are no tasks at all — see `asRate`. */
     completionRate: number;
     /** avg(completed_at - created_at) over completed tasks, in days, 1
      * decimal. null when nothing is done. */
@@ -62,10 +62,20 @@ export type TaskStats = {
   byMonth: TaskStatsMonth[];
 };
 
-/** total === 0 scores 100 rather than NaN — same convention as the
- * efficiency % in lib/task-efficiency.ts. */
+/**
+ * Zero-denominator convention for an *attainment* rate (share of work
+ * achieved): nothing assigned means nothing achieved, so it reports 0, never
+ * NaN — and never 100, which is what this used to do and which rendered
+ * "Completion rate 100%" as the headline tile for someone with no tasks at
+ * all. It is the same convention `onTimeRate` below already used.
+ *
+ * This is deliberately NOT the convention for the *efficiency* % in
+ * lib/task-efficiency.ts / actions/analytics.ts: that one is a penalty score
+ * where "nothing was due" genuinely means "nothing was missed", so it scores
+ * 100. Two different questions, two different answers at 0/0.
+ */
 const asRate = (part: number, whole: number) =>
-  whole === 0 ? 100 : Math.round((part / whole) * 100);
+  whole === 0 ? 0 : Math.round((part / whole) * 100);
 
 type OverallRow = {
   total: number;

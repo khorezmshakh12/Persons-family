@@ -6,6 +6,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { Maximize2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { GLASS_CARD } from '@/lib/glass';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 
 export type TeacherSeries = { id: string; name: string };
@@ -77,6 +78,7 @@ function GrowthChart({
   teachers: TeacherSeries[];
   yDomain: [number, number];
 }) {
+  const anim = useChartAnimation();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
@@ -105,7 +107,7 @@ function GrowthChart({
             // is the entire data point.
             dot={{ r: 3, fill: LINE_COLORS[i % LINE_COLORS.length], strokeWidth: 0 }}
             activeDot={{ r: 5 }}
-            isAnimationActive={false}
+            {...anim}
             connectNulls
           />
         ))}

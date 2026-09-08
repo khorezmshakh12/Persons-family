@@ -66,7 +66,7 @@ export async function ActivityHeatmap({
   // Jan 1 2024 was a Monday — used purely as a stable Monday to read each
   // weekday's locale-correct narrow label off of, in Mon..Sun order.
   const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
-    format.dateTime(new Date(2024, 0, 1 + i), { weekday: 'narrow' }),
+    format.dateTime(new Date(Date.UTC(2024, 0, 1 + i)), { weekday: 'narrow', timeZone: 'UTC' }),
   );
 
   const content = (

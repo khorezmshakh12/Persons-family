@@ -16,12 +16,18 @@ export async function ActiveIssuesOverview({ delayMs = 0 }: { delayMs?: number }
   // `assignee` was fetched in the original Supabase query (an embedded
   // join) but never actually rendered below — dropped rather than ported,
   // since it was dead data.
-  const rows = await sql<{ id: string; title: string; status: string }[]>`
-    select id, title, status from issues
-    where status <> 'done'
-    order by created_at desc
-    limit 5
-  `;
+  // The badge is the *total* number of active issues, counted separately —
+  // it used to be `rows.length`, which the `limit 5` below silently capped,
+  // so a board with 30 open issues reported "5" on the dashboard.
+  const [rows, [{ count: activeCount }]] = await Promise.all([
+    sql<{ id: string; title: string; status: string }[]>`
+      select id, title, status from issues
+      where status <> 'done'
+      order by created_at desc
+      limit 5
+    `,
+    sql<{ count: number }[]>`select count(*)::int as count from issues where status <> 'done'`,
+  ]);
 
   return (
     <Link
@@ -34,7 +40,7 @@ export async function ActiveIssuesOverview({ delayMs = 0 }: { delayMs?: number }
           {t('title')}
         </h2>
         <Badge variant="tint" tint="slate" className="text-xs font-semibold">
-          {rows.length}
+          {activeCount}
         </Badge>
       </div>
 
