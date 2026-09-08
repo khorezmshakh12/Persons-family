@@ -16,10 +16,16 @@ import {
   PackageCheck,
   ToggleLeft,
   ToggleRight,
+  Archive,
+  AlertTriangle,
+  History,
+  Minus,
+  Plus,
 } from 'lucide-react';
 
-import type { MarketItemRow, MarketOrderRow, MarketAdminOrderRow } from '@/lib/actions/market';
-import { setMarketItemActiveAction } from '@/lib/actions/market';
+import type { MarketItemRow, MarketOrderRow, MarketAdminOrderRow, MarketAdminView } from '@/lib/actions/market';
+import { setMarketItemActiveAction, adjustMarketItemStockAction } from '@/lib/actions/market';
+import { isLowStock } from '@/lib/market';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,17 +34,13 @@ import { OrderRewardDialog } from './order-reward-dialog';
 import { CreateItemDialog } from './create-item-dialog';
 import { EditItemDialog } from './edit-item-dialog';
 import { DeleteItemDialog } from './delete-item-dialog';
-import { DecideOrderActions } from './decide-order-dialog';
+import { DecideOrderActions, type OrderDecision } from './decide-order-dialog';
 
 type MarketViewProps = {
   balance: number;
   items: MarketItemRow[];
   orders: MarketOrderRow[];
-  adminView: {
-    allowed: boolean;
-    items: MarketItemRow[];
-    pendingOrders: MarketAdminOrderRow[];
-  };
+  adminView: MarketAdminView;
 };
 
 type MarketTab = 'shop' | 'myOrders' | 'admin';
@@ -80,6 +82,125 @@ function ItemActiveToggle({ item }: { item: MarketItemRow }) {
       {item.is_active ? <ToggleRight className="size-4 text-emerald-400" /> : <ToggleLeft className="size-4 text-white/40" />}
       {item.is_active ? t('admin.active') : t('admin.inactive')}
     </Button>
+  );
+}
+
+/**
+ * One-click restock straight from the catalog row — the common CEO move
+ * ("two more hoodies arrived") shouldn't need the full edit dialog. Hidden for
+ * unlimited items, which have no stock number to move.
+ */
+function StockAdjust({ item }: { item: MarketItemRow }) {
+  const t = useTranslations('market');
+  const [isPending, startTransition] = useTransition();
+
+  if (item.stock === null) return null;
+
+  function adjust(delta: number) {
+    const formData = new FormData();
+    formData.set('itemId', item.id);
+    formData.set('delta', String(delta));
+
+    startTransition(async () => {
+      const result = await adjustMarketItemStockAction(undefined, formData);
+      if (result?.error) toast.error(t(`errors.${result.error}`));
+      else toast.success(t('admin.stockUpdated'));
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-white/15 bg-white/5">
+      <button
+        type="button"
+        disabled={isPending || item.stock === 0}
+        onClick={() => adjust(-1)}
+        aria-label={t('admin.removeOne')}
+        className="tap-scale flex size-7 items-center justify-center rounded-l-md text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+      >
+        <Minus className="size-3.5" />
+      </button>
+      <span className="min-w-7 px-1 text-center text-xs font-semibold text-white tabular-nums">
+        {item.stock}
+      </span>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={() => adjust(1)}
+        aria-label={t('admin.addOne')}
+        className="tap-scale flex size-7 items-center justify-center rounded-r-md text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+      >
+        <Plus className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * A pending order in the CEO queue. Holds the decision locally so the row can
+ * show its approved/rejected state immediately — the server revalidation that
+ * removes it from the queue lands a beat later.
+ */
+function PendingOrderRow({
+  order,
+  formattedDate,
+}: {
+  order: MarketAdminOrderRow;
+  formattedDate: string;
+}) {
+  const t = useTranslations('market');
+  const [decision, setDecision] = useState<OrderDecision | null>(null);
+
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-4 py-4 transition-colors duration-300',
+        decision === 'approved' && 'bg-emerald-500/5',
+        decision === 'rejected' && 'opacity-50',
+      )}
+    >
+      <div className="flex flex-col">
+        <span className="font-bold text-white">
+          {order.first_name} {order.last_name}
+        </span>
+        <span className="text-sm text-white/80">
+          {t('order')}: {order.item_name}
+        </span>
+        <span className="text-xs text-white/50">{formattedDate}</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+          <Sparkles className="size-3.5" />
+          {t('starCount', { count: order.star_cost })}
+        </span>
+        <DecideOrderActions order={order} onDecided={setDecision} />
+      </div>
+    </div>
+  );
+}
+
+/** Status pill shared by "My orders" and the CEO history. */
+function OrderStatusBadge({ status }: { status: MarketOrderRow['status'] }) {
+  const t = useTranslations('market');
+
+  return (
+    <span
+      className={cn(
+        'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
+        status === 'pending' && 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        status === 'approved' && 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        status === 'rejected' && 'bg-red-500/20 text-red-300 border-red-500/40',
+        // Legacy rows only — the CEO UI hasn't written this status since the
+        // approve/reject split.
+        status === 'fulfilled' && 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+      )}
+    >
+      {status === 'pending' && <Clock className="size-3" />}
+      {status === 'approved' && <CheckCircle2 className="size-3" />}
+      {status === 'rejected' && <XCircle className="size-3" />}
+      {status === 'fulfilled' && <PackageCheck className="size-3" />}
+      {t(`status.${status}`)}
+    </span>
   );
 }
 
@@ -276,6 +397,11 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           <span className="rounded-full border border-red-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-red-300 backdrop-blur-sm">
                             {t('outOfStock')}
                           </span>
+                        ) : isLowStock(item.stock) ? (
+                          <span className="flex items-center gap-1 rounded-full border border-orange-500/40 bg-slate-900/80 px-2.5 py-0.5 text-xs font-semibold text-orange-300 backdrop-blur-sm">
+                            <AlertTriangle className="size-3" />
+                            {t('lowStock', { count: item.stock })}
+                          </span>
                         ) : (
                           <span className="rounded-full border border-amber-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-amber-300 backdrop-blur-sm">
                             {t('stockLeft', { count: item.stock })}
@@ -356,22 +482,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                         {t('starCount', { count: order.star_cost })}
                       </span>
 
-                      {/* Status Badge */}
-                      <span
-                        className={cn(
-                          'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
-                          order.status === 'pending' && 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                          order.status === 'approved' && 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-                          order.status === 'rejected' && 'bg-red-500/20 text-red-300 border-red-500/40',
-                          order.status === 'fulfilled' && 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                        )}
-                      >
-                        {order.status === 'pending' && <Clock className="size-3" />}
-                        {order.status === 'approved' && <CheckCircle2 className="size-3" />}
-                        {order.status === 'rejected' && <XCircle className="size-3" />}
-                        {order.status === 'fulfilled' && <PackageCheck className="size-3" />}
-                        {t(`status.${order.status}`)}
-                      </span>
+                      <OrderStatusBadge status={order.status} />
                     </div>
                   </div>
                 );
@@ -384,6 +495,25 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
       {/* TAB 3: CURATION (CEO ONLY) */}
       {activeTab === 'admin' && adminView.allowed && (
         <div className="flex flex-col gap-6">
+          {/* AT-A-GLANCE COUNTS */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {(
+              [
+                { key: 'pending', value: adminView.stats.pending, tone: 'text-amber-300' },
+                { key: 'approved', value: adminView.stats.approved, tone: 'text-emerald-300' },
+                { key: 'rejected', value: adminView.stats.rejected, tone: 'text-red-300' },
+                { key: 'starsSpent', value: adminView.stats.starsSpent, tone: 'text-white' },
+              ] as const
+            ).map((stat) => (
+              <div key={stat.key} className={cn(GLASS_CARD, 'flex flex-col gap-1 rounded-xl p-4')}>
+                <span className="text-xs font-medium text-white/60">{t(`admin.stats.${stat.key}`)}</span>
+                <span className={cn('font-heading text-2xl font-bold tabular-nums', stat.tone)}>
+                  {stat.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
           {/* PENDING ORDERS QUEUE */}
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
             <div className="flex items-center justify-between">
@@ -400,27 +530,66 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
             ) : (
               <div className="divide-y divide-white/10">
                 {adminView.pendingOrders.map((order) => (
-                  <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-white">
-                          {order.first_name} {order.last_name}
+                  <PendingOrderRow
+                    key={order.id}
+                    order={order}
+                    formattedDate={format.dateTime(new Date(order.created_at), {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ORDER HISTORY — everything already decided */}
+          <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
+            <div className="flex items-center gap-2">
+              <History className="size-4 text-white/60" />
+              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+                {t('admin.orderHistory')}
+              </h2>
+            </div>
+
+            {adminView.decidedOrders.length === 0 ? (
+              <p className="text-sm text-white/60">{t('admin.noOrderHistory')}</p>
+            ) : (
+              <div className="divide-y divide-white/10">
+                {adminView.decidedOrders.map((order) => (
+                  <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-white">
+                        {order.first_name} {order.last_name} · {order.item_name}
+                      </span>
+                      <span className="text-xs text-white/50">
+                        {format.dateTime(new Date(order.created_at), {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                        {order.decided_at && (
+                          <>
+                            {' → '}
+                            {format.dateTime(new Date(order.decided_at), {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </>
+                        )}
+                      </span>
+                      {order.note && (
+                        <span className="text-xs italic text-white/50">
+                          {t('admin.note')}: {order.note}
                         </span>
-                        <span className="text-sm text-white/80">
-                          {t('order')}: {order.item_name}
-                        </span>
-                        <span className="text-xs text-white/50">
-                          {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
-                        </span>
-                      </div>
+                      )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
                         <Sparkles className="size-3.5" />
                         {t('starCount', { count: order.star_cost })}
                       </span>
-                      <DecideOrderActions order={order} />
+                      <OrderStatusBadge status={order.status} />
                     </div>
                   </div>
                 ))}
@@ -442,7 +611,15 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
             ) : (
               <div className="divide-y divide-white/10">
                 {adminView.items.map((item) => (
-                  <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 py-3.5">
+                  <div
+                    key={item.id}
+                    className={cn(
+                      'flex flex-wrap items-center justify-between gap-4 py-3.5',
+                      // Archived rows stay in the catalog (their order history
+                      // still points at them) but read as retired.
+                      item.archived_at && 'opacity-60',
+                    )}
+                  >
                     <div className="flex items-center gap-3">
                       {item.image_url ? (
                         <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-white/15">
@@ -454,24 +631,45 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           <PackageCheck className="size-5" />
                         </div>
                       )}
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <span className="font-medium text-white">{item.name}</span>
-                        <div className="flex items-center gap-2 text-xs text-white/60">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
                           <span>
                             {item.stock === null ? t('unlimitedStock') : t('stockLeft', { count: item.stock })}
                           </span>
+                          {item.stock !== null && item.stock === 0 && (
+                            <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-medium text-red-300">
+                              {t('outOfStock')}
+                            </span>
+                          )}
+                          {isLowStock(item.stock) && (
+                            <span className="flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 font-semibold text-orange-300">
+                              <AlertTriangle className="size-3" />
+                              {t('admin.restockSoon')}
+                            </span>
+                          )}
+                          {item.archived_at && (
+                            <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 px-2 py-0.5 font-medium text-white/60">
+                              <Archive className="size-3" />
+                              {t('admin.archived')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
                         <Sparkles className="size-3.5" />
                         {t('starCount', { count: item.star_cost })}
                       </span>
+                      <StockAdjust item={item} />
                       <ItemActiveToggle item={item} />
                       <EditItemDialog item={item} />
-                      <DeleteItemDialog item={item} />
+                      {/* An archived item is already removed; re-running the
+                          delete would just archive it again. Bringing it back
+                          is the Active toggle, which clears the archive. */}
+                      {!item.archived_at && <DeleteItemDialog item={item} />}
                     </div>
                   </div>
                 ))}
