@@ -107,9 +107,12 @@ export async function StarLeaderboard({
             return (
               <li
                 key={entry.id}
-                style={{ animationDelay: `${delayMs + 150 + i * 40}ms` }}
+                // Transform-only entrance (see globals.css): a stalled row is
+                // 14px low, never invisible. Index capped so row 15 doesn't
+                // wait on 14 predecessors before it moves.
+                style={{ animationDelay: `${delayMs + 150 + Math.min(i, 10) * 45}ms` }}
                 className={cn(
-                  'animate-fade-in-up flex items-center gap-3 rounded-xl px-2 py-1.5',
+                  'enter-rise flex items-center gap-3 rounded-xl px-2 py-1.5',
                   isCurrentUser && 'bg-white/15 ring-1 ring-white/30',
                 )}
               >

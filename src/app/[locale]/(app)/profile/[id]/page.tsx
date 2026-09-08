@@ -112,7 +112,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       {isSelf && <MarkWarningsSeen />}
       <div
         style={{ animationDelay: '0ms' }}
-        className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
+        className={cn(GLASS_CARD, 'enter-rise flex items-center gap-4 p-6')}
       >
         <Avatar className="size-16 border border-white/30">
           <AvatarImage src={avatarSignedUrl ?? undefined} alt="" />
@@ -134,7 +134,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </div>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '70ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '70ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <ContactInfoCard profile={target} isSelf={isSelf} />
@@ -143,7 +143,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       </div>
 
       {isSelf && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '100ms' }}>
           <ThemePreferenceCard />
         </div>
       )}
@@ -153,7 +153,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           for anyone else, so this gate only controls whether the card is
           worth rendering at all. */}
       {canViewCeoScoped && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '140ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <StarBalanceCard staffId={id} canManage={canManage} />
@@ -163,7 +163,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       )}
 
       {canViewCeoScoped && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '170ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '170ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={null}>
               <StarsArchiveSection staffId={id} />
@@ -173,7 +173,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       )}
 
       {canViewCeoScoped && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '210ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
@@ -182,7 +182,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </div>
       )}
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '280ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '280ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <WarningsCard staffId={id} canManage={canManageWarnings} />
@@ -190,7 +190,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </SectionErrorBoundary>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '310ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '310ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={null}>
             <WarningsArchiveSection staffId={id} />
@@ -198,7 +198,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </SectionErrorBoundary>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '350ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <BonusesPunishmentsCard staffId={id} canManage={canManage} />
@@ -208,14 +208,14 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
 
       {canViewCeoScoped && (
         <>
-          <div className="animate-fade-in-up" style={{ animationDelay: '420ms' }}>
+          <div className="enter-rise" style={{ animationDelay: '420ms' }}>
             <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
               <Suspense fallback={<GlassCardSkeleton />}>
                 <DutiesCard staffId={id} canManage={canManage} />
               </Suspense>
             </SectionErrorBoundary>
           </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '490ms' }}>
+          <div className="enter-rise" style={{ animationDelay: '490ms' }}>
             <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
               <Suspense fallback={<GlassCardSkeleton />}>
                 <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />

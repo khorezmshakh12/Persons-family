@@ -50,8 +50,8 @@ export default async function RoadmapPage() {
               <p className="text-sm text-white/60">{t('noGoals')}</p>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {goals.map((g) => (
-                  <GoalCard key={g.id} goal={g} />
+                {goals.map((g, index) => (
+                  <GoalCard key={g.id} goal={g} index={index} />
                 ))}
               </div>
             )}

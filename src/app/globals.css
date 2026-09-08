@@ -157,13 +157,18 @@
    which sets animation-delay inline). Kept as a plain CSS animation rather
    than a framer-motion mount so the cards (a Server Component tree) don't
    need a client boundary just to fade in. */
+/* TRANSFORM-ONLY, DELIBERATELY. This is a `both`-fill keyframe, so if the
+   animation never advances past frame 0 (hydration timing, a throttled
+   paint, a GPU-layer'd subtree) the element is stuck in `from` forever.
+   With `opacity: 0` in `from`, that stall renders the element invisible —
+   which is exactly how a previous motion pass white-screened the app. With
+   transform only, a stall leaves the element 10px low but fully readable.
+   Do not re-add opacity here. */
 @keyframes fade-in-up {
   from {
-    opacity: 0;
     transform: translateY(10px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -175,13 +180,14 @@
    ticking up, a toast, a freshly-inserted list item. Overshoots past 100%
    then settles, which is what makes it read as "alive" rather than a flat
    fade. */
+/* Transform-only for the same reason as fade-in-up above — a stalled badge
+   must still be visible. `from` is scale(0.8) rather than a deeper 0.5 so
+   that a stall reads as "slightly small", not "broken". */
 @keyframes pop-in {
   from {
-    opacity: 0;
-    transform: scale(0.5);
+    transform: scale(0.8);
   }
   to {
-    opacity: 1;
     transform: scale(1);
   }
 }
@@ -243,11 +249,74 @@
   animation: ambient-pulse 10s ease-in-out infinite;
 }
 
+/* ---------------------------------------------------------------------------
+   House entrance animations (leaf elements only).
+
+   THE RULE: an entrance animation's resting state — the state before it
+   plays, and the state it is stranded in if it never plays — must be fully
+   visible. So these animate `transform` and nothing else. No `opacity`,
+   ever. A stalled element sits a few pixels off its final position and is
+   100% readable; that is the whole point.
+
+   Use on LEAF elements: a card, a list row, a stat tile, a table row. Never
+   on a layout container, page wrapper, nav, auth card or anything that
+   wraps "the rest of the page" — that is what turns one stalled frame into
+   a blank screen.
+
+   Stagger convention (set by the consumer, so the delay stays in the JSX
+   next to the index it comes from):
+     style={{ animationDelay: `${Math.min(i, 10) * 45}ms` }}
+   Capping the index keeps a long list's tail from waiting seconds to move.
+--------------------------------------------------------------------------- */
+@keyframes enter-rise {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.enter-rise {
+  animation: enter-rise 0.45s both var(--ease-snappy);
+}
+
+/* Shorter travel for dense lists (table rows, compact list items) where a
+   full 14px lift reads as jitter rather than motion. */
+@keyframes enter-rise-sm {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.enter-rise-sm {
+  animation: enter-rise-sm 0.4s both var(--ease-snappy);
+}
+
+/* For grid tiles that should feel like they settle into place rather than
+   arrive from below. 0.97 is deliberately shallow — a stalled tile is
+   imperceptibly small, not obviously wrong. */
+@keyframes enter-scale {
+  from {
+    transform: scale(0.97);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.enter-scale {
+  animation: enter-scale 0.4s both var(--ease-snappy);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-pop-in,
   .animate-shake,
-  .animate-ambient-pulse {
+  .animate-ambient-pulse,
+  .enter-rise,
+  .enter-rise-sm,
+  .enter-scale {
     animation: none;
   }
   .tap-scale {
