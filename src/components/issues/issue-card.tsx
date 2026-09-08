@@ -82,7 +82,11 @@ function IssueCardImpl({
           'flex flex-col gap-3 p-6',
           isDragging && !isPreview && 'opacity-40',
           isPreview && 'opacity-60 border-2 border-dashed border-white/70',
-          isOverlay && 'cursor-grabbing shadow-2xl ring-2 ring-white/40',
+          // The lift is elevation-only on purpose — no scale/rotate. The
+          // overlay has to stay the exact size of the card it will land on,
+          // otherwise the drop animation (which glides the overlay onto the
+          // real card's rect) ends with a visible size pop.
+          isOverlay && 'cursor-grabbing bg-white/15 shadow-2xl shadow-black/50 ring-2 ring-white/50',
         )}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">

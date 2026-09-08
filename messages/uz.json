@@ -112,7 +112,13 @@
       "missions": "Missiyalar",
       "tasks": "Vazifalar",
       "showAmount": "Summani ko'rsatish",
-      "hideAmount": "Summani yashirish"
+      "hideAmount": "Summani yashirish",
+      "period": {
+        "label": "Davr",
+        "daily": "Kunlik",
+        "weekly": "Haftalik",
+        "monthly": "Oylik"
+      }
     },
     "rolesChart": {
       "title": "Lavozimlar",
@@ -938,6 +944,38 @@
       "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
       "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring."
+    },
+    "payroll": {
+      "title": "Oylik maosh",
+      "prevMonth": "Oldingi oy",
+      "nextMonth": "Keyingi oy",
+      "totalGross": "Reja",
+      "totalPaid": "To‘langan",
+      "totalRemaining": "Qoldi",
+      "set": "Belgilash",
+      "record": "Kiritish",
+      "recordFor": "{name} uchun kiritish",
+      "kind": "Turi",
+      "kind_salary": "Oylik",
+      "kind_advance": "Avans",
+      "kind_penalty": "Jarima",
+      "note": "Izoh",
+      "amount": "Summa",
+      "penaltyHint": "Musbat son kiriting — u ayirma sifatida yoziladi.",
+      "paymentHint": "Shu oyda to‘langan summaga qo‘shiladi.",
+      "save": "Saqlash",
+      "salarySaved": "Oylik saqlandi",
+      "paymentRecorded": "Kiritildi",
+      "gross": "Reja",
+      "paid": "To‘langan",
+      "remaining": "Qoldi",
+      "errors": {
+        "invalidInput": "Qiymatlarni tekshiring.",
+        "updateFailed": "Saqlab bo‘lmadi.",
+        "forbidden": "Ruxsat yo‘q.",
+        "sessionExpired": "Sessiya tugadi — qayta kiring.",
+        "nonzero": "Summa nol bo‘lishi mumkin emas."
+      }
     }
   },
   "kpi": {
@@ -1181,7 +1219,9 @@
     "lessonPlanAlerts": "Lesson plan hisobotlari",
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
-    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
+    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi.",
+    "muteSound": "Bildirishnoma ovozini o'chirish",
+    "unmuteSound": "Bildirishnoma ovozini yoqish"
   },
   "profile": {
     "sectionError": "Bu bo'limni yuklab bo'lmadi. Sahifani yangilab ko'ring.",

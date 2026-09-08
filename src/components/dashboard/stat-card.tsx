@@ -1,8 +1,15 @@
+'use client';
+
+import { useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { GLASS_INTERACTIVE, GLASS_CARD } from '@/lib/glass';
+import { GLASS_INTERACTIVE } from '@/lib/glass';
+import { changePercent, lastPoint, type PeriodSeries } from '@/lib/dashboard-stats';
+import { formatUZS } from '@/lib/format-currency';
+import { useEnterProgress } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 import { MaskableStatValue } from './maskable-stat-value';
+import { useStatsPeriod } from './stats-period';
 
 const TINTS = {
   green: {
@@ -30,41 +37,81 @@ const TINTS = {
 /** Floor (in %) for the shortest sparkline bar, so it stays visible. */
 const MIN_BAR = 15;
 
+/** ~0.6s, the house count-up/draw duration. */
+const ENTER_MS = 600;
+
+export type StatValueFormat = 'count' | 'uzs';
+
+/**
+ * One dashboard stat card.
+ *
+ * It takes the metric as a *series per period* and derives everything it
+ * shows from the selected one: headline = the series' last point, sparkline
+ * = the series, trend badge = last-vs-previous. There is no second,
+ * independently-measured headline to drift out of sync with the chart, and
+ * switching kunlik/haftalik/oylik switches all three together.
+ *
+ * `higherIsBetter: false` for backlog metrics (open missions, open tasks):
+ * the arrow still points the way the number moved, but a growing pile of
+ * unfinished work is coloured as the bad news it is.
+ */
 export function StatCard({
   label,
-  value,
+  series,
+  format = 'count',
   icon: Icon,
   tint,
-  changePercent,
-  sparkline,
   href,
   index = 0,
   maskable = false,
+  higherIsBetter = true,
 }: {
   label: string;
-  value: number | string;
+  series: PeriodSeries;
+  format?: StatValueFormat;
   icon: LucideIcon;
   tint: keyof typeof TINTS;
-  changePercent: number;
-  sparkline: number[];
   href: string;
   index?: number;
   maskable?: boolean;
+  higherIsBetter?: boolean;
 }) {
   const t = TINTS[tint];
-  const isPositive = changePercent >= 0;
+  const { period } = useStatsPeriod();
+  const sparkline = series[period];
+
+  const value = lastPoint(sparkline);
+  const change = changePercent(sparkline);
+  const isUp = change >= 0;
+  const readsWell = higherIsBetter ? isUp : !isUp;
+
+  // Count up from 0 and grow the bars from the baseline. Re-runs when the
+  // period changes, so the new series draws itself in rather than snapping.
+  const progress = useEnterProgress(ENTER_MS, `${period}:${value}`);
+
+  const shown = useMemo(() => {
+    const n = value * progress;
+    // Round toward the final value so the last frame is exact, never
+    // "1 999 999" for a 2 000 000 total.
+    const rounded = progress >= 1 ? value : Math.round(n);
+    return format === 'uzs' ? formatUZS(rounded) : new Intl.NumberFormat('uz-UZ').format(rounded);
+  }, [value, progress, format]);
 
   // Scale the bars across the series' own min..max rather than 0..max.
-  // These series are running totals (see stats-row), so on 0..max a run like
-  // 40,41,…,45 renders as six near-identical full bars that read as flat
-  // while the badge says "up" — and any negative point (a net balance can go
-  // below zero) collapsed onto the same MIN_BAR floor as a small positive
-  // one. Baselining on min makes the bars show the move the badge reports.
+  // These series are running totals, so on 0..max a run like 40,41,…,45
+  // renders as six near-identical full bars that read as flat while the
+  // badge says "up" — and any negative point (a net balance can go below
+  // zero) collapsed onto the same MIN_BAR floor as a small positive one.
   const max = Math.max(...sparkline);
   const min = Math.min(...sparkline);
   const range = max - min;
-  const barHeight = (v: number) =>
-    range === 0 ? (max > 0 ? 100 : MIN_BAR) : MIN_BAR + ((v - min) / range) * (100 - MIN_BAR);
+  const barHeight = (v: number) => {
+    const full = range === 0 ? (max > 0 ? 100 : MIN_BAR) : MIN_BAR + ((v - min) / range) * (100 - MIN_BAR);
+    // Grow from the baseline. `progress` rests at 1, so a card whose JS never
+    // runs renders every bar at its true height — this only ever scales an
+    // already-correct value down for the ~0.6s the entrance lasts.
+    return full * progress;
+  };
 
   return (
     <Link
@@ -83,18 +130,18 @@ export function StatCard({
         <span
           className={cn(
             'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-md border shadow-sm',
-            isPositive
+            readsWell
               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30 shadow-[0_0_10px_rgba(52,211,153,0.2)]'
               : 'bg-rose-500/20 text-rose-300 border-rose-400/30 shadow-[0_0_10px_rgba(244,63,94,0.2)]',
           )}
         >
-          {isPositive ? '↗' : '↘'} {Math.abs(changePercent)}%
+          {isUp ? '↗' : '↘'} {Math.abs(change)}%
         </span>
       </div>
 
       <div className="mt-4 flex flex-col gap-0.5">
         <span className="font-heading text-3xl font-bold tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-          {maskable ? <MaskableStatValue value={String(value)} /> : value}
+          {maskable ? <MaskableStatValue value={shown} /> : shown}
         </span>
         <span className="text-sm font-medium text-white/80">{label}</span>
       </div>
@@ -103,7 +150,7 @@ export function StatCard({
         {sparkline.map((v, i) => (
           <span
             key={i}
-            className={cn('flex-1 rounded-t-sm transition-all duration-300', t.bar)}
+            className={cn('flex-1 rounded-t-sm', t.bar)}
             style={{ height: `${barHeight(v)}%` }}
           />
         ))}

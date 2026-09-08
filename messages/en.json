@@ -112,7 +112,13 @@
       "missions": "Missions",
       "tasks": "Tasks",
       "showAmount": "Show amount",
-      "hideAmount": "Hide amount"
+      "hideAmount": "Hide amount",
+      "period": {
+        "label": "Period",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      }
     },
     "rolesChart": {
       "title": "Roles Breakdown",
@@ -938,6 +944,38 @@
       "fieldInvalid": "This field is invalid.",
       "updateFailed": "Could not save. Please try again.",
       "deleteFailed": "Could not delete this entry. Please try again."
+    },
+    "payroll": {
+      "title": "Payroll",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "totalGross": "Planned",
+      "totalPaid": "Paid",
+      "totalRemaining": "Remaining",
+      "set": "Set",
+      "record": "Record",
+      "recordFor": "Record for {name}",
+      "kind": "Type",
+      "kind_salary": "Salary",
+      "kind_advance": "Advance",
+      "kind_penalty": "Penalty",
+      "note": "Note",
+      "amount": "Amount",
+      "penaltyHint": "Enter a positive figure — it is recorded as a deduction.",
+      "paymentHint": "Counts toward what has been paid this month.",
+      "save": "Save",
+      "salarySaved": "Salary saved",
+      "paymentRecorded": "Recorded",
+      "gross": "Planned",
+      "paid": "Paid",
+      "remaining": "Remaining",
+      "errors": {
+        "invalidInput": "Check the values.",
+        "updateFailed": "Could not save.",
+        "forbidden": "Not allowed.",
+        "sessionExpired": "Session expired — sign in again.",
+        "nonzero": "Amount cannot be zero."
+      }
     }
   },
   "kpi": {
@@ -1181,7 +1219,9 @@
     "lessonPlanAlerts": "Lesson plan reports",
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
-    "markReadFailed": "Couldn't sync that as read — it will still show as unread."
+    "markReadFailed": "Couldn't sync that as read — it will still show as unread.",
+    "muteSound": "Mute notification sound",
+    "unmuteSound": "Unmute notification sound"
   },
   "profile": {
     "sectionError": "This section couldn't load. Try refreshing the page.",

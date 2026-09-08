@@ -56,7 +56,10 @@ export function TaskStats({ stats }: { stats: TaskStatsData | null }) {
         ))}
       </div>
 
-      {/* On-time / late / still-open split across every task ever assigned */}
+      {/* Three independent counts over every task ever assigned, NOT a
+          partition of `total`: "overdue" is only the tasks past their
+          deadline, so a task that is still open and not yet due appears in
+          none of the three. */}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="tint" tint="green" className="tabular-nums">
           {t('onTime', { count: overall.onTime })}
