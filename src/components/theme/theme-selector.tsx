@@ -41,8 +41,8 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="animate-pop-in absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-white text-black shadow-md">
-                <Check className="size-3 stroke-[3]" />
+              <span className="animate-pop-in absolute top-1.5 right-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-white text-black">
+                <Check className="size-3" />
               </span>
             )}
           </button>
@@ -71,8 +71,8 @@ export function ThemeSelector() {
               {t(`themes.${theme.id}`)}
             </span>
             {active && (
-              <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-white text-black shadow-md">
-                <Check className="size-3 stroke-[3]" />
+              <span className="animate-pop-in absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-white text-black">
+                <Check className="size-3" />
               </span>
             )}
           </button>

@@ -44,7 +44,7 @@ function StaffMessageItemComponent({
   return (
     <motion.div
       layout
-      initial={isOptimistic ? { opacity: 0, y: 8, scale: 0.96 } : false}
+      initial={{ opacity: 0, y: 14, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       className={cn('flex gap-3', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}

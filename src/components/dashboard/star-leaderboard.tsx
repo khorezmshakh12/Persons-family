@@ -5,7 +5,6 @@ import { getStarBalances } from '@/lib/stars';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GLASS_CARD } from '@/lib/glass';
-import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { cn } from '@/lib/utils';
 
 const MAX_ROWS = 15;
@@ -136,9 +135,7 @@ export async function StarLeaderboard({
                 <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-white tabular-nums [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
                   <Star className="size-3.5 fill-amber-300 text-amber-300" aria-hidden />
                   <span className="sr-only">{t('starCount', { count: entry.stars })}</span>
-                  <span aria-hidden>
-                    <AnimatedCounter value={entry.stars} />
-                  </span>
+                  <span aria-hidden>{entry.stars}</span>
                 </span>
               </li>
             );
