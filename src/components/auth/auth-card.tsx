@@ -15,7 +15,11 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <div className="animate-fade-in-up relative z-10 w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-10 text-white shadow-2xl backdrop-blur-md">
+    // No entrance animation: this card wraps the entire login form, the gate
+    // to the whole app. `animate-fade-in-up` is a `both`-fill keyframe whose
+    // `from` is opacity:0 — if it ever stalls (as `animate-page-enter` did on
+    // the app wrapper), the login screen goes blank. Not worth the risk here.
+    <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-10 text-white shadow-2xl backdrop-blur-md">
       <div className="flex flex-col items-center gap-1 text-center">
         {/* unoptimized: next/image's optimizer doesn't correctly prefix the
          * basePath onto its internal url= query param when this app is
