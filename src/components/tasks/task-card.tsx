@@ -3,7 +3,7 @@
 import { memo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ChevronUp, GripVertical, Minus, Star, ExternalLink } from 'lucide-react';
 import { TaskStatusControl, type TaskStatus } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
@@ -103,6 +103,12 @@ function TaskCardImpl({
   const [isExpanded, setIsExpanded] = useState(false);
   const isOverlay = variant === 'overlay';
   const isPreview = variant === 'preview';
+  // The only motion on this card is drag-time (the `layout` reflow when the
+  // provisional placement moves it between columns) and pointer-time (hover
+  // scale). Both are transform-only sugar, so under `prefers-reduced-motion`
+  // they are simply dropped — the card, and the drag preview's placement,
+  // stay exactly where they are. Nothing here gates visibility either way.
+  const reduceMotion = useReducedMotion();
 
   // Status is the assignee's own progress report — not even the admin who
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
@@ -135,10 +141,10 @@ function TaskCardImpl({
     // cursor, so translating this node too would show the card twice.
     <div ref={setNodeRef} className="w-full min-w-0 max-w-full">
       <motion.div
-        layout={!isDragging && !isOverlay}
+        layout={!reduceMotion && !isDragging && !isOverlay}
         initial={false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging || isOverlay ? undefined : { scale: 1.01 }}
+        whileHover={reduceMotion || isDragging || isOverlay ? undefined : { scale: 1.01 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(
           GLASS_CARD,
@@ -160,7 +166,7 @@ function TaskCardImpl({
                   type="button"
                   onClick={() => onMove(task, 'up')}
                   aria-label={t('moveUp')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="tap-scale rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
                 >
                   <ChevronUp className="size-3.5" />
                 </button>
@@ -168,7 +174,7 @@ function TaskCardImpl({
                   type="button"
                   onClick={() => onMove(task, 'down')}
                   aria-label={t('moveDown')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="tap-scale rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
                 >
                   <ChevronDown className="size-3.5" />
                 </button>

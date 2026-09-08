@@ -36,10 +36,14 @@ export function MonthlyArchive({
         {t('title')}
       </h2>
       <div className="flex flex-col gap-2">
-        {months.map((month) => {
+        {months.map((month, index) => {
           const isOpen = openMonth === month.monthKey;
           return (
-            <div key={month.monthKey} className={cn(GLASS_CARD, 'overflow-hidden')}>
+            <div
+              key={month.monthKey}
+              style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
+              className={cn(GLASS_CARD, 'enter-rise-sm overflow-hidden')}
+            >
               <button
                 type="button"
                 onClick={() => setOpenMonth(isOpen ? null : month.monthKey)}

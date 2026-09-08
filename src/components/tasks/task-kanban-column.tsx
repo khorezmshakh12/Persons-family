@@ -89,7 +89,13 @@ function TaskKanbanColumnImpl({
       <AnimatePresence initial={false}>
         {showCards && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
+            // Height only on the way in — no `opacity: 0` in `initial`. A
+            // collapsed column that a drag-over auto-opens would otherwise
+            // mount its cards at opacity 0, and if that animation stalls the
+            // cards you are dragging onto are invisible. Expanding from
+            // height 0 with opacity untouched can only ever under-reveal,
+            // never hide. Opacity stays on `exit` (leaving is safe).
+            initial={{ height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}

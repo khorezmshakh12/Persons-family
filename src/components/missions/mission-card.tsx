@@ -55,10 +55,13 @@ export function MissionCard({
   mission,
   currentUserId,
   isCeo,
+  index = 0,
 }: {
   mission: MissionItem;
   currentUserId: string;
   isCeo: boolean;
+  /** Position in the list, used only to stagger the entrance animation. */
+  index?: number;
 }) {
   const t = useTranslations('missions');
   const tCommon = useTranslations('common');
@@ -96,7 +99,10 @@ export function MissionCard({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+    <div
+      style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
+      className="enter-rise flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">

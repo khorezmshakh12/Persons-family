@@ -78,8 +78,8 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
           <p className="text-sm text-white/60">{t('noShortTerm')}</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {shortTerm.map((m) => (
-              <MissionCard key={m.id} mission={m} currentUserId={user!.id} isCeo={isCeo} />
+            {shortTerm.map((m, index) => (
+              <MissionCard key={m.id} mission={m} currentUserId={user!.id} isCeo={isCeo} index={index} />
             ))}
           </div>
         )}
@@ -93,8 +93,8 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
           <p className="text-sm text-white/60">{t('noLongTerm')}</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {longTerm.map((m) => (
-              <MissionCard key={m.id} mission={m} currentUserId={user!.id} isCeo={isCeo} />
+            {longTerm.map((m, index) => (
+              <MissionCard key={m.id} mission={m} currentUserId={user!.id} isCeo={isCeo} index={index} />
             ))}
           </div>
         )}

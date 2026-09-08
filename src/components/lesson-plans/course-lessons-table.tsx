@@ -154,9 +154,10 @@ export function CourseLessonsTable({
               </tr>
             </thead>
             <tbody>
-              {lessons.map((lesson) => (
+              {lessons.map((lesson, index) => (
                 <LessonPlanRow
                   key={lesson.id}
+                  index={index}
                   groupId={groupId}
                   lesson={lesson}
                   locked={locked}

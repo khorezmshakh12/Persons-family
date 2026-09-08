@@ -31,7 +31,11 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex min-h-[70vh] items-center justify-center p-6">
+    // Opaque dark ground on purpose: this boundary sits above the (app)
+    // layout, so when it catches it also unmounts <DynamicBackground>. Without
+    // a ground of its own the translucent glass card lands on the default
+    // light <body> — white-on-white, indistinguishable from a blank screen.
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
       <div className={cn(GLASS_CARD, 'flex max-w-md flex-col items-center gap-4 p-8 text-center')}>
         <div className="flex size-14 items-center justify-center rounded-full border border-red-400/30 bg-red-500/15">
           <AlertTriangle className="size-7 text-red-300" />
