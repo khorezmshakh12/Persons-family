@@ -151,6 +151,22 @@
   html {
     @apply font-sans;
   }
+
+  /* Keyboard-focus fallback. The dark glass theme leaves the UA's default
+     focus ring nearly invisible against white/10 panels, and only the shadcn
+     primitives (button, input, textarea, select, switch, tabs) style focus
+     themselves. Deliberately declared in @layer base so it stays a FALLBACK:
+     every one of those primitives carries the `outline-none` utility, and
+     utilities outrank base, so they keep their own ring and never get a
+     doubled indicator. Everything else — raw <button>/<a> icon controls,
+     drag handles, tabindex'd cards — picks up the teal outline here.
+     :focus-visible only ever matches during keyboard interaction, so this
+     adds no resting state to anything. */
+  :focus-visible {
+    outline: 2px solid rgba(45, 212, 191, 0.7);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 /* Staggered entrance for dashboard stat cards (see StatCard's `index` prop,
@@ -226,6 +242,21 @@
   transform: scale(0.88);
 }
 
+/* Gentle hover lift for glass cards that are themselves clickable (market
+   shop items today). Deliberately softer than GLASS_INTERACTIVE — this is
+   for grid tiles where a full 1.03 scale would visibly jostle neighbours.
+   Hover-only: the resting state is the untransformed card, so nothing here
+   can ever leave content displaced or hidden. */
+.card-lift {
+  transition:
+    transform 0.2s var(--ease-snappy),
+    border-color 0.2s var(--ease-snappy),
+    box-shadow 0.2s var(--ease-snappy);
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+}
+
 /* Slow ambient breathing for the "Cinematic" video background's
    colour-harmony veil (see dynamic-background.tsx) — keeps the scene
    quietly alive even when the footage itself is momentarily still,
@@ -252,6 +283,16 @@
   }
   .tap-scale {
     transition: none;
+  }
+  /* Drop the transform half of the lift; the border/shadow brighten stays,
+     so the card still answers "am I hovered" without any motion. */
+  .card-lift {
+    transition:
+      border-color 0.2s linear,
+      box-shadow 0.2s linear;
+  }
+  .card-lift:hover {
+    transform: none;
   }
 }
 

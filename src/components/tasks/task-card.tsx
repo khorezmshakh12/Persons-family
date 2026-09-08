@@ -160,7 +160,7 @@ function TaskCardImpl({
                   type="button"
                   onClick={() => onMove(task, 'up')}
                   aria-label={t('moveUp')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="tap-scale rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
                 >
                   <ChevronUp className="size-3.5" />
                 </button>
@@ -168,7 +168,7 @@ function TaskCardImpl({
                   type="button"
                   onClick={() => onMove(task, 'down')}
                   aria-label={t('moveDown')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
+                  className="tap-scale rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
                 >
                   <ChevronDown className="size-3.5" />
                 </button>

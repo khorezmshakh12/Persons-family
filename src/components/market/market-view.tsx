@@ -243,7 +243,10 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                     key={item.id}
                     className={cn(
                       GLASS_CARD,
-                      'flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-200 hover:border-white/30',
+                      // `group` is what makes the thumbnail's group-hover zoom
+                      // below actually fire — without it that class is inert.
+                      'group card-lift flex flex-col overflow-hidden rounded-xl border border-white/15',
+                      'hover:border-white/30 hover:shadow-2xl',
                     )}
                   >
                     {/* Thumbnail */}
