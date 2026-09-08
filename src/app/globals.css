@@ -340,6 +340,70 @@
   animation: enter-scale 0.4s both var(--ease-snappy);
 }
 
+/* ---------------------------------------------------------------------------
+   Persons Market — purchase & decision feedback.
+
+   Same rule as the entrances above: every one of these plays on content that
+   is ALREADY rendered and already visible, and none of them has a hidden
+   resting state. If an animation never starts, the user sees the finished UI,
+   not a blank box.
+--------------------------------------------------------------------------- */
+
+/* The confirm card's celebratory beat when an order lands. Starts and ends at
+   scale(1) — a stall leaves the card exactly where it was. */
+@keyframes purchase-pop {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.045);
+  }
+  62% {
+    transform: scale(0.992);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.purchase-pop {
+  animation: purchase-pop 0.7s var(--ease-bounce);
+}
+
+/* The few star particles that fly out of the card. These are decoration that
+   only exists for ~1s AFTER a click — never content, never present on load —
+   so fading them out is safe; they are also removed from the DOM by the
+   component's own timer, and hidden outright under reduced motion below.
+   --star-dx / --star-dy are set per particle in the JSX. */
+@keyframes star-fly {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.5) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(var(--star-dx, 0), var(--star-dy, -40px), 0) scale(1.1) rotate(140deg);
+    opacity: 0;
+  }
+}
+.star-particle {
+  animation: star-fly 0.9s var(--ease-snappy) forwards;
+}
+
+/* Green check that draws itself in on an approved order. No fill-mode and no
+   starting offset outside the keyframes, so the resting state of the path is
+   the fully drawn check — a stalled animation shows a normal tick. */
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 26;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.check-draw {
+  stroke-dasharray: 26;
+  animation: check-draw 0.45s var(--ease-snappy);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-pop-in,
@@ -347,8 +411,15 @@
   .animate-ambient-pulse,
   .enter-rise,
   .enter-rise-sm,
-  .enter-scale {
+  .enter-scale,
+  .purchase-pop,
+  .check-draw {
     animation: none;
+  }
+  /* Particles are pure motion — with the animation off they would just be
+     static dots sitting on the card, so drop them entirely. */
+  .star-particle {
+    display: none;
   }
   .tap-scale {
     transition: none;

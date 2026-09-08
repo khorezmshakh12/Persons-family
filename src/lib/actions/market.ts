@@ -2,15 +2,24 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { getStarBalance } from '@/lib/stars';
 import { insertStarTransaction } from '@/lib/stars-write';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 
-export type MarketActionState = { error?: string } | undefined;
+export type MarketActionState =
+  | {
+      error?: string;
+      /** Set by deleteMarketItemAction when the item had order history and was
+       *  archived instead of removed, so the UI can say which one happened. */
+      archived?: boolean;
+    }
+  | undefined;
 
 // Market item images live in the chat_media bucket under a market/ prefix
 // (private, same as avatars) — pasted image-search URLs like the Yandex
@@ -202,7 +211,13 @@ export async function setMarketItemActiveAction(
 
   try {
     const rows = await sql<{ id: string }[]>`
-      update market_items set is_active = ${isActive}, updated_at = now()
+      update market_items set
+        is_active   = ${isActive},
+        -- Switching an archived item back on is the CEO's undo for a mistaken
+        -- delete: it has to clear the archive stamp too, or the item would
+        -- read as active and still never reach the shop.
+        archived_at = case when ${isActive} then null else archived_at end,
+        updated_at  = now()
       where id = ${parsed.data.itemId}
       returning id
     `;
@@ -215,13 +230,62 @@ export async function setMarketItemActiveAction(
   return {};
 }
 
+const adjustStockSchema = z.object({
+  itemId: z.string().uuid(),
+  // Restock (+) or write off (-). Bounded so a fat-fingered hidden field can't
+  // invent a thousand units.
+  delta: z.coerce.number().int().refine((n) => n !== 0 && Math.abs(n) <= 100),
+});
+
+/**
+ * One-click restock from the CEO catalog row (+1 / +5 / -1) without opening
+ * the full edit dialog. Clamped at 0 — stock is a count, never negative — and
+ * a no-op for unlimited items (`stock is null`), which have nothing to restock.
+ */
+export async function adjustMarketItemStockAction(
+  _prevState: MarketActionState,
+  formData: FormData,
+): Promise<MarketActionState> {
+  try {
+    await requireCeo();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = adjustStockSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+  const { itemId, delta } = parsed.data;
+
+  try {
+    const rows = await sql<{ id: string }[]>`
+      update market_items
+         set stock = greatest(0, stock + ${delta}), updated_at = now()
+       where id = ${itemId} and stock is not null
+      returning id
+    `;
+    if (rows.length === 0) return { error: 'itemNotFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+
+  logSystemAction('market.item.stock', `Adjusted market item ${itemId} stock by ${delta}`);
+  revalidateMarket();
+  return {};
+}
+
 const deleteItemSchema = z.object({ itemId: z.string().uuid() });
 
 /**
- * Hard-deletes a shelf item. Refused when the item has any order history —
- * `market_orders.item_id` has no cascade and, more importantly, those rows are
- * employees' star-spend records that must not vanish. In that case the CEO
- * deactivates the item instead (`setMarketItemActiveAction`).
+ * Removes a shelf item, choosing the safe removal for the item at hand:
+ *
+ *  - no orders reference it  → hard `delete`, the row is genuinely gone;
+ *  - it has order history    → **archive** (`archived_at = now()`,
+ *    `is_active = false`). `market_orders.item_id` is an FK with no cascade
+ *    and every one of those rows is an employee's star-spend record, so the
+ *    item has to keep existing for "My orders" and the CEO history to resolve
+ *    its name. Archived items never appear in the shop again.
+ *
+ * The result says which happened (`archived: true`) so the UI can report it.
  */
 export async function deleteMarketItemAction(
   _prevState: MarketActionState,
@@ -235,24 +299,42 @@ export async function deleteMarketItemAction(
 
   const parsed = deleteItemSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
+  const { itemId } = parsed.data;
 
+  let archived = false;
   try {
-    const [{ count }] = await sql<{ count: number }[]>`
-      select count(*)::int as count from market_orders where item_id = ${parsed.data.itemId}
-    `;
-    if (count > 0) return { error: 'itemHasOrders' };
+    archived = await sql.begin(async (tx) => {
+      const [item] = await tx<{ id: string }[]>`
+        select id from market_items where id = ${itemId} for update
+      `;
+      if (!item) throw new MarketError('itemNotFound');
 
-    const rows = await sql<{ id: string }[]>`
-      delete from market_items where id = ${parsed.data.itemId} returning id
-    `;
-    if (rows.length === 0) return { error: 'itemNotFound' };
-  } catch {
-    return { error: 'deleteFailed' };
+      const [{ count }] = await tx<{ count: number }[]>`
+        select count(*)::int as count from market_orders where item_id = ${itemId}
+      `;
+
+      if (count > 0) {
+        await tx`
+          update market_items
+             set archived_at = now(), is_active = false, updated_at = now()
+           where id = ${itemId}
+        `;
+        return true;
+      }
+
+      await tx`delete from market_items where id = ${itemId}`;
+      return false;
+    });
+  } catch (error) {
+    return marketErrorResult(error, 'deleteFailed');
   }
 
-  logSystemAction('market.item.delete', `Deleted market item ${parsed.data.itemId}`);
+  logSystemAction(
+    archived ? 'market.item.archive' : 'market.item.delete',
+    `${archived ? 'Archived' : 'Deleted'} market item ${itemId}`,
+  );
   revalidateMarket();
-  return {};
+  return { archived };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,15 +343,55 @@ export async function deleteMarketItemAction(
 
 const decideSchema = z.object({
   orderId: z.string().uuid(),
-  status: z.enum(['approved', 'rejected', 'fulfilled']),
+  // Exactly two outcomes. ('fulfilled' still exists in the table's CHECK for
+  // rows written by the old three-button UI — it is displayed, never written.)
+  status: z.enum(['approved', 'rejected']),
   note: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+/** Fire-and-forget buyer notification — mirrors notifyWarningIssued in
+ * warnings.ts. The decision has already committed; a Telegram hiccup (or a
+ * Cloud Run instance that would otherwise be frozen mid-request) must never
+ * turn into an error for the CEO who just clicked Approve. */
+async function notifyOrderDecided({
+  status,
+  itemName,
+  starCost,
+  note,
+  recipientTelegramId,
+}: {
+  status: 'approved' | 'rejected';
+  itemName: string;
+  starCost: number;
+  note: string | null;
+  recipientTelegramId: number | null;
+}) {
+  if (!recipientTelegramId) return;
+  try {
+    const text =
+      status === 'approved'
+        ? `<b>Buyurtmangiz tasdiqlandi</b>\nSovg'a: ${escapeTelegramText(itemName)}` +
+          (note ? `\nIzoh: ${escapeTelegramText(note)}` : '')
+        : `<b>Buyurtmangiz rad etildi</b>\nSovg'a: ${escapeTelegramText(itemName)}` +
+          `\n${starCost} yulduz balansingizga qaytarildi.` +
+          (note ? `\nSabab: ${escapeTelegramText(note)}` : '');
+    await sendTelegramMessage(recipientTelegramId, text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
+}
+
 /**
- * Approving/fulfilling only stamps who decided and when — the stars were
- * already spent when the order was placed. **Rejecting refunds them** with a
- * matching `refund` ledger row and puts the unit back on the shelf, so a
- * rejected order leaves the employee exactly where they started.
+ * The CEO's two-outcome decision on a pending purchase.
+ *
+ *  - **approve** — stamps who decided and when. The stars were already spent
+ *    when the order was placed (see placeMarketOrderAction), so approving
+ *    moves no money; it just releases the reward.
+ *  - **reject** — refunds the stars with a matching `refund` ledger row and
+ *    puts the unit back on the shelf, leaving the employee exactly where they
+ *    started.
+ *
+ * Both are terminal, and both ping the buyer on Telegram.
  */
 export async function decideMarketOrderAction(
   _prevState: MarketActionState,
@@ -289,24 +411,36 @@ export async function decideMarketOrderAction(
   const { orderId, status } = parsed.data;
   const note = parsed.data.note?.trim() ? parsed.data.note.trim() : null;
 
+  // Carried OUT of the transaction (rather than captured in a `let`, which
+  // TypeScript can't narrow across a callback) so the Telegram ping below runs
+  // on data that is known to have committed.
+  let decided: { itemName: string; starCost: number; telegramId: number | null };
+
   try {
-    await sql.begin(async (tx) => {
+    decided = await sql.begin(async (tx) => {
       const [order] = await tx<
-        { id: string; item_id: string; user_id: string; star_cost: number; status: string; item_name: string }[]
+        {
+          id: string;
+          item_id: string;
+          user_id: string;
+          star_cost: number;
+          status: string;
+          item_name: string;
+          telegram_id: number | null;
+        }[]
       >`
-        select o.id, o.item_id, o.user_id, o.star_cost, o.status, i.name as item_name
+        select o.id, o.item_id, o.user_id, o.star_cost, o.status, i.name as item_name,
+               p.telegram_id
         from market_orders o
         join market_items i on i.id = o.item_id
+        join profiles p on p.id = o.user_id
         where o.id = ${orderId}
         for update of o
       `;
       if (!order) throw new MarketError('orderNotFound');
-      // 'rejected' and 'fulfilled' are terminal — re-deciding a rejected
-      // order would refund a second time.
-      if (order.status === 'rejected' || order.status === 'fulfilled') {
-        throw new MarketError('alreadyDecided');
-      }
-      if (status === 'approved' && order.status !== 'pending') throw new MarketError('alreadyDecided');
+      // Every decision is terminal — only a still-pending order may be
+      // decided, or a rejection could refund the same stars twice.
+      if (order.status !== 'pending') throw new MarketError('alreadyDecided');
 
       await tx`
         update market_orders
@@ -330,12 +464,31 @@ export async function decideMarketOrderAction(
           where id = ${order.item_id} and stock is not null
         `;
       }
+
+      return {
+        itemName: order.item_name,
+        starCost: order.star_cost,
+        telegramId: order.telegram_id,
+      };
     });
   } catch (error) {
     return marketErrorResult(error, 'updateFailed');
   }
 
   logSystemAction('market.order.decide', `Market order ${orderId} -> ${status}`);
+
+  // `after` so the Telegram round-trip runs once the response is on its way —
+  // on Cloud Run a bare floating promise can be frozen with the instance.
+  after(() =>
+    notifyOrderDecided({
+      status,
+      itemName: decided.itemName,
+      starCost: decided.starCost,
+      note,
+      recipientTelegramId: decided.telegramId,
+    }),
+  );
+
   revalidateMarket();
   return {};
 }
@@ -430,6 +583,9 @@ export type MarketItemRow = {
   star_cost: number;
   stock: number | null;
   is_active: boolean;
+  /** Non-null once the CEO removed an item that had order history. Never
+   *  reaches the shop; shown in the CEO catalog so the row can be restored. */
+  archived_at: string | null;
 };
 
 export type MarketOrderRow = {
@@ -459,9 +615,9 @@ export async function getMarketAction(): Promise<MarketView> {
   const [balance, items, orders] = await Promise.all([
     getStarBalance(user.id),
     sql<MarketItemRow[]>`
-      select id, name, description, image_url, star_cost, stock, is_active
+      select id, name, description, image_url, star_cost, stock, is_active, archived_at
       from market_items
-      where is_active = true
+      where is_active = true and archived_at is null
       order by star_cost asc, created_at desc
     `,
     sql<MarketOrderRow[]>`
@@ -496,21 +652,35 @@ export type MarketAdminView = {
   allowed: boolean;
   items: MarketItemRow[];
   pendingOrders: MarketAdminOrderRow[];
+  /** Everything already decided, newest first — who ordered what, when, and
+   *  how it ended. Capped: this is a review panel, not an export. */
+  decidedOrders: MarketAdminOrderRow[];
+  /** Stars actually spent (approved orders) versus refunded (rejected). */
+  stats: { pending: number; approved: number; rejected: number; starsSpent: number };
 };
 
-/** What the CEO sees: every item (inactive included) + every pending order. */
+const EMPTY_ADMIN_VIEW: MarketAdminView = {
+  allowed: false,
+  items: [],
+  pendingOrders: [],
+  decidedOrders: [],
+  stats: { pending: 0, approved: 0, rejected: 0, starsSpent: 0 },
+};
+
+/** What the CEO sees: every item (inactive + archived included), the pending
+ *  queue, and the decided-order history. */
 export async function getMarketAdminAction(): Promise<MarketAdminView> {
   try {
     await requireCeo();
   } catch {
-    return { allowed: false, items: [], pendingOrders: [] };
+    return EMPTY_ADMIN_VIEW;
   }
 
-  const [items, pendingOrders] = await Promise.all([
+  const [items, orders, [stats]] = await Promise.all([
     sql<MarketItemRow[]>`
-      select id, name, description, image_url, star_cost, stock, is_active
+      select id, name, description, image_url, star_cost, stock, is_active, archived_at
       from market_items
-      order by is_active desc, created_at desc
+      order by (archived_at is not null) asc, is_active desc, created_at desc
     `,
     sql<MarketAdminOrderRow[]>`
       select o.id, o.item_id, i.name as item_name, o.star_cost, o.status, o.note,
@@ -519,7 +689,17 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
       join market_items i on i.id = o.item_id
       join profiles p on p.id = o.user_id
       where o.status = 'pending'
-      order by o.created_at asc
+         or o.decided_at >= now() - interval '180 days'
+      order by o.created_at desc
+      limit 200
+    `,
+    sql<{ pending: number; approved: number; rejected: number; stars_spent: number }[]>`
+      select
+        count(*) filter (where status = 'pending')::int  as pending,
+        count(*) filter (where status in ('approved','fulfilled'))::int as approved,
+        count(*) filter (where status = 'rejected')::int as rejected,
+        coalesce(sum(star_cost) filter (where status in ('approved','fulfilled')), 0)::int as stars_spent
+      from market_orders
     `,
   ]);
 
@@ -530,5 +710,19 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
       image_url: await resolveImage(i.image_url),
     })),
   );
-  return { allowed: true, items: itemsWithImages, pendingOrders };
+
+  return {
+    allowed: true,
+    items: itemsWithImages,
+    // One query, split here — the pending queue is ordered oldest-first (a
+    // work queue), the history newest-first (a log).
+    pendingOrders: orders.filter((o) => o.status === 'pending').reverse(),
+    decidedOrders: orders.filter((o) => o.status !== 'pending'),
+    stats: {
+      pending: stats?.pending ?? 0,
+      approved: stats?.approved ?? 0,
+      rejected: stats?.rejected ?? 0,
+      starsSpent: stats?.stars_spent ?? 0,
+    },
+  };
 }
