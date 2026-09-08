@@ -148,7 +148,7 @@ export function MilestoneRail({
             return (
               <motion.div
                 key={m.id}
-                initial={{ opacity: 0, x: -6 }}
+                initial={false}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.2, delay: idx * 0.04 }}
                 className="relative flex items-start gap-3 group"

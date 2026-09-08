@@ -50,10 +50,10 @@ export function IncomeKpiStrip({
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {/* 1. Baseline */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0 }}
-        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
+        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-white/30"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-white/60">{t('baselineMonthlyIncome')}</span>
@@ -71,10 +71,10 @@ export function IncomeKpiStrip({
 
       {/* 2. Year-end Target */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.04 }}
-        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
+        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-white/30"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-white/60">{t('targetYearEndIncome')}</span>
@@ -101,10 +101,10 @@ export function IncomeKpiStrip({
 
       {/* 3. Attainment to Date */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.08 }}
-        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
+        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-white/30"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-white/60">{t('attainment')}</span>
@@ -136,10 +136,10 @@ export function IncomeKpiStrip({
 
       {/* 4. Avg. Monthly Growth */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.12 }}
-        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
+        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-white/30"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-white/60">{t('avgMonthlyGrowth')}</span>
@@ -165,10 +165,10 @@ export function IncomeKpiStrip({
 
       {/* 5. Projected Year Total */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, delay: 0.16 }}
-        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm sm:col-span-2 md:col-span-1"
+        className="flex flex-col justify-between rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-white/30 sm:col-span-2 md:col-span-1"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-white/60">{t('projectedYearTotal')}</span>

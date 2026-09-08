@@ -136,7 +136,7 @@ function TaskCardImpl({
     <div ref={setNodeRef} className="w-full min-w-0 max-w-full">
       <motion.div
         layout={!isDragging && !isOverlay}
-        initial={isOverlay ? false : { opacity: 0, y: 14, scale: 0.94 }}
+        initial={false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         whileHover={isDragging || isOverlay ? undefined : { scale: 1.01 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
