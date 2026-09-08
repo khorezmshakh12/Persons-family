@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Mic, GripVertical } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
 import { EditIssueDialog } from './edit-issue-dialog';
@@ -52,6 +52,12 @@ function IssueCardImpl({
   const format = useFormatter();
   const isOverlay = variant === 'overlay';
   const isPreview = variant === 'preview';
+  // The only motion on this card is drag-time (the `layout` reflow when the
+  // provisional placement moves it between columns) and pointer-time (hover
+  // scale). Both are transform-only sugar, so under `prefers-reduced-motion`
+  // they are simply dropped — the card, and the drag preview's placement,
+  // stay exactly where they are. Nothing here gates visibility either way.
+  const reduceMotion = useReducedMotion();
   // Only the CEO manages the board; a non-CEO viewer gets a read-only card.
   // The overlay copy must never register under the real card's id — that
   // would be a second draggable for the same issue — so it takes a suffixed,
@@ -66,10 +72,10 @@ function IssueCardImpl({
     // cursor, so translating this node too would show the card twice.
     <div ref={setNodeRef}>
       <motion.div
-        layout={!isDragging && !isOverlay}
+        layout={!reduceMotion && !isDragging && !isOverlay}
         initial={false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging || isOverlay ? undefined : { scale: 1.015 }}
+        whileHover={reduceMotion || isDragging || isOverlay ? undefined : { scale: 1.015 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(
           GLASS_CARD,

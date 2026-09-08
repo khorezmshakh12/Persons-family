@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Sparkles,
   ShoppingBag,
@@ -90,6 +91,16 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
   const [activeTab, setActiveTab] = useState<MarketTab>('shop');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('default');
+  const reduceMotion = useReducedMotion();
+
+  // Exit-only tab transition. Every panel is `initial={false}` with an
+  // `animate` of `opacity: 1`, so the incoming panel is painted at its fully
+  // opaque resting state on the very first frame — there is no entrance state
+  // that could strand it invisible if the animation engine never runs. The
+  // only animated frame belongs to the panel that is genuinely unmounting.
+  const tabExit = reduceMotion
+    ? { duration: 0 }
+    : { duration: 0.12, ease: [0.2, 0, 0, 1] as const };
 
   // Shop Items filtering & sorting
   const shopItems = items.filter((item) => {
@@ -198,285 +209,308 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         </div>
       </div>
 
-      {/* TAB 1: SHOP REWARDS */}
-      {activeTab === 'shop' && (
-        <div className="flex flex-col gap-5">
-          {/* Search & Sort Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
-              <Input
-                placeholder={t('searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-white/20 bg-white/10 pl-9 text-white placeholder:text-white/40"
-              />
+      <AnimatePresence mode="wait" initial={false}>
+        {/* TAB 1: SHOP REWARDS */}
+        {activeTab === 'shop' && (
+          <motion.div
+            key="shop"
+            initial={false}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={tabExit}
+            className="flex flex-col gap-5"
+          >
+            {/* Search & Sort Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
+                <Input
+                  placeholder={t('searchPlaceholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border-white/20 bg-white/10 pl-9 text-white placeholder:text-white/40"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <ArrowDownUp className="size-4 text-white/70" />
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  className="h-9 rounded-md border border-white/20 bg-slate-900/80 px-3 text-sm text-white focus:outline-none"
+                >
+                  <option value="default" className="bg-slate-900">{t('allRewards')}</option>
+                  <option value="price-asc" className="bg-slate-900">{t('sortLowest')}</option>
+                  <option value="price-desc" className="bg-slate-900">{t('sortHighest')}</option>
+                  <option value="name" className="bg-slate-900">{t('admin.name')}</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ArrowDownUp className="size-4 text-white/70" />
-              <select
-                value={sortMode}
-                onChange={(e) => setSortMode(e.target.value as SortMode)}
-                className="h-9 rounded-md border border-white/20 bg-slate-900/80 px-3 text-sm text-white focus:outline-none"
-              >
-                <option value="default" className="bg-slate-900">{t('allRewards')}</option>
-                <option value="price-asc" className="bg-slate-900">{t('sortLowest')}</option>
-                <option value="price-desc" className="bg-slate-900">{t('sortHighest')}</option>
-                <option value="name" className="bg-slate-900">{t('admin.name')}</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Items Grid */}
-          {shopItems.length === 0 ? (
-            <div className={cn(GLASS_CARD, 'flex flex-col items-center justify-center gap-2 py-16 text-center')}>
-              <ShoppingBag className="size-12 text-white/20" />
-              <p className="text-sm text-white/60">{t('noItems')}</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {shopItems.map((item) => {
-                const isOutOfStock = item.stock !== null && item.stock <= 0;
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      GLASS_CARD,
-                      'flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-200 hover:border-white/30',
-                    )}
-                  >
-                    {/* Thumbnail */}
-                    <div className="relative h-44 w-full overflow-hidden bg-white/5">
-                      {item.image_url ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-white/20">
-                          <PackageCheck className="size-12" />
-                        </div>
+            {/* Items Grid */}
+            {shopItems.length === 0 ? (
+              <div className={cn(GLASS_CARD, 'flex flex-col items-center justify-center gap-2 py-16 text-center')}>
+                <ShoppingBag className="size-12 text-white/20" />
+                <p className="text-sm text-white/60">{t('noItems')}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {shopItems.map((item) => {
+                  const isOutOfStock = item.stock !== null && item.stock <= 0;
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        GLASS_CARD,
+                        'flex flex-col overflow-hidden rounded-xl border border-white/15 transition-all duration-200 hover:border-white/30',
                       )}
-
-                      {/* Stock Badge */}
-                      <div className="absolute top-2.5 right-2.5">
-                        {item.stock === null ? (
-                          <span className="rounded-full border border-emerald-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-emerald-300 backdrop-blur-sm">
-                            {t('unlimitedStock')}
-                          </span>
-                        ) : isOutOfStock ? (
-                          <span className="rounded-full border border-red-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-red-300 backdrop-blur-sm">
-                            {t('outOfStock')}
-                          </span>
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative h-44 w-full overflow-hidden bg-white/5">
+                        {item.image_url ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
                         ) : (
-                          <span className="rounded-full border border-amber-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-amber-300 backdrop-blur-sm">
-                            {t('stockLeft', { count: item.stock })}
-                          </span>
+                          <div className="flex h-full w-full items-center justify-center text-white/20">
+                            <PackageCheck className="size-12" />
+                          </div>
                         )}
-                      </div>
-                    </div>
 
-                    {/* Content */}
-                    <div className="flex flex-1 flex-col justify-between gap-4 p-5">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-heading text-base font-bold text-white line-clamp-1 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
-                            {item.name}
-                          </h3>
-                          <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30">
-                            <Sparkles className="size-3.5" />
-                            {item.star_cost}
-                          </span>
+                        {/* Stock Badge */}
+                        <div className="absolute top-2.5 right-2.5">
+                          {item.stock === null ? (
+                            <span className="rounded-full border border-emerald-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-emerald-300 backdrop-blur-sm">
+                              {t('unlimitedStock')}
+                            </span>
+                          ) : isOutOfStock ? (
+                            <span className="rounded-full border border-red-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-red-300 backdrop-blur-sm">
+                              {t('outOfStock')}
+                            </span>
+                          ) : (
+                            <span className="rounded-full border border-amber-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-amber-300 backdrop-blur-sm">
+                              {t('stockLeft', { count: item.stock })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex flex-1 flex-col justify-between gap-4 p-5">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-heading text-base font-bold text-white line-clamp-1 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+                              {item.name}
+                            </h3>
+                            <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30">
+                              <Sparkles className="size-3.5" />
+                              {item.star_cost}
+                            </span>
+                          </div>
+
+                          {item.description && (
+                            <p className="line-clamp-2 text-xs text-white/70 whitespace-pre-wrap">
+                              {item.description}
+                            </p>
+                          )}
                         </div>
 
-                        {item.description && (
-                          <p className="line-clamp-2 text-xs text-white/70 whitespace-pre-wrap">
-                            {item.description}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="pt-2">
-                        <OrderRewardDialog item={item} balance={balance} />
+                        <div className="pt-2">
+                          <OrderRewardDialog item={item} balance={balance} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: MY ORDERS */}
-      {activeTab === 'myOrders' && (
-        <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
-          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
-            {t('myOrdersTitle')}
-          </h2>
-
-          {orders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-              <Package className="size-10 text-white/20" />
-              <p className="text-sm text-white/60">{t('noOrders')}</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-white/10">
-              {orders.map((order) => {
-                return (
-                  <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-amber-300">
-                        <ShoppingBag className="size-5" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-white">{order.item_name}</span>
-                        <span className="text-xs text-white/50">
-                          {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
-                        </span>
-                        {order.note && (
-                          <span className="text-xs italic text-red-200/80 pt-1">
-                            {t('admin.note')}: {order.note}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
-                        <Sparkles className="size-3.5" />
-                        {t('starCount', { count: order.star_cost })}
-                      </span>
-
-                      {/* Status Badge */}
-                      <span
-                        className={cn(
-                          'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
-                          order.status === 'pending' && 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                          order.status === 'approved' && 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-                          order.status === 'rejected' && 'bg-red-500/20 text-red-300 border-red-500/40',
-                          order.status === 'fulfilled' && 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                        )}
-                      >
-                        {order.status === 'pending' && <Clock className="size-3" />}
-                        {order.status === 'approved' && <CheckCircle2 className="size-3" />}
-                        {order.status === 'rejected' && <XCircle className="size-3" />}
-                        {order.status === 'fulfilled' && <PackageCheck className="size-3" />}
-                        {t(`status.${order.status}`)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: CURATION (CEO ONLY) */}
-      {activeTab === 'admin' && adminView.allowed && (
-        <div className="flex flex-col gap-6">
-          {/* PENDING ORDERS QUEUE */}
-          <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
-                {t('admin.pendingOrders')}
-              </h2>
-              <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-300 border border-amber-500/30">
-                {adminView.pendingOrders.length}
-              </span>
-            </div>
-
-            {adminView.pendingOrders.length === 0 ? (
-              <p className="text-sm text-white/60">{t('admin.noPendingOrders')}</p>
-            ) : (
-              <div className="divide-y divide-white/10">
-                {adminView.pendingOrders.map((order) => (
-                  <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-white">
-                          {order.first_name} {order.last_name}
-                        </span>
-                        <span className="text-sm text-white/80">
-                          {t('order')}: {order.item_name}
-                        </span>
-                        <span className="text-xs text-white/50">
-                          {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
-                        <Sparkles className="size-3.5" />
-                        {t('starCount', { count: order.star_cost })}
-                      </span>
-                      <DecideOrderActions order={order} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
-          </div>
+          </motion.div>
+        )}
 
-          {/* CATALOG MANAGEMENT */}
-          <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
-                {t('admin.catalogManagement')}
-              </h2>
-              <CreateItemDialog />
-            </div>
+        {/* TAB 2: MY ORDERS */}
+        {activeTab === 'myOrders' && (
+          <motion.div
+            key="myOrders"
+            initial={false}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={tabExit}
+            className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}
+          >
+            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+              {t('myOrdersTitle')}
+            </h2>
 
-            {adminView.items.length === 0 ? (
-              <p className="text-sm text-white/60">{t('noItems')}</p>
+            {orders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                <Package className="size-10 text-white/20" />
+                <p className="text-sm text-white/60">{t('noOrders')}</p>
+              </div>
             ) : (
               <div className="divide-y divide-white/10">
-                {adminView.items.map((item) => (
-                  <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      {item.image_url ? (
-                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-white/15">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={item.image_url} alt={item.name} referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover" />
+                {orders.map((order) => {
+                  return (
+                    <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-amber-300">
+                          <ShoppingBag className="size-5" />
                         </div>
-                      ) : (
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/30">
-                          <PackageCheck className="size-5" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-white">{order.item_name}</span>
+                          <span className="text-xs text-white/50">
+                            {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
+                          </span>
+                          {order.note && (
+                            <span className="text-xs italic text-red-200/80 pt-1">
+                              {t('admin.note')}: {order.note}
+                            </span>
+                          )}
                         </div>
-                      )}
-                      <div className="flex flex-col">
-                        <span className="font-medium text-white">{item.name}</span>
-                        <div className="flex items-center gap-2 text-xs text-white/60">
-                          <span>
-                            {item.stock === null ? t('unlimitedStock') : t('stockLeft', { count: item.stock })}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+                          <Sparkles className="size-3.5" />
+                          {t('starCount', { count: order.star_cost })}
+                        </span>
+
+                        {/* Status Badge */}
+                        <span
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
+                            order.status === 'pending' && 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                            order.status === 'approved' && 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+                            order.status === 'rejected' && 'bg-red-500/20 text-red-300 border-red-500/40',
+                            order.status === 'fulfilled' && 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                          )}
+                        >
+                          {order.status === 'pending' && <Clock className="size-3" />}
+                          {order.status === 'approved' && <CheckCircle2 className="size-3" />}
+                          {order.status === 'rejected' && <XCircle className="size-3" />}
+                          {order.status === 'fulfilled' && <PackageCheck className="size-3" />}
+                          {t(`status.${order.status}`)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* TAB 3: CURATION (CEO ONLY) */}
+        {activeTab === 'admin' && adminView.allowed && (
+          <motion.div
+            key="admin"
+            initial={false}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={tabExit}
+            className="flex flex-col gap-6"
+          >
+            {/* PENDING ORDERS QUEUE */}
+            <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
+              <div className="flex items-center justify-between">
+                <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+                  {t('admin.pendingOrders')}
+                </h2>
+                <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-300 border border-amber-500/30">
+                  {adminView.pendingOrders.length}
+                </span>
+              </div>
+
+              {adminView.pendingOrders.length === 0 ? (
+                <p className="text-sm text-white/60">{t('admin.noPendingOrders')}</p>
+              ) : (
+                <div className="divide-y divide-white/10">
+                  {adminView.pendingOrders.map((order) => (
+                    <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-white">
+                            {order.first_name} {order.last_name}
+                          </span>
+                          <span className="text-sm text-white/80">
+                            {t('order')}: {order.item_name}
+                          </span>
+                          <span className="text-xs text-white/50">
+                            {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
                           </span>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
-                        <Sparkles className="size-3.5" />
-                        {t('starCount', { count: item.star_cost })}
-                      </span>
-                      <ItemActiveToggle item={item} />
-                      <EditItemDialog item={item} />
-                      <DeleteItemDialog item={item} />
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+                          <Sparkles className="size-3.5" />
+                          {t('starCount', { count: order.star_cost })}
+                        </span>
+                        <DecideOrderActions order={order} />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* CATALOG MANAGEMENT */}
+            <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+                  {t('admin.catalogManagement')}
+                </h2>
+                <CreateItemDialog />
               </div>
-            )}
-          </div>
-        </div>
-      )}
+
+              {adminView.items.length === 0 ? (
+                <p className="text-sm text-white/60">{t('noItems')}</p>
+              ) : (
+                <div className="divide-y divide-white/10">
+                  {adminView.items.map((item) => (
+                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        {item.image_url ? (
+                          <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-white/15">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={item.image_url} alt={item.name} referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/30">
+                            <PackageCheck className="size-5" />
+                          </div>
+                        )}
+                        <div className="flex flex-col">
+                          <span className="font-medium text-white">{item.name}</span>
+                          <div className="flex items-center gap-2 text-xs text-white/60">
+                            <span>
+                              {item.stock === null ? t('unlimitedStock') : t('stockLeft', { count: item.stock })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+                          <Sparkles className="size-3.5" />
+                          {t('starCount', { count: item.star_cost })}
+                        </span>
+                        <ItemActiveToggle item={item} />
+                        <EditItemDialog item={item} />
+                        <DeleteItemDialog item={item} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
