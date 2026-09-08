@@ -112,7 +112,13 @@
       "missions": "Missions",
       "tasks": "Tasks",
       "showAmount": "Show amount",
-      "hideAmount": "Hide amount"
+      "hideAmount": "Hide amount",
+      "period": {
+        "label": "Period",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      }
     },
     "rolesChart": {
       "title": "Roles Breakdown",

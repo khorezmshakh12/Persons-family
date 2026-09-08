@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { useTranslations } from 'next-intl';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +16,7 @@ const STATUS_COLOR: Record<RoadmapGoalPoint['status'], string> = {
 
 export function RoadmapGoalsChart({ data }: { data: RoadmapGoalPoint[] }) {
   const t = useTranslations('analytics');
+  const anim = useChartAnimation();
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
@@ -39,7 +41,7 @@ export function RoadmapGoalsChart({ data }: { data: RoadmapGoalPoint[] }) {
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="progress" radius={[0, 6, 6, 0]}>
+              <Bar dataKey="progress" radius={[0, 6, 6, 0]} {...anim}>
                 {data.map((d, i) => (
                   <Cell key={i} fill={STATUS_COLOR[d.status]} />
                 ))}

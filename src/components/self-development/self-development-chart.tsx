@@ -3,6 +3,7 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useTranslations, useFormatter } from 'next-intl';
 import { GLASS_CARD } from '@/lib/glass';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 
 export type ScorePoint = { month: string; ceoScore: number | null };
@@ -20,6 +21,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 export function SelfDevelopmentChart({ points, title }: { points: ScorePoint[]; title?: string }) {
   const t = useTranslations('selfDevelopment');
   const format = useFormatter();
+  const anim = useChartAnimation();
 
   const data = points
     .filter((p) => p.ceoScore !== null)
@@ -63,6 +65,7 @@ export function SelfDevelopmentChart({ points, title }: { points: ScorePoint[]; 
                 strokeWidth={2.5}
                 fill="url(#selfDevScoreFill)"
                 dot={{ fill: '#2dd4bf', r: 3 }}
+                {...anim}
               />
             </AreaChart>
           </ResponsiveContainer>

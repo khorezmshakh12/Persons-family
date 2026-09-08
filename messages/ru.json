@@ -112,7 +112,13 @@
       "missions": "Миссии",
       "tasks": "Задачи",
       "showAmount": "Показать сумму",
-      "hideAmount": "Скрыть сумму"
+      "hideAmount": "Скрыть сумму",
+      "period": {
+        "label": "Период",
+        "daily": "Ежедневно",
+        "weekly": "Еженедельно",
+        "monthly": "Ежемесячно"
+      }
     },
     "rolesChart": {
       "title": "Распределение должностей",
