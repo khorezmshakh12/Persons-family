@@ -14,6 +14,7 @@ import type { TeacherLevel } from '@/lib/teacher-level';
 import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { StarBalanceCard } from '@/components/profile/star-balance-card';
+import { SalaryCard } from '@/components/profile/salary-card';
 import { WarningsCard } from '@/components/profile/warnings-card';
 import { MonthlyWarningsArchive } from '@/components/profile/monthly-warnings-archive';
 import { MonthlyStarsArchive } from '@/components/profile/monthly-stars-archive';
@@ -164,6 +165,16 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
 
       {canViewCeoScoped && (
         <div className="enter-rise" style={{ animationDelay: '170ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <SalaryCard staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+      )}
+
+      {canViewCeoScoped && (
+        <div className="enter-rise" style={{ animationDelay: '185ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={null}>
               <StarsArchiveSection staffId={id} />
