@@ -1,5 +1,4 @@
 import { getTranslations } from 'next-intl/server';
-import { Users, Layers, CalendarDays, Wallet, Target, ListTodo } from 'lucide-react';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import {
@@ -10,7 +9,7 @@ import {
   type PeriodSeries,
 } from '@/lib/dashboard-stats';
 import { getNetEarningEntries } from '@/lib/finance-net';
-import { StatCard, type StatValueFormat } from './stat-card';
+import { StatCard, type StatIconName, type StatValueFormat } from './stat-card';
 import { StatsPeriodToggle } from './stats-period';
 
 // Every card on this row is built series-first: the card gets the metric's
@@ -29,7 +28,7 @@ type Card = {
   label: string;
   series: PeriodSeries;
   format?: StatValueFormat;
-  icon: typeof Users;
+  icon: StatIconName;
   tint: 'green' | 'blue' | 'orange';
   href: string;
   maskable?: boolean;
@@ -109,7 +108,7 @@ export async function StatsRow({
         label: t('finance'),
         series: financeSeries,
         format: 'uzs',
-        icon: Wallet,
+        icon: 'wallet',
         tint: 'green',
         href: `/finance/${userId}`,
         maskable: true,
@@ -117,7 +116,7 @@ export async function StatsRow({
       {
         label: t('missions'),
         series: missionSeries,
-        icon: Target,
+        icon: 'target',
         tint: 'blue',
         href: `/missions/${userId}`,
         higherIsBetter: false,
@@ -125,7 +124,7 @@ export async function StatsRow({
       {
         label: t('tasks'),
         series: taskSeries,
-        icon: ListTodo,
+        icon: 'tasks',
         tint: 'orange',
         href: '/tasks',
         higherIsBetter: false,
@@ -182,7 +181,7 @@ export async function StatsRow({
     showTotalStaff && {
       label: t('totalStaff'),
       series: staffSeries,
-      icon: Users,
+      icon: 'users',
       tint: 'green' as const,
       href: '/staff',
     },
@@ -190,7 +189,7 @@ export async function StatsRow({
       label: t('finance'),
       series: financeSeries,
       format: 'uzs' as const,
-      icon: Wallet,
+      icon: 'wallet',
       tint: 'green' as const,
       href: `/finance/${financeUserId}`,
       maskable: true,
@@ -198,14 +197,14 @@ export async function StatsRow({
     showLessonPlanCards && {
       label: t('activeGroups'),
       series: groupSeries,
-      icon: Layers,
+      icon: 'layers',
       tint: 'blue' as const,
       href: '/lesson-plans',
     },
     showLessonPlanCards && {
       label: t('lessonPlans'),
       series: lessonSeries,
-      icon: CalendarDays,
+      icon: 'calendar',
       tint: 'orange' as const,
       href: '/lesson-plans',
     },
