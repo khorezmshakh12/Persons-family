@@ -5,9 +5,7 @@ import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Bell, Volume2, VolumeX } from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
-import { doc, onSnapshot } from 'firebase/firestore';
 import { Link } from '@/i18n/navigation';
-import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { getNotificationBellDataAction } from '@/lib/actions/notification-bell';
 import {
   markConversationReadAction,
@@ -100,8 +98,12 @@ export function NotificationBell({
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
-    ensureRealtimeSignedIn()
-      .then(() => {
+    // Dynamically imported so the Firestore/Auth SDK isn't part of the
+    // bundle every page has to parse before hydrating — see the identical
+    // comment in nav-badges-context.tsx.
+    Promise.all([import('firebase/firestore'), import('@/lib/firebase/client')])
+      .then(async ([{ doc, onSnapshot }, { ensureRealtimeSignedIn, getRealtimeDb }]) => {
+        await ensureRealtimeSignedIn();
         if (cancelled) return;
         const db = getRealtimeDb();
         const unsubBadge = onSnapshot(doc(db, 'nav_badge_signals', userId), () => resync());
