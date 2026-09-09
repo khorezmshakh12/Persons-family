@@ -645,9 +645,9 @@
       "dayGroupLabel": "Filter by day",
       "day": {
         "all": "All",
-        "yesterday": "Yesterday",
         "today": "Today",
-        "tomorrow": "Tomorrow"
+        "week": "Week",
+        "month": "Month"
       }
     },
     "deadlinePreset": "{hours} h",
