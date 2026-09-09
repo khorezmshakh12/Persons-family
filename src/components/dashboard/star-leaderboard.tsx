@@ -35,11 +35,17 @@ type LeaderboardEntry = {
  */
 async function loadLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
+    // The CEO neither earns nor loses stars through the normal flow — every
+    // star transaction on this platform is the CEO awarding/deducting
+    // someone else's (task rewards/penalties, Market purchases approved by
+    // the CEO, manual adjustments) — so a leaderboard rank for the CEO
+    // would only ever reflect self-certification, which the rest of the
+    // app (task assignment, performance review) already bans outright.
     const profiles = await sql<
       { id: string; first_name: string; last_name: string; avatar_url: string | null }[]
     >`
       select id, first_name, last_name, avatar_url from profiles
-      where is_active = true
+      where is_active = true and role <> 'ceo'
       order by first_name asc
     `;
     if (profiles.length === 0) return [];

@@ -62,7 +62,8 @@
       "passwordMismatch": "Parollar mos kelmadi.",
       "updateFailed": "Parolni o'rnatib bo'lmadi. Qayta urinib ko'ring.",
       "accountDeactivated": "Hisobingiz faolsizlantirilgan. Administrator bilan bog'laning.",
-      "unexpectedError": "Serverga ulanishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring."
+      "unexpectedError": "Serverga ulanishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.",
+      "accountFrozenStars": "Siz vazifalarni vaqtida bajarmaganingiz yoki ogohlantirishlarni soni oshib ketgani sababli balansingiz -20 ga tushurildi, shu sababli akkountingiz muzlatildi! Shartnoma qayta ko'rib chiqishga o'tqazildi, iltimos shartnomani qayta tiklash uchun Administratsiyaga murojaat qiling."
     }
   },
   "birthday": {
@@ -161,7 +162,7 @@
     "lastName": "Familiya",
     "phone": "Telefon raqami",
     "telegramId": "Telegram ID",
-    "telegramIdHint": "Raqamli ID olish uchun Telegram'da @userinfobot botiga yozishni so'rang.",
+    "telegramIdHint": "Faqat xodimning Telegram akkaunti almashganda to'ldiring — bo'sh qoldirilsa, hozirgi qiymat saqlanadi.",
     "dateOfBirth": "Tug'ilgan sana",
     "monthlySalary": "Oylik maosh",
     "role": "Lavozim",
@@ -186,7 +187,8 @@
     },
     "status": {
       "active": "Faol",
-      "inactive": "Faol emas"
+      "inactive": "Faol emas",
+      "frozenStars": "Yulduz sababli muzlatilgan"
     },
     "table": {
       "name": "Ism",
@@ -262,7 +264,11 @@
     },
     "delete": "Xodimni o'chirish",
     "confirmDeleteTitle": "Ushbu xodim butunlay o'chirilsinmi?",
-    "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi."
+    "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi.",
+    "telegramIdPlaceholder": "O'zgartirmaslik uchun bo'sh qoldiring",
+    "level": "Daraja",
+    "levelKeep": "O'zgartirmaslik",
+    "levelCurrent": "Hozirgi daraja: {level}"
   },
   "chatHub": {
     "individualChats": "Shaxsiy Suhbatlar",
@@ -646,8 +652,7 @@
       "day": {
         "all": "Hammasi",
         "today": "Bugun",
-        "week": "Hafta",
-        "month": "Oy"
+        "week": "Hafta"
       }
     },
     "deadlinePreset": "{hours} soat",

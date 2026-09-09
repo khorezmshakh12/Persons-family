@@ -18,13 +18,14 @@ export default async function LoginPage({
   const t = await getTranslations('auth');
   const { reason } = await searchParams;
   const suspended = reason === 'suspended';
+  const starFrozen = reason === 'starFrozen';
 
   return (
     <>
       <div className="flex w-full max-w-md flex-col gap-4">
-        {suspended && (
+        {(suspended || starFrozen) && (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-center text-sm text-red-200 shadow-sm backdrop-blur-sm">
-            {t('errors.accountDeactivated')}
+            {starFrozen ? t('errors.accountFrozenStars') : t('errors.accountDeactivated')}
           </div>
         )}
         <AuthCard tagline={t('tagline')} title={t('loginTitle')} subtitle={t('loginSubtitle')}>

@@ -128,9 +128,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-white/60">{roleLabel(tStaff, target.role)}</span>
-            {target.role === 'teacher' && target.teacher_level && (
-              <TeacherLevelBadge level={target.teacher_level} />
-            )}
+            {target.teacher_level && <TeacherLevelBadge level={target.teacher_level} />}
           </div>
         </div>
       </div>

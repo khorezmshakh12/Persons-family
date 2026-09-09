@@ -59,6 +59,14 @@ export type Task = {
   /** Manual position inside this card's status column (ascending). The
    * board list already arrives sorted by it — see reorderTaskAction. */
   sort_order?: number;
+  /** Stamped once, in finalizeTaskDone — null until the CEO actually
+   * approves. Drives the done column's date ordering (see TaskBoard). */
+  completed_at?: string | null;
+  /** Stamped in transitionToSubmitted; the done column's ordering fallback
+   * for a card that's `submitted`/`awaiting_upload` (handed in, but not yet
+   * approved, so it has no completed_at yet but still lives in that
+   * column — see TaskBoard's boardColumnFor). */
+  submitted_at?: string | null;
 };
 
 /** Render text with auto-detected URLs as clickable, breakable external links. */
@@ -160,7 +168,14 @@ function TaskCardImpl({
   // is open to both sides of the task — mirrors reorderTaskAction's
   // `assigned_by === user.id || assigned_to === user.id` check exactly (a
   // CEO who didn't assign the task can't see it on this board at all).
-  const canReorder = task.assigned_to === currentUserId || task.assigned_by === currentUserId;
+  // The done column now always sorts by date (see TaskBoard's doneSortKey),
+  // so a manual reorder there would change sort_order in the database with
+  // no visible effect — hiding the control here is what keeps that from
+  // reading as a dead button.
+  const canReorder =
+    task.status !== 'done' &&
+    !underReview &&
+    (task.assigned_to === currentUserId || task.assigned_by === currentUserId);
   // The overlay copy must never register under the real card's id — that
   // would be a second draggable for the same task — so it takes a suffixed,
   // permanently disabled registration instead.
