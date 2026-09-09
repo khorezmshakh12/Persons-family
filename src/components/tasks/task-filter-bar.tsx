@@ -10,18 +10,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { addDaysToKey, tashkentDayKey } from '@/lib/time';
+import { tashkentDayKey, tashkentMidnight } from '@/lib/time';
 import { cn } from '@/lib/utils';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 
-/** Which calendar day (Tashkent) a task's deadline has to fall on, or 'all'
- * for no narrowing. The done column especially was turning into a wall of
- * cards from every day this month once a team had more than a handful of
- * tasks — this slices the whole board (every column, not just done) down
- * to one day at a time. */
-export const TASK_DAY_FILTERS = ['all', 'yesterday', 'today', 'tomorrow'] as const;
+/**
+ * How soon a task's deadline is, or 'all' for no narrowing. The done column
+ * especially was turning into a wall of cards from every day this month
+ * once a team had more than a handful of tasks — this slices the whole
+ * board (every column, not just done) down to a look-ahead window.
+ *
+ * The three windows nest — each one is a superset of the one before it, all
+ * anchored on today (Tashkent) and none of them matching an already-overdue
+ * deadline (that's what the separate "overdueOnly" toggle is for):
+ *   today  — due today (0 days out)
+ *   week   — due within the next 7 days (0-6 days out), so a task created
+ *            today with a deadline a couple of days out shows here even
+ *            though it never lands in "today"
+ *   month  — due within the next 30 days (0-29 days out), so a task with a
+ *            10-15 day deadline shows here even though it's well past the
+ *            week window
+ */
+export const TASK_DAY_FILTERS = ['all', 'today', 'week', 'month'] as const;
 export type TaskDayFilter = (typeof TASK_DAY_FILTERS)[number];
+
+const DAY_FILTER_MAX_DAYS_OUT: Record<Exclude<TaskDayFilter, 'all'>, number> = {
+  today: 0,
+  week: 6,
+  month: 29,
+};
 
 export type TaskFilters = {
   /** Free text, matched against title + description. */
@@ -49,17 +67,18 @@ export function hasActiveTaskFilters(filters: TaskFilters): boolean {
   );
 }
 
-/** 'YYYY-MM-DD' (Tashkent) for each non-'all' TaskDayFilter, anchored on
- * today so the three buttons stay correct across a page left open overnight
- * — TaskFilterBar recomputes this on every render, which is cheap (three
- * Intl.DateTimeFormat calls) and never stale. */
-function dayFilterKeys(): Record<Exclude<TaskDayFilter, 'all'>, string> {
-  const today = tashkentDayKey();
-  return {
-    yesterday: addDaysToKey(today, -1),
-    today,
-    tomorrow: addDaysToKey(today, 1),
-  };
+/**
+ * Whole Tashkent calendar days between today and a deadline — negative once
+ * the deadline has passed. Both sides go through `tashkentMidnight` (rather
+ * than subtracting the raw instants) so a deadline stamped at, say, 18:00
+ * still counts as "today" instead of quietly rounding down a fraction of a
+ * day short.
+ */
+function daysUntilDeadline(deadline: string): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const todayMidnight = tashkentMidnight(tashkentDayKey()).getTime();
+  const deadlineMidnight = tashkentMidnight(tashkentDayKey(new Date(deadline))).getTime();
+  return Math.round((deadlineMidnight - todayMidnight) / msPerDay);
 }
 
 /**
@@ -71,12 +90,15 @@ function dayFilterKeys(): Record<Exclude<TaskDayFilter, 'all'>, string> {
  */
 export function applyTaskFilters(tasks: Task[], filters: TaskFilters): Task[] {
   const needle = filters.search.trim().toLowerCase();
-  const dayKey = filters.day === 'all' ? null : dayFilterKeys()[filters.day];
+  const maxDaysOut = filters.day === 'all' ? null : DAY_FILTER_MAX_DAYS_OUT[filters.day];
 
   return tasks.filter((task) => {
     if (filters.overdueOnly && !task.is_overdue) return false;
     if (filters.assignee !== 'all' && task.assigned_to !== filters.assignee) return false;
-    if (dayKey !== null && tashkentDayKey(new Date(task.deadline)) !== dayKey) return false;
+    if (maxDaysOut !== null) {
+      const daysOut = daysUntilDeadline(task.deadline);
+      if (daysOut < 0 || daysOut > maxDaysOut) return false;
+    }
     if (!needle) return true;
     return (
       task.title.toLowerCase().includes(needle) ||
@@ -101,9 +123,9 @@ export function TaskFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-lg backdrop-blur-md transform-gpu will-change-transform">
-      {/* Yesterday / Today / Tomorrow, keyed off deadline (Tashkent) —
-       * narrows every column at once, not just done, so it doubles as the
-       * quickest way to answer "what's on today". */}
+      {/* Today / Week / Month, nested look-ahead windows on deadline
+       * (Tashkent) — narrows every column at once, not just done, so it
+       * doubles as the quickest way to answer "what's due soon". */}
       <div
         role="group"
         aria-label={t('filters.dayGroupLabel')}
