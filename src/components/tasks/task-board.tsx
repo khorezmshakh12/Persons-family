@@ -38,6 +38,23 @@ import type { TaskStatus } from './task-status-control';
 
 const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
 
+/**
+ * The board only has droppable columns for the three drag targets — the
+ * two review states (`submitted` / `awaiting_upload`) are reached by the
+ * workflow actions, not a drop, and TaskCard already freezes their drag
+ * handle (see `underReview` there). But a card in one of those states still
+ * has to be *rendered* somewhere, or it silently vanishes off the board the
+ * moment it's handed in: `baseColumns` used to key its Map by `COLUMNS`
+ * alone and push each task under its own raw `status`, so `map.get('submitted')`
+ * came back `undefined` and the optional-chained `.push` was a no-op. It
+ * lands here in the done column — visually the closest thing to "in the
+ * done pipeline, waiting on a human" — where TaskCard's own stage progress
+ * bar and approve/reject/upload controls carry the real status.
+ */
+function boardColumnFor(status: TaskStatus): TaskStatus {
+  return status === 'submitted' || status === 'awaiting_upload' ? 'done' : status;
+}
+
 export function TaskBoard({
   tasks: initialTasks,
   isAdmin,
@@ -77,7 +94,7 @@ export function TaskBoard({
   const baseColumns = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();
     for (const status of COLUMNS) map.set(status, []);
-    for (const task of visibleTasks) map.get(task.status)?.push(task);
+    for (const task of visibleTasks) map.get(boardColumnFor(task.status))?.push(task);
     return map;
   }, [visibleTasks]);
 
@@ -122,6 +139,11 @@ export function TaskBoard({
         status: row.status,
         is_overdue: row.is_overdue,
         comment_count: row.comment_count ?? 0,
+        // Fed through for TaskStageActions/TaskAttachmentsDrawer — the review
+        // workflow's controls, same as the two fields below.
+        attachment_count: row.attachment_count ?? 0,
+        requires_proof: row.requires_proof,
+        rejection_reason: row.rejection_reason,
         star_reward: row.star_reward ?? 0,
         // Deducted from the assignee when the task is completed after its
         // deadline (see updateTaskStatusAction).

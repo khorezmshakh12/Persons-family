@@ -11,8 +11,6 @@ import {
   Minus,
   Star,
   ExternalLink,
-  Hourglass,
-  Paperclip,
   Undo2,
 } from 'lucide-react';
 import { TaskStatusControl } from './task-status-control';
@@ -309,6 +307,34 @@ function TaskCardImpl({
           </span>
         </div>
 
+        {/* Rejection banner: the CEO's reason from the last rejection,
+         * shown to the assignee until they resubmit (submitTaskAction
+         * clears rejection_reason on resubmit, which is what retires this). */}
+        {showRejection && (
+          <div className="flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+            <Undo2 className="mt-0.5 size-3.5 shrink-0" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-semibold">{t('rejectionReason')}</span>
+              <span className="whitespace-pre-wrap break-words text-red-100/90">
+                {task.rejection_reason}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Lifecycle rail, always shown, and whichever single action this
+         * side of the workflow can take right now (submit / approve-reject /
+         * upload-proof / "waiting on the CEO") — see TaskStageActions,
+         * which renders nothing once there is no action left to take. */}
+        <TaskStageProgress status={task.status} />
+        <TaskStageActions
+          taskId={task.id}
+          status={task.status}
+          requiresProof={!!task.requires_proof}
+          isAssignee={isAssignee}
+          isReviewer={isReviewer}
+        />
+
         {/* Footer: Status, Stars, and Comments */}
         <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-1 border-t border-white/10">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -328,13 +354,22 @@ function TaskCardImpl({
               </Badge>
             )}
           </div>
-          <TaskCommentsDrawer
-            taskId={task.id}
-            taskTitle={task.title}
-            currentUserId={currentUserId}
-            canComment={canComment}
-            commentCount={task.comment_count ?? 0}
-          />
+          <div className="flex items-center gap-1.5">
+            <TaskAttachmentsDrawer
+              taskId={task.id}
+              taskTitle={task.title}
+              currentUserId={currentUserId}
+              canManage={isAssignee || isReviewer}
+              attachmentCount={task.attachment_count ?? 0}
+            />
+            <TaskCommentsDrawer
+              taskId={task.id}
+              taskTitle={task.title}
+              currentUserId={currentUserId}
+              canComment={canComment}
+              commentCount={task.comment_count ?? 0}
+            />
+          </div>
         </div>
       </motion.div>
     </div>

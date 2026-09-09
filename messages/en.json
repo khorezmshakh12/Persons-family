@@ -567,7 +567,9 @@
     "status": {
       "pending": "Pending",
       "in_progress": "In progress",
-      "done": "Done"
+      "done": "Done",
+      "submitted": "Under review",
+      "awaiting_upload": "Awaiting file"
     },
     "columns": {
       "pending": "Pending",
@@ -583,7 +585,13 @@
       "updateFailed": "Could not save changes. Please try again.",
       "deleteFailed": "Could not delete the task. Please try again.",
       "commentFailed": "Could not post the comment. Please try again.",
-      "loadFailed": "Could not load the comments. Please try again."
+      "loadFailed": "Could not load the comments. Please try again.",
+      "invalidTransition": "This task can't accept that action right now.",
+      "reasonRequired": "Enter a reason (at least 10 characters).",
+      "notUnderReview": "This task isn't under review right now.",
+      "underReview": "This task is under review — it can't be changed yet.",
+      "uploadFailed": "Could not upload the file. Please try again.",
+      "fileTooLarge": "The file is too large (50MB max)."
     },
     "deadline": "Deadline",
     "overdue": "Overdue",
@@ -639,7 +647,41 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "stages": {
+      "in_progress": "In progress",
+      "submitted": "Submitted for review",
+      "approved": "Approved",
+      "done": "Done"
+    },
+    "submitForReview": "Submit for review",
+    "proofRequiredShort": "file required",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectTitle": "Reject this task",
+    "rejectDescription": "Write a reason — the assignee will see it.",
+    "rejectReasonPlaceholder": "Why is this being rejected?",
+    "rejectReasonHint": "At least {min} characters.",
+    "rejectConfirm": "Confirm rejection",
+    "uploadingProof": "Uploading…",
+    "uploadProof": "Upload file",
+    "uploadProofHint": "The task finishes only once the file is uploaded.",
+    "waitingForCeo": "Waiting for the CEO's review",
+    "rejectionReason": "Reason for rejection",
+    "attachments": {
+      "title": "Attachments",
+      "loading": "Loading…",
+      "empty": "No files yet.",
+      "unnamed": "Unnamed file",
+      "unknownUploader": "Unknown",
+      "proof": "Proof file",
+      "open": "Open",
+      "unavailable": "Unavailable",
+      "delete": "Delete file",
+      "uploading": "Uploading…",
+      "add": "Add file",
+      "viewOnly": "You can only view this."
+    }
   },
   "companyNews": {
     "title": "Company News",
