@@ -641,7 +641,14 @@
       "searchPlaceholder": "Vazifalarni qidirish…",
       "allAssignees": "Barcha ijrochilar",
       "overdueOnly": "Faqat muddati o'tgan",
-      "clear": "Tozalash"
+      "clear": "Tozalash",
+      "dayGroupLabel": "Kun bo'yicha ko'rsatish",
+      "day": {
+        "all": "Hammasi",
+        "yesterday": "Kecha",
+        "today": "Bugun",
+        "tomorrow": "Ertaga"
+      }
     },
     "deadlinePreset": "{hours} soat",
     "moveUp": "Yuqoriga",
