@@ -10,9 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { addDaysToKey, tashkentDayKey } from '@/lib/time';
 import { cn } from '@/lib/utils';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
+
+/** Which calendar day (Tashkent) a task's deadline has to fall on, or 'all'
+ * for no narrowing. The done column especially was turning into a wall of
+ * cards from every day this month once a team had more than a handful of
+ * tasks — this slices the whole board (every column, not just done) down
+ * to one day at a time. */
+export const TASK_DAY_FILTERS = ['all', 'yesterday', 'today', 'tomorrow'] as const;
+export type TaskDayFilter = (typeof TASK_DAY_FILTERS)[number];
 
 export type TaskFilters = {
   /** Free text, matched against title + description. */
@@ -21,16 +30,36 @@ export type TaskFilters = {
    * everyone else, so applyTaskFilters needs no separate non-admin path. */
   assignee: string;
   overdueOnly: boolean;
+  day: TaskDayFilter;
 };
 
 export const EMPTY_TASK_FILTERS: TaskFilters = {
   search: '',
   assignee: 'all',
   overdueOnly: false,
+  day: 'all',
 };
 
 export function hasActiveTaskFilters(filters: TaskFilters): boolean {
-  return filters.search.trim() !== '' || filters.assignee !== 'all' || filters.overdueOnly;
+  return (
+    filters.search.trim() !== '' ||
+    filters.assignee !== 'all' ||
+    filters.overdueOnly ||
+    filters.day !== 'all'
+  );
+}
+
+/** 'YYYY-MM-DD' (Tashkent) for each non-'all' TaskDayFilter, anchored on
+ * today so the three buttons stay correct across a page left open overnight
+ * — TaskFilterBar recomputes this on every render, which is cheap (three
+ * Intl.DateTimeFormat calls) and never stale. */
+function dayFilterKeys(): Record<Exclude<TaskDayFilter, 'all'>, string> {
+  const today = tashkentDayKey();
+  return {
+    yesterday: addDaysToKey(today, -1),
+    today,
+    tomorrow: addDaysToKey(today, 1),
+  };
 }
 
 /**
@@ -42,10 +71,12 @@ export function hasActiveTaskFilters(filters: TaskFilters): boolean {
  */
 export function applyTaskFilters(tasks: Task[], filters: TaskFilters): Task[] {
   const needle = filters.search.trim().toLowerCase();
+  const dayKey = filters.day === 'all' ? null : dayFilterKeys()[filters.day];
 
   return tasks.filter((task) => {
     if (filters.overdueOnly && !task.is_overdue) return false;
     if (filters.assignee !== 'all' && task.assigned_to !== filters.assignee) return false;
+    if (dayKey !== null && tashkentDayKey(new Date(task.deadline)) !== dayKey) return false;
     if (!needle) return true;
     return (
       task.title.toLowerCase().includes(needle) ||
@@ -70,6 +101,32 @@ export function TaskFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-lg backdrop-blur-md transform-gpu will-change-transform">
+      {/* Yesterday / Today / Tomorrow, keyed off deadline (Tashkent) —
+       * narrows every column at once, not just done, so it doubles as the
+       * quickest way to answer "what's on today". */}
+      <div
+        role="group"
+        aria-label={t('filters.dayGroupLabel')}
+        className="flex h-9 items-center gap-0.5 rounded-lg border border-white/30 bg-white/10 p-0.5"
+      >
+        {TASK_DAY_FILTERS.map((day) => (
+          <button
+            key={day}
+            type="button"
+            aria-pressed={filters.day === day}
+            onClick={() => onChange({ ...filters, day })}
+            className={cn(
+              'h-8 rounded-md px-2.5 text-sm font-medium transition-colors',
+              filters.day === day
+                ? 'bg-white/25 text-white'
+                : 'text-white/70 hover:bg-white/10 hover:text-white',
+            )}
+          >
+            {t(`filters.day.${day}`)}
+          </button>
+        ))}
+      </div>
+
       <div className="relative min-w-56 flex-1">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/50" />
         <Input

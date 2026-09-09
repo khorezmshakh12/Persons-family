@@ -641,7 +641,14 @@
       "searchPlaceholder": "Поиск задач…",
       "allAssignees": "Все исполнители",
       "overdueOnly": "Только просроченные",
-      "clear": "Сбросить"
+      "clear": "Сбросить",
+      "dayGroupLabel": "Фильтр по дню",
+      "day": {
+        "all": "Все",
+        "yesterday": "Вчера",
+        "today": "Сегодня",
+        "tomorrow": "Завтра"
+      }
     },
     "deadlinePreset": "{hours} ч",
     "moveUp": "Вверх",

@@ -641,7 +641,14 @@
       "searchPlaceholder": "Search tasks…",
       "allAssignees": "All assignees",
       "overdueOnly": "Overdue only",
-      "clear": "Clear"
+      "clear": "Clear",
+      "dayGroupLabel": "Filter by day",
+      "day": {
+        "all": "All",
+        "yesterday": "Yesterday",
+        "today": "Today",
+        "tomorrow": "Tomorrow"
+      }
     },
     "deadlinePreset": "{hours} h",
     "moveUp": "Move up",
