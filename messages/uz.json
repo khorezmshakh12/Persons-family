@@ -567,7 +567,9 @@
     "status": {
       "pending": "Kutilmoqda",
       "in_progress": "Jarayonda",
-      "done": "Bajarildi"
+      "done": "Bajarildi",
+      "submitted": "Tekshiruvda",
+      "awaiting_upload": "Fayl kutilmoqda"
     },
     "columns": {
       "pending": "Kutilmoqda",
@@ -583,7 +585,13 @@
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
       "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring.",
       "commentFailed": "Izohni yuborib bo'lmadi. Qayta urinib ko'ring.",
-      "loadFailed": "Izohlarni yuklab bo'lmadi. Qayta urinib ko'ring."
+      "loadFailed": "Izohlarni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "invalidTransition": "Bu vazifa hozir bu amalni qabul qila olmaydi.",
+      "reasonRequired": "Sababni kiriting (kamida 10 belgi).",
+      "notUnderReview": "Bu vazifa hozir tekshiruvda emas.",
+      "underReview": "Bu vazifa tekshiruvda — hozircha o'zgartirib bo'lmaydi.",
+      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak)."
     },
     "deadline": "Muddat",
     "overdue": "Muddati o'tgan",
@@ -639,7 +647,41 @@
     "moveUp": "Yuqoriga",
     "moveDown": "Pastga",
     "showMore": "Ko'proq ko'rish",
-    "showLess": "Kamroq ko'rish"
+    "showLess": "Kamroq ko'rish",
+    "stages": {
+      "in_progress": "Bajarilmoqda",
+      "submitted": "Tekshiruvga yuborildi",
+      "approved": "Tasdiqlandi",
+      "done": "Yakunlandi"
+    },
+    "submitForReview": "Tekshiruvga yuborish",
+    "proofRequiredShort": "fayl kerak",
+    "approve": "Tasdiqlash",
+    "reject": "Rad etish",
+    "rejectTitle": "Vazifani rad etish",
+    "rejectDescription": "Sababini yozing — bu ijrochiga ko'rinadi.",
+    "rejectReasonPlaceholder": "Nima uchun rad etilmoqda?",
+    "rejectReasonHint": "Kamida {min} belgi.",
+    "rejectConfirm": "Rad etishni tasdiqlash",
+    "uploadingProof": "Yuklanmoqda…",
+    "uploadProof": "Faylni yuklash",
+    "uploadProofHint": "Vazifa faqat fayl yuklangandan so'ng yakunlanadi.",
+    "waitingForCeo": "CEO tekshiruvini kutmoqda",
+    "rejectionReason": "Rad etish sababi",
+    "attachments": {
+      "title": "Ilova qilingan fayllar",
+      "loading": "Yuklanmoqda…",
+      "empty": "Hozircha fayl yo'q.",
+      "unnamed": "Nomsiz fayl",
+      "unknownUploader": "Noma'lum",
+      "proof": "Tasdiqlovchi fayl",
+      "open": "Ochish",
+      "unavailable": "Mavjud emas",
+      "delete": "Faylni o‘chirish",
+      "uploading": "Yuklanmoqda…",
+      "add": "Fayl qo'shish",
+      "viewOnly": "Siz faqat ko‘rishingiz mumkin."
+    }
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",

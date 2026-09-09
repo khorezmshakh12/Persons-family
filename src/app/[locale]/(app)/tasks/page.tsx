@@ -56,6 +56,11 @@ export default async function TasksPage() {
       status: row.status,
       is_overdue: row.is_overdue,
       comment_count: row.comment_count ?? 0,
+      // Fed through for TaskStageActions/TaskAttachmentsDrawer — the review
+      // workflow's controls, same as the two fields below.
+      attachment_count: row.attachment_count ?? 0,
+      requires_proof: row.requires_proof,
+      rejection_reason: row.rejection_reason,
       star_reward: row.star_reward ?? 0,
       // Deducted from the assignee when the task is completed after its
       // deadline (see updateTaskStatusAction).
