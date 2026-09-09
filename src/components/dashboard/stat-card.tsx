@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import { CalendarDays, Layers, ListTodo, Target, Users, Wallet } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { GLASS_INTERACTIVE } from '@/lib/glass';
 import { changePercent, lastPoint, type PeriodSeries } from '@/lib/dashboard-stats';
@@ -10,6 +10,22 @@ import { useEnterProgress } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 import { MaskableStatValue } from './maskable-stat-value';
 import { useStatsPeriod } from './stats-period';
+
+// The icon is chosen by NAME, never by passing the component itself. StatsRow
+// is a server component and StatCard is a client one; a lucide icon is a
+// forwardRef object, which React cannot serialize across that boundary — doing
+// so threw "Functions cannot be passed directly to Client Components" on every
+// dashboard render. Add new icons here, not to the props.
+const STAT_ICONS = {
+  users: Users,
+  wallet: Wallet,
+  layers: Layers,
+  calendar: CalendarDays,
+  target: Target,
+  tasks: ListTodo,
+} as const;
+
+export type StatIconName = keyof typeof STAT_ICONS;
 
 const TINTS = {
   green: {
@@ -59,7 +75,7 @@ export function StatCard({
   label,
   series,
   format = 'count',
-  icon: Icon,
+  icon,
   tint,
   href,
   index = 0,
@@ -69,7 +85,7 @@ export function StatCard({
   label: string;
   series: PeriodSeries;
   format?: StatValueFormat;
-  icon: LucideIcon;
+  icon: StatIconName;
   tint: keyof typeof TINTS;
   href: string;
   index?: number;
@@ -77,6 +93,7 @@ export function StatCard({
   higherIsBetter?: boolean;
 }) {
   const t = TINTS[tint];
+  const Icon = STAT_ICONS[icon];
   const { period } = useStatsPeriod();
   const sparkline = series[period];
 
