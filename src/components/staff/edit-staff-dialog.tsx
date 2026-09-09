@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TeacherLevelBadge } from './teacher-level-badge';
 import { CurrencyInput } from './currency-input';
 import { INTERNSHIP_LEVELS } from '@/lib/internship-level';
+import { TEACHER_LEVELS } from '@/lib/teacher-level';
 import { roleLabel } from '@/lib/roles';
 import type { Profile } from '@/lib/auth/session';
 
@@ -184,6 +185,17 @@ export function EditStaffDialog({
             />
           </div>
           <div className="flex flex-col gap-2">
+            <Label htmlFor={`telegramId-${profile.id}`}>{t('telegramId')}</Label>
+            <Input
+              id={`telegramId-${profile.id}`}
+              name="telegramId"
+              type="text"
+              inputMode="numeric"
+              placeholder={t('telegramIdPlaceholder')}
+            />
+            <p className="text-muted-foreground text-xs">{t('telegramIdHint')}</p>
+          </div>
+          <div className="flex flex-col gap-2">
             <Label htmlFor={`role-${profile.id}`}>{t('role')}</Label>
             <Select name="role" defaultValue={profile.role}>
               <SelectTrigger id={`role-${profile.id}`} className="w-full">
@@ -214,6 +226,36 @@ export function EditStaffDialog({
                 name="monthlySalary"
                 defaultValue={profile.monthly_salary ?? 0}
               />
+            </div>
+          )}
+          {/* Grading is a CEO-only judgment call too — same gate and same
+              "leave it as-is by default" shape as pay above. Every role can
+              be graded now, not just teachers (see updateStaffAction); this
+              is the same nine-rung C..A++ scale self-development's monthly
+              review sets for teachers specifically. */}
+          {canAssignCeo && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`level-${profile.id}`}>{t('level')}</Label>
+              <Select name="level" defaultValue="keep">
+                <SelectTrigger id={`level-${profile.id}`} className="w-full">
+                  <SelectValue>
+                    {(value: string) => (value === 'keep' ? t('levelKeep') : value)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="keep">{t('levelKeep')}</SelectItem>
+                  {TEACHER_LEVELS.map((lvl) => (
+                    <SelectItem key={lvl} value={lvl}>
+                      {lvl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {profile.teacher_level && (
+                <p className="text-muted-foreground text-xs">
+                  {t('levelCurrent', { level: profile.teacher_level })}
+                </p>
+              )}
             </div>
           )}
           <div className="flex flex-col gap-2">

@@ -11,11 +11,16 @@ import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, suspended } = await getAuthState();
+  const { user, profile, suspended, frozenReason } = await getAuthState();
   const locale = await getLocale();
 
   if (!user || !profile) {
-    redirect({ href: suspended ? { pathname: '/login', query: { reason: 'suspended' } } : '/login', locale });
+    redirect({
+      href: suspended
+        ? { pathname: '/login', query: { reason: frozenReason === 'star_balance' ? 'starFrozen' : 'suspended' } }
+        : '/login',
+      locale,
+    });
   }
   if (profile!.must_change_password) redirect({ href: '/set-password', locale });
 

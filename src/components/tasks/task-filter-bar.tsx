@@ -21,24 +21,20 @@ import type { Assignee } from './assign-task-dialog';
  * once a team had more than a handful of tasks — this slices the whole
  * board (every column, not just done) down to a look-ahead window.
  *
- * The three windows nest — each one is a superset of the one before it, all
- * anchored on today (Tashkent) and none of them matching an already-overdue
- * deadline (that's what the separate "overdueOnly" toggle is for):
+ * The two windows nest — "week" is a superset of "today" — both anchored on
+ * today (Tashkent) and neither matching an already-overdue deadline (that's
+ * what the separate "overdueOnly" toggle is for):
  *   today  — due today (0 days out)
  *   week   — due within the next 7 days (0-6 days out), so a task created
  *            today with a deadline a couple of days out shows here even
  *            though it never lands in "today"
- *   month  — due within the next 30 days (0-29 days out), so a task with a
- *            10-15 day deadline shows here even though it's well past the
- *            week window
  */
-export const TASK_DAY_FILTERS = ['all', 'today', 'week', 'month'] as const;
+export const TASK_DAY_FILTERS = ['all', 'today', 'week'] as const;
 export type TaskDayFilter = (typeof TASK_DAY_FILTERS)[number];
 
 const DAY_FILTER_MAX_DAYS_OUT: Record<Exclude<TaskDayFilter, 'all'>, number> = {
   today: 0,
   week: 6,
-  month: 29,
 };
 
 export type TaskFilters = {

@@ -61,6 +61,8 @@ export default async function TasksPage() {
       attachment_count: row.attachment_count ?? 0,
       requires_proof: row.requires_proof,
       rejection_reason: row.rejection_reason,
+      completed_at: row.completed_at,
+      submitted_at: row.submitted_at,
       star_reward: row.star_reward ?? 0,
       // Deducted from the assignee when the task is completed after its
       // deadline (see updateTaskStatusAction).

@@ -14,6 +14,7 @@ import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
 import { logSystemAction } from '@/lib/audit-log';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { INTERNSHIP_LEVELS, type InternshipLevel } from '@/lib/internship-level';
+import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 
 export type StaffActionState =
@@ -243,6 +244,24 @@ const updateSchema = staffSchema.extend({
     (v) => (v === '' || v === null ? undefined : v),
     z.coerce.number().min(0).optional(),
   ),
+  // Same "blank leaves it untouched" shape as monthlySalary above. Creation
+  // requires this (see telegramIdField's own comment: notifications must
+  // reach someone from day one), but an existing staff member's own
+  // /telegram-setup self-link was the only way to *change* it — this is
+  // the admin-side override for when that's not an option (e.g. the
+  // person's Telegram account itself got compromised/replaced and someone
+  // else has to re-point it to their new account's id).
+  telegramId: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    telegramIdField.optional(),
+  ),
+  // The A/A+/A++.../C level (see lib/teacher-level.ts's 9-rung scale) used
+  // to only ever be set through the Self-Development monthly review, which
+  // — like teacher_level's own naming — only ever ran for teachers. The
+  // CEO now grades any role directly from here; 'keep' (the Select's
+  // default) means "don't touch it", same shape as monthlySalary/
+  // telegramId above.
+  level: z.enum([...TEACHER_LEVELS, 'keep'] as unknown as [string, ...string[]]).optional(),
 });
 
 export async function updateStaffAction(
@@ -312,9 +331,20 @@ export async function updateStaffAction(
   const monthlySalary =
     actingProfile.role === 'ceo' ? (parsed.data.monthlySalary ?? null) : null;
 
-  // monthly_salary doesn't touch role / must_change_password, so no
-  // setUserClaims + revokeUserSessions is needed for it (the role branch
-  // below still handles those for a real role change).
+  // Same CEO-only gate as pay: grading is a review judgment, not a routine
+  // profile edit, so IT Developer (the other requireStaffManager role)
+  // never has this field rendered (see EditStaffDialog) and it's dropped
+  // here too regardless of what the client submits. 'keep' (the Select's
+  // own default) and "not CEO" both resolve to null, which the coalesce
+  // below leaves untouched.
+  const level =
+    actingProfile.role === 'ceo' && parsed.data.level && parsed.data.level !== 'keep'
+      ? (parsed.data.level as TeacherLevel)
+      : null;
+
+  // monthly_salary/teacher_level don't touch role / must_change_password,
+  // so no setUserClaims + revokeUserSessions is needed for them (the role
+  // branch below still handles those for a real role change).
   try {
     await sql`
       update profiles set
@@ -325,7 +355,10 @@ export async function updateStaffAction(
         role = ${parsed.data.role},
         avatar_url = coalesce(${parsed.data.avatarPath || null}, avatar_url),
         internship_level = coalesce(${internshipLevel}, internship_level),
-        monthly_salary = coalesce(${monthlySalary}, monthly_salary)
+        monthly_salary = coalesce(${monthlySalary}, monthly_salary),
+        telegram_id = coalesce(${parsed.data.telegramId ?? null}, telegram_id),
+        teacher_level = coalesce(${level}, teacher_level),
+        level_updated_at = case when ${level}::text is not null then now() else level_updated_at end
       where id = ${parsed.data.id}
     `;
   } catch {
@@ -379,7 +412,18 @@ export async function toggleStaffActiveAction(
     return { error: manageRoleError(target.role) };
   }
 
-  await sql`update profiles set is_active = ${!target.is_active} where id = ${parsed.data.id}`;
+  // Reactivating clears frozen_reason too — a star-balance auto-freeze
+  // (see freezeIfBalanceCritical in lib/stars-write.ts) is exactly this
+  // same is_active flip, and this is the CEO's deliberate "reinstate the
+  // contract" action the login message points people at. Left stale it's
+  // harmless (nothing reads it while is_active is true), but a later
+  // manual deactivation should read as a manual one, not a leftover
+  // stars reason from a freeze this already overrode.
+  if (target.is_active) {
+    await sql`update profiles set is_active = false where id = ${parsed.data.id}`;
+  } else {
+    await sql`update profiles set is_active = true, frozen_reason = null where id = ${parsed.data.id}`;
+  }
 
   logSystemAction(
     target.is_active ? 'staff.deactivate' : 'staff.activate',

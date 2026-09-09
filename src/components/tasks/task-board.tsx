@@ -55,6 +55,22 @@ function boardColumnFor(status: TaskStatus): TaskStatus {
   return status === 'submitted' || status === 'awaiting_upload' ? 'done' : status;
 }
 
+/**
+ * The date the done column sorts by, newest first: when a task actually
+ * finished (`completed_at`), or — for a card sitting in `submitted`/
+ * `awaiting_upload`, which lands here too via `boardColumnFor` but has no
+ * `completed_at` yet — when it was handed in. Mirrors
+ * getMonthlyTaskArchiveAction's own reasoning (see its "Ordering stays
+ * completed_at desc on purpose" comment): `sort_order` is a manual *live
+ * board* position for the two open columns, and once a task is done,
+ * mixing it in with whatever position it happened to hold before is what
+ * made the column read as an unsorted pile once a team had more than a
+ * handful of finished tasks in the month.
+ */
+function doneSortKey(task: Task): string {
+  return task.completed_at ?? task.submitted_at ?? '';
+}
+
 export function TaskBoard({
   tasks: initialTasks,
   isAdmin,
@@ -95,6 +111,10 @@ export function TaskBoard({
     const map = new Map<TaskStatus, Task[]>();
     for (const status of COLUMNS) map.set(status, []);
     for (const task of visibleTasks) map.get(boardColumnFor(task.status))?.push(task);
+    // Newest-finished-first, independent of sort_order (see doneSortKey) —
+    // the two open columns keep the server's sort_order-then-created_at
+    // order untouched, so manual reordering there is unaffected.
+    map.get('done')?.sort((a, b) => (doneSortKey(a) < doneSortKey(b) ? 1 : -1));
     return map;
   }, [visibleTasks]);
 
@@ -144,6 +164,8 @@ export function TaskBoard({
         attachment_count: row.attachment_count ?? 0,
         requires_proof: row.requires_proof,
         rejection_reason: row.rejection_reason,
+        completed_at: row.completed_at,
+        submitted_at: row.submitted_at,
         star_reward: row.star_reward ?? 0,
         // Deducted from the assignee when the task is completed after its
         // deadline (see updateTaskStatusAction).

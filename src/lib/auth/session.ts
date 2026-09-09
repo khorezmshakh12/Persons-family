@@ -27,6 +27,11 @@ export interface Profile {
   /** Editable monthly salary amount (numeric, parsed to a JS number by
    * db/client.ts). Defaults to 0; set from the Edit Staff dialog. */
   monthly_salary: number;
+  /** null = never auto-frozen (this may still be a CEO's manual
+   * deactivation — that path never sets this column). Non-null names which
+   * automated flow froze the account, currently only 'star_balance' — see
+   * freezeIfBalanceCritical in lib/stars-write.ts. */
+  frozen_reason: string | null;
 }
 
 /**
@@ -43,14 +48,16 @@ export interface Profile {
  */
 export const getAuthState = cache(async function getAuthState() {
   const user = await getCurrentUser();
-  if (!user) return { user: null, profile: null as Profile | null, suspended: false };
+  if (!user) {
+    return { user: null, profile: null as Profile | null, suspended: false, frozenReason: null as string | null };
+  }
 
   const [profile] = await sql<Profile[]>`select * from profiles where id = ${user.uid}`;
 
   if (profile && !profile.is_active) {
     await revokeUserSessions(user.uid);
-    return { user: null, profile: null as Profile | null, suspended: true };
+    return { user: null, profile: null as Profile | null, suspended: true, frozenReason: profile.frozen_reason };
   }
 
-  return { user, profile: profile ?? null, suspended: false };
+  return { user, profile: profile ?? null, suspended: false, frozenReason: null as string | null };
 });

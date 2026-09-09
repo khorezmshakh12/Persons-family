@@ -1,6 +1,11 @@
 import 'server-only';
 import type { Sql, TransactionSql } from 'postgres';
 import { sql } from '@/lib/db/client';
+import { revokeUserSessions } from '@/lib/gcp/session';
+
+/** A balance at or below this locks the account out — see
+ * `freezeIfBalanceCritical` below. */
+export const STAR_FREEZE_THRESHOLD = -20;
 
 /**
  * `star_transactions` is append-only — a balance is never stored, it is
@@ -44,9 +49,51 @@ export type StarTransactionInput = {
   createdBy?: string | null;
 };
 
+/**
+ * Locks the account out (mirrors a manual CEO deactivation — see
+ * `getAuthState()` in lib/auth/session.ts, which is what actually enforces
+ * `is_active` on every page) once a balance is critical, and stamps
+ * `frozen_reason` so the login page can show a message specific to this
+ * (vs. one a CEO deactivated by hand, which never sets it). Never
+ * un-freezes on its own even if a later award brings the balance back up —
+ * same as a manual deactivation, restoring access is a deliberate decision
+ * for the CEO to make from the Staff table, not something a subsequent
+ * transaction should silently reverse.
+ *
+ * Runs on the same `db` handle the ledger insert used, so within a
+ * `sql.begin` transaction the freeze commits or rolls back with the
+ * transaction it belongs to instead of racing a concurrent read of the
+ * balance it just computed.
+ */
+async function freezeIfBalanceCritical(db: StarLedgerDb, userId: string): Promise<void> {
+  const [row] = await db<{ balance: number; is_active: boolean }[]>`
+    select
+      (select coalesce(sum(delta), 0)::int from star_transactions where user_id = ${userId}) as balance,
+      is_active
+    from profiles where id = ${userId}
+  `;
+  if (!row || !row.is_active || row.balance > STAR_FREEZE_THRESHOLD) return;
+
+  try {
+    await db`update profiles set is_active = false, frozen_reason = 'star_balance' where id = ${userId}`;
+    // Best-effort, same as every other place that revokes a session
+    // (updateStaffAction, setPasswordAction): the account is already
+    // locked out on its next page load via getAuthState()'s is_active
+    // check regardless, so a revoke hiccup here only delays the logout by
+    // as long as the existing session cookie has left to live, not skip it.
+    await revokeUserSessions(userId);
+  } catch (error) {
+    console.error('freezeIfBalanceCritical failed', userId, error instanceof Error ? error.message : error);
+  }
+}
+
 /** Inserts one ledger row and returns its id. Throws on failure — callers
  * decide whether that rolls back a transaction or turns into an
- * `{ error }` result. */
+ * `{ error }` result. Then checks whether that write just pushed the
+ * balance to the auto-freeze threshold (see freezeIfBalanceCritical) —
+ * every star-losing path in the app (task penalty, CEO deduction, Market
+ * purchase, rejected task) goes through this one function, so this is the
+ * single place that check needs to live. */
 export async function insertStarTransaction(
   db: StarLedgerDb,
   { userId, delta, reason = null, sourceType, sourceId = null, createdBy = null }: StarTransactionInput,
@@ -56,5 +103,6 @@ export async function insertStarTransaction(
     values (${userId}, ${delta}, ${reason}, ${sourceType}, ${sourceId}, ${createdBy})
     returning id
   `;
+  if (delta < 0) await freezeIfBalanceCritical(db, userId);
   return row.id;
 }

@@ -62,7 +62,8 @@
       "passwordMismatch": "Passwords do not match.",
       "updateFailed": "Could not set your password. Please try again.",
       "accountDeactivated": "Your account has been deactivated. Contact an administrator.",
-      "unexpectedError": "Something went wrong connecting to the server. Please try again shortly."
+      "unexpectedError": "Something went wrong connecting to the server. Please try again shortly.",
+      "accountFrozenStars": "Your star balance dropped to -20 because of late tasks or too many warnings, so your account has been frozen. Your contract has been sent for review — please contact Administration to have it reinstated."
     }
   },
   "birthday": {
@@ -161,7 +162,7 @@
     "lastName": "Last name",
     "phone": "Phone number",
     "telegramId": "Telegram ID",
-    "telegramIdHint": "Ask them to message @userinfobot on Telegram to get their numeric ID.",
+    "telegramIdHint": "Only fill this in when the employee's Telegram account changed — leaving it blank keeps the current value.",
     "dateOfBirth": "Date of birth",
     "monthlySalary": "Monthly salary",
     "role": "Role",
@@ -186,7 +187,8 @@
     },
     "status": {
       "active": "Active",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "frozenStars": "Frozen (star balance)"
     },
     "table": {
       "name": "Name",
@@ -262,7 +264,11 @@
     },
     "delete": "Delete staff member",
     "confirmDeleteTitle": "Permanently delete this staff member?",
-    "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone."
+    "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone.",
+    "telegramIdPlaceholder": "Leave blank to keep unchanged",
+    "level": "Level",
+    "levelKeep": "Leave unchanged",
+    "levelCurrent": "Current level: {level}"
   },
   "chatHub": {
     "individualChats": "Individual Chats",
@@ -646,8 +652,7 @@
       "day": {
         "all": "All",
         "today": "Today",
-        "week": "Week",
-        "month": "Month"
+        "week": "Week"
       }
     },
     "deadlinePreset": "{hours} h",

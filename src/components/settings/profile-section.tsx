@@ -18,16 +18,13 @@ import { Label } from '@/components/ui/label';
 import { useProfile } from '@/components/app-shell/profile-context';
 import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import type { TeacherLevel } from '@/lib/teacher-level';
-import type { Profile } from '@/lib/auth/session';
 
 const GLASS_INPUT =
   'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-gray-300 focus-visible:border-white focus-visible:ring-0';
 
 export function ProfileSection({
-  role,
   teacherLevel,
 }: {
-  role: Profile['role'];
   teacherLevel: TeacherLevel | null;
 }) {
   const t = useTranslations('settings.profile');
@@ -139,7 +136,7 @@ export function ProfileSection({
             <p className="text-sm font-medium text-white">
               {firstName} {lastName}
             </p>
-            {role === 'teacher' && teacherLevel && <TeacherLevelBadge level={teacherLevel} />}
+            {teacherLevel && <TeacherLevelBadge level={teacherLevel} />}
           </div>
           <p className="text-xs text-white/60">{t('avatarHint')}</p>
         </div>
