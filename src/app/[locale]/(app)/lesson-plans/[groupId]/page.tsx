@@ -10,6 +10,7 @@ import { currentMonthKey } from '@/lib/lesson-months';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-dialog';
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
+import { ResyncScheduleButton } from '@/components/lesson-plans/resync-schedule-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -166,7 +167,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             )}
           </div>
           {canEditGroup && (
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap gap-2">
               <EditGroupDialog
                 groupId={group.id}
                 name={group.name}
@@ -176,6 +177,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
                 courseName={group.course_name}
                 scheduleType={group.schedule_type}
               />
+              {group.schedule_type && <ResyncScheduleButton groupId={group.id} />}
               <DeleteGroupButton groupId={group.id} />
             </div>
           )}

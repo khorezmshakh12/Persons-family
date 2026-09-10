@@ -22,6 +22,7 @@ import { CommandPalette } from '@/components/command-palette/command-palette';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
 import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
+import { VersionWatcher } from './version-watcher';
 import { TashkentClock } from './tashkent-clock';
 import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
@@ -68,6 +69,7 @@ export async function AppShell({
   return (
     <BackgroundProvider>
       <AnnouncementBanner initialMessage={announcement?.message ?? null} />
+      <VersionWatcher />
       <ProfileProvider
         initialFirstName={profile.first_name}
         initialLastName={profile.last_name}
