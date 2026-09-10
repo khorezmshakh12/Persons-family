@@ -667,7 +667,8 @@
         "all": "All",
         "today": "Today",
         "week": "Week"
-      }
+      },
+      "submittedOnly": "Awaiting review"
     },
     "deadlinePreset": "{hours} h",
     "moveUp": "Move up",

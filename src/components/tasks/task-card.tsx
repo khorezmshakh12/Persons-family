@@ -6,7 +6,6 @@ import { useDraggable } from '@dnd-kit/core';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   ChevronDown,
-  ChevronUp,
   GripVertical,
   Minus,
   Star,
@@ -56,9 +55,9 @@ export type Task = {
   /** Optional star fine attached by the CEO, deducted instead of the reward
    * when the task is completed after its deadline. */
   star_penalty?: number | null;
-  /** Manual position inside this card's status column (ascending). The
-   * board list already arrives sorted by it — see reorderTaskAction. */
-  sort_order?: number;
+  /** Insert time — every column now orders newest-first by date (see
+   * TaskBoard), so the oldest work sinks to the bottom. */
+  created_at?: string;
   /** Stamped once, in finalizeTaskDone — null until the CEO actually
    * approves. Drives the done column's date ordering (see TaskBoard). */
   completed_at?: string | null;
@@ -114,7 +113,6 @@ function TaskCardImpl({
   assignees,
   currentUserId,
   onRequestDelete,
-  onMove,
   variant = 'default',
 }: {
   task: Task;
@@ -122,8 +120,6 @@ function TaskCardImpl({
   assignees: Assignee[];
   currentUserId: string;
   onRequestDelete: (task: Task) => void;
-  /** Move this card one place up/down inside its own status column. */
-  onMove: (task: Task, direction: 'up' | 'down') => void;
   variant?: TaskCardVariant;
 }) {
   const t = useTranslations('tasks');
@@ -164,18 +160,6 @@ function TaskCardImpl({
   // composer is shown; createTaskCommentAction re-checks it server-side.
   const canComment =
     isAdmin || task.assigned_to === currentUserId || task.assigned_by === currentUserId;
-  // Reordering is a board-arrangement action, not a progress report, so it
-  // is open to both sides of the task — mirrors reorderTaskAction's
-  // `assigned_by === user.id || assigned_to === user.id` check exactly (a
-  // CEO who didn't assign the task can't see it on this board at all).
-  // The done column now always sorts by date (see TaskBoard's doneSortKey),
-  // so a manual reorder there would change sort_order in the database with
-  // no visible effect — hiding the control here is what keeps that from
-  // reading as a dead button.
-  const canReorder =
-    task.status !== 'done' &&
-    !underReview &&
-    (task.assigned_to === currentUserId || task.assigned_by === currentUserId);
   // The overlay copy must never register under the real card's id — that
   // would be a second draggable for the same task — so it takes a suffixed,
   // permanently disabled registration instead.
@@ -215,26 +199,6 @@ function TaskCardImpl({
             {task.title}
           </span>
           <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
-            {canReorder && (
-              <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => onMove(task, 'up')}
-                  aria-label={t('moveUp')}
-                  className="tap-scale rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
-                >
-                  <ChevronUp className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onMove(task, 'down')}
-                  aria-label={t('moveDown')}
-                  className="tap-scale rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
-                >
-                  <ChevronDown className="size-3.5" />
-                </button>
-              </div>
-            )}
             {isAdmin && (
               <div className="flex items-center gap-1">
                 <EditTaskDialog

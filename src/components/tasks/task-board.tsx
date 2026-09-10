@@ -18,7 +18,6 @@ import {
   updateTaskStatusAction,
   deleteTaskAction,
   getVisibleTasksAction,
-  reorderTaskAction,
   type MonthlyTaskArchiveEntry,
   type VisibleTaskRow,
 } from '@/lib/actions/tasks';
@@ -32,6 +31,7 @@ import {
   type TaskFilters,
 } from './task-filter-bar';
 import { MonthlyArchive } from './monthly-archive';
+import { TaskMoveBurst } from './task-move-burst';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
@@ -60,12 +60,8 @@ function boardColumnFor(status: TaskStatus): TaskStatus {
  * finished (`completed_at`), or — for a card sitting in `submitted`/
  * `awaiting_upload`, which lands here too via `boardColumnFor` but has no
  * `completed_at` yet — when it was handed in. Mirrors
- * getMonthlyTaskArchiveAction's own reasoning (see its "Ordering stays
- * completed_at desc on purpose" comment): `sort_order` is a manual *live
- * board* position for the two open columns, and once a task is done,
- * mixing it in with whatever position it happened to hold before is what
- * made the column read as an unsorted pile once a team had more than a
- * handful of finished tasks in the month.
+ * getMonthlyTaskArchiveAction's own "Ordering stays completed_at desc on
+ * purpose" reasoning — the done column is a chronological record.
  */
 function doneSortKey(task: Task): string {
   return task.completed_at ?? task.submitted_at ?? '';
@@ -98,6 +94,9 @@ export function TaskBoard({
   // *rendered* while the pointer is still down.
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
+  // One-shot salute fired at a card's landing spot on a column change; the
+  // burst component clears it via onDone once its own timer elapses.
+  const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const visibleTasks = useMemo(() => applyTaskFilters(tasks, filters), [tasks, filters]);
@@ -111,9 +110,12 @@ export function TaskBoard({
     const map = new Map<TaskStatus, Task[]>();
     for (const status of COLUMNS) map.set(status, []);
     for (const task of visibleTasks) map.get(boardColumnFor(task.status))?.push(task);
-    // Newest-finished-first, independent of sort_order (see doneSortKey) —
-    // the two open columns keep the server's sort_order-then-created_at
-    // order untouched, so manual reordering there is unaffected.
+    // Every column: newest at the top, so the oldest work sinks to the
+    // bottom. The two open columns order by when the task was created; the
+    // done column by when it actually finished / was handed in (doneSortKey).
+    // There is no manual reorder any more — the order is purely the date.
+    map.get('pending')?.sort((a, b) => ((a.created_at ?? '') < (b.created_at ?? '') ? 1 : -1));
+    map.get('in_progress')?.sort((a, b) => ((a.created_at ?? '') < (b.created_at ?? '') ? 1 : -1));
     map.get('done')?.sort((a, b) => (doneSortKey(a) < doneSortKey(b) ? 1 : -1));
     return map;
   }, [visibleTasks]);
@@ -166,13 +168,11 @@ export function TaskBoard({
         rejection_reason: row.rejection_reason,
         completed_at: row.completed_at,
         submitted_at: row.submitted_at,
+        created_at: row.created_at,
         star_reward: row.star_reward ?? 0,
         // Deducted from the assignee when the task is completed after its
         // deadline (see updateTaskStatusAction).
         star_penalty: row.star_penalty ?? 0,
-        // Rows already arrive ordered by (sort_order, created_at desc); the
-        // value rides along so a reorder has something to reconcile.
-        sort_order: row.sort_order ?? 0,
         assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
       };
     }
@@ -232,6 +232,14 @@ export function TaskBoard({
     const current = tasks.find((task) => task.id === taskId);
     if (!nextStatus || !current || current.status === nextStatus) return;
 
+    // A little salute at the card's landing spot. `translated` is the
+    // dragged node's final rect in viewport coords; fall back to the
+    // pointer if dnd-kit didn't measure one.
+    const rect = active.rect.current.translated;
+    if (rect) {
+      setBurst({ id: Date.now(), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+
     const previousTasks = tasks;
     setTasks((prev) =>
       prev.map((task) => (task.id === taskId ? { ...task, status: nextStatus } : task)),
@@ -242,43 +250,6 @@ export function TaskBoard({
       formData.set('id', taskId);
       formData.set('status', nextStatus);
       const result = await updateTaskStatusAction(formData);
-      if (result?.error) {
-        setTasks(previousTasks);
-        toast.error(t(`errors.${result.error}`));
-      }
-    })();
-  }
-
-  /**
-   * Move one card up/down inside its own status column, optimistically.
-   *
-   * The swap is computed over the *unfiltered* same-status siblings on
-   * purpose: that list is exactly what reorderTaskAction renumbers
-   * server-side (same visibility scope, same `sort_order asc, created_at
-   * desc` order), so the optimistic result and the row that comes back from
-   * the follow-up realtime refresh can't disagree. With a filter active the
-   * neighbour being passed may therefore be a hidden card.
-   */
-  function handleMove(task: Task, direction: 'up' | 'down') {
-    const siblingIds = tasks.filter((row) => row.status === task.status).map((row) => row.id);
-    const index = siblingIds.indexOf(task.id);
-    const neighbour = direction === 'up' ? index - 1 : index + 1;
-    // Already at the edge of its column — don't spend a round trip on a
-    // no-op the server would only confirm.
-    if (index === -1 || neighbour < 0 || neighbour >= siblingIds.length) return;
-
-    const previousTasks = tasks;
-    const from = tasks.findIndex((row) => row.id === task.id);
-    const to = tasks.findIndex((row) => row.id === siblingIds[neighbour]);
-    const next = tasks.slice();
-    [next[from], next[to]] = [next[to], next[from]];
-    setTasks(next);
-
-    (async () => {
-      const formData = new FormData();
-      formData.set('id', task.id);
-      formData.set('direction', direction);
-      const result = await reorderTaskAction(formData);
       if (result?.error) {
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
@@ -308,6 +279,9 @@ export function TaskBoard({
 
   return (
     <div className="flex flex-col gap-8">
+      {burst && (
+        <TaskMoveBurst key={burst.id} x={burst.x} y={burst.y} onDone={() => setBurst(null)} />
+      )}
       <TaskFilterBar
         filters={filters}
         onChange={setFilters}
@@ -336,7 +310,6 @@ export function TaskBoard({
               currentUserId={currentUserId}
               emptyLabel={t('noTasks')}
               onRequestDelete={handleRequestDelete}
-              onMove={handleMove}
               previewTaskId={previewStatus === status ? activeId : null}
               collapsible={true}
               defaultExpanded={status !== 'done'}
@@ -354,7 +327,6 @@ export function TaskBoard({
               assignees={assignees}
               currentUserId={currentUserId}
               onRequestDelete={handleRequestDelete}
-              onMove={handleMove}
               variant="overlay"
             />
           ) : null}

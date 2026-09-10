@@ -18,7 +18,6 @@ function TaskKanbanColumnImpl({
   currentUserId,
   emptyLabel,
   onRequestDelete,
-  onMove,
   previewTaskId = null,
   collapsible = true,
   defaultExpanded = true,
@@ -31,8 +30,6 @@ function TaskKanbanColumnImpl({
   currentUserId: string;
   emptyLabel: string;
   onRequestDelete: (task: Task) => void;
-  /** Move a card one place up/down within this column (see TaskBoard). */
-  onMove: (task: Task, direction: 'up' | 'down') => void;
   /** Id of the card this column is only *provisionally* holding, because a
    * drag is hovering here and hasn't been dropped yet. Non-null on exactly
    * one column at a time — and it's the prop that lets `memo` know the
@@ -112,7 +109,6 @@ function TaskKanbanColumnImpl({
                   assignees={assignees}
                   currentUserId={currentUserId}
                   onRequestDelete={onRequestDelete}
-                  onMove={onMove}
                   variant={task.id === previewTaskId ? 'preview' : 'default'}
                 />
               ))

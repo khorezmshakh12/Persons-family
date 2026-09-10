@@ -63,14 +63,11 @@ export default async function TasksPage() {
       rejection_reason: row.rejection_reason,
       completed_at: row.completed_at,
       submitted_at: row.submitted_at,
+      created_at: row.created_at,
       star_reward: row.star_reward ?? 0,
       // Deducted from the assignee when the task is completed after its
       // deadline (see updateTaskStatusAction).
       star_penalty: row.star_penalty ?? 0,
-      // Board position within the status column — the list already arrives
-      // ordered by it, this only rides along so an optimistic reorder has
-      // something to reconcile against.
-      sort_order: row.sort_order ?? 0,
       assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
     };
   });

@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * The short "something new arrived" chime for the notification bell.
+ * The short "something new arrived" chime for the notification bell —
+ * modelled on the iOS text-tone feel: a quick three-note mallet motif
+ * rather than a single ding, so it reads unmistakably as "a message just
+ * landed".
  *
- * Synthesised with the Web Audio API rather than shipped as an asset: two
- * sine notes and an envelope are a few lines of code, weigh nothing, need no
- * `/staff` basePath handling, and can be retuned without re-encoding a file.
+ * Synthesised with the Web Audio API rather than shipped as an asset: three
+ * short notes and an envelope are a few lines of code, weigh nothing, need
+ * no `/staff` basePath handling, and can be retuned without re-encoding a
+ * file.
  *
  * Two hard constraints shape the rest of this:
  *
@@ -33,17 +37,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const MUTE_STORAGE_KEY = 'persons-erp:notifications-muted';
 
-// A rising minor third, B5 -> E6, the second note overlapping the tail of the
-// first. Pure sines with a fast attack and a long exponential decay: it reads
-// as a soft "ding-ding" rather than an alarm. ~0.55s in total.
+// An iOS-text-tone-style three-note motif: F6, down to C6, up to G6, each
+// note a quick mallet strike (triangle wave — a little woodier than a pure
+// sine, so it reads as a marimba tap rather than a bell) starting on the
+// tail of the one before it. ~0.5s in total.
 const NOTES = [
-  { frequency: 987.77, startOffset: 0, duration: 0.36 },
-  { frequency: 1318.51, startOffset: 0.12, duration: 0.43 },
+  { frequency: 1396.91, startOffset: 0, duration: 0.22 },
+  { frequency: 1046.5, startOffset: 0.1, duration: 0.22 },
+  { frequency: 1567.98, startOffset: 0.2, duration: 0.32 },
 ] as const;
+
+// The oscillator timbre for every note. `triangle` keeps a soft mallet
+// character; `sine` would be the old plain ding.
+const WAVE: OscillatorType = 'triangle';
 
 // Deliberately quiet. This fires unprompted while someone is working, so it
 // should sit under whatever else they are listening to, not over it.
-const PEAK_GAIN = 0.16;
+const PEAK_GAIN = 0.18;
 
 type AudioContextCtor = new () => AudioContext;
 
@@ -69,7 +79,7 @@ function playChime(ctx: AudioContext) {
 
   for (const note of NOTES) {
     const osc = ctx.createOscillator();
-    osc.type = 'sine';
+    osc.type = WAVE;
     osc.frequency.setValueAtTime(note.frequency, start);
 
     const envelope = ctx.createGain();

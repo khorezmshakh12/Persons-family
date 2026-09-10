@@ -667,7 +667,8 @@
         "all": "Все",
         "today": "Сегодня",
         "week": "Неделя"
-      }
+      },
+      "submittedOnly": "На проверке"
     },
     "deadlinePreset": "{hours} ч",
     "moveUp": "Вверх",
