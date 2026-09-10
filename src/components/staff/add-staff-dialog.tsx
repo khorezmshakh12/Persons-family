@@ -142,7 +142,7 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
               <div className="flex flex-col gap-2">
                 <Label htmlFor="telegramId">{t('telegramId')}</Label>
                 <Input id="telegramId" name="telegramId" type="number" inputMode="numeric" required />
-                <p className="text-muted-foreground text-xs">{t('telegramIdHint')}</p>
+                <p className="text-white/60 text-xs">{t('telegramIdHint')}</p>
                 {fieldErrors.telegramId && (
                   <p className="text-destructive text-xs">{t(`errors.${fieldErrors.telegramId}`)}</p>
                 )}
@@ -172,7 +172,7 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
               <div className="flex flex-col gap-2">
                 <Label htmlFor="avatar">{t('avatar')}</Label>
                 <Input id="avatar" name="avatar" type="file" accept="image/png,image/jpeg" />
-                <p className="text-muted-foreground text-xs">{t('avatarOptional')}</p>
+                <p className="text-white/60 text-xs">{t('avatarOptional')}</p>
               </div>
               {error && Object.keys(fieldErrors).length === 0 && (
                 <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>

@@ -62,7 +62,14 @@ function DialogContent({
           // `ease-snappy` instead of `ease-bounce`, so the panel settles
           // instead of wobbling past its final size. Sizes and padding are
           // untouched.
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-200 ease-snappy outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Dark glass by default — the signed-in app is a glassmorphism UI
+          // over a photo background, and a white `bg-popover` dialog dropped
+          // on top of it was the single biggest theme clash (about a third
+          // of the app's dialogs pass a `bg-slate-900/95 text-white` override
+          // to fix it one at a time; the rest were left white). This makes
+          // the default match. The auth pages style their own fields
+          // explicitly and are unaffected.
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl border border-white/15 bg-slate-900/95 p-4 text-sm text-white ring-1 ring-white/10 backdrop-blur-xl duration-200 ease-snappy outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -111,7 +118,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "sticky bottom-0 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "sticky bottom-0 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t border-white/10 bg-white/5 p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -147,7 +154,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-sm text-white/60 *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-white",
         className
       )}
       {...props}
