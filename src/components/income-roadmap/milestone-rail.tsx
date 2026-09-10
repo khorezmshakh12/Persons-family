@@ -164,7 +164,7 @@ export function MilestoneRail({
                           ? 'border-sky-400 bg-sky-500/20 text-sky-200'
                           : m.status === 'missed'
                             ? 'border-red-400 bg-red-500/20 text-red-200'
-                            : 'border-white/25 bg-slate-900 text-white/60',
+                            : 'border-white/20 bg-white/10 text-white/60',
                     )}
                   >
                     <StatusIcon className="size-3" />

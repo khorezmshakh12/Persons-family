@@ -20,7 +20,7 @@ import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import type { TeacherLevel } from '@/lib/teacher-level';
 
 const GLASS_INPUT =
-  'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-gray-300 focus-visible:border-white focus-visible:ring-0';
+  'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-white/40 focus-visible:border-white focus-visible:ring-0';
 
 export function ProfileSection({
   teacherLevel,

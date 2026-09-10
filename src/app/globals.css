@@ -518,27 +518,29 @@
 /* Dynamic card-surface retint, applied on top of whatever design variant
    is active (see the [data-design="…"] blocks above for the tints).
 
-   This used to match `[class*="bg-white/10"]` alone — but glass panels
-   across the app are drawn with a whole spread of opacities (bg-white/5,
-   /12, /15, /20, /25) plus the dark dialog/sheet/select surface
-   (bg-slate-900/95, now the ui/ primitive default). Retinting only the
-   /10 ones meant switching a theme recoloured about a third of the glass
-   and left the rest at the default whitish tint — the "colours don't
-   match after a theme change" report. Now every panel opacity, and the
-   overlay surface, picks up the same card tint. */
-/* `bg-white/5` (the subtle-inset opacity — inputs, nested sub-panels) is
-   deliberately left out: it's barely visible over any tint, it's usually
-   nested inside an already-retinted card, and its substring would also
-   catch a stray `bg-white/50` accent. Everything from /10 up is a real
-   panel surface. */
+   This used to match `[class*="bg-white/10"]` alone — but the in-flow
+   glass panels across the app are drawn with a spread of opacities
+   (/10, /12, /15, /20, /25). Retinting only the /10 ones meant switching
+   a theme recoloured about a third of the panels and left the rest at
+   the default whitish tint — the "colours don't match after a theme
+   change" report. Now every in-flow panel opacity picks up the card tint.
+
+   Scope note: this is deliberately in-flow SURFACES only.
+   - `bg-white/5` (subtle inset — inputs, nested sub-panels) is left out:
+     barely visible over any tint, usually nested inside an already-
+     retinted card, and its substring would also catch a stray
+     `bg-white/50` accent.
+   - `bg-slate-900/*` (modals, popovers, chart tooltips) is left out on
+     purpose: those sit ABOVE the layout and must stay a stable, readable
+     dark neutral. Forcing e.g. nordic's `rgba(255,255,255,0.14)` onto a
+     chart tooltip would make it a near-invisible wash over busy chart
+     content. A neutral-dark dialog over a colour-tinted page reads as
+     intentional layering, not a clash. */
 [data-design] [class*="bg-white/10"],
 [data-design] [class*="bg-white/12"],
 [data-design] [class*="bg-white/15"],
 [data-design] [class*="bg-white/20"],
-[data-design] [class*="bg-white/25"],
-[data-design] [class*="bg-slate-900/95"],
-[data-design] [class*="bg-slate-900/90"],
-[data-design] [class*="bg-slate-900/80"] {
+[data-design] [class*="bg-white/25"] {
   background-color: var(--theme-card-tint, rgba(255, 255, 255, 0.1)) !important;
   border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
   box-shadow: var(--theme-shadow, 0 12px 35px rgba(0, 0, 0, 0.35)) !important;
