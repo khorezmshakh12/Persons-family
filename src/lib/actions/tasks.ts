@@ -870,6 +870,9 @@ export type VisibleTaskRow = {
   deadline: string;
   status: TaskStatus;
   completed_at: string | null;
+  /** Insert time — the board's column ordering key (newest at the top, so
+   * the oldest work sinks to the bottom). */
+  created_at: string;
   /** Derived in the query rather than from a render-time `Date.now()` — a
    * clock read during render is impure (react-hooks/purity) and the DB is
    * the one clock both the board and the archive already agree on.
@@ -932,7 +935,7 @@ export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
   if (!user) return [];
 
   return sql<VisibleTaskRow[]>`
-    select id, title, description, assigned_to, assigned_by, deadline, status, completed_at, updated_at,
+    select id, title, description, assigned_to, assigned_by, deadline, status, completed_at, created_at, updated_at,
            (status in ${sql([...TASK_OPEN_STATUSES])} and deadline < now()) as is_overdue,
            (select count(*) from task_comments c where c.task_id = tasks.id)::int as comment_count,
            (select count(*) from task_attachments a where a.task_id = tasks.id)::int as attachment_count,
@@ -941,7 +944,7 @@ export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
     from tasks
     where (assigned_by = ${user.id} or assigned_to = ${user.id})
       and (status <> 'done' or completed_at >= ${currentMonthStart()})
-    order by sort_order asc, created_at desc
+    order by created_at desc
   `;
 }
 

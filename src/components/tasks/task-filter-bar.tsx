@@ -44,6 +44,9 @@ export type TaskFilters = {
    * everyone else, so applyTaskFilters needs no separate non-admin path. */
   assignee: string;
   overdueOnly: boolean;
+  /** CEO-only chip — only the two "handed in, waiting on the CEO's verdict"
+   * states (submitted / awaiting_upload). The one-glance "what needs me". */
+  submittedOnly: boolean;
   day: TaskDayFilter;
 };
 
@@ -51,6 +54,7 @@ export const EMPTY_TASK_FILTERS: TaskFilters = {
   search: '',
   assignee: 'all',
   overdueOnly: false,
+  submittedOnly: false,
   day: 'all',
 };
 
@@ -58,6 +62,7 @@ export function hasActiveTaskFilters(filters: TaskFilters): boolean {
   return (
     filters.search.trim() !== '' ||
     filters.assignee !== 'all' ||
+    filters.submittedOnly ||
     filters.overdueOnly ||
     filters.day !== 'all'
   );
@@ -90,6 +95,13 @@ export function applyTaskFilters(tasks: Task[], filters: TaskFilters): Task[] {
 
   return tasks.filter((task) => {
     if (filters.overdueOnly && !task.is_overdue) return false;
+    if (
+      filters.submittedOnly &&
+      task.status !== 'submitted' &&
+      task.status !== 'awaiting_upload'
+    ) {
+      return false;
+    }
     if (filters.assignee !== 'all' && task.assigned_to !== filters.assignee) return false;
     if (maxDaysOut !== null) {
       const daysOut = daysUntilDeadline(task.deadline);
@@ -198,6 +210,24 @@ export function TaskFilterBar({
       >
         {t('filters.overdueOnly')}
       </button>
+
+      {/* CEO only — the queue of tasks handed in and waiting on their
+       * approve/reject verdict. */}
+      {isAdmin && (
+        <button
+          type="button"
+          aria-pressed={filters.submittedOnly}
+          onClick={() => onChange({ ...filters, submittedOnly: !filters.submittedOnly })}
+          className={cn(
+            'h-9 rounded-lg border px-3 text-sm font-medium transition-colors',
+            filters.submittedOnly
+              ? 'border-emerald-400/60 bg-emerald-500/25 text-emerald-100'
+              : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20',
+          )}
+        >
+          {t('filters.submittedOnly')}
+        </button>
+      )}
 
       {active && (
         <button

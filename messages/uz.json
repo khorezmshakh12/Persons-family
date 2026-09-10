@@ -667,7 +667,8 @@
         "all": "Hammasi",
         "today": "Bugun",
         "week": "Hafta"
-      }
+      },
+      "submittedOnly": "Tekshiruvda"
     },
     "deadlinePreset": "{hours} soat",
     "moveUp": "Yuqoriga",

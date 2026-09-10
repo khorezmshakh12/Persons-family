@@ -404,6 +404,36 @@
   animation: check-draw 0.45s var(--ease-snappy);
 }
 
+/* ---------------------------------------------------------------------------
+   Task-move "salute": a small burst of sparks fired at a card's landing
+   spot when it's dragged into another column. Same rule as every other
+   effect here — it plays on top of already-rendered content, has no
+   resting state, and is removed from the DOM by the component's own timer
+   (see TaskMoveBurst). --sx / --sy (end offset, px) and --shue (hue) are
+   set per spark in the JSX. Pure decoration, hidden under reduced motion.
+--------------------------------------------------------------------------- */
+@keyframes task-spark-fly {
+  from {
+    transform: translate3d(-50%, -50%, 0) scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(calc(-50% + var(--sx, 0px)), calc(-50% + var(--sy, -32px)), 0) scale(1);
+    opacity: 0;
+  }
+}
+.task-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: hsl(var(--shue, 168) 90% 62%);
+  box-shadow: 0 0 8px 2px hsl(var(--shue, 168) 90% 62% / 0.55);
+  animation: task-spark-fly 0.6s var(--ease-snappy) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-pop-in,
@@ -418,7 +448,8 @@
   }
   /* Particles are pure motion — with the animation off they would just be
      static dots sitting on the card, so drop them entirely. */
-  .star-particle {
+  .star-particle,
+  .task-spark {
     display: none;
   }
   .tap-scale {
