@@ -20,7 +20,9 @@
       "day": "Day",
       "month": "Month",
       "year": "Year"
-    }
+    },
+    "newVersion": "A new version of the site is available. Reload the page so it works correctly.",
+    "reload": "Reload"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -540,6 +542,18 @@
       "october": "October",
       "november": "November",
       "december": "December"
+    },
+    "resync": {
+      "button": "Resync schedule",
+      "done": "Schedule updated: {created} day(s) added, {removed} removed.",
+      "doneWithKept": "Schedule updated: {created} day(s) added, {removed} removed. {kept} off-rotation day(s) were kept because they already have content — move or delete those by hand.",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Bad request.",
+        "notFound": "Group not found.",
+        "noSchedule": "Set an odd/even schedule for the group first.",
+        "updateFailed": "Could not resync. Please try again."
+      }
     }
   },
   "staffChat": {

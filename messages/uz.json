@@ -20,7 +20,9 @@
       "day": "Kun",
       "month": "Oy",
       "year": "Yil"
-    }
+    },
+    "newVersion": "Saytning yangi versiyasi chiqdi. To‘g‘ri ishlashi uchun sahifani yangilang.",
+    "reload": "Yangilash"
   },
   "nav": {
     "dashboard": "Boshqaruv paneli",
@@ -540,6 +542,18 @@
       "october": "Oktabr",
       "november": "Noyabr",
       "december": "Dekabr"
+    },
+    "resync": {
+      "button": "Jadvalni sinxronlash",
+      "done": "Jadval yangilandi: {created} ta kun qo‘shildi, {removed} ta olib tashlandi.",
+      "doneWithKept": "Jadval yangilandi: {created} ta kun qo‘shildi, {removed} ta olib tashlandi. {kept} ta eski kun to‘ldirilgani sababli saqlandi — ularni qo‘lda ko‘chiring yoki o‘chiring.",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo‘q.",
+        "invalidInput": "Xato so‘rov.",
+        "notFound": "Guruh topilmadi.",
+        "noSchedule": "Avval guruhga juft/toq kunlar jadvalini belgilang.",
+        "updateFailed": "Sinxronlab bo‘lmadi. Qayta urinib ko‘ring."
+      }
     }
   },
   "staffChat": {
