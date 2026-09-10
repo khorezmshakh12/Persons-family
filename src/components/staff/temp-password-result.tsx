@@ -25,9 +25,9 @@ export function TempPasswordResult({
     <div className="flex flex-col gap-4">
       <div>
         <h3 className="text-base font-medium">{t('tempPasswordTitle')}</h3>
-        <p className="text-muted-foreground mt-1 text-sm">{t('tempPasswordDescription')}</p>
+        <p className="text-white/60 mt-1 text-sm">{t('tempPasswordDescription')}</p>
       </div>
-      <div className="bg-muted flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-sm">
+      <div className="bg-white/10 flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-sm">
         <span className="flex-1 select-all">{tempPassword}</span>
         <Button
           type="button"

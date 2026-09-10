@@ -122,9 +122,9 @@ export function EditStaffDialog({
           <input type="hidden" name="staffId" value={profile.id} />
           {profile.role === 'teacher' && profile.teacher_level && (
             <div className="flex items-center gap-2">
-              <Label className="text-muted-foreground text-xs">{t('teacherLevel')}</Label>
+              <Label className="text-white/60 text-xs">{t('teacherLevel')}</Label>
               <TeacherLevelBadge level={profile.teacher_level} />
-              <span className="text-muted-foreground text-xs">{t('teacherLevelHint')}</span>
+              <span className="text-white/60 text-xs">{t('teacherLevelHint')}</span>
             </div>
           )}
           {profile.role === 'internship' && (
@@ -193,7 +193,7 @@ export function EditStaffDialog({
               inputMode="numeric"
               placeholder={t('telegramIdPlaceholder')}
             />
-            <p className="text-muted-foreground text-xs">{t('telegramIdHint')}</p>
+            <p className="text-white/60 text-xs">{t('telegramIdHint')}</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`role-${profile.id}`}>{t('role')}</Label>
@@ -252,7 +252,7 @@ export function EditStaffDialog({
                 </SelectContent>
               </Select>
               {profile.teacher_level && (
-                <p className="text-muted-foreground text-xs">
+                <p className="text-white/60 text-xs">
                   {t('levelCurrent', { level: profile.teacher_level })}
                 </p>
               )}
@@ -261,7 +261,7 @@ export function EditStaffDialog({
           <div className="flex flex-col gap-2">
             <Label htmlFor={`avatar-${profile.id}`}>{t('avatar')}</Label>
             <Input id={`avatar-${profile.id}`} name="avatar" type="file" accept="image/png,image/jpeg" />
-            <p className="text-muted-foreground text-xs">{t('avatarOptional')}</p>
+            <p className="text-white/60 text-xs">{t('avatarOptional')}</p>
           </div>
 
           {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}

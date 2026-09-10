@@ -57,7 +57,7 @@ export function StaffRowActions({
   const canAwardStars = actingRole === 'ceo' && !isSelf;
   const hasMenuActions = canDeactivate || canDelete || canManageTelegram || canAwardStars;
 
-  if (!canManage) return <span className="text-muted-foreground text-sm">—</span>;
+  if (!canManage) return <span className="text-white/60 text-sm">—</span>;
 
   return (
     <div className="flex items-center justify-end gap-2">
