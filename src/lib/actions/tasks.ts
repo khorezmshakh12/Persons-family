@@ -369,14 +369,24 @@ async function transitionToSubmitted(
 /**
  * Stars settle exactly once, on the first transition into `done`, and the
  * deadline decides which way they go: finished on time and the CEO's bounty
- * is paid out, finished late and their fine is deducted instead. The two are
- * mutually exclusive — a late task earns nothing, it only costs.
+ * is paid out, finished late and their fine is deducted instead.
  *
  * Each branch's `… is null` guard lives in the WHERE, so "settle once" stays
  * atomic under a double-click or a retry: at most one caller gets a row back
  * and therefore writes the ledger entry. That same guard is what makes this
  * safe alongside rejectTaskAction (which may already have charged the fine)
  * and the task-overdue-penalties cron.
+ *
+ * The two are *not* fully mutually exclusive, though — the cron charges the
+ * penalty as soon as `deadline < now()` while the task is still open,
+ * against *whatever deadline is current at that moment*. If the CEO later
+ * pushes the deadline out (updateTaskAction), the task can go on to finish
+ * before that new deadline: on-time by the number that actually counts now,
+ * but already carrying a fine charged under the old, shorter one. Found on
+ * a real account: a task extended after the cron had already fired ended
+ * up both penalized *and* rewarded. The on-time branch below refunds that
+ * stale penalty before awarding the bounty, so a task that ends up on time
+ * never nets out as a loss for the extension it was given.
  *
  * Never throws: the status change that called it has already committed, and
  * a stars hiccup must not turn a successful approval into an error.
@@ -423,6 +433,41 @@ async function settleTaskStars({
         await bumpNavBadgeSignal(assignedTo);
       }
     } else {
+      // Refund a penalty that already landed under a since-extended
+      // deadline (see this function's own doc comment) — on time by the
+      // deadline that counts now should never carry a stale fine. Its own
+      // guard (`star_penalty_applied_at is not null`, cleared by the same
+      // update) keeps this idempotent independent of the reward below —
+      // a zero-reward task can still owe a refund, and a refund can't
+      // double-fire if this ever ran twice.
+      //
+      // Scoped to specifically the overdue-penalty cron's own reason text
+      // (the one penalty source that judges against a deadline that can
+      // later move) — never a CEO's rejectTaskAction fine, which is a
+      // quality judgment on the submission itself, unrelated to timing,
+      // and must stand regardless of how the eventual resubmission lands.
+      const [refunded] = await sql<{ star_penalty: number }[]>`
+        update tasks set star_penalty_applied_at = null
+        where id = ${taskId} and star_penalty > 0 and star_penalty_applied_at is not null
+          and exists (
+            select 1 from star_transactions st
+            where st.source_type = 'task' and st.source_id = ${taskId}
+              and st.reason = 'Deadline bilan ishlanmagani uchun' and st.delta < 0
+          )
+        returning star_penalty
+      `;
+      if (refunded) {
+        await insertStarTransaction(sql, {
+          userId: assignedTo,
+          delta: refunded.star_penalty,
+          reason: 'Muddat uzaytirilgani uchun avval yechilgan jarima qaytarildi',
+          sourceType: 'task',
+          sourceId: taskId,
+          createdBy: assignedBy,
+        });
+        await bumpNavBadgeSignal(assignedTo);
+      }
+
       const [awarded] = await sql<{ star_reward: number }[]>`
         update tasks set star_awarded_at = now()
         where id = ${taskId} and star_reward > 0 and star_awarded_at is null
