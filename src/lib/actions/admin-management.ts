@@ -4,10 +4,11 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
-import { deleteIdentityUser, setUserClaims } from '@/lib/gcp/adminAuth';
+import { setUserClaims } from '@/lib/gcp/adminAuth';
+import { removeStaffAccount } from '@/lib/staff-removal';
 import { revokeUserSessions } from '@/lib/gcp/session';
 
-export type AdminManagementState = { error?: string } | undefined;
+export type AdminManagementState = { error?: string; archived?: boolean } | undefined;
 
 const idSchema = z.object({ id: z.string().uuid() });
 
@@ -74,19 +75,18 @@ export async function deleteAdminAction(
   const target = await requireAdminTarget(parsed.data.id);
   if (!target) return { error: 'notFound' };
 
+  // See removeStaffAccount: profile first, login second, and an account
+  // with history is deactivated rather than left half-deleted.
+  let archived: boolean;
   try {
-    await deleteIdentityUser(parsed.data.id);
-  } catch {
-    return { error: 'deleteFailed' };
-  }
-  try {
-    await sql`delete from profiles where id = ${parsed.data.id}`;
-  } catch {
+    ({ archived } = await removeStaffAccount(parsed.data.id));
+  } catch (error) {
+    console.error('deleteAdminAction failed', error instanceof Error ? error.message : error);
     return { error: 'deleteFailed' };
   }
 
   revalidatePath('/[locale]/staff', 'page');
-  return {};
+  return { archived };
 }
 
 export type SystemBackup = {

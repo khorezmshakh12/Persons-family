@@ -21,10 +21,15 @@ export async function GroupStaffChatSnippet({
   const t = await getTranslations('lessonPlans');
   const { user } = await getAuthState();
 
+  // The *latest* 20, oldest-first for rendering — `asc limit 20` alone was
+  // the first 20 ever posted, so new messages never showed up here.
   const messages = await sql<{ id: string; user_id: string; content: string; created_at: string }[]>`
-    select id, user_id, content, created_at from staff_chat_messages
-    where conversation_id = ${groupId}
-    order by created_at asc limit 20
+    select * from (
+      select id, user_id, content, created_at from staff_chat_messages
+      where conversation_id = ${groupId}
+      order by created_at desc limit 20
+    ) latest
+    order by created_at asc
   `;
 
   // This chat is now strictly between the group's teacher and their

@@ -517,15 +517,28 @@ export async function placeMarketOrderAction(itemId: string): Promise<MarketActi
 
   try {
     await sql.begin(async (tx) => {
+      // Serialise every balance-spending order *per buyer*. The item lock
+      // below only serialises buyers of the same item — two orders for two
+      // different items by the same person each read the same pre-purchase
+      // balance and could both go through, pushing it negative.
+      await tx`select id from profiles where id = ${user.id} for update`;
+
       const [item] = await tx<
-        { id: string; name: string; star_cost: number; stock: number | null; is_active: boolean }[]
+        {
+          id: string;
+          name: string;
+          star_cost: number;
+          stock: number | null;
+          is_active: boolean;
+          archived_at: string | null;
+        }[]
       >`
-        select id, name, star_cost, stock, is_active
+        select id, name, star_cost, stock, is_active, archived_at
         from market_items where id = ${parsedId.data}
         for update
       `;
       if (!item) throw new MarketError('itemNotFound');
-      if (!item.is_active) throw new MarketError('itemInactive');
+      if (!item.is_active || item.archived_at !== null) throw new MarketError('itemInactive');
       if (item.stock !== null && item.stock <= 0) throw new MarketError('outOfStock');
       if (balance < item.star_cost) throw new MarketError('insufficientStars');
 

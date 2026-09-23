@@ -44,6 +44,17 @@ export const TASK_DRAG_TARGETS = ['pending', 'in_progress', 'done'] as const;
  */
 export const TASK_UNDER_REVIEW_STATUSES: readonly TaskStatus[] = ['submitted', 'awaiting_upload'];
 
+/**
+ * Which board column a card renders in. The board only has droppable columns
+ * for the three drag targets; the two review states sit in the done column
+ * (TaskCard's stage bar shows the real status). Also used to resolve a drop
+ * *onto a card* to that card's column — its raw status (`submitted`) is not
+ * something updateTaskStatusAction accepts.
+ */
+export function boardColumnFor(status: TaskStatus): TaskStatus {
+  return status === 'submitted' || status === 'awaiting_upload' ? 'done' : status;
+}
+
 export function isTaskUnderReview(status: string): boolean {
   return (TASK_UNDER_REVIEW_STATUSES as readonly string[]).includes(status);
 }

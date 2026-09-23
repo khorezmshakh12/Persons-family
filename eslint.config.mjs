@@ -43,6 +43,39 @@ const eslintConfig = defineConfig([
           message:
             "`new Date().getX()` reads the server's UTC clock. Use src/lib/time.ts (tashkentYmd, tashkentDayKey, startOfTashkentMonthKey, …), or a getUTC* variant on an explicit instant.",
         },
+        {
+          // `order by … asc limit N` returns the N *oldest* rows. It shipped
+          // twice as "latest messages" and new chat messages silently
+          // vanished. For the latest N: order desc + limit in a subquery,
+          // re-sort asc outside it. Genuinely want the oldest? Disable the
+          // line with the reason.
+          selector: "TemplateElement[value.raw=/order\\s+by[^;]*\\basc\\s+limit\\b/i]",
+          message:
+            "`order by … asc limit N` returns the OLDEST N rows. For 'latest N', order desc + limit in a subquery, then re-sort asc outside it.",
+        },
+      ],
+    },
+  },
+  {
+    // The raw cookie check skips `is_active` and session revocation — a
+    // deactivated or signed-out user sailed through every entry point that
+    // used it (Materials SSO, profile edits, realtime token). Everything
+    // user-facing goes through getAuthState() in src/lib/auth/session.ts.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/auth/session.ts", "src/lib/actions/auth.ts", "src/lib/audit-log.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/gcp/session",
+              importNames: ["getCurrentUser"],
+              message:
+                "Use getAuthState() from '@/lib/auth/session' — getCurrentUser() does not check is_active or revoked sessions.",
+            },
+          ],
+        },
       ],
     },
   },

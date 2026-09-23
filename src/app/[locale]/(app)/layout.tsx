@@ -18,7 +18,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect({
       href: suspended
         ? { pathname: '/login', query: { reason: frozenReason === 'star_balance' ? 'starFrozen' : 'suspended' } }
-        : '/login',
+        : // `reason` lets proxy.ts serve /login even though the cookie itself
+          // still verifies (revoked session / missing profile) — without it
+          // the proxy bounces /login straight back here, a redirect loop.
+          { pathname: '/login', query: { reason: 'session' } },
       locale,
     });
   }

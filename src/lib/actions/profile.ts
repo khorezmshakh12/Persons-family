@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getAuth } from 'firebase-admin/auth';
 import { sql } from '@/lib/db/client';
 import { getFirebaseAdminApp } from '@/lib/gcp/credentials';
-import { getCurrentUser } from '@/lib/gcp/session';
+import { getAuthState } from '@/lib/auth/session';
 import { createSignedWriteUrl } from '@/lib/gcp/storage';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
@@ -59,7 +59,8 @@ export async function updateOwnProfileAction(
   const lastName = fullName.slice(spaceIdx + 1);
   if (!firstName || !lastName) return { error: 'invalidName' };
 
-  const user = await getCurrentUser();
+  // getAuthState, not the raw cookie check: enforces is_active + revocation.
+  const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   await sql`update profiles set first_name = ${firstName}, last_name = ${lastName} where id = ${user.uid}`;
@@ -93,7 +94,8 @@ export async function updateOwnContactInfoAction(
   const parsed = contactInfoSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const user = await getCurrentUser();
+  // getAuthState, not the raw cookie check: enforces is_active + revocation.
+  const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   await sql`update profiles set emergency_contact = ${parsed.data.emergencyContact || null} where id = ${user.uid}`;
@@ -114,7 +116,8 @@ export type OwnAvatarUploadUrlResult = { path?: string; url?: string; error?: st
  * check needed).
  */
 export async function requestOwnAvatarUploadUrlAction(fileType: string): Promise<OwnAvatarUploadUrlResult> {
-  const user = await getCurrentUser();
+  // getAuthState, not the raw cookie check: enforces is_active + revocation.
+  const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const ext = AVATAR_ALLOWED_TYPES[fileType];
@@ -131,7 +134,8 @@ export async function requestOwnAvatarUploadUrlAction(fileType: string): Promise
  * callers resolve a fresh signed read URL wherever the avatar is displayed
  * (see lib/gcp/avatarUrl.ts). */
 export async function updateOwnAvatarAction(avatarPath: string): Promise<{ error?: string; avatarUrl?: string }> {
-  const user = await getCurrentUser();
+  // getAuthState, not the raw cookie check: enforces is_active + revocation.
+  const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   if (!avatarPath.startsWith(`${user.uid}/`)) return { error: 'forbidden' };

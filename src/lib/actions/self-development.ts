@@ -116,14 +116,21 @@ export async function saveEvaluationAction(
   // The score update already committed, so a stars failure here is logged,
   // not surfaced as an error.
   if (parsed.data.starAward !== undefined) {
+    const starAward = parsed.data.starAward;
     try {
-      const [prev] = await sql<{ total: number }[]>`
-        select coalesce(sum(delta), 0)::int as total from star_transactions
-        where source_type = 'self_development' and source_id = ${parsed.data.id}
-      `;
-      const diff = parsed.data.starAward - (prev?.total ?? 0);
-      if (diff !== 0) {
-        await insertStarTransaction(sql, {
+      // Read-then-write inside one transaction, with the submission row
+      // locked: two overlapping saves (double-click, two tabs) used to both
+      // read the same previous total and both insert the difference —
+      // awarding the stars twice.
+      const changed = await sql.begin(async (tx) => {
+        await tx`select id from self_development where id = ${parsed.data.id} for update`;
+        const [prev] = await tx<{ total: number }[]>`
+          select coalesce(sum(delta), 0)::int as total from star_transactions
+          where source_type = 'self_development' and source_id = ${parsed.data.id}
+        `;
+        const diff = starAward - (prev?.total ?? 0);
+        if (diff === 0) return false;
+        await insertStarTransaction(tx, {
           userId: parsed.data.userId,
           delta: diff,
           reason: 'Self-development bahosi',
@@ -131,8 +138,9 @@ export async function saveEvaluationAction(
           sourceId: parsed.data.id,
           createdBy: ceoId,
         });
-        await bumpNavBadgeSignal(parsed.data.userId);
-      }
+        return true;
+      });
+      if (changed) await bumpNavBadgeSignal(parsed.data.userId);
     } catch (error) {
       console.error('self-development star award failed', error instanceof Error ? error.message : error);
     }

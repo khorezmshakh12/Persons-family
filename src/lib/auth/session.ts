@@ -4,6 +4,7 @@ import { getCurrentUser, revokeUserSessions } from "@/lib/gcp/session";
 import type { StaffRole } from "@/lib/nav";
 import type { TeacherLevel } from "@/lib/teacher-level";
 import type { InternshipLevel } from "@/lib/internship-level";
+import { isSessionRevoked } from "@/lib/auth/session-revocation";
 
 export interface Profile {
   id: string;
@@ -32,7 +33,13 @@ export interface Profile {
    * automated flow froze the account, currently only 'star_balance' — see
    * freezeIfBalanceCritical in lib/stars-write.ts. */
   frozen_reason: string | null;
+  /** Set by revokeUserSessions (lib/gcp/session.ts). Any session cookie
+   * minted before this instant is treated as signed out. Optional because
+   * it only exists once 20260923120000_profile_sessions_revoked_at.sql is
+   * applied — until then the check below is simply skipped. */
+  sessions_revoked_at?: string | null;
 }
+
 
 /**
  * Authoritative, page-level auth check. The proxy already gates routes, but
@@ -57,6 +64,12 @@ export const getAuthState = cache(async function getAuthState() {
   if (profile && !profile.is_active) {
     await revokeUserSessions(user.uid);
     return { user: null, profile: null as Profile | null, suspended: true, frozenReason: profile.frozen_reason };
+  }
+
+  // Logged out elsewhere, password reset, role change… — see
+  // revokeUserSessions. Treated exactly like having no session at all.
+  if (profile && isSessionRevoked(user.issuedAt, profile.sessions_revoked_at)) {
+    return { user: null, profile: null as Profile | null, suspended: false, frozenReason: null as string | null };
   }
 
   return { user, profile: profile ?? null, suspended: false, frozenReason: null as string | null };

@@ -144,7 +144,10 @@ function TaskCardImpl({
   // drag with `underReview`; not registering the handle at all is the same
   // rule stated where the user can see it.
   const underReview = isTaskUnderReview(task.status);
-  const canDrag = task.assigned_to === currentUserId && !underReview;
+  // `done` is frozen too: only the CEO's approval puts a card there, and the
+  // assignee must not be able to drag it back out (updateTaskStatusAction
+  // rejects that with `invalidTransition`).
+  const canDrag = task.assigned_to === currentUserId && !underReview && task.status !== 'done';
   const isAssignee = task.assigned_to === currentUserId;
   // The CEO who assigned it. `assigned_by` is optional on this type (the
   // board's older snapshot mapping predates it), so a missing value falls

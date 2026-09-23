@@ -2,7 +2,7 @@
 
 import { getAuth } from 'firebase-admin/auth';
 import { getFirebaseAdminApp } from '@/lib/gcp/credentials';
-import { getCurrentUser } from '@/lib/gcp/session';
+import { getAuthState } from '@/lib/auth/session';
 
 /**
  * Mints a short-lived Firebase custom token for the currently signed-in
@@ -13,7 +13,8 @@ import { getCurrentUser } from '@/lib/gcp/session';
  * everything else); it exists purely to satisfy Firestore's rules engine.
  */
 export async function mintRealtimeToken(): Promise<{ token: string } | { error: string }> {
-  const user = await getCurrentUser();
+  // getAuthState, not the raw cookie check: enforces is_active + revocation.
+  const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
 
   const token = await getAuth(getFirebaseAdminApp()).createCustomToken(user.uid);

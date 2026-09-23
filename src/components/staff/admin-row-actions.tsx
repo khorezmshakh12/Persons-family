@@ -50,6 +50,7 @@ export function AdminRowActions({
     startDeleteTransition(async () => {
       const result = await deleteAdminAction(undefined, idFormData());
       if (result?.error) toast.error(t(`adminManagement.errors.${result.error}`));
+      else if (result?.archived) toast.info(t('deletedArchived'));
     });
   }
 

@@ -233,6 +233,12 @@ export async function updateTaskAction(
         description = ${parsed.data.description || null},
         assigned_to = ${parsed.data.assignedTo},
         deadline = ${parsed.data.deadline},
+        -- A moved deadline deserves its own "2 hours left" reminder: the
+        -- stamp only means "reminded about the *old* deadline".
+        deadline_reminder_sent_at = case
+          when deadline is distinct from ${parsed.data.deadline}::timestamptz then null
+          else deadline_reminder_sent_at
+        end,
         -- Freely editable right up until the CEO approves: after that the
         -- flag has already decided whether the task went to done or to
         -- awaiting_upload, and flipping it would strand the card.
@@ -411,15 +417,19 @@ async function settleTaskStars({
   const deadlineMs = deadline ? new Date(deadline).getTime() : Number.NaN;
   const isLate = Number.isFinite(deadlineMs) && completedMs > deadlineMs;
 
+  // Each stamp + its ledger row commit together (same as the overdue cron):
+  // a failed ledger insert must never leave a reward/fine/refund marked as
+  // settled when no stars actually moved. Badge bumps run after commit.
   try {
     if (isLate) {
-      const [applied] = await sql<{ star_penalty: number }[]>`
-        update tasks set star_penalty_applied_at = now()
-        where id = ${taskId} and star_penalty > 0 and star_penalty_applied_at is null
-        returning star_penalty
-      `;
-      if (applied) {
-        await insertStarTransaction(sql, {
+      const charged = await sql.begin(async (tx) => {
+        const [applied] = await tx<{ star_penalty: number }[]>`
+          update tasks set star_penalty_applied_at = now()
+          where id = ${taskId} and star_penalty > 0 and star_penalty_applied_at is null
+          returning star_penalty
+        `;
+        if (!applied) return false;
+        await insertStarTransaction(tx, {
           userId: assignedTo,
           // The column holds a positive magnitude; the ledger is what
           // carries the sign (insertStarTransaction takes a negative delta —
@@ -430,8 +440,9 @@ async function settleTaskStars({
           sourceId: taskId,
           createdBy: assignedBy,
         });
-        await bumpNavBadgeSignal(assignedTo);
-      }
+        return true;
+      });
+      if (charged) await bumpNavBadgeSignal(assignedTo);
     } else {
       // Refund a penalty that already landed under a since-extended
       // deadline (see this function's own doc comment) — on time by the
@@ -446,44 +457,48 @@ async function settleTaskStars({
       // later move) — never a CEO's rejectTaskAction fine, which is a
       // quality judgment on the submission itself, unrelated to timing,
       // and must stand regardless of how the eventual resubmission lands.
-      const [refunded] = await sql<{ star_penalty: number }[]>`
-        update tasks set star_penalty_applied_at = null
-        where id = ${taskId} and star_penalty > 0 and star_penalty_applied_at is not null
-          and exists (
-            select 1 from star_transactions st
-            where st.source_type = 'task' and st.source_id = ${taskId}
-              and st.reason = 'Deadline bilan ishlanmagani uchun' and st.delta < 0
-          )
-        returning star_penalty
-      `;
-      if (refunded) {
-        await insertStarTransaction(sql, {
+      const refunded = await sql.begin(async (tx) => {
+        const [row] = await tx<{ star_penalty: number }[]>`
+          update tasks set star_penalty_applied_at = null
+          where id = ${taskId} and star_penalty > 0 and star_penalty_applied_at is not null
+            and exists (
+              select 1 from star_transactions st
+              where st.source_type = 'task' and st.source_id = ${taskId}
+                and st.reason = 'Deadline bilan ishlanmagani uchun' and st.delta < 0
+            )
+          returning star_penalty
+        `;
+        if (!row) return false;
+        await insertStarTransaction(tx, {
           userId: assignedTo,
-          delta: refunded.star_penalty,
+          delta: row.star_penalty,
           reason: 'Muddat uzaytirilgani uchun avval yechilgan jarima qaytarildi',
           sourceType: 'task',
           sourceId: taskId,
           createdBy: assignedBy,
         });
-        await bumpNavBadgeSignal(assignedTo);
-      }
+        return true;
+      });
 
-      const [awarded] = await sql<{ star_reward: number }[]>`
-        update tasks set star_awarded_at = now()
-        where id = ${taskId} and star_reward > 0 and star_awarded_at is null
-        returning star_reward
-      `;
-      if (awarded) {
-        await insertStarTransaction(sql, {
+      const awarded = await sql.begin(async (tx) => {
+        const [row] = await tx<{ star_reward: number }[]>`
+          update tasks set star_awarded_at = now()
+          where id = ${taskId} and star_reward > 0 and star_awarded_at is null
+          returning star_reward
+        `;
+        if (!row) return false;
+        await insertStarTransaction(tx, {
           userId: assignedTo,
-          delta: awarded.star_reward,
+          delta: row.star_reward,
           reason: 'Vazifa bajarildi',
           sourceType: 'task',
           sourceId: taskId,
           createdBy: assignedBy,
         });
-        await bumpNavBadgeSignal(assignedTo);
-      }
+        return true;
+      });
+
+      if (refunded || awarded) await bumpNavBadgeSignal(assignedTo);
     }
   } catch (error) {
     console.error('task star settlement failed', error instanceof Error ? error.message : error);
@@ -557,23 +572,28 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   // reward or fine — settles yet. The one previously-terminal transition in
   // this action is gone, which is why the whole star-settlement block moved
   // out to settleTaskStars (now reached only via approve / proof upload).
+  // `done` is terminal for the assignee: only the CEO's approval (or the
+  // proof upload) puts a task there, so dragging it back out would let the
+  // assignee undo that verdict on their own — reopening it, clearing
+  // completed_at, and exposing it to the overdue-penalty cron.
+  if (existing.status === 'done') {
+    return parsed.data.status === 'done' ? {} : { error: 'invalidTransition' };
+  }
+
   if (parsed.data.status === 'done') {
-    if (existing.status === 'done') return {}; // already terminal, nothing to hand in
     return transitionToSubmitted(parsed.data.id, existing, user.id);
   }
 
-  // Everything left is a move between the two open columns, or back out of
-  // `done`. `completed_at` is the only record of *when* a task was finished
-  // — the monthly archive groups by it and the weekly bot scores on-time vs
-  // late against it — so leaving `done` clears it, and a re-completion gets
-  // stamped afresh by finalizeTaskDone.
+  // Everything left is a move between the two open columns. The status
+  // guard in the WHERE keeps a stale drag from overwriting a transition
+  // (submit / approve) that landed in the meantime.
   try {
     await sql`
       update tasks set
         status = ${parsed.data.status},
         completed_at = null,
         updated_at = now()
-      where id = ${parsed.data.id}
+      where id = ${parsed.data.id} and status in ${sql([...TASK_OPEN_STATUSES])}
     `;
   } catch (error) {
     console.error('updateTaskStatusAction failed', error instanceof Error ? error.message : error);
@@ -660,7 +680,7 @@ export async function approveTaskAction(formData: FormData): Promise<UpdateTaskS
   const { actingUserId, existing } = loaded;
 
   try {
-    await sql`
+    const updated = await sql`
       update tasks set
         status = ${existing.requires_proof ? 'awaiting_upload' : 'in_progress'},
         reviewed_by = ${actingUserId},
@@ -669,6 +689,10 @@ export async function approveTaskAction(formData: FormData): Promise<UpdateTaskS
         updated_at = now()
       where id = ${parsed.data.id} and status = 'submitted'
     `;
+    // Someone else (a second tab, a double-click, a concurrent reject)
+    // already decided it — finishing anyway would force it to `done` over
+    // that decision.
+    if (updated.count === 0) return { error: 'notUnderReview' };
   } catch (error) {
     console.error('approveTaskAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
@@ -734,7 +758,7 @@ export async function rejectTaskAction(
   const { actingUserId, existing } = loaded;
 
   try {
-    await sql`
+    const updated = await sql`
       update tasks set
         status = 'in_progress',
         rejection_reason = ${parsed.data.reason},
@@ -745,6 +769,9 @@ export async function rejectTaskAction(
         updated_at = now()
       where id = ${parsed.data.id} and status = 'submitted'
     `;
+    // Already approved/rejected in the meantime — no second verdict, and no
+    // fine for a rejection that never happened.
+    if (updated.count === 0) return { error: 'notUnderReview' };
   } catch (error) {
     console.error('rejectTaskAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
@@ -754,13 +781,16 @@ export async function rejectTaskAction(
   // quote the number, and a failed send must not roll the fine back.
   let charged = 0;
   try {
-    const [applied] = await sql<{ star_penalty: number }[]>`
-      update tasks set star_penalty_applied_at = now()
-      where id = ${parsed.data.id} and star_penalty > 0 and star_penalty_applied_at is null
-      returning star_penalty
-    `;
-    if (applied) {
-      await insertStarTransaction(sql, {
+    // Stamp + ledger row in one transaction (as the overdue cron does): a
+    // failed ledger insert must not leave the fine marked as charged.
+    charged = await sql.begin(async (tx) => {
+      const [applied] = await tx<{ star_penalty: number }[]>`
+        update tasks set star_penalty_applied_at = now()
+        where id = ${parsed.data.id} and star_penalty > 0 and star_penalty_applied_at is null
+        returning star_penalty
+      `;
+      if (!applied) return 0;
+      await insertStarTransaction(tx, {
         userId: existing.assigned_to,
         // Positive magnitude in the column, sign applied at ledger-write
         // time — identical shape to the late-completion and cron paths, with
@@ -771,8 +801,8 @@ export async function rejectTaskAction(
         sourceId: parsed.data.id,
         createdBy: actingUserId,
       });
-      charged = applied.star_penalty;
-    }
+      return applied.star_penalty;
+    });
   } catch (error) {
     // The rejection already committed — a stars hiccup must not turn a
     // successful review into an error for the CEO.

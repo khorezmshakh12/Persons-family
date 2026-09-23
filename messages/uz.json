@@ -265,6 +265,7 @@
       }
     },
     "delete": "Xodimni o'chirish",
+    "deletedArchived": "Xodimda tarix (yulduzlar, buyurtmalar, izohlar) bor, shuning uchun hisob o'chirilmadi — faolsizlantirildi. Uni Xodimlar jadvalidan qayta faollashtirish mumkin.",
     "confirmDeleteTitle": "Ushbu xodim butunlay o'chirilsinmi?",
     "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi.",
     "telegramIdPlaceholder": "O'zgartirmaslik uchun bo'sh qoldiring",

@@ -16,9 +16,18 @@ import { sendTelegramMessage } from '@/lib/telegram';
 import { INTERNSHIP_LEVELS, type InternshipLevel } from '@/lib/internship-level';
 import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
+import { removeStaffAccount } from '@/lib/staff-removal';
 
 export type StaffActionState =
-  | { error?: string; fieldErrors?: FieldErrors; tempPassword?: string; userId?: string }
+  | {
+      error?: string;
+      fieldErrors?: FieldErrors;
+      tempPassword?: string;
+      userId?: string;
+      /** deleteStaffAction: the account had history, so it was deactivated
+       * instead of deleted (see removeStaffAccount). */
+      archived?: boolean;
+    }
   | undefined;
 
 const ROLES = [
@@ -205,6 +214,12 @@ export async function attachAvatarAction(
     return { error: authErrorCode(error) };
   }
 
+  // Same shape requestAvatarUploadUrlAction mints (`<targetUserId>/avatar.<ext>`)
+  // — never let a client-supplied path point this profile at some other
+  // object in the bucket (e.g. another person's avatar).
+  if (!z.string().uuid().safeParse(targetUserId).success) return { error: 'invalidInput' };
+  if (!avatarPath.startsWith(`${targetUserId}/`)) return { error: 'forbidden' };
+
   // requestAvatarUploadUrlAction already gated the upload itself on this
   // same check — re-checked here since this action, called separately, is
   // otherwise an unguarded path to overwrite a protected account's avatar.
@@ -222,7 +237,12 @@ export async function attachAvatarAction(
   // a public bucket URL — bucket objects here are private (no public ACLs),
   // so what's stored is just the object path; a fresh signed read URL is
   // minted wherever it's displayed.
-  await sql`update profiles set avatar_url = ${avatarPath} where id = ${targetUserId}`;
+  try {
+    await sql`update profiles set avatar_url = ${avatarPath} where id = ${targetUserId}`;
+  } catch (error) {
+    console.error('attachAvatarAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -419,10 +439,26 @@ export async function toggleStaffActiveAction(
   // harmless (nothing reads it while is_active is true), but a later
   // manual deactivation should read as a manual one, not a leftover
   // stars reason from a freeze this already overrode.
+  try {
+    if (target.is_active) {
+      await sql`update profiles set is_active = false where id = ${parsed.data.id}`;
+    } else {
+      await sql`update profiles set is_active = true, frozen_reason = null where id = ${parsed.data.id}`;
+    }
+  } catch (error) {
+    console.error('toggleStaffActiveAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  // A deactivation also revokes live sessions, so reactivating later does
+  // not silently bring an old (possibly shared or stolen) cookie back to
+  // life. Best-effort: is_active = false already locks them out.
   if (target.is_active) {
-    await sql`update profiles set is_active = false where id = ${parsed.data.id}`;
-  } else {
-    await sql`update profiles set is_active = true, frozen_reason = null where id = ${parsed.data.id}`;
+    try {
+      await revokeUserSessions(parsed.data.id);
+    } catch (error) {
+      console.error('toggleStaffActiveAction: revoke failed', error instanceof Error ? error.message : error);
+    }
   }
 
   logSystemAction(
@@ -468,17 +504,21 @@ export async function deleteStaffAction(
     return { error: manageRoleError(target.role) };
   }
 
+  let archived: boolean;
   try {
-    await deleteIdentityUser(parsed.data.id);
-  } catch {
+    ({ archived } = await removeStaffAccount(parsed.data.id));
+  } catch (error) {
+    console.error('deleteStaffAction failed', error instanceof Error ? error.message : error);
     return { error: 'deleteFailed' };
   }
-  await sql`delete from profiles where id = ${parsed.data.id}`;
 
-  logSystemAction('staff.delete', `Deleted staff member ${target.first_name} ${target.last_name} (${target.role})`);
+  logSystemAction(
+    archived ? 'staff.deactivate' : 'staff.delete',
+    `${archived ? 'Deactivated (has history, not deletable)' : 'Deleted'} staff member ${target.first_name} ${target.last_name} (${target.role})`,
+  );
 
   revalidatePath('/[locale]/staff', 'page');
-  return {};
+  return { archived };
 }
 
 export async function resetStaffPasswordAction(

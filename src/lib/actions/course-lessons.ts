@@ -49,7 +49,9 @@ async function lessonWriteDenial(lessonId: string, uid: string, role: string | u
 
 const updateLessonDateSchema = z.object({
   lessonId: z.string().uuid(),
-  lessonDate: z.string().optional().or(z.literal('')),
+  // A real calendar date or empty — anything else used to reach Postgres
+  // and surface as an uncaught cast error.
+  lessonDate: z.iso.date().optional().or(z.literal('')),
 });
 
 // Date and topic are deliberately separate actions/columns, each updating
@@ -70,6 +72,11 @@ export async function updateLessonDateAction(
   if (denial) return { error: denial };
 
   const nextDate = parsed.data.lessonDate || null;
+  // lessonWriteDenial only locks the lesson's *current* month. Re-dating a
+  // lesson *into* a closed month would be a back door for writing into a
+  // record the compliance cron has already reported on — the same rule
+  // moveLessonPlanAction applies to its target date.
+  if (isPastMonth(nextDate)) return { error: 'monthLocked' };
 
   // Two lessons in the same group landing on the same date is exactly what
   // let a stray empty duplicate shadow a teacher's completed plan and get
@@ -87,7 +94,12 @@ export async function updateLessonDateAction(
     if (conflict) return { error: 'dateTaken', errorParams: { date: nextDate } };
   }
 
-  await sql`update course_lessons set lesson_date = ${nextDate} where id = ${parsed.data.lessonId}`;
+  try {
+    await sql`update course_lessons set lesson_date = ${nextDate} where id = ${parsed.data.lessonId}`;
+  } catch (error) {
+    console.error('updateLessonDateAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};

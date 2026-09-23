@@ -35,6 +35,7 @@ import { TaskMoveBurst } from './task-move-burst';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
+import { boardColumnFor } from '@/lib/task-status';
 
 const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
 
@@ -51,9 +52,7 @@ const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
  * done pipeline, waiting on a human" — where TaskCard's own stage progress
  * bar and approve/reject/upload controls carry the real status.
  */
-function boardColumnFor(status: TaskStatus): TaskStatus {
-  return status === 'submitted' || status === 'awaiting_upload' ? 'done' : status;
-}
+// boardColumnFor lives in lib/task-status.ts (unit-tested there).
 
 /**
  * The date the done column sorts by, newest first: when a task actually
@@ -201,7 +200,12 @@ export function TaskBoard({
     if (overId == null) return null;
     const id = String(overId);
     if ((COLUMNS as string[]).includes(id)) return id as TaskStatus;
-    return tasks.find((task) => task.id === id)?.status ?? null;
+    // Dropped onto a card: resolve to the *column* that card renders in, not
+    // its raw status — a `submitted`/`awaiting_upload` card sits in the done
+    // column, and sending that raw status to updateTaskStatusAction failed
+    // validation (`invalidInput`) and bounced the drop.
+    const overTask = tasks.find((task) => task.id === id);
+    return overTask ? boardColumnFor(overTask.status) : null;
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -230,7 +234,7 @@ export function TaskBoard({
     const taskId = String(active.id);
     const nextStatus = resolveStatus(over.id);
     const current = tasks.find((task) => task.id === taskId);
-    if (!nextStatus || !current || current.status === nextStatus) return;
+    if (!nextStatus || !current || boardColumnFor(current.status) === nextStatus) return;
 
     // A little salute at the card's landing spot. `translated` is the
     // dragged node's final rect in viewport coords; fall back to the
@@ -242,7 +246,13 @@ export function TaskBoard({
 
     const previousTasks = tasks;
     setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, status: nextStatus } : task)),
+      // A drop on done is a hand-in: the server parks it at `submitted`, so
+      // show that optimistically rather than a `done` it never becomes.
+      prev.map((task) =>
+        task.id === taskId
+          ? { ...task, status: nextStatus === 'done' ? 'submitted' : nextStatus }
+          : task,
+      ),
     );
 
     (async () => {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/gcp/session';
+import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { signSsoToken } from '@/lib/sso/token';
 
@@ -15,7 +15,8 @@ const GATEWAY_ORIGIN = 'https://www.persons-staffs.uz';
 // phone number — see src/lib/sso/token.ts for why this is safe enough for
 // an internal handoff despite the two apps having fully separate auth.
 export async function GET() {
-  const user = await getCurrentUser();
+  // getAuthState, not the raw cookie check: enforces is_active + revocation.
+  const { user } = await getAuthState();
   if (!user) {
     return NextResponse.redirect(`${GATEWAY_ORIGIN}/staff/en/login`);
   }

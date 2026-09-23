@@ -25,6 +25,8 @@ export type IssueActionState = { error?: string; fieldErrors?: FieldErrors } | u
  * the active CEO. Null (issue created unassigned) only if there somehow
  * isn't one. */
 async function ceoUserId(): Promise<string | null> {
+  // Deliberately the oldest active CEO (a stable pick), not "latest N".
+  // eslint-disable-next-line no-restricted-syntax
   const [row] = await sql<{ id: string }[]>`
     select id from profiles where role = 'ceo' and is_active = true order by created_at asc limit 1
   `;
@@ -251,8 +253,10 @@ async function toVisibleIssueRow(row: IssueQueryRow): Promise<VisibleIssueRow> {
  * comment in tasks.ts for why this re-derives the whole list rather than
  * patching one row. The CEO sees the whole board, so the only filter left
  * is the recency rule — a "done" issue resolved over a week ago drops off.
- * A non-CEO caller sees only the issues they raised (created_by = self),
- * same recency rule. Unlike the old browser-side Realtime handler, this can
+ * A non-CEO caller sees the issues they raised (created_by = self) plus any
+ * the CEO delegated to them (assigned_to = self) — otherwise a delegated
+ * issue triggered a Telegram ping and a nav badge for something the
+ * assignee could never open. Same recency rule; still read-only for them. Unlike the old browser-side Realtime handler, this can
  * properly sign a fresh voice-note URL server-side instead of leaving it
  * null.
  */
@@ -283,7 +287,7 @@ export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
         from issues i
         left join profiles reporter on reporter.id = i.created_by
         left join profiles assignee on assignee.id = i.assigned_to
-        where i.created_by = ${user.id}
+        where (i.created_by = ${user.id} or i.assigned_to = ${user.id})
           and (i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo})
         order by i.created_at desc
       `;
@@ -389,7 +393,7 @@ export async function getMonthlyIssueArchiveAction(): Promise<MonthlyIssueArchiv
             from issues i
             left join profiles reporter on reporter.id = i.created_by
             left join profiles assignee on assignee.id = i.assigned_to
-            where i.created_by = ${user.id}
+            where (i.created_by = ${user.id} or i.assigned_to = ${user.id})
               and i.status = 'done'
               and i.resolved_at is not null
               and i.resolved_at < ${currentMonthStart()}

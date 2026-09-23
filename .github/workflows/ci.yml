@@ -35,6 +35,10 @@ jobs:
       - name: Lint
         run: npx eslint
 
+      # Unit + static guardrail tests (tests/*.test.ts): no DB, no network.
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npx next build
         env:

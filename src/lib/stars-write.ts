@@ -81,7 +81,12 @@ async function freezeIfBalanceCritical(db: StarLedgerDb, userId: string): Promis
     // locked out on its next page load via getAuthState()'s is_active
     // check regardless, so a revoke hiccup here only delays the logout by
     // as long as the existing session cookie has left to live, not skip it.
-    await revokeUserSessions(userId);
+    // stampDb: false — `db` may be a transaction that now holds this
+    // profiles row's lock; stamping through the shared client would
+    // deadlock against it (see revokeUserSessions). is_active = false
+    // already locks the account out, and getAuthState() stamps the
+    // revocation itself on the user's next request.
+    await revokeUserSessions(userId, { stampDb: false });
   } catch (error) {
     console.error('freezeIfBalanceCritical failed', userId, error instanceof Error ? error.message : error);
   }

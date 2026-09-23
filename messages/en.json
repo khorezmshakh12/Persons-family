@@ -265,6 +265,7 @@
       }
     },
     "delete": "Delete staff member",
+    "deletedArchived": "This staff member has history (stars, orders, comments), so the account was deactivated instead of deleted. It can be reactivated from the Staff table.",
     "confirmDeleteTitle": "Permanently delete this staff member?",
     "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone.",
     "telegramIdPlaceholder": "Leave blank to keep unchanged",

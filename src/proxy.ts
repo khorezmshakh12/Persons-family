@@ -131,6 +131,14 @@ export default async function proxy(request: NextRequest) {
     return redirectTo('/login', suspended ? { reason: 'suspended' } : undefined);
   }
 
+  // The page layer (getAuthState) rejected this still-signature-valid cookie
+  // — deactivated, frozen, or revoked session — and sent the user here with
+  // a `reason`. Serve the login page instead of bouncing to /dashboard (or
+  // /set-password), which would redirect straight back here forever.
+  if (path === '/login' && request.nextUrl.searchParams.has('reason')) {
+    return stampCache(request, intlResponse);
+  }
+
   if (mustChangePassword) {
     return path === '/set-password' ? stampCache(request, intlResponse) : redirectTo('/set-password');
   }
