@@ -17,7 +17,9 @@ import {
   loadActivity,
   loadDashboardCore,
   loadLeaderboard,
+  loadLessonPlanMonths,
   loadLessonPlanWeek,
+  loadTasksDoneMonths,
   loadTasksDoneWeek,
   type Viewer,
 } from '@/lib/aurora-dashboard';
@@ -223,7 +225,7 @@ async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: s
               icon={SquareCheckBig}
               value={formatCount(kpis.doneTasks.value)}
               delta={kpis.doneTasks.delta}
-              caption={t('last7')}
+              caption={t('doneLast7', { count: kpis.doneTasks.extra ?? 0 })}
               bars={kpis.doneTasks.bars}
             />
           </>
@@ -243,12 +245,15 @@ async function LeaderboardSection({ userId }: { userId: string }) {
 async function WeekChartSection({ viewer }: { viewer: Viewer }) {
   const t = await getTranslations('aurora');
   const lessons = canSeeLessonPlans(viewer.role);
-  const bars = lessons ? await loadLessonPlanWeek(viewer) : await loadTasksDoneWeek(viewer);
+  const [week, months] = lessons
+    ? await Promise.all([loadLessonPlanWeek(viewer), loadLessonPlanMonths(viewer)])
+    : await Promise.all([loadTasksDoneWeek(viewer), loadTasksDoneMonths(viewer)]);
   return (
     <WeekBarChart
       title={lessons ? t('lessonPlansChart') : t('tasksWeekChart')}
       href={lessons ? '/lesson-plans' : '/tasks'}
-      bars={bars}
+      week={week}
+      months={months}
       className={BARS_CELL}
     />
   );

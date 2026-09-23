@@ -48,14 +48,15 @@ async function loadTaskRows(v: Viewer): Promise<TaskRow[]> {
 
 export type TaskStatusBreakdown = { done: number; inProgress: number; todo: number; overdue: number; total: number };
 
-function breakdown(rows: TaskRow[], now = Date.now()): TaskStatusBreakdown {
+function breakdown(rows: TaskRow[], scope: 'all' | 'month', now = Date.now()): TaskStatusBreakdown {
   const monthStart = tashkentMidnight(startOfTashkentMonthKey()).getTime();
   const out = { done: 0, inProgress: 0, todo: 0, overdue: 0, total: 0 };
   for (const r of rows) {
     if (r.status === 'done') {
-      // Only this month's completions — the donut is "this month's plan".
+      // 'all' = every task ever completed (the status donut); 'month' = only
+      // this month's completions (the hero's monthly-plan ring).
       const at = new Date(r.completed_at ?? r.created_at).getTime();
-      if (at >= monthStart) out.done += 1;
+      if (scope === 'all' || at >= monthStart) out.done += 1;
       continue;
     }
     const due = r.deadline ? new Date(r.deadline).getTime() : NaN;
@@ -73,7 +74,10 @@ export type HeroData = {
   activeTasks: number;
   dueToday: number;
   teamStarsThisWeek: number;
+  /** All-time: every completed task + everything still open. */
   status: TaskStatusBreakdown;
+  /** This month's completions + everything still open (hero ring). */
+  monthStatus: TaskStatusBreakdown;
 };
 
 /* ------------------------------------------------------------------ KPIs */
@@ -136,7 +140,8 @@ async function loadDashboardCoreImpl(v: Viewer): Promise<{ hero: HeroData | null
       `,
     ]);
 
-    const status = breakdown(tasks);
+    const status = breakdown(tasks, 'all');
+    const monthStatus = breakdown(tasks, 'month');
     const open = tasks.filter((t) => t.status !== 'done');
     const dueToday = open.filter((t) => t.deadline && tashkentDayKey(new Date(t.deadline)) === todayKey).length;
 
@@ -186,6 +191,7 @@ async function loadDashboardCoreImpl(v: Viewer): Promise<{ hero: HeroData | null
       dueToday,
       teamStarsThisWeek: teamWeek[0]?.total ?? 0,
       status,
+      monthStatus,
     };
 
     const kpis: KpiSet = {
@@ -212,11 +218,12 @@ async function loadDashboardCoreImpl(v: Viewer): Promise<{ hero: HeroData | null
         bars: starDaily,
       },
       doneTasks: {
-        value: doneLast7,
+        value: completions.length,
         delta: changePercent([donePrev7, doneLast7]),
         deltaUnit: 'percent',
         higherIsBetter: true,
         bars: doneDaily,
+        extra: doneLast7,
       },
     };
 
@@ -380,6 +387,73 @@ export async function loadLessonPlanWeek(v: Viewer): Promise<WeekBar[] | null> {
         lessons.some((l) => l.group_id === g.id && l.lesson_date === dayKey && isComplete(l)),
       ).length;
       return { dayKey, index, complete, total: dayGroups.length, isToday: dayKey === today, isFuture: dayKey > today };
+    });
+  });
+}
+
+export type MonthBar = {
+  /** 'YYYY-MM' (Tashkent) */
+  monthKey: string;
+  complete: number;
+  total: number;
+  isCurrent: boolean;
+};
+
+const HISTORY_MONTHS = 6;
+
+/** The last HISTORY_MONTHS Tashkent month keys, oldest → newest. */
+function recentMonthKeys(): string[] {
+  const [y, m] = startOfTashkentMonthKey().split('-').map(Number);
+  return Array.from({ length: HISTORY_MONTHS }, (_, i) => {
+    const d = new Date(Date.UTC(y, m - 1 - (HISTORY_MONTHS - 1 - i), 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  });
+}
+
+/**
+ * Lesson-plan history: per month, how many lessons that already took place
+ * (lesson_date <= today) have a complete plan. Same completeness rule and
+ * role scoping as the weekly chart. Future, pre-generated empty rows are
+ * left out so they can't drag the ratio down.
+ */
+export async function loadLessonPlanMonths(v: Viewer): Promise<MonthBar[] | null> {
+  if (!canSeeLessonPlans(v.role)) return null;
+  return safe('lesson-months', async () => {
+    const months = recentMonthKeys();
+    const today = tashkentDayKey();
+    const everything = v.role === 'ceo' || v.role === 'head_teacher';
+    const rows = await sql<(LessonRow & { ym: string })[]>`
+      select to_char(cl.lesson_date, 'YYYY-MM') as ym, cl.group_id, cl.topic, cl.aim, cl.language_focus,
+             cl.anticipated_problems, cl.homework, cl.moved_to_lesson_id
+      from course_lessons cl
+      join groups g on g.id = cl.group_id
+      where cl.lesson_date >= ${`${months[0]}-01`} and cl.lesson_date <= ${today}
+        and (${everything} or g.teacher_id = ${v.userId} or g.assigned_ta_id = ${v.userId})
+    `;
+    const current = months[months.length - 1];
+    return months.map((monthKey) => {
+      const inMonth = rows.filter((r) => r.ym === monthKey);
+      return {
+        monthKey,
+        complete: inMonth.filter(isComplete).length,
+        total: inMonth.length,
+        isCurrent: monthKey === current,
+      };
+    });
+  });
+}
+
+/** Task history: per month, tasks completed vs tasks that were due. */
+export async function loadTasksDoneMonths(v: Viewer): Promise<MonthBar[] | null> {
+  return safe('tasks-months', async () => {
+    const months = recentMonthKeys();
+    const rows = await loadTaskRows(v);
+    const monthOf = (iso: string) => tashkentDayKey(new Date(iso)).slice(0, 7);
+    const current = months[months.length - 1];
+    return months.map((monthKey) => {
+      const complete = rows.filter((r) => r.status === 'done' && r.completed_at && monthOf(r.completed_at) === monthKey).length;
+      const due = rows.filter((r) => r.deadline && monthOf(r.deadline) === monthKey).length;
+      return { monthKey, complete, total: Math.max(due, complete), isCurrent: monthKey === current };
     });
   });
 }

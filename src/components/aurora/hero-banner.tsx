@@ -54,7 +54,8 @@ export async function HeroBanner({
   const dateLabel = new Intl.DateTimeFormat(locale, { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(now);
   const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(now);
 
-  const status = data?.status;
+  // The ring is "this month's plan": this month's completions vs open work.
+  const status = data?.monthStatus;
   const pct = status && status.total > 0 ? Math.round((status.done / status.total) * 100) : 0;
   const b = (chunks: ReactNode) => <b className="font-semibold text-au-ink">{chunks}</b>;
 

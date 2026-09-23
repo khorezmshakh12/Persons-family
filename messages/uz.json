@@ -1619,7 +1619,11 @@
     "allTime": "Jami",
     "tasksWeekChart": "Bajarilgan vazifalar",
     "kpiMyStars": "Yulduzlarim",
-    "lessonTooltip": "{complete} / {total}"
+    "lessonTooltip": "{complete} / {total}",
+    "doneLast7": "+{count} so‘nggi 7 kunda",
+    "months": "Oylar",
+    "lastMonths": "so‘nggi 6 oy",
+    "chartTotal": "Jami: <b>{complete}</b> / {total}"
   },
   "themeSettings": {
     "title": "Mavzu",

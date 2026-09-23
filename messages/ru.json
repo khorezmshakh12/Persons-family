@@ -1619,7 +1619,11 @@
     "allTime": "Всего",
     "tasksWeekChart": "Выполненные задачи",
     "kpiMyStars": "Мои звёзды",
-    "lessonTooltip": "{complete} / {total}"
+    "lessonTooltip": "{complete} / {total}",
+    "doneLast7": "+{count} за 7 дней",
+    "months": "Месяцы",
+    "lastMonths": "последние 6 месяцев",
+    "chartTotal": "Всего: <b>{complete}</b> / {total}"
   },
   "themeSettings": {
     "title": "Тема",

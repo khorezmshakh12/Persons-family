@@ -1619,7 +1619,11 @@
     "allTime": "All",
     "tasksWeekChart": "Completed tasks",
     "kpiMyStars": "My stars",
-    "lessonTooltip": "{complete} / {total}"
+    "lessonTooltip": "{complete} / {total}",
+    "doneLast7": "+{count} in 7 days",
+    "months": "Months",
+    "lastMonths": "last 6 months",
+    "chartTotal": "Total: <b>{complete}</b> / {total}"
   },
   "themeSettings": {
     "title": "Theme",
