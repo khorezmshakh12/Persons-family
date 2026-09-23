@@ -174,12 +174,12 @@ export function MarketImageField({
       />
 
       {isUploading ? (
-        <div className="flex aspect-[16/10] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/30 bg-white/5 p-6 text-center">
-          <Loader2 className="size-7 animate-spin text-teal-400" />
-          <span className="text-sm font-medium text-white">{t('admin.uploading')}</span>
+        <div className="flex aspect-[16/10] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-au-line bg-au-card-2 p-6 text-center">
+          <Loader2 className="size-7 animate-spin text-au-accent-text" />
+          <span className="text-sm font-medium text-au-ink">{t('admin.uploading')}</span>
         </div>
       ) : previewUrl ? (
-        <div className="group relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-white/15 bg-white/5 shadow-inner">
+        <div className="group relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-au-line bg-au-card-2 shadow-inner">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={previewUrl}
@@ -194,7 +194,7 @@ export function MarketImageField({
               size="icon-xs"
               aria-label={t('admin.removeImage')}
               onClick={handleRemove}
-              className="bg-black/60 text-white backdrop-blur-md hover:bg-rose-600 border border-white/20 shadow-md transition-colors"
+              className="bg-black/60 text-white hover:bg-rose-600 border border-au-line shadow-md transition-colors"
             >
               <X className="size-3.5" />
             </Button>
@@ -211,16 +211,16 @@ export function MarketImageField({
           className={cn(
             'group flex aspect-[16/10] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center transition-all duration-200 outline-none select-none cursor-pointer',
             isDragOver
-              ? 'border-teal-400 bg-teal-500/15 ring-2 ring-teal-400/40'
-              : 'border-white/25 bg-white/5 hover:border-white/40 hover:bg-white/10 focus-visible:border-teal-400 focus-visible:ring-2 focus-visible:ring-teal-400/50',
+              ? 'border-au-accent bg-au-accent-soft ring-2 ring-au-accent/40'
+              : 'border-au-line bg-au-card-2 hover:border-au-faint hover:bg-au-card-2 focus-visible:border-au-accent focus-visible:ring-2 focus-visible:ring-au-accent/40',
             disabled && 'pointer-events-none opacity-50',
           )}
         >
-          <div className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white/70 group-hover:scale-110 group-hover:text-white transition-transform">
+          <div className="flex size-10 items-center justify-center rounded-full bg-au-card text-au-muted group-hover:text-au-ink transition-transform">
             <ImagePlus className="size-5" />
           </div>
-          <span className="text-sm font-medium text-white">{t('admin.imageDropzone')}</span>
-          <span className="text-xs text-white/50">{t('admin.imageHint')}</span>
+          <span className="text-sm font-medium text-au-ink">{t('admin.imageDropzone')}</span>
+          <span className="text-xs text-au-muted">{t('admin.imageHint')}</span>
         </button>
       )}
     </div>

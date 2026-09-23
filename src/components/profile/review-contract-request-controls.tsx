@@ -49,7 +49,7 @@ export function ReviewContractRequestControls({
         variant="outline"
         disabled={isPending}
         onClick={() => submit('rejected')}
-        className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+        className="border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
       >
         <X className="size-3.5" />
         {t('reject')}

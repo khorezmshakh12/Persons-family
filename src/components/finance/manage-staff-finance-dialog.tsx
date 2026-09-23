@@ -43,7 +43,7 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
           <Button
             variant="outline"
             size="sm"
-            className="w-fit border-white/30 bg-white/10 text-white hover:bg-white/20"
+            className="w-fit border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
           />
         }
       >

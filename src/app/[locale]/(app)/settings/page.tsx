@@ -1,8 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { ThemeSelector } from '@/components/theme/theme-selector';
-import { GlassBlurControl } from '@/components/theme/glass-blur-control';
-import { CustomBackgroundUpload } from '@/components/theme/custom-background-upload';
+import { ThemeSettingsCard } from '@/components/theme/theme-settings-card';
 import { ProfileSection } from '@/components/settings/profile-section';
 import { TelegramConnectSection } from '@/components/settings/telegram-connect-section';
 import { AnnouncementSection } from '@/components/settings/announcement-section';
@@ -13,6 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
   const t = await getTranslations('settings');
+  const tTheme = await getTranslations('themeSettings');
   const { profile } = await getAuthState();
   const isCeo = profile!.role === 'ceo';
 
@@ -25,69 +24,55 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
-      <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+      <div className="flex flex-col gap-6 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('profile.cardTitle')}</h1>
-          <p className="text-white/70">{t('profile.cardSubtitle')}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-au-ink">{t('profile.cardTitle')}</h1>
+          <p className="text-au-muted">{t('profile.cardSubtitle')}</p>
         </div>
         <ProfileSection teacherLevel={profile!.teacher_level} />
       </div>
 
-      <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+      <div className="flex flex-col gap-6 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <h2 className="text-2xl font-bold tracking-tight font-heading text-au-ink">
             {t('telegram.cardTitle')}
           </h2>
-          <p className="text-white/70">{t('telegram.cardSubtitle')}</p>
+          <p className="text-au-muted">{t('telegram.cardSubtitle')}</p>
         </div>
         <TelegramConnectSection isConnected={profile!.telegram_id !== null} />
       </div>
 
       {isCeo && (
-        <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+        <div className="flex flex-col gap-6 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
           <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            <h2 className="text-2xl font-bold tracking-tight font-heading text-au-ink">
               {t('announcement.cardTitle')}
             </h2>
-            <p className="text-white/70">{t('announcement.cardSubtitle')}</p>
+            <p className="text-au-muted">{t('announcement.cardSubtitle')}</p>
           </div>
           <AnnouncementSection currentMessage={currentAnnouncement} />
         </div>
       )}
 
       {isCeo && (
-        <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+        <div className="flex flex-col gap-6 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
           <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            <h2 className="text-2xl font-bold tracking-tight font-heading text-au-ink">
               {t('systemHealth.cardTitle')}
             </h2>
-            <p className="text-white/70">{t('systemHealth.cardSubtitle')}</p>
+            <p className="text-au-muted">{t('systemHealth.cardSubtitle')}</p>
           </div>
           <SystemHealthSection />
         </div>
       )}
 
-      <div className="flex flex-col gap-6 rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
+      <div className="flex flex-col gap-6 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h2>
-          <p className="text-white/70">{t('subtitle')}</p>
+          <h2 className="text-2xl font-bold tracking-tight font-heading text-au-ink">{tTheme('title')}</h2>
+          <p className="text-au-muted">{tTheme('description')}</p>
         </div>
-
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-white/90">{t('presetsTitle')}</h3>
-          <ThemeSelector />
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-white/10 pt-6">
-          <h3 className="text-sm font-semibold text-white/90">{t('blurTitle')}</h3>
-          <GlassBlurControl />
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-white/10 pt-6">
-          <h3 className="text-sm font-semibold text-white/90">{t('uploadTitle')}</h3>
-          <CustomBackgroundUpload />
-        </div>
+        <ThemeSettingsCard />
       </div>
     </div>
   );

@@ -9,6 +9,10 @@ import { searchCommandPaletteAction, type CommandSearchResult } from '@/lib/acti
 
 const EMPTY: CommandSearchResult = { staff: [], groups: [], issues: [] };
 
+/** Window event other UI (the topbar search field) dispatches to open the
+ * palette without owning its state. */
+export const OPEN_COMMAND_PALETTE_EVENT = 'persons:open-command-palette';
+
 export function CommandPalette() {
   const t = useTranslations('commandPalette');
   const router = useRouter();
@@ -28,8 +32,15 @@ export function CommandPalette() {
         setOpen((v) => !v);
       }
     }
+    function onOpenRequest() {
+      setOpen(true);
+    }
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpenRequest);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpenRequest);
+    };
   }, []);
 
   // Debounced server search — every keystroke would otherwise fire a
@@ -64,33 +75,33 @@ export function CommandPalette() {
       onOpenChange={setOpen}
       label={t('label')}
       className="fixed top-[15vh] left-1/2 z-100 w-full max-w-lg -translate-x-1/2 animate-in fade-in-0 zoom-in-95 duration-150"
-      overlayClassName="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm animate-in fade-in-0"
-      contentClassName="overflow-hidden rounded-2xl border border-white/20 bg-slate-900/80 text-white shadow-2xl backdrop-blur-xl"
+      overlayClassName="fixed inset-0 z-100 bg-black/50 animate-in fade-in-0"
+      contentClassName="overflow-hidden rounded-au-card border border-au-line bg-au-card text-au-ink shadow-au-card"
     >
-      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-        <Search className="size-4 shrink-0 text-white/50" />
+      <div className="flex items-center gap-3 border-b border-au-line px-4 py-3">
+        <Search className="size-4 shrink-0 text-au-muted" />
         <Command.Input
           value={query}
           onValueChange={setQuery}
           placeholder={t('placeholder')}
-          className="w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none"
+          className="w-full bg-transparent text-sm text-au-ink placeholder:text-au-faint focus:outline-none"
         />
       </div>
       <Command.List className="max-h-80 overflow-y-auto p-2">
         {!isPending && query.trim().length >= 2 && !hasResults && (
-          <Command.Empty className="px-3 py-6 text-center text-sm text-white/50">{t('noResults')}</Command.Empty>
+          <Command.Empty className="px-3 py-6 text-center text-sm text-au-muted">{t('noResults')}</Command.Empty>
         )}
 
         {results.staff.length > 0 && (
-          <Command.Group heading={t('groups.staff')} className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-white/40 uppercase [&_[cmdk-group-heading]]:px-2">
+          <Command.Group heading={t('groups.staff')} className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-au-muted uppercase [&_[cmdk-group-heading]]:px-2">
             {results.staff.map((s) => (
               <Command.Item
                 key={s.id}
                 value={`staff-${s.id}-${s.name}`}
                 onSelect={() => go('/staff')}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/90 data-[selected=true]:bg-white/10"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-au-ink data-[selected=true]:bg-au-card-2"
               >
-                <Users className="size-4 shrink-0 text-white/70" />
+                <Users className="size-4 shrink-0 text-au-muted" />
                 {s.name}
               </Command.Item>
             ))}
@@ -98,15 +109,15 @@ export function CommandPalette() {
         )}
 
         {results.groups.length > 0 && (
-          <Command.Group heading={t('groups.groups')} className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-white/40 uppercase [&_[cmdk-group-heading]]:px-2">
+          <Command.Group heading={t('groups.groups')} className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-au-muted uppercase [&_[cmdk-group-heading]]:px-2">
             {results.groups.map((g) => (
               <Command.Item
                 key={g.id}
                 value={`group-${g.id}-${g.name}`}
                 onSelect={() => go(`/lesson-plans/${g.id}`)}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/90 data-[selected=true]:bg-white/10"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-au-ink data-[selected=true]:bg-au-card-2"
               >
-                <Layers className="size-4 shrink-0 text-blue-300" />
+                <Layers className="size-4 shrink-0 text-blue-700" />
                 {g.name}
               </Command.Item>
             ))}
@@ -114,15 +125,15 @@ export function CommandPalette() {
         )}
 
         {results.issues.length > 0 && (
-          <Command.Group heading={t('groups.issues')} className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-white/40 uppercase [&_[cmdk-group-heading]]:px-2">
+          <Command.Group heading={t('groups.issues')} className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-au-muted uppercase [&_[cmdk-group-heading]]:px-2">
             {results.issues.map((i) => (
               <Command.Item
                 key={i.id}
                 value={`issue-${i.id}-${i.title}`}
                 onSelect={() => go('/issues')}
-                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/90 data-[selected=true]:bg-white/10"
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-au-ink data-[selected=true]:bg-au-card-2"
               >
-                <AlertCircle className="size-4 shrink-0 text-orange-300" />
+                <AlertCircle className="size-4 shrink-0 text-orange-700" />
                 {i.title}
               </Command.Item>
             ))}

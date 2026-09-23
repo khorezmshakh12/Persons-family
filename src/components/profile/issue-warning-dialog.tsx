@@ -37,7 +37,7 @@ export function IssueWarningDialog({ staffId }: { staffId: string }) {
             type="button"
             variant="outline"
             size="sm"
-            className="border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+            className="border-amber-400/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
           />
         }
       >

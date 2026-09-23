@@ -49,21 +49,21 @@ export function DeleteItemDialog({ item }: { item: MarketItemRow }) {
             variant="outline"
             size="icon-sm"
             aria-label={t('admin.deleteItem')}
-            className="border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+            className="border-red-500/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
           />
         }
       >
         <Trash2 className="size-3.5" />
       </AlertDialogTrigger>
-      <AlertDialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <AlertDialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">{t('admin.confirmDeleteItemTitle')}</AlertDialogTitle>
-          <AlertDialogDescription className="text-white/70">
+          <AlertDialogTitle className="text-au-ink">{t('admin.confirmDeleteItemTitle')}</AlertDialogTitle>
+          <AlertDialogDescription className="text-au-muted">
             {t('admin.confirmDeleteItemDescription', { name: item.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <p className="rounded-lg border border-white/15 bg-white/5 p-3 text-xs text-white/60">
+        <p className="rounded-lg border border-au-line bg-au-card-2 p-3 text-xs text-au-muted">
           {t('admin.deleteArchiveHint')}
         </p>
 
@@ -77,7 +77,7 @@ export function DeleteItemDialog({ item }: { item: MarketItemRow }) {
           <AlertDialogFooter className="mt-4 gap-2 border-t-0 bg-transparent p-0 sm:gap-0">
             <AlertDialogCancel
               variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </AlertDialogCancel>

@@ -26,7 +26,7 @@ export function MaskableStatValue({ value, valueClassName }: { value: string; va
           setRevealed((v) => !v);
         }}
         aria-label={revealed ? t('hideAmount') : t('showAmount')}
-        className="tap-scale text-white/50 hover:text-white/90"
+        className="tap-scale text-au-muted hover:text-au-ink"
       >
         {revealed ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
       </button>

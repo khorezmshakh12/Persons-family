@@ -38,7 +38,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
       style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }}
       className={cn(
         'tap-scale animate-fade-in-up flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
-        isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10',
+        isActive ? 'bg-au-card-2 text-au-ink' : 'text-au-muted hover:bg-au-card-2',
       )}
     >
       <div className="relative shrink-0">
@@ -48,7 +48,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
         </Avatar>
         <OnlineDot
           userId={person.id}
-          className="absolute right-0 bottom-0 size-2 border border-slate-900"
+          className="absolute right-0 bottom-0 size-2 border border-au-line"
         />
       </div>
       <span className="min-w-0 flex-1 truncate">
@@ -56,7 +56,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
       </span>
       {state.kind === 'pendingOutgoing' && (
         <Clock3
-          className="size-3.5 shrink-0 text-white/40"
+          className="size-3.5 shrink-0 text-au-muted"
           aria-label={t('requests.pendingOutgoing')}
         />
       )}
@@ -92,13 +92,13 @@ function IncomingRequestCard({
   }
 
   return (
-    <div className="animate-pop-in flex flex-col gap-2 rounded-xl border border-white/30 bg-white/10 p-3">
+    <div className="animate-pop-in flex flex-col gap-2 rounded-xl border border-au-line bg-au-card p-3">
       <div className="flex items-center gap-2">
         <Avatar className="size-7 shrink-0">
           <AvatarImage src={person.avatar_url ?? undefined} alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
-        <span className="min-w-0 flex-1 truncate text-xs text-white/90">
+        <span className="min-w-0 flex-1 truncate text-xs text-au-ink">
           {t('requests.wantsToChat', { name: `${person.first_name} ${person.last_name}` })}
         </span>
       </div>
@@ -119,7 +119,7 @@ function IncomingRequestCard({
           variant="outline"
           disabled={isPending}
           onClick={() => respond('decline')}
-          className="h-7 flex-1 gap-1 border-red-400/30 bg-red-500/10 px-2 text-xs text-red-200 hover:bg-red-500/20"
+          className="h-7 flex-1 gap-1 border-red-400/30 bg-red-500/10 px-2 text-xs text-red-700 hover:bg-red-500/20"
         >
           <X className="size-3.5" />
           {t('requests.decline')}
@@ -160,7 +160,7 @@ export function ChatSidebar({
   const visibleContacts = staff.filter((s) => conversationStates[s.id]?.kind !== 'pendingIncoming');
 
   return (
-    <nav className="flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-white/15">
+    <nav className="flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-au-line">
       {canModerateDmImportance && (
         <div className="mb-2">
           <ImportantChatsPanel />
@@ -169,7 +169,7 @@ export function ChatSidebar({
 
       {incomingRequests.length > 0 && (
         <div className="mb-3 flex flex-col gap-2">
-          <p className="px-3 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+          <p className="px-3 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
             {t('requests.title')}
           </p>
           {incomingRequests.map((person) => (
@@ -185,12 +185,12 @@ export function ChatSidebar({
         </div>
       )}
 
-      <p className="px-3 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+      <p className="px-3 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
         {t('individualChats')}
       </p>
 
       {visibleContacts.length === 0 ? (
-        <p className="px-3 py-2 text-sm text-white/50">{t('noStaff')}</p>
+        <p className="px-3 py-2 text-sm text-au-muted">{t('noStaff')}</p>
       ) : (
         visibleContacts.map((person, index) => (
           <ChatSidebarItem

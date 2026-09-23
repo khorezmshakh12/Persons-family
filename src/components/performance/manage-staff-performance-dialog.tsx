@@ -62,7 +62,7 @@ export function ManageStaffPerformanceDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20 w-fit" />}
+        render={<Button variant="outline" size="sm" className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2 w-fit" />}
       >
         <Settings2 className="size-4" />
         {t('manage')}
@@ -72,7 +72,7 @@ export function ManageStaffPerformanceDialog({
           <DialogTitle>{t('manage')}</DialogTitle>
         </DialogHeader>
 
-        <form action={tierFormAction} className="flex flex-col gap-4 border-b border-white/10 pb-4">
+        <form action={tierFormAction} className="flex flex-col gap-4 border-b border-au-line pb-4">
           <input type="hidden" name="staffId" value={staffId} />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`tier-${staffId}`}>{t('tier')}</Label>
@@ -129,7 +129,7 @@ export function ManageStaffPerformanceDialog({
 
         <form action={entryFormAction} className="flex flex-col gap-4 pt-2">
           <input type="hidden" name="staffId" value={staffId} />
-          <h3 className="text-sm font-medium text-white">{t('addEntry')}</h3>
+          <h3 className="text-sm font-medium text-au-ink">{t('addEntry')}</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor={`entryType-${staffId}`}>{t('entryType')}</Label>

@@ -32,26 +32,26 @@ export async function StarBalanceCard({
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <h2 className="font-heading text-lg font-semibold text-au-ink">
             {t('title')}
           </h2>
           {canManage && <AwardStarsDialog userId={staffId} />}
         </div>
-        <span className="font-heading text-2xl font-bold text-white">{t('starCount', { count: balance })}</span>
+        <span className="font-heading text-2xl font-bold text-au-ink">{t('starCount', { count: balance })}</span>
       </div>
 
       {ledger.length === 0 ? (
-        <p className="text-sm text-white/60">{t('noTransactions')}</p>
+        <p className="text-sm text-au-muted">{t('noTransactions')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {ledger.map((entry) => (
             <div
               key={entry.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/15 bg-white/5 p-4"
+              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 p-4"
             >
               <div className="flex flex-col gap-1">
-                <span className="text-sm text-white/90">{entry.reason || t(`source.${entry.source_type}`)}</span>
-                <span className="text-xs text-white/50">
+                <span className="text-sm text-au-ink">{entry.reason || t(`source.${entry.source_type}`)}</span>
+                <span className="text-xs text-au-muted">
                   {format.dateTime(new Date(entry.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
                   {entry.created_by_first_name && (
                     <>
@@ -64,7 +64,7 @@ export async function StarBalanceCard({
               <span
                 className={cn(
                   'shrink-0 text-sm font-semibold',
-                  entry.delta < 0 ? 'text-red-300' : 'text-emerald-300',
+                  entry.delta < 0 ? 'text-red-700' : 'text-emerald-700',
                 )}
               >
                 {entry.delta > 0 ? `+${entry.delta}` : entry.delta}

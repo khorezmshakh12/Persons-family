@@ -140,39 +140,39 @@ export function TaskAttachmentsDrawer({
             variant="outline"
             size="sm"
             aria-label={t('attachments.title')}
-            className="h-7 w-fit gap-1.5 rounded-full border-white/20 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/15 hover:text-white"
+            className="h-7 w-fit gap-1.5 rounded-full border-au-line bg-au-card-2 px-3 text-xs text-au-muted hover:bg-au-card-2 hover:text-au-ink"
           />
         }
       >
         <Paperclip className="size-3.5" />
         {count}
       </SheetTrigger>
-      <SheetContent className="flex flex-col gap-4 border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <SheetContent className="flex flex-col gap-4 border-au-line bg-au-card text-au-ink sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-white">{t('attachments.title')}</SheetTitle>
-          <p className="truncate text-xs text-white/50">{taskTitle}</p>
+          <SheetTitle className="text-au-ink">{t('attachments.title')}</SheetTitle>
+          <p className="truncate text-xs text-au-muted">{taskTitle}</p>
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4">
           {loading && !loaded ? (
-            <p className="flex items-center gap-2 text-sm text-white/60">
+            <p className="flex items-center gap-2 text-sm text-au-muted">
               <Loader2 className="size-3.5 animate-spin" />
               {t('attachments.loading')}
             </p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-white/60">{t('attachments.empty')}</p>
+            <p className="text-sm text-au-muted">{t('attachments.empty')}</p>
           ) : (
             items.map((item) => (
               <div
                 key={item.id}
-                className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/5 p-3"
+                className="flex flex-col gap-2 rounded-xl border border-au-line bg-au-card-2 p-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="truncate text-sm font-medium">
                       {item.file_name ?? t('attachments.unnamed')}
                     </span>
-                    <span className="text-[11px] text-white/50">
+                    <span className="text-[11px] text-au-muted">
                       {item.uploaderName || t('attachments.unknownUploader')} ·{' '}
                       {format.dateTime(new Date(item.created_at), {
                         dateStyle: 'short',
@@ -199,7 +199,7 @@ export function TaskAttachmentsDrawer({
                       href={item.signedUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-sky-300 underline underline-offset-2 hover:text-sky-200"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-sky-700 underline underline-offset-2 hover:text-sky-700"
                     >
                       {item.kind === 'audio' ? (
                         <Download className="size-3.5" />
@@ -209,7 +209,7 @@ export function TaskAttachmentsDrawer({
                       {t('attachments.open')}
                     </a>
                   ) : (
-                    <span className="text-xs text-white/40">{t('attachments.unavailable')}</span>
+                    <span className="text-xs text-au-muted">{t('attachments.unavailable')}</span>
                   )}
                   {(item.uploader_id === currentUserId || canManage) && (
                     <button
@@ -217,7 +217,7 @@ export function TaskAttachmentsDrawer({
                       onClick={() => handleDelete(item.id)}
                       disabled={deletePending}
                       aria-label={t('attachments.delete')}
-                      className="tap-scale shrink-0 text-white/40 transition-colors hover:text-red-300"
+                      className="tap-scale shrink-0 text-au-muted transition-colors hover:text-red-700"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -229,7 +229,7 @@ export function TaskAttachmentsDrawer({
         </div>
 
         {canManage ? (
-          <div className="border-t border-white/15 p-4 pt-3">
+          <div className="border-t border-au-line p-4 pt-3">
             <input
               ref={fileInputRef}
               type="file"
@@ -250,7 +250,7 @@ export function TaskAttachmentsDrawer({
             </Button>
           </div>
         ) : (
-          <p className="border-t border-white/15 p-4 pt-3 text-xs text-white/40 italic">
+          <p className="border-t border-au-line p-4 pt-3 text-xs text-au-muted italic">
             {t('attachments.viewOnly')}
           </p>
         )}

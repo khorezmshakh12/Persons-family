@@ -18,7 +18,7 @@ export async function IssuesTable({ issues, isAdmin }: { issues: Issue[]; isAdmi
   const format = await getFormatter();
 
   if (issues.length === 0) {
-    return <p className="text-sm text-white/70">{t('noIssues')}</p>;
+    return <p className="text-sm text-au-muted">{t('noIssues')}</p>;
   }
 
   return (
@@ -44,7 +44,7 @@ export async function IssuesTable({ issues, isAdmin }: { issues: Issue[]; isAdmi
                 <div className="flex flex-col">
                   <span className="font-medium">{issue.title}</span>
                   {issue.description && (
-                    <span className="text-sm text-white/70">{issue.description}</span>
+                    <span className="text-sm text-au-muted">{issue.description}</span>
                   )}
                 </div>
               </TableCell>

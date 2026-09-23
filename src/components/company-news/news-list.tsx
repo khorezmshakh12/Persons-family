@@ -61,7 +61,7 @@ export function NewsList({
   }
 
   if (news.length === 0) {
-    return <p className="text-sm text-white/70">{t('noNews')}</p>;
+    return <p className="text-sm text-au-muted">{t('noNews')}</p>;
   }
 
   return (
@@ -77,15 +77,15 @@ export function NewsList({
             <div className="flex items-start justify-between gap-2">
               <h2 className="font-heading text-lg font-medium">{item.title}</h2>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="text-xs text-white/60">
+                <span className="text-xs text-au-muted">
                   {format.dateTime(new Date(item.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
                 {canDelete && <DeleteNewsButton onConfirm={() => handleRequestDelete(item)} />}
               </div>
             </div>
-            <p className="text-sm whitespace-pre-wrap text-white/80">{item.content}</p>
+            <p className="text-sm whitespace-pre-wrap text-au-ink">{item.content}</p>
             {item.author && (
-              <span className="text-xs text-white/60">
+              <span className="text-xs text-au-muted">
                 {t('postedBy', { name: `${item.author.first_name} ${item.author.last_name}` })}
               </span>
             )}

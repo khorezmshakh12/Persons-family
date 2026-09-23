@@ -33,7 +33,7 @@ export async function TeamResultsTable() {
   );
 
   if (staff.length === 0) {
-    return <p className="text-sm text-white/70">{t('teamResults.noStaff')}</p>;
+    return <p className="text-sm text-au-muted">{t('teamResults.noStaff')}</p>;
   }
 
   return (
@@ -72,7 +72,7 @@ export async function TeamResultsTable() {
                 <TableCell>
                   <div className="flex max-w-40 flex-col gap-1">
                     <Progress value={(monthsInTier / 6) * 100} />
-                    <span className="text-xs text-white/60">
+                    <span className="text-xs text-au-muted">
                       {t('teamResults.monthsProgress', { months: monthsInTier })}
                     </span>
                   </div>

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 export type TeacherSeries = { id: string; name: string };
 export type TeacherProgressRow = { month: string } & Record<string, number | null | string>;
 
-const LINE_COLORS = ['#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#22d3ee', '#fb923c', '#f87171'];
+const LINE_COLORS = ['var(--au-ok)', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#22d3ee', '#fb923c', '#f87171'];
 
 /** Suffix for the month-over-month delta carried alongside each person's
  * score on the same row (see `chartData`). Not plotted — read back by the
@@ -40,7 +40,7 @@ function CustomTooltip({
   const entries = payload?.filter((p) => typeof p.value === 'number') ?? [];
   if (!active || entries.length === 0) return null;
   return (
-    <div className="rounded-lg border border-white/20 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-xl backdrop-blur-md">
+    <div className="rounded-lg border border-au-line bg-au-card px-3 py-2 text-xs text-au-ink shadow-au-card">
       <div className="mb-1 font-semibold">{label}</div>
       <div className="flex flex-col gap-0.5">
         {entries.map((p) => {
@@ -53,7 +53,7 @@ function CustomTooltip({
                 {p.name}: {p.value}
               </span>
               {hasDelta && (
-                <span className={(delta as number) > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                <span className={(delta as number) > 0 ? 'text-emerald-600' : 'text-rose-600'}>
                   {(delta as number) > 0 ? '+' : '−'}
                   {Math.abs(delta as number)}
                 </span>
@@ -82,12 +82,12 @@ function GrowthChart({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-        <XAxis dataKey="label" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--au-line)" vertical={false} />
+        <XAxis dataKey="label" stroke="var(--au-muted)" fontSize={11} tickLine={false} axisLine={false} />
         <YAxis
           domain={yDomain}
           allowDecimals={false}
-          stroke="rgba(255,255,255,0.75)"
+          stroke="var(--au-muted)"
           fontSize={11}
           tickLine={false}
           axisLine={false}
@@ -120,7 +120,7 @@ function Legend({ teachers }: { teachers: TeacherSeries[] }) {
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1.5">
       {teachers.map((teacher, i) => (
-        <div key={teacher.id} className="flex items-center gap-1.5 text-xs text-white/80">
+        <div key={teacher.id} className="flex items-center gap-1.5 text-xs text-au-ink">
           <span
             className="size-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: LINE_COLORS[i % LINE_COLORS.length] }}
@@ -201,7 +201,7 @@ export function TeacherProgressChartCard({
       className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
     >
       <div className="flex items-start justify-between gap-2">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
         {hasChart && (
@@ -209,7 +209,7 @@ export function TeacherProgressChartCard({
             type="button"
             onClick={() => setExpanded(true)}
             aria-label={t('expand')}
-            className="-mt-1 -mr-1 shrink-0 rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="-mt-1 -mr-1 shrink-0 rounded-lg p-1.5 text-au-muted transition-colors hover:bg-au-card-2 hover:text-au-ink"
           >
             <Maximize2 className="size-4" />
           </button>
@@ -217,9 +217,9 @@ export function TeacherProgressChartCard({
       </div>
 
       {teachers.length === 0 ? (
-        <p className="text-sm text-white/70">{t('noTeachers')}</p>
+        <p className="text-sm text-au-muted">{t('noTeachers')}</p>
       ) : chartData.length === 0 ? (
-        <p className="text-sm text-white/70">{t('noData')}</p>
+        <p className="text-sm text-au-muted">{t('noData')}</p>
       ) : (
         <button
           type="button"
@@ -234,9 +234,9 @@ export function TeacherProgressChartCard({
       {teachers.length > 0 && <Legend teachers={teachers} />}
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="bg-slate-900 text-white ring-white/10 sm:max-w-5xl">
+        <DialogContent className="bg-au-card text-au-ink ring-au-line sm:max-w-5xl">
           <DialogHeader>
-            <DialogTitle className="text-white">{t('title')}</DialogTitle>
+            <DialogTitle className="text-au-ink">{t('title')}</DialogTitle>
           </DialogHeader>
           {hasChart && (
             <>

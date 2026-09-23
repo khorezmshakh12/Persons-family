@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 /** Pulsing frosted block — the glassmorphism-styled equivalent of the
  * shadcn `Skeleton` primitive (`bg-muted` reads wrong over a photo backdrop). */
 function GlassBar({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-md bg-white/15', className)} />;
+  return <div className={cn('animate-pulse rounded-md bg-au-card-2', className)} />;
 }
 
 /** Matches the shape of a single dashboard card (CompanyNewsCard, WeeklyProgressCard). */
@@ -26,7 +26,7 @@ export function GlassStatsRowSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-md">
+        <div key={i} className="rounded-au-card border border-au-line bg-au-card p-5">
           <div className="flex items-start justify-between gap-2">
             <GlassBar className="size-10 rounded-xl" />
             <GlassBar className="h-5 w-14 rounded-full" />
@@ -86,7 +86,7 @@ export function GlassCourseLessonsSkeleton() {
         <GlassBar className="h-3 w-16" />
       </div>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 border-t border-white/10 pt-3 first:border-t-0 first:pt-0">
+        <div key={i} className="flex items-center gap-4 border-t border-au-line pt-3 first:border-t-0 first:pt-0">
           <GlassBar className="h-4 w-6" />
           <GlassBar className="h-8 w-36" />
           <GlassBar className="h-8 w-56" />

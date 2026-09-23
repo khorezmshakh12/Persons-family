@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const FIELD =
-  'w-24 rounded-lg border border-white/25 bg-white/5 px-2 py-1 text-sm text-white outline-none transition-colors focus-visible:border-white/70';
+  'w-24 rounded-lg border border-au-line bg-au-card-2 px-2 py-1 text-sm text-au-ink outline-none transition-colors focus-visible:border-au-accent';
 
 export type Metric = { id: string; name: string; weight_percentage: number };
 export type MetricEntry = { target_value: number; actual_value: number | null };
@@ -65,10 +65,10 @@ export function MetricRow({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-xl border border-au-line bg-au-card-2 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="font-medium text-white">{metric.name}</span>
-        <span className="shrink-0 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs text-white/70">
+        <span className="font-medium text-au-ink">{metric.name}</span>
+        <span className="shrink-0 rounded-full border border-au-line bg-au-card px-2 py-0.5 text-xs text-au-muted">
           {metric.weight_percentage}%
         </span>
         {achievement != null && (
@@ -84,11 +84,11 @@ export function MetricRow({
           <input type="hidden" name="staffId" value={staffId} />
           <input type="hidden" name="month" value={month} />
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-white/50">{t('target')}</label>
+            <label className="text-[10px] text-au-muted">{t('target')}</label>
             <input type="number" name="targetValue" step="0.01" defaultValue={entry?.target_value} className={FIELD} required />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-white/50">{t('actual')}</label>
+            <label className="text-[10px] text-au-muted">{t('actual')}</label>
             <input type="number" name="actualValue" step="0.01" defaultValue={entry?.actual_value ?? undefined} className={FIELD} />
           </div>
           <Button type="submit" size="sm" loading={isPending} className="self-end">
@@ -103,7 +103,7 @@ export function MetricRow({
                   variant="outline"
                   size="icon-sm"
                   aria-label={t('deleteMetric')}
-                  className="self-end border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                  className="self-end border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
                 />
               }
             >
@@ -129,7 +129,7 @@ export function MetricRow({
           </AlertDialog>
         </form>
       ) : (
-        <div className="flex shrink-0 items-center gap-4 text-sm text-white/70">
+        <div className="flex shrink-0 items-center gap-4 text-sm text-au-muted">
           <span>
             {t('target')}: {entry?.target_value ?? '—'}
           </span>

@@ -56,19 +56,19 @@ export function DeleteRoadmapDialog({
             type="button"
             variant="destructive"
             size="sm"
-            className="gap-1.5 border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+            className="gap-1.5 border border-red-500/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
           >
             <Trash2 className="size-3.5" />
             {t('deletePlan')}
           </Button>
         }
       />
-      <AlertDialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <AlertDialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">
+          <AlertDialogTitle className="text-au-ink">
             {t('confirmDeletePlanTitle')} ({year})
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-white/70">
+          <AlertDialogDescription className="text-au-muted">
             {t('confirmDeletePlanDescription')}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -84,7 +84,7 @@ export function DeleteRoadmapDialog({
           <AlertDialogFooter className="border-t-0 bg-transparent p-0 gap-2 sm:gap-0 mt-4">
             <AlertDialogCancel
               variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </AlertDialogCancel>

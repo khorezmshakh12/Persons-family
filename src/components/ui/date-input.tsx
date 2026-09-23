@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 const FIELD =
-  'h-9 rounded-lg border border-white/25 bg-white/5 px-2 text-center text-sm text-white outline-none transition-colors focus-visible:border-white/70 placeholder:text-white/40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+  'h-9 rounded-lg border border-au-line bg-au-card-2 px-2 text-center text-sm text-au-ink outline-none transition-colors focus-visible:border-au-accent placeholder:text-au-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
 function pad(value: string, length: number) {
   return value.padStart(length, '0');
@@ -96,7 +96,7 @@ export function DateInput({
         }}
         className={cn(FIELD, 'w-12')}
       />
-      <span className="text-white/40">/</span>
+      <span className="text-au-muted">/</span>
       <input
         ref={yearRef}
         type="text"

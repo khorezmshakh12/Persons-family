@@ -48,14 +48,14 @@ export function StaffMessageComposer({
   }
 
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-2 border-t border-white/15 pt-3">
+    <form ref={formRef} action={formAction} className="flex flex-col gap-2 border-t border-au-line pt-3">
       <input type="hidden" name="conversationId" value={conversationId} />
       <div className="flex items-end gap-2">
         <Textarea
           ref={textareaRef}
           name="content"
           placeholder={t('placeholder')}
-          className="min-h-9 flex-1 resize-none border-white/20 bg-white/10 text-white placeholder:text-white/40"
+          className="min-h-9 flex-1 resize-none border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
           rows={1}
           maxLength={2000}
           onKeyDown={handleKeyDown}
@@ -65,7 +65,7 @@ export function StaffMessageComposer({
           {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
         </Button>
       </div>
-      {state?.error && <p className="text-sm text-red-300">{t(`errors.${state.error}`)}</p>}
+      {state?.error && <p className="text-sm text-red-700">{t(`errors.${state.error}`)}</p>}
     </form>
   );
 }

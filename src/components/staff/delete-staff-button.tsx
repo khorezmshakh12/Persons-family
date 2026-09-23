@@ -58,7 +58,7 @@ export function DeleteStaffButton({
               variant="outline"
               size="icon-sm"
               aria-label={t('delete')}
-              className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+              className="border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
             />
           }
         >

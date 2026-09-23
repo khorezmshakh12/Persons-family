@@ -48,15 +48,15 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
             variant="outline"
             size="icon-sm"
             aria-label={t('admin.editItem')}
-            className="border-white/20 bg-white/5 text-white hover:bg-white/15"
+            className="border-au-line bg-au-card-2 text-au-ink hover:bg-au-card-2"
           />
         }
       >
         <Pencil className="size-3.5" />
       </DialogTrigger>
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">{t('admin.editItem')}</DialogTitle>
+          <DialogTitle className="text-au-ink">{t('admin.editItem')}</DialogTitle>
         </DialogHeader>
 
         <form
@@ -79,7 +79,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
               required
               defaultValue={item.name}
               maxLength={200}
-              className="border-white/20 bg-white/10 text-white"
+              className="border-au-line bg-au-card text-au-ink"
             />
           </div>
 
@@ -91,7 +91,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
               defaultValue={item.description ?? ''}
               maxLength={2000}
               rows={3}
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
           </div>
 
@@ -116,7 +116,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
                 step={1}
                 required
                 defaultValue={item.star_cost}
-                className="border-white/20 bg-white/10 text-white"
+                className="border-au-line bg-au-card text-au-ink"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -129,11 +129,11 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
                 step={1}
                 defaultValue={item.stock !== null ? item.stock : ''}
                 placeholder={t('unlimitedStock')}
-                className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
               />
             </div>
           </div>
-          <p className="text-xs text-white/50">{t('admin.stockHint')}</p>
+          <p className="text-xs text-au-muted">{t('admin.stockHint')}</p>
 
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
 
@@ -142,14 +142,14 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
               disabled={isPending || isUploadingImage}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="bg-au-primary hover:bg-black text-white font-medium"
             >
               {isPending ? tCommon('loading') : tCommon('save')}
             </Button>

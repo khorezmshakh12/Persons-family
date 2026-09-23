@@ -99,7 +99,7 @@ export function CourseLessonsTable({
   // into past months until the next generation run.
   if (!collapsible && lessons.length === 0) {
     return (
-      <div className={cn(GLASS_CARD, 'px-4 py-6 text-sm text-white/50 italic')}>
+      <div className={cn(GLASS_CARD, 'px-4 py-6 text-sm text-au-muted italic')}>
         {t('courseLessons.noLessonsThisMonth')}
       </div>
     );
@@ -112,13 +112,13 @@ export function CourseLessonsTable({
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={expanded}
-          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/[0.06]"
+          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-au-ink transition-colors hover:bg-white/[0.06]"
         >
           <ChevronDown className={cn('size-4 shrink-0 transition-transform', expanded && 'rotate-180')} />
           <span>{monthLabel}</span>
-          <span className="text-xs font-normal text-white/45">({lessons.length})</span>
+          <span className="text-xs font-normal text-au-muted">({lessons.length})</span>
           {locked && (
-            <span className="ml-auto flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/55">
+            <span className="ml-auto flex items-center gap-1.5 rounded-full border border-au-line bg-au-card-2 px-2.5 py-1 text-[11px] font-medium text-au-muted">
               <Lock className="size-3" />
               {t('courseLessons.readOnly')}
             </span>
@@ -126,29 +126,29 @@ export function CourseLessonsTable({
         </button>
       )}
       {expanded && (
-        <div className={cn('overflow-x-auto', collapsible && 'border-t border-white/10')}>
+        <div className={cn('overflow-x-auto', collapsible && 'border-t border-au-line')}>
           <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-white/15">
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+              <tr className="border-b border-au-line">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.lessonNumber')}
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.date')}
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.topic')}
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.description')}
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.gameLink')}
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.files')}
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <th className="px-4 py-3 text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.comments')}
                 </th>
               </tr>

@@ -73,3 +73,13 @@ Full workflow: **`DEVELOPMENT.md`**. The essentials:
 - **"Latest N rows":** `order by x asc limit N` returns the *oldest* N.
   Use `order by x desc limit N` in a subquery and re-sort `asc` outside it.
   eslint flags `asc limit` in SQL templates.
+
+## UI: Persons Aurora design system
+
+The UI is **Persons Aurora** (light, warm) — the old glassmorphism over photo
+backgrounds is gone. Rules and tokens: `docs/AURORA_DESIGN_SYSTEM.md`;
+tokens live in `src/app/aurora.css`, class sets in `src/lib/glass.ts`
+(`SURFACE_*`, `BTN_*`, `CHIP_*`; the old `GLASS_*` names are aliases).
+Never reintroduce `backdrop-blur`, `bg-white/10`, `border-white/*` or
+`text-white` on light surfaces, and never hard-code hex colours in
+components — use `au-*` utilities / `var(--au-*)`.

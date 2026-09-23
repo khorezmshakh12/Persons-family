@@ -36,6 +36,53 @@ export type NavItem = {
   external?: boolean;
 };
 
+/** Sidebar section an item is listed under (Persons Aurora layout). Purely
+ * presentational — visibility is still decided by `roles` alone. */
+export type NavGroup = 'main' | 'motivation' | 'workflow' | 'management';
+
+export const NAV_GROUP_ORDER: NavGroup[] = ['main', 'motivation', 'workflow', 'management'];
+
+const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
+  dashboard: 'main',
+  tasks: 'main',
+  finance: 'main',
+  staff: 'main',
+  market: 'motivation',
+  missions: 'motivation',
+  selfDevelopment: 'motivation',
+  chat: 'workflow',
+  issues: 'workflow',
+  lessonPlans: 'workflow',
+  companyNews: 'workflow',
+  materials: 'workflow',
+  analytics: 'management',
+  roadmap: 'management',
+  telegramSetup: 'management',
+  profile: 'management',
+  settings: 'management',
+};
+
+// Order inside each sidebar section — mirrors the Aurora reference.
+const NAV_SORT: NavItem['key'][] = [
+  'dashboard',
+  'tasks',
+  'finance',
+  'staff',
+  'market',
+  'missions',
+  'selfDevelopment',
+  'chat',
+  'issues',
+  'lessonPlans',
+  'companyNews',
+  'materials',
+  'analytics',
+  'roadmap',
+  'telegramSetup',
+  'profile',
+  'settings',
+];
+
 /**
  * Who can see lesson plans at all. Exported (and reused as the nav entry's
  * own `roles` below, so the two can't drift) because the lesson-plan pages
@@ -111,4 +158,21 @@ export function navItemsForRole(role: StaffRole, { materialsLinked = false }: { 
     if (item.key === 'materials' && !materialsLinked) return false;
     return true;
   });
+}
+
+/** The role-filtered nav, bucketed into sidebar sections (empty sections
+ * dropped). Same visibility rules as navItemsForRole — it's built on it. */
+export function groupedNavItemsForRole(
+  role: StaffRole,
+  opts: { materialsLinked?: boolean } = {},
+): { group: NavGroup; items: NavItem[] }[] {
+  const items = [...navItemsForRole(role, opts)].sort((a, b) => NAV_SORT.indexOf(a.key) - NAV_SORT.indexOf(b.key));
+  return NAV_GROUP_ORDER.map((group) => ({ group, items: items.filter((i) => NAV_GROUP[i.key] === group) })).filter(
+    (g) => g.items.length > 0,
+  );
+}
+
+/** Resolves the nav entry a pathname belongs to (for breadcrumbs). */
+export function navItemForPath(pathname: string): NavItem | undefined {
+  return NAV_ITEMS.find((i) => !i.external && (pathname === i.href || pathname.startsWith(`${i.href}/`)));
 }

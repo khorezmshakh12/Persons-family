@@ -51,12 +51,12 @@ export default async function FinancePage({
     }
 
     return (
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+        <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
             {t('title')}
           </h1>
-          <p className="text-white/70">{t('adminSubtitle')}</p>
+          <p className="text-au-muted">{t('adminSubtitle')}</p>
         </div>
 
         <PayrollSection summary={payroll} locale={locale} />
@@ -72,13 +72,13 @@ export default async function FinancePage({
                 style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
                 className={cn(GLASS_CARD, GLASS_INTERACTIVE, 'animate-fade-in-up flex items-center justify-between gap-3 p-6')}
               >
-                <span className="font-semibold text-white">
+                <span className="font-semibold text-au-ink">
                   {person.first_name} {person.last_name}
                 </span>
                 <span className="text-lg font-bold tabular-nums">
                   <MaskableStatValue
                     value={`${net >= 0 ? '+' : ''}${formatUZS(net)}`}
-                    valueClassName={net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70'}
+                    valueClassName={net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted'}
                   />
                 </span>
               </Link>

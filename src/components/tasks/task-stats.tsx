@@ -22,7 +22,7 @@ export function TaskStats({ stats }: { stats: TaskStatsData | null }) {
   const t = useTranslations('tasks.stats');
 
   if (!stats) {
-    return <div className={cn(GLASS_CARD, 'p-6 text-sm text-white/60')}>{t('noData')}</div>;
+    return <div className={cn(GLASS_CARD, 'p-6 text-sm text-au-muted')}>{t('noData')}</div>;
   }
 
   const { overall, byMonth } = stats;
@@ -40,18 +40,18 @@ export function TaskStats({ stats }: { stats: TaskStatsData | null }) {
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
       <div>
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
-        <p className="mt-1 text-sm text-white/70">{t('subtitle')}</p>
+        <p className="mt-1 text-sm text-au-muted">{t('subtitle')}</p>
       </div>
 
       {/* Top strip: stat tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map((tile) => (
-          <div key={tile.key} className="flex flex-col gap-1 rounded-xl bg-white/5 px-3 py-3">
-            <span className="text-2xl font-bold tracking-tight text-white">{tile.value}</span>
-            <span className="text-xs text-white/60">{t(`tiles.${tile.key}`)}</span>
+          <div key={tile.key} className="flex flex-col gap-1 rounded-xl bg-au-card-2 px-3 py-3">
+            <span className="text-2xl font-bold tracking-tight text-au-ink">{tile.value}</span>
+            <span className="text-xs text-au-muted">{t(`tiles.${tile.key}`)}</span>
           </div>
         ))}
       </div>
@@ -74,9 +74,9 @@ export function TaskStats({ stats }: { stats: TaskStatsData | null }) {
 
       {/* 6-month section */}
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold tracking-tight text-white">{t('byMonth')}</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-au-ink">{t('byMonth')}</h3>
         {byMonth.length === 0 ? (
-          <p className="text-sm text-white/60">{t('noData')}</p>
+          <p className="text-sm text-au-muted">{t('noData')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {byMonth.map((month) => (
@@ -84,21 +84,21 @@ export function TaskStats({ stats }: { stats: TaskStatsData | null }) {
                 key={month.monthKey}
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:flex-nowrap"
               >
-                <span className="w-20 shrink-0 capitalize text-white/80">{month.label}</span>
-                <span className="w-40 shrink-0 text-white/60">
+                <span className="w-20 shrink-0 capitalize text-au-ink">{month.label}</span>
+                <span className="w-40 shrink-0 text-au-muted">
                   {t('monthCounts', {
                     due: month.due,
                     onTime: month.doneOnTime,
                     late: month.doneLate,
                   })}
                 </span>
-                <div className="relative h-2 min-w-24 flex-1 overflow-hidden rounded-full bg-white/10">
+                <div className="relative h-2 min-w-24 flex-1 overflow-hidden rounded-full bg-au-card">
                   <div
                     className="absolute inset-y-0 left-0 rounded-full bg-emerald-400/80"
                     style={{ width: `${month.onTimeRate}%` }}
                   />
                 </div>
-                <span className="w-10 shrink-0 text-right tabular-nums text-white/70">
+                <span className="w-10 shrink-0 text-right tabular-nums text-au-muted">
                   {month.onTimeRate}%
                 </span>
               </li>

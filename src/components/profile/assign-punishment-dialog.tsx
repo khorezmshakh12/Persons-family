@@ -44,7 +44,7 @@ export function AssignPunishmentDialog({
             type="button"
             variant="outline"
             size="sm"
-            className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+            className="border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
           />
         }
       >
@@ -69,7 +69,7 @@ export function AssignPunishmentDialog({
               defaultValue={0}
               required
             />
-            <p className="text-xs text-white/50">{t('amountHint')}</p>
+            <p className="text-xs text-au-muted">{t('amountHint')}</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`punishmentReason-${warningId}`}>{t('punishmentReason')}</Label>

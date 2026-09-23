@@ -25,7 +25,7 @@ export class SectionErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <p className="text-sm text-white/60">{this.props.fallbackMessage}</p>
+          <p className="text-sm text-au-muted">{this.props.fallbackMessage}</p>
         </div>
       );
     }

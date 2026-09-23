@@ -44,7 +44,7 @@ export function ResetPasswordDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
         <DialogTrigger
-          render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+          render={<Button variant="outline" size="sm" className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2" />}
         >
           <KeyRound className="size-4" />
           {t('resetPassword')}

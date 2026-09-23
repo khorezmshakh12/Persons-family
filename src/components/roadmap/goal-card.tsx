@@ -30,7 +30,7 @@ export type RoadmapGoal = {
 };
 
 const FIELD =
-  'w-full rounded-lg border border-white/25 bg-white/5 px-3 py-1.5 text-sm text-white outline-none transition-colors focus-visible:border-white/70';
+  'w-full rounded-lg border border-au-line bg-au-card-2 px-3 py-1.5 text-sm text-au-ink outline-none transition-colors focus-visible:border-au-accent';
 
 export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List position, used only to stagger the entrance. */ index?: number }) {
   const t = useTranslations('roadmap');
@@ -60,11 +60,11 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
     <form
       action={formAction}
       style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
-      className="enter-rise-sm flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4"
+      className="enter-rise-sm flex flex-col gap-3 rounded-xl border border-au-line bg-au-card-2 p-4"
     >
       <input type="hidden" name="goalId" value={goal.id} />
       <div className="flex items-start justify-between gap-3">
-        <span className="font-medium text-white">{goal.title}</span>
+        <span className="font-medium text-au-ink">{goal.title}</span>
         <AlertDialog>
           <AlertDialogTrigger
             render={
@@ -73,7 +73,7 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
                 variant="outline"
                 size="icon-sm"
                 aria-label={t('deleteGoal')}
-                className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                className="border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
               />
             }
           >
@@ -107,7 +107,7 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-white/60">{t('status')}</label>
+          <label className="text-xs text-au-muted">{t('status')}</label>
           <select
             name="status"
             value={status}
@@ -120,7 +120,7 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-white/60">{t('progress')}</label>
+          <label className="text-xs text-au-muted">{t('progress')}</label>
           <input
             type="number"
             name="progressPercentage"
@@ -134,7 +134,7 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
 
       {status === 'done' && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-white/60">{t('solution')}</label>
+          <label className="text-xs text-au-muted">{t('solution')}</label>
           <textarea
             name="solution"
             defaultValue={goal.solution ?? ''}
@@ -146,7 +146,7 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
       )}
       {status === 'failed' && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-white/60">{t('failureReason')}</label>
+          <label className="text-xs text-au-muted">{t('failureReason')}</label>
           <textarea
             name="failureReason"
             defaultValue={goal.failure_reason ?? ''}

@@ -69,7 +69,7 @@ export function AdminRowActions({
         size="sm"
         onClick={handleToggleActive}
         disabled={isTogglePending}
-        className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+        className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
       >
         {isTogglePending ? <Loader2 className="size-4 animate-spin" /> : <Power className="size-4" />}
         {isActive ? t('adminManagement.suspend') : t('adminManagement.activate')}
@@ -82,7 +82,7 @@ export function AdminRowActions({
               type="button"
               variant="outline"
               size="sm"
-              className="border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+              className="border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
             />
           }
         >
@@ -117,7 +117,7 @@ export function AdminRowActions({
               type="button"
               variant="outline"
               size="sm"
-              className="border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+              className="border-amber-400/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
             />
           }
         >

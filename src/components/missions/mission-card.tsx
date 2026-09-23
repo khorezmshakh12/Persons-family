@@ -101,32 +101,32 @@ export function MissionCard({
   return (
     <div
       style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
-      className="enter-rise flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4"
+      className="enter-rise flex flex-col gap-3 rounded-xl border border-au-line bg-au-card-2 p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-white">{mission.title}</span>
+            <span className="font-medium text-au-ink">{mission.title}</span>
             <Badge variant="tint" tint={STATUS_TINT[mission.status as keyof typeof STATUS_TINT]} className="text-[10px]">
               {t(`statusLabels.${mission.status}`)}
             </Badge>
           </div>
-          {mission.description && <span className="text-xs text-white/60">{mission.description}</span>}
-          <span className="text-xs text-white/50">
+          {mission.description && <span className="text-xs text-au-muted">{mission.description}</span>}
+          <span className="text-xs text-au-muted">
             {t('deadline')}: {format.dateTime(new Date(`${mission.deadline_date}T00:00:00Z`), { dateStyle: 'medium' })}
           </span>
           {mission.bonus_amount != null && (
-            <span className="text-xs font-semibold text-emerald-400">
+            <span className="text-xs font-semibold text-emerald-600">
               {t('bonusAmount')}: {formatUZS(mission.bonus_amount)}
             </span>
           )}
           {mission.status === 'submitted' && mission.submission_note && (
-            <span className="text-xs text-white/70">
+            <span className="text-xs text-au-muted">
               {t('submissionNote')}: {mission.submission_note}
             </span>
           )}
           {mission.rejection_note && (
-            <span className="text-xs text-red-300">
+            <span className="text-xs text-red-700">
               {t('rejectionNote')}: {mission.rejection_note}
             </span>
           )}
@@ -140,7 +140,7 @@ export function MissionCard({
                     type="button"
                     disabled={isPending}
                     aria-label={t('delete')}
-                    className="tap-scale text-white/50 hover:text-red-400 disabled:opacity-50"
+                    className="tap-scale text-au-muted hover:text-red-600 disabled:opacity-50"
                   />
                 }
               >
@@ -221,7 +221,7 @@ export function MissionCard({
                 size="sm"
                 disabled={isPending}
                 onClick={() => setShowRejectForm(true)}
-                className="w-fit border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                className="w-fit border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
               >
                 {t('reject')}
               </Button>
@@ -246,7 +246,7 @@ export function MissionCard({
                       setRejectionNote('');
                     })
                   }
-                  className="w-fit border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
+                  className="w-fit border-red-400/30 bg-red-500/10 text-red-700 hover:bg-red-500/20"
                 >
                   {t('reject')}
                 </Button>

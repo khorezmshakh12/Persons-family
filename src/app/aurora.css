@@ -1,0 +1,130 @@
+/* =========================================================
+   PERSONS AURORA — design tokens (source: persons-aurora-kit)
+   Imported from globals.css. Every colour/size used by components lives
+   here — components reference `au-*` utilities, never raw hex.
+   ========================================================= */
+
+:root {
+  /* Surfaces */
+  --au-bg: #f4f2ee;
+  --au-sidebar: #faf9f7;
+  --au-card: #ffffff;
+  --au-card-2: #f4f1ec;
+  --au-line: #ebe6de;
+
+  /* Text */
+  --au-ink: #17161a;
+  --au-muted: #6c6873;
+  --au-faint: #a39fa8; /* decoration/disabled only — never body text */
+
+  /* Brand accent — apricot */
+  --au-accent: #ff9f1c;
+  --au-accent-ink: #1d1200;
+  --au-accent-text: #a85a00;
+  --au-accent-soft: rgba(255, 159, 28, 0.16);
+
+  /* Primary button — ink */
+  --au-primary: #17161a;
+  --au-primary-ink: #ffffff;
+
+  /* Status */
+  --au-ok: #0c7a3f;
+  --au-info: #1f6ab4;
+  --au-bad: #c7322b;
+  --au-ok-soft: rgba(19, 154, 82, 0.12);
+  --au-info-soft: rgba(36, 119, 201, 0.12);
+  --au-bad-soft: rgba(224, 65, 58, 0.12);
+
+  /* Charts (use in this order) */
+  --au-chart-1: #ff9f1c;
+  --au-chart-2: #ff6b6b;
+  --au-chart-3: #17161a;
+  --au-chart-4: #efeae3;
+  --au-ring-track: rgba(23, 22, 26, 0.08);
+
+  /* Avatar gradients (picked by staff id) */
+  --au-avatar-1: linear-gradient(135deg, #ffb547, #ff7a45);
+  --au-avatar-2: linear-gradient(135deg, #7dd3fc, #3b82f6);
+  --au-avatar-3: linear-gradient(135deg, #4ade80, #0d9488);
+  --au-avatar-4: linear-gradient(135deg, #f9a8d4, #e11d48);
+  --au-avatar-5: linear-gradient(135deg, #c4b5a0, #6b5e4b);
+
+  /* Hero mesh gradient */
+  --au-hero:
+    radial-gradient(60% 90% at 90% 10%, #ffd9a0 0%, transparent 60%),
+    radial-gradient(50% 80% at 70% 100%, #ffb3a7 0%, transparent 60%),
+    radial-gradient(60% 90% at 10% 0%, #fff1d6 0%, transparent 60%), linear-gradient(135deg, #fff6ea, #ffe7d6);
+  --au-podium: linear-gradient(180deg, #ff9f1c, #a86610);
+
+  /* Shape */
+  --au-radius-card: 20px;
+  --au-radius-ctl: 10px;
+  --au-shadow-card: 0 1px 2px rgba(23, 22, 26, 0.04), 0 12px 32px -12px rgba(23, 22, 26, 0.12);
+  --au-shadow-card-hover: 0 1px 2px rgba(23, 22, 26, 0.05), 0 18px 40px -14px rgba(23, 22, 26, 0.2);
+  --au-shadow-btn: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
+  --au-shadow-pop: 0 12px 30px -12px rgba(255, 159, 28, 0.9);
+
+  /* Type */
+  --au-font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --au-font-display: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+}
+
+@theme inline {
+  --color-au-bg: var(--au-bg);
+  --color-au-sidebar: var(--au-sidebar);
+  --color-au-card: var(--au-card);
+  --color-au-card-2: var(--au-card-2);
+  --color-au-line: var(--au-line);
+  --color-au-ink: var(--au-ink);
+  --color-au-muted: var(--au-muted);
+  --color-au-faint: var(--au-faint);
+  --color-au-accent: var(--au-accent);
+  --color-au-accent-ink: var(--au-accent-ink);
+  --color-au-accent-text: var(--au-accent-text);
+  --color-au-accent-soft: var(--au-accent-soft);
+  --color-au-primary: var(--au-primary);
+  --color-au-ok: var(--au-ok);
+  --color-au-info: var(--au-info);
+  --color-au-bad: var(--au-bad);
+  --color-au-ok-soft: var(--au-ok-soft);
+  --color-au-info-soft: var(--au-info-soft);
+  --color-au-bad-soft: var(--au-bad-soft);
+  --color-au-chart-1: var(--au-chart-1);
+  --color-au-chart-2: var(--au-chart-2);
+  --color-au-chart-3: var(--au-chart-3);
+  --color-au-chart-4: var(--au-chart-4);
+  --radius-au-card: var(--au-radius-card);
+  --radius-au-ctl: var(--au-radius-ctl);
+  --shadow-au-card: var(--au-shadow-card);
+  --shadow-au-card-hover: var(--au-shadow-card-hover);
+  --shadow-au-btn: var(--au-shadow-btn);
+  --font-display: var(--au-font-display);
+}
+
+@utility bg-au-hero {
+  background-image: var(--au-hero);
+}
+@utility bg-au-podium {
+  background-image: var(--au-podium);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Avatar fallback palette — .au-avatar-1 … .au-avatar-5 */
+.au-avatar-1 { background: var(--au-avatar-1); }
+.au-avatar-2 { background: var(--au-avatar-2); }
+.au-avatar-3 { background: var(--au-avatar-3); }
+.au-avatar-4 { background: var(--au-avatar-4); }
+.au-avatar-5 { background: var(--au-avatar-5); }
+
+/* Hatched "future" bar in the lesson-plan chart */
+.au-hatch {
+  background: repeating-linear-gradient(135deg, var(--au-chart-4) 0 5px, transparent 5px 9px);
+}
+
+/* Thin, warm scrollbars to match the light surfaces */
+* {
+  scrollbar-color: var(--au-line) transparent;
+}

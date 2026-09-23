@@ -96,19 +96,19 @@ export function ContractAttachmentsList({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold text-white/60">{t('attachments')}</span>
+      <span className="text-xs font-semibold text-au-muted">{t('attachments')}</span>
       {attachments.length === 0 ? (
-        <p className="text-xs text-white/40 italic">{t('noAttachments')}</p>
+        <p className="text-xs text-au-muted italic">{t('noAttachments')}</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           {attachments.map((a) => (
             <div key={a.id} className="group flex items-center gap-2 text-sm">
-              <FileText className="size-3.5 shrink-0 text-white/60" />
+              <FileText className="size-3.5 shrink-0 text-au-muted" />
               <button
                 type="button"
                 onClick={() => handleDownload(a.id)}
                 disabled={downloadingId === a.id}
-                className="tap-scale max-w-60 truncate text-left text-white/85 hover:text-white hover:underline disabled:opacity-50"
+                className="tap-scale max-w-60 truncate text-left text-au-ink hover:text-au-ink hover:underline disabled:opacity-50"
                 title={a.file_name}
               >
                 {a.file_name}
@@ -119,7 +119,7 @@ export function ContractAttachmentsList({
                   onClick={() => handleDelete(a.id)}
                   disabled={isDeletePending}
                   aria-label={t('deleteAttachment')}
-                  className="tap-scale shrink-0 text-white/30 opacity-100 transition-opacity hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100"
+                  className="tap-scale shrink-0 text-au-faint opacity-100 transition-opacity hover:text-red-700 sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -143,7 +143,7 @@ export function ContractAttachmentsList({
             size="sm"
             disabled={isUploading}
             onClick={() => inputRef.current?.click()}
-            className="h-7 w-fit gap-1.5 px-2 text-white/70 hover:text-white"
+            className="h-7 w-fit gap-1.5 px-2 text-au-muted hover:text-au-ink"
           >
             {isUploading ? (
               <Upload className="size-3.5 animate-pulse" />

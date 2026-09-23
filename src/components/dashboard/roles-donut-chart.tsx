@@ -60,7 +60,7 @@ export async function RolesDonutChart({
 
   const content = (
     <>
-      <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
+      <h2 className="font-heading text-lg font-semibold text-au-ink">{t('title')}</h2>
       <div className="flex justify-center">
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
           <svg
@@ -75,7 +75,7 @@ export async function RolesDonutChart({
               cy={SIZE / 2}
               r={RADIUS}
               fill="none"
-              stroke="rgba(255,255,255,0.12)"
+              stroke="var(--au-line)"
               strokeWidth={STROKE}
             />
             {segments.map((s) => (
@@ -96,8 +96,8 @@ export async function RolesDonutChart({
             style={{ animationDelay: `${delayMs + 350}ms` }}
             className="animate-pop-in absolute inset-0 flex flex-col items-center justify-center"
           >
-            <span className="text-2xl font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{total}</span>
-            <span className="text-xs text-white/60">{t('totalLabel')}</span>
+            <span className="text-2xl font-bold text-au-ink">{total}</span>
+            <span className="text-xs text-au-muted">{t('totalLabel')}</span>
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@ export async function RolesDonutChart({
           <div
             key={role}
             style={{ animationDelay: `${delayMs + 450 + i * 40}ms` }}
-            className="animate-fade-in-up flex items-center gap-2 text-xs text-white/80"
+            className="animate-fade-in-up flex items-center gap-2 text-xs text-au-ink"
           >
             <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: ROLE_COLOR[role] }} />
             <span className="truncate">

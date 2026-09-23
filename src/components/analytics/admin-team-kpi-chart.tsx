@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import type { AdminTeamKpiMonth } from '@/lib/actions/analytics';
 
 const COLORS = {
-  onTime: '#34d399',
+  onTime: 'var(--au-ok)',
   late: '#fbbf24',
   notDone: '#f87171',
   efficiency: '#60a5fa',
@@ -34,7 +34,7 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/20 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-xl backdrop-blur-md">
+    <div className="rounded-lg border border-au-line bg-au-card px-3 py-2 text-xs text-au-ink shadow-au-card">
       <div className="mb-1 font-semibold">{label}</div>
       <div className="flex flex-col gap-0.5">
         {payload.map((p) => (
@@ -70,19 +70,19 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div>
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('adminKpi.title')}
         </h2>
-        <p className="mt-1 text-sm text-white/70">{t('adminKpi.subtitle')}</p>
+        <p className="mt-1 text-sm text-au-muted">{t('adminKpi.subtitle')}</p>
       </div>
 
       <div className="h-80 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 20, right: 16, left: 4, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--au-line)" vertical={false} />
             <XAxis
               dataKey="label"
-              stroke="rgba(255,255,255,0.75)"
+              stroke="var(--au-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -90,7 +90,7 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
             <YAxis
               yAxisId="tasks"
               allowDecimals={false}
-              stroke="rgba(255,255,255,0.75)"
+              stroke="var(--au-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -101,13 +101,13 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
               orientation="right"
               domain={[0, 100]}
               unit="%"
-              stroke="rgba(255,255,255,0.75)"
+              stroke="var(--au-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
               width={44}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.06)' }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--au-line)' }} />
             <Bar
               yAxisId="tasks"
               dataKey="onTime"
@@ -149,7 +149,7 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
 
       <div className="flex flex-wrap gap-x-3 gap-y-1.5">
         {legend.map((item) => (
-          <div key={item.label} className="flex items-center gap-1.5 text-xs text-white/80">
+          <div key={item.label} className="flex items-center gap-1.5 text-xs text-au-ink">
             <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
             <span>{item.label}</span>
           </div>

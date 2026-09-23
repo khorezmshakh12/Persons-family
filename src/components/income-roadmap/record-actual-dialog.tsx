@@ -69,7 +69,7 @@ export function RecordActualDialog({
               variant="ghost"
               size="icon-xs"
               aria-label={t('recordActual')}
-              className="text-white/60 hover:text-white hover:bg-white/10"
+              className="text-au-muted hover:text-au-ink hover:bg-au-card-2"
             >
               <Pencil className="size-3" />
             </Button>
@@ -78,17 +78,17 @@ export function RecordActualDialog({
               type="button"
               variant="outline"
               size="xs"
-              className="gap-1 border-white/20 bg-white/5 text-xs text-white hover:bg-white/15"
+              className="gap-1 border-au-line bg-au-card-2 text-xs text-au-ink hover:bg-au-card-2"
             >
-              <PlusCircle className="size-3 text-emerald-300" />
+              <PlusCircle className="size-3 text-emerald-700" />
               {t('recordActual')}
             </Button>
           )
         }
       />
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-au-ink">
             {t('recordActual')} · {monthName}
           </DialogTitle>
         </DialogHeader>
@@ -116,7 +116,7 @@ export function RecordActualDialog({
               maxLength={2000}
               rows={3}
               placeholder={t('monthNote')}
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
           </div>
 
@@ -129,14 +129,14 @@ export function RecordActualDialog({
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="bg-au-primary hover:bg-black text-white font-medium"
             >
               {isPending ? tCommon('loading') : t('save')}
             </Button>

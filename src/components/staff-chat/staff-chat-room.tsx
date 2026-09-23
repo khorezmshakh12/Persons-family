@@ -109,7 +109,7 @@ export function StaffChatRoom({
     <div className={compact ? 'flex flex-col gap-3' : 'flex h-full flex-col'}>
       <div className={compact ? 'flex flex-col gap-2' : 'flex-1 overflow-y-auto p-4'}>
         {visibleMessages.length === 0 ? (
-          <p className="text-center text-sm text-white/60">{t('empty')}</p>
+          <p className="text-center text-sm text-au-muted">{t('empty')}</p>
         ) : (
           <div className="flex flex-col gap-3">
             {visibleMessages.map((m) => (
@@ -128,7 +128,7 @@ export function StaffChatRoom({
       {canPost ? (
         <StaffMessageComposer conversationId={conversationId} onOptimisticSend={handleOptimisticSend} />
       ) : (
-        <p className="border-t border-white/15 pt-3 text-center text-xs text-white/40 italic">
+        <p className="border-t border-au-line pt-3 text-center text-xs text-au-muted italic">
           {t('monitorOnly')}
         </p>
       )}

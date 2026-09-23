@@ -58,7 +58,7 @@ export function EditGroupDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+        render={<Button variant="outline" size="sm" className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2" />}
       >
         <Pencil className="size-4" />
         {t('editGroup')}

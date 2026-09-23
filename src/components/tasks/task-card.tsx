@@ -84,7 +84,7 @@ function FormattedDescription({ text }: { text: string }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-0.5 font-medium text-sky-300 underline underline-offset-2 transition-colors hover:text-sky-200 break-all"
+              className="inline-flex items-center gap-0.5 font-medium text-sky-700 underline underline-offset-2 transition-colors hover:text-sky-700 break-all"
             >
               <span>{part}</span>
               <ExternalLink className="size-3 shrink-0 inline opacity-70" />
@@ -186,19 +186,19 @@ function TaskCardImpl({
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(
           GLASS_CARD,
-          'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-white/15',
+          'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-au-line',
           isDragging && !isPreview && 'opacity-40',
-          isPreview && 'opacity-60 border-2 border-dashed border-white/70',
+          isPreview && 'opacity-60 border-2 border-dashed border-au-faint',
           // The lift is elevation-only on purpose — no scale/rotate. The
           // overlay has to stay the exact size of the card it will land on,
           // otherwise the drop animation (which glides the overlay onto the
           // real card's rect) ends with a visible size pop.
-          isOverlay && 'cursor-grabbing bg-white/15 shadow-2xl shadow-black/50 ring-2 ring-white/50',
+          isOverlay && 'cursor-grabbing bg-au-card-2 shadow-2xl shadow-black/50 ring-2 ring-au-faint',
         )}
       >
         {/* Card Header: Title + Action Buttons */}
         <div className="flex items-start justify-between gap-2 min-w-0">
-          <span className="min-w-0 flex-1 font-semibold text-white leading-snug break-words [overflow-wrap:anywhere] text-sm sm:text-base">
+          <span className="min-w-0 flex-1 font-semibold text-au-ink leading-snug break-words [overflow-wrap:anywhere] text-sm sm:text-base">
             {task.title}
           </span>
           <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
@@ -225,7 +225,7 @@ function TaskCardImpl({
                 {...listeners}
                 {...attributes}
                 aria-label={t('dragHandle')}
-                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+                className="cursor-grab touch-none rounded p-1 text-au-muted hover:bg-au-card-2 hover:text-au-ink active:cursor-grabbing"
               >
                 <GripVertical className="size-4" />
               </button>
@@ -238,7 +238,7 @@ function TaskCardImpl({
           <div className="flex flex-col min-w-0 w-full">
             <div
               className={cn(
-                'text-sm text-white/80 whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] leading-relaxed select-text',
+                'text-sm text-au-ink whitespace-pre-wrap break-words break-all [overflow-wrap:anywhere] leading-relaxed select-text',
                 isLongDescription && !isExpanded && 'line-clamp-2 sm:line-clamp-3',
               )}
             >
@@ -251,7 +251,7 @@ function TaskCardImpl({
                   e.stopPropagation();
                   setIsExpanded(!isExpanded);
                 }}
-                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
               >
                 <span>{isExpanded ? t('showLess') : t('showMore')}</span>
                 <ChevronDown
@@ -263,16 +263,16 @@ function TaskCardImpl({
         )}
 
         {/* Assignee & Deadline */}
-        <div className="flex flex-col gap-1 text-xs text-white/60 min-w-0">
+        <div className="flex flex-col gap-1 text-xs text-au-muted min-w-0">
           {isAdmin && task.assignee && (
-            <span className="truncate font-medium text-white/75">
+            <span className="truncate font-medium text-au-muted">
               {task.assignee.first_name} {task.assignee.last_name}
             </span>
           )}
           <span
             className={cn(
               'flex items-center gap-1.5 flex-wrap',
-              task.is_overdue && 'font-semibold text-red-400',
+              task.is_overdue && 'font-semibold text-red-600',
             )}
           >
             <span>
@@ -293,11 +293,11 @@ function TaskCardImpl({
          * shown to the assignee until they resubmit (submitTaskAction
          * clears rejection_reason on resubmit, which is what retires this). */}
         {showRejection && (
-          <div className="flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+          <div className="flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
             <Undo2 className="mt-0.5 size-3.5 shrink-0" />
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="font-semibold">{t('rejectionReason')}</span>
-              <span className="whitespace-pre-wrap break-words text-red-100/90">
+              <span className="whitespace-pre-wrap break-words text-red-700">
                 {task.rejection_reason}
               </span>
             </div>
@@ -318,12 +318,12 @@ function TaskCardImpl({
         />
 
         {/* Footer: Status, Stars, and Comments */}
-        <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-1 border-t border-white/10">
+        <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-1 border-t border-au-line">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <TaskStatusControl status={task.status} />
             {!!task.star_reward && task.star_reward > 0 && (
               <Badge variant="tint" tint="amber" className="text-xs font-semibold gap-1">
-                <Star className="size-3 fill-amber-400 text-amber-400" />
+                <Star className="size-3 fill-amber-400 text-amber-600" />
                 +{task.star_reward}
               </Badge>
             )}
@@ -331,7 +331,7 @@ function TaskCardImpl({
              * late — see updateTaskStatusAction's on-time/late split. */}
             {!!task.star_penalty && task.star_penalty > 0 && (
               <Badge variant="tint" tint="red" className="text-xs font-semibold gap-1">
-                <Minus className="size-3 text-red-400" />
+                <Minus className="size-3 text-red-600" />
                 {task.star_penalty}
               </Badge>
             )}

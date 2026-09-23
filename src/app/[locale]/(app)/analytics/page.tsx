@@ -58,12 +58,12 @@ export default async function AnalyticsPage() {
   }));
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-8 text-white shadow-xl backdrop-blur-md">
-        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+      <div className="relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 text-au-ink sm:px-[30px] sm:py-7">
+        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>
-        <p className="mt-1 text-white/70">{t('subtitle')}</p>
+        <p className="mt-1 text-au-muted">{t('subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -76,12 +76,12 @@ export default async function AnalyticsPage() {
       ) : (
         <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
           <div>
-            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <h2 className="font-heading text-lg font-semibold text-au-ink">
               {t('adminKpi.title')}
             </h2>
-            <p className="mt-1 text-sm text-white/70">{t('adminKpi.subtitle')}</p>
+            <p className="mt-1 text-sm text-au-muted">{t('adminKpi.subtitle')}</p>
           </div>
-          <p className="text-sm text-white/70">{t('adminKpi.noData')}</p>
+          <p className="text-sm text-au-muted">{t('adminKpi.noData')}</p>
         </div>
       )}
     </div>

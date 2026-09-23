@@ -20,7 +20,7 @@ import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
 import type { TeacherLevel } from '@/lib/teacher-level';
 
 const GLASS_INPUT =
-  'rounded-xl border border-white/30 bg-transparent px-4 py-3 text-white placeholder:text-white/40 focus-visible:border-white focus-visible:ring-0';
+  'rounded-xl border border-au-line bg-transparent px-4 py-3 text-au-ink placeholder:text-au-faint focus-visible:border-au-accent focus-visible:ring-0';
 
 export function ProfileSection({
   teacherLevel,
@@ -107,20 +107,20 @@ export function ProfileSection({
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploadingAvatar}
           aria-label={t('changeAvatar')}
-          className="tap-scale group relative size-20 shrink-0 cursor-pointer rounded-full outline-none transition-transform duration-200 ease-bounce hover:scale-105 focus-visible:ring-2 focus-visible:ring-white"
+          className="tap-scale group relative size-20 shrink-0 cursor-pointer rounded-full outline-none transition-transform duration-200 ease-bounce focus-visible:ring-2 focus-visible:ring-au-accent"
         >
-          <Avatar className="size-20 border border-white/30">
+          <Avatar className="size-20 border border-au-line">
             <AvatarImage src={avatarUrl ?? undefined} alt="" />
-            <AvatarFallback className="bg-white/10 text-lg text-white">
+            <AvatarFallback className="bg-au-card text-lg text-au-ink">
               {`${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-            <Camera className="size-6 text-white" />
+            <Camera className="size-6 text-au-ink" />
           </span>
           {isUploadingAvatar && (
             <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
-              <Loader2 className="size-6 animate-spin text-white" />
+              <Loader2 className="size-6 animate-spin text-au-ink" />
             </span>
           )}
         </button>
@@ -133,18 +133,18 @@ export function ProfileSection({
         />
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-au-ink">
               {firstName} {lastName}
             </p>
             {teacherLevel && <TeacherLevelBadge level={teacherLevel} />}
           </div>
-          <p className="text-xs text-white/60">{t('avatarHint')}</p>
+          <p className="text-xs text-au-muted">{t('avatarHint')}</p>
         </div>
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="fullName" className="text-white/90">
+          <Label htmlFor="fullName" className="text-au-ink">
             {t('fullName')}
           </Label>
           <Input
@@ -158,7 +158,7 @@ export function ProfileSection({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="newPassword" className="text-white/90">
+            <Label htmlFor="newPassword" className="text-au-ink">
               {t('newPassword')}
             </Label>
             <Input
@@ -172,7 +172,7 @@ export function ProfileSection({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="confirmPassword" className="text-white/90">
+            <Label htmlFor="confirmPassword" className="text-au-ink">
               {t('confirmPassword')}
             </Label>
             <Input

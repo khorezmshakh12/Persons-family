@@ -39,7 +39,7 @@ export function StatsPeriodToggle({ className }: { className?: string }) {
       role="group"
       aria-label={t('label')}
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-full border border-white/15 bg-white/10 p-0.5 backdrop-blur-md',
+        'inline-flex items-center gap-0.5 rounded-full border border-au-line bg-au-card p-0.5',
         className,
       )}
     >
@@ -52,8 +52,8 @@ export function StatsPeriodToggle({ className }: { className?: string }) {
           className={cn(
             'tap-scale rounded-full px-3 py-1 text-xs font-semibold transition-colors',
             period === option
-              ? 'bg-white/25 text-white shadow-sm'
-              : 'text-white/60 hover:text-white/90',
+              ? 'bg-au-card-2 text-au-ink shadow-sm'
+              : 'text-au-muted hover:text-au-ink',
           )}
         >
           {t(option)}

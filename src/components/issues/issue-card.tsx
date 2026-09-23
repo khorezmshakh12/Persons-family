@@ -81,12 +81,12 @@ function IssueCardImpl({
           GLASS_CARD,
           'flex flex-col gap-3 p-6',
           isDragging && !isPreview && 'opacity-40',
-          isPreview && 'opacity-60 border-2 border-dashed border-white/70',
+          isPreview && 'opacity-60 border-2 border-dashed border-au-faint',
           // The lift is elevation-only on purpose — no scale/rotate. The
           // overlay has to stay the exact size of the card it will land on,
           // otherwise the drop animation (which glides the overlay onto the
           // real card's rect) ends with a visible size pop.
-          isOverlay && 'cursor-grabbing bg-white/15 shadow-2xl shadow-black/50 ring-2 ring-white/50',
+          isOverlay && 'cursor-grabbing bg-au-card-2 shadow-2xl shadow-black/50 ring-2 ring-au-faint',
         )}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
@@ -102,7 +102,7 @@ function IssueCardImpl({
                 {...listeners}
                 {...attributes}
                 aria-label={t('dragHandle')}
-                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+                className="cursor-grab touch-none rounded p-1 text-au-muted hover:bg-au-card-2 hover:text-au-ink active:cursor-grabbing"
               >
                 <GripVertical className="size-4" />
               </button>
@@ -110,18 +110,18 @@ function IssueCardImpl({
           )}
         </div>
         {issue.description && (
-          <p className="text-sm text-white/70 break-words [overflow-wrap:anywhere]">{issue.description}</p>
+          <p className="text-sm text-au-muted break-words [overflow-wrap:anywhere]">{issue.description}</p>
         )}
         {issue.voiceSignedUrl && (
-          <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
-            <Mic className="size-4 shrink-0 text-white/70" />
+          <div className="flex items-center gap-2 rounded-xl border border-au-line bg-au-card px-3 py-2">
+            <Mic className="size-4 shrink-0 text-au-muted" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="text-[11px] font-medium text-white/70">{t('voiceNote')}</span>
+              <span className="text-[11px] font-medium text-au-muted">{t('voiceNote')}</span>
               <audio controls preload="none" src={issue.voiceSignedUrl} className="h-8 w-full" />
             </div>
           </div>
         )}
-        <div className="flex flex-col gap-1 text-xs text-white/60">
+        <div className="flex flex-col gap-1 text-xs text-au-muted">
           {issue.reporter && (
             <span>
               {t('table.reporter')}: {issue.reporter.first_name} {issue.reporter.last_name}

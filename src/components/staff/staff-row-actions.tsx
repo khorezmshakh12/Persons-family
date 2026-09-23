@@ -57,7 +57,7 @@ export function StaffRowActions({
   const canAwardStars = actingRole === 'ceo' && !isSelf;
   const hasMenuActions = canDeactivate || canDelete || canManageTelegram || canAwardStars;
 
-  if (!canManage) return <span className="text-white/60 text-sm">—</span>;
+  if (!canManage) return <span className="text-au-muted text-sm">—</span>;
 
   return (
     <div className="flex items-center justify-end gap-2">
@@ -72,7 +72,7 @@ export function StaffRowActions({
                 variant="outline"
                 size="icon-sm"
                 aria-label={t('moreActions')}
-                className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+                className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
               />
             }
           >
@@ -97,7 +97,7 @@ export function StaffRowActions({
             )}
             {canAwardStars && (
               <DropdownMenuItem onClick={() => setMenuAction('manageStars')}>
-                <Sparkles className="text-amber-400" />
+                <Sparkles className="text-amber-600" />
                 {tStars('manageStars')}
               </DropdownMenuItem>
             )}

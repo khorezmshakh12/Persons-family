@@ -99,27 +99,27 @@ export function EditPlanCurveDialog({
             type="button"
             variant="outline"
             size="sm"
-            className="gap-1.5 border-white/20 bg-white/5 text-white hover:bg-white/15"
+            className="gap-1.5 border-au-line bg-au-card-2 text-au-ink hover:bg-au-card-2"
           >
             <Sliders className="size-3.5" />
             {t('editPlanCurve')}
           </Button>
         }
       />
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-white">{t('editPlanCurve')}</DialogTitle>
+          <DialogTitle className="text-au-ink">{t('editPlanCurve')}</DialogTitle>
         </DialogHeader>
 
         {/* Quick fill convenience toolbar */}
-        <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-white/15 bg-white/5 p-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border border-au-line bg-au-card-2 p-3">
           <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="xs"
               onClick={handleFillFlat}
-              className="gap-1 border-white/20 bg-white/10 text-xs text-white hover:bg-white/20"
+              className="gap-1 border-au-line bg-au-card text-xs text-au-ink hover:bg-au-card-2"
             >
               <Equal className="size-3" />
               {t('fillFlat')}
@@ -129,9 +129,9 @@ export function EditPlanCurveDialog({
               variant="outline"
               size="xs"
               onClick={handleFillRamp}
-              className="gap-1 border-white/20 bg-white/10 text-xs text-white hover:bg-white/20"
+              className="gap-1 border-au-line bg-au-card text-xs text-au-ink hover:bg-au-card-2"
             >
-              <Sparkles className="size-3 text-emerald-300" />
+              <Sparkles className="size-3 text-emerald-700" />
               {t('fillRamp')}
             </Button>
           </div>
@@ -151,9 +151,9 @@ export function EditPlanCurveDialog({
               return (
                 <div
                   key={m.monthNumber}
-                  className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-white/5 p-2.5"
+                  className="flex flex-col gap-1.5 rounded-lg border border-au-line bg-au-card-2 p-2.5"
                 >
-                  <Label htmlFor={`plan-${m.monthNumber}`} className="text-xs text-white/70">
+                  <Label htmlFor={`plan-${m.monthNumber}`} className="text-xs text-au-muted">
                     {monthName}
                   </Label>
                   <Input
@@ -162,7 +162,7 @@ export function EditPlanCurveDialog({
                     value={val ? formatUZS(val) : ''}
                     placeholder="0"
                     onChange={(e) => handleValueChange(idx, e.target.value)}
-                    className="border-white/20 bg-white/10 text-white text-xs tabular-nums h-8"
+                    className="border-au-line bg-au-card text-au-ink text-xs tabular-nums h-8"
                   />
                   <input type="hidden" name={`planned-${m.monthNumber}`} value={val} />
                 </div>
@@ -179,14 +179,14 @@ export function EditPlanCurveDialog({
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="bg-au-primary hover:bg-black text-white font-medium"
             >
               {isPending ? tCommon('loading') : t('save')}
             </Button>

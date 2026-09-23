@@ -98,21 +98,21 @@ export function LessonCommentsDrawer({
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 gap-1.5 rounded-full border-white/20 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/15 hover:text-white"
+            className="h-7 gap-1.5 rounded-full border-au-line bg-au-card-2 px-3 text-xs text-au-muted hover:bg-au-card-2 hover:text-au-ink"
           />
         }
       >
         <MessageCircle className="size-3.5" />
         {comments.length}
       </SheetTrigger>
-      <SheetContent className="flex flex-col gap-4 border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <SheetContent className="flex flex-col gap-4 border-au-line bg-au-card text-au-ink sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-white">{t('courseLessons.commentsTitle', { number: lessonNumber })}</SheetTitle>
+          <SheetTitle className="text-au-ink">{t('courseLessons.commentsTitle', { number: lessonNumber })}</SheetTitle>
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4">
           {optimisticComments.length === 0 ? (
-            <p className="text-sm text-white/60">{t('courseLessons.noComments')}</p>
+            <p className="text-sm text-au-muted">{t('courseLessons.noComments')}</p>
           ) : (
             optimisticComments.map((c) => {
               const isOptimistic = c.id.startsWith('optimistic-');
@@ -124,11 +124,11 @@ export function LessonCommentsDrawer({
                   <div className="flex flex-1 flex-col gap-0.5">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold">{c.authorName}</span>
-                      <span className="text-[10px] text-white/50">
+                      <span className="text-[10px] text-au-muted">
                         {format.dateTime(new Date(c.created_at), { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-sm text-white/85">{c.comment_text}</p>
+                    <p className="text-sm text-au-ink">{c.comment_text}</p>
                   </div>
                   {c.user_id === currentUserId && !isOptimistic && !locked && (
                     <button
@@ -136,7 +136,7 @@ export function LessonCommentsDrawer({
                       onClick={() => handleDelete(c.id)}
                       disabled={deletePending}
                       aria-label={t('courseLessons.deleteComment')}
-                      className="tap-scale shrink-0 text-white/40 opacity-100 transition-opacity hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
+                      className="tap-scale shrink-0 text-au-muted opacity-100 transition-opacity hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -148,7 +148,7 @@ export function LessonCommentsDrawer({
         </div>
 
         {canComment ? (
-          <form ref={formRef} action={formAction} className="flex items-end gap-2 border-t border-white/15 p-4 pt-3">
+          <form ref={formRef} action={formAction} className="flex items-end gap-2 border-t border-au-line p-4 pt-3">
             <input type="hidden" name="lessonId" value={lessonId} />
             <Textarea
               name="commentText"
@@ -156,14 +156,14 @@ export function LessonCommentsDrawer({
               maxLength={1000}
               required
               placeholder={t('courseLessons.commentPlaceholder')}
-              className="min-h-9 flex-1 resize-none border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="min-h-9 flex-1 resize-none border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
             <Button type="submit" size="icon" disabled={isPending} aria-label={t('courseLessons.send')}>
               {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </Button>
           </form>
         ) : (
-          <p className="border-t border-white/15 p-4 pt-3 text-xs text-white/40 italic">
+          <p className="border-t border-au-line p-4 pt-3 text-xs text-au-muted italic">
             {t('courseLessons.viewOnly')}
           </p>
         )}

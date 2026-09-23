@@ -24,7 +24,7 @@ export function MonthlyWarningsArchive({ months }: { months: MonthlyWarningsArch
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+      <h2 className="text-sm font-semibold tracking-tight text-au-ink">
         {t('title')}
       </h2>
       <div className="flex flex-col gap-2">
@@ -36,20 +36,20 @@ export function MonthlyWarningsArchive({ months }: { months: MonthlyWarningsArch
                 type="button"
                 onClick={() => setOpenMonth(isOpen ? null : month.monthKey)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-au-card-2"
               >
                 <span className="font-medium capitalize">{month.label}</span>
-                <span className="flex shrink-0 items-center gap-2 text-sm text-white/70">
+                <span className="flex shrink-0 items-center gap-2 text-sm text-au-muted">
                   <span>{t('count', { count: month.count })}</span>
                   <ChevronDown className={cn('size-4 transition-transform', isOpen && 'rotate-180')} />
                 </span>
               </button>
 
               {isOpen && (
-                <div className="flex flex-col gap-2 border-t border-white/15 px-4 py-3">
+                <div className="flex flex-col gap-2 border-t border-au-line px-4 py-3">
                   {month.warnings.map((warning) => (
-                    <div key={warning.id} className="flex flex-col gap-1 rounded-xl bg-white/5 px-3 py-2">
-                      <span className="text-xs text-white/60">
+                    <div key={warning.id} className="flex flex-col gap-1 rounded-xl bg-au-card-2 px-3 py-2">
+                      <span className="text-xs text-au-muted">
                         {format.dateTime(new Date(warning.created_at), { dateStyle: 'medium' })}
                         {warning.issuer_first_name && (
                           <>
@@ -60,7 +60,7 @@ export function MonthlyWarningsArchive({ months }: { months: MonthlyWarningsArch
                           </>
                         )}
                       </span>
-                      <p className="text-sm whitespace-pre-wrap text-white/90">{warning.reason}</p>
+                      <p className="text-sm whitespace-pre-wrap text-au-ink">{warning.reason}</p>
                     </div>
                   ))}
                 </div>

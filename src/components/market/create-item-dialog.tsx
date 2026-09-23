@@ -46,16 +46,16 @@ export function CreateItemDialog() {
           <Button
             type="button"
             size="sm"
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+            className="gap-1.5 bg-au-primary hover:bg-black text-white font-medium shadow-sm"
           />
         }
       >
         <Plus className="size-4" />
         {t('admin.addItem')}
       </DialogTrigger>
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">{t('admin.addItem')}</DialogTitle>
+          <DialogTitle className="text-au-ink">{t('admin.addItem')}</DialogTitle>
         </DialogHeader>
 
         <form
@@ -76,7 +76,7 @@ export function CreateItemDialog() {
               required
               maxLength={200}
               placeholder="e.g. Persons Hoodie"
-              className="border-white/20 bg-white/10 text-white"
+              className="border-au-line bg-au-card text-au-ink"
             />
           </div>
 
@@ -88,7 +88,7 @@ export function CreateItemDialog() {
               maxLength={2000}
               rows={3}
               placeholder="Reward details..."
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
           </div>
 
@@ -108,7 +108,7 @@ export function CreateItemDialog() {
                 step={1}
                 required
                 defaultValue={10}
-                className="border-white/20 bg-white/10 text-white"
+                className="border-au-line bg-au-card text-au-ink"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -120,11 +120,11 @@ export function CreateItemDialog() {
                 min={0}
                 step={1}
                 placeholder={t('unlimitedStock')}
-                className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
               />
             </div>
           </div>
-          <p className="text-xs text-white/50">{t('admin.stockHint')}</p>
+          <p className="text-xs text-au-muted">{t('admin.stockHint')}</p>
 
           {state?.error && <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
 
@@ -133,14 +133,14 @@ export function CreateItemDialog() {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
               disabled={isPending || isUploadingImage}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="bg-au-primary hover:bg-black text-white font-medium"
             >
               {isPending ? tCommon('loading') : t('admin.addItem')}
             </Button>

@@ -23,8 +23,8 @@ export const DESIGN_VARIANTS: DesignTheme[] = [
     tagline: "Arktika nurlari, shaffof zumrad-feruza shisha va havoda suzuvchi oltin yulduzchalar",
     url: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=2000',
     type: 'photo',
-    accentColors: ['#2dd4bf', '#34d399', '#fbbf24'],
-    glassBorder: 'border-teal-400/30',
+    accentColors: ['var(--au-accent)', 'var(--au-ok)', '#fbbf24'],
+    glassBorder: 'border-au-accent/40',
     badge: 'Zenith Aurora',
   },
   {
@@ -84,7 +84,7 @@ export const DESIGN_VARIANTS: DesignTheme[] = [
     url: '',
     type: 'dark_matte',
     accentColors: ['#818cf8', '#6366f1', '#38bdf8'],
-    glassBorder: 'border-slate-700/60',
+    glassBorder: 'border-au-line',
     badge: 'Studio Focus',
   },
 ];

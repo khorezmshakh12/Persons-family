@@ -36,7 +36,7 @@ export function MonthPicker({ months, selected }: { months: string[]; selected: 
 
   return (
     <Select value={selected} onValueChange={(v) => v && update(v)}>
-      <SelectTrigger className="w-48 border-white/30 bg-white/10 text-white hover:bg-white/20">
+      <SelectTrigger className="w-48 border-au-line bg-au-card text-au-ink hover:bg-au-card-2">
         <SelectValue>{(value: string) => label(value)}</SelectValue>
       </SelectTrigger>
       <SelectContent>

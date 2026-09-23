@@ -33,10 +33,10 @@ export default async function CompanyNewsPage() {
   }));
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <MarkCompanyNewsSeen />
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('title')}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
         {isAdmin && <CreateNewsDialog />}
       </div>
       <NewsList news={news} isAdmin={isAdmin} currentUserId={user?.id ?? ''} />

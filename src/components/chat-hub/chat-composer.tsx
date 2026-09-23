@@ -204,15 +204,15 @@ export function ChatComposer({
     <form
       ref={formRef}
       action={formAction}
-      className="flex flex-col gap-2 border-t border-white/15 p-4"
+      className="flex flex-col gap-2 border-t border-au-line p-4"
     >
       <input type="hidden" name="receiverId" value={receiverId} />
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
       {replyTarget && (
-        <div className="flex items-center gap-2 rounded-lg border-l-2 border-white/50 bg-white/10 px-3 py-1.5">
+        <div className="flex items-center gap-2 rounded-lg border-l-2 border-au-faint bg-au-card px-3 py-1.5">
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-xs font-medium text-white/80">{replyTarget.senderName}</span>
-            <span className="truncate text-xs text-white/60">
+            <span className="text-xs font-medium text-au-ink">{replyTarget.senderName}</span>
+            <span className="truncate text-xs text-au-muted">
               {replyTarget.text ?? t(`mediaLabel.${replyTarget.mediaType}`)}
             </span>
           </div>
@@ -220,14 +220,14 @@ export function ChatComposer({
             type="button"
             onClick={onClearReply}
             aria-label={t('cancelReply')}
-            className="tap-scale shrink-0 text-white/50 hover:text-white"
+            className="tap-scale shrink-0 text-au-muted hover:text-au-ink"
           >
             <X className="size-4" />
           </button>
         </div>
       )}
       {isRecording && (
-        <div className="flex items-center gap-2 text-xs text-red-300">
+        <div className="flex items-center gap-2 text-xs text-red-700">
           <span className="size-2 animate-pulse rounded-full bg-red-400" aria-hidden />
           {t('recording')}
         </div>
@@ -248,7 +248,7 @@ export function ChatComposer({
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading || isRecording}
           aria-label={t('attach')}
-          className="shrink-0 text-white/70 hover:text-white"
+          className="shrink-0 text-au-muted hover:text-au-ink"
         >
           <Paperclip className="size-5" />
         </Button>
@@ -262,7 +262,7 @@ export function ChatComposer({
           rows={1}
           maxLength={2000}
           disabled={isUploading || isRecording}
-          className="min-h-10 flex-1 resize-none border-white/20 bg-white/10 text-white placeholder:text-white/40"
+          className="min-h-10 flex-1 resize-none border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
         />
         <Button
           type="button"
@@ -271,7 +271,7 @@ export function ChatComposer({
           onClick={handleToggleRecording}
           disabled={isUploading}
           aria-label={isRecording ? t('stopRecording') : t('recordVoice')}
-          className={isRecording ? 'shrink-0' : 'shrink-0 text-white/70 hover:text-white'}
+          className={isRecording ? 'shrink-0' : 'shrink-0 text-au-muted hover:text-au-ink'}
         >
           {isRecording ? <Square className="size-4" /> : <Mic className="size-5" />}
         </Button>

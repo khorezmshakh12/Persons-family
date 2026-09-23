@@ -35,7 +35,7 @@ export function SystemHealthSection() {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-white/70">{t('description')}</p>
+      <p className="text-sm text-au-muted">{t('description')}</p>
       <Button type="button" onClick={handleBackup} disabled={isPending} className="w-fit">
         {isPending ? <Loader2 className="size-4 animate-spin" /> : <DatabaseBackup className="size-4" />}
         {isPending ? t('backingUp') : t('backupButton')}

@@ -73,7 +73,7 @@ export function UpsertRoadmapDialog({
               type="button"
               variant="outline"
               size="sm"
-              className="gap-1.5 border-white/20 bg-white/5 text-white hover:bg-white/15"
+              className="gap-1.5 border-au-line bg-au-card-2 text-au-ink hover:bg-au-card-2"
             >
               <Pencil className="size-3.5" />
               {t('editPlan')}
@@ -82,7 +82,7 @@ export function UpsertRoadmapDialog({
             <Button
               type="button"
               size="sm"
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+              className="gap-1.5 bg-au-primary hover:bg-black text-white font-medium shadow-sm"
             >
               <Plus className="size-4" />
               {t('createPlan')}
@@ -90,9 +90,9 @@ export function UpsertRoadmapDialog({
           )
         }
       />
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-au-ink">
             {isEdit ? t('editPlan') : t('createPlan')} · {year}
           </DialogTitle>
         </DialogHeader>
@@ -108,7 +108,7 @@ export function UpsertRoadmapDialog({
               id="roadmap-year"
               disabled
               value={year}
-              className="border-white/20 bg-white/5 text-white/80"
+              className="border-au-line bg-au-card-2 text-au-ink"
             />
           </div>
 
@@ -140,10 +140,10 @@ export function UpsertRoadmapDialog({
                 if (val) setStatus(val);
               }}
             >
-              <SelectTrigger className="border-white/20 bg-white/10 text-white">
+              <SelectTrigger className="border-au-line bg-au-card text-au-ink">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl">
+              <SelectContent className="border-au-line bg-au-card text-au-ink">
                 <SelectItem value="active">{t('status.active')}</SelectItem>
                 <SelectItem value="draft">{t('status.draft')}</SelectItem>
                 <SelectItem value="archived">{t('status.archived')}</SelectItem>
@@ -160,7 +160,7 @@ export function UpsertRoadmapDialog({
               maxLength={4000}
               rows={3}
               placeholder={t('notes')}
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
           </div>
 
@@ -173,14 +173,14 @@ export function UpsertRoadmapDialog({
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              className="bg-au-primary hover:bg-black text-white font-medium"
             >
               {isPending ? tCommon('loading') : t('save')}
             </Button>

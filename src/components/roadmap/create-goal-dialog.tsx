@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 
 const FIELD =
-  'h-9 w-full rounded-lg border border-white/25 bg-white/5 px-3 text-sm text-white outline-none transition-colors focus-visible:border-white/70';
+  'h-9 w-full rounded-lg border border-au-line bg-au-card-2 px-3 text-sm text-au-ink outline-none transition-colors focus-visible:border-au-accent';
 
 export function CreateGoalDialog({ timeframe }: { timeframe: 'weekly' | 'monthly' | 'quarterly' }) {
   const t = useTranslations('roadmap');
@@ -42,7 +42,7 @@ export function CreateGoalDialog({ timeframe }: { timeframe: 'weekly' | 'monthly
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="outline" size="sm" className="w-fit border-white/30 bg-white/10 text-white hover:bg-white/20" />
+          <Button variant="outline" size="sm" className="w-fit border-au-line bg-au-card text-au-ink hover:bg-au-card-2" />
         }
       >
         <Plus className="size-4" />

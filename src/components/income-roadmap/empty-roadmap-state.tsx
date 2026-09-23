@@ -17,14 +17,14 @@ export function EmptyRoadmapState({
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-12 px-4 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl border border-white/20 bg-white/5 text-white/60 shadow-lg backdrop-blur-md">
+      <div className="flex size-14 items-center justify-center rounded-2xl border border-au-line bg-au-card-2 text-au-muted shadow-lg">
         <Compass className="size-7" />
       </div>
       <div className="flex flex-col gap-1 max-w-sm">
-        <h3 className="text-base font-semibold text-white">
+        <h3 className="text-base font-semibold text-au-ink">
           {canManage ? t('noPlan') : t('noPlanSelf')}
         </h3>
-        <p className="text-xs text-white/50">{t('subtitle')}</p>
+        <p className="text-xs text-au-muted">{t('subtitle')}</p>
       </div>
       {canManage && (
         <div className="mt-2">

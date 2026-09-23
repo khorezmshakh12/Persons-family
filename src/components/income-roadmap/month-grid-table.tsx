@@ -33,11 +33,11 @@ export function MonthGridTable({
   const format = useFormatter();
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-au-line bg-au-card-2 p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-au-line pb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-white">{t('monthlyPlan')}</h3>
-          <Badge variant="outline" className="border-white/20 bg-white/10 text-white/70 text-[10px]">
+          <h3 className="text-sm font-semibold text-au-ink">{t('monthlyPlan')}</h3>
+          <Badge variant="outline" className="border-au-line bg-au-card text-au-muted text-[10px]">
             12 {t('month').toLowerCase()}
           </Badge>
         </div>
@@ -57,17 +57,17 @@ export function MonthGridTable({
       <div className="hidden sm:block overflow-x-auto">
         <Table className="w-full text-xs">
           <TableHeader>
-            <TableRow className="border-b border-white/15 hover:bg-transparent">
-              <TableHead scope="col" className="text-white/70 font-semibold">{t('month')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('planned')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('actual')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('variance')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('variancePct')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('growth')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('cumulativePlanned')}</TableHead>
-              <TableHead scope="col" className="text-right text-white/70 font-semibold">{t('cumulativeActual')}</TableHead>
+            <TableRow className="border-b border-au-line hover:bg-transparent">
+              <TableHead scope="col" className="text-au-muted font-semibold">{t('month')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('planned')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('actual')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('variance')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('variancePct')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('growth')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('cumulativePlanned')}</TableHead>
+              <TableHead scope="col" className="text-right text-au-muted font-semibold">{t('cumulativeActual')}</TableHead>
               {canManage && (
-                <TableHead scope="col" className="text-right text-white/70 font-semibold pr-2">
+                <TableHead scope="col" className="text-right text-au-muted font-semibold pr-2">
                   {t('recordActual')}
                 </TableHead>
               )}
@@ -84,13 +84,13 @@ export function MonthGridTable({
                 <TableRow
                   key={m.monthNumber}
                   className={cn(
-                    'border-b border-white/10 transition-colors hover:bg-white/5',
+                    'border-b border-au-line transition-colors hover:bg-au-card-2',
                     m.isCurrent && 'border-l-2 border-l-emerald-400 bg-white/[0.04] font-medium',
                     isDimmed && 'opacity-60 hover:opacity-100',
                   )}
                 >
                   {/* Month */}
-                  <TableCell className="font-medium text-white py-2.5">
+                  <TableCell className="font-medium text-au-ink py-2.5">
                     <div className="flex items-center gap-1.5">
                       <span>{monthLabel}</span>
                       {m.isCurrent && (
@@ -100,23 +100,23 @@ export function MonthGridTable({
                   </TableCell>
 
                   {/* Planned */}
-                  <TableCell className="text-right text-white/80 tabular-nums py-2.5">
+                  <TableCell className="text-right text-au-ink tabular-nums py-2.5">
                     {formatUZS(m.planned)}
                   </TableCell>
 
                   {/* Actual */}
                   <TableCell className="text-right tabular-nums py-2.5">
                     {m.actual !== null ? (
-                      <div className="inline-flex items-center justify-end gap-1 font-semibold text-emerald-300">
+                      <div className="inline-flex items-center justify-end gap-1 font-semibold text-emerald-700">
                         <span>{formatUZS(m.actual)}</span>
                         {m.note && (
-                          <span title={m.note} className="text-white/40 hover:text-white cursor-help">
+                          <span title={m.note} className="text-au-muted hover:text-au-ink cursor-help">
                             <Info className="size-3" />
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-white/40">—</span>
+                      <span className="text-au-muted">—</span>
                     )}
                   </TableCell>
 
@@ -126,14 +126,14 @@ export function MonthGridTable({
                       <span
                         className={cn(
                           'font-medium',
-                          m.variance >= 0 ? 'text-emerald-300' : 'text-red-300',
+                          m.variance >= 0 ? 'text-emerald-700' : 'text-red-700',
                         )}
                       >
                         {m.variance >= 0 ? '▲ +' : '▼ '}
                         {formatUZS(Math.abs(m.variance))}
                       </span>
                     ) : (
-                      <span className="text-white/40">—</span>
+                      <span className="text-au-muted">—</span>
                     )}
                   </TableCell>
 
@@ -143,14 +143,14 @@ export function MonthGridTable({
                       <span
                         className={cn(
                           'font-medium',
-                          m.variancePct >= 0 ? 'text-emerald-300' : 'text-red-300',
+                          m.variancePct >= 0 ? 'text-emerald-700' : 'text-red-700',
                         )}
                       >
                         {m.variancePct >= 0 ? '+' : ''}
                         {m.variancePct.toFixed(1)}%
                       </span>
                     ) : (
-                      <span className="text-white/40">—</span>
+                      <span className="text-au-muted">—</span>
                     )}
                   </TableCell>
 
@@ -160,30 +160,30 @@ export function MonthGridTable({
                       <span
                         className={cn(
                           'font-medium',
-                          m.growthPct >= 0 ? 'text-emerald-300' : 'text-red-300',
+                          m.growthPct >= 0 ? 'text-emerald-700' : 'text-red-700',
                         )}
                       >
                         {m.growthPct >= 0 ? '+' : ''}
                         {m.growthPct.toFixed(1)}%
                       </span>
                     ) : (
-                      <span className="text-white/40">—</span>
+                      <span className="text-au-muted">—</span>
                     )}
                   </TableCell>
 
                   {/* Cum. Plan */}
-                  <TableCell className="text-right text-white/60 tabular-nums py-2.5">
+                  <TableCell className="text-right text-au-muted tabular-nums py-2.5">
                     {formatUZS(m.cumulativePlanned)}
                   </TableCell>
 
                   {/* Cum. Actual */}
                   <TableCell className="text-right tabular-nums py-2.5">
                     {m.actual !== null ? (
-                      <span className="text-emerald-300 font-medium">
+                      <span className="text-emerald-700 font-medium">
                         {formatUZS(m.cumulativeActual)}
                       </span>
                     ) : (
-                      <span className="text-white/40">—</span>
+                      <span className="text-au-muted">—</span>
                     )}
                   </TableCell>
 
@@ -224,13 +224,13 @@ export function MonthGridTable({
             <div
               key={m.monthNumber}
               className={cn(
-                'flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3 text-xs',
+                'flex flex-col gap-2 rounded-lg border border-au-line bg-au-card-2 p-3 text-xs',
                 m.isCurrent && 'border-l-2 border-l-emerald-400 bg-white/[0.08]',
                 isDimmed && 'opacity-60',
               )}
             >
-              <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
-                <div className="flex items-center gap-1.5 font-semibold text-white">
+              <div className="flex items-center justify-between border-b border-au-line pb-1.5">
+                <div className="flex items-center gap-1.5 font-semibold text-au-ink">
                   <span>{monthName}</span>
                   {m.isCurrent && (
                     <span className="size-1.5 rounded-full bg-emerald-400" />
@@ -254,27 +254,27 @@ export function MonthGridTable({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-white/70">
+              <div className="grid grid-cols-2 gap-2 text-au-muted">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/50">{t('planned')}</span>
-                  <span className="font-medium text-white tabular-nums">{formatUZS(m.planned)}</span>
+                  <span className="text-[10px] text-au-muted">{t('planned')}</span>
+                  <span className="font-medium text-au-ink tabular-nums">{formatUZS(m.planned)}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/50">{t('actual')}</span>
-                  <span className="font-medium text-emerald-300 tabular-nums">
+                  <span className="text-[10px] text-au-muted">{t('actual')}</span>
+                  <span className="font-medium text-emerald-700 tabular-nums">
                     {m.actual !== null ? formatUZS(m.actual) : '—'}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/50">{t('variance')}</span>
+                  <span className="text-[10px] text-au-muted">{t('variance')}</span>
                   <span
                     className={cn(
                       'font-medium tabular-nums',
                       m.variance !== null
                         ? m.variance >= 0
-                          ? 'text-emerald-300'
-                          : 'text-red-300'
-                        : 'text-white/40',
+                          ? 'text-emerald-700'
+                          : 'text-red-700'
+                        : 'text-au-muted',
                     )}
                   >
                     {m.variance !== null
@@ -283,15 +283,15 @@ export function MonthGridTable({
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/50">{t('growth')}</span>
+                  <span className="text-[10px] text-au-muted">{t('growth')}</span>
                   <span
                     className={cn(
                       'font-medium tabular-nums',
                       m.growthPct !== null
                         ? m.growthPct >= 0
-                          ? 'text-emerald-300'
-                          : 'text-red-300'
-                        : 'text-white/40',
+                          ? 'text-emerald-700'
+                          : 'text-red-700'
+                        : 'text-au-muted',
                     )}
                   >
                     {m.growthPct !== null ? `${m.growthPct >= 0 ? '+' : ''}${m.growthPct.toFixed(1)}%` : '—'}
@@ -300,8 +300,8 @@ export function MonthGridTable({
               </div>
 
               {m.note && (
-                <div className="mt-1 rounded bg-white/5 p-1.5 text-[11px] text-white/70">
-                  <span className="font-semibold text-white/90">{t('notes')}: </span>
+                <div className="mt-1 rounded bg-au-card-2 p-1.5 text-[11px] text-au-muted">
+                  <span className="font-semibold text-au-ink">{t('notes')}: </span>
                   {m.note}
                 </div>
               )}

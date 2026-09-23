@@ -67,7 +67,7 @@ export function ExportButtons({
         variant="outline"
         size="sm"
         onClick={exportCsv}
-        className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+        className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
       >
         <FileSpreadsheet className="size-4" />
         {t('csv')}
@@ -77,7 +77,7 @@ export function ExportButtons({
         variant="outline"
         size="sm"
         onClick={exportPdf}
-        className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+        className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
       >
         <FileDown className="size-4" />
         {t('pdf')}

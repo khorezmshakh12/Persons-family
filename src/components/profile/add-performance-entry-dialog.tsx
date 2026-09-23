@@ -54,7 +54,7 @@ export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
             type="button"
             variant="outline"
             size="sm"
-            className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+            className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
           />
         }
       >

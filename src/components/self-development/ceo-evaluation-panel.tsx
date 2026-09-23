@@ -49,26 +49,26 @@ export function CeoEvaluationPanel({
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 border-t border-white/10 pt-3">
+    <form action={formAction} className="flex flex-col gap-3 border-t border-au-line pt-3">
       <input type="hidden" name="id" value={submissionId} />
       <input type="hidden" name="userId" value={userId} />
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-white/60">{t('ceoRating')}</label>
+        <label className="text-xs font-semibold text-au-muted">{t('ceoRating')}</label>
         <Textarea
           name="ceoRating"
           defaultValue={currentRating ?? ''}
           rows={2}
           maxLength={2000}
           placeholder={t('ratingPlaceholder')}
-          className="border-white/30 bg-white/10 text-sm text-white placeholder:text-white/40"
+          className="border-au-line bg-au-card text-sm text-au-ink placeholder:text-au-faint"
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-white/60">{t('ceoScore')}</span>
-          <span className="font-semibold tabular-nums text-white">{score}</span>
+          <span className="font-semibold text-au-muted">{t('ceoScore')}</span>
+          <span className="font-semibold tabular-nums text-au-ink">{score}</span>
         </div>
         {/* No ceiling — the CEO enters any number of points (spec: cheksiz
             bal), so this is a free number field, not a 0–100 slider. */}
@@ -80,14 +80,14 @@ export function CeoEvaluationPanel({
           value={score}
           onChange={(e) => setScore(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           aria-label={t('ceoScore')}
-          className="w-full rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm tabular-nums text-white"
+          className="w-full rounded-md border border-au-line bg-au-card px-3 py-2 text-sm tabular-nums text-au-ink"
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-white/60">{t('starAward')}</span>
-          <span className="font-semibold tabular-nums text-white">{starAward}</span>
+          <span className="font-semibold text-au-muted">{t('starAward')}</span>
+          <span className="font-semibold tabular-nums text-au-ink">{starAward}</span>
         </div>
         <input
           type="number"
@@ -97,9 +97,9 @@ export function CeoEvaluationPanel({
           value={starAward}
           onChange={(e) => setStarAward(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           aria-label={t('starAward')}
-          className="w-full rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm tabular-nums text-white"
+          className="w-full rounded-md border border-au-line bg-au-card px-3 py-2 text-sm tabular-nums text-au-ink"
         />
-        <p className="text-xs text-white/50">{t('starAwardHint')}</p>
+        <p className="text-xs text-au-muted">{t('starAwardHint')}</p>
       </div>
 
       <div className="flex flex-col gap-1">
@@ -109,9 +109,9 @@ export function CeoEvaluationPanel({
 
       {canSetLevel && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-white/60">{t('teacherLevel')}</label>
+          <label className="text-xs font-semibold text-au-muted">{t('teacherLevel')}</label>
           <Select name="level" defaultValue={currentLevel ?? undefined}>
-            <SelectTrigger className="w-full border-white/30 bg-white/10 text-white hover:bg-white/20">
+            <SelectTrigger className="w-full border-au-line bg-au-card text-au-ink hover:bg-au-card-2">
               <SelectValue>{(value: string) => value}</SelectValue>
             </SelectTrigger>
             <SelectContent>

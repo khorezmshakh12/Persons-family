@@ -73,7 +73,7 @@ export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void })
         size="icon"
         onClick={() => setOpen((v) => !v)}
         aria-label={t('emoji')}
-        className="text-white/70 hover:text-white"
+        className="text-au-muted hover:text-au-ink"
       >
         <Smile className="size-5" />
       </Button>
@@ -84,7 +84,7 @@ export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void })
         // an ambiguous shrink-to-fit width let every column collapse toward
         // 0 and the emoji glyphs overlapped instead of sitting in their own
         // cell.
-        <div className="absolute bottom-full left-0 z-50 mb-2 grid w-64 grid-cols-6 gap-2 rounded-xl border border-white/20 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md">
+        <div className="absolute bottom-full left-0 z-50 mb-2 grid w-64 grid-cols-6 gap-2 rounded-xl border border-au-line bg-au-card p-3 shadow-au-card">
           {EMOJIS.map((emoji) => (
             <button
               key={emoji}
@@ -93,7 +93,7 @@ export function EmojiPicker({ onSelect }: { onSelect: (emoji: string) => void })
                 onSelect(emoji);
                 setOpen(false);
               }}
-              className="tap-scale flex cursor-pointer items-center justify-center rounded-lg p-2 text-xl transition-[background-color,transform] duration-200 ease-bounce hover:scale-110 hover:bg-white/10"
+              className="tap-scale flex cursor-pointer items-center justify-center rounded-lg p-2 text-xl transition-[background-color,transform] duration-200 ease-bounce hover:bg-au-card-2"
             >
               {emoji}
             </button>

@@ -157,8 +157,8 @@ export function ConversationView({
   if (!active) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-        <MessagesSquare className="size-8 text-white/30" />
-        <p className="text-sm text-white/50">{t('selectContact')}</p>
+        <MessagesSquare className="size-8 text-au-faint" />
+        <p className="text-sm text-au-muted">{t('selectContact')}</p>
       </div>
     );
   }
@@ -170,12 +170,12 @@ export function ConversationView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-3 border-b border-white/15 px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-au-line px-4 py-3">
         <button
           type="button"
           onClick={onBack}
           aria-label={t('backToContacts')}
-          className="tap-scale -ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white sm:hidden"
+          className="tap-scale -ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink sm:hidden"
         >
           <ArrowLeft className="size-5" />
         </button>
@@ -183,28 +183,28 @@ export function ConversationView({
           {headerAvatar && <AvatarImage src={headerAvatar} alt="" />}
           <AvatarFallback>{headerInitials}</AvatarFallback>
         </Avatar>
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-white">{headerName}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-au-ink">{headerName}</h2>
       </div>
 
       {conversationState.kind === 'none' ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-          <MessageSquarePlus className="size-8 text-white/30" />
-          <p className="text-sm text-white/60">{t('requests.startPrompt', { name: headerName })}</p>
+          <MessageSquarePlus className="size-8 text-au-faint" />
+          <p className="text-sm text-au-muted">{t('requests.startPrompt', { name: headerName })}</p>
           <Button type="button" onClick={handleSendRequest} disabled={isRequestPending}>
             {isRequestPending ? t('requests.sending') : t('requests.sendRequest')}
           </Button>
         </div>
       ) : conversationState.kind === 'pendingOutgoing' ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-          <MessageSquarePlus className="size-8 text-white/30" />
-          <p className="text-sm text-white/60">
+          <MessageSquarePlus className="size-8 text-au-faint" />
+          <p className="text-sm text-au-muted">
             {t('requests.waitingForApproval', { name: headerName })}
           </p>
         </div>
       ) : conversationState.kind === 'pendingIncoming' ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-          <MessageSquarePlus className="size-8 text-white/30" />
-          <p className="text-sm text-white/60">{t('requests.incomingPrompt', { name: headerName })}</p>
+          <MessageSquarePlus className="size-8 text-au-faint" />
+          <p className="text-sm text-au-muted">{t('requests.incomingPrompt', { name: headerName })}</p>
           <div className="flex gap-2">
             <Button type="button" onClick={() => handleRespond('accept')} disabled={isRequestPending}>
               {t('requests.accept')}
@@ -227,7 +227,7 @@ export function ConversationView({
             className="min-h-0 flex-1 overflow-y-auto p-4"
           >
             {messages.length === 0 ? (
-              <p className="text-center text-sm text-white/60">{t('empty')}</p>
+              <p className="text-center text-sm text-au-muted">{t('empty')}</p>
             ) : (
               <div className="flex flex-col gap-4">
                 {messages.map((m) => {

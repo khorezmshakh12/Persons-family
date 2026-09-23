@@ -28,7 +28,7 @@ export function MoveLessonDialog({ lessonId, lessonDate }: { lessonId: string; l
             type="button"
             variant="ghost"
             size="sm"
-            className="tap-scale h-7 w-7 shrink-0 p-0 text-white/50 hover:text-white"
+            className="tap-scale h-7 w-7 shrink-0 p-0 text-au-muted hover:text-au-ink"
             aria-label={t('courseLessons.move')}
           />
         }

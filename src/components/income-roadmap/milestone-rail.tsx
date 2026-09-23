@@ -27,22 +27,22 @@ const STATUS_BADGES: Record<
 > = {
   planned: {
     labelKey: 'milestoneStatus.planned',
-    className: 'bg-white/10 text-white/70 border-white/15',
+    className: 'bg-au-card text-au-muted border-au-line',
     icon: Circle,
   },
   in_progress: {
     labelKey: 'milestoneStatus.in_progress',
-    className: 'bg-sky-500/20 text-sky-200 border-sky-400/30',
+    className: 'bg-sky-500/20 text-sky-700 border-sky-400/30',
     icon: Clock,
   },
   achieved: {
     labelKey: 'milestoneStatus.achieved',
-    className: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
+    className: 'bg-emerald-500/20 text-emerald-700 border-emerald-400/30',
     icon: CheckCircle2,
   },
   missed: {
     labelKey: 'milestoneStatus.missed',
-    className: 'bg-red-500/20 text-red-200 border-red-400/30',
+    className: 'bg-red-500/20 text-red-700 border-red-400/30',
     icon: AlertCircle,
   },
 };
@@ -82,10 +82,10 @@ function MilestoneStatusSelector({
       onValueChange={handleStatusChange}
       disabled={disabled || isPending}
     >
-      <SelectTrigger className="h-7 border-white/20 bg-white/5 text-xs text-white">
+      <SelectTrigger className="h-7 border-au-line bg-au-card-2 text-xs text-au-ink">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl">
+      <SelectContent className="border-au-line bg-au-card text-au-ink">
         <SelectItem value="planned">{t('milestoneStatus.planned')}</SelectItem>
         <SelectItem value="in_progress">{t('milestoneStatus.in_progress')}</SelectItem>
         <SelectItem value="achieved">{t('milestoneStatus.achieved')}</SelectItem>
@@ -117,12 +117,12 @@ export function MilestoneRail({
   }, -1);
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-white/15 bg-white/5 p-4 shadow-sm backdrop-blur-sm">
-      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+    <div className="flex flex-col gap-4 rounded-xl border border-au-line bg-au-card-2 p-4 shadow-sm">
+      <div className="flex items-center justify-between border-b border-au-line pb-3">
         <div className="flex items-center gap-2">
-          <Flag className="size-4 text-emerald-300" />
-          <h3 className="text-sm font-semibold text-white">{t('milestones')}</h3>
-          <Badge variant="outline" className="border-white/20 bg-white/10 text-white/70 text-[10px]">
+          <Flag className="size-4 text-emerald-700" />
+          <h3 className="text-sm font-semibold text-au-ink">{t('milestones')}</h3>
+          <Badge variant="outline" className="border-au-line bg-au-card text-au-muted text-[10px]">
             {milestones.length}
           </Badge>
         </div>
@@ -133,7 +133,7 @@ export function MilestoneRail({
       </div>
 
       {sorted.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-white/50 text-xs">
+        <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-au-muted text-xs">
           <p>{t('noMilestones')}</p>
         </div>
       ) : (
@@ -159,12 +159,12 @@ export function MilestoneRail({
                     className={cn(
                       'flex size-6 items-center justify-center rounded-full border shadow-sm z-10 transition-colors',
                       m.status === 'achieved'
-                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300'
+                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-700'
                         : m.status === 'in_progress'
-                          ? 'border-sky-400 bg-sky-500/20 text-sky-200'
+                          ? 'border-sky-400 bg-sky-500/20 text-sky-700'
                           : m.status === 'missed'
-                            ? 'border-red-400 bg-red-500/20 text-red-200'
-                            : 'border-white/20 bg-white/10 text-white/60',
+                            ? 'border-red-400 bg-red-500/20 text-red-700'
+                            : 'border-au-line bg-au-card text-au-muted',
                     )}
                   >
                     <StatusIcon className="size-3" />
@@ -174,26 +174,26 @@ export function MilestoneRail({
                     <div
                       className={cn(
                         'w-[1px] grow my-1',
-                        isPassedOrAchieved ? 'bg-emerald-400/60' : 'bg-white/15',
+                        isPassedOrAchieved ? 'bg-emerald-400/60' : 'bg-au-card-2',
                       )}
                     />
                   )}
                 </div>
 
                 {/* Milestone content card */}
-                <div className="flex grow flex-col gap-1.5 rounded-lg border border-white/10 bg-white/5 p-3 text-xs backdrop-blur-sm transition-colors group-hover:bg-white/[0.08]">
+                <div className="flex grow flex-col gap-1.5 rounded-lg border border-au-line bg-au-card-2 p-3 text-xs transition-colors group-hover:bg-white/[0.08]">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/80">
+                      <span className="rounded bg-au-card px-1.5 py-0.5 text-[10px] font-semibold text-au-ink">
                         {t('month')} {m.targetMonth}
                       </span>
-                      <span className="font-semibold text-white text-sm">
+                      <span className="font-semibold text-au-ink text-sm">
                         {m.title}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-emerald-300 tabular-nums">
+                      <span className="font-bold text-emerald-700 tabular-nums">
                         {formatUZS(m.targetIncome)}
                       </span>
 
@@ -223,7 +223,7 @@ export function MilestoneRail({
                   </div>
 
                   {m.criteria && (
-                    <p className="text-white/65 text-[11px] leading-relaxed">
+                    <p className="text-au-muted text-[11px] leading-relaxed">
                       {m.criteria}
                     </p>
                   )}

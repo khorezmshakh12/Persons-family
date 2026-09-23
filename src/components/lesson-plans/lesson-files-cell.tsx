@@ -125,7 +125,7 @@ export function LessonFilesCell({
   return (
     <div className="flex min-w-40 flex-col gap-1.5">
       {attachments.length === 0 ? (
-        <span className="text-xs text-white/40 italic">{t('courseLessons.noFiles')}</span>
+        <span className="text-xs text-au-muted italic">{t('courseLessons.noFiles')}</span>
       ) : (
         attachments.map((a) => (
           <div key={a.path} className="group flex items-center gap-1.5 text-xs">
@@ -139,20 +139,20 @@ export function LessonFilesCell({
                 className="size-5 shrink-0 rounded object-cover"
               />
             ) : (
-              <FileText className="size-3.5 shrink-0 text-white/60" />
+              <FileText className="size-3.5 shrink-0 text-au-muted" />
             )}
             {a.signedUrl ? (
               <a
                 href={a.signedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="max-w-28 truncate text-white/85 hover:text-white hover:underline"
+                className="max-w-28 truncate text-au-ink hover:text-au-ink hover:underline"
                 title={a.name}
               >
                 {a.name}
               </a>
             ) : (
-              <span className="max-w-28 truncate text-white/50" title={a.name}>
+              <span className="max-w-28 truncate text-au-muted" title={a.name}>
                 {a.name}
               </span>
             )}
@@ -162,7 +162,7 @@ export function LessonFilesCell({
                 onClick={() => handleRemove(a.path)}
                 disabled={isRemovePending}
                 aria-label={t('courseLessons.remove')}
-                className="tap-scale shrink-0 text-white/30 opacity-100 transition-opacity hover:text-red-300 sm:opacity-0 sm:group-hover:opacity-100"
+                className="tap-scale shrink-0 text-au-faint opacity-100 transition-opacity hover:text-red-700 sm:opacity-0 sm:group-hover:opacity-100"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -180,7 +180,7 @@ export function LessonFilesCell({
             size="sm"
             disabled={isUploading}
             onClick={() => inputRef.current?.click()}
-            className="h-7 w-fit gap-1.5 px-2 text-white/70 hover:text-white"
+            className="h-7 w-fit gap-1.5 px-2 text-au-muted hover:text-au-ink"
           >
             {isUploading ? <Upload className="size-3.5 animate-pulse" /> : <Paperclip className="size-3.5" />}
             {t('courseLessons.upload')}

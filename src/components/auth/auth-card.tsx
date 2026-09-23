@@ -19,7 +19,7 @@ export function AuthCard({
     // to the whole app. `animate-fade-in-up` is a `both`-fill keyframe whose
     // `from` is opacity:0 — if it ever stalls (as `animate-page-enter` did on
     // the app wrapper), the login screen goes blank. Not worth the risk here.
-    <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/20 bg-white/10 p-10 text-white shadow-2xl backdrop-blur-md">
+    <div className="relative z-10 w-full max-w-md rounded-au-card border border-au-line bg-au-card p-10 text-au-ink shadow-au-card">
       <div className="flex flex-col items-center gap-1 text-center">
         {/* unoptimized: next/image's optimizer doesn't correctly prefix the
          * basePath onto its internal url= query param when this app is
@@ -38,15 +38,15 @@ export function AuthCard({
           height={56}
           priority
           unoptimized
-          className="drop-shadow-sm"
+          className=""
         />
         {tagline && (
-          <p className="mt-3 text-sm font-semibold tracking-wide text-white/80">{tagline}</p>
+          <p className="mt-3 text-sm font-semibold tracking-wide text-au-ink">{tagline}</p>
         )}
-        <h1 className="font-heading mt-2 text-2xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h1 className="font-heading mt-2 text-2xl font-bold tracking-tight text-au-ink">
           {title}
         </h1>
-        <p className="text-sm text-white/60">{subtitle}</p>
+        <p className="text-sm text-au-muted">{subtitle}</p>
       </div>
 
       <div className="mt-8">{children}</div>

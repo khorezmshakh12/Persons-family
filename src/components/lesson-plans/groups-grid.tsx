@@ -50,12 +50,12 @@ export async function GroupsGrid({
   return (
     <div className="flex flex-col gap-3">
       {isTeacher && (
-        <p className="text-sm text-white/60">
+        <p className="text-sm text-au-muted">
           {t('groupsUsed', { count: groups.length, max: MAX_GROUPS_PER_TEACHER })}
         </p>
       )}
       {groups.length === 0 ? (
-        <p className="text-sm text-white/70">{t('noGroups')}</p>
+        <p className="text-sm text-au-muted">{t('noGroups')}</p>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {groups.map((group, index) => (

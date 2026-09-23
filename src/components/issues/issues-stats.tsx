@@ -19,7 +19,7 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
 
   if (!stats) {
     return (
-      <div className={cn(GLASS_CARD, 'p-6 text-sm text-white/60')}>{t('noData')}</div>
+      <div className={cn(GLASS_CARD, 'p-6 text-sm text-au-muted')}>{t('noData')}</div>
     );
   }
 
@@ -38,10 +38,10 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
       <div>
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
-        <p className="mt-1 text-sm text-white/70">{t('subtitle')}</p>
+        <p className="mt-1 text-sm text-au-muted">{t('subtitle')}</p>
       </div>
 
       {/* Top strip: stat tiles */}
@@ -49,34 +49,34 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
         {tiles.map((tile) => (
           <div
             key={tile.key}
-            className="flex flex-col gap-1 rounded-xl bg-white/5 px-3 py-3"
+            className="flex flex-col gap-1 rounded-xl bg-au-card-2 px-3 py-3"
           >
-            <span className="text-2xl font-bold tracking-tight text-white">{tile.value}</span>
-            <span className="text-xs text-white/60">{t(`tiles.${tile.key}`)}</span>
+            <span className="text-2xl font-bold tracking-tight text-au-ink">{tile.value}</span>
+            <span className="text-xs text-au-muted">{t(`tiles.${tile.key}`)}</span>
           </div>
         ))}
       </div>
 
       {/* 6-month section */}
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold tracking-tight text-white">{t('byMonth')}</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-au-ink">{t('byMonth')}</h3>
         {byMonth.length === 0 ? (
-          <p className="text-sm text-white/60">{t('noData')}</p>
+          <p className="text-sm text-au-muted">{t('noData')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {byMonth.map((month) => (
               <li key={month.monthKey} className="flex items-center gap-3 text-xs">
-                <span className="w-20 shrink-0 capitalize text-white/80">{month.label}</span>
-                <span className="w-28 shrink-0 text-white/60">
+                <span className="w-20 shrink-0 capitalize text-au-ink">{month.label}</span>
+                <span className="w-28 shrink-0 text-au-muted">
                   {t('monthCounts', { created: month.created, resolved: month.resolved })}
                 </span>
-                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-au-card">
                   <div
                     className="absolute inset-y-0 left-0 rounded-full bg-emerald-400/80"
                     style={{ width: `${month.resolutionRate}%` }}
                   />
                 </div>
-                <span className="w-10 shrink-0 text-right tabular-nums text-white/70">
+                <span className="w-10 shrink-0 text-right tabular-nums text-au-muted">
                   {month.resolutionRate}%
                 </span>
               </li>
@@ -87,18 +87,18 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
 
       {/* By reporter role */}
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold tracking-tight text-white">{t('byRole')}</h3>
+        <h3 className="text-sm font-semibold tracking-tight text-au-ink">{t('byRole')}</h3>
         {byReporterRole.length === 0 ? (
-          <p className="text-sm text-white/60">{t('noData')}</p>
+          <p className="text-sm text-au-muted">{t('noData')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {byReporterRole.map((row) => (
               <li
                 key={row.role}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-au-card-2 px-3 py-2 text-xs"
               >
-                <span className="font-medium text-white/90">{roleLabel(tStaff, row.role)}</span>
-                <span className="flex items-center gap-2 text-white/60">
+                <span className="font-medium text-au-ink">{roleLabel(tStaff, row.role)}</span>
+                <span className="flex items-center gap-2 text-au-muted">
                   <span>{t('roleCounts', { raised: row.raised, resolved: row.resolved })}</span>
                   <Badge
                     variant="tint"

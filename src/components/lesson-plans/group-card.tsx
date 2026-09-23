@@ -34,16 +34,16 @@ export async function GroupCard({
       className={cn(GLASS_CARD, GLASS_INTERACTIVE, 'animate-fade-in-up flex flex-col gap-2 p-5')}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="font-heading text-lg font-semibold text-white">{group.name}</span>
+        <span className="font-heading text-lg font-semibold text-au-ink">{group.name}</span>
         {group.schedule_type && (
           <Badge variant="tint" tint={SCHEDULE_TINT[group.schedule_type]} className="shrink-0">
             {t(`scheduleType.${group.schedule_type}`)}
           </Badge>
         )}
       </div>
-      <div className="flex flex-col gap-1 text-sm text-white/70">
+      <div className="flex flex-col gap-1 text-sm text-au-muted">
         <span>{group.course_name || t('noCourseName')}</span>
-        <span className="text-xs text-white/50">
+        <span className="text-xs text-au-muted">
           {group.teacher ? `${group.teacher.first_name} ${group.teacher.last_name}` : '—'}
         </span>
       </div>

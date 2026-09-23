@@ -13,11 +13,11 @@ const MAX_ROWS = 15;
 // else — deliberately subtle so the row highlight for "you" stays the
 // loudest thing on the card.
 const MEDAL_CLASS = [
-  'bg-amber-300/25 text-amber-100 ring-1 ring-amber-200/50',
-  'bg-slate-100/25 text-white ring-1 ring-white/40',
-  'bg-orange-400/25 text-orange-100 ring-1 ring-orange-300/50',
+  'bg-amber-300/25 text-amber-700 ring-1 ring-amber-200/50',
+  'bg-slate-100/25 text-au-ink ring-1 ring-au-faint',
+  'bg-orange-400/25 text-orange-700 ring-1 ring-orange-300/50',
 ];
-const DEFAULT_RANK_CLASS = 'bg-white/10 text-white/70 ring-1 ring-white/15';
+const DEFAULT_RANK_CLASS = 'bg-au-card text-au-muted ring-1 ring-au-line';
 
 type LeaderboardEntry = {
   id: string;
@@ -98,14 +98,14 @@ export async function StarLeaderboard({
       className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
     >
       <div className="flex flex-col gap-1">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
-        <p className="text-xs text-white/60">{t('subtitle')}</p>
+        <p className="text-xs text-au-muted">{t('subtitle')}</p>
       </div>
 
       {!hasStars ? (
-        <p className="text-sm text-white/70">{t('noStars')}</p>
+        <p className="text-sm text-au-muted">{t('noStars')}</p>
       ) : (
         <ol className="flex flex-col gap-1.5">
           {entries.map((entry, i) => {
@@ -119,7 +119,7 @@ export async function StarLeaderboard({
                 style={{ animationDelay: `${delayMs + 150 + Math.min(i, 10) * 45}ms` }}
                 className={cn(
                   'enter-rise flex items-center gap-3 rounded-xl px-2 py-1.5',
-                  isCurrentUser && 'bg-white/15 ring-1 ring-white/30',
+                  isCurrentUser && 'bg-au-card-2 ring-1 ring-au-line',
                 )}
               >
                 <span
@@ -137,12 +137,12 @@ export async function StarLeaderboard({
                     {entry.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
-                <span className="min-w-0 flex-1 truncate text-sm text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+                <span className="min-w-0 flex-1 truncate text-sm text-au-ink">
                   {entry.firstName} {entry.lastName}
-                  {isCurrentUser && <span className="ml-1.5 text-xs text-white/70">({t('you')})</span>}
+                  {isCurrentUser && <span className="ml-1.5 text-xs text-au-muted">({t('you')})</span>}
                 </span>
-                <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-white tabular-nums [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-                  <Star className="size-3.5 fill-amber-300 text-amber-300" aria-hidden />
+                <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-au-ink tabular-nums">
+                  <Star className="size-3.5 fill-amber-300 text-amber-700" aria-hidden />
                   <span className="sr-only">{t('starCount', { count: entry.stars })}</span>
                   <span aria-hidden>{entry.stars}</span>
                 </span>

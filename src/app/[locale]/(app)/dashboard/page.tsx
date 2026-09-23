@@ -1,4 +1,6 @@
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
+import { CircleAlert, ListTodo, Star, SquareCheckBig } from 'lucide-react';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { StatsRow } from '@/components/dashboard/stats-row';
@@ -6,11 +8,28 @@ import { StatsPeriodProvider } from '@/components/dashboard/stats-period';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
-import { StarLeaderboard } from '@/components/dashboard/star-leaderboard';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons/glass-skeletons';
+import {
+  canSeeLessonPlans,
+  loadActivity,
+  loadDashboardCore,
+  loadLeaderboard,
+  loadLessonPlanWeek,
+  loadTasksDoneWeek,
+  type Viewer,
+} from '@/lib/aurora-dashboard';
+import { CARD_TITLE, SKELETON, SURFACE_CARD, SURFACE_HERO } from '@/lib/glass';
+import { cn } from '@/lib/utils';
+import type { StaffRole } from '@/lib/nav';
+import { HeroBanner } from '@/components/aurora/hero-banner';
+import { KpiCard } from '@/components/aurora/kpi-card';
+import { Leaderboard } from '@/components/aurora/leaderboard';
+import { WeekBarChart } from '@/components/aurora/week-bar-chart';
+import { DonutChart } from '@/components/aurora/donut-chart';
+import { ActivityFeed } from '@/components/aurora/activity-feed';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
 export const dynamic = 'force-dynamic';
@@ -99,6 +118,171 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
   );
 }
 
+/* ------------------------------ Persons Aurora top section ------------------------------ */
+
+// Grid placement (xl, 12 cols) — mirrors persons-aurora-kit's reference:
+//   hero 8    | leaderboard 4 (2 rows)
+//   KPI×4 8   |
+//   bars 5 | donut 3 | activity 4
+const HERO_CELL = 'lg:col-span-12 xl:col-span-8';
+const LEAD_CELL = 'lg:col-span-6 xl:col-span-4 xl:col-start-9 xl:row-span-2 xl:row-start-1';
+const KPI_CELL = 'lg:col-span-6 xl:col-span-8';
+const BARS_CELL = 'lg:col-span-12 xl:col-span-5';
+const DONUT_CELL = 'lg:col-span-5 xl:col-span-3';
+const ACT_CELL = 'lg:col-span-7 xl:col-span-4';
+
+const formatCount = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
+
+function Bar({ className }: { className?: string }) {
+  return <div className={cn(SKELETON, className)} />;
+}
+
+function HeroAndKpiSkeleton() {
+  return (
+    <>
+      <div className={cn(SURFACE_HERO, HERO_CELL, 'flex min-h-[252px] flex-col gap-3 p-7')}>
+        <Bar className="h-4 w-48 bg-white/60" />
+        <Bar className="h-10 w-72 bg-white/60" />
+        <Bar className="h-4 w-full max-w-md bg-white/60" />
+      </div>
+      <div className={cn(KPI_CELL, 'grid grid-cols-1 gap-[18px] min-[420px]:grid-cols-2 xl:grid-cols-4')}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className={cn(SURFACE_CARD, 'flex min-h-[200px] flex-col gap-3 p-[18px]')}>
+            <Bar className="h-4 w-24" />
+            <Bar className="h-8 w-16" />
+            <Bar className="mt-auto h-12 w-full" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function CardSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn(SURFACE_CARD, 'flex min-h-[260px] flex-col gap-3 p-5', className)}>
+      <Bar className="h-5 w-36" />
+      <Bar className="mt-auto h-32 w-full" />
+    </div>
+  );
+}
+
+async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: string }) {
+  const t = await getTranslations('aurora');
+  const { hero, kpis } = await loadDashboardCore(viewer.userId, viewer.role);
+  const isCeo = viewer.role === 'ceo';
+
+  return (
+    <>
+      <HeroBanner
+        firstName={firstName}
+        data={hero}
+        showLessonPlans={canSeeLessonPlans(viewer.role)}
+        className={HERO_CELL}
+      />
+      <div className={cn(KPI_CELL, 'grid grid-cols-1 gap-[18px] min-[420px]:grid-cols-2 xl:grid-cols-4')}>
+        {kpis ? (
+          <>
+            <KpiCard
+              index={0}
+              href="/tasks"
+              label={t('kpiActiveTasks')}
+              icon={ListTodo}
+              value={formatCount(kpis.activeTasks.value)}
+              delta={kpis.activeTasks.delta}
+              higherIsBetter={false}
+              caption={t('vsLastWeek')}
+              bars={kpis.activeTasks.bars}
+            />
+            <KpiCard
+              index={1}
+              href="/issues"
+              label={t('kpiIssues')}
+              icon={CircleAlert}
+              value={formatCount(kpis.openIssues.value)}
+              delta={kpis.openIssues.delta}
+              higherIsBetter={false}
+              caption={t('resolved', { count: kpis.openIssues.extra ?? 0 })}
+              bars={kpis.openIssues.bars}
+            />
+            <KpiCard
+              index={2}
+              href="/market"
+              label={isCeo ? t('kpiStars') : t('kpiMyStars')}
+              icon={Star}
+              value={formatCount(kpis.stars.value)}
+              delta={kpis.stars.delta}
+              deltaUnit="absolute"
+              caption={t('thisMonth')}
+              bars={kpis.stars.bars}
+            />
+            <KpiCard
+              index={3}
+              href="/tasks"
+              label={t('kpiDone')}
+              icon={SquareCheckBig}
+              value={formatCount(kpis.doneTasks.value)}
+              delta={kpis.doneTasks.delta}
+              caption={t('last7')}
+              bars={kpis.doneTasks.bars}
+            />
+          </>
+        ) : (
+          <div className={cn(SURFACE_CARD, 'col-span-full p-6 text-center text-sm text-au-muted')}>{t('noData')}</div>
+        )}
+      </div>
+    </>
+  );
+}
+
+async function LeaderboardSection({ userId }: { userId: string }) {
+  const people = await loadLeaderboard();
+  return <Leaderboard people={people} currentUserId={userId} className={LEAD_CELL} />;
+}
+
+async function WeekChartSection({ viewer }: { viewer: Viewer }) {
+  const t = await getTranslations('aurora');
+  const lessons = canSeeLessonPlans(viewer.role);
+  const bars = lessons ? await loadLessonPlanWeek(viewer) : await loadTasksDoneWeek(viewer);
+  return (
+    <WeekBarChart
+      title={lessons ? t('lessonPlansChart') : t('tasksWeekChart')}
+      href={lessons ? '/lesson-plans' : '/tasks'}
+      bars={bars}
+      className={BARS_CELL}
+    />
+  );
+}
+
+async function TaskStatusSection({ viewer }: { viewer: Viewer }) {
+  const t = await getTranslations('aurora');
+  const { hero } = await loadDashboardCore(viewer.userId, viewer.role);
+  const s = hero?.status;
+  return (
+    <section className={cn(SURFACE_CARD, DONUT_CELL, 'flex flex-col p-5')}>
+      <h2 className={cn(CARD_TITLE, 'mb-3.5')}>{t('tasksStatus')}</h2>
+      {s ? (
+        <DonutChart
+          centerLabel={t('total')}
+          slices={[
+            { label: t('statusDone'), value: s.done, color: 'var(--au-chart-1)' },
+            { label: t('statusInProgress'), value: s.inProgress, color: 'var(--au-chart-2)' },
+            { label: t('statusTodo'), value: s.todo, color: 'var(--au-chart-3)' },
+            { label: t('statusOverdue'), value: s.overdue, color: 'var(--au-faint)' },
+          ]}
+        />
+      ) : (
+        <p className="py-10 text-center text-sm text-au-muted">{t('noData')}</p>
+      )}
+    </section>
+  );
+}
+
+async function ActivitySection({ viewer }: { viewer: Viewer }) {
+  const items = await loadActivity(viewer);
+  return <ActivityFeed items={items} href={viewer.role === 'ceo' ? '/analytics' : '/profile'} className={ACT_CELL} />;
+}
+
 // Every block fetches its own data and streams in behind its own Suspense
 // boundary, so the grid paints immediately instead of the whole page
 // blocking on the slowest of several independent database queries.
@@ -119,8 +303,29 @@ export default async function DashboardPage() {
   const isTeacherTier = profile!.role === 'teacher' || profile!.role === 'assistant' || isHeadTeacher;
   const isPersonalDashboard = !isCeo && !isTeacherTier;
 
+  const viewer: Viewer = { userId: user!.id, role: profile!.role as StaffRole };
+
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
+    <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
+      {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
+      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
+        <Suspense fallback={<HeroAndKpiSkeleton />}>
+          <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
+        </Suspense>
+        <Suspense fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
+          <LeaderboardSection userId={user!.id} />
+        </Suspense>
+        <Suspense fallback={<CardSkeleton className={BARS_CELL} />}>
+          <WeekChartSection viewer={viewer} />
+        </Suspense>
+        <Suspense fallback={<CardSkeleton className={DONUT_CELL} />}>
+          <TaskStatusSection viewer={viewer} />
+        </Suspense>
+        <Suspense fallback={<CardSkeleton className={ACT_CELL} />}>
+          <ActivitySection viewer={viewer} />
+        </Suspense>
+      </div>
+
       {/* The period selector's state lives in this provider, above the
           streamed server cards, so a realtime router.refresh() re-renders
           them without resetting the viewer's kunlik/haftalik/oylik choice. */}
@@ -158,13 +363,6 @@ export default async function DashboardPage() {
             <TeacherProgressChartSection delayMs={0} />
           </Suspense>
         )}
-        {/* Stars are company-wide and everyone earns them, so the
-            leaderboard is the one card here with no role gate. For non-CEO
-            roles it takes over the cell the CEO-only chart leaves empty;
-            for the CEO it's a fourth card that wraps onto the next row. */}
-        <Suspense fallback={<GlassCardSkeleton />}>
-          <StarLeaderboard currentUserId={user!.id} delayMs={isCeo ? 90 : 0} />
-        </Suspense>
         <Suspense fallback={<GlassCardSkeleton />}>
           {isPersonalDashboard ? (
             <TasksCalendar userId={user!.id} />

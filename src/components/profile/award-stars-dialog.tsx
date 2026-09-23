@@ -76,7 +76,7 @@ export function AwardStarsDialog({
               type="button"
               variant="outline"
               size="sm"
-              className="border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+              className="border-amber-400/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
             />
           }
         >
@@ -84,9 +84,9 @@ export function AwardStarsDialog({
           {t('manageStars')}
         </DialogTrigger>
       )}
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-au-ink">
             {t('manageStars')}{staffName ? ` — ${staffName}` : ''}
           </DialogTitle>
         </DialogHeader>
@@ -96,15 +96,15 @@ export function AwardStarsDialog({
           <input type="hidden" name="mode" value={mode} />
 
           {/* Mode Switcher */}
-          <div className="grid grid-cols-2 gap-2 rounded-lg border border-white/15 bg-white/5 p-1">
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-au-line bg-au-card-2 p-1">
             <button
               type="button"
               onClick={() => setMode('award')}
               className={cn(
                 'flex items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-all',
                 mode === 'award'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                  : 'text-white/60 hover:text-white hover:bg-white/5',
+                  ? 'bg-emerald-500/20 text-emerald-700 border border-emerald-500/40 shadow-sm'
+                  : 'text-au-muted hover:text-au-ink hover:bg-au-card-2',
               )}
             >
               <PlusCircle className="size-4" />
@@ -116,8 +116,8 @@ export function AwardStarsDialog({
               className={cn(
                 'flex items-center justify-center gap-1.5 rounded-md py-2 text-sm font-medium transition-all',
                 mode === 'deduct'
-                  ? 'bg-red-500/20 text-red-300 border border-red-500/40 shadow-sm'
-                  : 'text-white/60 hover:text-white hover:bg-white/5',
+                  ? 'bg-red-500/20 text-red-700 border border-red-500/40 shadow-sm'
+                  : 'text-au-muted hover:text-au-ink hover:bg-au-card-2',
               )}
             >
               <MinusCircle className="size-4" />
@@ -127,8 +127,8 @@ export function AwardStarsDialog({
 
           {/* Deduct Warning Alert */}
           {mode === 'deduct' && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
-              <AlertTriangle className="size-4 shrink-0 text-red-400 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700">
+              <AlertTriangle className="size-4 shrink-0 text-red-600 mt-0.5" />
               <span>{t('deductWarning')}</span>
             </div>
           )}
@@ -145,7 +145,7 @@ export function AwardStarsDialog({
               value={amount}
               onChange={(e) => setAmount(e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value) || 1)))}
               required
-              className="border-white/20 bg-white/10 text-white"
+              className="border-au-line bg-au-card text-au-ink"
             />
           </div>
 
@@ -158,7 +158,7 @@ export function AwardStarsDialog({
               maxLength={500}
               rows={3}
               placeholder={t('reasonPlaceholder')}
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
           </div>
 
@@ -169,7 +169,7 @@ export function AwardStarsDialog({
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>
@@ -179,7 +179,7 @@ export function AwardStarsDialog({
               className={cn(
                 mode === 'deduct'
                   ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                  : 'bg-au-primary hover:bg-black text-white',
               )}
             >
               {isPending

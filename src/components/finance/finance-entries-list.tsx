@@ -22,7 +22,7 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
   const [isPending, startTransition] = useTransition();
 
   if (entries.length === 0) {
-    return <p className="text-sm text-white/60">{t('noEntries')}</p>;
+    return <p className="text-sm text-au-muted">{t('noEntries')}</p>;
   }
 
   function handleDelete(entryId: string) {
@@ -40,18 +40,18 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
         <div
           key={entry.id}
           style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
-          className="animate-fade-in-up flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+          className="animate-fade-in-up flex items-center justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 px-3 py-2 text-sm"
         >
           <div className="flex min-w-0 flex-col">
-            <span className="font-medium text-white">{entry.title}</span>
-            {entry.note && <span className="truncate text-xs text-white/60">{entry.note}</span>}
+            <span className="font-medium text-au-ink">{entry.title}</span>
+            {entry.note && <span className="truncate text-xs text-au-muted">{entry.note}</span>}
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <span className={cn('font-semibold tabular-nums', entry.amount >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+            <span className={cn('font-semibold tabular-nums', entry.amount >= 0 ? 'text-emerald-600' : 'text-red-600')}>
               {entry.amount >= 0 ? '+' : ''}
               {formatUZS(entry.amount)}
             </span>
-            <span className="text-xs text-white/50">
+            <span className="text-xs text-au-muted">
               {format.dateTime(new Date(entry.created_at), { dateStyle: 'medium' })}
             </span>
             {isAdmin && (
@@ -60,7 +60,7 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
                 onClick={() => handleDelete(entry.id)}
                 disabled={isPending}
                 aria-label={t('delete')}
-                className="tap-scale text-white/50 hover:text-red-400 disabled:opacity-50"
+                className="tap-scale text-au-muted hover:text-red-600 disabled:opacity-50"
               >
                 <Trash2 className="size-4" />
               </button>

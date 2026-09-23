@@ -21,10 +21,10 @@ function Row({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="mt-0.5 size-4 shrink-0 text-white/50" />
+      <Icon className="mt-0.5 size-4 shrink-0 text-au-muted" />
       <div className="flex flex-col">
-        <span className="text-xs text-white/50">{label}</span>
-        <span className="text-sm text-white">{value}</span>
+        <span className="text-xs text-au-muted">{label}</span>
+        <span className="text-sm text-au-ink">{value}</span>
       </div>
     </div>
   );
@@ -42,7 +42,7 @@ export async function ContactInfoCard({
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
         {isSelf && (

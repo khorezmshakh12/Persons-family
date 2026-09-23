@@ -145,7 +145,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
               defaultValue={0}
               placeholder="0"
             />
-            <p className="text-xs text-white/60">{t('starRewardHint')}</p>
+            <p className="text-xs text-au-muted">{t('starRewardHint')}</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="starPenalty">{t('starPenalty')}</Label>
@@ -158,7 +158,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
               defaultValue={0}
               placeholder="0"
             />
-            <p className="text-xs text-white/60">{t('starPenaltyHint')}</p>
+            <p className="text-xs text-au-muted">{t('starPenaltyHint')}</p>
           </div>
           {state?.error &&<p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>

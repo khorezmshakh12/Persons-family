@@ -174,10 +174,10 @@ export function CreateIssueDialog({
                 disabled={isUploadingVoice}
                 aria-label={isRecording ? t('stopRecording') : t('recordVoice')}
                 className={cn(
-                  'tap-scale flex size-8 shrink-0 items-center justify-center rounded-full border transition-[transform,background-color,box-shadow,border-color] duration-200 ease-bounce hover:scale-110',
+                  'tap-scale flex size-8 shrink-0 items-center justify-center rounded-full border transition-[transform,background-color,box-shadow,border-color] duration-200 ease-bounce',
                   isRecording
                     ? 'animate-pulse border-red-400/60 bg-red-500/90 text-white shadow-[0_0_14px_4px_rgba(239,68,68,0.55)]'
-                    : 'border-white/30 bg-white/10 text-white hover:bg-white/20',
+                    : 'border-au-line bg-au-card text-au-ink hover:bg-au-card-2',
                 )}
               >
                 {isRecording ? <Square className="size-3.5" /> : <Mic className="size-4" />}
@@ -185,26 +185,26 @@ export function CreateIssueDialog({
             </div>
             <Textarea id="description" name="description" maxLength={2000} rows={4} />
             {isRecording && (
-              <div className="flex items-center gap-2 text-xs text-red-300">
+              <div className="flex items-center gap-2 text-xs text-red-700">
                 <span className="size-2 animate-pulse rounded-full bg-red-400" aria-hidden />
                 {t('recording')}
               </div>
             )}
             {isUploadingVoice && (
-              <div className="flex items-center gap-2 text-xs text-white/60">
+              <div className="flex items-center gap-2 text-xs text-au-muted">
                 <Loader2 className="size-3.5 animate-spin" />
                 {t('uploadingVoice')}
               </div>
             )}
             {previewUrl && !isRecording && (
-              <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
-                <Mic className="size-4 shrink-0 text-white/70" />
+              <div className="flex items-center gap-2 rounded-xl border border-au-line bg-au-card px-3 py-2">
+                <Mic className="size-4 shrink-0 text-au-muted" />
                 <audio controls preload="metadata" src={previewUrl} className="h-8 min-w-0 flex-1" />
                 <button
                   type="button"
                   onClick={clearRecording}
                   aria-label={t('discardRecording')}
-                  className="tap-scale shrink-0 text-white/60 hover:text-white"
+                  className="tap-scale shrink-0 text-au-muted hover:text-au-ink"
                 >
                   <X className="size-4" />
                 </button>

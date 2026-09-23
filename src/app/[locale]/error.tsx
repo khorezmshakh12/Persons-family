@@ -35,15 +35,15 @@ export default function Error({
     // layout, so when it catches it also unmounts <DynamicBackground>. Without
     // a ground of its own the translucent glass card lands on the default
     // light <body> — white-on-white, indistinguishable from a blank screen.
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+    <div className="flex min-h-screen items-center justify-center bg-au-card p-6 text-au-ink">
       <div className={cn(GLASS_CARD, 'flex max-w-md flex-col items-center gap-4 p-8 text-center')}>
         <div className="flex size-14 items-center justify-center rounded-full border border-red-400/30 bg-red-500/15">
-          <AlertTriangle className="size-7 text-red-300" />
+          <AlertTriangle className="size-7 text-red-700" />
         </div>
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('errorTitle')}
         </h2>
-        <p className="text-sm text-white/70">{t('errorDescription')}</p>
+        <p className="text-sm text-au-muted">{t('errorDescription')}</p>
         <Button onClick={() => reset()} className="mt-2">
           {t('tryAgain')}
         </Button>

@@ -26,13 +26,13 @@ export async function DutiesCard({ staffId, canManage }: { staffId: string; canM
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
         {canManage && <AddDutyDialog staffId={staffId} contracts={contracts} />}
       </div>
       {duties.length === 0 ? (
-        <p className="text-sm text-white/60">{t('noDuties')}</p>
+        <p className="text-sm text-au-muted">{t('noDuties')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {duties.map((duty) => (

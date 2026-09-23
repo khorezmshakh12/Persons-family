@@ -9,12 +9,12 @@ export default async function CalendarPage() {
   const t = await getTranslations('calendar');
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
-      <div className="rounded-3xl border border-white/20 bg-white/10 p-8 text-white shadow-xl backdrop-blur-md">
-        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+      <div className="relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 text-au-ink sm:px-[30px] sm:py-7">
+        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>
-        <p className="mt-1 text-white/70">{t('subtitle')}</p>
+        <p className="mt-1 text-au-muted">{t('subtitle')}</p>
       </div>
 
       <Suspense fallback={<GlassCardSkeleton />}>

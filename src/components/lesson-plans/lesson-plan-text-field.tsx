@@ -43,7 +43,7 @@ export function LessonPlanTextField({
 
   if (!canEdit) {
     return (
-      <p className={value ? 'text-[13.5px] leading-relaxed text-white/85' : 'text-[13.5px] text-white/40 italic'}>
+      <p className={value ? 'text-[13.5px] leading-relaxed text-au-ink' : 'text-[13.5px] text-au-muted italic'}>
         {value || t('courseLessons.notSet')}
       </p>
     );
@@ -57,7 +57,7 @@ export function LessonPlanTextField({
       disabled={isPending}
       maxLength={4000}
       placeholder={placeholder}
-      className="min-h-16 w-full resize-none rounded-lg border-dashed border-white/25 bg-white/5 text-[13.5px] text-white transition-colors placeholder:text-white/40 placeholder:italic focus-visible:border-solid focus-visible:border-white/70 focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70"
+      className="min-h-16 w-full resize-none rounded-lg border-dashed border-au-line bg-au-card-2 text-[13.5px] text-au-ink transition-colors placeholder:text-au-faint placeholder:italic focus-visible:border-solid focus-visible:border-au-accent focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70"
     />
   );
 }

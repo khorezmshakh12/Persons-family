@@ -101,7 +101,7 @@ export async function StaffTable({
                       </Avatar>
                       <OnlineDot
                         userId={person.id}
-                        className="absolute right-0 bottom-0 size-2 border border-slate-900"
+                        className="absolute right-0 bottom-0 size-2 border border-au-line"
                       />
                     </div>
                     <Link href={`/profile/${person.id}`} className="hover:underline">
@@ -124,7 +124,7 @@ export async function StaffTable({
                   ) : person.role === 'internship' && person.internship_level ? (
                     <InternshipLevelBadge level={person.internship_level} />
                   ) : (
-                    <span className="text-white/40">—</span>
+                    <span className="text-au-muted">—</span>
                   )}
                 </TableCell>
                 <TableCell>

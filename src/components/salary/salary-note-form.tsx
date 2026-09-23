@@ -30,7 +30,7 @@ export function SalaryNoteForm({
   }, [state, t]);
 
   if (!isCeo) {
-    return currentComment ? <p className="text-sm text-white/70">{currentComment}</p> : null;
+    return currentComment ? <p className="text-sm text-au-muted">{currentComment}</p> : null;
   }
 
   if (!editing) {
@@ -38,7 +38,7 @@ export function SalaryNoteForm({
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="tap-scale text-left text-sm text-white/70 hover:text-white hover:underline"
+        className="tap-scale text-left text-sm text-au-muted hover:text-au-ink hover:underline"
       >
         {currentComment || t('totalCommentPlaceholder')}
       </button>

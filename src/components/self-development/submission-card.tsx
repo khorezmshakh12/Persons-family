@@ -38,11 +38,11 @@ export async function SubmissionCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col">
           {isAdmin && submission.author && (
-            <span className="font-medium text-white">
+            <span className="font-medium text-au-ink">
               {submission.author.first_name} {submission.author.last_name}
             </span>
           )}
-          <span className="text-xs text-white/60">
+          <span className="text-xs text-au-muted">
             {format.dateTime(new Date(`${submission.month}T00:00:00Z`), {
               month: 'long',
               year: 'numeric',
@@ -51,7 +51,7 @@ export async function SubmissionCard({
           </span>
         </div>
         {submission.ceo_score !== null && (
-          <span className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+          <span className="shrink-0 rounded-full bg-au-card-2 px-3 py-1 text-xs font-bold text-au-ink">
             {submission.ceo_score}
           </span>
         )}
@@ -59,14 +59,14 @@ export async function SubmissionCard({
 
       {submission.achievements && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-white/60">{t('achievements')}</span>
-          <p className="text-sm whitespace-pre-wrap text-white/90">{submission.achievements}</p>
+          <span className="text-xs font-semibold text-au-muted">{t('achievements')}</span>
+          <p className="text-sm whitespace-pre-wrap text-au-ink">{submission.achievements}</p>
         </div>
       )}
       {submission.value_added && (
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-white/60">{t('valueAdded')}</span>
-          <p className="text-sm whitespace-pre-wrap text-white/90">{submission.value_added}</p>
+          <span className="text-xs font-semibold text-au-muted">{t('valueAdded')}</span>
+          <p className="text-sm whitespace-pre-wrap text-au-ink">{submission.value_added}</p>
         </div>
       )}
 
@@ -82,12 +82,12 @@ export async function SubmissionCard({
           currentStarAward={submission.star_award}
         />
       ) : submission.ceo_rating ? (
-        <div className="flex flex-col gap-1 border-t border-white/10 pt-3">
-          <span className="text-xs font-semibold text-white/60">{t('ceoRating')}</span>
-          <p className="text-sm whitespace-pre-wrap text-white/80">{submission.ceo_rating}</p>
+        <div className="flex flex-col gap-1 border-t border-au-line pt-3">
+          <span className="text-xs font-semibold text-au-muted">{t('ceoRating')}</span>
+          <p className="text-sm whitespace-pre-wrap text-au-ink">{submission.ceo_rating}</p>
         </div>
       ) : (
-        <p className="text-xs text-white/40 italic">{t('notRatedYet')}</p>
+        <p className="text-xs text-au-muted italic">{t('notRatedYet')}</p>
       )}
     </div>
   );

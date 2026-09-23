@@ -38,18 +38,18 @@ export function YearSwitcher({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs font-medium text-white/60">{t('year')}:</span>
+      <span className="text-xs font-medium text-au-muted">{t('year')}:</span>
       <Select
         value={String(currentYear)}
         onValueChange={handleYearChange}
         disabled={isPending}
       >
-        <SelectTrigger className="h-8 w-24 border-white/20 bg-white/10 text-xs font-semibold text-white backdrop-blur-md hover:bg-white/15">
+        <SelectTrigger className="h-8 w-24 border-au-line bg-au-card text-xs font-semibold text-au-ink hover:bg-au-card-2">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl">
+        <SelectContent className="border-au-line bg-au-card text-au-ink">
           {years.map((y) => (
-            <SelectItem key={y} value={String(y)} className="text-xs text-white hover:bg-white/10 focus:bg-white/15">
+            <SelectItem key={y} value={String(y)} className="text-xs text-au-ink hover:bg-au-card-2 focus:bg-au-card-2">
               {y}
             </SelectItem>
           ))}

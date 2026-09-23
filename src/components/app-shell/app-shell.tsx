@@ -2,14 +2,12 @@ import type { ReactNode } from 'react';
 import { getTranslations } from 'next-intl/server';
 import packageJson from '../../../package.json';
 import { LanguageSwitcher } from '@/components/language-switcher';
-import { LogoutButton } from '@/components/auth/logout-button';
 import { BackgroundProvider } from '@/components/theme/background-context';
-import { DynamicBackground } from '@/components/theme/dynamic-background';
-import { SidebarNav } from './sidebar-nav';
 import { MobileNav } from './mobile-nav';
+import { SidebarPanel, type SidebarGoal } from './sidebar-panel';
+import { Breadcrumbs, SearchTrigger, StarPill } from './topbar';
 import { ProfileProvider } from './profile-context';
 import { NavBadgesProvider } from './nav-badges-context';
-import { UserBadge } from './user-badge';
 import {
   NotificationBell,
   type UnreadChatItem,
@@ -25,11 +23,10 @@ import { AnnouncementBanner } from '@/components/announcements/announcement-bann
 import { VersionWatcher } from './version-watcher';
 import { TashkentClock } from './tashkent-clock';
 import { sql } from '@/lib/db/client';
+import { getStarBalance } from '@/lib/stars';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import type { Profile } from '@/lib/auth/session';
 import type { NavItem } from '@/lib/nav';
-
-const GLASS_CONTROL = 'border-white/30 bg-white/10 text-white hover:bg-white/20';
 
 export async function AppShell({
   profile,
@@ -58,13 +55,37 @@ export async function AppShell({
   materialsLinked?: boolean;
   children: ReactNode;
 }) {
-  const t = await getTranslations('app');
-  const [[announcement], initialAvatarUrl] = await Promise.all([
+  const tStaff = await getTranslations('staff');
+  // Roadmap goals are CEO / Administrative Manager territory (same gate as
+  // the /roadmap page and its nav entry), so only they get the sidebar goal
+  // card — everyone else simply doesn't render it.
+  const canSeeGoals = profile.role === 'ceo' || profile.role === 'admin_manager';
+  const [[announcement], initialAvatarUrl, starBalance, goalRows] = await Promise.all([
     sql<{ message: string }[]>`
       select message from platform_announcements order by created_at desc limit 1
     `,
     resolveAvatarUrl(profile.avatar_url),
+    getStarBalance(userId),
+    canSeeGoals
+      ? sql<{ title: string; progress_percentage: number }[]>`
+          select title, progress_percentage from roadmap_goals
+          where timeframe = 'quarterly' and status = 'pending'
+          order by created_at desc limit 1
+        `
+      : Promise.resolve([]),
   ]);
+  const goal: SidebarGoal | null = goalRows[0]
+    ? { title: goalRows[0].title, progress: Math.round(Number(goalRows[0].progress_percentage) || 0) }
+    : null;
+  const panelProps = {
+    role: profile.role,
+    roleLabel: tStaff(`roles.${profile.role}`),
+    materialsLinked,
+    starBalance,
+    goal,
+    userId,
+    version: packageJson.version,
+  };
 
   return (
     <BackgroundProvider>
@@ -77,52 +98,38 @@ export async function AppShell({
       >
         <PresenceProvider userId={userId}>
           <NavBadgesProvider userId={userId} initialKeys={newNavKeys}>
-            <DynamicBackground />
             <CommandPalette />
-            <div className="relative flex min-h-screen">
-              <aside className="hidden w-60 shrink-0 transform-gpu flex-col border-r border-white/20 bg-white/10 p-4 text-white shadow-xl backdrop-blur-lg will-change-transform md:flex">
-                <span className="font-heading mb-6 text-sm font-semibold tracking-tight text-white">
-                  {t('name')}
-                </span>
-                <SidebarNav role={profile.role} materialsLinked={materialsLinked} glass />
-                <UserBadge className="mt-auto border-t border-white/10 pt-4" userId={userId} />
-                <span className="pt-3 text-center text-xs tracking-wider text-white/50">
-                  Persons ERP {packageJson.version}
-                </span>
+            <div className="relative flex min-h-screen bg-au-bg">
+              <aside className="sticky top-0 hidden h-screen w-[244px] shrink-0 flex-col border-r border-au-line bg-au-sidebar px-3.5 py-5 min-[960px]:flex">
+                <SidebarPanel {...panelProps} />
               </aside>
 
               <div className="flex min-w-0 flex-1 flex-col">
-                {/* transform-gpu lives on the sticky header itself, not this wrapper —
-                  a transformed ancestor can break position: sticky in some browsers. */}
-                <header className="sticky top-0 z-40 flex h-14 transform-gpu items-center border-b border-white/20 bg-white/10 px-4 text-white backdrop-blur-lg will-change-transform">
-                  <div className="flex items-center gap-2 md:hidden">
-                    <MobileNav role={profile.role} materialsLinked={materialsLinked} />
-                    <span className="font-heading text-sm font-semibold tracking-tight text-white">
-                      {t('name')}
-                    </span>
+                <header className="sticky top-0 z-40 flex h-[62px] items-center gap-2 bg-au-bg px-4 sm:gap-3 sm:px-7 min-[960px]:h-[76px]">
+                  <div className="min-[960px]:hidden">
+                    <MobileNav {...panelProps} />
                   </div>
-
-                  <div className="ml-auto flex items-center gap-3">
-                    <NotificationBell
-                      userId={userId}
-                      profileNames={profileNames}
-                      initialUnreadChats={initialUnreadChats}
-                      initialUnseenIssues={initialUnseenIssues}
-                      initialUnseenTasks={initialUnseenTasks}
-                      initialUnseenWarnings={initialUnseenWarnings}
-                      initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
-                    />
-                    <UserBadge className="hidden sm:flex" userId={userId} />
-                    <LanguageSwitcher className={GLASS_CONTROL} />
-                    <LogoutButton className={GLASS_CONTROL} />
-                  </div>
+                  <Breadcrumbs />
+                  <div className="flex-1" />
+                  <SearchTrigger />
+                  <NotificationBell
+                    userId={userId}
+                    profileNames={profileNames}
+                    initialUnreadChats={initialUnreadChats}
+                    initialUnseenIssues={initialUnseenIssues}
+                    initialUnseenTasks={initialUnseenTasks}
+                    initialUnseenWarnings={initialUnseenWarnings}
+                    initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
+                  />
+                  <StarPill balance={starBalance} />
+                  <LanguageSwitcher compact className="hidden sm:flex" />
                 </header>
 
-                <main className="min-h-0 min-w-0 flex-1 transform-gpu will-change-transform">
+                <main className="min-h-0 min-w-0 flex-1">
                   <PageTransition>{children}</PageTransition>
                 </main>
 
-                <footer className="flex h-8 shrink-0 items-center justify-end border-t border-white/20 bg-white/10 px-4 text-xs text-white/60 backdrop-blur-lg">
+                <footer className="flex h-9 shrink-0 items-center justify-end px-4 text-xs text-au-muted sm:px-7">
                   <TashkentClock />
                 </footer>
               </div>

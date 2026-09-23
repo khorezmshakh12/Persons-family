@@ -52,7 +52,7 @@ function KanbanColumnImpl({
       ref={setNodeRef}
       className={cn(
         'flex flex-col gap-3 rounded-2xl p-1.5 sm:p-2 transition-colors min-w-0 w-full overflow-hidden',
-        isOver && 'bg-white/10 ring-2 ring-white/40',
+        isOver && 'bg-au-card ring-2 ring-au-faint',
       )}
     >
       {collapsible ? (
@@ -61,18 +61,18 @@ function KanbanColumnImpl({
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
             aria-expanded={expanded}
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/15 hover:border-white/30 min-w-0"
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-au-line bg-au-card px-3 py-2.5 text-sm font-medium text-au-ink transition-all hover:bg-au-card-2 hover:border-au-faint min-w-0"
           >
             <span className="font-semibold truncate">
               {label} · {issues.length}
             </span>
             <ChevronDown
-              className={cn('size-4 shrink-0 text-white/70 transition-transform duration-200', expanded && 'rotate-180')}
+              className={cn('size-4 shrink-0 text-au-muted transition-transform duration-200', expanded && 'rotate-180')}
             />
           </button>
         </h2>
       ) : (
-        <h2 className="text-sm font-semibold text-white px-1 truncate">
+        <h2 className="text-sm font-semibold text-au-ink px-1 truncate">
           {label} ({issues.length})
         </h2>
       )}
@@ -93,7 +93,7 @@ function KanbanColumnImpl({
             className="flex flex-col gap-3 min-w-0 w-full overflow-hidden"
           >
             {issues.length === 0 ? (
-              <p className="text-sm text-white/60 px-2 py-2">{emptyLabel}</p>
+              <p className="text-sm text-au-muted px-2 py-2">{emptyLabel}</p>
             ) : (
               issues.map((issue) => (
                 <IssueCard

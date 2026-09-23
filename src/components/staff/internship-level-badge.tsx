@@ -2,9 +2,9 @@ import { cn } from '@/lib/utils';
 import type { InternshipLevel } from '@/lib/internship-level';
 
 const LEVEL_TINT: Record<InternshipLevel, string> = {
-  C: 'bg-gray-500/20 text-gray-200',
-  B: 'bg-blue-500/20 text-blue-200',
-  A: 'bg-emerald-500/20 text-emerald-200',
+  C: 'bg-gray-500/20 text-au-ink',
+  B: 'bg-blue-500/20 text-blue-700',
+  A: 'bg-emerald-500/20 text-emerald-700',
 };
 
 export function InternshipLevelBadge({ level, className }: { level: InternshipLevel; className?: string }) {

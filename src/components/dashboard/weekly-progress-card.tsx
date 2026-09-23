@@ -23,22 +23,22 @@ export async function WeeklyProgressCard({ userId }: { userId: string | null }) 
       {performance ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/70">{t('weeklyProgress.currentTier')}</span>
+            <span className="text-sm text-au-muted">{t('weeklyProgress.currentTier')}</span>
             <TierBadge tier={performance.current_tier} />
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-white/70">{t('weeklyProgress.score')}</span>
+              <span className="text-au-muted">{t('weeklyProgress.score')}</span>
               <span className="font-medium tabular-nums">{performance.weekly_progress_score}%</span>
             </div>
             <Progress value={performance.weekly_progress_score} />
           </div>
-          <p className="text-sm text-white/70">
+          <p className="text-sm text-au-muted">
             {t('weeklyProgress.monthsInTier', { months: performance.months_in_tier })}
           </p>
         </div>
       ) : (
-        <p className="text-sm text-white/70">{t('weeklyProgress.noData')}</p>
+        <p className="text-sm text-au-muted">{t('weeklyProgress.noData')}</p>
       )}
     </div>
   );

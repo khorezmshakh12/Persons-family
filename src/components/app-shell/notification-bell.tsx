@@ -291,15 +291,15 @@ export function NotificationBell({
             <button
               type="button"
               aria-label={t('title')}
-              className="relative flex size-9 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition-transform duration-200 ease-bounce hover:scale-110 hover:bg-white/20 active:scale-90"
+              className="relative grid size-[38px] shrink-0 place-items-center rounded-au-ctl border border-au-line bg-au-card text-au-muted transition-colors duration-150 hover:text-au-ink"
             />
           }
         >
-          <Bell key={shakeKey} className={cn('size-4.5', shakeKey > 0 && 'animate-shake')} />
+          <Bell key={shakeKey} strokeWidth={1.75} className={cn('size-[17px]', shakeKey > 0 && 'animate-shake')} />
           {totalCount > 0 && (
             <span
               key={totalCount}
-              className="animate-pop-in absolute -top-1 -right-1 flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.85)]"
+              className="animate-pop-in absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-au-bad px-1 text-[10px] font-bold text-white ring-2 ring-au-bg tabular-nums"
             >
               {totalCount > 9 ? '9+' : totalCount}
             </span>
@@ -308,14 +308,14 @@ export function NotificationBell({
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="end" sideOffset={10} className="z-50 outline-none">
             <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-80 max-w-[90vw] flex-col gap-3 p-4')}>
-              <h3 className="text-sm font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h3>
+              <h3 className="text-sm font-semibold text-au-ink">{t('title')}</h3>
               {totalCount === 0 ? (
-                <p className="text-sm text-white/60">{t('empty')}</p>
+                <p className="text-sm text-au-muted">{t('empty')}</p>
               ) : (
                 <div className="flex max-h-96 flex-col gap-4 overflow-y-auto">
                   {chatPreviews.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
                         {t('messages')}
                       </p>
                       {chatPreviews.map((m) => (
@@ -323,19 +323,19 @@ export function NotificationBell({
                           key={m.id}
                           href={`/chat?with=${m.senderId}`}
                           onClick={() => handleChatClick(m.senderId)}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
                         >
-                          <span className="text-sm font-medium text-white">
+                          <span className="text-sm font-medium text-au-ink">
                             {profileNames[m.senderId] ?? t('unknownSender')}
                           </span>
-                          <span className="truncate text-xs text-white/60">{m.messageText ?? t('mediaMessage')}</span>
+                          <span className="truncate text-xs text-au-muted">{m.messageText ?? t('mediaMessage')}</span>
                         </Link>
                       ))}
                     </div>
                   )}
                   {issuePreviews.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
                         {t('issues')}
                       </p>
                       {issuePreviews.map((issue) => (
@@ -343,10 +343,10 @@ export function NotificationBell({
                           key={issue.id}
                           href="/issues"
                           onClick={() => handleIssueClick(issue.id)}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
                         >
-                          <span className="truncate text-sm font-medium text-white">{issue.title}</span>
-                          <span className="text-xs text-white/60">
+                          <span className="truncate text-sm font-medium text-au-ink">{issue.title}</span>
+                          <span className="text-xs text-au-muted">
                             {format.relativeTime(new Date(issue.createdAt), now)}
                           </span>
                         </Link>
@@ -355,7 +355,7 @@ export function NotificationBell({
                   )}
                   {taskPreviews.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
                         {t('tasks')}
                       </p>
                       {taskPreviews.map((task) => (
@@ -363,10 +363,10 @@ export function NotificationBell({
                           key={task.id}
                           href="/tasks"
                           onClick={handleTaskClick}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
                         >
-                          <span className="truncate text-sm font-medium text-white">{task.title}</span>
-                          <span className="text-xs text-white/60">
+                          <span className="truncate text-sm font-medium text-au-ink">{task.title}</span>
+                          <span className="text-xs text-au-muted">
                             {format.relativeTime(new Date(task.createdAt), now)}
                           </span>
                         </Link>
@@ -375,7 +375,7 @@ export function NotificationBell({
                   )}
                   {warningPreviews.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
                         {t('warnings')}
                       </p>
                       {warningPreviews.map((warning) => (
@@ -383,10 +383,10 @@ export function NotificationBell({
                           key={warning.id}
                           href={`/profile/${userId}`}
                           onClick={handleWarningClick}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
                         >
-                          <span className="truncate text-sm font-medium text-white">{warning.reason}</span>
-                          <span className="text-xs text-white/60">
+                          <span className="truncate text-sm font-medium text-au-ink">{warning.reason}</span>
+                          <span className="text-xs text-au-muted">
                             {format.relativeTime(new Date(warning.createdAt), now)}
                           </span>
                         </Link>
@@ -395,7 +395,7 @@ export function NotificationBell({
                   )}
                   {lessonPlanAlertPreviews.length > 0 && (
                     <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-white/40 uppercase">
+                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
                         {t('lessonPlanAlerts')}
                       </p>
                       {lessonPlanAlertPreviews.map((alert) => (
@@ -403,10 +403,10 @@ export function NotificationBell({
                           key={alert.id}
                           href="/lesson-plans"
                           onClick={handleLessonPlanAlertClick}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-white/10"
+                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
                         >
-                          <span className="whitespace-pre-line text-sm font-medium text-white">{alert.summary}</span>
-                          <span className="text-xs text-white/60">
+                          <span className="whitespace-pre-line text-sm font-medium text-au-ink">{alert.summary}</span>
+                          <span className="text-xs text-au-muted">
                             {format.relativeTime(new Date(alert.createdAt), now)}
                           </span>
                         </Link>
@@ -432,7 +432,7 @@ export function NotificationBell({
         aria-pressed={muted}
         aria-label={muted ? t('unmuteSound') : t('muteSound')}
         title={muted ? t('unmuteSound') : t('muteSound')}
-        className="tap-scale flex size-8 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+        className="tap-scale flex size-8 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
       >
         {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
       </button>

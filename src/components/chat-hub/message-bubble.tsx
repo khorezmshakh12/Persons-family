@@ -89,18 +89,18 @@ function MessageBubbleComponent({
       </Avatar>
       <div className={cn('group flex max-w-[75%] flex-col gap-1', isOwn && 'items-end')}>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <span className="text-xs font-medium text-au-ink">
             {name}
           </span>
-          <span className="text-xs text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <span className="text-xs text-au-ink">
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
           {isOwn && !isOptimistic && (
             <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
               {message.is_read ? (
-                <CheckCheck className="size-3.5 text-sky-300" />
+                <CheckCheck className="size-3.5 text-sky-700" />
               ) : (
-                <Check className="size-3.5 text-white/50" />
+                <Check className="size-3.5 text-au-muted" />
               )}
             </span>
           )}
@@ -111,20 +111,20 @@ function MessageBubbleComponent({
               'flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
               isOwn
                 ? 'bg-white text-black'
-                : 'bg-white/10 text-white',
+                : 'bg-au-card text-au-ink',
             )}
           >
             {message.reply_to_id && repliedQuote && (
               <div
                 className={cn(
                   'flex flex-col gap-0.5 rounded-lg border-l-2 px-2 py-1 text-xs',
-                  isOwn ? 'border-white/50 bg-black/10' : 'border-white/40 bg-black/20',
+                  isOwn ? 'border-au-faint bg-au-card-2' : 'border-au-faint bg-au-card-2',
                 )}
               >
-                <span className={cn('font-medium', isOwn ? 'text-white/90' : 'text-white/70')}>
+                <span className={cn('font-medium', isOwn ? 'text-au-ink' : 'text-au-muted')}>
                   {repliedQuote.senderName}
                 </span>
-                <span className={cn('truncate', isOwn ? 'text-white/70' : 'text-white/60')}>
+                <span className={cn('truncate', isOwn ? 'text-au-muted' : 'text-au-muted')}>
                   {repliedQuote.text ?? t(`mediaLabel.${repliedQuote.mediaType}`)}
                 </span>
               </div>
@@ -175,7 +175,7 @@ function MessageBubbleComponent({
                 {pickerOpen && (
                   <div
                     className={cn(
-                      'absolute bottom-full z-10 mb-1 flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/95 px-2 py-1 shadow-xl backdrop-blur-md',
+                      'absolute bottom-full z-10 mb-1 flex items-center gap-1 rounded-full border border-au-line bg-au-card px-2 py-1 shadow-au-card',
                       isOwn ? 'right-0' : 'left-0',
                     )}
                   >
@@ -184,7 +184,7 @@ function MessageBubbleComponent({
                         key={emoji}
                         type="button"
                         onClick={() => handleToggleReaction(emoji)}
-                        className="tap-scale rounded-full p-1 text-base transition-transform duration-200 ease-bounce hover:scale-125"
+                        className="tap-scale rounded-full p-1 text-base transition-transform duration-200 ease-bounce"
                       >
                         {emoji}
                       </button>
@@ -229,8 +229,8 @@ function MessageBubbleComponent({
                   className={cn(
                     'tap-scale flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors',
                     reactedByMe
-                      ? 'border-white/60 bg-white/20 text-white'
-                      : 'border-white/20 bg-white/10 text-white/70 hover:bg-white/20',
+                      ? 'border-au-faint bg-au-card-2 text-au-ink'
+                      : 'border-au-line bg-au-card text-au-muted hover:bg-au-card-2',
                   )}
                 >
                   <span>{emoji}</span>

@@ -31,11 +31,11 @@ export async function AdminManagementSection() {
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-lg font-medium">{t('adminManagement.title')}</h2>
-        <p className="text-sm text-white/60">{t('adminManagement.subtitle')}</p>
+        <p className="text-sm text-au-muted">{t('adminManagement.subtitle')}</p>
       </div>
 
       {admins.length === 0 ? (
-        <p className="text-sm text-white/70">{t('adminManagement.noAdmins')}</p>
+        <p className="text-sm text-au-muted">{t('adminManagement.noAdmins')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {admins.map((admin) => {
@@ -43,7 +43,7 @@ export async function AdminManagementSection() {
             return (
               <div
                 key={admin.id}
-                className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-xl border border-au-line bg-au-card-2 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="size-10 shrink-0">
@@ -54,7 +54,7 @@ export async function AdminManagementSection() {
                     <span className="font-medium">
                       {admin.first_name} {admin.last_name}
                     </span>
-                    <span className="text-xs text-white/50">{admin.phone}</span>
+                    <span className="text-xs text-au-muted">{admin.phone}</span>
                   </div>
                   <Badge variant="tint" tint={admin.is_active ? 'green' : 'slate'}>
                     {admin.is_active ? t('status.active') : t('status.inactive')}

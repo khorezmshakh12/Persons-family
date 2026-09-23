@@ -49,15 +49,15 @@ export function PayrollSection({ summary, locale }: { summary: PayrollSummary; l
   return (
     <section className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-white">
-          <Wallet className="size-5 text-emerald-300" />
+        <h2 className="flex items-center gap-2 font-heading text-lg font-semibold text-au-ink">
+          <Wallet className="size-5 text-emerald-700" />
           {t('title')}
         </h2>
-        <div className="flex items-center gap-1 text-sm text-white/80">
+        <div className="flex items-center gap-1 text-sm text-au-ink">
           <Link
             href={`/finance?period=${shiftPeriod(period, -1)}`}
             aria-label={t('prevMonth')}
-            className="tap-scale rounded p-1 hover:bg-white/10"
+            className="tap-scale rounded p-1 hover:bg-au-card-2"
           >
             <ChevronLeft className="size-4" />
           </Link>
@@ -67,35 +67,35 @@ export function PayrollSection({ summary, locale }: { summary: PayrollSummary; l
           <Link
             href={`/finance?period=${shiftPeriod(period, 1)}`}
             aria-label={t('nextMonth')}
-            className="tap-scale rounded p-1 hover:bg-white/10"
+            className="tap-scale rounded p-1 hover:bg-au-card-2"
           >
             <ChevronRight className="size-4" />
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 rounded-xl border border-white/15 bg-white/5 p-3 text-center">
+      <div className="grid grid-cols-3 gap-2 rounded-xl border border-au-line bg-au-card-2 p-3 text-center">
         <Figure label={t('totalGross')} value={formatUZS(totals.gross)} />
-        <Figure label={t('totalPaid')} value={formatUZS(totals.paid)} tone="text-emerald-300" />
+        <Figure label={t('totalPaid')} value={formatUZS(totals.paid)} tone="text-emerald-700" />
         <Figure
           label={t('totalRemaining')}
           value={formatUZS(totals.remaining)}
-          tone={totals.remaining > 0 ? 'text-amber-300' : 'text-white/70'}
+          tone={totals.remaining > 0 ? 'text-amber-700' : 'text-au-muted'}
         />
       </div>
 
-      <div className="flex flex-col divide-y divide-white/10">
+      <div className="flex flex-col divide-y divide-au-line">
         {rows.map((r) => (
           <div key={r.staffId} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-            <span className="min-w-[8rem] flex-1 font-medium text-white">{r.name}</span>
+            <span className="min-w-[8rem] flex-1 font-medium text-au-ink">{r.name}</span>
             <SetSalaryForm staffId={r.staffId} period={period} gross={r.gross} />
-            <span className="w-28 text-right text-sm tabular-nums text-emerald-300">
+            <span className="w-28 text-right text-sm tabular-nums text-emerald-700">
               {formatUZS(r.paid)}
             </span>
             <span
               className={cn(
                 'w-28 text-right text-sm font-semibold tabular-nums',
-                r.remaining > 0 ? 'text-amber-300' : 'text-white/60',
+                r.remaining > 0 ? 'text-amber-700' : 'text-au-muted',
               )}
             >
               {formatUZS(r.remaining)}
@@ -111,8 +111,8 @@ export function PayrollSection({ summary, locale }: { summary: PayrollSummary; l
 function Figure({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[11px] uppercase tracking-wide text-white/50">{label}</span>
-      <span className={cn('text-sm font-bold tabular-nums', tone ?? 'text-white')}>{value}</span>
+      <span className="text-[11px] uppercase tracking-wide text-au-muted">{label}</span>
+      <span className={cn('text-sm font-bold tabular-nums', tone ?? 'text-au-ink')}>{value}</span>
     </div>
   );
 }
@@ -214,8 +214,8 @@ function RecordPaymentDialog({
                   className={cn(
                     'tap-scale rounded-lg border px-3 py-1.5 text-sm',
                     kind === k
-                      ? 'border-white/40 bg-white/20 text-white'
-                      : 'border-white/15 text-white/60 hover:text-white',
+                      ? 'border-au-faint bg-au-card-2 text-au-ink'
+                      : 'border-au-line text-au-muted hover:text-au-ink',
                   )}
                 >
                   {t(`kind_${k}`)}
@@ -231,14 +231,14 @@ function RecordPaymentDialog({
               name="title"
               defaultValue={t(`kind_${kind}`)}
               maxLength={200}
-              className="h-9 rounded-lg border border-white/20 bg-white/10 px-3 text-sm text-white"
+              className="h-9 rounded-lg border border-au-line bg-au-card px-3 text-sm text-au-ink"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label>{t('amount')}</Label>
             <CurrencyInput id="pay-amount" name="amount" key={kind} defaultValue={0} />
-            <span className="text-xs text-white/50">
+            <span className="text-xs text-au-muted">
               {kind === 'penalty' ? t('penaltyHint') : t('paymentHint')}
             </span>
           </div>

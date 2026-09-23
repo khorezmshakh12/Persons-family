@@ -52,7 +52,7 @@ export function DecisionResult({ decision }: { decision: OrderDecision }) {
     return (
       <span
         role="status"
-        className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300"
+        className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700"
       >
         <DrawnCheck />
         {t('status.approved')}
@@ -63,7 +63,7 @@ export function DecisionResult({ decision }: { decision: OrderDecision }) {
   return (
     <span
       role="status"
-      className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/50"
+      className="flex items-center gap-1.5 rounded-full border border-au-line bg-au-card-2 px-3 py-1 text-xs font-semibold text-au-muted"
     >
       <X className="size-3.5" />
       {t('status.rejected')}
@@ -129,7 +129,7 @@ export function DecideOrderActions({
         size="sm"
         disabled={isPending}
         onClick={() => handleDecision('approved')}
-        className="h-8 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-2.5 shadow-sm"
+        className="h-8 gap-1 bg-au-primary hover:bg-black text-white text-xs font-medium px-2.5 shadow-sm"
       >
         <DrawnCheck />
         {t('admin.approve')}
@@ -144,21 +144,21 @@ export function DecideOrderActions({
               variant="outline"
               size="sm"
               disabled={isPending}
-              className="h-8 gap-1 border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/20 text-xs px-2.5"
+              className="h-8 gap-1 border-red-500/30 bg-red-500/10 text-red-700 hover:bg-red-500/20 text-xs px-2.5"
             />
           }
         >
           <X className="size-3.5" />
           {t('admin.reject')}
         </DialogTrigger>
-        <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+        <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">{t('admin.reject')}</DialogTitle>
+            <DialogTitle className="text-au-ink">{t('admin.reject')}</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-2">
-            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
-              <AlertTriangle className="size-4 shrink-0 text-red-400 mt-0.5" />
+            <div className="flex items-start gap-2.5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700">
+              <AlertTriangle className="size-4 shrink-0 text-red-600 mt-0.5" />
               <span>
                 {t('admin.rejectWarning', {
                   cost: order.star_cost,
@@ -176,7 +176,7 @@ export function DecideOrderActions({
                 maxLength={500}
                 rows={3}
                 placeholder={t('admin.rejectPlaceholder')}
-                className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
               />
             </div>
           </div>
@@ -186,7 +186,7 @@ export function DecideOrderActions({
               type="button"
               variant="outline"
               onClick={() => setRejectOpen(false)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </Button>

@@ -1,15 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./aurora.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--au-font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-golos), var(--font-sans);
+  --font-heading: var(--au-font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -63,46 +64,43 @@
 }
 
 :root {
-  /* TT-07: strict pure white/black + grayscale accents in light/dark mode.
-     This governs the theme-toggle surfaces (login page, plain light/dark
-     UI) — the signed-in app's glass panels sit on top of the separate,
-     user-chosen photo background (Settings) and are intentionally left
-     alone, since that's a distinct, deliberate feature, not part of the
-     light/dark theme system. */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0 0 0);
-  --primary: oklch(0.145 0 0);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.4 0 0);
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.85 0 0);
-  --input: oklch(0.85 0 0);
-  --ring: oklch(0.145 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Persons Aurora — the shadcn primitive tokens (dialogs, dropdowns,
+     inputs, tabs, buttons…) point at the Aurora palette, so every primitive
+     picks up the warm light surfaces without touching its own classes. */
+  --background: var(--au-bg);
+  --foreground: var(--au-ink);
+  --card: var(--au-card);
+  --card-foreground: var(--au-ink);
+  --popover: var(--au-card);
+  --popover-foreground: var(--au-ink);
+  --primary: var(--au-primary);
+  --primary-foreground: var(--au-primary-ink);
+  --secondary: var(--au-card-2);
+  --secondary-foreground: var(--au-ink);
+  --muted: var(--au-card-2);
+  --muted-foreground: var(--au-muted);
+  --accent: var(--au-card-2);
+  --accent-foreground: var(--au-ink);
+  --destructive: var(--au-bad);
+  --border: var(--au-line);
+  --input: var(--au-line);
+  --ring: var(--au-accent);
+  --chart-1: var(--au-chart-1);
+  --chart-2: var(--au-chart-2);
+  --chart-3: var(--au-chart-3);
+  --chart-4: var(--au-muted);
+  --chart-5: var(--au-chart-4);
   --radius: 0.625rem;
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0 0 0);
-  --sidebar-primary: oklch(0.145 0 0);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.94 0 0);
-  --sidebar-accent-foreground: oklch(0 0 0);
-  --sidebar-border: oklch(0.85 0 0);
-  --sidebar-ring: oklch(0.145 0 0);
-  --brand: oklch(0 0 0);
-  --brand-secondary: oklch(0.3 0 0);
+  --sidebar: var(--au-sidebar);
+  --sidebar-foreground: var(--au-ink);
+  --sidebar-primary: var(--au-primary);
+  --sidebar-primary-foreground: var(--au-primary-ink);
+  --sidebar-accent: var(--au-card);
+  --sidebar-accent-foreground: var(--au-ink);
+  --sidebar-border: var(--au-line);
+  --sidebar-ring: var(--au-accent);
+  --brand: var(--au-ink);
+  --brand-secondary: var(--au-muted);
 }
 
 .dark {
@@ -146,7 +144,8 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-au-bg text-au-ink;
+    -webkit-font-smoothing: antialiased;
   }
   html {
     @apply font-sans;
@@ -163,7 +162,7 @@
      :focus-visible only ever matches during keyboard interaction, so this
      adds no resting state to anything. */
   :focus-visible {
-    outline: 2px solid rgba(45, 212, 191, 0.7);
+    outline: 2px solid rgba(23, 22, 26, 0.35);
     outline-offset: 2px;
     border-radius: 2px;
   }
@@ -429,8 +428,8 @@
   width: 7px;
   height: 7px;
   border-radius: 9999px;
-  background: hsl(var(--shue, 168) 90% 62%);
-  box-shadow: 0 0 8px 2px hsl(var(--shue, 168) 90% 62% / 0.55);
+  background: hsl(var(--shue, 35) 100% 55%);
+  box-shadow: 0 0 8px 2px hsl(var(--shue, 35) 100% 55% / 0.45);
   animation: task-spark-fly 0.6s var(--ease-snappy) forwards;
 }
 
@@ -465,122 +464,4 @@
   .card-lift:hover {
     transform: none;
   }
-}
-
-/* User-adjustable glass blur (Settings > Platform Appearance). Every glass
-   panel across the app (GLASS_CARD, header, sidebar, dialogs, dropdowns —
-   ~90 components) inlines a raw backdrop-blur-* Tailwind class with no
-   shared theme-value plumbing, so instead of touching every one of them
-   this targets Tailwind's own generated class names via an
-   attribute-substring selector — [class*=] also reaches Radix-portaled
-   Dialog/Sheet content, which isn't a DOM descendant of the app shell tree
-   but still lives under <html>. BackgroundContext writes --glass-blur onto
-   <html> (see setGlassBlur); !important is required to outrank Tailwind's
-   own utility specificity. */
-:root {
-  --glass-blur: 16px;
-}
-[class*="backdrop-blur"] {
-  -webkit-backdrop-filter: blur(var(--glass-blur)) !important;
-  backdrop-filter: blur(var(--glass-blur)) !important;
-}
-
-/* Full-strength blur is one of the more expensive paint operations on
-   battery-constrained mobile GPUs — cap it below 768px so scrolling and
-   animations stay smooth without losing the frosted look. min() still
-   honors a user-chosen value lower than the cap. */
-@media (max-width: 768px) {
-  [class*="backdrop-blur"] {
-    -webkit-backdrop-filter: blur(min(var(--glass-blur), 6px)) !important;
-    backdrop-filter: blur(min(var(--glass-blur), 6px)) !important;
-  }
-}
-
-/* 6 World-Class Professional Comfort Themes */
-[data-design="aurora"],
-[data-design="glassmorphism"] {
-  --theme-accent: #2dd4bf;
-  --theme-accent-glow: rgba(45, 212, 191, 0.35);
-  --theme-border-tint: rgba(45, 212, 191, 0.28);
-  --theme-card-tint: rgba(8, 25, 35, 0.74);
-  --theme-shadow: 0 16px 45px rgba(6, 30, 45, 0.65);
-}
-
-[data-design="kyoto"] {
-  --theme-accent: #10b981;
-  --theme-accent-glow: rgba(16, 185, 129, 0.35);
-  --theme-border-tint: rgba(52, 211, 153, 0.28);
-  --theme-card-tint: rgba(6, 38, 24, 0.74);
-  --theme-shadow: 0 16px 45px rgba(6, 38, 24, 0.6);
-}
-
-[data-design="midnight"] {
-  --theme-accent: #fbbf24;
-  --theme-accent-glow: rgba(251, 191, 36, 0.35);
-  --theme-border-tint: rgba(251, 191, 36, 0.35);
-  --theme-card-tint: rgba(12, 14, 22, 0.88);
-  --theme-shadow: 0 16px 45px rgba(0, 0, 0, 0.75);
-}
-
-[data-design="nordic"] {
-  --theme-accent: #38bdf8;
-  --theme-accent-glow: rgba(56, 189, 248, 0.35);
-  --theme-border-tint: rgba(255, 255, 255, 0.45);
-  --theme-card-tint: rgba(255, 255, 255, 0.14);
-  --theme-shadow: 0 14px 40px rgba(15, 23, 42, 0.4);
-}
-
-[data-design="cosmic"] {
-  --theme-accent: #c084fc;
-  --theme-accent-glow: rgba(192, 132, 252, 0.4);
-  --theme-border-tint: rgba(192, 132, 252, 0.35);
-  --theme-card-tint: rgba(20, 12, 40, 0.74);
-  --theme-shadow: 0 16px 45px rgba(76, 29, 149, 0.45);
-}
-
-[data-design="studio"] {
-  --theme-accent: #818cf8;
-  --theme-accent-glow: rgba(129, 140, 248, 0.25);
-  --theme-border-tint: rgba(255, 255, 255, 0.1);
-  --theme-card-tint: #0f131a;
-  --theme-shadow: 10px 10px 24px #070a12, -10px -10px 24px #1b2238;
-}
-
-/* Dynamic card-surface retint, applied on top of whatever design variant
-   is active (see the [data-design="…"] blocks above for the tints).
-
-   This used to match `[class*="bg-white/10"]` alone — but the in-flow
-   glass panels across the app are drawn with a spread of opacities
-   (/10, /12, /15, /20, /25). Retinting only the /10 ones meant switching
-   a theme recoloured about a third of the panels and left the rest at
-   the default whitish tint — the "colours don't match after a theme
-   change" report. Now every in-flow panel opacity picks up the card tint.
-
-   Scope note: this is deliberately in-flow SURFACES only.
-   - `bg-white/5` (subtle inset — inputs, nested sub-panels) is left out:
-     barely visible over any tint, usually nested inside an already-
-     retinted card, and its substring would also catch a stray
-     `bg-white/50` accent.
-   - `bg-slate-900/*` (modals, popovers, chart tooltips) is left out on
-     purpose: those sit ABOVE the layout and must stay a stable, readable
-     dark neutral. Forcing e.g. nordic's `rgba(255,255,255,0.14)` onto a
-     chart tooltip would make it a near-invisible wash over busy chart
-     content. A neutral-dark dialog over a colour-tinted page reads as
-     intentional layering, not a clash. */
-[data-design] [class*="bg-white/10"],
-[data-design] [class*="bg-white/12"],
-[data-design] [class*="bg-white/15"],
-[data-design] [class*="bg-white/20"],
-[data-design] [class*="bg-white/25"] {
-  background-color: var(--theme-card-tint, rgba(255, 255, 255, 0.1)) !important;
-  border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
-  box-shadow: var(--theme-shadow, 0 12px 35px rgba(0, 0, 0, 0.35)) !important;
-}
-
-[data-design] [class*="border-white/10"],
-[data-design] [class*="border-white/15"],
-[data-design] [class*="border-white/20"],
-[data-design] [class*="border-white/25"],
-[data-design] [class*="border-white/30"] {
-  border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
 }

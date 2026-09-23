@@ -126,27 +126,27 @@ export function TaskCommentsDrawer({
             variant="outline"
             size="sm"
             aria-label={t('comments.title')}
-            className="h-7 w-fit gap-1.5 rounded-full border-white/20 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/15 hover:text-white"
+            className="h-7 w-fit gap-1.5 rounded-full border-au-line bg-au-card-2 px-3 text-xs text-au-muted hover:bg-au-card-2 hover:text-au-ink"
           />
         }
       >
         <MessageCircle className="size-3.5" />
         {count}
       </SheetTrigger>
-      <SheetContent className="flex flex-col gap-4 border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <SheetContent className="flex flex-col gap-4 border-au-line bg-au-card text-au-ink sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-white">{t('comments.title')}</SheetTitle>
-          <p className="truncate text-xs text-white/50">{taskTitle}</p>
+          <SheetTitle className="text-au-ink">{t('comments.title')}</SheetTitle>
+          <p className="truncate text-xs text-au-muted">{taskTitle}</p>
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4">
           {loading && !loaded ? (
-            <p className="flex items-center gap-2 text-sm text-white/60">
+            <p className="flex items-center gap-2 text-sm text-au-muted">
               <Loader2 className="size-3.5 animate-spin" />
               {t('comments.loading')}
             </p>
           ) : optimisticComments.length === 0 ? (
-            <p className="text-sm text-white/60">{t('comments.empty')}</p>
+            <p className="text-sm text-au-muted">{t('comments.empty')}</p>
           ) : (
             optimisticComments.map((c) => {
               const isOptimistic = c.id.startsWith('optimistic-');
@@ -162,11 +162,11 @@ export function TaskCommentsDrawer({
                   <div className="flex flex-1 flex-col gap-0.5">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold">{c.authorName}</span>
-                      <span className="text-[10px] text-white/50">
+                      <span className="text-[10px] text-au-muted">
                         {format.relativeTime(new Date(c.created_at), now)}
                       </span>
                     </div>
-                    <p className="text-sm whitespace-pre-wrap text-white/85">{c.body}</p>
+                    <p className="text-sm whitespace-pre-wrap text-au-ink">{c.body}</p>
                   </div>
                   {c.author_id === currentUserId && !isOptimistic && (
                     <button
@@ -174,7 +174,7 @@ export function TaskCommentsDrawer({
                       onClick={() => handleDelete(c.id)}
                       disabled={deletePending}
                       aria-label={t('comments.deleteComment')}
-                      className="tap-scale shrink-0 text-white/40 opacity-100 transition-opacity hover:text-white sm:opacity-0 sm:group-hover:opacity-100"
+                      className="tap-scale shrink-0 text-au-muted opacity-100 transition-opacity hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -189,7 +189,7 @@ export function TaskCommentsDrawer({
           <form
             ref={formRef}
             action={formAction}
-            className="flex items-end gap-2 border-t border-white/15 p-4 pt-3"
+            className="flex items-end gap-2 border-t border-au-line p-4 pt-3"
           >
             <input type="hidden" name="taskId" value={taskId} />
             <Textarea
@@ -198,14 +198,14 @@ export function TaskCommentsDrawer({
               maxLength={2000}
               required
               placeholder={t('comments.placeholder')}
-              className="min-h-9 flex-1 resize-none border-white/20 bg-white/10 text-white placeholder:text-white/40"
+              className="min-h-9 flex-1 resize-none border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
             />
             <Button type="submit" size="icon" disabled={isPending} aria-label={t('comments.send')}>
               {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </Button>
           </form>
         ) : (
-          <p className="border-t border-white/15 p-4 pt-3 text-xs text-white/40 italic">
+          <p className="border-t border-au-line p-4 pt-3 text-xs text-au-muted italic">
             {t('comments.viewOnly')}
           </p>
         )}

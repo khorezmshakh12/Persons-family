@@ -38,10 +38,10 @@ export async function IncomeRoadmapSection({
       className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6 sm:p-8')}
     >
       {/* 5.1 Header row */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-au-line pb-4">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h2 className="font-heading text-xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            <h2 className="font-heading text-xl font-bold tracking-tight text-au-ink">
               {t('title')} · {shownYear}
             </h2>
 
@@ -51,15 +51,15 @@ export async function IncomeRoadmapSection({
                 className={cn(
                   'text-[11px] font-medium border',
                   roadmap.status === 'draft'
-                    ? 'border-amber-400/30 bg-amber-500/15 text-amber-200'
-                    : 'border-white/20 bg-white/10 text-white/70',
+                    ? 'border-amber-400/30 bg-amber-500/15 text-amber-700'
+                    : 'border-au-line bg-au-card text-au-muted',
                 )}
               >
                 {t(`status.${roadmap.status}`)}
               </Badge>
             )}
           </div>
-          <p className="text-xs text-white/60">{t('subtitle')}</p>
+          <p className="text-xs text-au-muted">{t('subtitle')}</p>
         </div>
 
         {/* Year switcher & management buttons */}
@@ -86,8 +86,8 @@ export async function IncomeRoadmapSection({
         <div className="flex flex-col gap-6">
           {/* Notes callout if present */}
           {roadmap.notes && (
-            <div className="rounded-xl border border-white/15 bg-white/5 p-3.5 text-xs text-white/80 backdrop-blur-sm">
-              <span className="font-semibold text-white">{t('notes')}: </span>
+            <div className="rounded-xl border border-au-line bg-au-card-2 p-3.5 text-xs text-au-ink">
+              <span className="font-semibold text-au-ink">{t('notes')}: </span>
               {roadmap.notes}
             </div>
           )}

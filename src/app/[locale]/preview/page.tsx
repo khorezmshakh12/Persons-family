@@ -127,17 +127,17 @@ export default function DesignPreviewPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] text-slate-100 p-6 md:p-10">
+    <div className="min-h-screen bg-[#0b0f17] text-au-ink p-6 md:p-10">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <header className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-2xl shadow-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-500/10 px-4 py-1.5 text-xs font-semibold text-teal-300 mb-4">
+        <header className="rounded-3xl border border-au-line bg-au-card-2 p-8 text-center shadow-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-au-accent/40 bg-au-accent-soft px-4 py-1.5 text-xs font-semibold text-au-accent-text mb-4">
             <Sparkles className="size-4" /> 10 Xil Tabiiy va Zamonaviy Dizayn Konsepsiyasi
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-au-ink tracking-tight">
             Persons Staff — Qaysi Dizayn Sizga Ma‘qul?
           </h1>
-          <p className="mt-3 text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-3 text-base text-au-muted max-w-2xl mx-auto leading-relaxed">
             Qorong‘u va og‘ir muhitdan xoli, tabiiy yorug‘lik, qulaylik va xalqaro standartdagi oddiylik uyg‘unlashgan 10 ta variant.
             Rasmni to‘liq ekranda ko‘rish uchun kartani bosing!
           </p>
@@ -150,55 +150,55 @@ export default function DesignPreviewPage() {
               key={concept.id}
               onClick={() => setSelectedImage(concept.image)}
               className={cn(
-                'group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white/[0.04] p-5 transition-all duration-300 hover:-translate-y-1.5 cursor-pointer',
+                'group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white/[0.04] p-5 transition-all duration-300 cursor-pointer',
                 concept.recommended
-                  ? 'border-teal-400/60 shadow-[0_0_35px_rgba(45,212,191,0.2)]'
-                  : 'border-white/10 hover:border-teal-400/40 hover:shadow-[0_15px_35px_rgba(0,0,0,0.5)]',
+                  ? 'border-au-accent/40 shadow-[0_0_35px_rgba(45,212,191,0.2)]'
+                  : 'border-au-line hover:border-au-accent/40 hover:shadow-[0_15px_35px_rgba(0,0,0,0.5)]',
               )}
             >
               {/* Image Box */}
-              <div className="relative mb-4 h-56 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+              <div className="relative mb-4 h-56 w-full overflow-hidden rounded-xl border border-au-line bg-au-card">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={concept.image}
                   alt={concept.name}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="h-full w-full object-cover transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
                 {/* Badge */}
-                <span className="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-bold text-teal-300 border border-white/15 backdrop-blur-md">
+                <span className="absolute top-3 left-3 rounded-full bg-black/70 px-3 py-1 text-xs font-bold text-teal-300 border border-au-line">
                   {concept.badge}
                 </span>
 
                 {/* Zoom Icon overlay */}
-                <span className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-md">
+                <span className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 transition-opacity">
                   <ZoomIn className="size-4" />
                 </span>
               </div>
 
               {/* Body */}
               <div className="flex flex-col gap-2 flex-1">
-                <h2 className="text-lg font-bold text-white group-hover:text-teal-300 transition-colors">
+                <h2 className="text-lg font-bold text-au-ink group-hover:text-au-accent-text transition-colors">
                   {concept.id}. {concept.name}
                 </h2>
-                <p className="text-xs font-semibold text-teal-300/90">{concept.tagline}</p>
-                <p className="text-xs text-slate-400 leading-relaxed mt-1 flex-1">{concept.description}</p>
+                <p className="text-xs font-semibold text-au-accent-text">{concept.tagline}</p>
+                <p className="text-xs text-au-muted leading-relaxed mt-1 flex-1">{concept.description}</p>
               </div>
 
               {/* Footer */}
-              <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+              <div className="mt-4 flex items-center justify-between border-t border-au-line pt-3">
                 <div className="flex items-center gap-1.5">
                   {concept.colors.map((color, i) => (
                     <span
                       key={i}
-                      className="size-3.5 rounded-full border border-white/20 shadow-sm"
+                      className="size-3.5 rounded-full border border-au-line shadow-sm"
                       style={{ backgroundColor: color }}
                     />
                   ))}
                 </div>
 
-                <span className="flex items-center gap-1 text-xs font-bold text-teal-300 group-hover:translate-x-1 transition-transform">
+                <span className="flex items-center gap-1 text-xs font-bold text-au-accent-text group-hover:translate-x-1 transition-transform">
                   Kattalashtirish <ArrowRight className="size-3.5" />
                 </span>
               </div>
@@ -211,16 +211,16 @@ export default function DesignPreviewPage() {
       {selectedImage && (
         <div
           onClick={() => setSelectedImage(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-xl animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fade-in"
         >
           <div className="relative max-w-6xl w-full max-h-[92vh] flex flex-col items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={selectedImage}
               alt="Design Preview Fullscreen"
-              className="max-h-[85vh] w-auto rounded-2xl border border-white/20 shadow-2xl object-contain"
+              className="max-h-[85vh] w-auto rounded-2xl border border-au-line shadow-2xl object-contain"
             />
-            <p className="mt-3 text-xs text-slate-400 font-medium">Yopish uchun istalgan joyni bosing</p>
+            <p className="mt-3 text-xs text-au-muted font-medium">Yopish uchun istalgan joyni bosing</p>
           </div>
         </div>
       )}

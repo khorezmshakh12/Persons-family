@@ -8,12 +8,12 @@ import { tashkentYmd, tashkentMidnight, TASHKENT_TZ } from '@/lib/time';
 const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TASHKENT_TZ });
 
 function intensityClass(count: number, max: number) {
-  if (count === 0) return 'bg-white/5 text-white/40';
+  if (count === 0) return 'bg-au-card-2 text-au-muted';
   const ratio = count / max;
   if (ratio > 0.75) return 'bg-white text-black font-semibold';
   if (ratio > 0.5) return 'bg-white/70 text-black font-semibold';
-  if (ratio > 0.25) return 'bg-white/40 text-white';
-  return 'bg-white/20 text-white';
+  if (ratio > 0.25) return 'bg-white/40 text-au-ink';
+  return 'bg-au-card-2 text-au-ink';
 }
 
 export async function ActivityHeatmap({
@@ -72,8 +72,8 @@ export async function ActivityHeatmap({
   const content = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
-        <span className="text-xs font-medium text-white/60 capitalize">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">{t('title')}</h2>
+        <span className="text-xs font-medium text-au-muted capitalize">
           {format.dateTime(new Date(`${year}-${String(mm).padStart(2, '0')}-01T00:00:00Z`), {
             month: 'long',
             year: 'numeric',
@@ -83,7 +83,7 @@ export async function ActivityHeatmap({
       </div>
       <div className={cn('grid grid-cols-7 text-center', large ? 'gap-2' : 'gap-1.5')}>
         {weekdayLabels.map((label, i) => (
-          <span key={i} className={cn('font-medium text-white/50', large ? 'text-xs' : 'text-[11px]')}>
+          <span key={i} className={cn('font-medium text-au-muted', large ? 'text-xs' : 'text-[11px]')}>
             {label}
           </span>
         ))}
@@ -98,7 +98,7 @@ export async function ActivityHeatmap({
                 'animate-pop-in flex aspect-square items-center justify-center rounded-md',
                 large ? 'text-sm' : 'text-xs',
                 intensityClass(dayCounts[day], maxCount),
-                day === today && 'ring-2 ring-white/70',
+                day === today && 'ring-2 ring-au-faint',
               )}
             >
               {day}
@@ -106,7 +106,7 @@ export async function ActivityHeatmap({
           ),
         )}
       </div>
-      <p className="text-xs text-white/60">{t('hint')}</p>
+      <p className="text-xs text-au-muted">{t('hint')}</p>
     </>
   );
 

@@ -89,9 +89,9 @@ export function OrderRewardDialog({
         <ShoppingBag className="size-4" />
         {t('order')}
       </DialogTrigger>
-      <DialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">{t('orderConfirm')}</DialogTitle>
+          <DialogTitle className="text-au-ink">{t('orderConfirm')}</DialogTitle>
         </DialogHeader>
 
         <div
@@ -99,7 +99,7 @@ export function OrderRewardDialog({
         >
           {celebrating && <StarBurst />}
           {item.image_url ? (
-            <div className="relative h-44 w-full overflow-hidden rounded-xl border border-white/15 bg-white/5">
+            <div className="relative h-44 w-full overflow-hidden rounded-xl border border-au-line bg-au-card-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.image_url}
@@ -108,38 +108,38 @@ export function OrderRewardDialog({
               />
             </div>
           ) : (
-            <div className="flex h-28 w-full items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/30">
+            <div className="flex h-28 w-full items-center justify-center rounded-xl border border-au-line bg-au-card-2 text-au-faint">
               <PackageCheck className="size-12" />
             </div>
           )}
 
           <div className="flex flex-col gap-1">
-            <h3 className="font-heading text-lg font-bold text-white">{item.name}</h3>
+            <h3 className="font-heading text-lg font-bold text-au-ink">{item.name}</h3>
             {item.description && (
-              <p className="text-sm whitespace-pre-wrap text-white/70">{item.description}</p>
+              <p className="text-sm whitespace-pre-wrap text-au-muted">{item.description}</p>
             )}
           </div>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-white/15 bg-white/5 p-3.5 text-sm">
+          <div className="flex flex-col gap-2 rounded-xl border border-au-line bg-au-card-2 p-3.5 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-white/70">{t('yourBalance')}:</span>
-              <span className="font-semibold text-white">{t('starCount', { count: balance })}</span>
+              <span className="text-au-muted">{t('yourBalance')}:</span>
+              <span className="font-semibold text-au-ink">{t('starCount', { count: balance })}</span>
             </div>
-            <div className="flex items-center justify-between border-t border-white/10 pt-2">
-              <span className="text-white/70">{t('admin.starCost')}:</span>
-              <span className="flex items-center gap-1 font-bold text-amber-300">
-                <Star className="size-3.5 fill-amber-300 text-amber-300" />
+            <div className="flex items-center justify-between border-t border-au-line pt-2">
+              <span className="text-au-muted">{t('admin.starCost')}:</span>
+              <span className="flex items-center gap-1 font-bold text-amber-700">
+                <Star className="size-3.5 fill-amber-300 text-amber-700" />
                 {t('starCount', { count: item.star_cost })}
               </span>
             </div>
-            <div className="flex items-center justify-between border-t border-white/10 pt-2 font-medium">
-              <span className="text-white/80">{t('remainingBalance', { count: remaining })}</span>
+            <div className="flex items-center justify-between border-t border-au-line pt-2 font-medium">
+              <span className="text-au-ink">{t('remainingBalance', { count: remaining })}</span>
             </div>
           </div>
 
           {!isAffordable && (
-            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
-              <AlertCircle className="size-4 shrink-0 text-red-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-700">
+              <AlertCircle className="size-4 shrink-0 text-red-600" />
               <span>{t('errors.insufficientStars')}</span>
             </div>
           )}
@@ -152,9 +152,9 @@ export function OrderRewardDialog({
                cancel. Rendered at full opacity — no entrance animation. */
             <div
               role="status"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-700"
             >
-              <CheckCircle2 className="size-4 text-emerald-300" />
+              <CheckCircle2 className="size-4 text-emerald-700" />
               {t('orderPlaced')}
             </div>
           ) : (
@@ -163,7 +163,7 @@ export function OrderRewardDialog({
                 type="button"
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
-                className="border-white/20 text-white hover:bg-white/10"
+                className="border-au-line text-au-ink hover:bg-au-card-2"
               >
                 {tCommon('cancel')}
               </Button>

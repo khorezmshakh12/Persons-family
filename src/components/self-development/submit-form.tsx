@@ -21,13 +21,13 @@ export function SubmitForm() {
   }, [state, t]);
 
   if (state?.success) {
-    return <p className="text-sm text-white/70">{t('submittedThisMonth')}</p>;
+    return <p className="text-sm text-au-muted">{t('submittedThisMonth')}</p>;
   }
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="achievements" className="text-white/90">
+        <Label htmlFor="achievements" className="text-au-ink">
           {t('achievements')}
         </Label>
         <Textarea
@@ -36,11 +36,11 @@ export function SubmitForm() {
           rows={3}
           maxLength={4000}
           placeholder={t('achievementsPlaceholder')}
-          className="border-white/30 bg-white/10 text-white placeholder:text-white/40"
+          className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="valueAdded" className="text-white/90">
+        <Label htmlFor="valueAdded" className="text-au-ink">
           {t('valueAdded')}
         </Label>
         <Textarea
@@ -49,10 +49,10 @@ export function SubmitForm() {
           rows={3}
           maxLength={4000}
           placeholder={t('valueAddedPlaceholder')}
-          className="border-white/30 bg-white/10 text-white placeholder:text-white/40"
+          className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
         />
       </div>
-      {state?.error && <p className="text-sm text-red-300">{t(`errors.${state.error}`)}</p>}
+      {state?.error && <p className="text-sm text-red-700">{t(`errors.${state.error}`)}</p>}
       <Button type="submit" loading={isPending} className="w-fit">
         {isPending ? tCommon('loading') : t('submit')}
       </Button>

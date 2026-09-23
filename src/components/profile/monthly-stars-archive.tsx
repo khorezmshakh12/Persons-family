@@ -29,7 +29,7 @@ export function MonthlyStarsArchive({ months }: { months: MonthlyStarsArchiveEnt
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+      <h2 className="text-sm font-semibold tracking-tight text-au-ink">
         {t('title')}
       </h2>
       <div className="flex flex-col gap-2">
@@ -41,14 +41,14 @@ export function MonthlyStarsArchive({ months }: { months: MonthlyStarsArchiveEnt
                 type="button"
                 onClick={() => setOpenMonth(isOpen ? null : month.monthKey)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-au-card-2"
               >
                 <span className="font-medium capitalize">{month.label}</span>
-                <span className="flex shrink-0 items-center gap-2 text-sm text-white/70">
+                <span className="flex shrink-0 items-center gap-2 text-sm text-au-muted">
                   <span
                     className={cn(
                       'font-semibold',
-                      month.net < 0 ? 'text-red-300' : month.net > 0 ? 'text-emerald-300' : 'text-white/70',
+                      month.net < 0 ? 'text-red-700' : month.net > 0 ? 'text-emerald-700' : 'text-au-muted',
                     )}
                   >
                     {t('net', { net: signed(month.net) })}
@@ -58,8 +58,8 @@ export function MonthlyStarsArchive({ months }: { months: MonthlyStarsArchiveEnt
               </button>
 
               {isOpen && (
-                <div className="flex flex-col gap-3 border-t border-white/15 px-4 py-3">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/70">
+                <div className="flex flex-col gap-3 border-t border-au-line px-4 py-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-au-muted">
                     <span>{t('earned', { count: month.earned })}</span>
                     <span>{t('spent', { count: month.spent })}</span>
                   </div>
@@ -68,13 +68,13 @@ export function MonthlyStarsArchive({ months }: { months: MonthlyStarsArchiveEnt
                     {month.transactions.map((tx) => (
                       <li
                         key={tx.id}
-                        className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-white/5 px-3 py-2"
+                        className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-au-card-2 px-3 py-2"
                       >
                         <div className="flex flex-col gap-1">
-                          <span className="text-sm text-white/90">
+                          <span className="text-sm text-au-ink">
                             {tx.reason || tStars(`source.${tx.source_type}`)}
                           </span>
-                          <span className="text-xs text-white/60">
+                          <span className="text-xs text-au-muted">
                             {format.dateTime(new Date(tx.created_at), { dateStyle: 'medium' })}
                             {' · '}
                             {tStars(`source.${tx.source_type}`)}
@@ -83,7 +83,7 @@ export function MonthlyStarsArchive({ months }: { months: MonthlyStarsArchiveEnt
                         <span
                           className={cn(
                             'shrink-0 text-sm font-semibold',
-                            tx.delta < 0 ? 'text-red-300' : 'text-emerald-300',
+                            tx.delta < 0 ? 'text-red-700' : 'text-emerald-700',
                           )}
                         >
                           {signed(tx.delta)}

@@ -153,7 +153,7 @@ export function TaskStageActions({
         variant="outline"
         disabled={busy}
         onClick={handleSubmitForReview}
-        className="h-8 w-full gap-1.5 border-emerald-400/40 bg-emerald-500/15 text-xs text-emerald-100 hover:bg-emerald-500/25"
+        className="h-8 w-full gap-1.5 border-emerald-400/40 bg-emerald-500/15 text-xs text-emerald-700 hover:bg-emerald-500/25"
       >
         {pending ? <Loader2 className="size-3.5 animate-spin" /> : <SendHorizontal className="size-3.5" />}
         {t('submitForReview')}
@@ -184,7 +184,7 @@ export function TaskStageActions({
                 size="sm"
                 variant="outline"
                 disabled={busy || rejectPending}
-                className="h-8 flex-1 gap-1.5 border-red-400/40 bg-red-500/15 text-xs text-red-100 hover:bg-red-500/25"
+                className="h-8 flex-1 gap-1.5 border-red-400/40 bg-red-500/15 text-xs text-red-700 hover:bg-red-500/25"
               />
             }
           >
@@ -197,7 +197,7 @@ export function TaskStageActions({
             </DialogHeader>
             <form action={rejectFormAction} className="flex flex-col gap-3">
               <input type="hidden" name="id" value={taskId} />
-              <p className="text-sm text-white/70">{t('rejectDescription')}</p>
+              <p className="text-sm text-au-muted">{t('rejectDescription')}</p>
               <Textarea
                 name="reason"
                 value={reason}
@@ -208,7 +208,7 @@ export function TaskStageActions({
                 maxLength={TASK_REJECTION_REASON_MAX_LENGTH}
                 placeholder={t('rejectReasonPlaceholder')}
               />
-              <p className="text-xs text-white/50">
+              <p className="text-xs text-au-muted">
                 {t('rejectReasonHint', { min: TASK_REJECTION_REASON_MIN_LENGTH })}
               </p>
               <DialogFooter>
@@ -246,14 +246,14 @@ export function TaskStageActions({
           {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
           {uploading ? t('uploadingProof') : t('uploadProof')}
         </Button>
-        <p className="text-[11px] text-white/55">{t('uploadProofHint')}</p>
+        <p className="text-[11px] text-au-muted">{t('uploadProofHint')}</p>
       </div>
     );
   }
 
   if (isAssignee && status === 'submitted') {
     return (
-      <p className="flex w-full items-center gap-1.5 text-[11px] text-amber-200/90">
+      <p className="flex w-full items-center gap-1.5 text-[11px] text-amber-700">
         <CheckCheck className="size-3.5 shrink-0" />
         {t('waitingForCeo')}
       </p>

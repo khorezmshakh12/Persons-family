@@ -27,7 +27,7 @@ export function GroupFilters({ teachers }: { teachers: TeacherOption[] }) {
   return (
     <div className="flex flex-wrap gap-3">
       <Select value={days} onValueChange={(v) => v && updateParam('days', v)}>
-        <SelectTrigger className="w-44 border-white/30 bg-white/10 text-white hover:bg-white/20">
+        <SelectTrigger className="w-44 border-au-line bg-au-card text-au-ink hover:bg-au-card-2">
           <SelectValue>
             {(value: string) => (value === 'all' ? t('filters.allDays') : t(`scheduleType.${value}`))}
           </SelectValue>
@@ -41,7 +41,7 @@ export function GroupFilters({ teachers }: { teachers: TeacherOption[] }) {
 
       {teachers.length > 0 && (
         <Select value={teacherId} onValueChange={(v) => v && updateParam('teacher', v)}>
-          <SelectTrigger className="w-52 border-white/30 bg-white/10 text-white hover:bg-white/20">
+          <SelectTrigger className="w-52 border-au-line bg-au-card text-au-ink hover:bg-au-card-2">
             <SelectValue>
               {(value: string) => {
                 if (value === 'all') return t('filters.allTeachers');

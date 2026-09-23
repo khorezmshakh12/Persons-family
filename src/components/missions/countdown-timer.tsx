@@ -35,7 +35,7 @@ function FlipDigit({ digit }: { digit: string }) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '70%', opacity: 0 }}
           transition={{ duration: 0.22, ease: 'easeInOut' }}
-          className="absolute inset-0 flex items-center justify-center font-heading text-sm font-bold tabular-nums text-white"
+          className="absolute inset-0 flex items-center justify-center font-heading text-sm font-bold tabular-nums text-au-ink"
         >
           {digit}
         </motion.span>
@@ -48,12 +48,12 @@ function FlipUnit({ value, label }: { value: number; label: string }) {
   const digits = String(value).padStart(2, '0').split('');
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="flex gap-0.5 rounded-md border border-white/20 bg-black/40 px-1.5 py-1 shadow-inner">
+      <div className="flex gap-0.5 rounded-md border border-au-line bg-black/40 px-1.5 py-1 shadow-inner">
         {digits.map((d, i) => (
           <FlipDigit key={i} digit={d} />
         ))}
       </div>
-      <span className="text-[9px] font-medium tracking-wide text-white/50 uppercase">{label}</span>
+      <span className="text-[9px] font-medium tracking-wide text-au-muted uppercase">{label}</span>
     </div>
   );
 }
@@ -72,7 +72,7 @@ export function CountdownTimer({ deadlineDate }: { deadlineDate: string }) {
   }, [deadlineDate]);
 
   if (remainingMs <= 0) {
-    return <span className="text-xs font-semibold text-red-400">{t('overdue')}</span>;
+    return <span className="text-xs font-semibold text-red-600">{t('overdue')}</span>;
   }
 
   const { days, hours, minutes, seconds } = splitUnits(remainingMs);
@@ -80,11 +80,11 @@ export function CountdownTimer({ deadlineDate }: { deadlineDate: string }) {
   return (
     <div className={cn('flex items-start gap-1.5')}>
       <FlipUnit value={days} label={t('countdown.days')} />
-      <span className="mt-1 text-xs text-white/30">:</span>
+      <span className="mt-1 text-xs text-au-faint">:</span>
       <FlipUnit value={hours} label={t('countdown.hours')} />
-      <span className="mt-1 text-xs text-white/30">:</span>
+      <span className="mt-1 text-xs text-au-faint">:</span>
       <FlipUnit value={minutes} label={t('countdown.minutes')} />
-      <span className="mt-1 text-xs text-white/30">:</span>
+      <span className="mt-1 text-xs text-au-faint">:</span>
       <FlipUnit value={seconds} label={t('countdown.seconds')} />
     </div>
   );

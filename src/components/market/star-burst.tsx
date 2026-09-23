@@ -44,7 +44,7 @@ export function StarBurst({ className }: { className?: string }) {
           viewBox="0 0 24 24"
           width={p.size}
           height={p.size}
-          className="star-particle absolute text-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.75)]"
+          className="star-particle absolute text-amber-700 drop-shadow-[0_0_6px_rgba(251,191,36,0.75)]"
           style={
             {
               '--star-dx': p.dx,

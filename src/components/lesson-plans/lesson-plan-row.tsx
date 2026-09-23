@@ -17,7 +17,7 @@ import type { CourseLessonRow } from './course-lessons-table';
 function PlanFieldBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <h4 className="text-[11px] font-semibold tracking-wider text-white/55 uppercase">{label}</h4>
+      <h4 className="text-[11px] font-semibold tracking-wider text-au-muted uppercase">{label}</h4>
       {children}
     </div>
   );
@@ -59,16 +59,16 @@ export function LessonPlanRow({
           hard at 10 (450ms) rather than scaling with row count. */}
       <tr
         style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
-        className="enter-rise-sm border-b border-white/10 transition-colors last:border-b-0 hover:bg-white/[0.06]"
+        className="enter-rise-sm border-b border-au-line transition-colors last:border-b-0 hover:bg-white/[0.06]"
       >
-        <td className="px-4 py-3.5 align-top font-semibold text-white/85">
-          <span className="inline-flex size-6 items-center justify-center rounded-full bg-white/10 text-xs">
+        <td className="px-4 py-3.5 align-top font-semibold text-au-ink">
+          <span className="inline-flex size-6 items-center justify-center rounded-full bg-au-card text-xs">
             {lesson.lesson_number}
           </span>
         </td>
         <td className="px-4 py-3.5 align-top">
           {locked ? (
-            <span className="text-xs whitespace-nowrap text-white/75">
+            <span className="text-xs whitespace-nowrap text-au-muted">
               {lesson.lesson_date ?? t('courseLessons.notSet')}
             </span>
           ) : (
@@ -77,20 +77,20 @@ export function LessonPlanRow({
         </td>
         <td className="px-4 py-3.5 align-top">
           {lesson.movedToDate ? (
-            <p className="w-56 text-xs text-white/50 italic">
+            <p className="w-56 text-xs text-au-muted italic">
               {t('courseLessons.movedToNote', { date: lesson.movedToDate })}
             </p>
           ) : (
             <div className="flex items-start gap-1">
               <div className="flex flex-col gap-1">
                 {lesson.movedFromDate && (
-                  <p className="text-[10px] text-white/45 italic">
+                  <p className="text-[10px] text-au-muted italic">
                     {t('courseLessons.movedFromNote', { date: lesson.movedFromDate })}
                     {lesson.moveReason ? ` — ${lesson.moveReason}` : ''}
                   </p>
                 )}
                 {locked ? (
-                  <p className={cn('w-56 text-xs', lesson.topic ? 'font-medium text-white/85' : 'text-white/40 italic')}>
+                  <p className={cn('w-56 text-xs', lesson.topic ? 'font-medium text-au-ink' : 'text-au-muted italic')}>
                     {lesson.topic || t('courseLessons.noTopic')}
                   </p>
                 ) : (
@@ -106,7 +106,7 @@ export function LessonPlanRow({
             type="button"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
-            className="tap-scale flex items-center gap-1.5 rounded-full border border-white/40 bg-white/15 px-3 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-white/25"
+            className="tap-scale flex items-center gap-1.5 rounded-full border border-au-faint bg-au-card-2 px-3 py-1.5 text-[11px] font-medium text-au-ink transition-colors hover:bg-au-card-2"
           >
             {t('courseLessons.planButton')}
             <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} />
@@ -137,7 +137,7 @@ export function LessonPlanRow({
         </td>
       </tr>
       {expanded && (
-        <tr className="border-b border-white/10 bg-black/20 last:border-b-0">
+        <tr className="border-b border-au-line bg-au-card-2 last:border-b-0">
           <td colSpan={7} className="px-5 py-5">
             <div className="flex flex-col gap-5">
               <div className="grid grid-cols-1 gap-x-7 gap-y-5 sm:grid-cols-2">
@@ -188,7 +188,7 @@ export function LessonPlanRow({
                 />
               </PlanFieldBlock>
               <div className="flex flex-col gap-2">
-                <h4 className="text-[11px] font-semibold tracking-wider text-white/55 uppercase">
+                <h4 className="text-[11px] font-semibold tracking-wider text-au-muted uppercase">
                   {t('courseLessons.procedure')}
                 </h4>
                 <LessonProcedureTable lessonId={lesson.id} steps={lesson.procedure} canEdit={canEditContent} />

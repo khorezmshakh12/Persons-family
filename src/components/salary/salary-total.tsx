@@ -24,13 +24,13 @@ export async function SalaryTotal({ staffId, isCeo }: { staffId: string; isCeo: 
   const total = netEarnings(entries);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/20 bg-white/10 p-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-au-line bg-au-card p-4">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-semibold text-white/70">{t('total')}</span>
+        <span className="text-sm font-semibold text-au-muted">{t('total')}</span>
         <span
           className={cn(
             'text-3xl font-bold tabular-nums',
-            total > 0 ? 'text-emerald-400' : total < 0 ? 'text-red-400' : 'text-white/70',
+            total > 0 ? 'text-emerald-600' : total < 0 ? 'text-red-600' : 'text-au-muted',
           )}
         >
           {total >= 0 ? '+' : ''}

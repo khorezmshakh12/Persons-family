@@ -26,28 +26,28 @@ export async function SalaryMissionsList({ staffId }: { staffId: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-white/80">{t('missions')}</h3>
-        <Link href={`/missions/${staffId}`} className="text-xs text-white/60 hover:text-white hover:underline">
+        <h3 className="text-sm font-medium text-au-ink">{t('missions')}</h3>
+        <Link href={`/missions/${staffId}`} className="text-xs text-au-muted hover:text-au-ink hover:underline">
           {tMissions('title')}
         </Link>
       </div>
       {missions.length === 0 ? (
-        <p className="text-sm text-white/60">{tMissions('noMissions')}</p>
+        <p className="text-sm text-au-muted">{tMissions('noMissions')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {missions.map((m) => (
             <div
               key={m.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 px-3 py-2 text-sm"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-white">{m.title}</span>
+                <span className="truncate text-au-ink">{m.title}</span>
                 <Badge variant="tint" tint={STATUS_TINT[m.status as keyof typeof STATUS_TINT]} className="text-[10px]">
                   {tMissions(`statusLabels.${m.status}`)}
                 </Badge>
               </div>
               {m.bonus_amount != null && (
-                <span className="shrink-0 font-semibold tabular-nums text-emerald-400">{formatUZS(m.bonus_amount)}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-emerald-600">{formatUZS(m.bonus_amount)}</span>
               )}
             </div>
           ))}

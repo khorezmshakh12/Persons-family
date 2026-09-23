@@ -33,17 +33,17 @@ export function DutyRow({
   }
 
   return (
-    <div className="flex items-start justify-between gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+    <div className="flex items-start justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 p-4">
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-white">{title}</span>
+          <span className="text-sm font-medium text-au-ink">{title}</span>
           {contractTitle && (
-            <Badge variant="tint" tint="slate" className="text-[11px] font-normal text-white/60">
+            <Badge variant="tint" tint="slate" className="text-[11px] font-normal text-au-muted">
               {contractTitle}
             </Badge>
           )}
         </div>
-        {description && <p className="text-sm whitespace-pre-wrap text-white/70">{description}</p>}
+        {description && <p className="text-sm whitespace-pre-wrap text-au-muted">{description}</p>}
       </div>
       {canManage && (
         <button
@@ -51,7 +51,7 @@ export function DutyRow({
           onClick={handleDelete}
           disabled={isPending}
           aria-label={t('delete')}
-          className="tap-scale shrink-0 text-white/50 hover:text-red-400 disabled:opacity-50"
+          className="tap-scale shrink-0 text-au-muted hover:text-red-600 disabled:opacity-50"
         >
           <Trash2 className="size-4" />
         </button>

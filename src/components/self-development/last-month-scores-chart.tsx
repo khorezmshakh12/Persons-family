@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils';
 export type StaffScorePoint = { name: string; score: number };
 
 function scoreColor(score: number) {
-  if (score >= 80) return '#34d399'; // emerald-400
-  if (score >= 60) return '#2dd4bf'; // teal-400
+  if (score >= 80) return 'var(--au-ok)'; // emerald-400
+  if (score >= 60) return 'var(--au-accent)'; // teal-400
   if (score >= 40) return '#fbbf24'; // amber-400
   return '#f87171'; // red-400
 }
@@ -18,7 +18,7 @@ function scoreColor(score: number) {
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/20 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-xl backdrop-blur-md">
+    <div className="rounded-lg border border-au-line bg-au-card px-3 py-2 text-xs text-au-ink shadow-au-card">
       <div className="font-semibold">{label}</div>
       <div>{payload[0].value}</div>
     </div>
@@ -48,9 +48,9 @@ export function LastMonthScoresChart({ points }: { points: StaffScorePoint[] }) 
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
-      <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{t('title')}</h2>
+      <h2 className="font-heading text-lg font-semibold text-au-ink">{t('title')}</h2>
       {points.length === 0 ? (
-        <p className="text-sm text-white/70">{t('noData')}</p>
+        <p className="text-sm text-au-muted">{t('noData')}</p>
       ) : (
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -63,17 +63,17 @@ export function LastMonthScoresChart({ points }: { points: StaffScorePoint[] }) 
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-              <XAxis dataKey="name" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--au-line)" vertical={false} />
+              <XAxis dataKey="name" stroke="var(--au-muted)" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis
                 domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 20) * 20)]}
-                stroke="rgba(255,255,255,0.75)"
+                stroke="var(--au-muted)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
                 width={40}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.06)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--au-line)' }} />
               <Bar
                 dataKey="score"
                 radius={[8, 8, 0, 0]}

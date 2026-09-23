@@ -32,8 +32,8 @@ export function AnnouncementSection({ currentMessage }: { currentMessage: string
   return (
     <div className="flex flex-col gap-3">
       {currentMessage && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-white/30 bg-white/10 px-4 py-3">
-          <p className="text-sm text-white">{currentMessage}</p>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-au-line bg-au-card px-4 py-3">
+          <p className="text-sm text-au-ink">{currentMessage}</p>
           <Button type="button" size="sm" variant="outline" onClick={handleClear}>
             {t('clear')}
           </Button>

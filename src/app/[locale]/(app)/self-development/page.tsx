@@ -126,11 +126,11 @@ export default async function SelfDevelopmentPage({
 
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6 sm:p-8">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+        <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
             {t('title')}
           </h1>
-          <p className="text-white/70">{t('subtitle')}</p>
+          <p className="text-au-muted">{t('subtitle')}</p>
         </div>
 
         <LastMonthScoresChart points={lastMonthPoints} />
@@ -138,7 +138,7 @@ export default async function SelfDevelopmentPage({
         {teacherList.length > 0 && (
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+              <h2 className="font-heading text-lg font-semibold text-au-ink">
                 {t('teacherProgress.title')}
               </h2>
               <TeacherPicker teachers={teacherList} selectedId={selectedTeacherId!} />
@@ -151,11 +151,11 @@ export default async function SelfDevelopmentPage({
         )}
 
         <div className="flex flex-col gap-4">
-          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <h2 className="font-heading text-lg font-semibold text-au-ink">
             {t('thisMonth.title')}
           </h2>
           {thisMonthSubmissions.length === 0 ? (
-            <p className="text-sm text-white/70">{t('thisMonth.noSubmissions')}</p>
+            <p className="text-sm text-au-muted">{t('thisMonth.noSubmissions')}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {thisMonthSubmissions.map((s, index) => (
@@ -170,12 +170,12 @@ export default async function SelfDevelopmentPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-white/10 pt-8">
-          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <div className="flex flex-col gap-4 border-t border-au-line pt-8">
+          <h2 className="font-heading text-lg font-semibold text-au-ink">
             {t('history.title')}
           </h2>
           {historySubmissions.length === 0 ? (
-            <p className="text-sm text-white/70">{t('history.noSubmissions')}</p>
+            <p className="text-sm text-au-muted">{t('history.noSubmissions')}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {historySubmissions.map((s, index) => (
@@ -190,9 +190,9 @@ export default async function SelfDevelopmentPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-white/10 pt-8">
+        <div className="flex flex-col gap-4 border-t border-au-line pt-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <h2 className="font-heading text-lg font-semibold text-au-ink">
               {tp('title')}
             </h2>
             <ExportButtons
@@ -215,7 +215,7 @@ export default async function SelfDevelopmentPage({
               <div key={person.id} className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-au-ink">
                       {person.first_name} {person.last_name}
                     </span>
                     {perf && (
@@ -227,7 +227,7 @@ export default async function SelfDevelopmentPage({
                   <span
                     className={cn(
                       'text-lg font-bold tabular-nums',
-                      net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70',
+                      net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted',
                     )}
                   >
                     {net >= 0 ? '+' : ''}
@@ -259,21 +259,21 @@ export default async function SelfDevelopmentPage({
   const net = totalBonus - totalPenalty;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6 sm:p-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+      <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>
-        <p className="text-white/70">{t('subtitle')}</p>
+        <p className="text-au-muted">{t('subtitle')}</p>
       </div>
 
       <SelfDevelopmentLineChart
         points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
       />
 
-      <div className="rounded-2xl border border-white/20 bg-white/10 p-6 text-white shadow-xl backdrop-blur-md">
-        <h2 className="font-heading mb-4 text-lg font-semibold text-white">{t('submitTitle')}</h2>
-        {hasSubmittedThisMonth ? <p className="text-sm text-white/70">{t('submittedThisMonth')}</p> : <SubmitForm />}
+      <div className="rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
+        <h2 className="font-heading mb-4 text-lg font-semibold text-au-ink">{t('submitTitle')}</h2>
+        {hasSubmittedThisMonth ? <p className="text-sm text-au-muted">{t('submittedThisMonth')}</p> : <SubmitForm />}
       </div>
 
       {performance && (
@@ -289,19 +289,19 @@ export default async function SelfDevelopmentPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <span className="text-sm text-white/60">{tp('totalBonus')}</span>
-          <span className="text-2xl font-bold tabular-nums text-emerald-400">+{formatUZS(totalBonus)}</span>
+          <span className="text-sm text-au-muted">{tp('totalBonus')}</span>
+          <span className="text-2xl font-bold tabular-nums text-emerald-600">+{formatUZS(totalBonus)}</span>
         </div>
         <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <span className="text-sm text-white/60">{tp('totalPenalty')}</span>
-          <span className="text-2xl font-bold tabular-nums text-red-400">-{formatUZS(totalPenalty)}</span>
+          <span className="text-sm text-au-muted">{tp('totalPenalty')}</span>
+          <span className="text-2xl font-bold tabular-nums text-red-600">-{formatUZS(totalPenalty)}</span>
         </div>
         <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <span className="text-sm text-white/60">{tp('netTotal')}</span>
+          <span className="text-sm text-au-muted">{tp('netTotal')}</span>
           <span
             className={cn(
               'text-2xl font-bold tabular-nums',
-              net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70',
+              net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted',
             )}
           >
             {net >= 0 ? '+' : ''}
@@ -311,16 +311,16 @@ export default async function SelfDevelopmentPage({
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">{tp('history')}</h2>
+        <h2 className="font-heading text-lg font-semibold text-au-ink">{tp('history')}</h2>
         <PerformanceEntriesList entries={entries} isAdmin={false} />
       </div>
 
       <div className="flex flex-col gap-4">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('yourSubmissions')}
         </h2>
         {submissions.length === 0 ? (
-          <p className="text-sm text-white/70">{t('noSubmissions')}</p>
+          <p className="text-sm text-au-muted">{t('noSubmissions')}</p>
         ) : (
           <div className="flex flex-col gap-4">
             {submissions.map((s, index) => (

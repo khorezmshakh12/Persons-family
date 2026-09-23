@@ -63,7 +63,7 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
             variant="outline"
             size="icon-sm"
             aria-label={t('editTask')}
-            className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+            className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
           />
         }
       >
@@ -136,7 +136,7 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
               defaultValue={task.star_reward ?? 0}
               placeholder="0"
             />
-            <p className="text-xs text-white/60">{t('starRewardHint')}</p>
+            <p className="text-xs text-au-muted">{t('starRewardHint')}</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`starPenalty-${task.id}`}>{t('starPenalty')}</Label>
@@ -149,7 +149,7 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
               defaultValue={task.star_penalty ?? 0}
               placeholder="0"
             />
-            <p className="text-xs text-white/60">{t('starPenaltyHint')}</p>
+            <p className="text-xs text-au-muted">{t('starPenaltyHint')}</p>
           </div>
           {state?.error &&<p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>}
           <DialogFooter>

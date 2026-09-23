@@ -47,7 +47,7 @@ export function LessonProcedureTable({
   }
 
   if (!canEdit && steps.length === 0) {
-    return <p className="text-[13.5px] text-white/40 italic">{t('courseLessons.noProcedure')}</p>;
+    return <p className="text-[13.5px] text-au-muted italic">{t('courseLessons.noProcedure')}</p>;
   }
 
   return (
@@ -56,23 +56,23 @@ export function LessonProcedureTable({
         <table className="w-full border-collapse text-[12.5px]">
           <thead>
             <tr>
-              <th className="w-14 border-b border-white/10 bg-white/[0.03] px-2.5 py-2 text-left text-[11px] font-semibold text-white/55">
+              <th className="w-14 border-b border-au-line bg-white/[0.03] px-2.5 py-2 text-left text-[11px] font-semibold text-au-muted">
                 {t('courseLessons.procedureTime')}
               </th>
-              <th className="border-b border-white/10 bg-white/[0.03] px-2.5 py-2 text-left text-[11px] font-semibold text-white/55">
+              <th className="border-b border-au-line bg-white/[0.03] px-2.5 py-2 text-left text-[11px] font-semibold text-au-muted">
                 {t('courseLessons.procedureStage')}
               </th>
-              <th className="w-28 border-b border-white/10 bg-white/[0.03] px-2.5 py-2 text-left text-[11px] font-semibold text-white/55">
+              <th className="w-28 border-b border-au-line bg-white/[0.03] px-2.5 py-2 text-left text-[11px] font-semibold text-au-muted">
                 {t('courseLessons.procedureInteraction')}
               </th>
-              {canEdit && <th className="w-8 border-b border-white/10 bg-white/[0.03]" />}
+              {canEdit && <th className="w-8 border-b border-au-line bg-white/[0.03]" />}
             </tr>
           </thead>
           <tbody>
             {steps.map((step, index) => (
               <tr key={index} className="group">
                 {(['time', 'stage', 'interaction'] as const).map((key) => (
-                  <td key={key} className="border-b border-white/10 px-2.5 py-2 align-top">
+                  <td key={key} className="border-b border-au-line px-2.5 py-2 align-top">
                     {canEdit ? (
                       <input
                         value={step[key]}
@@ -81,22 +81,22 @@ export function LessonProcedureTable({
                         disabled={isPending}
                         maxLength={key === 'stage' ? 200 : 50}
                         className={cn(
-                          'w-full rounded-md border border-dashed border-white/20 bg-transparent px-1.5 py-1 text-white outline-none transition-colors focus-visible:border-solid focus-visible:border-white/70 disabled:opacity-70',
+                          'w-full rounded-md border border-dashed border-au-line bg-transparent px-1.5 py-1 text-au-ink outline-none transition-colors focus-visible:border-solid focus-visible:border-au-accent disabled:opacity-70',
                         )}
                       />
                     ) : (
-                      <span className="text-white/80">{step[key]}</span>
+                      <span className="text-au-ink">{step[key]}</span>
                     )}
                   </td>
                 ))}
                 {canEdit && (
-                  <td className="border-b border-white/10 px-2 py-2 align-top">
+                  <td className="border-b border-au-line px-2 py-2 align-top">
                     <button
                       type="button"
                       onClick={() => removeStep(index)}
                       disabled={isPending}
                       aria-label={t('courseLessons.removeStep')}
-                      className="tap-scale text-white/30 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-300"
+                      className="tap-scale text-au-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-700"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -112,7 +112,7 @@ export function LessonProcedureTable({
           type="button"
           onClick={addStep}
           disabled={isPending}
-          className="tap-scale flex w-fit items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+          className="tap-scale flex w-fit items-center gap-1.5 rounded-full border border-au-line bg-au-card-2 px-3 py-1.5 text-[11px] font-medium text-au-muted transition-colors hover:bg-au-card-2 hover:text-au-ink"
         >
           <Plus className="size-3.5" />
           {t('courseLessons.addStep')}

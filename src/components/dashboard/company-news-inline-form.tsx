@@ -29,7 +29,7 @@ export function CompanyNewsInlineForm() {
   }, [state, t]);
 
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-2 border-b border-white/10 pb-4">
+    <form ref={formRef} action={formAction} className="flex flex-col gap-2 border-b border-au-line pb-4">
       <Input name="title" placeholder={t('titleLabel')} maxLength={200} required />
       <Textarea name="content" placeholder={t('contentLabel')} maxLength={5000} rows={2} required />
       <Button type="submit" disabled={isPending} size="sm" className="w-fit self-end">

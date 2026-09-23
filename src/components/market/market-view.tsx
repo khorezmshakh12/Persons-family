@@ -26,7 +26,7 @@ import {
 import type { MarketItemRow, MarketOrderRow, MarketAdminOrderRow, MarketAdminView } from '@/lib/actions/market';
 import { setMarketItemActiveAction, adjustMarketItemStockAction } from '@/lib/actions/market';
 import { isLowStock } from '@/lib/market';
-import { GLASS_CARD } from '@/lib/glass';
+import { GLASS_CARD, SURFACE_HERO } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,11 +75,11 @@ function ItemActiveToggle({ item }: { item: MarketItemRow }) {
       className={cn(
         'h-8 gap-1.5 text-xs font-medium',
         item.is_active
-          ? 'text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10'
-          : 'text-white/50 hover:text-white/80 hover:bg-white/5',
+          ? 'text-emerald-700 hover:text-emerald-700 hover:bg-emerald-500/10'
+          : 'text-au-muted hover:text-au-ink hover:bg-au-card-2',
       )}
     >
-      {item.is_active ? <ToggleRight className="size-4 text-emerald-400" /> : <ToggleLeft className="size-4 text-white/40" />}
+      {item.is_active ? <ToggleRight className="size-4 text-emerald-600" /> : <ToggleLeft className="size-4 text-au-muted" />}
       {item.is_active ? t('admin.active') : t('admin.inactive')}
     </Button>
   );
@@ -109,17 +109,17 @@ function StockAdjust({ item }: { item: MarketItemRow }) {
   }
 
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-white/15 bg-white/5">
+    <div className="flex items-center gap-0.5 rounded-md border border-au-line bg-au-card-2">
       <button
         type="button"
         disabled={isPending || item.stock === 0}
         onClick={() => adjust(-1)}
         aria-label={t('admin.removeOne')}
-        className="tap-scale flex size-7 items-center justify-center rounded-l-md text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+        className="tap-scale flex size-7 items-center justify-center rounded-l-md text-au-muted transition-colors hover:bg-au-card-2 hover:text-au-ink disabled:opacity-30"
       >
         <Minus className="size-3.5" />
       </button>
-      <span className="min-w-7 px-1 text-center text-xs font-semibold text-white tabular-nums">
+      <span className="min-w-7 px-1 text-center text-xs font-semibold text-au-ink tabular-nums">
         {item.stock}
       </span>
       <button
@@ -127,7 +127,7 @@ function StockAdjust({ item }: { item: MarketItemRow }) {
         disabled={isPending}
         onClick={() => adjust(1)}
         aria-label={t('admin.addOne')}
-        className="tap-scale flex size-7 items-center justify-center rounded-r-md text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
+        className="tap-scale flex size-7 items-center justify-center rounded-r-md text-au-muted transition-colors hover:bg-au-card-2 hover:text-au-ink disabled:opacity-30"
       >
         <Plus className="size-3.5" />
       </button>
@@ -159,17 +159,17 @@ function PendingOrderRow({
       )}
     >
       <div className="flex flex-col">
-        <span className="font-bold text-white">
+        <span className="font-bold text-au-ink">
           {order.first_name} {order.last_name}
         </span>
-        <span className="text-sm text-white/80">
+        <span className="text-sm text-au-ink">
           {t('order')}: {order.item_name}
         </span>
-        <span className="text-xs text-white/50">{formattedDate}</span>
+        <span className="text-xs text-au-muted">{formattedDate}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+        <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
           <Sparkles className="size-3.5" />
           {t('starCount', { count: order.star_cost })}
         </span>
@@ -187,12 +187,12 @@ function OrderStatusBadge({ status }: { status: MarketOrderRow['status'] }) {
     <span
       className={cn(
         'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
-        status === 'pending' && 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-        status === 'approved' && 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-        status === 'rejected' && 'bg-red-500/20 text-red-300 border-red-500/40',
+        status === 'pending' && 'bg-amber-500/20 text-amber-700 border-amber-500/40',
+        status === 'approved' && 'bg-emerald-500/20 text-emerald-700 border-emerald-500/40',
+        status === 'rejected' && 'bg-red-500/20 text-red-700 border-red-500/40',
         // Legacy rows only — the CEO UI hasn't written this status since the
         // approve/reject split.
-        status === 'fulfilled' && 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+        status === 'fulfilled' && 'bg-blue-500/20 text-blue-700 border-blue-500/40',
       )}
     >
       {status === 'pending' && <Clock className="size-3" />}
@@ -233,25 +233,25 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
   return (
     <div className="flex flex-col gap-6">
       {/* Header / Balance Card */}
-      <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+      <div className={cn(SURFACE_HERO, 'flex flex-col gap-4 px-6 py-6 sm:px-[30px] sm:py-7')}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="font-heading text-2xl font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+            <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
               {t('title')}
             </h1>
-            <p className="text-sm text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
+            <p className="text-sm text-au-muted">
               {t('subtitle')}
             </p>
           </div>
 
           {/* Balance Box */}
-          <div className="flex items-center gap-3.5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-5 py-3 shadow-sm">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-400/20 text-amber-300">
-              <Sparkles className="size-6" />
+          <div className="flex items-center gap-3.5 rounded-au-ctl border border-au-line bg-white/70 px-5 py-3">
+            <div className="flex size-10 items-center justify-center rounded-au-ctl bg-au-accent-soft text-au-accent-text">
+              <Sparkles className="size-6" strokeWidth={1.75} />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-amber-200/80">{t('yourBalance')}</span>
-              <span className="font-heading text-2xl font-bold text-amber-300">
+              <span className="text-xs font-medium text-au-muted">{t('yourBalance')}</span>
+              <span className="text-2xl font-bold text-au-accent-text tabular-nums">
                 {t('starCount', { count: balance })}
               </span>
             </div>
@@ -259,20 +259,20 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+        <div className="flex flex-wrap items-center gap-2 border-t border-au-ink/10 pt-4">
           <button
             type="button"
             onClick={() => setActiveTab('shop')}
             className={cn(
               'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
               activeTab === 'shop'
-                ? 'bg-white/20 text-white shadow-sm border border-white/20'
-                : 'text-white/70 hover:text-white hover:bg-white/5',
+                ? 'bg-au-card-2 text-au-ink shadow-sm border border-au-line'
+                : 'text-au-muted hover:text-au-ink hover:bg-au-card-2',
             )}
           >
             <ShoppingBag className="size-4" />
             {t('tabs.shop')}
-            <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">
+            <span className="rounded-full bg-au-card-2 px-2 py-0.5 text-xs">
               {items.length}
             </span>
           </button>
@@ -283,14 +283,14 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
             className={cn(
               'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
               activeTab === 'myOrders'
-                ? 'bg-white/20 text-white shadow-sm border border-white/20'
-                : 'text-white/70 hover:text-white hover:bg-white/5',
+                ? 'bg-au-card-2 text-au-ink shadow-sm border border-au-line'
+                : 'text-au-muted hover:text-au-ink hover:bg-au-card-2',
             )}
           >
             <Package className="size-4" />
             {t('tabs.myOrders')}
             {orders.length > 0 && (
-              <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">
+              <span className="rounded-full bg-au-card-2 px-2 py-0.5 text-xs">
                 {orders.length}
               </span>
             )}
@@ -303,8 +303,8 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
               className={cn(
                 'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
                 activeTab === 'admin'
-                  ? 'bg-amber-500/20 text-amber-200 shadow-sm border border-amber-500/30'
-                  : 'text-white/70 hover:text-white hover:bg-white/5',
+                  ? 'bg-amber-500/20 text-amber-700 shadow-sm border border-amber-500/30'
+                  : 'text-au-muted hover:text-au-ink hover:bg-au-card-2',
               )}
             >
               <ShieldCheck className="size-4" />
@@ -325,26 +325,26 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           {/* Search & Sort Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/40" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-au-muted" />
               <Input
                 placeholder={t('searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border-white/20 bg-white/10 pl-9 text-white placeholder:text-white/40"
+                className="border-au-line bg-au-card pl-9 text-au-ink placeholder:text-au-faint"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <ArrowDownUp className="size-4 text-white/70" />
+              <ArrowDownUp className="size-4 text-au-muted" />
               <select
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as SortMode)}
-                className="h-9 rounded-md border border-white/20 bg-slate-900/80 px-3 text-sm text-white focus:outline-none"
+                className="h-9 rounded-md border border-au-line bg-au-card px-3 text-sm text-au-ink focus:outline-none"
               >
-                <option value="default" className="bg-slate-900">{t('allRewards')}</option>
-                <option value="price-asc" className="bg-slate-900">{t('sortLowest')}</option>
-                <option value="price-desc" className="bg-slate-900">{t('sortHighest')}</option>
-                <option value="name" className="bg-slate-900">{t('admin.name')}</option>
+                <option value="default" className="bg-au-card">{t('allRewards')}</option>
+                <option value="price-asc" className="bg-au-card">{t('sortLowest')}</option>
+                <option value="price-desc" className="bg-au-card">{t('sortHighest')}</option>
+                <option value="name" className="bg-au-card">{t('admin.name')}</option>
               </select>
             </div>
           </div>
@@ -352,8 +352,8 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           {/* Items Grid */}
           {shopItems.length === 0 ? (
             <div className={cn(GLASS_CARD, 'flex flex-col items-center justify-center gap-2 py-16 text-center')}>
-              <ShoppingBag className="size-12 text-white/20" />
-              <p className="text-sm text-white/60">{t('noItems')}</p>
+              <ShoppingBag className="size-12 text-au-faint" />
+              <p className="text-sm text-au-muted">{t('noItems')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -366,12 +366,12 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                     className={cn(
                       GLASS_CARD,
                       // `group` makes the thumbnail's group-hover zoom below fire.
-                      'group card-lift enter-scale flex flex-col overflow-hidden rounded-xl border border-white/15',
-                      'hover:border-white/30 hover:shadow-2xl',
+                      'group card-lift enter-scale flex flex-col overflow-hidden rounded-xl border border-au-line',
+                      'hover:border-au-faint hover:shadow-2xl',
                     )}
                   >
                     {/* Thumbnail */}
-                    <div className="relative h-44 w-full overflow-hidden bg-white/5">
+                    <div className="relative h-44 w-full overflow-hidden bg-au-card-2">
                       {item.image_url ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
@@ -379,10 +379,10 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           alt={item.name}
                           referrerPolicy="no-referrer"
                           loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-300"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-white/20">
+                        <div className="flex h-full w-full items-center justify-center text-au-faint">
                           <PackageCheck className="size-12" />
                         </div>
                       )}
@@ -390,20 +390,20 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                       {/* Stock Badge */}
                       <div className="absolute top-2.5 right-2.5">
                         {item.stock === null ? (
-                          <span className="rounded-full border border-emerald-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-emerald-300 backdrop-blur-sm">
+                          <span className="rounded-full border border-emerald-500/30 bg-au-card px-2.5 py-0.5 text-xs font-medium text-emerald-700">
                             {t('unlimitedStock')}
                           </span>
                         ) : isOutOfStock ? (
-                          <span className="rounded-full border border-red-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-red-300 backdrop-blur-sm">
+                          <span className="rounded-full border border-red-500/30 bg-au-card px-2.5 py-0.5 text-xs font-medium text-red-700">
                             {t('outOfStock')}
                           </span>
                         ) : isLowStock(item.stock) ? (
-                          <span className="flex items-center gap-1 rounded-full border border-orange-500/40 bg-slate-900/80 px-2.5 py-0.5 text-xs font-semibold text-orange-300 backdrop-blur-sm">
+                          <span className="flex items-center gap-1 rounded-full border border-orange-500/40 bg-au-card px-2.5 py-0.5 text-xs font-semibold text-orange-700">
                             <AlertTriangle className="size-3" />
                             {t('lowStock', { count: item.stock })}
                           </span>
                         ) : (
-                          <span className="rounded-full border border-amber-500/30 bg-slate-900/80 px-2.5 py-0.5 text-xs font-medium text-amber-300 backdrop-blur-sm">
+                          <span className="rounded-full border border-amber-500/30 bg-au-card px-2.5 py-0.5 text-xs font-medium text-amber-700">
                             {t('stockLeft', { count: item.stock })}
                           </span>
                         )}
@@ -414,17 +414,17 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                     <div className="flex flex-1 flex-col justify-between gap-4 p-5">
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-heading text-base font-bold text-white line-clamp-1 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+                          <h3 className="font-heading text-base font-bold text-au-ink line-clamp-1">
                             {item.name}
                           </h3>
-                          <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30">
+                          <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-500/30">
                             <Sparkles className="size-3.5" />
                             {item.star_cost}
                           </span>
                         </div>
 
                         {item.description && (
-                          <p className="line-clamp-2 text-xs text-white/70 whitespace-pre-wrap">
+                          <p className="line-clamp-2 text-xs text-au-muted whitespace-pre-wrap">
                             {item.description}
                           </p>
                         )}
@@ -445,31 +445,31 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
       {/* TAB 2: MY ORDERS */}
       {activeTab === 'myOrders' && (
         <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
-          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+          <h2 className="font-heading text-lg font-semibold text-au-ink">
             {t('myOrdersTitle')}
           </h2>
 
           {orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-              <Package className="size-10 text-white/20" />
-              <p className="text-sm text-white/60">{t('noOrders')}</p>
+              <Package className="size-10 text-au-faint" />
+              <p className="text-sm text-au-muted">{t('noOrders')}</p>
             </div>
           ) : (
-            <div className="divide-y divide-white/10">
+            <div className="divide-y divide-au-line">
               {orders.map((order) => {
                 return (
                   <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-amber-300">
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-au-line bg-au-card-2 text-amber-700">
                         <ShoppingBag className="size-5" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-medium text-white">{order.item_name}</span>
-                        <span className="text-xs text-white/50">
+                        <span className="font-medium text-au-ink">{order.item_name}</span>
+                        <span className="text-xs text-au-muted">
                           {format.dateTime(new Date(order.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
                         </span>
                         {order.note && (
-                          <span className="text-xs italic text-red-200/80 pt-1">
+                          <span className="text-xs italic text-red-700 pt-1">
                             {t('admin.note')}: {order.note}
                           </span>
                         )}
@@ -477,7 +477,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+                      <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
                         <Sparkles className="size-3.5" />
                         {t('starCount', { count: order.star_cost })}
                       </span>
@@ -499,14 +499,14 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {(
               [
-                { key: 'pending', value: adminView.stats.pending, tone: 'text-amber-300' },
-                { key: 'approved', value: adminView.stats.approved, tone: 'text-emerald-300' },
-                { key: 'rejected', value: adminView.stats.rejected, tone: 'text-red-300' },
-                { key: 'starsSpent', value: adminView.stats.starsSpent, tone: 'text-white' },
+                { key: 'pending', value: adminView.stats.pending, tone: 'text-amber-700' },
+                { key: 'approved', value: adminView.stats.approved, tone: 'text-emerald-700' },
+                { key: 'rejected', value: adminView.stats.rejected, tone: 'text-red-700' },
+                { key: 'starsSpent', value: adminView.stats.starsSpent, tone: 'text-au-ink' },
               ] as const
             ).map((stat) => (
               <div key={stat.key} className={cn(GLASS_CARD, 'flex flex-col gap-1 rounded-xl p-4')}>
-                <span className="text-xs font-medium text-white/60">{t(`admin.stats.${stat.key}`)}</span>
+                <span className="text-xs font-medium text-au-muted">{t(`admin.stats.${stat.key}`)}</span>
                 <span className={cn('font-heading text-2xl font-bold tabular-nums', stat.tone)}>
                   {stat.value}
                 </span>
@@ -517,18 +517,18 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           {/* PENDING ORDERS QUEUE */}
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
             <div className="flex items-center justify-between">
-              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+              <h2 className="font-heading text-lg font-semibold text-au-ink">
                 {t('admin.pendingOrders')}
               </h2>
-              <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-300 border border-amber-500/30">
+              <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-500/30">
                 {adminView.pendingOrders.length}
               </span>
             </div>
 
             {adminView.pendingOrders.length === 0 ? (
-              <p className="text-sm text-white/60">{t('admin.noPendingOrders')}</p>
+              <p className="text-sm text-au-muted">{t('admin.noPendingOrders')}</p>
             ) : (
-              <div className="divide-y divide-white/10">
+              <div className="divide-y divide-au-line">
                 {adminView.pendingOrders.map((order) => (
                   <PendingOrderRow
                     key={order.id}
@@ -546,23 +546,23 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           {/* ORDER HISTORY — everything already decided */}
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
             <div className="flex items-center gap-2">
-              <History className="size-4 text-white/60" />
-              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+              <History className="size-4 text-au-muted" />
+              <h2 className="font-heading text-lg font-semibold text-au-ink">
                 {t('admin.orderHistory')}
               </h2>
             </div>
 
             {adminView.decidedOrders.length === 0 ? (
-              <p className="text-sm text-white/60">{t('admin.noOrderHistory')}</p>
+              <p className="text-sm text-au-muted">{t('admin.noOrderHistory')}</p>
             ) : (
-              <div className="divide-y divide-white/10">
+              <div className="divide-y divide-au-line">
                 {adminView.decidedOrders.map((order) => (
                   <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate font-medium text-white">
+                      <span className="truncate font-medium text-au-ink">
                         {order.first_name} {order.last_name} · {order.item_name}
                       </span>
-                      <span className="text-xs text-white/50">
+                      <span className="text-xs text-au-muted">
                         {format.dateTime(new Date(order.created_at), {
                           dateStyle: 'medium',
                           timeStyle: 'short',
@@ -578,14 +578,14 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                         )}
                       </span>
                       {order.note && (
-                        <span className="text-xs italic text-white/50">
+                        <span className="text-xs italic text-au-muted">
                           {t('admin.note')}: {order.note}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+                      <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
                         <Sparkles className="size-3.5" />
                         {t('starCount', { count: order.star_cost })}
                       </span>
@@ -600,16 +600,16 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           {/* CATALOG MANAGEMENT */}
           <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+              <h2 className="font-heading text-lg font-semibold text-au-ink">
                 {t('admin.catalogManagement')}
               </h2>
               <CreateItemDialog />
             </div>
 
             {adminView.items.length === 0 ? (
-              <p className="text-sm text-white/60">{t('noItems')}</p>
+              <p className="text-sm text-au-muted">{t('noItems')}</p>
             ) : (
-              <div className="divide-y divide-white/10">
+              <div className="divide-y divide-au-line">
                 {adminView.items.map((item) => (
                   <div
                     key={item.id}
@@ -622,34 +622,34 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                   >
                     <div className="flex items-center gap-3">
                       {item.image_url ? (
-                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-white/15">
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-au-line">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={item.image_url} alt={item.name} referrerPolicy="no-referrer" loading="lazy" className="h-full w-full object-cover" />
                         </div>
                       ) : (
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/30">
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-au-line bg-au-card-2 text-au-faint">
                           <PackageCheck className="size-5" />
                         </div>
                       )}
                       <div className="flex flex-col gap-1">
-                        <span className="font-medium text-white">{item.name}</span>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-white/60">
+                        <span className="font-medium text-au-ink">{item.name}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-au-muted">
                           <span>
                             {item.stock === null ? t('unlimitedStock') : t('stockLeft', { count: item.stock })}
                           </span>
                           {item.stock !== null && item.stock === 0 && (
-                            <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-medium text-red-300">
+                            <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-medium text-red-700">
                               {t('outOfStock')}
                             </span>
                           )}
                           {isLowStock(item.stock) && (
-                            <span className="flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 font-semibold text-orange-300">
+                            <span className="flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 font-semibold text-orange-700">
                               <AlertTriangle className="size-3" />
                               {t('admin.restockSoon')}
                             </span>
                           )}
                           {item.archived_at && (
-                            <span className="flex items-center gap-1 rounded-full border border-white/20 bg-white/5 px-2 py-0.5 font-medium text-white/60">
+                            <span className="flex items-center gap-1 rounded-full border border-au-line bg-au-card-2 px-2 py-0.5 font-medium text-au-muted">
                               <Archive className="size-3" />
                               {t('admin.archived')}
                             </span>
@@ -659,7 +659,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="flex items-center gap-1 text-sm font-bold text-amber-300">
+                      <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
                         <Sparkles className="size-3.5" />
                         {t('starCount', { count: item.star_cost })}
                       </span>

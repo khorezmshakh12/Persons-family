@@ -29,22 +29,22 @@ export async function WarningsCard({
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
         {canManage && <IssueWarningDialog staffId={staffId} />}
       </div>
       {warnings.length === 0 ? (
-        <p className="text-sm text-white/60">{t('noWarnings')}</p>
+        <p className="text-sm text-au-muted">{t('noWarnings')}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {warnings.map((w) => (
             <div
               key={w.id}
-              className="flex flex-col gap-2 rounded-xl border border-white/15 bg-white/5 p-4"
+              className="flex flex-col gap-2 rounded-xl border border-au-line bg-au-card-2 p-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-white/50">
+                <span className="text-xs text-au-muted">
                   {format.dateTime(new Date(w.created_at), {
                     dateStyle: 'medium',
                     timeStyle: 'short',
@@ -58,7 +58,7 @@ export async function WarningsCard({
                 </span>
                 {canManage && <AssignPunishmentDialog staffId={staffId} warningId={w.id} />}
               </div>
-              <p className="text-sm whitespace-pre-wrap text-white/90">{w.reason}</p>
+              <p className="text-sm whitespace-pre-wrap text-au-ink">{w.reason}</p>
             </div>
           ))}
         </div>

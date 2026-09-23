@@ -173,7 +173,7 @@ export function IssuesBoard({
   }
 
   if (issues.length === 0) {
-    return <p className="text-sm text-white/70">{t('noIssues')}</p>;
+    return <p className="text-sm text-au-muted">{t('noIssues')}</p>;
   }
 
   return (

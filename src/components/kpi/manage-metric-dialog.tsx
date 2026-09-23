@@ -52,10 +52,10 @@ export function ManageMetricDialog({ staffId, metric }: { staffId: string; metri
               variant="outline"
               size="icon-sm"
               aria-label={t('editMetric')}
-              className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+              className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
             />
           ) : (
-            <Button variant="outline" size="sm" className="w-fit border-white/30 bg-white/10 text-white hover:bg-white/20" />
+            <Button variant="outline" size="sm" className="w-fit border-au-line bg-au-card text-au-ink hover:bg-au-card-2" />
           )
         }
       >

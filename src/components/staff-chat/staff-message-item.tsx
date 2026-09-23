@@ -56,7 +56,7 @@ function StaffMessageItemComponent({
       <div className={cn('group flex max-w-[80%] flex-col gap-1', isOwn && 'items-end')}>
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{name}</span>
-          <span className="text-xs text-white/50">
+          <span className="text-xs text-au-muted">
             {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
@@ -64,7 +64,7 @@ function StaffMessageItemComponent({
           <div
             className={cn(
               'rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap',
-              isOwn ? 'bg-white text-black' : 'bg-white/10',
+              isOwn ? 'bg-white text-black' : 'bg-au-card',
             )}
           >
             {message.content}

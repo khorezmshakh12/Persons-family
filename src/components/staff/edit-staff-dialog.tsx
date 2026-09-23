@@ -108,7 +108,7 @@ export function EditStaffDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
-        render={<Button variant="outline" size="sm" className="border-white/30 bg-white/10 text-white hover:bg-white/20" />}
+        render={<Button variant="outline" size="sm" className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2" />}
       >
         <Pencil className="size-4" />
         {t('edit')}
@@ -122,9 +122,9 @@ export function EditStaffDialog({
           <input type="hidden" name="staffId" value={profile.id} />
           {profile.role === 'teacher' && profile.teacher_level && (
             <div className="flex items-center gap-2">
-              <Label className="text-white/60 text-xs">{t('teacherLevel')}</Label>
+              <Label className="text-au-muted text-xs">{t('teacherLevel')}</Label>
               <TeacherLevelBadge level={profile.teacher_level} />
-              <span className="text-white/60 text-xs">{t('teacherLevelHint')}</span>
+              <span className="text-au-muted text-xs">{t('teacherLevelHint')}</span>
             </div>
           )}
           {profile.role === 'internship' && (
@@ -193,7 +193,7 @@ export function EditStaffDialog({
               inputMode="numeric"
               placeholder={t('telegramIdPlaceholder')}
             />
-            <p className="text-white/60 text-xs">{t('telegramIdHint')}</p>
+            <p className="text-au-muted text-xs">{t('telegramIdHint')}</p>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`role-${profile.id}`}>{t('role')}</Label>
@@ -252,7 +252,7 @@ export function EditStaffDialog({
                 </SelectContent>
               </Select>
               {profile.teacher_level && (
-                <p className="text-white/60 text-xs">
+                <p className="text-au-muted text-xs">
                   {t('levelCurrent', { level: profile.teacher_level })}
                 </p>
               )}
@@ -261,7 +261,7 @@ export function EditStaffDialog({
           <div className="flex flex-col gap-2">
             <Label htmlFor={`avatar-${profile.id}`}>{t('avatar')}</Label>
             <Input id={`avatar-${profile.id}`} name="avatar" type="file" accept="image/png,image/jpeg" />
-            <p className="text-white/60 text-xs">{t('avatarOptional')}</p>
+            <p className="text-au-muted text-xs">{t('avatarOptional')}</p>
           </div>
 
           {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}

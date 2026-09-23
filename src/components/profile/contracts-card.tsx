@@ -10,15 +10,15 @@ import { RequestContractActionDialog } from './request-contract-action-dialog';
 import { ReviewContractRequestControls } from './review-contract-request-controls';
 
 const STATUS_TINT: Record<string, string> = {
-  active: 'bg-emerald-500/20 text-emerald-200',
-  frozen: 'bg-blue-500/20 text-blue-200',
-  ended: 'bg-white/15 text-white/70',
+  active: 'bg-emerald-500/20 text-emerald-700',
+  frozen: 'bg-blue-500/20 text-blue-700',
+  ended: 'bg-au-card-2 text-au-muted',
 };
 
 const REQUEST_STATUS_TINT: Record<string, string> = {
-  pending: 'bg-amber-500/20 text-amber-200',
-  approved: 'bg-emerald-500/20 text-emerald-200',
-  rejected: 'bg-red-500/20 text-red-200',
+  pending: 'bg-amber-500/20 text-amber-700',
+  approved: 'bg-emerald-500/20 text-emerald-700',
+  rejected: 'bg-red-500/20 text-red-700',
 };
 
 export async function ContractsCard({
@@ -50,9 +50,9 @@ export async function ContractsCard({
   if (isSelf && !canManage && !hasActiveContract) {
     return (
       <div className={cn(GLASS_CARD, 'flex flex-col items-center gap-3 p-8 text-center')}>
-        <Clock3 className="size-8 text-white/40" />
-        <h2 className="font-heading text-lg font-semibold text-white">{t('title')}</h2>
-        <p className="max-w-sm text-sm text-white/60">{t('comingSoon')}</p>
+        <Clock3 className="size-8 text-au-muted" />
+        <h2 className="font-heading text-lg font-semibold text-au-ink">{t('title')}</h2>
+        <p className="max-w-sm text-sm text-au-muted">{t('comingSoon')}</p>
       </div>
     );
   }
@@ -79,14 +79,14 @@ export async function ContractsCard({
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
         {canManage && <CreateContractDialog staffId={staffId} />}
       </div>
 
       {contracts.length === 0 ? (
-        <p className="text-sm text-white/60">{t('noContracts')}</p>
+        <p className="text-sm text-au-muted">{t('noContracts')}</p>
       ) : (
         <div className="flex flex-col gap-4">
           {contracts.map((contract) => {
@@ -97,15 +97,15 @@ export async function ContractsCard({
             return (
               <div
                 key={contract.id}
-                className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4"
+                className="flex flex-col gap-3 rounded-xl border border-au-line bg-au-card-2 p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium text-white">{contract.title}</span>
+                  <span className="font-medium text-au-ink">{contract.title}</span>
                   <div className="flex items-center gap-2">
                     <span
                       className={cn(
                         'rounded-full px-2.5 py-1 text-xs font-semibold',
-                        STATUS_TINT[contract.status] ?? 'bg-white/15 text-white/70',
+                        STATUS_TINT[contract.status] ?? 'bg-au-card-2 text-au-muted',
                       )}
                     >
                       {t(`status.${contract.status}`)}
@@ -124,7 +124,7 @@ export async function ContractsCard({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-4 text-xs text-white/60">
+                <div className="flex flex-wrap gap-4 text-xs text-au-muted">
                   <span>
                     {t('startDate')}:{' '}
                     {format.dateTime(new Date(`${contract.start_date}T00:00:00Z`), {
@@ -157,15 +157,15 @@ export async function ContractsCard({
                 )}
 
                 {contractRequests.length > 0 && (
-                  <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
-                    <span className="text-xs font-semibold text-white/60">{t('requests')}</span>
+                  <div className="flex flex-col gap-2 border-t border-au-line pt-3">
+                    <span className="text-xs font-semibold text-au-muted">{t('requests')}</span>
                     {contractRequests.map((r) => (
                       <div
                         key={r.id}
                         className="flex flex-wrap items-center justify-between gap-2 text-sm"
                       >
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-white/85">
+                          <span className="text-au-ink">
                             {t(`requestType.${r.request_type}`)}
                           </span>
                           <span
@@ -176,7 +176,7 @@ export async function ContractsCard({
                           >
                             {t(`requestStatus.${r.status}`)}
                           </span>
-                          {r.reason && <span className="text-xs text-white/50">— {r.reason}</span>}
+                          {r.reason && <span className="text-xs text-au-muted">— {r.reason}</span>}
                         </div>
                         {canManage && r.status === 'pending' && (
                           <ReviewContractRequestControls

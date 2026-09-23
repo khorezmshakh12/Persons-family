@@ -130,14 +130,14 @@ export function TaskFilterBar({
   const active = hasActiveTaskFilters(filters);
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-lg backdrop-blur-md transform-gpu will-change-transform">
+    <div className="flex flex-wrap items-center gap-3 rounded-au-card border border-au-line bg-au-card p-3 text-au-ink shadow-au-card transform-gpu will-change-transform">
       {/* Today / Week / Month, nested look-ahead windows on deadline
        * (Tashkent) — narrows every column at once, not just done, so it
        * doubles as the quickest way to answer "what's due soon". */}
       <div
         role="group"
         aria-label={t('filters.dayGroupLabel')}
-        className="flex h-9 items-center gap-0.5 rounded-lg border border-white/30 bg-white/10 p-0.5"
+        className="flex h-9 items-center gap-0.5 rounded-lg border border-au-line bg-au-card p-0.5"
       >
         {TASK_DAY_FILTERS.map((day) => (
           <button
@@ -148,8 +148,8 @@ export function TaskFilterBar({
             className={cn(
               'h-8 rounded-md px-2.5 text-sm font-medium transition-colors',
               filters.day === day
-                ? 'bg-white/25 text-white'
-                : 'text-white/70 hover:bg-white/10 hover:text-white',
+                ? 'bg-au-card-2 text-au-ink'
+                : 'text-au-muted hover:bg-au-card-2 hover:text-au-ink',
             )}
           >
             {t(`filters.day.${day}`)}
@@ -158,14 +158,14 @@ export function TaskFilterBar({
       </div>
 
       <div className="relative min-w-56 flex-1">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/50" />
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-au-muted" />
         <Input
           type="search"
           value={filters.search}
           onChange={(event) => onChange({ ...filters, search: event.target.value })}
           placeholder={t('filters.searchPlaceholder')}
           aria-label={t('filters.searchPlaceholder')}
-          className="h-9 w-full border-white/30 bg-white/10 pl-8 text-white placeholder:text-white/50"
+          className="h-9 w-full border-au-line bg-au-card pl-8 text-au-ink placeholder:text-au-faint"
         />
       </div>
 
@@ -174,7 +174,7 @@ export function TaskFilterBar({
           value={filters.assignee}
           onValueChange={(value) => value && onChange({ ...filters, assignee: String(value) })}
         >
-          <SelectTrigger className="h-9 w-52 border-white/30 bg-white/10 text-white hover:bg-white/20">
+          <SelectTrigger className="h-9 w-52 border-au-line bg-au-card text-au-ink hover:bg-au-card-2">
             <SelectValue>
               {(value: string) => {
                 if (value === 'all') return t('filters.allAssignees');
@@ -204,8 +204,8 @@ export function TaskFilterBar({
         className={cn(
           'h-9 rounded-lg border px-3 text-sm font-medium transition-colors',
           filters.overdueOnly
-            ? 'border-red-400/60 bg-red-500/25 text-red-100'
-            : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20',
+            ? 'border-red-400/60 bg-red-500/25 text-red-700'
+            : 'border-au-line bg-au-card text-au-ink hover:bg-au-card-2',
         )}
       >
         {t('filters.overdueOnly')}
@@ -221,8 +221,8 @@ export function TaskFilterBar({
           className={cn(
             'h-9 rounded-lg border px-3 text-sm font-medium transition-colors',
             filters.submittedOnly
-              ? 'border-emerald-400/60 bg-emerald-500/25 text-emerald-100'
-              : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20',
+              ? 'border-emerald-400/60 bg-emerald-500/25 text-emerald-700'
+              : 'border-au-line bg-au-card text-au-ink hover:bg-au-card-2',
           )}
         >
           {t('filters.submittedOnly')}
@@ -233,7 +233,7 @@ export function TaskFilterBar({
         <button
           type="button"
           onClick={() => onChange(EMPTY_TASK_FILTERS)}
-          className="flex h-9 items-center gap-1 rounded-lg px-2 text-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          className="flex h-9 items-center gap-1 rounded-lg px-2 text-sm text-au-muted transition-colors hover:bg-au-card-2 hover:text-au-ink"
         >
           <X className="size-4" />
           {t('filters.clear')}

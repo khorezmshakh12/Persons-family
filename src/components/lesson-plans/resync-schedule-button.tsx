@@ -50,7 +50,7 @@ export function ResyncScheduleButton({ groupId }: { groupId: string }) {
       size="sm"
       disabled={isPending}
       onClick={handleResync}
-      className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+      className="border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
     >
       <RefreshCw className={isPending ? 'size-4 animate-spin' : 'size-4'} />
       {isPending ? tCommon('loading') : t('resync.button')}

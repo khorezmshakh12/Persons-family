@@ -163,7 +163,7 @@ export async function CourseLessonsSection({
 
       {upcomingMonths.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
+          <h3 className="text-[11px] font-semibold tracking-wider text-au-muted uppercase">
             {t('courseLessons.upcomingMonths')}
           </h3>
           {upcomingMonths.map((key) => (
@@ -184,7 +184,7 @@ export async function CourseLessonsSection({
 
       {pastMonths.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
+          <h3 className="text-[11px] font-semibold tracking-wider text-au-muted uppercase">
             {t('courseLessons.pastMonths')}
           </h3>
           {pastMonths.map((key) => (

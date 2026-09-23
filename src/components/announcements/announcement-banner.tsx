@@ -60,7 +60,7 @@ export function AnnouncementBanner({ initialMessage }: { initialMessage: string 
             type="button"
             onClick={() => setDismissed(true)}
             aria-label="Dismiss"
-            className="shrink-0 rounded-full p-1 hover:bg-white/20"
+            className="shrink-0 rounded-full p-1 hover:bg-au-card-2"
           >
             <X className="size-4" />
           </button>

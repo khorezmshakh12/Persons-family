@@ -33,7 +33,7 @@ export function BroadcastForm() {
         maxLength={2000}
         rows={4}
         placeholder={t('broadcast.placeholder')}
-        className="border-white/30 bg-white/10 text-white placeholder:text-white/40"
+        className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
       />
       <Button type="submit" disabled={isPending} className="w-fit">
         {isPending ? t('broadcast.sending') : t('broadcast.send')}

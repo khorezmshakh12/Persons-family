@@ -87,7 +87,7 @@ export function ImportantChatsPanel() {
             type="button"
             variant="outline"
             size="sm"
-            className="border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+            className="border-amber-400/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
           />
         }
       >
@@ -99,21 +99,21 @@ export function ImportantChatsPanel() {
           <DialogTitle>{t('importantChats.title')}</DialogTitle>
         </DialogHeader>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-white/60">{t('importantChats.subtitle')}</p>
+          <p className="text-sm text-au-muted">{t('importantChats.subtitle')}</p>
           <Button type="button" variant="ghost" size="sm" onClick={handleToggleAll}>
             {showAll ? t('importantChats.showImportantOnly') : t('importantChats.showAll')}
           </Button>
         </div>
         <div className="flex max-h-96 flex-col gap-2 overflow-y-auto">
           {loading ? (
-            <Loader2 className="mx-auto size-5 animate-spin text-white/50" />
+            <Loader2 className="mx-auto size-5 animate-spin text-au-muted" />
           ) : conversations.length === 0 ? (
-            <p className="py-4 text-center text-sm text-white/50">{t('importantChats.empty')}</p>
+            <p className="py-4 text-center text-sm text-au-muted">{t('importantChats.empty')}</p>
           ) : (
             conversations.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-lg border border-au-line bg-au-card-2 px-3 py-2"
               >
                 <span className="text-sm">
                   {c.one ? `${c.one.first_name} ${c.one.last_name}` : '?'} ↔{' '}
@@ -126,8 +126,8 @@ export function ImportantChatsPanel() {
                   disabled={isPending}
                   className={cn(
                     c.status === 'important'
-                      ? 'border-amber-400/30 bg-amber-500/10 text-amber-200'
-                      : 'border-white/20 bg-white/5 text-white/70',
+                      ? 'border-amber-400/30 bg-amber-500/10 text-amber-700'
+                      : 'border-au-line bg-au-card-2 text-au-muted',
                   )}
                   onClick={() =>
                     handleSetStatus(c.id, c.status === 'important' ? 'normal' : 'important')

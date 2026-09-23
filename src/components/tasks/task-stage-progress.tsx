@@ -100,7 +100,7 @@ export function TaskStageProgress({
           return (
             <div
               key={stage}
-              className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/15"
+              className="relative h-1 flex-1 overflow-hidden rounded-full bg-au-card-2"
             >
               {/* Always mounted, always opaque — only the horizontal scale
                * moves. `originX: 0` makes it grow left-to-right. */}
@@ -136,7 +136,7 @@ export function TaskStageProgress({
           transition={{ duration: reduceMotion ? 0 : 0.22 }}
           className={cn(
             'text-[11px] font-medium tracking-wide',
-            isDone ? 'text-emerald-300' : 'text-white/60',
+            isDone ? 'text-emerald-700' : 'text-au-muted',
           )}
         >
           {t(`stages.${STAGES[activeIndex] as Stage}`)}

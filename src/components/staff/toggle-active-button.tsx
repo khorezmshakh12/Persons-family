@@ -55,7 +55,7 @@ export function ToggleActiveButton({
               variant={isActive ? 'outline' : 'default'}
               size="sm"
               className={
-                isActive ? 'border-white/30 bg-white/10 text-white hover:bg-white/20' : undefined
+                isActive ? 'border-au-line bg-au-card text-au-ink hover:bg-au-card-2' : undefined
               }
             />
           }

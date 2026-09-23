@@ -45,25 +45,25 @@ export async function KpiSection({ staffId, canManage }: { staffId: string; canM
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+          <h2 className="font-heading text-lg font-semibold text-au-ink">
             {t('title')}
           </h2>
-          <p className="text-sm text-white/60">{t('subtitle')}</p>
+          <p className="text-sm text-au-muted">{t('subtitle')}</p>
         </div>
         {canManage && <ManageMetricDialog staffId={staffId} />}
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-xs text-white/60">
+        <span className="text-xs text-au-muted">
           {t('overallScore')} · {t('currentMonth')}
         </span>
-        <span className="text-3xl font-bold tabular-nums text-white">
+        <span className="text-3xl font-bold tabular-nums text-au-ink">
           {overallScore != null ? Math.round(overallScore) : '—'}
         </span>
       </div>
 
       {metrics.length === 0 ? (
-        <p className="text-sm text-white/60">{canManage ? t('noMetrics') : t('noMetricsSelf')}</p>
+        <p className="text-sm text-au-muted">{canManage ? t('noMetrics') : t('noMetricsSelf')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {metrics.map((metric) => (
@@ -79,8 +79,8 @@ export async function KpiSection({ staffId, canManage }: { staffId: string; canM
         </div>
       )}
 
-      <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
-        <h3 className="text-sm font-medium text-white/80">{t('scoreHistory')}</h3>
+      <div className="flex flex-col gap-2 border-t border-au-line pt-4">
+        <h3 className="text-sm font-medium text-au-ink">{t('scoreHistory')}</h3>
         <KpiScoreChart points={scoreHistory} />
       </div>
     </div>

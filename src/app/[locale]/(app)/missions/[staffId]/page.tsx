@@ -4,7 +4,7 @@ import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
-import { GLASS_CARD } from '@/lib/glass';
+import { GLASS_CARD, SURFACE_HERO } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -44,12 +44,12 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
   const longTerm = all.filter((m) => !isShortTerm(m.deadline_date));
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <div
         style={{ animationDelay: '0ms' }}
-        className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
+        className={cn(SURFACE_HERO, 'animate-fade-in-up flex items-center gap-4 px-6 py-6 sm:px-[30px] sm:py-7')}
       >
-        <Avatar className="size-16 border border-white/30">
+        <Avatar className="size-16 border border-au-line">
           <AvatarImage src={avatarSrc ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
             {target.first_name[0]}
@@ -57,10 +57,10 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
             {target.first_name} {target.last_name}
           </h1>
-          <span className="text-sm text-white/60">{roleLabel(tStaff, target.role)}</span>
+          <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
         </div>
       </div>
 
@@ -71,11 +71,11 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
       )}
 
       <div style={{ animationDelay: '100ms' }} className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-3 p-6')}>
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('shortTerm')}
         </h2>
         {shortTerm.length === 0 ? (
-          <p className="text-sm text-white/60">{t('noShortTerm')}</p>
+          <p className="text-sm text-au-muted">{t('noShortTerm')}</p>
         ) : (
           <div className="flex flex-col gap-3">
             {shortTerm.map((m, index) => (
@@ -86,11 +86,11 @@ export async function MissionsDetailContent({ staffId }: { staffId: string }) {
       </div>
 
       <div style={{ animationDelay: '170ms' }} className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-3 p-6')}>
-        <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+        <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('longTerm')}
         </h2>
         {longTerm.length === 0 ? (
-          <p className="text-sm text-white/60">{t('noLongTerm')}</p>
+          <p className="text-sm text-au-muted">{t('noLongTerm')}</p>
         ) : (
           <div className="flex flex-col gap-3">
             {longTerm.map((m, index) => (

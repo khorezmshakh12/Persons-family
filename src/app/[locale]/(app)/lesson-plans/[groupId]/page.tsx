@@ -139,25 +139,25 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
-      <div className="flex items-center gap-2 text-sm text-white/60">
-        <Link href="/lesson-plans" className="hover:text-white">
+      <div className="flex items-center gap-2 text-sm text-au-muted">
+        <Link href="/lesson-plans" className="hover:text-au-ink">
           {t('title')}
         </Link>
         <span>→</span>
-        <span className="font-semibold text-white">{group.name}</span>
+        <span className="font-semibold text-au-ink">{group.name}</span>
       </div>
 
       <div className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-bold [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-bold">
               {t('groupLabel')}: {group.name}
             </Badge>
             {group.teacher && (
-              <span className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 py-1 pr-4 pl-1.5 text-sm font-medium text-white">
-                <Avatar className="size-7 border border-white/30">
+              <span className="flex items-center gap-2 rounded-full border border-au-line bg-au-card py-1 pr-4 pl-1.5 text-sm font-medium text-au-ink">
+                <Avatar className="size-7 border border-au-line">
                   <AvatarImage src={group.teacher.avatar_url ?? undefined} alt="" />
-                  <AvatarFallback className="bg-white/10 text-xs text-white">
+                  <AvatarFallback className="bg-au-card text-xs text-au-ink">
                     {group.teacher.first_name[0]}
                     {group.teacher.last_name[0]}
                   </AvatarFallback>
@@ -182,7 +182,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             </div>
           )}
         </div>
-        <p className="text-sm text-white/60">
+        <p className="text-sm text-au-muted">
           {[
             group.course_name,
             group.schedule_type ? t(`scheduleType.${group.schedule_type}`) : null,
@@ -196,7 +196,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-xl font-bold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">{t('courseLessons.title')}</h2>
+        <h2 className="font-heading text-xl font-bold tracking-tight text-au-ink">{t('courseLessons.title')}</h2>
         <Suspense fallback={<GlassCourseLessonsSkeleton />}>
           <CourseLessonsSection
             groupId={group.id}

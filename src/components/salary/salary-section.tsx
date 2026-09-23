@@ -35,16 +35,16 @@ export async function SalarySection({
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
-      <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+      <h2 className="font-heading text-lg font-semibold text-au-ink">
         {t('title')}
       </h2>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium text-white/80">{t('salaryLedger')}</h3>
+            <h3 className="text-sm font-medium text-au-ink">{t('salaryLedger')}</h3>
             <span
-              className={cn('text-lg font-bold tabular-nums', net > 0 ? 'text-emerald-400' : net < 0 ? 'text-red-400' : 'text-white/70')}
+              className={cn('text-lg font-bold tabular-nums', net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted')}
             >
               {net >= 0 ? '+' : ''}
               {formatUZS(net)}
@@ -55,23 +55,23 @@ export async function SalarySection({
         <FinanceEntriesList entries={entries} isAdmin={isAdmin} />
       </div>
 
-      <div className="border-t border-white/10 pt-4">
+      <div className="border-t border-au-line pt-4">
         <BonusesPunishmentsCard staffId={staffId} canManage={isAdmin} />
       </div>
 
-      <div className="border-t border-white/10 pt-4">
+      <div className="border-t border-au-line pt-4">
         <KpiSection staffId={staffId} canManage={isCeo && !isSelf} />
       </div>
 
-      <div className="border-t border-white/10 pt-4">
+      <div className="border-t border-au-line pt-4">
         <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} selectedMonth="all" />
       </div>
 
-      <div className="border-t border-white/10 pt-4">
+      <div className="border-t border-au-line pt-4">
         <SalaryMissionsList staffId={staffId} />
       </div>
 
-      <div className="border-t border-white/10 pt-4">
+      <div className="border-t border-au-line pt-4">
         <SalaryTotal staffId={staffId} isCeo={isCeo && !isSelf} />
       </div>
     </div>

@@ -28,7 +28,7 @@ export function WebhookRegisterButton() {
       variant="outline"
       onClick={handleClick}
       disabled={isPending}
-      className="w-fit border-white/30 bg-white/10 text-white hover:bg-white/20"
+      className="w-fit border-au-line bg-au-card text-au-ink hover:bg-au-card-2"
     >
       {isPending ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
       {t('webhook.registerButton')}

@@ -15,7 +15,7 @@ const badgeVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:
-          "border-white/25 text-white/80 [a]:hover:bg-white/10 [a]:hover:text-white",
+          "border-au-line text-au-ink [a]:hover:bg-au-card-2 [a]:hover:text-au-ink",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
@@ -30,12 +30,12 @@ const badgeVariants = cva(
         tint: "",
       },
       tint: {
-        green: "border-green-500/30 bg-green-500/20 text-green-50",
-        blue: "border-blue-500/30 bg-blue-500/20 text-blue-50",
-        orange: "border-orange-500/30 bg-orange-500/20 text-orange-50",
-        amber: "border-amber-500/30 bg-amber-500/20 text-amber-100",
-        red: "border-red-500/30 bg-red-500/20 text-red-50",
-        slate: "border-white/20 bg-white/10 text-white/80",
+        green: "border-green-500/30 bg-green-500/20 text-green-700",
+        blue: "border-blue-500/30 bg-blue-500/20 text-blue-700",
+        orange: "border-orange-500/30 bg-orange-500/20 text-orange-700",
+        amber: "border-amber-500/30 bg-amber-500/20 text-amber-700",
+        red: "border-red-500/30 bg-red-500/20 text-red-700",
+        slate: "border-au-line bg-au-card text-au-ink",
       },
     },
     defaultVariants: {

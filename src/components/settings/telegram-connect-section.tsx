@@ -44,7 +44,7 @@ export function TelegramConnectSection({ isConnected }: { isConnected: boolean }
   // employee just sees their own status here, no unlink control.
   if (isConnected) {
     return (
-      <div className="flex items-center gap-2 text-sm text-white">
+      <div className="flex items-center gap-2 text-sm text-au-ink">
         <span className="size-2.5 rounded-full bg-emerald-400" />
         {t('connected')}
       </div>
@@ -53,7 +53,7 @@ export function TelegramConnectSection({ isConnected }: { isConnected: boolean }
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-white/70">{t('description')}</p>
+      <p className="text-sm text-au-muted">{t('description')}</p>
       {!deepLink ? (
         <Button type="button" onClick={handleConnect} disabled={isPending} className="w-fit">
           {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
@@ -66,7 +66,7 @@ export function TelegramConnectSection({ isConnected }: { isConnected: boolean }
             <img
               src={qrDataUrl}
               alt={t('qrAlt')}
-              className="size-40 shrink-0 rounded-xl border border-white/20 bg-white p-2"
+              className="size-40 shrink-0 rounded-xl border border-au-line bg-white p-2"
             />
           )}
           <div className="flex flex-col gap-2">
@@ -74,11 +74,11 @@ export function TelegramConnectSection({ isConnected }: { isConnected: boolean }
               href={deepLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-fit rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+              className="w-fit rounded-xl border border-au-line bg-au-card px-4 py-2 text-sm font-medium text-au-ink transition-colors hover:bg-au-card-2"
             >
               {t('openBot')}
             </a>
-            <p className="text-xs text-white/60">{t('linkHint')}</p>
+            <p className="text-xs text-au-muted">{t('linkHint')}</p>
           </div>
         </div>
       )}

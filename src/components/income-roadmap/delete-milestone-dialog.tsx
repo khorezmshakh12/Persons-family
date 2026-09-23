@@ -61,17 +61,17 @@ export function DeleteMilestoneDialog({
               variant="ghost"
               size="icon-xs"
               aria-label={t('deleteMilestone')}
-              className="text-red-300 hover:text-red-200 hover:bg-red-500/10"
+              className="text-red-700 hover:text-red-700 hover:bg-red-500/10"
             >
               <Trash2 className="size-3" />
             </Button>
           )
         }
       />
-      <AlertDialogContent className="border-white/20 bg-slate-900/95 text-white backdrop-blur-xl sm:max-w-md">
+      <AlertDialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">{t('confirmDeleteTitle')}</AlertDialogTitle>
-          <AlertDialogDescription className="text-white/70">
+          <AlertDialogTitle className="text-au-ink">{t('confirmDeleteTitle')}</AlertDialogTitle>
+          <AlertDialogDescription className="text-au-muted">
             {t('confirmDeleteDescription')}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -87,7 +87,7 @@ export function DeleteMilestoneDialog({
           <AlertDialogFooter className="border-t-0 bg-transparent p-0 gap-2 sm:gap-0 mt-4">
             <AlertDialogCancel
               variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
+              className="border-au-line text-au-ink hover:bg-au-card-2"
             >
               {tCommon('cancel')}
             </AlertDialogCancel>

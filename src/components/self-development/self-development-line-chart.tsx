@@ -10,7 +10,7 @@ import type { ScorePoint } from './self-development-chart';
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-white/20 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-xl backdrop-blur-md">
+    <div className="rounded-lg border border-au-line bg-au-card px-3 py-2 text-xs text-au-ink shadow-au-card">
       <div className="font-semibold">{label}</div>
       <div>{payload[0].value}</div>
     </div>
@@ -44,16 +44,16 @@ export function SelfDevelopmentLineChart({
 
   const chart =
     data.length === 0 ? (
-      <p className="text-sm text-white/70">{t('progressChart.noData')}</p>
+      <p className="text-sm text-au-muted">{t('progressChart.noData')}</p>
     ) : (
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-            <XAxis dataKey="label" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--au-line)" vertical={false} />
+            <XAxis dataKey="label" stroke="var(--au-muted)" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis
               domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 20) * 20)]}
-              stroke="rgba(255,255,255,0.75)"
+              stroke="var(--au-muted)"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -63,9 +63,9 @@ export function SelfDevelopmentLineChart({
             <Line
               type="monotone"
               dataKey="score"
-              stroke="#2dd4bf"
+              stroke="var(--au-accent)"
               strokeWidth={2.5}
-              dot={{ fill: '#2dd4bf', r: 3 }}
+              dot={{ fill: 'var(--au-accent)', r: 3 }}
               {...anim}
             />
           </LineChart>
@@ -80,7 +80,7 @@ export function SelfDevelopmentLineChart({
       style={{ animationDelay: `${delayMs}ms` }}
       className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-4 p-6')}
     >
-      <h2 className="font-heading text-lg font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+      <h2 className="font-heading text-lg font-semibold text-au-ink">
         {title ?? t('progressChart.title')}
       </h2>
       {chart}

@@ -5,7 +5,7 @@ import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
-import { GLASS_CARD } from '@/lib/glass';
+import { SURFACE_HERO } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,7 +24,6 @@ import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
 import { DutiesCard } from '@/components/profile/duties-card';
 import { ContractsCard } from '@/components/profile/contracts-card';
-import { ThemePreferenceCard } from '@/components/profile/theme-preference-card';
 import { SectionErrorBoundary } from '@/components/profile/section-error-boundary';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 
@@ -109,13 +108,13 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
   const avatarSignedUrl = await resolveAvatarUrl(target.avatar_url);
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       {isSelf && <MarkWarningsSeen />}
       <div
         style={{ animationDelay: '0ms' }}
-        className={cn(GLASS_CARD, 'enter-rise flex items-center gap-4 p-6')}
+        className={cn(SURFACE_HERO, 'enter-rise flex items-center gap-4 px-6 py-6 sm:px-[30px] sm:py-7')}
       >
-        <Avatar className="size-16 border border-white/30">
+        <Avatar className="size-16 border border-au-line">
           <AvatarImage src={avatarSignedUrl ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
             {target.first_name[0]}
@@ -123,11 +122,11 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight font-heading text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
             {target.first_name} {target.last_name}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-white/60">{roleLabel(tStaff, target.role)}</span>
+            <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
             {target.teacher_level && <TeacherLevelBadge level={target.teacher_level} />}
           </div>
         </div>
@@ -140,12 +139,6 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           </Suspense>
         </SectionErrorBoundary>
       </div>
-
-      {isSelf && (
-        <div className="enter-rise" style={{ animationDelay: '100ms' }}>
-          <ThemePreferenceCard />
-        </div>
-      )}
 
       {/* Stars are self-or-CEO, same scope as self-development —
           getStarLedgerAction enforces that server-side too and returns []

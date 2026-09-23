@@ -21,7 +21,7 @@ export function TeacherPicker({ teachers, selectedId }: { teachers: TeacherOptio
 
   return (
     <Select value={selectedId} onValueChange={(v) => v && updateTeacher(v)}>
-      <SelectTrigger className="w-52 border-white/30 bg-white/10 text-white hover:bg-white/20">
+      <SelectTrigger className="w-52 border-au-line bg-au-card text-au-ink hover:bg-au-card-2">
         <SelectValue>
           {(value: string) => {
             const teacher = teachers.find((tch) => tch.id === value);

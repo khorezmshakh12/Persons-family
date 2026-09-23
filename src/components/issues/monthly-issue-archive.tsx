@@ -27,7 +27,7 @@ export function MonthlyIssueArchive({ months }: { months: MonthlyIssueArchiveEnt
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold tracking-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+      <h2 className="text-sm font-semibold tracking-tight text-au-ink">
         {t('title')}
       </h2>
       <div className="flex flex-col gap-2">
@@ -43,24 +43,24 @@ export function MonthlyIssueArchive({ months }: { months: MonthlyIssueArchiveEnt
                 type="button"
                 onClick={() => setOpenMonth(isOpen ? null : month.monthKey)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-au-card-2"
               >
                 <span className="font-medium capitalize">{month.label}</span>
-                <span className="flex shrink-0 items-center gap-2 text-sm text-white/70">
+                <span className="flex shrink-0 items-center gap-2 text-sm text-au-muted">
                   <span>{t('resolved', { count: month.counts.resolved })}</span>
                   <ChevronDown className={cn('size-4 transition-transform', isOpen && 'rotate-180')} />
                 </span>
               </button>
 
               {isOpen && (
-                <div className="flex flex-col gap-3 border-t border-white/15 px-4 py-3">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/70">
+                <div className="flex flex-col gap-3 border-t border-au-line px-4 py-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-au-muted">
                     <span>{t('resolved', { count: month.counts.resolved })}</span>
                     <span>{t('raised', { count: month.counts.raisedInMonth })}</span>
                   </div>
 
                   {month.issues.length === 0 ? (
-                    <p className="text-sm text-white/60">{t('noIssues')}</p>
+                    <p className="text-sm text-au-muted">{t('noIssues')}</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {month.issues.map((issue) => (
@@ -107,9 +107,9 @@ function ArchivedIssue({
   ].filter(Boolean);
 
   return (
-    <li className="flex flex-col gap-1 rounded-xl bg-white/5 px-3 py-2">
+    <li className="flex flex-col gap-1 rounded-xl bg-au-card-2 px-3 py-2">
       <span className="text-sm font-medium break-words">{issue.title}</span>
-      {meta.length > 0 && <span className="text-xs text-white/60">{meta.join(' · ')}</span>}
+      {meta.length > 0 && <span className="text-xs text-au-muted">{meta.join(' · ')}</span>}
     </li>
   );
 }
