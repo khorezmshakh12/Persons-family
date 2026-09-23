@@ -20,23 +20,30 @@ export default async function AnalyticsPage() {
   // The action re-checks requireCeo() itself — the notFound() above only
   // gates this page's render, never the action's own POST endpoint.
   const [performance, goals, adminKpi] = await Promise.all([
-    sql<{ weekly_progress_score: number; first_name: string | null; last_name: string | null }[]>`
-      select sp.weekly_progress_score, p.first_name, p.last_name
+    // Inner join + is_active: a `left join` kept orphaned rows (a deleted
+    // profile) alive as a nameless bar, and departed staff were still plotted
+    // among "the team". Ordered highest-first so the chart reads as a
+    // ranking; `coalesce` keeps a null score at a true 0 rather than letting
+    // recharts drop the bar silently.
+    sql<{ weekly_progress_score: number; first_name: string; last_name: string }[]>`
+      select coalesce(sp.weekly_progress_score, 0) as weekly_progress_score,
+             p.first_name, p.last_name
       from staff_performance sp
-      left join profiles p on p.id = sp.staff_id
+      join profiles p on p.id = sp.staff_id
+      where p.is_active = true
+      order by coalesce(sp.weekly_progress_score, 0) desc, p.first_name asc
     `,
     sql<{ title: string; progress_percentage: number; status: 'pending' | 'done' | 'failed' }[]>`
       select title, progress_percentage, status from roadmap_goals
+      order by progress_percentage desc, title asc
     `,
     getAdminTeamKpiAction(),
   ]);
 
-  const staffPerformanceData = performance
-    .filter((p) => p.first_name)
-    .map((p) => ({
-      name: `${p.first_name} ${p.last_name}`,
-      score: p.weekly_progress_score,
-    }));
+  const staffPerformanceData = performance.map((p) => ({
+    name: `${p.first_name} ${p.last_name}`,
+    score: p.weekly_progress_score,
+  }));
 
   // Every month in the range comes back, so "empty" means the Administration
   // team had nothing due in the whole 12-month window — a chart of twelve

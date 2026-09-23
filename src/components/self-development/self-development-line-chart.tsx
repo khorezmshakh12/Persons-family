@@ -3,6 +3,7 @@
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useTranslations, useFormatter } from 'next-intl';
 import { GLASS_CARD } from '@/lib/glass';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 import type { ScorePoint } from './self-development-chart';
 
@@ -32,6 +33,7 @@ export function SelfDevelopmentLineChart({
 }) {
   const t = useTranslations('selfDevelopment');
   const format = useFormatter();
+  const anim = useChartAnimation();
 
   const data = points
     .filter((p) => p.ceoScore !== null)
@@ -58,7 +60,14 @@ export function SelfDevelopmentLineChart({
               width={40}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Line type="monotone" dataKey="score" stroke="#2dd4bf" strokeWidth={2.5} dot={{ fill: '#2dd4bf', r: 3 }} />
+            <Line
+              type="monotone"
+              dataKey="score"
+              stroke="#2dd4bf"
+              strokeWidth={2.5}
+              dot={{ fill: '#2dd4bf', r: 3 }}
+              {...anim}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>

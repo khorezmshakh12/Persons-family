@@ -14,7 +14,12 @@ import type { TeacherLevel } from '@/lib/teacher-level';
 import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { StarBalanceCard } from '@/components/profile/star-balance-card';
+import { SalaryCard } from '@/components/profile/salary-card';
 import { WarningsCard } from '@/components/profile/warnings-card';
+import { MonthlyWarningsArchive } from '@/components/profile/monthly-warnings-archive';
+import { MonthlyStarsArchive } from '@/components/profile/monthly-stars-archive';
+import { getMonthlyWarningsArchiveAction } from '@/lib/actions/warnings';
+import { getMonthlyStarsArchiveAction } from '@/lib/actions/stars';
 import { MarkWarningsSeen } from '@/components/profile/mark-warnings-seen';
 import { BonusesPunishmentsCard } from '@/components/profile/bonuses-punishments-card';
 import { DutiesCard } from '@/components/profile/duties-card';
@@ -24,6 +29,21 @@ import { SectionErrorBoundary } from '@/components/profile/section-error-boundar
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 
 export const dynamic = 'force-dynamic';
+
+/* Both archives below are thin async wrappers so each one streams behind its
+ * own Suspense boundary, exactly like the cards they sit under — fetching
+ * them in the page body instead would block the whole profile on a query
+ * that only feeds one collapsed section. Both actions carry their own
+ * visibility gate and return [] rather than throwing, and both components
+ * render nothing on an empty list, so a staff member with no history simply
+ * sees no archive. */
+async function WarningsArchiveSection({ staffId }: { staffId: string }) {
+  return <MonthlyWarningsArchive months={await getMonthlyWarningsArchiveAction(staffId)} />;
+}
+
+async function StarsArchiveSection({ staffId }: { staffId: string }) {
+  return <MonthlyStarsArchive months={await getMonthlyStarsArchiveAction(staffId)} />;
+}
 
 // Every section below fetches its own data independently and streams in
 // behind its own Suspense boundary, wrapped in its own error boundary —
@@ -93,7 +113,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       {isSelf && <MarkWarningsSeen />}
       <div
         style={{ animationDelay: '0ms' }}
-        className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
+        className={cn(GLASS_CARD, 'enter-rise flex items-center gap-4 p-6')}
       >
         <Avatar className="size-16 border border-white/30">
           <AvatarImage src={avatarSignedUrl ?? undefined} alt="" />
@@ -108,14 +128,12 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           </h1>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-white/60">{roleLabel(tStaff, target.role)}</span>
-            {target.role === 'teacher' && target.teacher_level && (
-              <TeacherLevelBadge level={target.teacher_level} />
-            )}
+            {target.teacher_level && <TeacherLevelBadge level={target.teacher_level} />}
           </div>
         </div>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '70ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '70ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <ContactInfoCard profile={target} isSelf={isSelf} />
@@ -124,7 +142,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       </div>
 
       {isSelf && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '100ms' }}>
           <ThemePreferenceCard />
         </div>
       )}
@@ -134,7 +152,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
           for anyone else, so this gate only controls whether the card is
           worth rendering at all. */}
       {canViewCeoScoped && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '140ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <StarBalanceCard staffId={id} canManage={canManage} />
@@ -144,7 +162,27 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
       )}
 
       {canViewCeoScoped && (
-        <div className="animate-fade-in-up" style={{ animationDelay: '210ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '170ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <SalaryCard staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+      )}
+
+      {canViewCeoScoped && (
+        <div className="enter-rise" style={{ animationDelay: '185ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={null}>
+              <StarsArchiveSection staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+      )}
+
+      {canViewCeoScoped && (
+        <div className="enter-rise" style={{ animationDelay: '210ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
@@ -153,7 +191,7 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </div>
       )}
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '280ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '280ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <WarningsCard staffId={id} canManage={canManageWarnings} />
@@ -161,7 +199,15 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </SectionErrorBoundary>
       </div>
 
-      <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+      <div className="enter-rise" style={{ animationDelay: '310ms' }}>
+        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+          <Suspense fallback={null}>
+            <WarningsArchiveSection staffId={id} />
+          </Suspense>
+        </SectionErrorBoundary>
+      </div>
+
+      <div className="enter-rise" style={{ animationDelay: '350ms' }}>
         <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
           <Suspense fallback={<GlassCardSkeleton />}>
             <BonusesPunishmentsCard staffId={id} canManage={canManage} />
@@ -171,14 +217,14 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
 
       {canViewCeoScoped && (
         <>
-          <div className="animate-fade-in-up" style={{ animationDelay: '420ms' }}>
+          <div className="enter-rise" style={{ animationDelay: '420ms' }}>
             <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
               <Suspense fallback={<GlassCardSkeleton />}>
                 <DutiesCard staffId={id} canManage={canManage} />
               </Suspense>
             </SectionErrorBoundary>
           </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '490ms' }}>
+          <div className="enter-rise" style={{ animationDelay: '490ms' }}>
             <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
               <Suspense fallback={<GlassCardSkeleton />}>
                 <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />

@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 export default async function SetPasswordPage() {
   const { user, profile } = await getAuthState();
   const locale = await getLocale();
-  if (!user) redirect({ href: '/login', locale });
+  // `reason` — see the (app) layout: keeps proxy.ts from looping /login back.
+  if (!user) redirect({ href: { pathname: '/login', query: { reason: 'session' } }, locale });
   if (!profile?.must_change_password) redirect({ href: '/dashboard', locale });
 
   const t = await getTranslations('auth');

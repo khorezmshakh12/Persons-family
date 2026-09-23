@@ -41,7 +41,7 @@ export async function StaffTable({
   const staffRows = await sql<Profile[]>`
     select id, first_name, last_name, phone, date_of_birth, role, avatar_url, is_active, created_at,
       created_by, must_change_password, telegram_id, teacher_level, level_updated_at, internship_level,
-      email, address, emergency_contact,
+      email, address, emergency_contact, frozen_reason,
       ${isCeo ? sql`monthly_salary` : sql`0 as monthly_salary`}
     from profiles order by created_at asc
   `;
@@ -112,7 +112,7 @@ export async function StaffTable({
                 <TableCell>{person.phone}</TableCell>
                 <TableCell>{roleLabel(t, person.role)}</TableCell>
                 <TableCell>
-                  {person.role === 'teacher' && person.teacher_level ? (
+                  {person.teacher_level ? (
                     <div className="flex items-center gap-2">
                       <TeacherLevelBadge level={person.teacher_level} />
                       {actingRole === 'ceo' && person.level_updated_at && isLevelReviewDue(person.level_updated_at) && (
@@ -128,9 +128,22 @@ export async function StaffTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="tint" tint={person.is_active ? 'green' : 'slate'}>
-                    {person.is_active ? t('status.active') : t('status.inactive')}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="tint" tint={person.is_active ? 'green' : 'slate'}>
+                      {person.is_active ? t('status.active') : t('status.inactive')}
+                    </Badge>
+                    {/* Distinguishes the auto-freeze (star balance <= -20,
+                     * see freezeIfBalanceCritical) from a manual CEO
+                     * deactivation — same is_active flip, different
+                     * reason, and the two need different follow-up
+                     * (reactivate here vs. actually resolve the star
+                     * balance first). */}
+                    {!person.is_active && person.frozen_reason === 'star_balance' && (
+                      <Badge variant="tint" tint="red">
+                        {t('status.frozenStars')}
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <StaffRowActions

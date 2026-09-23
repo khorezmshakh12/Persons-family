@@ -1,8 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, type Timestamp } from 'firebase/firestore';
-import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import type { Timestamp } from 'firebase/firestore';
 
 const PresenceContext = createContext<Set<string>>(new Set());
 
@@ -30,6 +29,10 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
     let unsubscribe: (() => void) | undefined;
     let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
     let staleCheckInterval: ReturnType<typeof setInterval> | undefined;
+    // Assigned once the dynamically-imported SDK resolves (below) — kept in
+    // the outer scope so the unmount cleanup can still send the final
+    // "offline" write.
+    let writeHeartbeat: ((state: 'online' | 'offline') => void) | undefined;
     const latestDocs: Map<string, PresenceDoc> = new Map();
 
     const recomputeOnline = () => {
@@ -42,14 +45,27 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
       setOnlineUserIds(next);
     };
 
-    const writeHeartbeat = (state: 'online' | 'offline') => {
-      setDoc(doc(getRealtimeDb(), 'presence', userId), { state, lastSeenAt: serverTimestamp() }, { merge: true }).catch(
-        (error) => console.error('presence heartbeat failed', error),
-      );
-    };
+    // Firebase (client SDK) is dynamically imported here rather than at
+    // module scope: this provider wraps every authenticated page (see
+    // app-shell.tsx), so a static import put the whole Firestore/Auth SDK
+    // in the bundle every page has to parse before it can hydrate. Presence
+    // is a live enhancement, not something the first paint depends on, so
+    // deferring its chunk to right after mount costs nothing visible.
+    Promise.all([import('firebase/firestore'), import('@/lib/firebase/client')])
+      .then(async ([{ collection, doc, onSnapshot, serverTimestamp, setDoc }, { ensureRealtimeSignedIn, getRealtimeDb }]) => {
+        // `heartbeat` is a locally-narrowed alias: `writeHeartbeat` itself
+        // is typed `| undefined` (the unmount cleanup below can run before
+        // this promise ever resolves), so TS can't carry that narrowing
+        // into the closures captured below (the interval and the two event
+        // listeners) — this const can only ever be the function.
+        const heartbeat = (state: 'online' | 'offline') => {
+          setDoc(doc(getRealtimeDb(), 'presence', userId), { state, lastSeenAt: serverTimestamp() }, { merge: true }).catch(
+            (error) => console.error('presence heartbeat failed', error),
+          );
+        };
+        writeHeartbeat = heartbeat;
 
-    ensureRealtimeSignedIn()
-      .then(() => {
+        await ensureRealtimeSignedIn();
         if (cancelled) return;
         const db = getRealtimeDb();
 
@@ -61,18 +77,18 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
           recomputeOnline();
         });
 
-        writeHeartbeat('online');
-        heartbeatInterval = setInterval(() => writeHeartbeat('online'), HEARTBEAT_INTERVAL_MS);
+        heartbeat('online');
+        heartbeatInterval = setInterval(() => heartbeat('online'), HEARTBEAT_INTERVAL_MS);
         // Re-check staleness on a timer too — a user going stale doesn't by
         // itself produce a new snapshot event for anyone else to react to.
         staleCheckInterval = setInterval(recomputeOnline, 10_000);
 
         const handleVisibilityChange = () => {
-          writeHeartbeat(document.visibilityState === 'hidden' ? 'offline' : 'online');
+          heartbeat(document.visibilityState === 'hidden' ? 'offline' : 'online');
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        const handleBeforeUnload = () => writeHeartbeat('offline');
+        const handleBeforeUnload = () => heartbeat('offline');
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         return () => {
@@ -87,7 +103,7 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
       unsubscribe?.();
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (staleCheckInterval) clearInterval(staleCheckInterval);
-      writeHeartbeat('offline');
+      writeHeartbeat?.('offline');
     };
   }, [userId]);
 

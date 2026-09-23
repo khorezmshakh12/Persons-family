@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { StatsRow } from '@/components/dashboard/stats-row';
+import { StatsPeriodProvider } from '@/components/dashboard/stats-period';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
@@ -120,14 +121,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6 sm:p-8">
-      <Suspense fallback={<GlassStatsRowSkeleton />}>
-        <StatsRow
-          showTotalStaff={isCeo}
-          showLessonPlanCards={!isPersonalDashboard}
-          personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
-          financeUserId={isTeacherTier ? user!.id : undefined}
-        />
-      </Suspense>
+      {/* The period selector's state lives in this provider, above the
+          streamed server cards, so a realtime router.refresh() re-renders
+          them without resetting the viewer's kunlik/haftalik/oylik choice. */}
+      <StatsPeriodProvider>
+        <Suspense fallback={<GlassStatsRowSkeleton />}>
+          <StatsRow
+            showTotalStaff={isCeo}
+            showLessonPlanCards={!isPersonalDashboard}
+            personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
+            financeUserId={isTeacherTier ? user!.id : undefined}
+          />
+        </Suspense>
+      </StatsPeriodProvider>
 
       {isCeo ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

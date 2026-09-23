@@ -44,6 +44,7 @@ export function DeleteStaffButton({
       formData.set('id', staffId);
       const result = await deleteStaffAction(undefined, formData);
       if (result?.error) toast.error(t(`errors.${result.error}`));
+      else if (result?.archived) toast.info(t('deletedArchived'));
     });
   }
 

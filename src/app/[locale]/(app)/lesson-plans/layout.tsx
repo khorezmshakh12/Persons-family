@@ -3,9 +3,9 @@ import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { LESSON_PLAN_ROLES } from '@/lib/nav';
 
-// Lesson-plan visibility is CEO / Head Teacher / IT Developer (view-only) /
-// owning teacher / assigned TA only — the nav item is already hidden for
-// everyone else (src/lib/nav.ts); this blocks a direct visit to the URL too.
+// Lesson-plan visibility is CEO / Head Teacher / owning teacher / assigned
+// TA only — the nav item is already hidden for everyone else
+// (src/lib/nav.ts); this blocks a direct visit to the URL too.
 // Kept as an allowlist matching that nav entry rather than a denylist of the
 // roles that lost access, so a future role addition doesn't slip through by
 // default.

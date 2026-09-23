@@ -151,19 +151,40 @@
   html {
     @apply font-sans;
   }
+
+  /* Keyboard-focus fallback. The dark glass theme leaves the UA's default
+     focus ring nearly invisible against white/10 panels, and only the shadcn
+     primitives (button, input, textarea, select, switch, tabs) style focus
+     themselves. Deliberately declared in @layer base so it stays a FALLBACK:
+     every one of those primitives carries the `outline-none` utility, and
+     utilities outrank base, so they keep their own ring and never get a
+     doubled indicator. Everything else — raw <button>/<a> icon controls,
+     drag handles, tabindex'd cards — picks up the teal outline here.
+     :focus-visible only ever matches during keyboard interaction, so this
+     adds no resting state to anything. */
+  :focus-visible {
+    outline: 2px solid rgba(45, 212, 191, 0.7);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 /* Staggered entrance for dashboard stat cards (see StatCard's `index` prop,
    which sets animation-delay inline). Kept as a plain CSS animation rather
    than a framer-motion mount so the cards (a Server Component tree) don't
    need a client boundary just to fade in. */
+/* TRANSFORM-ONLY, DELIBERATELY. This is a `both`-fill keyframe, so if the
+   animation never advances past frame 0 (hydration timing, a throttled
+   paint, a GPU-layer'd subtree) the element is stuck in `from` forever.
+   With `opacity: 0` in `from`, that stall renders the element invisible —
+   which is exactly how a previous motion pass white-screened the app. With
+   transform only, a stall leaves the element 10px low but fully readable.
+   Do not re-add opacity here. */
 @keyframes fade-in-up {
   from {
-    opacity: 0;
     transform: translateY(10px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -175,13 +196,14 @@
    ticking up, a toast, a freshly-inserted list item. Overshoots past 100%
    then settles, which is what makes it read as "alive" rather than a flat
    fade. */
+/* Transform-only for the same reason as fade-in-up above — a stalled badge
+   must still be visible. `from` is scale(0.8) rather than a deeper 0.5 so
+   that a stall reads as "slightly small", not "broken". */
 @keyframes pop-in {
   from {
-    opacity: 0;
-    transform: scale(0.5);
+    transform: scale(0.8);
   }
   to {
-    opacity: 1;
     transform: scale(1);
   }
 }
@@ -226,6 +248,21 @@
   transform: scale(0.88);
 }
 
+/* Gentle hover lift for glass cards that are themselves clickable (market
+   shop items today). Deliberately softer than GLASS_INTERACTIVE — this is
+   for grid tiles where a full 1.03 scale would visibly jostle neighbours.
+   Hover-only: the resting state is the untransformed card, so nothing here
+   can ever leave content displaced or hidden. */
+.card-lift {
+  transition:
+    transform 0.2s var(--ease-snappy),
+    border-color 0.2s var(--ease-snappy),
+    box-shadow 0.2s var(--ease-snappy);
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+}
+
 /* Slow ambient breathing for the "Cinematic" video background's
    colour-harmony veil (see dynamic-background.tsx) — keeps the scene
    quietly alive even when the footage itself is momentarily still,
@@ -243,15 +280,190 @@
   animation: ambient-pulse 10s ease-in-out infinite;
 }
 
+/* ---------------------------------------------------------------------------
+   House entrance animations (leaf elements only).
+
+   THE RULE: an entrance animation's resting state — the state before it
+   plays, and the state it is stranded in if it never plays — must be fully
+   visible. So these animate `transform` and nothing else. No `opacity`,
+   ever. A stalled element sits a few pixels off its final position and is
+   100% readable; that is the whole point.
+
+   Use on LEAF elements: a card, a list row, a stat tile, a table row. Never
+   on a layout container, page wrapper, nav, auth card or anything that
+   wraps "the rest of the page" — that is what turns one stalled frame into
+   a blank screen.
+
+   Stagger convention (set by the consumer, so the delay stays in the JSX
+   next to the index it comes from):
+     style={{ animationDelay: `${Math.min(i, 10) * 45}ms` }}
+   Capping the index keeps a long list's tail from waiting seconds to move.
+--------------------------------------------------------------------------- */
+@keyframes enter-rise {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.enter-rise {
+  animation: enter-rise 0.45s both var(--ease-snappy);
+}
+
+/* Shorter travel for dense lists (table rows, compact list items) where a
+   full 14px lift reads as jitter rather than motion. */
+@keyframes enter-rise-sm {
+  from {
+    transform: translateY(8px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.enter-rise-sm {
+  animation: enter-rise-sm 0.4s both var(--ease-snappy);
+}
+
+/* For grid tiles that should feel like they settle into place rather than
+   arrive from below. 0.97 is deliberately shallow — a stalled tile is
+   imperceptibly small, not obviously wrong. */
+@keyframes enter-scale {
+  from {
+    transform: scale(0.97);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.enter-scale {
+  animation: enter-scale 0.4s both var(--ease-snappy);
+}
+
+/* ---------------------------------------------------------------------------
+   Persons Market — purchase & decision feedback.
+
+   Same rule as the entrances above: every one of these plays on content that
+   is ALREADY rendered and already visible, and none of them has a hidden
+   resting state. If an animation never starts, the user sees the finished UI,
+   not a blank box.
+--------------------------------------------------------------------------- */
+
+/* The confirm card's celebratory beat when an order lands. Starts and ends at
+   scale(1) — a stall leaves the card exactly where it was. */
+@keyframes purchase-pop {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.045);
+  }
+  62% {
+    transform: scale(0.992);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.purchase-pop {
+  animation: purchase-pop 0.7s var(--ease-bounce);
+}
+
+/* The few star particles that fly out of the card. These are decoration that
+   only exists for ~1s AFTER a click — never content, never present on load —
+   so fading them out is safe; they are also removed from the DOM by the
+   component's own timer, and hidden outright under reduced motion below.
+   --star-dx / --star-dy are set per particle in the JSX. */
+@keyframes star-fly {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.5) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(var(--star-dx, 0), var(--star-dy, -40px), 0) scale(1.1) rotate(140deg);
+    opacity: 0;
+  }
+}
+.star-particle {
+  animation: star-fly 0.9s var(--ease-snappy) forwards;
+}
+
+/* Green check that draws itself in on an approved order. No fill-mode and no
+   starting offset outside the keyframes, so the resting state of the path is
+   the fully drawn check — a stalled animation shows a normal tick. */
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 26;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.check-draw {
+  stroke-dasharray: 26;
+  animation: check-draw 0.45s var(--ease-snappy);
+}
+
+/* ---------------------------------------------------------------------------
+   Task-move "salute": a small burst of sparks fired at a card's landing
+   spot when it's dragged into another column. Same rule as every other
+   effect here — it plays on top of already-rendered content, has no
+   resting state, and is removed from the DOM by the component's own timer
+   (see TaskMoveBurst). --sx / --sy (end offset, px) and --shue (hue) are
+   set per spark in the JSX. Pure decoration, hidden under reduced motion.
+--------------------------------------------------------------------------- */
+@keyframes task-spark-fly {
+  from {
+    transform: translate3d(-50%, -50%, 0) scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(calc(-50% + var(--sx, 0px)), calc(-50% + var(--sy, -32px)), 0) scale(1);
+    opacity: 0;
+  }
+}
+.task-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: hsl(var(--shue, 168) 90% 62%);
+  box-shadow: 0 0 8px 2px hsl(var(--shue, 168) 90% 62% / 0.55);
+  animation: task-spark-fly 0.6s var(--ease-snappy) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
   .animate-pop-in,
   .animate-shake,
-  .animate-ambient-pulse {
+  .animate-ambient-pulse,
+  .enter-rise,
+  .enter-rise-sm,
+  .enter-scale,
+  .purchase-pop,
+  .check-draw {
     animation: none;
+  }
+  /* Particles are pure motion — with the animation off they would just be
+     static dots sitting on the card, so drop them entirely. */
+  .star-particle,
+  .task-spark {
+    display: none;
   }
   .tap-scale {
     transition: none;
+  }
+  /* Drop the transform half of the lift; the border/shadow brighten stays,
+     so the card still answers "am I hovered" without any motion. */
+  .card-lift {
+    transition:
+      border-color 0.2s linear,
+      box-shadow 0.2s linear;
+  }
+  .card-lift:hover {
+    transform: none;
   }
 }
 
@@ -334,14 +546,41 @@
   --theme-shadow: 10px 10px 24px #070a12, -10px -10px 24px #1b2238;
 }
 
-/* Dynamic Card Surface Application across all pages */
-[data-design] [class*="bg-white/10"] {
+/* Dynamic card-surface retint, applied on top of whatever design variant
+   is active (see the [data-design="…"] blocks above for the tints).
+
+   This used to match `[class*="bg-white/10"]` alone — but the in-flow
+   glass panels across the app are drawn with a spread of opacities
+   (/10, /12, /15, /20, /25). Retinting only the /10 ones meant switching
+   a theme recoloured about a third of the panels and left the rest at
+   the default whitish tint — the "colours don't match after a theme
+   change" report. Now every in-flow panel opacity picks up the card tint.
+
+   Scope note: this is deliberately in-flow SURFACES only.
+   - `bg-white/5` (subtle inset — inputs, nested sub-panels) is left out:
+     barely visible over any tint, usually nested inside an already-
+     retinted card, and its substring would also catch a stray
+     `bg-white/50` accent.
+   - `bg-slate-900/*` (modals, popovers, chart tooltips) is left out on
+     purpose: those sit ABOVE the layout and must stay a stable, readable
+     dark neutral. Forcing e.g. nordic's `rgba(255,255,255,0.14)` onto a
+     chart tooltip would make it a near-invisible wash over busy chart
+     content. A neutral-dark dialog over a colour-tinted page reads as
+     intentional layering, not a clash. */
+[data-design] [class*="bg-white/10"],
+[data-design] [class*="bg-white/12"],
+[data-design] [class*="bg-white/15"],
+[data-design] [class*="bg-white/20"],
+[data-design] [class*="bg-white/25"] {
   background-color: var(--theme-card-tint, rgba(255, 255, 255, 0.1)) !important;
   border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
   box-shadow: var(--theme-shadow, 0 12px 35px rgba(0, 0, 0, 0.35)) !important;
 }
 
+[data-design] [class*="border-white/10"],
+[data-design] [class*="border-white/15"],
 [data-design] [class*="border-white/20"],
-[data-design] [class*="border-white/15"] {
+[data-design] [class*="border-white/25"],
+[data-design] [class*="border-white/30"] {
   border-color: var(--theme-border-tint, rgba(255, 255, 255, 0.2)) !important;
 }

@@ -10,7 +10,9 @@ Full workflow: **`DEVELOPMENT.md`**. The essentials:
 
 - **Never commit to `main`.** It auto-deploys to production. Branch → PR → CI
   green → merge. Risky changes go through the `staging` branch first.
-- Run `npm run verify` (`tsc --noEmit && eslint && next build`) before pushing.
+- Run `npm run verify` (`tsc --noEmit && eslint && npm test && next build`)
+  before pushing. `npm test` runs `tests/*.test.ts` (unit tests + static
+  guardrails — no DB needed).
 - **Do not touch `src/lib/auth/**`, `src/lib/db/**`, `src/lib/gcp/**`, or
   `src/proxy.ts` outside the task you were asked to do**, and flag any change
   to them for review. That is where a stray edit logs everyone out.
@@ -37,3 +39,37 @@ Full workflow: **`DEVELOPMENT.md`**. The essentials:
   helpers return a `boolean` for exactly this). Never put `router`, or any
   hook result that isn't provably stable, in a dep array alongside a call
   that re-renders.
+- **Auth: use `getAuthState()`, never the raw cookie check.**
+  `getCurrentUser()` (lib/gcp/session.ts) only verifies the cookie
+  signature — it does not check `is_active` or revoked sessions, so a
+  deactivated or signed-out user sails through. eslint blocks importing it
+  outside `lib/auth/session.ts`, `actions/auth.ts` and `audit-log.ts`.
+  Every exported Server Action must call an auth check (`getAuthState` /
+  `require*`) — `tests/guards.test.ts` fails otherwise.
+- **Session revocation is enforced by `profiles.sessions_revoked_at`**, which
+  `revokeUserSessions()` stamps and `getAuthState()` compares against the
+  cookie's `iat`. Never call `revokeUserSessions()` (default `stampDb: true`)
+  from inside a `sql.begin` that has written that user's `profiles` row — the
+  stamp runs on another connection and deadlocks on the row lock. Pass
+  `{ stampDb: false }` there (see `freezeIfBalanceCritical`).
+- **A redirect to `/login` from the page layer must carry a `reason`**
+  query param. The proxy only verifies the cookie signature, so without it it
+  bounces a still-valid-but-rejected cookie from `/login` back to
+  `/dashboard` — an infinite redirect loop.
+- **Deleting a profile.** Many tables reference `profiles(id)` without
+  `on delete cascade` (star ledger, orders, comments, attachments…). Use
+  `removeStaffAccount()` (lib/staff-removal.ts): profile row first, login
+  second, deactivate on FK violation. Never delete the Identity Platform
+  user before the profile row is gone.
+- **Guarded state transitions must check the row count.** An
+  `update … where status = 'submitted'` that matched 0 rows means someone
+  else already decided; bail out (`if (res.count === 0) return { error }`)
+  instead of running the follow-up side effects (stars, notifications).
+- **Stars: stamp + ledger row in one `sql.begin`.** Any "settle once" stamp
+  (`star_penalty_applied_at`, `star_awarded_at`, …) must commit together
+  with its `insertStarTransaction` row. Read-then-write on a balance or a
+  running total needs a row lock (`select … for update`) on the owner —
+  per *user* for balances, not per item.
+- **"Latest N rows":** `order by x asc limit N` returns the *oldest* N.
+  Use `order by x desc limit N` in a subquery and re-sort `asc` outside it.
+  eslint flags `asc limit` in SQL templates.

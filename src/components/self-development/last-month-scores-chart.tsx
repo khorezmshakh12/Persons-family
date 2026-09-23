@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LabelList } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { GLASS_CARD } from '@/lib/glass';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 
 export type StaffScorePoint = { name: string; score: number };
@@ -36,17 +36,15 @@ function ScoreLabel({ x, y, width, value }: { x?: number; width?: number; y?: nu
 
 export function LastMonthScoresChart({ points }: { points: StaffScorePoint[] }) {
   const t = useTranslations('selfDevelopment.lastMonthChart');
-  // Mount with every bar at 0, then flip to the real scores on the next
-  // frame — Recharts tweens the height change, so the bars visibly rise
-  // from the baseline instead of appearing already-filled on paint.
-  const [data, setData] = useState(() => points.map((p) => ({ ...p, score: 0 })));
-
-  useEffect(() => {
-    setData(points.map((p) => ({ ...p, score: 0 })));
-    const frame = requestAnimationFrame(() => setData(points));
-    return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(points)]);
+  const anim = useChartAnimation(900);
+  // The rendered data is ALWAYS the real scores. This used to hold the
+  // points in state seeded at score 0 and flip to the real values in a
+  // requestAnimationFrame — which meant a client where that frame never
+  // arrived (or where the effect threw) rendered a chart of flat zero bars
+  // with "0" labels: a stalled animation left the chart wrong rather than
+  // merely un-animated. Recharts grows bars from the baseline on its own, so
+  // the rise comes for free without a fake resting state.
+  const data = points;
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
@@ -80,9 +78,7 @@ export function LastMonthScoresChart({ points }: { points: StaffScorePoint[] }) 
                 dataKey="score"
                 radius={[8, 8, 0, 0]}
                 maxBarSize={72}
-                isAnimationActive
-                animationDuration={900}
-                animationEasing="ease-out"
+                {...anim}
               >
                 {data.map((d, i) => (
                   <Cell key={i} fill={`url(#lastMonthBar-${i})`} />

@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TeacherLevelBadge } from './teacher-level-badge';
 import { CurrencyInput } from './currency-input';
 import { INTERNSHIP_LEVELS } from '@/lib/internship-level';
+import { TEACHER_LEVELS } from '@/lib/teacher-level';
 import { roleLabel } from '@/lib/roles';
 import type { Profile } from '@/lib/auth/session';
 
@@ -121,9 +122,9 @@ export function EditStaffDialog({
           <input type="hidden" name="staffId" value={profile.id} />
           {profile.role === 'teacher' && profile.teacher_level && (
             <div className="flex items-center gap-2">
-              <Label className="text-muted-foreground text-xs">{t('teacherLevel')}</Label>
+              <Label className="text-white/60 text-xs">{t('teacherLevel')}</Label>
               <TeacherLevelBadge level={profile.teacher_level} />
-              <span className="text-muted-foreground text-xs">{t('teacherLevelHint')}</span>
+              <span className="text-white/60 text-xs">{t('teacherLevelHint')}</span>
             </div>
           )}
           {profile.role === 'internship' && (
@@ -184,6 +185,17 @@ export function EditStaffDialog({
             />
           </div>
           <div className="flex flex-col gap-2">
+            <Label htmlFor={`telegramId-${profile.id}`}>{t('telegramId')}</Label>
+            <Input
+              id={`telegramId-${profile.id}`}
+              name="telegramId"
+              type="text"
+              inputMode="numeric"
+              placeholder={t('telegramIdPlaceholder')}
+            />
+            <p className="text-white/60 text-xs">{t('telegramIdHint')}</p>
+          </div>
+          <div className="flex flex-col gap-2">
             <Label htmlFor={`role-${profile.id}`}>{t('role')}</Label>
             <Select name="role" defaultValue={profile.role}>
               <SelectTrigger id={`role-${profile.id}`} className="w-full">
@@ -216,10 +228,40 @@ export function EditStaffDialog({
               />
             </div>
           )}
+          {/* Grading is a CEO-only judgment call too — same gate and same
+              "leave it as-is by default" shape as pay above. Every role can
+              be graded now, not just teachers (see updateStaffAction); this
+              is the same nine-rung C..A++ scale self-development's monthly
+              review sets for teachers specifically. */}
+          {canAssignCeo && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={`level-${profile.id}`}>{t('level')}</Label>
+              <Select name="level" defaultValue="keep">
+                <SelectTrigger id={`level-${profile.id}`} className="w-full">
+                  <SelectValue>
+                    {(value: string) => (value === 'keep' ? t('levelKeep') : value)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="keep">{t('levelKeep')}</SelectItem>
+                  {TEACHER_LEVELS.map((lvl) => (
+                    <SelectItem key={lvl} value={lvl}>
+                      {lvl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {profile.teacher_level && (
+                <p className="text-white/60 text-xs">
+                  {t('levelCurrent', { level: profile.teacher_level })}
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor={`avatar-${profile.id}`}>{t('avatar')}</Label>
             <Input id={`avatar-${profile.id}`} name="avatar" type="file" accept="image/png,image/jpeg" />
-            <p className="text-muted-foreground text-xs">{t('avatarOptional')}</p>
+            <p className="text-white/60 text-xs">{t('avatarOptional')}</p>
           </div>
 
           {error && <p className="text-destructive text-sm">{t(`errors.${error}`)}</p>}

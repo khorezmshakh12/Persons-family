@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { Link } from '@/i18n/navigation';
@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { MaskableStatValue } from '@/components/dashboard/maskable-stat-value';
 import type { FinanceEntry } from '@/components/finance/finance-entries-list';
+import { PayrollSection } from '@/components/finance/payroll-section';
+import { getPayrollSummary, resolvePeriod } from '@/lib/payroll';
 import { FinanceDetailContent } from './[staffId]/page';
 
 export const dynamic = 'force-dynamic';
@@ -15,13 +17,21 @@ function netTotal(entries: { amount: number }[]) {
   return entries.reduce((sum, e) => sum + e.amount, 0);
 }
 
-export default async function FinancePage() {
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
   const t = await getTranslations('finance');
+  const locale = await getLocale();
   const { user, profile } = await getAuthState();
   const isAdmin = profile!.role === 'ceo';
 
   if (isAdmin) {
-    const [staff, entries] = await Promise.all([
+    // `?period=` is user-supplied — normalised (or replaced with the current
+    // Tashkent month) before it reaches a query.
+    const period = resolvePeriod((await searchParams)?.period);
+    const [staff, entries, payroll] = await Promise.all([
       sql<{ id: string; first_name: string; last_name: string; role: string }[]>`
         select id, first_name, last_name, role from profiles
         where is_active = true order by first_name asc
@@ -30,6 +40,7 @@ export default async function FinancePage() {
         select id, staff_id, title, amount::float8 as amount, note, created_at from finance_entries
         order by created_at desc
       `,
+      getPayrollSummary(period),
     ]);
 
     const entriesByStaffId = new Map<string, FinanceEntry[]>();
@@ -47,6 +58,8 @@ export default async function FinancePage() {
           </h1>
           <p className="text-white/70">{t('adminSubtitle')}</p>
         </div>
+
+        <PayrollSection summary={payroll} locale={locale} />
 
         <div className="flex flex-col gap-4">
           {staff.map((person, index) => {

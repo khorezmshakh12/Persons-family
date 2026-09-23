@@ -28,6 +28,14 @@ if (telegramBot) {
       return;
     }
 
+    // A personal link must bind a personal chat. Opened inside a group, it
+    // would point that person's private notifications (salary, warnings,
+    // stars) at the whole group.
+    if (ctx.chat.type !== 'private') {
+      await ctx.reply("Iltimos, bu havolani bot bilan shaxsiy chatda oching.");
+      return;
+    }
+
     const chatId = ctx.chat.id;
     await sql`update profiles set telegram_id = ${chatId} where id = ${linkRow.profile_id}`;
     await sql`delete from telegram_link_tokens where token = ${token}`;

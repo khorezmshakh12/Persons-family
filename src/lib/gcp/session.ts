@@ -1,6 +1,7 @@
 import "server-only";
 import { getAuth } from "firebase-admin/auth";
 import { getFirebaseAdminApp, GCP_PROJECT_ID } from "./credentials";
+import { sql } from "@/lib/db/client";
 
 export const SESSION_COOKIE_NAME = "session";
 const SESSION_EXPIRES_IN_MS = 1000 * 60 * 60 * 24 * 14;
@@ -16,6 +17,10 @@ export interface SessionUser {
   id: string;
   email: string | null;
   role: string | null;
+  /** When this session cookie was minted (JWT `iat`, seconds since epoch).
+   * getAuthState() compares it against profiles.sessions_revoked_at — see
+   * revokeUserSessions below. */
+  issuedAt: number;
 }
 
 export async function signInWithPassword(
@@ -92,13 +97,45 @@ export async function getCurrentUser(checkRevoked = false): Promise<SessionUser 
       id: decoded.uid,
       email: decoded.email ?? null,
       role: typeof decoded.role === "string" ? decoded.role : null,
+      issuedAt: decoded.iat,
     };
   } catch {
     return null;
   }
 }
 
-export async function revokeUserSessions(uid: string): Promise<void> {
+/**
+ * Signs the user out everywhere.
+ *
+ * revokeRefreshTokens() alone was not enough: session cookies are verified
+ * locally without `checkRevoked` (see lib/gcp/middleware.ts for why), so a
+ * revoked cookie kept working for its full 14-day life. Stamping
+ * profiles.sessions_revoked_at is what getAuthState() actually enforces —
+ * any cookie minted before this second is treated as signed out.
+ *
+ * Truncated to the second because the cookie's `iat` is in whole seconds: a
+ * cookie minted in the same second (e.g. a login right after a logout) must
+ * not be rejected. Best-effort on the DB side so a missing column (migration
+ * not yet applied) never breaks the callers.
+ *
+ * `stampDb: false` is for callers running inside a `sql.begin` transaction
+ * that has already written this user's profiles row: the stamp goes through
+ * the shared client (a different connection), so it would wait on that
+ * transaction's row lock while the transaction waits on this call — a
+ * deadlock. Those callers deactivate the account instead, and getAuthState()
+ * re-runs this with the stamp on the user's next request.
+ */
+export async function revokeUserSessions(
+  uid: string,
+  { stampDb = true }: { stampDb?: boolean } = {}
+): Promise<void> {
+  if (stampDb) {
+    try {
+      await sql`update profiles set sessions_revoked_at = date_trunc('second', now()) where id = ${uid}`;
+    } catch (error) {
+      console.error("revokeUserSessions: DB stamp failed", error instanceof Error ? error.message : error);
+    }
+  }
   const auth = getAuth(getFirebaseAdminApp());
   await auth.revokeRefreshTokens(uid);
 }

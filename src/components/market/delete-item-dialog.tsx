@@ -29,7 +29,10 @@ export function DeleteItemDialog({ item }: { item: MarketItemRow }) {
       if (result?.error) {
         toast.error(t(`errors.${result.error}`));
       } else {
-        toast.success(t('admin.itemDeleted'));
+        // The action picks the safe removal: a hard delete when nothing
+        // references the item, an archive when it already has orders whose
+        // records must keep resolving its name.
+        toast.success(result?.archived ? t('admin.itemArchived') : t('admin.itemDeleted'));
         setOpen(false);
       }
       return result;
@@ -59,6 +62,10 @@ export function DeleteItemDialog({ item }: { item: MarketItemRow }) {
             {t('admin.confirmDeleteItemDescription', { name: item.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        <p className="rounded-lg border border-white/15 bg-white/5 p-3 text-xs text-white/60">
+          {t('admin.deleteArchiveHint')}
+        </p>
 
         {state?.error && (
           <p className="text-destructive px-4 text-sm">{t(`errors.${state.error}`)}</p>

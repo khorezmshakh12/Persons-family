@@ -11,11 +11,19 @@ import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays
 export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile, suspended } = await getAuthState();
+  const { user, profile, suspended, frozenReason } = await getAuthState();
   const locale = await getLocale();
 
   if (!user || !profile) {
-    redirect({ href: suspended ? { pathname: '/login', query: { reason: 'suspended' } } : '/login', locale });
+    redirect({
+      href: suspended
+        ? { pathname: '/login', query: { reason: frozenReason === 'star_balance' ? 'starFrozen' : 'suspended' } }
+        : // `reason` lets proxy.ts serve /login even though the cookie itself
+          // still verifies (revoked session / missing profile) — without it
+          // the proxy bounces /login straight back here, a redirect loop.
+          { pathname: '/login', query: { reason: 'session' } },
+      locale,
+    });
   }
   if (profile!.must_change_password) redirect({ href: '/set-password', locale });
 
@@ -52,12 +60,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         where staff_id = ${user!.id} and is_seen = false
         order by created_at desc limit 50
       `,
-      // No staff_id filter — this table is CEO-only in practice (only the
-      // CEO gets alerts assigned), so a non-CEO viewer's query simply comes
-      // back empty, same behavior the old RLS policy gave for free.
+      // CEO oversight report only — the old RLS policy made a non-CEO's
+      // query come back empty; with RLS gone this had drifted to showing
+      // the whole "which teachers missed their plans" report in every
+      // employee's bell. Restores CEO-only (same guard as
+      // notification-bell.ts / nav-badges.ts / mark-seen.ts).
       sql<{ id: string; summary: string; created_at: string }[]>`
         select id, summary, created_at from lesson_plan_compliance_alerts
         where is_seen = false
+          and exists (select 1 from profiles where id = ${user!.id} and role = 'ceo')
         order by created_at desc limit 50
       `,
       computeNavBadgeKeys(user!.id),

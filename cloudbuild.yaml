@@ -58,6 +58,12 @@ steps:
       - '${_SERVICE}'
       - --source=.
       - --region=${_REGION}
+      # Keep CPU allocated during the post-response drain so `after()` and
+      # other fire-and-forget work in Server Actions (Telegram notifications
+      # for task/issue assignment, warnings, star changes, chat) actually
+      # finishes. Cloud Run's default throttles CPU to ~0 the instant the
+      # response is sent, which silently kills those in-flight sends.
+      - --no-cpu-throttling
       - --quiet
 
   - id: smoke

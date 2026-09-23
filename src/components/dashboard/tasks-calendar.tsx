@@ -33,7 +33,11 @@ export async function TasksCalendar({ userId }: { userId: string }) {
   }
 
   // Monday-first grid, matching the uz/ru convention this app otherwise uses.
-  const firstWeekday = (startOfMonth.getUTCDay() + 6) % 7;
+  // Read the weekday off a *calendar* instant (the 1st at 00:00 UTC), NOT off
+  // `startOfMonth` — that is Tashkent midnight expressed in UTC, i.e. 19:00
+  // on the LAST day of the previous month, whose UTC weekday is one day
+  // early. Every day in the grid was shifted a column left.
+  const firstWeekday = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
   const cells: (number | null)[] = [
     ...Array(firstWeekday).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),

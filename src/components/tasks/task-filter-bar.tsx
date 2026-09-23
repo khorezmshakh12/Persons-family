@@ -10,9 +10,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { tashkentDayKey, tashkentMidnight } from '@/lib/time';
 import { cn } from '@/lib/utils';
 import type { Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
+
+/**
+ * How soon a task's deadline is, or 'all' for no narrowing. The done column
+ * especially was turning into a wall of cards from every day this month
+ * once a team had more than a handful of tasks — this slices the whole
+ * board (every column, not just done) down to a look-ahead window.
+ *
+ * The two windows nest — "week" is a superset of "today" — both anchored on
+ * today (Tashkent) and neither matching an already-overdue deadline (that's
+ * what the separate "overdueOnly" toggle is for):
+ *   today  — due today (0 days out)
+ *   week   — due within the next 7 days (0-6 days out), so a task created
+ *            today with a deadline a couple of days out shows here even
+ *            though it never lands in "today"
+ */
+export const TASK_DAY_FILTERS = ['all', 'today', 'week'] as const;
+export type TaskDayFilter = (typeof TASK_DAY_FILTERS)[number];
+
+const DAY_FILTER_MAX_DAYS_OUT: Record<Exclude<TaskDayFilter, 'all'>, number> = {
+  today: 0,
+  week: 6,
+};
 
 export type TaskFilters = {
   /** Free text, matched against title + description. */
@@ -21,16 +44,42 @@ export type TaskFilters = {
    * everyone else, so applyTaskFilters needs no separate non-admin path. */
   assignee: string;
   overdueOnly: boolean;
+  /** CEO-only chip — only the two "handed in, waiting on the CEO's verdict"
+   * states (submitted / awaiting_upload). The one-glance "what needs me". */
+  submittedOnly: boolean;
+  day: TaskDayFilter;
 };
 
 export const EMPTY_TASK_FILTERS: TaskFilters = {
   search: '',
   assignee: 'all',
   overdueOnly: false,
+  submittedOnly: false,
+  day: 'all',
 };
 
 export function hasActiveTaskFilters(filters: TaskFilters): boolean {
-  return filters.search.trim() !== '' || filters.assignee !== 'all' || filters.overdueOnly;
+  return (
+    filters.search.trim() !== '' ||
+    filters.assignee !== 'all' ||
+    filters.submittedOnly ||
+    filters.overdueOnly ||
+    filters.day !== 'all'
+  );
+}
+
+/**
+ * Whole Tashkent calendar days between today and a deadline — negative once
+ * the deadline has passed. Both sides go through `tashkentMidnight` (rather
+ * than subtracting the raw instants) so a deadline stamped at, say, 18:00
+ * still counts as "today" instead of quietly rounding down a fraction of a
+ * day short.
+ */
+function daysUntilDeadline(deadline: string): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const todayMidnight = tashkentMidnight(tashkentDayKey()).getTime();
+  const deadlineMidnight = tashkentMidnight(tashkentDayKey(new Date(deadline))).getTime();
+  return Math.round((deadlineMidnight - todayMidnight) / msPerDay);
 }
 
 /**
@@ -42,10 +91,22 @@ export function hasActiveTaskFilters(filters: TaskFilters): boolean {
  */
 export function applyTaskFilters(tasks: Task[], filters: TaskFilters): Task[] {
   const needle = filters.search.trim().toLowerCase();
+  const maxDaysOut = filters.day === 'all' ? null : DAY_FILTER_MAX_DAYS_OUT[filters.day];
 
   return tasks.filter((task) => {
     if (filters.overdueOnly && !task.is_overdue) return false;
+    if (
+      filters.submittedOnly &&
+      task.status !== 'submitted' &&
+      task.status !== 'awaiting_upload'
+    ) {
+      return false;
+    }
     if (filters.assignee !== 'all' && task.assigned_to !== filters.assignee) return false;
+    if (maxDaysOut !== null) {
+      const daysOut = daysUntilDeadline(task.deadline);
+      if (daysOut < 0 || daysOut > maxDaysOut) return false;
+    }
     if (!needle) return true;
     return (
       task.title.toLowerCase().includes(needle) ||
@@ -70,6 +131,32 @@ export function TaskFilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-3 text-white shadow-lg backdrop-blur-md transform-gpu will-change-transform">
+      {/* Today / Week / Month, nested look-ahead windows on deadline
+       * (Tashkent) — narrows every column at once, not just done, so it
+       * doubles as the quickest way to answer "what's due soon". */}
+      <div
+        role="group"
+        aria-label={t('filters.dayGroupLabel')}
+        className="flex h-9 items-center gap-0.5 rounded-lg border border-white/30 bg-white/10 p-0.5"
+      >
+        {TASK_DAY_FILTERS.map((day) => (
+          <button
+            key={day}
+            type="button"
+            aria-pressed={filters.day === day}
+            onClick={() => onChange({ ...filters, day })}
+            className={cn(
+              'h-8 rounded-md px-2.5 text-sm font-medium transition-colors',
+              filters.day === day
+                ? 'bg-white/25 text-white'
+                : 'text-white/70 hover:bg-white/10 hover:text-white',
+            )}
+          >
+            {t(`filters.day.${day}`)}
+          </button>
+        ))}
+      </div>
+
       <div className="relative min-w-56 flex-1">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/50" />
         <Input
@@ -123,6 +210,24 @@ export function TaskFilterBar({
       >
         {t('filters.overdueOnly')}
       </button>
+
+      {/* CEO only — the queue of tasks handed in and waiting on their
+       * approve/reject verdict. */}
+      {isAdmin && (
+        <button
+          type="button"
+          aria-pressed={filters.submittedOnly}
+          onClick={() => onChange({ ...filters, submittedOnly: !filters.submittedOnly })}
+          className={cn(
+            'h-9 rounded-lg border px-3 text-sm font-medium transition-colors',
+            filters.submittedOnly
+              ? 'border-emerald-400/60 bg-emerald-500/25 text-emerald-100'
+              : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20',
+          )}
+        >
+          {t('filters.submittedOnly')}
+        </button>
+      )}
 
       {active && (
         <button

@@ -18,7 +18,7 @@ function TaskKanbanColumnImpl({
   currentUserId,
   emptyLabel,
   onRequestDelete,
-  onMove,
+  previewTaskId = null,
   collapsible = true,
   defaultExpanded = true,
 }: {
@@ -30,13 +30,27 @@ function TaskKanbanColumnImpl({
   currentUserId: string;
   emptyLabel: string;
   onRequestDelete: (task: Task) => void;
-  /** Move a card one place up/down within this column (see TaskBoard). */
-  onMove: (task: Task, direction: 'up' | 'down') => void;
+  /** Id of the card this column is only *provisionally* holding, because a
+   * drag is hovering here and hasn't been dropped yet. Non-null on exactly
+   * one column at a time — and it's the prop that lets `memo` know the
+   * hovered column has to re-render mid-drag. */
+  previewTaskId?: string | null;
   collapsible?: boolean;
   defaultExpanded?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const [expanded, setExpanded] = useState(defaultExpanded);
+
+  // A collapsed column still accepts a drop, but the drop would land out of
+  // sight — so a card hovering here opens it, and it stays open so the card
+  // is still visible once the drop lands. This is React's "adjust state
+  // while rendering" pattern rather than an effect: it converges in one
+  // extra render (the guard is false as soon as `expanded` is true) instead
+  // of painting the collapsed column first and cascading a second commit.
+  // The header toggle keeps working exactly as before — `isOver` is only
+  // ever true mid-drag, when the button can't be clicked anyway.
+  if (isOver && !expanded) setExpanded(true);
+
   const showCards = !collapsible || expanded;
 
   return (
@@ -72,7 +86,13 @@ function TaskKanbanColumnImpl({
       <AnimatePresence initial={false}>
         {showCards && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
+            // Height only on the way in — no `opacity: 0` in `initial`. A
+            // collapsed column that a drag-over auto-opens would otherwise
+            // mount its cards at opacity 0, and if that animation stalls the
+            // cards you are dragging onto are invisible. Expanding from
+            // height 0 with opacity untouched can only ever under-reveal,
+            // never hide. Opacity stays on `exit` (leaving is safe).
+            initial={{ height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: 'easeInOut' }}
@@ -89,7 +109,7 @@ function TaskKanbanColumnImpl({
                   assignees={assignees}
                   currentUserId={currentUserId}
                   onRequestDelete={onRequestDelete}
-                  onMove={onMove}
+                  variant={task.id === previewTaskId ? 'preview' : 'default'}
                 />
               ))
             )}

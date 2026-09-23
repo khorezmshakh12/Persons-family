@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { useTranslations } from 'next-intl';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ const TIER_COLOR = (score: number) => (score >= 70 ? '#34d399' : score >= 40 ? '
 
 export function StaffPerformanceChart({ data }: { data: StaffPerformancePoint[] }) {
   const t = useTranslations('analytics');
+  const anim = useChartAnimation();
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
@@ -35,7 +37,7 @@ export function StaffPerformanceChart({ data }: { data: StaffPerformancePoint[] 
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="score" radius={[0, 6, 6, 0]}>
+              <Bar dataKey="score" radius={[0, 6, 6, 0]} {...anim}>
                 {data.map((d, i) => (
                   <Cell key={i} fill={TIER_COLOR(d.score)} />
                 ))}

@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import type { IncomeRoadmapMonth, IncomeRoadmapMilestone } from './data';
 import { formatUZS } from '@/lib/format-currency';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
@@ -146,6 +147,7 @@ export function IncomeChartsTabs({
   const t = useTranslations('incomeRoadmap');
   const format = useFormatter();
   const [tab, setTab] = useState<'monthly' | 'cumulative'>('monthly');
+  const anim = useChartAnimation();
 
   const chartData = useMemo(() => {
     return months.map((m) => {
@@ -287,6 +289,7 @@ export function IncomeChartsTabs({
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4, fill: 'white' }}
+                  {...anim}
                 />
 
                 {/* Actual Line */}
@@ -298,6 +301,7 @@ export function IncomeChartsTabs({
                   connectNulls={false}
                   dot={{ fill: '#34d399', r: 3, strokeWidth: 0 }}
                   activeDot={{ r: 5, fill: '#34d399', stroke: '#ffffff', strokeWidth: 2 }}
+                  {...anim}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -342,6 +346,7 @@ export function IncomeChartsTabs({
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4, fill: 'white' }}
+                  {...anim}
                 />
 
                 {/* Cumulative Actual Area */}
@@ -354,6 +359,7 @@ export function IncomeChartsTabs({
                   fill="url(#actualIncomeGrad)"
                   connectNulls={false}
                   activeDot={{ r: 5, fill: '#34d399', stroke: '#ffffff', strokeWidth: 2 }}
+                  {...anim}
                 />
               </AreaChart>
             </ResponsiveContainer>

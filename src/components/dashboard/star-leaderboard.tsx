@@ -35,11 +35,17 @@ type LeaderboardEntry = {
  */
 async function loadLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
+    // The CEO neither earns nor loses stars through the normal flow — every
+    // star transaction on this platform is the CEO awarding/deducting
+    // someone else's (task rewards/penalties, Market purchases approved by
+    // the CEO, manual adjustments) — so a leaderboard rank for the CEO
+    // would only ever reflect self-certification, which the rest of the
+    // app (task assignment, performance review) already bans outright.
     const profiles = await sql<
       { id: string; first_name: string; last_name: string; avatar_url: string | null }[]
     >`
       select id, first_name, last_name, avatar_url from profiles
-      where is_active = true
+      where is_active = true and role <> 'ceo'
       order by first_name asc
     `;
     if (profiles.length === 0) return [];
@@ -107,9 +113,12 @@ export async function StarLeaderboard({
             return (
               <li
                 key={entry.id}
-                style={{ animationDelay: `${delayMs + 150 + i * 40}ms` }}
+                // Transform-only entrance (see globals.css): a stalled row is
+                // 14px low, never invisible. Index capped so row 15 doesn't
+                // wait on 14 predecessors before it moves.
+                style={{ animationDelay: `${delayMs + 150 + Math.min(i, 10) * 45}ms` }}
                 className={cn(
-                  'animate-fade-in-up flex items-center gap-3 rounded-xl px-2 py-1.5',
+                  'enter-rise flex items-center gap-3 rounded-xl px-2 py-1.5',
                   isCurrentUser && 'bg-white/15 ring-1 ring-white/30',
                 )}
               >

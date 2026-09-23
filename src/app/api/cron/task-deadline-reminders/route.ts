@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { sendTelegramMessage } from '@/lib/telegram';
+import { TASK_OPEN_STATUSES } from '@/lib/task-status';
 
 // Spec #4: nudge the assignee once, ~2 hours before a task's deadline.
 // Cloud Scheduler should hit this every ~15 minutes (Bearer CRON_SECRET):
@@ -22,13 +23,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // Not yet done, no reminder sent, and the deadline is inside the next 2
-  // hours (but not already past). One row per task — the assignee only.
+  // Still owed by the assignee, no reminder sent, and the deadline is inside
+  // the next 2 hours (but not already past). One row per task — the assignee
+  // only.
+  //
+  // `status in ('pending','in_progress')` rather than `<> 'done'`: nudging
+  // someone to hurry up on work they already submitted (and that is now
+  // waiting on the CEO, or on a proof upload they were only just cleared to
+  // make) is noise.
   const due = await sql<{ id: string; telegram_id: number | null }[]>`
     select t.id, p.telegram_id
     from tasks t
     join profiles p on p.id = t.assigned_to
-    where t.status <> 'done'
+    where t.status in ${sql([...TASK_OPEN_STATUSES])}
       and t.deadline_reminder_sent_at is null
       and t.deadline > now()
       and t.deadline <= now() + interval '2 hours'

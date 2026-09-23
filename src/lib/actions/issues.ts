@@ -2,19 +2,59 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { getFormatter } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
+import { getAuthState } from '@/lib/auth/session';
 import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
-// The whole Issues module is CEO-exclusive: no other role can report, view,
-// or manage an issue. Every action below re-checks that itself with
-// requireCeo() — the page's own notFound() guard only gates rendering, not
-// the POST endpoints underneath it.
+// Issues is a CEO-managed board, but reporting is open to everyone: any
+// signed-in staff member may create an issue (it's auto-assigned to the
+// CEO) and read back the ones they raised. Managing the board — status
+// changes, text edits, deletion, the resolution-stats panel — stays
+// CEO-only. Every action below re-checks its own gate; the page's guard
+// only shapes what renders, not the POST endpoints underneath it.
 
 export type IssueActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
+
+/** Non-CEO reporters have no assignee picker — their issue always routes to
+ * the active CEO. Null (issue created unassigned) only if there somehow
+ * isn't one. */
+async function ceoUserId(): Promise<string | null> {
+  // Deliberately the oldest active CEO (a stable pick), not "latest N".
+  // eslint-disable-next-line no-restricted-syntax
+  const [row] = await sql<{ id: string }[]>`
+    select id from profiles where role = 'ceo' and is_active = true order by created_at asc limit 1
+  `;
+  return row?.id ?? null;
+}
+
+/** Notification to whoever the new issue lands on — the CEO for a staff
+ * report, or the person the CEO delegated it to. Swallows its own errors,
+ * so a Telegram hiccup can never affect the response to the person who
+ * just submitted the issue (mirrors notifyTaskAssigned in actions/tasks.ts,
+ * including why it is awaited inline instead of dispatched via `after()`). */
+async function notifyIssueAssigned({
+  title,
+  reporterName,
+  assigneeTelegramId,
+}: {
+  title: string;
+  reporterName: string;
+  assigneeTelegramId: number | null;
+}) {
+  if (!assigneeTelegramId) return;
+  try {
+    const text = `Sizga yangi murojaat biriktirildi: <b>${escapeTelegramText(title)}</b>\nKimdan: ${escapeTelegramText(reporterName)}`;
+    await sendTelegramMessage(assigneeTelegramId, text);
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
+}
 
 const createIssueSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -32,28 +72,30 @@ export async function createIssueAction(
   _prevState: IssueActionState,
   formData: FormData,
 ): Promise<IssueActionState> {
-  let userId;
-  try {
-    ({
-      user: { id: userId },
-    } = await requireCeo());
-  } catch (error) {
-    return { error: authErrorCode(error) };
-  }
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  const userId = user.id;
+  const isCeo = profile.role === 'ceo';
 
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
 
   // The CEO may delegate to any active staff member, so the only server-side
   // re-validation left is that the target actually exists and is active —
-  // the client's dropdown options are not a security boundary.
+  // the client's dropdown options are not a security boundary. A non-CEO
+  // reporter has no picker at all: whatever the form posts is ignored and
+  // the issue routes straight to the CEO.
   let assignedTo: string | null = null;
-  if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
-    const [target] = await sql<{ id: string }[]>`
-      select id from profiles where id = ${parsed.data.assignedTo} and is_active = true
-    `;
-    if (!target) return { error: 'invalidAssignee' };
-    assignedTo = target.id;
+  if (isCeo) {
+    if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
+      const [target] = await sql<{ id: string }[]>`
+        select id from profiles where id = ${parsed.data.assignedTo} and is_active = true
+      `;
+      if (!target) return { error: 'invalidAssignee' };
+      assignedTo = target.id;
+    }
+  } else {
+    assignedTo = await ceoUserId();
   }
 
   // Defense in depth: uploads are scoped to the uploader's own folder at
@@ -74,6 +116,21 @@ export async function createIssueAction(
   await bumpBoardSignal('issues');
   if (assignedTo) await bumpNavBadgeSignal(assignedTo);
 
+  // The assignee's own Telegram id isn't on either branch above (the CEO
+  // path selects only `id`, and ceoUserId() likewise), so look it up once
+  // here. Skipped when the reporter assigned the issue to themselves —
+  // nobody needs a Telegram ping about their own submission.
+  if (assignedTo && assignedTo !== userId) {
+    const [assignee] = await sql<{ telegram_id: number | null }[]>`
+      select telegram_id from profiles where id = ${assignedTo}
+    `;
+    await notifyIssueAssigned({
+      title: parsed.data.title,
+      reporterName: `${profile.first_name} ${profile.last_name}`,
+      assigneeTelegramId: assignee?.telegram_id ?? null,
+    });
+  }
+
   revalidatePath('/[locale]/issues', 'page');
 
   return {};
@@ -85,14 +142,9 @@ export type UploadUrlResult = { path?: string; url?: string; error?: string };
 /** Mirrors requestChatMediaUploadUrlAction's signed-upload-url pattern
  * exactly, targeting the dedicated issue-voice-notes bucket instead. */
 export async function requestIssueVoiceUploadUrlAction(fileName: string): Promise<UploadUrlResult> {
-  let userId;
-  try {
-    ({
-      user: { id: userId },
-    } = await requireCeo());
-  } catch (error) {
-    return { error: authErrorCode(error) };
-  }
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  const userId = user.id;
 
   const parsed = uploadUrlSchema.safeParse({ fileName });
   if (!parsed.success) return { error: 'invalidInput' };
@@ -165,67 +217,252 @@ export type VisibleIssueRow = {
 
 const VOICE_URL_EXPIRY_SECONDS = 60 * 60;
 
+type IssueQueryRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: (typeof STATUSES)[number];
+  created_at: string;
+  created_by: string;
+  assigned_to: string | null;
+  voice_url: string | null;
+  reporter_first_name: string | null;
+  reporter_last_name: string | null;
+  assignee_first_name: string | null;
+  assignee_last_name: string | null;
+};
+
+async function toVisibleIssueRow(row: IssueQueryRow): Promise<VisibleIssueRow> {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    created_at: row.created_at,
+    created_by: row.created_by,
+    assigned_to: row.assigned_to,
+    voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
+    reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
+    assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
+  };
+}
+
 /**
  * Re-fetch for IssuesBoard's live refresh, triggered whenever
  * board_signals/issues changes in Firestore — see getVisibleTasksAction's
  * comment in tasks.ts for why this re-derives the whole list rather than
- * patching one row. Mirrors app/[locale]/(app)/issues/page.tsx's own query:
- * the caller is always the CEO, who sees every issue, so the only filter
- * left is the board's recency rule — a "done" issue resolved over a week
- * ago drops off. Unlike the old browser-side Realtime handler, this can
+ * patching one row. The CEO sees the whole board, so the only filter left
+ * is the recency rule — a "done" issue resolved over a week ago drops off.
+ * A non-CEO caller sees the issues they raised (created_by = self) plus any
+ * the CEO delegated to them (assigned_to = self) — otherwise a delegated
+ * issue triggered a Telegram ping and a nav badge for something the
+ * assignee could never open. Same recency rule; still read-only for them. Unlike the old browser-side Realtime handler, this can
  * properly sign a fresh voice-note URL server-side instead of leaving it
  * null.
  */
 export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
-  try {
-    await requireCeo();
-  } catch {
-    return [];
-  }
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return [];
+  const isCeo = profile.role === 'ceo';
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const rows = await sql<
-    {
-      id: string;
-      title: string;
-      description: string | null;
-      status: (typeof STATUSES)[number];
-      created_at: string;
-      created_by: string;
-      assigned_to: string | null;
-      voice_url: string | null;
-      reporter_first_name: string | null;
-      reporter_last_name: string | null;
-      assignee_first_name: string | null;
-      assignee_last_name: string | null;
-    }[]
-  >`
-    select
-      i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
-      reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
-      assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
-    from issues i
-    left join profiles reporter on reporter.id = i.created_by
-    left join profiles assignee on assignee.id = i.assigned_to
-    where i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo}
-    order by i.created_at desc
-  `;
+  const rows = isCeo
+    ? await sql<IssueQueryRow[]>`
+        select
+          i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
+          reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+          assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+        from issues i
+        left join profiles reporter on reporter.id = i.created_by
+        left join profiles assignee on assignee.id = i.assigned_to
+        where i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo}
+        order by i.created_at desc
+      `
+    : await sql<IssueQueryRow[]>`
+        select
+          i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
+          reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+          assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+        from issues i
+        left join profiles reporter on reporter.id = i.created_by
+        left join profiles assignee on assignee.id = i.assigned_to
+        where (i.created_by = ${user.id} or i.assigned_to = ${user.id})
+          and (i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo})
+        order by i.created_at desc
+      `;
 
-  return Promise.all(
-    rows.map(async (row) => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      status: row.status,
-      created_at: row.created_at,
-      created_by: row.created_by,
-      assigned_to: row.assigned_to,
-      voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
-      reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
-      assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
-    })),
+  return Promise.all(rows.map(toVisibleIssueRow));
+}
+
+/**
+ * Start of the current Asia/Tashkent calendar month, as a timestamptz — the
+ * same fragment tasks.ts uses for its archive. The staff is in Tashkent and
+ * the server clock is UTC, so a bare `date_trunc('month', now())` would roll
+ * the month over five hours late and briefly file a new month's issue under
+ * the archive.
+ */
+const currentMonthStart = () =>
+  sql`date_trunc('month', now() at time zone 'Asia/Tashkent') at time zone 'Asia/Tashkent'`;
+
+export type ArchivedIssueRow = {
+  id: string;
+  title: string;
+  status: (typeof STATUSES)[number];
+  created_at: string;
+  resolved_at: string | null;
+  reporter: { first_name: string; last_name: string } | null;
+  assignee: { first_name: string; last_name: string } | null;
+};
+
+export type MonthlyIssueArchiveEntry = {
+  /** 'YYYY-MM', Asia/Tashkent. */
+  monthKey: string;
+  /** Month name localized to the caller's locale, e.g. "August 2026". */
+  label: string;
+  counts: {
+    /** Issues resolved in this month — the length of `issues`. */
+    resolved: number;
+    /** Issues *raised* in this month, resolved or not. Deliberately a wider
+     * set than `issues`: an issue raised in March and resolved in April
+     * counts towards March's "raised" and April's "resolved". */
+    raisedInMonth: number;
+  };
+  issues: ArchivedIssueRow[];
+};
+
+type ArchiveIssueQueryRow = {
+  id: string;
+  title: string;
+  status: (typeof STATUSES)[number];
+  created_at: string;
+  resolved_at: string | null;
+  resolved_month: string;
+  reporter_first_name: string | null;
+  reporter_last_name: string | null;
+  assignee_first_name: string | null;
+  assignee_last_name: string | null;
+};
+
+type RaisedMonthRow = { month_key: string; raised: number };
+
+/**
+ * The past-months archive rendered under the Issues board, mirroring the
+ * Tasks one. One entry per past Tashkent month that resolved at least one
+ * issue, newest month first; the board itself only keeps recently-resolved
+ * issues (see getVisibleIssuesAction), so this is where older history lives.
+ *
+ * Scoping is deliberately identical to getVisibleIssuesAction: the CEO sees
+ * every issue, anyone else sees only the ones they raised
+ * (`created_by = self`). The two query branches are spelled out in full
+ * rather than composed from a nested `sql` fragment.
+ *
+ * A read-only action: DB failures are logged and degrade to an empty archive
+ * rather than taking the page down.
+ */
+export async function getMonthlyIssueArchiveAction(): Promise<MonthlyIssueArchiveEntry[]> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return [];
+  const isCeo = profile.role === 'ceo';
+
+  let rows: ArchiveIssueQueryRow[];
+  let raisedRows: RaisedMonthRow[];
+  try {
+    [rows, raisedRows] = await Promise.all([
+      isCeo
+        ? sql<ArchiveIssueQueryRow[]>`
+            select
+              i.id, i.title, i.status, i.created_at, i.resolved_at,
+              to_char(i.resolved_at at time zone 'Asia/Tashkent', 'YYYY-MM') as resolved_month,
+              reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+              assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+            from issues i
+            left join profiles reporter on reporter.id = i.created_by
+            left join profiles assignee on assignee.id = i.assigned_to
+            where i.status = 'done'
+              and i.resolved_at is not null
+              and i.resolved_at < ${currentMonthStart()}
+            order by i.resolved_at desc
+          `
+        : sql<ArchiveIssueQueryRow[]>`
+            select
+              i.id, i.title, i.status, i.created_at, i.resolved_at,
+              to_char(i.resolved_at at time zone 'Asia/Tashkent', 'YYYY-MM') as resolved_month,
+              reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
+              assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
+            from issues i
+            left join profiles reporter on reporter.id = i.created_by
+            left join profiles assignee on assignee.id = i.assigned_to
+            where (i.created_by = ${user.id} or i.assigned_to = ${user.id})
+              and i.status = 'done'
+              and i.resolved_at is not null
+              and i.resolved_at < ${currentMonthStart()}
+            order by i.resolved_at desc
+          `,
+      isCeo
+        ? sql<RaisedMonthRow[]>`
+            select
+              to_char(i.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month_key,
+              count(*)::int as raised
+            from issues i
+            where i.created_at < ${currentMonthStart()}
+            group by month_key
+          `
+        : sql<RaisedMonthRow[]>`
+            select
+              to_char(i.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month_key,
+              count(*)::int as raised
+            from issues i
+            where i.created_by = ${user.id}
+              and i.created_at < ${currentMonthStart()}
+            group by month_key
+          `,
+    ]);
+  } catch (error) {
+    console.error(
+      'getMonthlyIssueArchiveAction failed',
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
+
+  const raisedByMonth = new Map(raisedRows.map((row) => [row.month_key, row.raised]));
+  const monthKeys = [...new Set(rows.map((row) => row.resolved_month))].sort((a, b) =>
+    b.localeCompare(a),
   );
+
+  const format = await getFormatter();
+
+  return monthKeys.map((monthKey) => {
+    const issues = rows.filter((row) => row.resolved_month === monthKey);
+    return {
+      monthKey,
+      // Parsed and formatted as UTC on purpose: the key is already a Tashkent
+      // month, so re-applying a zone here could name the neighbouring month.
+      label: format.dateTime(new Date(`${monthKey}-01T00:00:00Z`), {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }),
+      counts: {
+        resolved: issues.length,
+        raisedInMonth: raisedByMonth.get(monthKey) ?? 0,
+      },
+      issues: issues.map((row) => ({
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        created_at: row.created_at,
+        resolved_at: row.resolved_at,
+        reporter: row.reporter_first_name
+          ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! }
+          : null,
+        assignee: row.assignee_first_name
+          ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! }
+          : null,
+      })),
+    };
+  });
 }
 
 const deleteIssueSchema = z.object({ id: z.string().uuid() });

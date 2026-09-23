@@ -1,8 +1,6 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { getNavBadgesAction } from '@/lib/actions/nav-badges';
 import type { NavItem } from '@/lib/nav';
 
@@ -62,8 +60,16 @@ export function NavBadgesProvider({
       if (!cancelled) setKeys(new Set(nextKeys));
     };
 
-    ensureRealtimeSignedIn()
-      .then(() => {
+    // Firebase (client SDK) is dynamically imported here rather than at
+    // module scope: this provider wraps every authenticated page (see
+    // app-shell.tsx), so a static import put the whole Firestore/Auth SDK
+    // in the bundle every page has to parse before it can hydrate. The
+    // subscription is a live-update nicety on top of the server-rendered
+    // `initialKeys` above, not something the first paint depends on, so
+    // deferring its chunk to right after mount costs nothing visible.
+    Promise.all([import('firebase/firestore'), import('@/lib/firebase/client')])
+      .then(async ([{ doc, onSnapshot }, { ensureRealtimeSignedIn, getRealtimeDb }]) => {
+        await ensureRealtimeSignedIn();
         if (cancelled) return;
         const db = getRealtimeDb();
         const unsubUser = onSnapshot(doc(db, 'nav_badge_signals', userId), () => refresh());

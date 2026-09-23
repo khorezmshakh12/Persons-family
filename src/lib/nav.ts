@@ -43,12 +43,14 @@ export type NavItem = {
  * groups/course_lessons RLS policies, which returned zero rows to every
  * other role, and with RLS gone a direct URL visit is otherwise ungated.
  */
-// IT Developer was re-added here (view-only — see canEditLessonContent/
-// canComment in lesson-plans/[groupId]/page.tsx, both false for this role)
-// so it can see the same lesson-plan data the compliance bot is reporting on
-// when investigating a report — it had been deliberately excluded ("IT
-// Developer lost lesson-plan access entirely") in an earlier role rework.
-export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant', 'it_developer'];
+// IT Developer is deliberately NOT here. It had been re-added at one point
+// (view-only) so it could see the lesson-plan data the compliance bot
+// reports on, but that has been reverted — the role is back to a plain
+// regular employee with no lesson-plan reach at all, matching the earlier
+// role rework ("IT Developer lost lesson-plan access entirely"). Removing
+// it here hides the nav entry *and* makes lesson-plans/layout.tsx redirect
+// a direct URL visit, since that guard reuses this same list.
+export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant'];
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
@@ -61,19 +63,20 @@ export const NAV_ITEMS: NavItem[] = [
   // CEO-only areas (roadmap, telegram setup, deleting a staff account).
   { key: 'staff', href: '/staff', roles: ['ceo', 'it_developer'] },
   { key: 'chat', href: '/chat' },
-  // Issues is CEO-exclusive — the Administrative Manager (and every other
-  // role) lost all access to reporting, viewing, and managing issues. The
-  // page itself re-checks with `notFound()` and every issues.ts Server
-  // Action re-checks CEO, independent of this nav gate.
-  { key: 'issues', href: '/issues', roles: ['ceo'] },
+  // Any staff member can report an issue and see the ones they raised.
+  // Managing the board — status changes, reassignment, deletion, the
+  // resolution-stats panel — stays CEO-only; the /issues page and every
+  // issues.ts Server Action enforce that themselves, independent of this
+  // nav entry being ungated.
+  { key: 'issues', href: '/issues' },
   {
     key: 'lessonPlans',
     href: '/lesson-plans',
     // Head Teacher can see every teacher's lesson plans and comment on
-    // them; IT Developer can see them too (view-only, re-added — see
-    // LESSON_PLAN_ROLES' own comment) to investigate compliance-bot
-    // reports. MMD ranks below teacher/assistant and never sees lesson
-    // plans.
+    // them. IT Developer does not (see LESSON_PLAN_ROLES' own comment), and
+    // MMD ranks below teacher/assistant and never sees lesson plans either.
+    // No local `roles` array on purpose: reusing LESSON_PLAN_ROLES keeps the
+    // sidebar and the lesson-plans layout guard from drifting apart.
     roles: LESSON_PLAN_ROLES,
   },
   { key: 'tasks', href: '/tasks' },

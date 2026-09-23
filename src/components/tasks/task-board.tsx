@@ -3,17 +3,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  MeasuringStrategy,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
   updateTaskStatusAction,
   deleteTaskAction,
   getVisibleTasksAction,
-  reorderTaskAction,
   type MonthlyTaskArchiveEntry,
   type VisibleTaskRow,
 } from '@/lib/actions/tasks';
 import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
+import { KanbanDragOverlay } from '@/components/kanban-drag-overlay';
 import { TaskKanbanColumn } from './task-kanban-column';
 import {
   TaskFilterBar,
@@ -22,11 +31,40 @@ import {
   type TaskFilters,
 } from './task-filter-bar';
 import { MonthlyArchive } from './monthly-archive';
-import type { Task } from './task-card';
+import { TaskMoveBurst } from './task-move-burst';
+import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
+import { boardColumnFor } from '@/lib/task-status';
 
 const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
+
+/**
+ * The board only has droppable columns for the three drag targets — the
+ * two review states (`submitted` / `awaiting_upload`) are reached by the
+ * workflow actions, not a drop, and TaskCard already freezes their drag
+ * handle (see `underReview` there). But a card in one of those states still
+ * has to be *rendered* somewhere, or it silently vanishes off the board the
+ * moment it's handed in: `baseColumns` used to key its Map by `COLUMNS`
+ * alone and push each task under its own raw `status`, so `map.get('submitted')`
+ * came back `undefined` and the optional-chained `.push` was a no-op. It
+ * lands here in the done column — visually the closest thing to "in the
+ * done pipeline, waiting on a human" — where TaskCard's own stage progress
+ * bar and approve/reject/upload controls carry the real status.
+ */
+// boardColumnFor lives in lib/task-status.ts (unit-tested there).
+
+/**
+ * The date the done column sorts by, newest first: when a task actually
+ * finished (`completed_at`), or — for a card sitting in `submitted`/
+ * `awaiting_upload`, which lands here too via `boardColumnFor` but has no
+ * `completed_at` yet — when it was handed in. Mirrors
+ * getMonthlyTaskArchiveAction's own "Ordering stays completed_at desc on
+ * purpose" reasoning — the done column is a chronological record.
+ */
+function doneSortKey(task: Task): string {
+  return task.completed_at ?? task.submitted_at ?? '';
+}
 
 export function TaskBoard({
   tasks: initialTasks,
@@ -50,9 +88,51 @@ export function TaskBoard({
   // Pure view state: narrowing what's already loaded, never a re-fetch — so
   // it survives (and re-applies to) every realtime refresh below untouched.
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
+  // Live-drag state. Neither of these touches `tasks` — the real move still
+  // only happens in handleDragEnd — they just drive where the card is
+  // *rendered* while the pointer is still down.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
+  // One-shot salute fired at a card's landing spot on a column change; the
+  // burst component clears it via onDone once its own timer elapses.
+  const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const visibleTasks = useMemo(() => applyTaskFilters(tasks, filters), [tasks, filters]);
+
+  const activeTask = activeId ? (visibleTasks.find((task) => task.id === activeId) ?? null) : null;
+
+  // Split once per visible-list change so a drag-over below only has to
+  // rebuild the two columns it actually affects — the other column keeps its
+  // array identity and stays skipped by TaskKanbanColumn's memo.
+  const baseColumns = useMemo(() => {
+    const map = new Map<TaskStatus, Task[]>();
+    for (const status of COLUMNS) map.set(status, []);
+    for (const task of visibleTasks) map.get(boardColumnFor(task.status))?.push(task);
+    // Every column: newest at the top, so the oldest work sinks to the
+    // bottom. The two open columns order by when the task was created; the
+    // done column by when it actually finished / was handed in (doneSortKey).
+    // There is no manual reorder any more — the order is purely the date.
+    map.get('pending')?.sort((a, b) => ((a.created_at ?? '') < (b.created_at ?? '') ? 1 : -1));
+    map.get('in_progress')?.sort((a, b) => ((a.created_at ?? '') < (b.created_at ?? '') ? 1 : -1));
+    map.get('done')?.sort((a, b) => (doneSortKey(a) < doneSortKey(b) ? 1 : -1));
+    return map;
+  }, [visibleTasks]);
+
+  // Provisional placement: while the pointer is over a column the card
+  // doesn't belong to yet, render it there (and out of its home column).
+  const { columns, previewStatus } = useMemo(() => {
+    if (!activeTask || !overStatus || activeTask.status === overStatus) {
+      return { columns: baseColumns, previewStatus: null };
+    }
+    const next = new Map(baseColumns);
+    next.set(
+      activeTask.status,
+      (baseColumns.get(activeTask.status) ?? []).filter((task) => task.id !== activeTask.id),
+    );
+    next.set(overStatus, [...(baseColumns.get(overStatus) ?? []), activeTask]);
+    return { columns: next, previewStatus: overStatus };
+  }, [baseColumns, activeTask, overStatus]);
 
   // Board used to only reflect the viewer's own drag/delete actions — a task
   // someone else assigned (or reassigned/updated) while this page was open
@@ -80,13 +160,18 @@ export function TaskBoard({
         status: row.status,
         is_overdue: row.is_overdue,
         comment_count: row.comment_count ?? 0,
+        // Fed through for TaskStageActions/TaskAttachmentsDrawer — the review
+        // workflow's controls, same as the two fields below.
+        attachment_count: row.attachment_count ?? 0,
+        requires_proof: row.requires_proof,
+        rejection_reason: row.rejection_reason,
+        completed_at: row.completed_at,
+        submitted_at: row.submitted_at,
+        created_at: row.created_at,
         star_reward: row.star_reward ?? 0,
         // Deducted from the assignee when the task is completed after its
         // deadline (see updateTaskStatusAction).
         star_penalty: row.star_penalty ?? 0,
-        // Rows already arrive ordered by (sort_order, created_at desc); the
-        // value rides along so a reorder has something to reconcile.
-        sort_order: row.sort_order ?? 0,
         assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
       };
     }
@@ -109,18 +194,65 @@ export function TaskBoard({
     };
   }, [currentUserId, assignees]);
 
+  // `over.id` is a column droppable id, but resolve through the cards too so
+  // a stray id can never be written to the database as a status.
+  function resolveStatus(overId: string | number | undefined | null): TaskStatus | null {
+    if (overId == null) return null;
+    const id = String(overId);
+    if ((COLUMNS as string[]).includes(id)) return id as TaskStatus;
+    // Dropped onto a card: resolve to the *column* that card renders in, not
+    // its raw status — a `submitted`/`awaiting_upload` card sits in the done
+    // column, and sending that raw status to updateTaskStatusAction failed
+    // validation (`invalidInput`) and bounced the drop.
+    const overTask = tasks.find((task) => task.id === id);
+    return overTask ? boardColumnFor(overTask.status) : null;
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+    setOverStatus(null);
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    setOverStatus(resolveStatus(event.over?.id));
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+    setOverStatus(null);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    // Drop the provisional placement first: from here on the card's position
+    // comes from `tasks` itself (optimistically below), so the two never both
+    // claim the move.
+    setActiveId(null);
+    setOverStatus(null);
     if (!over) return;
 
     const taskId = String(active.id);
-    const nextStatus = over.id as TaskStatus;
+    const nextStatus = resolveStatus(over.id);
     const current = tasks.find((task) => task.id === taskId);
-    if (!current || current.status === nextStatus) return;
+    if (!nextStatus || !current || boardColumnFor(current.status) === nextStatus) return;
+
+    // A little salute at the card's landing spot. `translated` is the
+    // dragged node's final rect in viewport coords; fall back to the
+    // pointer if dnd-kit didn't measure one.
+    const rect = active.rect.current.translated;
+    if (rect) {
+      setBurst({ id: Date.now(), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
 
     const previousTasks = tasks;
     setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, status: nextStatus } : task)),
+      // A drop on done is a hand-in: the server parks it at `submitted`, so
+      // show that optimistically rather than a `done` it never becomes.
+      prev.map((task) =>
+        task.id === taskId
+          ? { ...task, status: nextStatus === 'done' ? 'submitted' : nextStatus }
+          : task,
+      ),
     );
 
     (async () => {
@@ -128,43 +260,6 @@ export function TaskBoard({
       formData.set('id', taskId);
       formData.set('status', nextStatus);
       const result = await updateTaskStatusAction(formData);
-      if (result?.error) {
-        setTasks(previousTasks);
-        toast.error(t(`errors.${result.error}`));
-      }
-    })();
-  }
-
-  /**
-   * Move one card up/down inside its own status column, optimistically.
-   *
-   * The swap is computed over the *unfiltered* same-status siblings on
-   * purpose: that list is exactly what reorderTaskAction renumbers
-   * server-side (same visibility scope, same `sort_order asc, created_at
-   * desc` order), so the optimistic result and the row that comes back from
-   * the follow-up realtime refresh can't disagree. With a filter active the
-   * neighbour being passed may therefore be a hidden card.
-   */
-  function handleMove(task: Task, direction: 'up' | 'down') {
-    const siblingIds = tasks.filter((row) => row.status === task.status).map((row) => row.id);
-    const index = siblingIds.indexOf(task.id);
-    const neighbour = direction === 'up' ? index - 1 : index + 1;
-    // Already at the edge of its column — don't spend a round trip on a
-    // no-op the server would only confirm.
-    if (index === -1 || neighbour < 0 || neighbour >= siblingIds.length) return;
-
-    const previousTasks = tasks;
-    const from = tasks.findIndex((row) => row.id === task.id);
-    const to = tasks.findIndex((row) => row.id === siblingIds[neighbour]);
-    const next = tasks.slice();
-    [next[from], next[to]] = [next[to], next[from]];
-    setTasks(next);
-
-    (async () => {
-      const formData = new FormData();
-      formData.set('id', task.id);
-      formData.set('direction', direction);
-      const result = await reorderTaskAction(formData);
       if (result?.error) {
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
@@ -194,31 +289,58 @@ export function TaskBoard({
 
   return (
     <div className="flex flex-col gap-8">
+      {burst && (
+        <TaskMoveBurst key={burst.id} x={burst.x} y={burst.y} onDone={() => setBurst(null)} />
+      )}
       <TaskFilterBar
         filters={filters}
         onChange={setFilters}
         isAdmin={isAdmin}
         assignees={assignees}
       />
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        // The provisional placement reflows both columns mid-drag, so the
+        // droppable rects captured at drag start go stale immediately.
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
           {COLUMNS.map((status) => (
             <TaskKanbanColumn
               key={status}
               status={status}
               label={t(`columns.${status}`)}
-              tasks={visibleTasks.filter((task) => task.status === status)}
+              tasks={columns.get(status) ?? []}
               isAdmin={isAdmin}
               assignees={assignees}
               currentUserId={currentUserId}
               emptyLabel={t('noTasks')}
               onRequestDelete={handleRequestDelete}
-              onMove={handleMove}
+              previewTaskId={previewStatus === status ? activeId : null}
               collapsible={true}
               defaultExpanded={status !== 'done'}
             />
           ))}
         </div>
+        {/* Portalled out of the app shell's transformed <main> so the fixed
+         * overlay is positioned against the viewport and tracks the pointer
+         * 1:1 — see KanbanDragOverlay. */}
+        <KanbanDragOverlay>
+          {activeTask ? (
+            <TaskCard
+              task={activeTask}
+              isAdmin={isAdmin}
+              assignees={assignees}
+              currentUserId={currentUserId}
+              onRequestDelete={handleRequestDelete}
+              variant="overlay"
+            />
+          ) : null}
+        </KanbanDragOverlay>
       </DndContext>
       <MonthlyArchive months={archive} isAdmin={isAdmin} />
     </div>

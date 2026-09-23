@@ -17,6 +17,7 @@ import {
 import { setUserClaims } from '@/lib/gcp/adminAuth';
 import { sql } from '@/lib/db/client';
 import { normalizePhone, phoneToSyntheticEmail } from '@/lib/auth/phone';
+import { getAuthState } from '@/lib/auth/session';
 
 export type AuthActionState = { error: string } | undefined;
 
@@ -97,8 +98,11 @@ export async function setPasswordAction(
   }
 
   try {
-    const user = await getCurrentUser();
-    if (!user) redirect({ href: '/login', locale: await getLocale() });
+    // getAuthState, not getCurrentUser: a deactivated account or a revoked
+    // cookie (e.g. one left over from before a CEO password reset) must not
+    // be able to set a new password.
+    const { user } = await getAuthState();
+    if (!user) redirect({ href: { pathname: '/login', query: { reason: 'session' } }, locale: await getLocale() });
 
     // Updating the password doesn't invalidate the caller's current
     // session cookie (verifySessionCookie only checks the cookie's own
@@ -139,7 +143,11 @@ export async function setPasswordAction(
 
 export async function logoutAction() {
   const user = await getCurrentUser();
-  if (user) await revokeUserSessions(user.uid);
+  // stampDb: false keeps logout per-device, exactly as it has always behaved
+  // in practice: stamping profiles.sessions_revoked_at would sign the user
+  // out of every other browser/phone too. Admin-driven revocations
+  // (password reset, role change, deactivation) still stamp it.
+  if (user) await revokeUserSessions(user.uid, { stampDb: false });
 
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);

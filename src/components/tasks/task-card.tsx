@@ -3,16 +3,26 @@
 import { memo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, GripVertical, Minus, Star, ExternalLink } from 'lucide-react';
-import { TaskStatusControl, type TaskStatus } from './task-status-control';
+import { motion, useReducedMotion } from 'framer-motion';
+import {
+  ChevronDown,
+  GripVertical,
+  Minus,
+  Star,
+  ExternalLink,
+  Undo2,
+} from 'lucide-react';
+import { TaskStatusControl } from './task-status-control';
 import { EditTaskDialog } from './edit-task-dialog';
 import { DeleteTaskButton } from './delete-task-button';
 import { TaskCommentsDrawer } from './task-comments-drawer';
+import { TaskAttachmentsDrawer } from './task-attachments-drawer';
+import { TaskStageActions } from './task-stage-actions';
+import { TaskStageProgress } from './task-stage-progress';
 import type { Assignee } from './assign-task-dialog';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
+import { isTaskUnderReview, type TaskStatus } from '@/lib/task-status';
 import { cn } from '@/lib/utils';
 
 export type Task = {
@@ -31,15 +41,31 @@ export type Task = {
   assigned_by?: string | null;
   /** Server-rendered comment count for the closed drawer trigger. */
   comment_count?: number;
+  /** Same idea for the attachments drawer. */
+  attachment_count?: number;
+  /** The CEO ticked "the employee must upload a file" — approval routes this
+   * task through `awaiting_upload` instead of straight to `done`. */
+  requires_proof?: boolean;
+  /** The CEO's mandatory explanation from the last rejection. Shown to the
+   * assignee until they resubmit (submitTaskAction clears it). */
+  rejection_reason?: string | null;
   /** Optional star bounty attached by the CEO, paid out when the task is
    * completed on time. */
   star_reward?: number | null;
   /** Optional star fine attached by the CEO, deducted instead of the reward
    * when the task is completed after its deadline. */
   star_penalty?: number | null;
-  /** Manual position inside this card's status column (ascending). The
-   * board list already arrives sorted by it — see reorderTaskAction. */
-  sort_order?: number;
+  /** Insert time — every column now orders newest-first by date (see
+   * TaskBoard), so the oldest work sinks to the bottom. */
+  created_at?: string;
+  /** Stamped once, in finalizeTaskDone — null until the CEO actually
+   * approves. Drives the done column's date ordering (see TaskBoard). */
+  completed_at?: string | null;
+  /** Stamped in transitionToSubmitted; the done column's ordering fallback
+   * for a card that's `submitted`/`awaiting_upload` (handed in, but not yet
+   * approved, so it has no completed_at yet but still lives in that
+   * column — see TaskBoard's boardColumnFor). */
+  submitted_at?: string | null;
 };
 
 /** Render text with auto-detected URLs as clickable, breakable external links. */
@@ -71,65 +97,103 @@ function FormattedDescription({ text }: { text: string }) {
   );
 }
 
+/**
+ * - `default` — the card sitting in its own status column.
+ * - `preview` — the *provisional* placement rendered inside the column the
+ *   pointer is currently over, before the drop actually happens. Still the
+ *   real draggable (same id, so dnd-kit keeps a mounted active node the whole
+ *   drag), just drawn as a dashed placeholder.
+ * - `overlay` — the copy inside `<DragOverlay>` that follows the cursor.
+ */
+export type TaskCardVariant = 'default' | 'preview' | 'overlay';
+
 function TaskCardImpl({
   task,
   isAdmin,
   assignees,
   currentUserId,
   onRequestDelete,
-  onMove,
+  variant = 'default',
 }: {
   task: Task;
   isAdmin: boolean;
   assignees: Assignee[];
   currentUserId: string;
   onRequestDelete: (task: Task) => void;
-  /** Move this card one place up/down inside its own status column. */
-  onMove: (task: Task, direction: 'up' | 'down') => void;
+  variant?: TaskCardVariant;
 }) {
   const t = useTranslations('tasks');
   const format = useFormatter();
   const [isExpanded, setIsExpanded] = useState(false);
+  const isOverlay = variant === 'overlay';
+  const isPreview = variant === 'preview';
+  // The only motion on this card is drag-time (the `layout` reflow when the
+  // provisional placement moves it between columns) and pointer-time (hover
+  // scale). Both are transform-only sugar, so under `prefers-reduced-motion`
+  // they are simply dropped — the card, and the drag preview's placement,
+  // stay exactly where they are. Nothing here gates visibility either way.
+  const reduceMotion = useReducedMotion();
 
   // Status is the assignee's own progress report — not even the admin who
   // assigned the task can drag it, mirroring protect_task_fields' DB-level
   // `auth.uid() <> new.assigned_to` check.
-  const canDrag = task.assigned_to === currentUserId;
+  //
+  // A task under review (`submitted` / `awaiting_upload`) is frozen: the
+  // assignee has handed it in and only the CEO's approve/reject — or the
+  // proof upload — moves it from here. updateTaskStatusAction rejects such a
+  // drag with `underReview`; not registering the handle at all is the same
+  // rule stated where the user can see it.
+  const underReview = isTaskUnderReview(task.status);
+  // `done` is frozen too: only the CEO's approval puts a card there, and the
+  // assignee must not be able to drag it back out (updateTaskStatusAction
+  // rejects that with `invalidTransition`).
+  const canDrag = task.assigned_to === currentUserId && !underReview && task.status !== 'done';
+  const isAssignee = task.assigned_to === currentUserId;
+  // The CEO who assigned it. `assigned_by` is optional on this type (the
+  // board's older snapshot mapping predates it), so a missing value falls
+  // back to the plain admin flag — every review action re-checks both the
+  // role and `assigned_by` server-side regardless.
+  const isReviewer = task.assigned_by ? task.assigned_by === currentUserId : isAdmin;
+  // Rejections are addressed to the assignee, so the banner is theirs; the
+  // CEO already knows what they wrote. Cleared on resubmit.
+  const showRejection = !!task.rejection_reason && isAssignee && task.status === 'in_progress';
   // Spec #1: a task's thread belongs to the person who received it, the
   // person who assigned it, and the CEO (isAdmin here is exactly
   // `role === 'ceo'` — see tasks/page.tsx). This only decides whether the
   // composer is shown; createTaskCommentAction re-checks it server-side.
   const canComment =
     isAdmin || task.assigned_to === currentUserId || task.assigned_by === currentUserId;
-  // Reordering is a board-arrangement action, not a progress report, so it
-  // is open to both sides of the task — mirrors reorderTaskAction's
-  // `assigned_by === user.id || assigned_to === user.id` check exactly (a
-  // CEO who didn't assign the task can't see it on this board at all).
-  const canReorder = task.assigned_to === currentUserId || task.assigned_by === currentUserId;
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
-    disabled: !canDrag,
+  // The overlay copy must never register under the real card's id — that
+  // would be a second draggable for the same task — so it takes a suffixed,
+  // permanently disabled registration instead.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: isOverlay ? `${task.id}__overlay` : task.id,
+    disabled: !canDrag || isOverlay,
   });
 
   const isLongDescription =
     !!task.description && (task.description.length > 90 || task.description.includes('\n'));
 
   return (
-    <div
-      ref={setNodeRef}
-      style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}
-      className="w-full min-w-0 max-w-full"
-    >
+    // No transform here on purpose: the <DragOverlay> copy is what follows the
+    // cursor, so translating this node too would show the card twice.
+    <div ref={setNodeRef} className="w-full min-w-0 max-w-full">
       <motion.div
-        layout={!isDragging}
-        initial={{ opacity: 0, y: 14, scale: 0.94 }}
+        layout={!reduceMotion && !isDragging && !isOverlay}
+        initial={false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging ? undefined : { scale: 1.01 }}
+        whileHover={reduceMotion || isDragging || isOverlay ? undefined : { scale: 1.01 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         className={cn(
           GLASS_CARD,
           'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-white/15',
-          isDragging && 'opacity-40',
+          isDragging && !isPreview && 'opacity-40',
+          isPreview && 'opacity-60 border-2 border-dashed border-white/70',
+          // The lift is elevation-only on purpose — no scale/rotate. The
+          // overlay has to stay the exact size of the card it will land on,
+          // otherwise the drop animation (which glides the overlay onto the
+          // real card's rect) ends with a visible size pop.
+          isOverlay && 'cursor-grabbing bg-white/15 shadow-2xl shadow-black/50 ring-2 ring-white/50',
         )}
       >
         {/* Card Header: Title + Action Buttons */}
@@ -138,26 +202,6 @@ function TaskCardImpl({
             {task.title}
           </span>
           <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
-            {canReorder && (
-              <div className="flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => onMove(task, 'up')}
-                  aria-label={t('moveUp')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
-                >
-                  <ChevronUp className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onMove(task, 'down')}
-                  aria-label={t('moveDown')}
-                  className="rounded p-1 text-white/50 transition-colors hover:bg-white/15 hover:text-white"
-                >
-                  <ChevronDown className="size-3.5" />
-                </button>
-              </div>
-            )}
             {isAdmin && (
               <div className="flex items-center gap-1">
                 <EditTaskDialog
@@ -245,6 +289,34 @@ function TaskCardImpl({
           </span>
         </div>
 
+        {/* Rejection banner: the CEO's reason from the last rejection,
+         * shown to the assignee until they resubmit (submitTaskAction
+         * clears rejection_reason on resubmit, which is what retires this). */}
+        {showRejection && (
+          <div className="flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+            <Undo2 className="mt-0.5 size-3.5 shrink-0" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="font-semibold">{t('rejectionReason')}</span>
+              <span className="whitespace-pre-wrap break-words text-red-100/90">
+                {task.rejection_reason}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Lifecycle rail, always shown, and whichever single action this
+         * side of the workflow can take right now (submit / approve-reject /
+         * upload-proof / "waiting on the CEO") — see TaskStageActions,
+         * which renders nothing once there is no action left to take. */}
+        <TaskStageProgress status={task.status} />
+        <TaskStageActions
+          taskId={task.id}
+          status={task.status}
+          requiresProof={!!task.requires_proof}
+          isAssignee={isAssignee}
+          isReviewer={isReviewer}
+        />
+
         {/* Footer: Status, Stars, and Comments */}
         <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 pt-1 border-t border-white/10">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -264,13 +336,22 @@ function TaskCardImpl({
               </Badge>
             )}
           </div>
-          <TaskCommentsDrawer
-            taskId={task.id}
-            taskTitle={task.title}
-            currentUserId={currentUserId}
-            canComment={canComment}
-            commentCount={task.comment_count ?? 0}
-          />
+          <div className="flex items-center gap-1.5">
+            <TaskAttachmentsDrawer
+              taskId={task.id}
+              taskTitle={task.title}
+              currentUserId={currentUserId}
+              canManage={isAssignee || isReviewer}
+              attachmentCount={task.attachment_count ?? 0}
+            />
+            <TaskCommentsDrawer
+              taskId={task.id}
+              taskTitle={task.title}
+              currentUserId={currentUserId}
+              canComment={canComment}
+              commentCount={task.comment_count ?? 0}
+            />
+          </div>
         </div>
       </motion.div>
     </div>

@@ -2,9 +2,11 @@ import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { getMonthlyTaskArchiveAction, getVisibleTasksAction } from '@/lib/actions/tasks';
+import { getTaskStatsAction } from '@/lib/actions/task-stats';
 import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
 import { AssignTaskDialog } from '@/components/tasks/assign-task-dialog';
 import { TaskBoard } from '@/components/tasks/task-board';
+import { TaskStats } from '@/components/tasks/task-stats';
 import { MarkTasksSeen } from '@/components/tasks/mark-tasks-seen';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +24,11 @@ export default async function TasksPage() {
   // The board itself only carries active tasks plus the ones completed this
   // Tashkent month (see getVisibleTasksAction) — everything finished before
   // that is reachable through the monthly archive under the board.
-  const [taskRows, archive, assignees] = await Promise.all([
+  // Unlike the Issues page's CEO-only stats panel, the task stats are
+  // per-employee and shown to everyone: getTaskStatsAction scopes every
+  // query to `assigned_to = <caller>`, so each person only ever sees their
+  // own numbers and there is nothing here to role-gate.
+  const [taskRows, archive, assignees, taskStats] = await Promise.all([
     getVisibleTasksAction(),
     getMonthlyTaskArchiveAction(),
     sql<{ id: string; first_name: string; last_name: string }[]>`
@@ -31,6 +37,7 @@ export default async function TasksPage() {
         and is_active = true
       order by first_name asc
     `,
+    getTaskStatsAction(),
   ]);
 
   // Mirrors TaskBoard's own toTask() derivation exactly — this is just the
@@ -49,14 +56,18 @@ export default async function TasksPage() {
       status: row.status,
       is_overdue: row.is_overdue,
       comment_count: row.comment_count ?? 0,
+      // Fed through for TaskStageActions/TaskAttachmentsDrawer — the review
+      // workflow's controls, same as the two fields below.
+      attachment_count: row.attachment_count ?? 0,
+      requires_proof: row.requires_proof,
+      rejection_reason: row.rejection_reason,
+      completed_at: row.completed_at,
+      submitted_at: row.submitted_at,
+      created_at: row.created_at,
       star_reward: row.star_reward ?? 0,
       // Deducted from the assignee when the task is completed after its
       // deadline (see updateTaskStatusAction).
       star_penalty: row.star_penalty ?? 0,
-      // Board position within the status column — the list already arrives
-      // ordered by it, this only rides along so an optimistic reorder has
-      // something to reconcile against.
-      sort_order: row.sort_order ?? 0,
       assignee: assignee ? { first_name: assignee.first_name, last_name: assignee.last_name } : null,
     };
   });
@@ -70,6 +81,7 @@ export default async function TasksPage() {
         </h1>
         {isAdmin && <AssignTaskDialog assignees={assignees} />}
       </div>
+      <TaskStats stats={taskStats.data ?? null} />
       <TaskBoard
         tasks={tasks}
         isAdmin={isAdmin}

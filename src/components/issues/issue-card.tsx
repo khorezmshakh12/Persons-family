@@ -3,8 +3,7 @@
 import { memo } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Mic, GripVertical } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
 import { EditIssueDialog } from './edit-issue-dialog';
@@ -24,50 +23,95 @@ export type Issue = {
   assignee: { first_name: string; last_name: string } | null;
 };
 
+/**
+ * - `default` — the card sitting in its own status column.
+ * - `preview` — the *provisional* placement rendered inside the column the
+ *   pointer is currently over, before the drop actually happens. Still the
+ *   real draggable (same id, so dnd-kit keeps a mounted active node the whole
+ *   drag), just drawn as a dashed placeholder.
+ * - `overlay` — the copy inside `<DragOverlay>` that follows the cursor.
+ */
+export type IssueCardVariant = 'default' | 'preview' | 'overlay';
+
 function IssueCardImpl({
   issue,
   onRequestDelete,
+  readOnly = false,
+  variant = 'default',
 }: {
   issue: Issue;
   /** The board owns the mutation + optimistic remove/restore, the same way
    * it already does for drag-and-drop status changes. */
   onRequestDelete: (issue: Issue) => void;
+  /** A non-CEO viewer sees their own reported issues but can't act on them —
+   * no drag handle, no edit/delete, no status control. */
+  readOnly?: boolean;
+  variant?: IssueCardVariant;
 }) {
   const t = useTranslations('issues');
   const format = useFormatter();
-  // The only viewer of this board is the CEO (IssuesPage 404s everyone
-  // else), so every card is always draggable, editable and deletable.
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: issue.id });
+  const isOverlay = variant === 'overlay';
+  const isPreview = variant === 'preview';
+  // The only motion on this card is drag-time (the `layout` reflow when the
+  // provisional placement moves it between columns) and pointer-time (hover
+  // scale). Both are transform-only sugar, so under `prefers-reduced-motion`
+  // they are simply dropped — the card, and the drag preview's placement,
+  // stay exactly where they are. Nothing here gates visibility either way.
+  const reduceMotion = useReducedMotion();
+  // Only the CEO manages the board; a non-CEO viewer gets a read-only card.
+  // The overlay copy must never register under the real card's id — that
+  // would be a second draggable for the same issue — so it takes a suffixed,
+  // permanently disabled registration instead.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: isOverlay ? `${issue.id}__overlay` : issue.id,
+    disabled: readOnly || isOverlay,
+  });
 
   return (
-    <div ref={setNodeRef} style={transform ? { transform: CSS.Translate.toString(transform) } : undefined}>
+    // No transform here on purpose: the <DragOverlay> copy is what follows the
+    // cursor, so translating this node too would show the card twice.
+    <div ref={setNodeRef}>
       <motion.div
-        layout={!isDragging}
-        initial={{ opacity: 0, y: 14, scale: 0.94 }}
+        layout={!reduceMotion && !isDragging && !isOverlay}
+        initial={false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={isDragging ? undefined : { scale: 1.015 }}
+        whileHover={reduceMotion || isDragging || isOverlay ? undefined : { scale: 1.015 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-        className={cn(GLASS_CARD, 'flex flex-col gap-3 p-6', isDragging && 'opacity-40')}
+        className={cn(
+          GLASS_CARD,
+          'flex flex-col gap-3 p-6',
+          isDragging && !isPreview && 'opacity-40',
+          isPreview && 'opacity-60 border-2 border-dashed border-white/70',
+          // The lift is elevation-only on purpose — no scale/rotate. The
+          // overlay has to stay the exact size of the card it will land on,
+          // otherwise the drop animation (which glides the overlay onto the
+          // real card's rect) ends with a visible size pop.
+          isOverlay && 'cursor-grabbing bg-white/15 shadow-2xl shadow-black/50 ring-2 ring-white/50',
+        )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="font-medium">{issue.title}</span>
-          <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
-            <div className="flex gap-1">
-              <EditIssueDialog issue={{ id: issue.id, title: issue.title, description: issue.description }} />
-              <DeleteIssueButton onConfirm={() => onRequestDelete(issue)} />
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <span className="min-w-0 flex-1 font-medium break-words [overflow-wrap:anywhere]">{issue.title}</span>
+          {!readOnly && (
+            <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
+              <div className="flex gap-1">
+                <EditIssueDialog issue={{ id: issue.id, title: issue.title, description: issue.description }} />
+                <DeleteIssueButton onConfirm={() => onRequestDelete(issue)} />
+              </div>
+              <button
+                type="button"
+                {...listeners}
+                {...attributes}
+                aria-label={t('dragHandle')}
+                className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
+              >
+                <GripVertical className="size-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              {...listeners}
-              {...attributes}
-              aria-label={t('dragHandle')}
-              className="cursor-grab touch-none rounded p-1 text-white/40 hover:bg-white/10 hover:text-white/80 active:cursor-grabbing"
-            >
-              <GripVertical className="size-4" />
-            </button>
-          </div>
+          )}
         </div>
-        {issue.description && <p className="text-sm text-white/70">{issue.description}</p>}
+        {issue.description && (
+          <p className="text-sm text-white/70 break-words [overflow-wrap:anywhere]">{issue.description}</p>
+        )}
         {issue.voiceSignedUrl && (
           <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2">
             <Mic className="size-4 shrink-0 text-white/70" />
@@ -90,7 +134,7 @@ function IssueCardImpl({
           </span>
           <span>{format.dateTime(new Date(issue.created_at), { dateStyle: 'medium' })}</span>
         </div>
-        <IssueStatusControl status={issue.status} />
+        {!readOnly && <IssueStatusControl status={issue.status} />}
       </motion.div>
     </div>
   );

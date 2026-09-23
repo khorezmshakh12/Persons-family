@@ -74,7 +74,7 @@ export function TelegramConnectSection({ isConnected }: { isConnected: boolean }
               href={deepLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-fit rounded-xl bg-white px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+              className="w-fit rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
             >
               {t('openBot')}
             </a>

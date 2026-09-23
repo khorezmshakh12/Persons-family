@@ -30,11 +30,15 @@ const EMPTY: NotificationBellData = {
  * Backs both the (app) layout's first server-rendered paint and
  * NotificationBell's own resync-on-open / resync-on-Firestore-signal calls
  * — same "always re-derive the true set from Cloud SQL" reasoning as
- * lib/nav-badges.ts. No `staff_id` filter on lesson_plan_compliance_alerts:
- * that table is CEO-only in practice (only the CEO ever gets rows), the
- * old RLS policy enforced that at the query level and a non-CEO caller
- * just got back an empty list — this preserves that by not filtering at
- * all, matching the original behavior exactly.
+ * lib/nav-badges.ts.
+ *
+ * lesson_plan_compliance_alerts is a CEO oversight report ("which teachers
+ * missed their plans this week"), one shared `summary` blob per run with no
+ * per-staff column. The old RLS policy made a non-CEO's query come back
+ * empty; with RLS gone this had drifted to broadcasting the whole report
+ * into every employee's bell. The `role = 'ceo'` guard below restores
+ * CEO-only — matching what nav-badges.ts and mark-seen.ts already enforce
+ * for the same table.
  */
 export async function getNotificationBellDataAction(): Promise<NotificationBellData> {
   const { user } = await getAuthState();
@@ -68,6 +72,7 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
     sql<UnseenLessonPlanAlertItem[]>`
       select id, summary, created_at as "createdAt" from lesson_plan_compliance_alerts
       where is_seen = false
+        and exists (select 1 from profiles where id = ${user.id} and role = 'ceo')
       order by created_at desc limit 50
     `,
   ]);

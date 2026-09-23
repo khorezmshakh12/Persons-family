@@ -8,7 +8,11 @@ import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
 import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
-import { generateLessonSlotsForMonth, pruneOffScheduleBlankSlots } from '@/lib/lesson-generation';
+import {
+  countKeptOffScheduleSlots,
+  generateLessonSlotsForMonth,
+  pruneOffScheduleBlankSlots,
+} from '@/lib/lesson-generation';
 import { currentMonthKey } from '@/lib/lesson-months';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
@@ -255,6 +259,60 @@ export async function updateGroupAction(
 }
 
 const idSchema = z.object({ id: z.string().uuid() });
+
+export type ResyncScheduleResult =
+  | { error: string }
+  | { created: number; removed: number; kept: number };
+
+/**
+ * Re-runs the odd/even reconciliation (prune off-schedule blank slots +
+ * generate the current rotation's) on demand, for the CEO or the owning
+ * teacher, over the same two open months a schedule change already touches.
+ *
+ * updateGroupAction already does this automatically when schedule_type
+ * changes — but that pass is best-effort (a failure there is logged, not
+ * surfaced), and a group seeded before that logic existed, or one whose
+ * automatic pass hit a transient error, can drift until the monthly cron
+ * catches it. This is the one-click fix, and unlike the silent automatic
+ * pass it reports back what it did — including how many off-rotation days
+ * it had to *keep* because a teacher already wrote into them (those can't
+ * be auto-removed without destroying real work; the CEO handles them by
+ * moving the content or deleting the slot deliberately).
+ */
+export async function resyncGroupScheduleAction(formData: FormData): Promise<ResyncScheduleResult> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'forbidden' };
+
+  const parsed = idSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const [group] = await sql<{ teacher_id: string; schedule_type: 'odd' | 'even' | null }[]>`
+    select teacher_id, schedule_type from groups where id = ${parsed.data.id}
+  `;
+  if (!group) return { error: 'notFound' };
+
+  const isCeo = profile.role === 'ceo';
+  const isOwnerTeacher = profile.role === 'teacher' && group.teacher_id === user.id;
+  if (!isCeo && !isOwnerTeacher) return { error: 'forbidden' };
+  if (!group.schedule_type) return { error: 'noSchedule' };
+
+  let created = 0;
+  let removed = 0;
+  let kept = 0;
+  for (const [year, month] of openMonths()) {
+    try {
+      removed += await pruneOffScheduleBlankSlots(parsed.data.id, year, month);
+      created += await generateLessonSlotsForMonth(parsed.data.id, year, month);
+      kept += await countKeptOffScheduleSlots(parsed.data.id, year, month);
+    } catch (error) {
+      console.error('resyncGroupScheduleAction failed', parsed.data.id, year, month, error);
+      return { error: 'updateFailed' };
+    }
+  }
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return { created, removed, kept };
+}
 
 export async function deleteGroupAction(formData: FormData): Promise<void> {
   const { user, profile } = await getAuthState();

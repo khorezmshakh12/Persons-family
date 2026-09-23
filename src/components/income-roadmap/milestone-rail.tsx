@@ -3,7 +3,6 @@
 import { useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
 import { Flag, CheckCircle2, Clock, AlertCircle, Circle } from 'lucide-react';
 import {
   setMilestoneStatusAction,
@@ -146,12 +145,13 @@ export function MilestoneRail({
             const isPassedOrAchieved = idx <= lastAchievedIndex;
 
             return (
-              <motion.div
+              // Transform-only CSS entrance instead of a framer mount: the
+              // rail row is never hidden at rest, so a stalled animation
+              // leaves it 8px low rather than blank. Delay capped at 10.
+              <div
                 key={m.id}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: idx * 0.04 }}
-                className="relative flex items-start gap-3 group"
+                style={{ animationDelay: `${Math.min(idx, 10) * 45}ms` }}
+                className="enter-rise-sm relative flex items-start gap-3 group"
               >
                 {/* Vertical timeline track & indicator */}
                 <div className="flex flex-col items-center self-stretch">
@@ -164,7 +164,7 @@ export function MilestoneRail({
                           ? 'border-sky-400 bg-sky-500/20 text-sky-200'
                           : m.status === 'missed'
                             ? 'border-red-400 bg-red-500/20 text-red-200'
-                            : 'border-white/25 bg-slate-900 text-white/60',
+                            : 'border-white/20 bg-white/10 text-white/60',
                     )}
                   >
                     <StatusIcon className="size-3" />
@@ -228,7 +228,7 @@ export function MilestoneRail({
                     </p>
                   )}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>

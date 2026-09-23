@@ -2,13 +2,22 @@
 
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
+import type { TaskStatus } from '@/lib/task-status';
 
-export type TaskStatus = 'pending' | 'in_progress' | 'done';
+// Re-exported so the dozens of `import type { TaskStatus } from
+// './task-status-control'` call sites keep working; the definition itself
+// now lives in lib/task-status.ts, which the Server Actions and the crons
+// import too (a 'use client' module can't be their source of truth).
+export type { TaskStatus };
 
-const BADGE_VARIANT: Record<TaskStatus, 'outline' | 'secondary' | 'default'> = {
-  pending: 'outline',
-  in_progress: 'secondary',
-  done: 'default',
+const BADGE_TINT: Record<TaskStatus, 'slate' | 'blue' | 'amber' | 'orange' | 'green'> = {
+  pending: 'slate',
+  in_progress: 'blue',
+  // The two review states get warm tints on purpose — they read as "someone
+  // owes this task an action" rather than as progress.
+  submitted: 'amber',
+  awaiting_upload: 'orange',
+  done: 'green',
 };
 
 // Status is changed by dragging the card between columns now (see
@@ -17,5 +26,9 @@ const BADGE_VARIANT: Record<TaskStatus, 'outline' | 'secondary' | 'default'> = {
 // here (mirrors IssueStatusControl).
 export function TaskStatusControl({ status }: { status: TaskStatus }) {
   const t = useTranslations('tasks');
-  return <Badge variant={BADGE_VARIANT[status]}>{t(`status.${status}`)}</Badge>;
+  return (
+    <Badge variant="tint" tint={BADGE_TINT[status]}>
+      {t(`status.${status}`)}
+    </Badge>
+  );
 }

@@ -144,6 +144,59 @@ export async function pruneOffScheduleBlankSlots(groupId: string, year: number, 
   return removed.length;
 }
 
+/**
+ * How many slots in the month fall on a day the group's *current*
+ * schedule_type never meets on (Sunday, or the wrong weekday parity) yet
+ * survived `pruneOffScheduleBlankSlots` because a teacher had already
+ * written into them (a topic, any plan field, a game link, procedure
+ * steps, attachments, comments, or a move audit trail). This is the number
+ * the resync action reports back so the CEO knows *why* some off-rotation
+ * days are still on the board after a schedule change — they can't be
+ * auto-removed without destroying real work.
+ *
+ * A group with no schedule_type has no off-schedule days, so this is 0.
+ */
+export async function countKeptOffScheduleSlots(groupId: string, year: number, month: number): Promise<number> {
+  const [group] = await sql<{ schedule_type: 'odd' | 'even' | null }[]>`
+    select schedule_type from groups where id = ${groupId}
+  `;
+  const scheduleType = group?.schedule_type ?? null;
+  if (!scheduleType) return 0;
+
+  const total = daysInMonth(year, month);
+  const offScheduleKeys: string[] = [];
+  for (let day = 1; day <= total; day += 1) {
+    const dateKey = toDateKey(year, month, day);
+    if (!isSunday(dateKey) && weekdayParity(dateKey) === scheduleType) continue;
+    offScheduleKeys.push(dateKey);
+  }
+  if (offScheduleKeys.length === 0) return 0;
+
+  // The exact negation of pruneOffScheduleBlankSlots's own delete guard:
+  // a row on an off-schedule day that it would NOT have removed.
+  const [{ kept }] = await sql<{ kept: number }[]>`
+    select count(*)::int as kept
+    from course_lessons cl
+    where cl.group_id = ${groupId}
+      and cl.lesson_date in (select d from unnest(${offScheduleKeys}::date[]) as d)
+      and (
+        cl.topic is not null
+        or cl.moved_from_lesson_id is not null
+        or cl.moved_to_lesson_id is not null
+        or cl.game_link is not null
+        or cl.aim is not null
+        or cl.language_focus is not null
+        or cl.anticipated_problems is not null
+        or cl.materials is not null
+        or cl.homework is not null
+        or coalesce(cl.procedure::jsonb, '[]'::jsonb) <> '[]'::jsonb
+        or coalesce(cl.attachments::jsonb, '[]'::jsonb) <> '[]'::jsonb
+        or exists (select 1 from lesson_comments lc where lc.lesson_id = cl.id)
+      )
+  `;
+  return kept;
+}
+
 /** Every group, for wiring into the monthly cron and the one-time backfill script. */
 export async function getAllGroupIds(): Promise<string[]> {
   const rows = await sql<{ id: string }[]>`select id from groups`;

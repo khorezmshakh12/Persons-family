@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { useTranslations } from 'next-intl';
 import { GLASS_CARD } from '@/lib/glass';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { cn } from '@/lib/utils';
 import type { AdminTeamKpiMonth } from '@/lib/actions/analytics';
 
@@ -57,6 +58,7 @@ function CustomTooltip({
  */
 export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
   const t = useTranslations('analytics');
+  const anim = useChartAnimation();
 
   const legend = [
     { label: t('adminKpi.onTime'), color: COLORS.onTime },
@@ -112,6 +114,7 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
               name={t('adminKpi.onTime')}
               stackId="tasks"
               fill={COLORS.onTime}
+              {...anim}
             />
             <Bar
               yAxisId="tasks"
@@ -119,6 +122,7 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
               name={t('adminKpi.late')}
               stackId="tasks"
               fill={COLORS.late}
+              {...anim}
             />
             <Bar
               yAxisId="tasks"
@@ -127,6 +131,7 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
               stackId="tasks"
               fill={COLORS.notDone}
               radius={[6, 6, 0, 0]}
+              {...anim}
             />
             <Line
               yAxisId="efficiency"
@@ -136,6 +141,7 @@ export function AdminTeamKpiChart({ data }: { data: AdminTeamKpiMonth[] }) {
               stroke={COLORS.efficiency}
               strokeWidth={2}
               dot={{ r: 3 }}
+              {...anim}
             />
           </ComposedChart>
         </ResponsiveContainer>

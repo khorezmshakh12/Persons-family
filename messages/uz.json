@@ -20,7 +20,9 @@
       "day": "Kun",
       "month": "Oy",
       "year": "Yil"
-    }
+    },
+    "newVersion": "Saytning yangi versiyasi chiqdi. To‘g‘ri ishlashi uchun sahifani yangilang.",
+    "reload": "Yangilash"
   },
   "nav": {
     "dashboard": "Boshqaruv paneli",
@@ -62,7 +64,8 @@
       "passwordMismatch": "Parollar mos kelmadi.",
       "updateFailed": "Parolni o'rnatib bo'lmadi. Qayta urinib ko'ring.",
       "accountDeactivated": "Hisobingiz faolsizlantirilgan. Administrator bilan bog'laning.",
-      "unexpectedError": "Serverga ulanishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring."
+      "unexpectedError": "Serverga ulanishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.",
+      "accountFrozenStars": "Siz vazifalarni vaqtida bajarmaganingiz yoki ogohlantirishlarni soni oshib ketgani sababli balansingiz -20 ga tushurildi, shu sababli akkountingiz muzlatildi! Shartnoma qayta ko'rib chiqishga o'tqazildi, iltimos shartnomani qayta tiklash uchun Administratsiyaga murojaat qiling."
     }
   },
   "birthday": {
@@ -112,7 +115,13 @@
       "missions": "Missiyalar",
       "tasks": "Vazifalar",
       "showAmount": "Summani ko'rsatish",
-      "hideAmount": "Summani yashirish"
+      "hideAmount": "Summani yashirish",
+      "period": {
+        "label": "Davr",
+        "daily": "Kunlik",
+        "weekly": "Haftalik",
+        "monthly": "Oylik"
+      }
     },
     "rolesChart": {
       "title": "Lavozimlar",
@@ -155,7 +164,7 @@
     "lastName": "Familiya",
     "phone": "Telefon raqami",
     "telegramId": "Telegram ID",
-    "telegramIdHint": "Raqamli ID olish uchun Telegram'da @userinfobot botiga yozishni so'rang.",
+    "telegramIdHint": "Faqat xodimning Telegram akkaunti almashganda to'ldiring — bo'sh qoldirilsa, hozirgi qiymat saqlanadi.",
     "dateOfBirth": "Tug'ilgan sana",
     "monthlySalary": "Oylik maosh",
     "role": "Lavozim",
@@ -180,7 +189,8 @@
     },
     "status": {
       "active": "Faol",
-      "inactive": "Faol emas"
+      "inactive": "Faol emas",
+      "frozenStars": "Yulduz sababli muzlatilgan"
     },
     "table": {
       "name": "Ism",
@@ -255,8 +265,13 @@
       }
     },
     "delete": "Xodimni o'chirish",
+    "deletedArchived": "Xodimda tarix (yulduzlar, buyurtmalar, izohlar) bor, shuning uchun hisob o'chirilmadi — faolsizlantirildi. Uni Xodimlar jadvalidan qayta faollashtirish mumkin.",
     "confirmDeleteTitle": "Ushbu xodim butunlay o'chirilsinmi?",
-    "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi."
+    "confirmDeleteDescription": "{name}ning hisobi va unga tegishli barcha kirish huquqlari butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi.",
+    "telegramIdPlaceholder": "O'zgartirmaslik uchun bo'sh qoldiring",
+    "level": "Daraja",
+    "levelKeep": "O'zgartirmaslik",
+    "levelCurrent": "Hozirgi daraja: {level}"
   },
   "chatHub": {
     "individualChats": "Shaxsiy Suhbatlar",
@@ -364,6 +379,15 @@
       "created": "Yaratilgan",
       "status": "Holat"
     },
+    "archive": {
+      "title": "Oylik arxiv",
+      "resolved": "Hal qilingan: {count}",
+      "raised": "Yuborilgan: {count}",
+      "resolvedOn": "Hal qilindi {date}",
+      "reportedBy": "Kimdan: {name}",
+      "assignedTo": "Kimga: {name}",
+      "noIssues": "Bu oyda hal qilingan murojaatlar yo'q."
+    },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
@@ -377,6 +401,22 @@
       "notFound": "Bu murojaat endi mavjud emas.",
       "notDone": "Faqat bajarilgan murojaatlarni o'chirish mumkin.",
       "deleteFailed": "Murojaatni o'chirib bo'lmadi. Qayta urinib ko'ring."
+    },
+    "stats": {
+      "title": "Hal qilish ko‘rsatkichlari",
+      "subtitle": "O‘qituvchilar va xodimlar ko‘targan muammolarni qanchalik hal qildik.",
+      "noData": "Hozircha murojaat ma’lumotlari yo‘q.",
+      "days": "{count} kun",
+      "tiles": {
+        "total": "Jami murojaatlar",
+        "resolved": "Hal qilingan",
+        "resolutionRate": "Hal qilish darajasi",
+        "avgResolution": "O‘rtacha hal qilish vaqti"
+      },
+      "byMonth": "Oxirgi 6 oy",
+      "monthCounts": "{created} ta kelgan · {resolved} ta hal qilingan",
+      "byRole": "Kim ko‘targaniga ko‘ra",
+      "roleCounts": "{raised} ta ko‘targan · {resolved} ta hal qilingan"
     }
   },
   "lessonPlans": {
@@ -503,6 +543,18 @@
       "october": "Oktabr",
       "november": "Noyabr",
       "december": "Dekabr"
+    },
+    "resync": {
+      "button": "Jadvalni sinxronlash",
+      "done": "Jadval yangilandi: {created} ta kun qo‘shildi, {removed} ta olib tashlandi.",
+      "doneWithKept": "Jadval yangilandi: {created} ta kun qo‘shildi, {removed} ta olib tashlandi. {kept} ta eski kun to‘ldirilgani sababli saqlandi — ularni qo‘lda ko‘chiring yoki o‘chiring.",
+      "errors": {
+        "forbidden": "Sizda bu amal uchun ruxsat yo‘q.",
+        "invalidInput": "Xato so‘rov.",
+        "notFound": "Guruh topilmadi.",
+        "noSchedule": "Avval guruhga juft/toq kunlar jadvalini belgilang.",
+        "updateFailed": "Sinxronlab bo‘lmadi. Qayta urinib ko‘ring."
+      }
     }
   },
   "staffChat": {
@@ -536,7 +588,9 @@
     "status": {
       "pending": "Kutilmoqda",
       "in_progress": "Jarayonda",
-      "done": "Bajarildi"
+      "done": "Bajarildi",
+      "submitted": "Tekshiruvda",
+      "awaiting_upload": "Fayl kutilmoqda"
     },
     "columns": {
       "pending": "Kutilmoqda",
@@ -552,7 +606,13 @@
       "updateFailed": "O'zgarishlarni saqlab bo'lmadi. Qayta urinib ko'ring.",
       "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring.",
       "commentFailed": "Izohni yuborib bo'lmadi. Qayta urinib ko'ring.",
-      "loadFailed": "Izohlarni yuklab bo'lmadi. Qayta urinib ko'ring."
+      "loadFailed": "Izohlarni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "invalidTransition": "Bu vazifa hozir bu amalni qabul qila olmaydi.",
+      "reasonRequired": "Sababni kiriting (kamida 10 belgi).",
+      "notUnderReview": "Bu vazifa hozir tekshiruvda emas.",
+      "underReview": "Bu vazifa tekshiruvda — hozircha o'zgartirib bo'lmaydi.",
+      "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
+      "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak)."
     },
     "deadline": "Muddat",
     "overdue": "Muddati o'tgan",
@@ -577,6 +637,23 @@
       "lateBadge": "Kechikkan",
       "completedOn": "Bajarildi {date}"
     },
+    "stats": {
+      "title": "Vazifalar bo'yicha samaradorligim",
+      "subtitle": "O'zingizga biriktirilgan vazifalar qanday ketayapti — bu raqamlarni faqat siz ko'rasiz.",
+      "noData": "Hozircha vazifalar bo'yicha ma'lumot yo'q.",
+      "days": "{count} kun",
+      "tiles": {
+        "total": "Jami vazifalar",
+        "done": "Bajarilgan",
+        "completionRate": "Bajarilish ulushi",
+        "avgCompletion": "O'rtacha bajarish vaqti"
+      },
+      "onTime": "O'z vaqtida: {count}",
+      "late": "Kechikkan: {count}",
+      "notDone": "Muddati o'tgan: {count}",
+      "byMonth": "Oxirgi 6 oy",
+      "monthCounts": "{due} muddatli · {onTime} o'z vaqtida · {late} kechikkan"
+    },
     "starReward": "Yulduz mukofoti",
     "starRewardHint": "Vazifa bajarilganda ijrochiga beriladigan yulduzlar. 0 = yo'q.",
     "starPenalty": "Yulduz jarimasi",
@@ -585,13 +662,54 @@
       "searchPlaceholder": "Vazifalarni qidirish…",
       "allAssignees": "Barcha ijrochilar",
       "overdueOnly": "Faqat muddati o'tgan",
-      "clear": "Tozalash"
+      "clear": "Tozalash",
+      "dayGroupLabel": "Kun bo'yicha ko'rsatish",
+      "day": {
+        "all": "Hammasi",
+        "today": "Bugun",
+        "week": "Hafta"
+      },
+      "submittedOnly": "Tekshiruvda"
     },
     "deadlinePreset": "{hours} soat",
     "moveUp": "Yuqoriga",
     "moveDown": "Pastga",
     "showMore": "Ko'proq ko'rish",
-    "showLess": "Kamroq ko'rish"
+    "showLess": "Kamroq ko'rish",
+    "stages": {
+      "in_progress": "Bajarilmoqda",
+      "submitted": "Tekshiruvga yuborildi",
+      "approved": "Tasdiqlandi",
+      "done": "Yakunlandi"
+    },
+    "submitForReview": "Tekshiruvga yuborish",
+    "proofRequiredShort": "fayl kerak",
+    "approve": "Tasdiqlash",
+    "reject": "Rad etish",
+    "rejectTitle": "Vazifani rad etish",
+    "rejectDescription": "Sababini yozing — bu ijrochiga ko'rinadi.",
+    "rejectReasonPlaceholder": "Nima uchun rad etilmoqda?",
+    "rejectReasonHint": "Kamida {min} belgi.",
+    "rejectConfirm": "Rad etishni tasdiqlash",
+    "uploadingProof": "Yuklanmoqda…",
+    "uploadProof": "Faylni yuklash",
+    "uploadProofHint": "Vazifa faqat fayl yuklangandan so'ng yakunlanadi.",
+    "waitingForCeo": "CEO tekshiruvini kutmoqda",
+    "rejectionReason": "Rad etish sababi",
+    "attachments": {
+      "title": "Ilova qilingan fayllar",
+      "loading": "Yuklanmoqda…",
+      "empty": "Hozircha fayl yo'q.",
+      "unnamed": "Nomsiz fayl",
+      "unknownUploader": "Noma'lum",
+      "proof": "Tasdiqlovchi fayl",
+      "open": "Ochish",
+      "unavailable": "Mavjud emas",
+      "delete": "Faylni o‘chirish",
+      "uploading": "Yuklanmoqda…",
+      "add": "Fayl qo'shish",
+      "viewOnly": "Siz faqat ko‘rishingiz mumkin."
+    }
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -896,6 +1014,38 @@
       "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
       "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring."
+    },
+    "payroll": {
+      "title": "Oylik maosh",
+      "prevMonth": "Oldingi oy",
+      "nextMonth": "Keyingi oy",
+      "totalGross": "Reja",
+      "totalPaid": "To‘langan",
+      "totalRemaining": "Qoldi",
+      "set": "Belgilash",
+      "record": "Kiritish",
+      "recordFor": "{name} uchun kiritish",
+      "kind": "Turi",
+      "kind_salary": "Oylik",
+      "kind_advance": "Avans",
+      "kind_penalty": "Jarima",
+      "note": "Izoh",
+      "amount": "Summa",
+      "penaltyHint": "Musbat son kiriting — u ayirma sifatida yoziladi.",
+      "paymentHint": "Shu oyda to‘langan summaga qo‘shiladi.",
+      "save": "Saqlash",
+      "salarySaved": "Oylik saqlandi",
+      "paymentRecorded": "Kiritildi",
+      "gross": "Reja",
+      "paid": "To‘langan",
+      "remaining": "Qoldi",
+      "errors": {
+        "invalidInput": "Qiymatlarni tekshiring.",
+        "updateFailed": "Saqlab bo‘lmadi.",
+        "forbidden": "Ruxsat yo‘q.",
+        "sessionExpired": "Sessiya tugadi — qayta kiring.",
+        "nonzero": "Summa nol bo‘lishi mumkin emas."
+      }
     }
   },
   "kpi": {
@@ -1139,7 +1289,9 @@
     "lessonPlanAlerts": "Lesson plan hisobotlari",
     "unknownSender": "Noma'lum",
     "mediaMessage": "Fayl yubordi",
-    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi."
+    "markReadFailed": "O'qilgan deb belgilab bo'lmadi — u hali ham o'qilmagan sifatida ko'rinadi.",
+    "muteSound": "Bildirishnoma ovozini o'chirish",
+    "unmuteSound": "Bildirishnoma ovozini yoqish"
   },
   "profile": {
     "sectionError": "Bu bo'limni yuklab bo'lmadi. Sahifani yangilab ko'ring.",
@@ -1290,6 +1442,17 @@
       "reasonPlaceholder": "Yulduz o'zgartirish sababi (ixtiyoriy)...",
       "deductWarning": "Diqqat: Yulduz yechilganda xodimga avtomatik rasmiy ogohlantirish (warning) beriladi va Telegram orqali xabar yuboriladi.",
       "success": "Yulduzlar muvaffaqiyatli yangilandi."
+    },
+    "warningsArchive": {
+      "title": "Ogohlantirishlar arxivi",
+      "count": "{count, plural, one {# ta ogohlantirish} other {# ta ogohlantirish}}",
+      "issuedBy": "{name} tomonidan berilgan"
+    },
+    "starsArchive": {
+      "title": "Yulduzlar arxivi",
+      "net": "Jami {net}",
+      "earned": "Olingan: {count}",
+      "spent": "Sarflangan: {count}"
     }
   },
   "market": {

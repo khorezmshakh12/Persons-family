@@ -18,7 +18,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  const update = await req.json();
-  await telegramBot.handleUpdate(update);
+  // Always acknowledge once authenticated. A non-2xx makes Telegram retry
+  // the same update over and over (and hold back every later one), so a
+  // single bad payload or DB hiccup would otherwise wedge the bot.
+  try {
+    const update = await req.json();
+    await telegramBot.handleUpdate(update);
+  } catch (error) {
+    console.error('telegram webhook: update failed', error instanceof Error ? error.message : error);
+  }
   return NextResponse.json({ ok: true });
 }

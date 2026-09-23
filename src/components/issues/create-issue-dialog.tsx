@@ -22,7 +22,15 @@ import { cn } from '@/lib/utils';
 
 export type IssueAssignee = { id: string; first_name: string; last_name: string };
 
-export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] }) {
+export function CreateIssueDialog({
+  assignees,
+  canAssign = false,
+}: {
+  assignees: IssueAssignee[];
+  /** Only the CEO picks an assignee. For everyone else the field is hidden
+   * and the server routes the issue to the CEO. */
+  canAssign?: boolean;
+}) {
   const t = useTranslations('issues');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
@@ -203,22 +211,24 @@ export function CreateIssueDialog({ assignees }: { assignees: IssueAssignee[] })
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="assignedTo">{t('assignTo')}</Label>
-            <Select name="assignedTo" defaultValue="none">
-              <SelectTrigger id="assignedTo" className="w-full">
-                <SelectValue>{(value: string) => (value === 'none' ? t('unassigned') : nameFor(value))}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t('unassigned')}</SelectItem>
-                {assignees.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.first_name} {a.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {canAssign && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="assignedTo">{t('assignTo')}</Label>
+              <Select name="assignedTo" defaultValue="none">
+                <SelectTrigger id="assignedTo" className="w-full">
+                  <SelectValue>{(value: string) => (value === 'none' ? t('unassigned') : nameFor(value))}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('unassigned')}</SelectItem>
+                  {assignees.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.first_name} {a.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {state?.error && !state.fieldErrors?.title && (
             <p className="text-destructive text-sm">{t(`errors.${state.error}`)}</p>
           )}

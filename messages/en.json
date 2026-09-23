@@ -20,7 +20,9 @@
       "day": "Day",
       "month": "Month",
       "year": "Year"
-    }
+    },
+    "newVersion": "A new version of the site is available. Reload the page so it works correctly.",
+    "reload": "Reload"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -62,7 +64,8 @@
       "passwordMismatch": "Passwords do not match.",
       "updateFailed": "Could not set your password. Please try again.",
       "accountDeactivated": "Your account has been deactivated. Contact an administrator.",
-      "unexpectedError": "Something went wrong connecting to the server. Please try again shortly."
+      "unexpectedError": "Something went wrong connecting to the server. Please try again shortly.",
+      "accountFrozenStars": "Your star balance dropped to -20 because of late tasks or too many warnings, so your account has been frozen. Your contract has been sent for review — please contact Administration to have it reinstated."
     }
   },
   "birthday": {
@@ -112,7 +115,13 @@
       "missions": "Missions",
       "tasks": "Tasks",
       "showAmount": "Show amount",
-      "hideAmount": "Hide amount"
+      "hideAmount": "Hide amount",
+      "period": {
+        "label": "Period",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      }
     },
     "rolesChart": {
       "title": "Roles Breakdown",
@@ -155,7 +164,7 @@
     "lastName": "Last name",
     "phone": "Phone number",
     "telegramId": "Telegram ID",
-    "telegramIdHint": "Ask them to message @userinfobot on Telegram to get their numeric ID.",
+    "telegramIdHint": "Only fill this in when the employee's Telegram account changed — leaving it blank keeps the current value.",
     "dateOfBirth": "Date of birth",
     "monthlySalary": "Monthly salary",
     "role": "Role",
@@ -180,7 +189,8 @@
     },
     "status": {
       "active": "Active",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "frozenStars": "Frozen (star balance)"
     },
     "table": {
       "name": "Name",
@@ -255,8 +265,13 @@
       }
     },
     "delete": "Delete staff member",
+    "deletedArchived": "This staff member has history (stars, orders, comments), so the account was deactivated instead of deleted. It can be reactivated from the Staff table.",
     "confirmDeleteTitle": "Permanently delete this staff member?",
-    "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone."
+    "confirmDeleteDescription": "This will permanently delete {name}'s account and all associated access. This cannot be undone.",
+    "telegramIdPlaceholder": "Leave blank to keep unchanged",
+    "level": "Level",
+    "levelKeep": "Leave unchanged",
+    "levelCurrent": "Current level: {level}"
   },
   "chatHub": {
     "individualChats": "Individual Chats",
@@ -364,6 +379,15 @@
       "created": "Created",
       "status": "Status"
     },
+    "archive": {
+      "title": "Monthly archive",
+      "resolved": "Resolved: {count}",
+      "raised": "Raised: {count}",
+      "resolvedOn": "Resolved {date}",
+      "reportedBy": "By {name}",
+      "assignedTo": "To {name}",
+      "noIssues": "No resolved issues this month."
+    },
     "errors": {
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
@@ -377,6 +401,22 @@
       "notFound": "That issue no longer exists.",
       "notDone": "Only resolved issues can be deleted.",
       "deleteFailed": "Could not delete the issue. Please try again."
+    },
+    "stats": {
+      "title": "Resolution overview",
+      "subtitle": "How well we've resolved the problems teachers and staff raised.",
+      "noData": "No issue data yet.",
+      "days": "{count} days",
+      "tiles": {
+        "total": "Total issues",
+        "resolved": "Resolved",
+        "resolutionRate": "Resolution rate",
+        "avgResolution": "Avg. resolution time"
+      },
+      "byMonth": "Last 6 months",
+      "monthCounts": "{created} raised · {resolved} resolved",
+      "byRole": "By who raised it",
+      "roleCounts": "{raised} raised · {resolved} resolved"
     }
   },
   "lessonPlans": {
@@ -503,6 +543,18 @@
       "october": "October",
       "november": "November",
       "december": "December"
+    },
+    "resync": {
+      "button": "Resync schedule",
+      "done": "Schedule updated: {created} day(s) added, {removed} removed.",
+      "doneWithKept": "Schedule updated: {created} day(s) added, {removed} removed. {kept} off-rotation day(s) were kept because they already have content — move or delete those by hand.",
+      "errors": {
+        "forbidden": "You don't have permission to do this.",
+        "invalidInput": "Bad request.",
+        "notFound": "Group not found.",
+        "noSchedule": "Set an odd/even schedule for the group first.",
+        "updateFailed": "Could not resync. Please try again."
+      }
     }
   },
   "staffChat": {
@@ -536,7 +588,9 @@
     "status": {
       "pending": "Pending",
       "in_progress": "In progress",
-      "done": "Done"
+      "done": "Done",
+      "submitted": "Under review",
+      "awaiting_upload": "Awaiting file"
     },
     "columns": {
       "pending": "Pending",
@@ -552,7 +606,13 @@
       "updateFailed": "Could not save changes. Please try again.",
       "deleteFailed": "Could not delete the task. Please try again.",
       "commentFailed": "Could not post the comment. Please try again.",
-      "loadFailed": "Could not load the comments. Please try again."
+      "loadFailed": "Could not load the comments. Please try again.",
+      "invalidTransition": "This task can't accept that action right now.",
+      "reasonRequired": "Enter a reason (at least 10 characters).",
+      "notUnderReview": "This task isn't under review right now.",
+      "underReview": "This task is under review — it can't be changed yet.",
+      "uploadFailed": "Could not upload the file. Please try again.",
+      "fileTooLarge": "The file is too large (50MB max)."
     },
     "deadline": "Deadline",
     "overdue": "Overdue",
@@ -577,6 +637,23 @@
       "lateBadge": "Late",
       "completedOn": "Completed {date}"
     },
+    "stats": {
+      "title": "My task performance",
+      "subtitle": "How your own assigned tasks are going — these numbers are yours alone.",
+      "noData": "No task data yet.",
+      "days": "{count} days",
+      "tiles": {
+        "total": "Total tasks",
+        "done": "Completed",
+        "completionRate": "Completion rate",
+        "avgCompletion": "Avg. completion time"
+      },
+      "onTime": "On time: {count}",
+      "late": "Late: {count}",
+      "notDone": "Overdue: {count}",
+      "byMonth": "Last 6 months",
+      "monthCounts": "{due} due · {onTime} on time · {late} late"
+    },
     "starReward": "Star reward",
     "starRewardHint": "Stars paid to the assignee when the task is completed. 0 = none.",
     "starPenalty": "Star penalty",
@@ -585,13 +662,54 @@
       "searchPlaceholder": "Search tasks…",
       "allAssignees": "All assignees",
       "overdueOnly": "Overdue only",
-      "clear": "Clear"
+      "clear": "Clear",
+      "dayGroupLabel": "Filter by day",
+      "day": {
+        "all": "All",
+        "today": "Today",
+        "week": "Week"
+      },
+      "submittedOnly": "Awaiting review"
     },
     "deadlinePreset": "{hours} h",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "showMore": "Show more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "stages": {
+      "in_progress": "In progress",
+      "submitted": "Submitted for review",
+      "approved": "Approved",
+      "done": "Done"
+    },
+    "submitForReview": "Submit for review",
+    "proofRequiredShort": "file required",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectTitle": "Reject this task",
+    "rejectDescription": "Write a reason — the assignee will see it.",
+    "rejectReasonPlaceholder": "Why is this being rejected?",
+    "rejectReasonHint": "At least {min} characters.",
+    "rejectConfirm": "Confirm rejection",
+    "uploadingProof": "Uploading…",
+    "uploadProof": "Upload file",
+    "uploadProofHint": "The task finishes only once the file is uploaded.",
+    "waitingForCeo": "Waiting for the CEO's review",
+    "rejectionReason": "Reason for rejection",
+    "attachments": {
+      "title": "Attachments",
+      "loading": "Loading…",
+      "empty": "No files yet.",
+      "unnamed": "Unnamed file",
+      "unknownUploader": "Unknown",
+      "proof": "Proof file",
+      "open": "Open",
+      "unavailable": "Unavailable",
+      "delete": "Delete file",
+      "uploading": "Uploading…",
+      "add": "Add file",
+      "viewOnly": "You can only view this."
+    }
   },
   "companyNews": {
     "title": "Company News",
@@ -896,6 +1014,38 @@
       "fieldInvalid": "This field is invalid.",
       "updateFailed": "Could not save. Please try again.",
       "deleteFailed": "Could not delete this entry. Please try again."
+    },
+    "payroll": {
+      "title": "Payroll",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "totalGross": "Planned",
+      "totalPaid": "Paid",
+      "totalRemaining": "Remaining",
+      "set": "Set",
+      "record": "Record",
+      "recordFor": "Record for {name}",
+      "kind": "Type",
+      "kind_salary": "Salary",
+      "kind_advance": "Advance",
+      "kind_penalty": "Penalty",
+      "note": "Note",
+      "amount": "Amount",
+      "penaltyHint": "Enter a positive figure — it is recorded as a deduction.",
+      "paymentHint": "Counts toward what has been paid this month.",
+      "save": "Save",
+      "salarySaved": "Salary saved",
+      "paymentRecorded": "Recorded",
+      "gross": "Planned",
+      "paid": "Paid",
+      "remaining": "Remaining",
+      "errors": {
+        "invalidInput": "Check the values.",
+        "updateFailed": "Could not save.",
+        "forbidden": "Not allowed.",
+        "sessionExpired": "Session expired — sign in again.",
+        "nonzero": "Amount cannot be zero."
+      }
     }
   },
   "kpi": {
@@ -1139,7 +1289,9 @@
     "lessonPlanAlerts": "Lesson plan reports",
     "unknownSender": "Unknown",
     "mediaMessage": "Sent an attachment",
-    "markReadFailed": "Couldn't sync that as read — it will still show as unread."
+    "markReadFailed": "Couldn't sync that as read — it will still show as unread.",
+    "muteSound": "Mute notification sound",
+    "unmuteSound": "Unmute notification sound"
   },
   "profile": {
     "sectionError": "This section couldn't load. Try refreshing the page.",
@@ -1290,6 +1442,17 @@
       "reasonPlaceholder": "Optional reason for this star adjustment...",
       "deductWarning": "Warning: Deducting stars will automatically issue an official staff warning and send a Telegram notification to the employee.",
       "success": "Stars updated successfully."
+    },
+    "warningsArchive": {
+      "title": "Warnings archive",
+      "count": "{count, plural, one {# warning} other {# warnings}}",
+      "issuedBy": "issued by {name}"
+    },
+    "starsArchive": {
+      "title": "Star archive",
+      "net": "Net {net}",
+      "earned": "Earned: {count}",
+      "spent": "Spent: {count}"
     }
   },
   "market": {

@@ -32,6 +32,7 @@ export function LessonPlanRow({
   canComment,
   currentUserId,
   viewerName,
+  index = 0,
 }: {
   groupId: string;
   lesson: CourseLessonRow;
@@ -45,13 +46,21 @@ export function LessonPlanRow({
   canComment: boolean;
   currentUserId: string;
   viewerName: string;
+  /** Row position, used only to stagger the entrance animation. */
+  index?: number;
 }) {
   const t = useTranslations('lessonPlans');
   const [expanded, setExpanded] = useState(false);
 
   return (
     <>
-      <tr className="border-b border-white/10 transition-colors last:border-b-0 hover:bg-white/[0.06]">
+      {/* Transform-only entrance — a stalled row sits 8px low, never hidden.
+          Course tables run to dozens of rows, so the stagger index is capped
+          hard at 10 (450ms) rather than scaling with row count. */}
+      <tr
+        style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
+        className="enter-rise-sm border-b border-white/10 transition-colors last:border-b-0 hover:bg-white/[0.06]"
+      >
         <td className="px-4 py-3.5 align-top font-semibold text-white/85">
           <span className="inline-flex size-6 items-center justify-center rounded-full bg-white/10 text-xs">
             {lesson.lesson_number}

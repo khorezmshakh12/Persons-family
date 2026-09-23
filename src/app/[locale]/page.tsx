@@ -11,6 +11,7 @@ export default async function RootLocalePage() {
   if (user) {
     redirect({ href: profile?.must_change_password ? '/set-password' : '/dashboard', locale });
   } else {
-    redirect({ href: '/login', locale });
+    // `reason` — see the (app) layout: keeps proxy.ts from looping /login back.
+    redirect({ href: { pathname: '/login', query: { reason: 'session' } }, locale });
   }
 }

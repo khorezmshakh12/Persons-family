@@ -32,7 +32,7 @@ export type RoadmapGoal = {
 const FIELD =
   'w-full rounded-lg border border-white/25 bg-white/5 px-3 py-1.5 text-sm text-white outline-none transition-colors focus-visible:border-white/70';
 
-export function GoalCard({ goal }: { goal: RoadmapGoal }) {
+export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List position, used only to stagger the entrance. */ index?: number }) {
   const t = useTranslations('roadmap');
   const tCommon = useTranslations('common');
   const [state, formAction, isPending] = useActionState<RoadmapActionState, FormData>(
@@ -57,7 +57,11 @@ export function GoalCard({ goal }: { goal: RoadmapGoal }) {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+    <form
+      action={formAction}
+      style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
+      className="enter-rise-sm flex flex-col gap-3 rounded-xl border border-white/15 bg-white/5 p-4"
+    >
       <input type="hidden" name="goalId" value={goal.id} />
       <div className="flex items-start justify-between gap-3">
         <span className="font-medium text-white">{goal.title}</span>

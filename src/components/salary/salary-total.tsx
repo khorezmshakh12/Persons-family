@@ -1,42 +1,27 @@
 import { getTranslations } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
+import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
 import { cn } from '@/lib/utils';
 import { SalaryNoteForm } from './salary-note-form';
 
-/** Independently sums every cash source that feeds a staff member's
- * take-home total — the Salary ledger, Bonus/Penalty entries, any
- * Self Development bonus, and approved Mission bonuses. Fetches its own
- * data rather than taking it as props, matching every other section on
+/** Sums every cash source that feeds a staff member's take-home total — the
+ * Salary ledger, Bonus/Penalty entries, any Self Development bonus, and
+ * approved Mission bonuses. The sum itself lives in lib/finance-net.ts so
+ * the dashboard's Finance stat card (which links straight here) reports the
+ * exact same number; it used to count only the Salary ledger. Fetches its
+ * own data rather than taking it as props, matching every other section on
  * this page (KpiSection, BonusesPunishmentsCard, SelfDevelopmentSection all
  * fetch independently too). */
 export async function SalaryTotal({ staffId, isCeo }: { staffId: string; isCeo: boolean }) {
   const t = await getTranslations('salary');
 
-  // amount / bonus_amount are `numeric` — postgres-js hands those back as
-  // strings, so `sum + e.amount` was string concatenation ("0" + "5000" ->
-  // "05000", and a single negative made the whole total NaN). Cast to
-  // float8 so every row arrives as a real number.
-  const [financeEntries, performanceEntries, selfDev, missions, [note]] = await Promise.all([
-    sql<{ amount: number }[]>`select amount::float8 as amount from finance_entries where staff_id = ${staffId}`,
-    sql<{ entry_type: string; amount: number }[]>`
-      select entry_type, amount::float8 as amount from performance_entries where staff_id = ${staffId}
-    `,
-    sql<{ bonus_amount: number | null }[]>`select bonus_amount::float8 as bonus_amount from self_development where user_id = ${staffId}`,
-    sql<{ bonus_amount: number | null }[]>`
-      select bonus_amount::float8 as bonus_amount from missions where staff_id = ${staffId} and status = 'approved'
-    `,
+  const [entries, [note]] = await Promise.all([
+    getNetEarningEntries(staffId),
     sql<{ comment: string }[]>`select comment from staff_salary_notes where staff_id = ${staffId}`,
   ]);
 
-  const financeSum = financeEntries.reduce((sum, e) => sum + e.amount, 0);
-  const performanceSum = performanceEntries.reduce(
-    (sum, e) => sum + (e.entry_type === 'bonus' ? e.amount : -e.amount),
-    0,
-  );
-  const selfDevSum = selfDev.reduce((sum, s) => sum + (s.bonus_amount ?? 0), 0);
-  const missionsSum = missions.reduce((sum, m) => sum + (m.bonus_amount ?? 0), 0);
-  const total = financeSum + performanceSum + selfDevSum + missionsSum;
+  const total = netEarnings(entries);
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-white/20 bg-white/10 p-4">

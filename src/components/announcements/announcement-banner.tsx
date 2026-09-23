@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { doc, onSnapshot } from 'firebase/firestore';
 import { getCurrentAnnouncementAction } from '@/lib/actions/announcements';
-import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 
 export function AnnouncementBanner({ initialMessage }: { initialMessage: string | null }) {
   const [message, setMessage] = useState(initialMessage);
@@ -30,8 +28,12 @@ export function AnnouncementBanner({ initialMessage }: { initialMessage: string 
       setMessage(next);
     };
 
-    ensureRealtimeSignedIn()
-      .then(() => {
+    // Dynamically imported so the Firestore/Auth SDK isn't part of the
+    // bundle every page has to parse before hydrating — see the identical
+    // comment in nav-badges-context.tsx.
+    Promise.all([import('firebase/firestore'), import('@/lib/firebase/client')])
+      .then(async ([{ doc, onSnapshot }, { ensureRealtimeSignedIn, getRealtimeDb }]) => {
+        await ensureRealtimeSignedIn();
         if (cancelled) return;
         unsubscribe = onSnapshot(doc(getRealtimeDb(), 'announcements_signal', 'current'), () => refresh());
       })

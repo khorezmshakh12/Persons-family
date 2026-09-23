@@ -98,14 +98,23 @@ async function notifyNewChatMessage({
 export async function getDmHistoryAction(otherUserId: string): Promise<SentStaffChatMessage[]> {
   const { user } = await getAuthState();
   if (!user) return [];
+  // A malformed id would otherwise surface as an uncaught uuid cast error.
+  if (!z.string().uuid().safeParse(otherUserId).success) return [];
 
+  // The *latest* 100, returned oldest-first for rendering. This used to be
+  // `order by created_at asc limit 100`, i.e. the first 100 messages ever
+  // sent — once a conversation passed 100, every new message vanished from
+  // the history on reload.
   const rows = await sql<SentStaffChatMessage[]>`
-    select id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions
-    from staff_chats
-    where (sender_id = ${user.id} and receiver_id = ${otherUserId})
-       or (sender_id = ${otherUserId} and receiver_id = ${user.id})
+    select * from (
+      select id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions
+      from staff_chats
+      where (sender_id = ${user.id} and receiver_id = ${otherUserId})
+         or (sender_id = ${otherUserId} and receiver_id = ${user.id})
+      order by created_at desc
+      limit 100
+    ) latest
     order by created_at asc
-    limit 100
   `;
   return rows;
 }

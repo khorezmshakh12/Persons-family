@@ -1,25 +1,45 @@
 import { getTranslations } from 'next-intl/server';
-import { Users, Layers, CalendarDays, Wallet, Target, ListTodo } from 'lucide-react';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { monthlyBuckets, monthlyAmountBuckets, momChangePercent } from '@/lib/dashboard-stats';
-import { formatUZS } from '@/lib/format-currency';
-import { tashkentMonthKey } from '@/lib/time';
-import { efficiencyForMonth } from '@/lib/task-efficiency';
-import { StatCard } from './stat-card';
+import {
+  buildPeriodSeries,
+  cumulativeAmountSeries,
+  cumulativeCountSeries,
+  openBacklogSeries,
+  type PeriodSeries,
+} from '@/lib/dashboard-stats';
+import { getNetEarningEntries } from '@/lib/finance-net';
+import { StatCard, type StatIconName, type StatValueFormat } from './stat-card';
+import { StatsPeriodToggle } from './stats-period';
 
-const MONTHS = 6;
+// Every card on this row is built series-first: the card gets the metric's
+// value at the end of each bucket, for all three periods, and derives its
+// headline (the series' last point), its sparkline (the series) and its
+// trend badge (last-vs-previous) from whichever period is selected. Nothing
+// here may measure the headline, the sparkline or the badge a second,
+// separate way — that divergence is exactly what made these cards contradict
+// each other and contradict the pages they link to.
+//
+// All three grains come out of ONE fetch per source (the bucketing is a pure
+// reduce over the rows already in memory), so the kunlik/haftalik/oylik
+// toggle costs no extra query.
 
 type Card = {
   label: string;
-  value: number | string;
-  icon: typeof Users;
+  series: PeriodSeries;
+  format?: StatValueFormat;
+  icon: StatIconName;
   tint: 'green' | 'blue' | 'orange';
-  buckets: number[];
   href: string;
   maskable?: boolean;
-  percent: number;
+  /** false for backlogs: growing unfinished work is bad news, not good. */
+  higherIsBetter?: boolean;
 };
+
+/** Missions are open until the CEO approves them (a rejection sends them
+ * back to in_progress, so it isn't a terminal state) — the same rule
+ * /missions counts "active" by. */
+const isMissionOpen = (status: string) => status !== 'approved' && status !== 'rejected';
 
 export async function StatsRow({
   showTotalStaff,
@@ -30,9 +50,7 @@ export async function StatsRow({
   /** CEO only. */
   showTotalStaff: boolean;
   /** Active Groups/Lesson Plans — CEO and Head Teacher see every group/
-   * lesson (RLS scopes it platform-wide for both), teacher/assistant see
-   * their own (RLS narrows it) — same flag, the row count just differs by
-   * what the viewer's RLS lets the query return. */
+   * lesson, teacher/assistant see their own. */
   showLessonPlanCards: boolean;
   /** Every other non-teacher role (assistant, admin_manager, mmd,
    * internship, it_developer): a personal Finance/Missions/Tasks view
@@ -49,110 +67,84 @@ export async function StatsRow({
 
   if (personalDashboardUserId) {
     const userId = personalDashboardUserId;
-    const [financeRows, missionRows, taskRows] = await Promise.all([
-      sql<{ amount: number; created_at: string }[]>`
-        select amount::float8 as amount, created_at from finance_entries where staff_id = ${userId}
+    const [financeEntries, missionRows, taskRows] = await Promise.all([
+      // The *whole* net-earnings ledger (salary + bonus/penalty + self
+      // development + approved missions), which is what /finance/[id] totals.
+      // This card used to sum finance_entries alone and so disagreed with the
+      // page it links to.
+      getNetEarningEntries(userId),
+      sql<{ created_at: string; status: string; approved_at: string | null }[]>`
+        select created_at, status, approved_at from missions where staff_id = ${userId}
       `,
-      sql<{ created_at: string; status: string }[]>`
-        select created_at, status from missions where staff_id = ${userId}
-      `,
-      sql<{ created_at: string; status: string; deadline: string; completed_at: string | null }[]>`
-        select created_at, status, deadline, completed_at from tasks where assigned_to = ${userId}
+      sql<{ created_at: string; status: string; completed_at: string | null }[]>`
+        select created_at, status, completed_at from tasks where assigned_to = ${userId}
       `,
     ]);
 
-    const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
-    const activeMissions = missionRows.filter((m) => m.status !== 'approved' && m.status !== 'rejected');
-    const activeTasks = taskRows.filter((task) => task.status !== 'done');
-
-    // 1. Finance: sum of amounts per month for sparkline + safe MoM change
-    const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
-    const financeChange = momChangePercent(financeBuckets);
-
-    // 2. Missions: all mission count per month for sparkline + mission completion rate %
-    const missionBuckets = monthlyBuckets(
-      missionRows.map((m) => m.created_at),
-      MONTHS,
+    // 1. Finance: the running net balance at each bucket end, so the last bar
+    // is the headline net total rather than one period's net alone.
+    const financeSeries = buildPeriodSeries((period) =>
+      cumulativeAmountSeries(financeEntries, period),
     );
-    const approvedMissions = missionRows.filter((m) => m.status === 'approved');
-    const missionPercent =
-      missionRows.length === 0
-        ? 100
-        : Math.round((approvedMissions.length / missionRows.length) * 100);
 
-    // 3. Tasks: all task count per month for sparkline + current month efficiency %
-    const taskBuckets = monthlyBuckets(
-      taskRows.map((task) => task.created_at),
-      MONTHS,
-    );
-    const currentMonth = tashkentMonthKey();
-    const taskStats = efficiencyForMonth(taskRows, currentMonth);
-    const taskPercent = taskStats.efficiencyPct;
+    // 2/3. Missions & Tasks: how many were still OPEN at each bucket end.
+    // The old series counted "rows open today, by the month they were raised
+    // in", which only ever went up — the badge on an open-work card could
+    // never report a decrease however much work was closed.
+    const missionBacklog = missionRows.map((m) => ({
+      createdAt: m.created_at,
+      openUntil: isMissionOpen(m.status) ? null : (m.approved_at ?? m.created_at),
+    }));
+    const taskBacklog = taskRows.map((task) => ({
+      createdAt: task.created_at,
+      openUntil: task.status !== 'done' ? null : (task.completed_at ?? task.created_at),
+    }));
+
+    const missionSeries = buildPeriodSeries((period) => openBacklogSeries(missionBacklog, period));
+    const taskSeries = buildPeriodSeries((period) => openBacklogSeries(taskBacklog, period));
 
     const cards: Card[] = [
       {
         label: t('finance'),
-        value: formatUZS(netFinance),
-        icon: Wallet,
+        series: financeSeries,
+        format: 'uzs',
+        icon: 'wallet',
         tint: 'green',
-        buckets: financeBuckets,
-        percent: financeChange,
         href: `/finance/${userId}`,
         maskable: true,
       },
       {
         label: t('missions'),
-        value: activeMissions.length,
-        icon: Target,
+        series: missionSeries,
+        icon: 'target',
         tint: 'blue',
-        buckets: missionBuckets,
-        percent: missionPercent,
         href: `/missions/${userId}`,
+        higherIsBetter: false,
       },
       {
         label: t('tasks'),
-        value: activeTasks.length,
-        icon: ListTodo,
+        series: taskSeries,
+        icon: 'tasks',
         tint: 'orange',
-        buckets: taskBuckets,
-        percent: taskPercent,
         href: '/tasks',
+        higherIsBetter: false,
       },
     ];
 
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((c, index) => (
-          <StatCard
-            key={c.label}
-            label={c.label}
-            value={c.value}
-            icon={c.icon}
-            tint={c.tint}
-            changePercent={c.percent}
-            sparkline={c.buckets}
-            href={c.href}
-            index={index}
-            maskable={c.maskable}
-          />
-        ))}
-      </div>
-    );
+    return <CardsGrid cards={cards} columns={3} />;
   }
 
   // profiles are visible platform-wide, but groups/course_lessons used to
   // be narrowed by RLS to what the viewer's own role can see (their own
   // groups for a teacher, assigned group for a TA, everything for CEO/
-  // Head Teacher) — RLS is gone, so that scoping (mirrors the old
-  // groups_select/course_lessons_select policies + is_group_owner/
-  // is_assigned_ta, pulled from the source DB) is replicated explicitly
+  // Head Teacher) — RLS is gone, so that scoping is replicated explicitly
   // below, so a non-admin's cards keep reading as "my" totals, not the
   // company's.
   const { user, profile } = await getAuthState();
   const isCeoOrHeadTeacher = profile?.role === 'ceo' || profile?.role === 'head_teacher';
   const uid = user?.id ?? '';
 
-  const [staffRows, groupRows, lessonRows, financeRows] = await Promise.all([
+  const [staffRows, groupRows, lessonRows, financeEntries] = await Promise.all([
     sql<{ created_at: string; is_active: boolean }[]>`select created_at, is_active from profiles`,
     showLessonPlanCards
       ? sql<{ created_at: string }[]>`
@@ -167,76 +159,88 @@ export async function StatsRow({
           where ${isCeoOrHeadTeacher} or g.teacher_id = ${uid} or g.assigned_ta_id = ${uid}
         `
       : Promise.resolve([]),
-    financeUserId
-      ? sql<{ amount: number; created_at: string }[]>`
-          select amount::float8 as amount, created_at from finance_entries where staff_id = ${financeUserId}
-        `
-      : Promise.resolve([]),
+    financeUserId ? getNetEarningEntries(financeUserId) : Promise.resolve([]),
   ]);
 
   const activeStaff = staffRows.filter((r) => r.is_active);
-  const staffBuckets = monthlyBuckets(staffRows.map((r) => r.created_at), MONTHS);
-  const groupBuckets = monthlyBuckets(groupRows.map((r) => r.created_at), MONTHS);
-  const lessonBuckets = monthlyBuckets(lessonRows.map((r) => r.created_at), MONTHS);
-  const netFinance = financeRows.reduce((sum, r) => sum + r.amount, 0);
-  const financeBuckets = monthlyAmountBuckets(financeRows, MONTHS);
+  // Count cards (Total Staff / Active Groups / Lesson Plans): the headline is
+  // a running total, so the sparkline + trend run on the cumulative row count
+  // over time — its last value equals the headline — not on new rows/bucket.
+  const staffSeries = buildPeriodSeries((p) =>
+    cumulativeCountSeries(activeStaff.map((r) => r.created_at), p),
+  );
+  const groupSeries = buildPeriodSeries((p) =>
+    cumulativeCountSeries(groupRows.map((r) => r.created_at), p),
+  );
+  const lessonSeries = buildPeriodSeries((p) =>
+    cumulativeCountSeries(lessonRows.map((r) => r.created_at), p),
+  );
+  const financeSeries = buildPeriodSeries((p) => cumulativeAmountSeries(financeEntries, p));
 
   const cards: Card[] = [
     showTotalStaff && {
       label: t('totalStaff'),
-      value: activeStaff.length,
-      icon: Users,
+      series: staffSeries,
+      icon: 'users',
       tint: 'green' as const,
-      buckets: staffBuckets,
-      percent: momChangePercent(staffBuckets),
       href: '/staff',
     },
     financeUserId && {
       label: t('finance'),
-      value: formatUZS(netFinance),
-      icon: Wallet,
+      series: financeSeries,
+      format: 'uzs' as const,
+      icon: 'wallet',
       tint: 'green' as const,
-      buckets: financeBuckets,
-      percent: momChangePercent(financeBuckets),
       href: `/finance/${financeUserId}`,
       maskable: true,
     },
     showLessonPlanCards && {
       label: t('activeGroups'),
-      value: groupRows.length,
-      icon: Layers,
+      series: groupSeries,
+      icon: 'layers',
       tint: 'blue' as const,
-      buckets: groupBuckets,
-      percent: momChangePercent(groupBuckets),
       href: '/lesson-plans',
     },
     showLessonPlanCards && {
       label: t('lessonPlans'),
-      value: lessonRows.length,
-      icon: CalendarDays,
+      series: lessonSeries,
+      icon: 'calendar',
       tint: 'orange' as const,
-      buckets: lessonBuckets,
-      percent: momChangePercent(lessonBuckets),
       href: '/lesson-plans',
     },
   ].filter(Boolean) as Card[];
 
+  return <CardsGrid cards={cards} columns={4} />;
+}
+
+function CardsGrid({ cards, columns }: { cards: Card[]; columns: 3 | 4 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {cards.map((c, index) => (
-        <StatCard
-          key={c.label}
-          label={c.label}
-          value={c.value}
-          icon={c.icon}
-          tint={c.tint}
-          changePercent={c.percent}
-          sparkline={c.buckets}
-          href={c.href}
-          index={index}
-          maskable={c.maskable}
-        />
-      ))}
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <StatsPeriodToggle />
+      </div>
+      <div
+        className={
+          columns === 3
+            ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+            : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'
+        }
+      >
+        {cards.map((c, index) => (
+          <StatCard
+            key={c.label}
+            label={c.label}
+            series={c.series}
+            format={c.format}
+            icon={c.icon}
+            tint={c.tint}
+            href={c.href}
+            index={index}
+            maskable={c.maskable}
+            higherIsBetter={c.higherIsBetter}
+          />
+        ))}
+      </div>
     </div>
   );
 }

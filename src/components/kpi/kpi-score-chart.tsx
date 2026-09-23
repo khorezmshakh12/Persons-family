@@ -1,6 +1,7 @@
 'use client';
 
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useChartAnimation } from '@/lib/use-enter-progress';
 import { useTranslations, useFormatter } from 'next-intl';
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
@@ -16,6 +17,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 export function KpiScoreChart({ points }: { points: { month: string; score: number }[] }) {
   const t = useTranslations('kpi');
   const format = useFormatter();
+  const anim = useChartAnimation();
 
   if (points.length === 0) {
     return <p className="text-sm text-white/60">{t('noScoreHistory')}</p>;
@@ -34,7 +36,14 @@ export function KpiScoreChart({ points }: { points: { month: string; score: numb
           <XAxis dataKey="label" stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis stroke="rgba(255,255,255,0.75)" fontSize={11} tickLine={false} axisLine={false} width={40} />
           <Tooltip content={<CustomTooltip />} />
-          <Line type="monotone" dataKey="score" stroke="#34d399" strokeWidth={2.5} dot={{ fill: '#34d399', r: 3 }} />
+          <Line
+            type="monotone"
+            dataKey="score"
+            stroke="#34d399"
+            strokeWidth={2.5}
+            dot={{ fill: '#34d399', r: 3 }}
+            {...anim}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

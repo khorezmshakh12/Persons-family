@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { ShoppingBag, Star, PackageCheck, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Star, PackageCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { placeMarketOrderAction, type MarketItemRow } from '@/lib/actions/market';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { StarBurst } from './star-burst';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +29,19 @@ export function OrderRewardDialog({
   const t = useTranslations('market');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  // The ~1s celebration between "the order committed" and the dialog closing.
+  const [celebrating, setCelebrating] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Mount-only cleanup: a user who closes the dialog (or navigates) mid-beat
+  // must not have setState fired at an unmounted component.
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   const remaining = balance - item.star_cost;
   const isAffordable = balance >= item.star_cost;
@@ -38,15 +52,30 @@ export function OrderRewardDialog({
       const result = await placeMarketOrderAction(item.id);
       if (result?.error) {
         toast.error(t(`errors.${result.error}`));
-      } else {
-        toast.success(t('orderSuccess'));
-        setOpen(false);
+        return;
       }
+      // Celebrate first, close second. The panel below is already on screen —
+      // the animation only pulses it and lays particles over it, so a stalled
+      // or disabled animation still shows the confirmed state and still closes.
+      setCelebrating(true);
+      toast.success(t('orderSuccess'));
+      closeTimer.current = setTimeout(() => {
+        setOpen(false);
+        setCelebrating(false);
+      }, 1150);
     });
   }
 
+  function handleOpenChange(next: boolean) {
+    if (!next) {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+      setCelebrating(false);
+    }
+    setOpen(next);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button
@@ -65,7 +94,10 @@ export function OrderRewardDialog({
           <DialogTitle className="text-white">{t('orderConfirm')}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
+        <div
+          className={cn('relative flex flex-col gap-4 py-2', celebrating && 'purchase-pop')}
+        >
+          {celebrating && <StarBurst />}
           {item.image_url ? (
             <div className="relative h-44 w-full overflow-hidden rounded-xl border border-white/15 bg-white/5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -114,22 +146,37 @@ export function OrderRewardDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-            className="border-white/20 text-white hover:bg-white/10"
-          >
-            {tCommon('cancel')}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleOrder}
-            disabled={isPending || !isAffordable}
-            className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-semibold"
-          >
-            {isPending ? tCommon('loading') : t('order')}
-          </Button>
+          {celebrating ? (
+            /* Replaces the buttons rather than overlaying them: the order is
+               already committed, so there is nothing left to confirm or
+               cancel. Rendered at full opacity — no entrance animation. */
+            <div
+              role="status"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-200"
+            >
+              <CheckCircle2 className="size-4 text-emerald-300" />
+              {t('orderPlaced')}
+            </div>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                {tCommon('cancel')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleOrder}
+                disabled={isPending || !isAffordable}
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-semibold"
+              >
+                {isPending ? tCommon('loading') : t('order')}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
