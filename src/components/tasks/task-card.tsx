@@ -19,6 +19,7 @@ import { TaskCommentsDrawer } from './task-comments-drawer';
 import { TaskAttachmentsDrawer } from './task-attachments-drawer';
 import { TaskStageActions } from './task-stage-actions';
 import { TaskStageProgress } from './task-stage-progress';
+import { TaskCountdown } from './task-countdown';
 import type { Assignee } from './assign-task-dialog';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
@@ -285,6 +286,12 @@ function TaskCardImpl({
               <Badge variant="tint" tint="red" className="text-[10px] tracking-wide uppercase px-1.5 py-0.5">
                 {t('overdue')}
               </Badge>
+            )}
+            {/* Live time-to-deadline (one shared 1s ticker for the whole
+             * board — see lib/use-now-ticker). The drag overlay is a copy
+             * of this card, so it skips the chip rather than tick twice. */}
+            {!isOverlay && (
+              <TaskCountdown deadline={task.deadline} completedAt={task.completed_at} status={task.status} />
             )}
           </span>
         </div>

@@ -640,6 +640,12 @@
     },
     "deadline": "Muddat",
     "overdue": "Muddati o'tgan",
+    "countdown": {
+      "onTime": "✓ O'z vaqtida",
+      "late": "✓ Kechikib bajarildi",
+      "left": "Muddatgacha {time}",
+      "overdueBy": "Muddatdan {time} o'tdi"
+    },
     "comments": {
       "title": "Izohlar",
       "empty": "Hozircha izoh yo'q.",
@@ -877,6 +883,12 @@
     "label": "Buyruqlar paneli",
     "placeholder": "Xodim, guruh, murojaatlarni qidiring...",
     "noResults": "Hech narsa topilmadi.",
+    "hint": "Qidirish uchun kamida 2 ta harf kiriting",
+    "searching": "Qidirilmoqda…",
+    "noResultsFor": "«{query}» bo'yicha hech narsa topilmadi",
+    "navigate": "tanlash",
+    "open": "ochish",
+    "close": "yopish",
     "groups": {
       "staff": "Xodimlar",
       "groups": "Guruhlar",

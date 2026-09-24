@@ -640,6 +640,12 @@
     },
     "deadline": "Deadline",
     "overdue": "Overdue",
+    "countdown": {
+      "onTime": "✓ On time",
+      "late": "✓ Completed late",
+      "left": "{time} left",
+      "overdueBy": "{time} overdue"
+    },
     "comments": {
       "title": "Comments",
       "empty": "No comments yet.",
@@ -877,6 +883,12 @@
     "label": "Command palette",
     "placeholder": "Search staff, groups, issues...",
     "noResults": "No results found.",
+    "hint": "Type at least 2 letters to search",
+    "searching": "Searching…",
+    "noResultsFor": "Nothing found for “{query}”",
+    "navigate": "navigate",
+    "open": "open",
+    "close": "close",
     "groups": {
       "staff": "Staff",
       "groups": "Groups",

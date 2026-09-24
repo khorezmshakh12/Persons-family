@@ -340,6 +340,34 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Live task countdown (components/tasks/task-countdown.tsx). Each digit sits
+   in a fixed-width clipped slot; a changed digit remounts its inner span and
+   rolls down into place. Transform-only — the digit is fully visible at
+   every frame's resting state, the slot's overflow just clips the travel.
+--------------------------------------------------------------------------- */
+.cd-slot {
+  position: relative;
+  display: inline-block;
+  width: 0.62em;
+  height: 1.2em;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.2em;
+}
+@keyframes cd-roll {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.cd-roll {
+  display: block;
+  animation: cd-roll 0.3s var(--ease-snappy);
+}
+
+/* ---------------------------------------------------------------------------
    Persons Market — purchase & decision feedback.
 
    Same rule as the entrances above: every one of these plays on content that
@@ -442,7 +470,8 @@
   .enter-rise-sm,
   .enter-scale,
   .purchase-pop,
-  .check-draw {
+  .check-draw,
+  .cd-roll {
     animation: none;
   }
   /* Particles are pure motion — with the animation off they would just be
