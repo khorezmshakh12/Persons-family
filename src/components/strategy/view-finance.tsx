@@ -78,7 +78,7 @@ export function FinanceView({ books, today }: { books: BooksLite; today: string 
         <MonthPicker value={ym} onChange={setYm} />
         <span className="text-sm text-au-muted">{monthName(ym)} · jurnal va kurslar ma’lumotidan hisoblangan</span>
         <span className="flex-1" />
-        <Link href="/strategy/accounting" className="sx-btn sm">
+        <Link href="/accounting" className="sx-btn sm">
           Hisob-kitobga o‘tish →
         </Link>
       </div>

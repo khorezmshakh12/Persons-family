@@ -48,7 +48,7 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
   } catch {
     return { error: 'updateFailed' };
   }
-  revalidatePath('/[locale]/strategy/operations', 'page');
+  revalidatePath('/[locale]/operations', 'page');
   return {};
 }
 
@@ -64,6 +64,6 @@ export async function deleteLeadAction(id: string): Promise<Result> {
   } catch {
     return { error: 'updateFailed' };
   }
-  revalidatePath('/[locale]/strategy/operations', 'page');
+  revalidatePath('/[locale]/operations', 'page');
   return {};
 }

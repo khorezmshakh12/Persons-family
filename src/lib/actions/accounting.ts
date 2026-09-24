@@ -24,7 +24,7 @@ const ym = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const code = z.string().regex(/^\d{4}$/);
 const money = z.number().finite().positive().max(1e13);
 
-function done(path = '/[locale]/strategy/accounting') {
+function done(path = '/[locale]/accounting') {
   revalidatePath(path, 'page');
   revalidatePath('/[locale]/strategy', 'page');
   return {};

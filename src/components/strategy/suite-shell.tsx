@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast as sonner } from 'sonner';
 import { ArrowRight, Calculator, Gauge, Layers, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
-import { Link, useRouter } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 /* =====================================================================
@@ -77,9 +77,9 @@ export const useSuite = () => useContext(SuiteCtx);
 export type SectionKey = 'str' | 'acct' | 'ops' | 'pf';
 const SECTIONS: { k: SectionKey; n: string; href: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { k: 'str', n: 'Strategiya', href: '/strategy', Icon: MapIcon },
-  { k: 'acct', n: 'Hisob-kitob', href: '/strategy/accounting', Icon: Calculator },
-  { k: 'ops', n: 'Operatsiya HQ', href: '/strategy/operations', Icon: Gauge },
-  { k: 'pf', n: 'Persons Perforce', href: '/strategy/perforce', Icon: Layers },
+  { k: 'acct', n: 'Hisob-kitob', href: '/accounting', Icon: Calculator },
+  { k: 'ops', n: 'Operatsiya HQ', href: '/operations', Icon: Gauge },
+  { k: 'pf', n: 'Persons Perforce', href: '/perforce', Icon: Layers },
 ];
 
 const RIPPLE_SEL =
@@ -214,12 +214,6 @@ export function SuiteShell({
       <div ref={rootRef} className="sx-root sx-suite flex min-h-0 flex-1 flex-col">
         <span key={bar} className={cn('sx-topbar', bar > 0 && 'go')} aria-hidden />
         <nav className="sx-secbar mx-4 sm:mx-7" aria-label="Strategiya bo'limlari">
-          {SECTIONS.map(({ k, n, href, Icon }) => (
-            <Link key={k} href={href} className={cn(k === section && 'on')} onClick={() => k !== section && playSound('nav')}>
-              <Icon className="size-4" />
-              <span>{n}</span>
-            </Link>
-          ))}
           <span className="flex-1" />
           <button className="kbtn" onClick={() => setCk(true)}>
             <Search className="size-4" />

@@ -26,6 +26,9 @@ export type NavItem = {
     | 'market'
     | 'analytics'
     | 'strategy'
+    | 'accounting'
+    | 'operations'
+    | 'perforce'
     | 'profile'
     | 'settings'
     | 'materials';
@@ -58,6 +61,9 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   companyNews: 'workflow',
   materials: 'workflow',
   strategy: 'management',
+  accounting: 'main',
+  operations: 'main',
+  perforce: 'main',
   analytics: 'management',
   roadmap: 'management',
   telegramSetup: 'management',
@@ -68,6 +74,9 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
 // Order inside each sidebar section — mirrors the Aurora reference.
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
+  'accounting',
+  'operations',
+  'perforce',
   'tasks',
   'finance',
   'staff',
@@ -156,6 +165,9 @@ export const NAV_ITEMS: NavItem[] = [
   // only reachable by typing the URL.
   { key: 'analytics', href: '/analytics', roles: ['ceo'] },
   { key: 'strategy', href: '/strategy', roles: STRATEGY_ROLES },
+  { key: 'accounting', href: '/accounting', roles: STRATEGY_ROLES },
+  { key: 'operations', href: '/operations', roles: STRATEGY_ROLES },
+  { key: 'perforce', href: '/perforce', roles: STRATEGY_ROLES },
   // Persons Market — where an employee spends the stars they've accumulated.
   // No `roles`: everyone has a star balance, so everyone gets the shelf (the
   // CEO's curation controls live on the same page, gated inside it).

@@ -43,7 +43,10 @@
     "materials": "Materials",
     "market": "Persons Market",
     "analytics": "Analytics",
-    "strategy": "Strategy"
+    "strategy": "Strategy",
+    "accounting": "Accounting",
+    "operations": "Operations HQ",
+    "perforce": "Persons Perforce"
   },
   "auth": {
     "phone": "Phone number",

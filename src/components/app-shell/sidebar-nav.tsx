@@ -21,6 +21,9 @@ import {
   ChartColumn,
   Star,
   Map as MapIcon,
+  Calculator,
+  Gauge,
+  Layers,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -44,6 +47,9 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; st
   market: ShoppingBag,
   analytics: ChartColumn,
   strategy: MapIcon,
+  accounting: Calculator,
+  operations: Gauge,
+  perforce: Layers,
   profile: User,
   settings: Settings,
   materials: BookOpen,

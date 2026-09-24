@@ -43,7 +43,10 @@
     "materials": "Materiallar",
     "market": "Persons Market",
     "analytics": "Analitika",
-    "strategy": "Strategiya"
+    "strategy": "Strategiya",
+    "accounting": "Hisob-kitob",
+    "operations": "Operatsiya HQ",
+    "perforce": "Persons Perforce"
   },
   "auth": {
     "phone": "Telefon raqami",

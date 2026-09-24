@@ -43,7 +43,10 @@
     "materials": "Материалы",
     "market": "Persons Market",
     "analytics": "Аналитика",
-    "strategy": "Стратегия"
+    "strategy": "Стратегия",
+    "accounting": "Бухгалтерия",
+    "operations": "Операции HQ",
+    "perforce": "Persons Perforce"
   },
   "auth": {
     "phone": "Номер телефона",
