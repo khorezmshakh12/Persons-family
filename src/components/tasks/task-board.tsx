@@ -32,6 +32,7 @@ import {
 } from './task-filter-bar';
 import { MonthlyArchive } from './monthly-archive';
 import { TaskMoveBurst } from './task-move-burst';
+import { celebrate } from '@/components/motion/events';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
 import type { TaskStatus } from './task-status-control';
@@ -263,6 +264,9 @@ export function TaskBoard({
       if (result?.error) {
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
+      } else if (nextStatus === 'done') {
+        // Handed in — a genuine success beat (MOTION_ROLES only; no-op otherwise).
+        celebrate();
       }
     })();
   }

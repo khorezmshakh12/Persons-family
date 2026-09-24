@@ -1638,5 +1638,19 @@
     "dark": "Dark",
     "soon": "Coming soon",
     "active": "Active"
+  },
+  "motion": {
+    "midnight": "Night mode",
+    "daylight": "Day mode",
+    "dismiss": "Dismiss",
+    "kind": {
+      "chat": "New message",
+      "task": "New task",
+      "issue": "Issue",
+      "warning": "Warning",
+      "lessonPlan": "Lesson plans",
+      "success": "Done",
+      "info": "Update"
+    }
   }
 }

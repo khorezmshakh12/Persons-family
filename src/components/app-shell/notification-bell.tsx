@@ -17,6 +17,7 @@ import {
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { useNotificationChime } from './use-notification-chime';
+import { emitLiveEvent, type LiveEventDetail } from '@/components/motion/events';
 
 export type UnreadChatItem = {
   id: string;
@@ -153,6 +154,36 @@ export function NotificationBell({
     }
     previousCountRef.current = totalCount;
   }, [totalCount, play]);
+
+  // MOTION v3 "Dynamic Island": announce the newest arrival as a window
+  // event. Pure broadcast — no state, no server calls — and a no-op unless
+  // the motion layer (MOTION_ROLES only) is listening. Same ref guard as
+  // above: fires only when the count grows, never on mount or on drops.
+  const liveCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    const previous = liveCountRef.current;
+    liveCountRef.current = totalCount;
+    if (previous === null || totalCount <= previous) return;
+    const candidates: (LiveEventDetail & { at: string })[] = [
+      ...unreadChats.map((c) => ({
+        kind: 'chat' as const,
+        text: [profileNames[c.senderId], c.messageText].filter(Boolean).join(': '),
+        href: '/chat',
+        at: c.createdAt,
+      })),
+      ...unseenTasks.map((x) => ({ kind: 'task' as const, text: x.title, href: '/tasks', at: x.createdAt })),
+      ...unseenIssues.map((x) => ({ kind: 'issue' as const, text: x.title, href: '/issues', at: x.createdAt })),
+      ...unseenWarnings.map((x) => ({ kind: 'warning' as const, text: x.reason, at: x.createdAt })),
+      ...unseenLessonPlanAlerts.map((x) => ({
+        kind: 'lessonPlan' as const,
+        text: x.summary,
+        href: '/lesson-plans',
+        at: x.createdAt,
+      })),
+    ];
+    const newest = candidates.sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+    if (newest?.text) emitLiveEvent({ kind: newest.kind, text: newest.text, href: newest.href });
+  }, [totalCount, unreadChats, unseenTasks, unseenIssues, unseenWarnings, unseenLessonPlanAlerts, profileNames]);
 
   // One preview row per sender (their latest unread message), newest first.
   const chatPreviews = Array.from(

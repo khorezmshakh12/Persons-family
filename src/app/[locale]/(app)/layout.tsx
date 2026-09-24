@@ -6,6 +6,7 @@ import { computeNavBadgeKeys } from '@/lib/nav-badges';
 import { checkMaterialsLink } from '@/lib/sso/checkMaterialsLink';
 import { AppShell } from '@/components/app-shell/app-shell';
 import { IntroSplash } from '@/components/brand/intro-splash';
+import { MotionRoot } from '@/components/motion/motion-root';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
@@ -128,6 +129,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="contents" data-motion={motion ? 'on' : undefined}>
       {motion && <IntroSplash />}
+      {motion && <MotionRoot />}
       <AppShell
         profile={profile!}
         userId={user!.id}
@@ -139,6 +141,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
         newNavKeys={newNavKeys}
         materialsLinked={materialsLinked}
+        motion={motion}
       >
         <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />
         {children}

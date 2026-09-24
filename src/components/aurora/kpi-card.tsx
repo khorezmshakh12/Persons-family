@@ -58,7 +58,7 @@ export function KpiCard({
         )}
         {caption && <span className="truncate">{caption}</span>}
       </div>
-      <div className="mt-4 flex min-h-10 flex-1 items-end gap-1" aria-hidden>
+      <div className="au-spark mt-4 flex min-h-10 flex-1 items-end gap-1" aria-hidden>
         {bars.map((v, i) => (
           <i
             key={i}
@@ -70,7 +70,7 @@ export function KpiCard({
     </>
   );
 
-  const className = cn(SURFACE_CARD, 'enter-rise flex min-h-[200px] flex-col p-[18px]', href && CARD_INTERACTIVE);
+  const className = cn(SURFACE_CARD, 'au-kpi enter-rise flex min-h-[200px] flex-col p-[18px]', href && CARD_INTERACTIVE);
   const style = { animationDelay: `${Math.min(index, 10) * 45}ms` };
 
   return href ? (

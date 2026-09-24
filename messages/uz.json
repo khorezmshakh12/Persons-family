@@ -1638,5 +1638,19 @@
     "dark": "Dark",
     "soon": "Tez orada",
     "active": "Faol"
+  },
+  "motion": {
+    "midnight": "Tungi rejim",
+    "daylight": "Kunduzgi rejim",
+    "dismiss": "Yopish",
+    "kind": {
+      "chat": "Yangi xabar",
+      "task": "Yangi vazifa",
+      "issue": "Muammo",
+      "warning": "Ogohlantirish",
+      "lessonPlan": "Dars rejasi",
+      "success": "Bajarildi",
+      "info": "Yangilik"
+    }
   }
 }

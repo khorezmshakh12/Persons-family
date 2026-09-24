@@ -22,6 +22,7 @@ import { PageTransition } from './page-transition';
 import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
 import { VersionWatcher } from './version-watcher';
 import { TashkentClock } from './tashkent-clock';
+import { ThemeToggle } from '@/components/motion/theme-toggle';
 import { sql } from '@/lib/db/client';
 import { getStarBalance } from '@/lib/stars';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
@@ -39,6 +40,7 @@ export async function AppShell({
   initialUnseenLessonPlanAlerts,
   newNavKeys,
   materialsLinked = false,
+  motion = false,
   children,
 }: {
   profile: Profile;
@@ -53,6 +55,8 @@ export async function AppShell({
   /** Whether this employee's phone number matches an active Materials
    * account — see src/lib/sso/checkMaterialsLink.ts. */
   materialsLinked?: boolean;
+  /** MOTION_ROLES only: shows the midnight toggle (see components/motion). */
+  motion?: boolean;
   children: ReactNode;
 }) {
   const tStaff = await getTranslations('staff');
@@ -112,6 +116,7 @@ export async function AppShell({
                   <Breadcrumbs />
                   <div className="flex-1" />
                   <SearchTrigger />
+                  {motion && <ThemeToggle />}
                   <NotificationBell
                     userId={userId}
                     profileNames={profileNames}
