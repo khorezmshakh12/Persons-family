@@ -11,7 +11,7 @@ import type { StrategyMind, StrategyTask } from '@/lib/strategy';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
-/** CEO / Administrative Manager / Project Manager — every action re-checks
+/** CEO / IT Developer / Project Manager (STRATEGY_ROLES) — every action re-checks
  * this itself; the page guard only gates rendering. */
 async function requireStrategyEditor() {
   const { user, profile } = await getAuthState();

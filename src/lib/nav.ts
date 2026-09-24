@@ -103,10 +103,11 @@ const NAV_SORT: NavItem['key'][] = [
 // a direct URL visit, since that guard reuses this same list.
 export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant'];
 
-/** Strategy workspace (roadmap · mind map · board · list · gantt). The
- * Project Manager role exists for exactly this area; CEO and Administrative
- * Manager share it. Reused by the page guard and every strategy.ts action. */
-export const STRATEGY_ROLES: StaffRole[] = ['ceo', 'admin_manager', 'project_manager'];
+/** Strategy workspace (roadmap · mind map · board · list · gantt). Only
+ * CEO, IT Developer and Project Manager (the role exists for exactly this
+ * area) — per the owner's decision; Administrative Manager does NOT get it.
+ * Reused by the page guard and every strategy.ts action. */
+export const STRATEGY_ROLES: StaffRole[] = ['ceo', 'it_developer', 'project_manager'];
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
