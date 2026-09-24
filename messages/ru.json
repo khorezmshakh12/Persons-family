@@ -42,7 +42,8 @@
     "profile": "Мой профиль",
     "materials": "Материалы",
     "market": "Persons Market",
-    "analytics": "Аналитика"
+    "analytics": "Аналитика",
+    "strategy": "Стратегия"
   },
   "auth": {
     "phone": "Номер телефона",
@@ -185,7 +186,8 @@
       "assistant": "Ассистент учителя",
       "mmd": "MMD",
       "internship": "Стажёр",
-      "it_developer": "IT-разработчик"
+      "it_developer": "IT-разработчик",
+      "project_manager": "Проект-менеджер"
     },
     "status": {
       "active": "Активен",

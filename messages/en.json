@@ -42,7 +42,8 @@
     "profile": "My Profile",
     "materials": "Materials",
     "market": "Persons Market",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "strategy": "Strategy"
   },
   "auth": {
     "phone": "Phone number",
@@ -185,7 +186,8 @@
       "assistant": "Teacher Assistant",
       "mmd": "MMD",
       "internship": "Intern",
-      "it_developer": "IT Developer"
+      "it_developer": "IT Developer",
+      "project_manager": "Project Manager"
     },
     "status": {
       "active": "Active",

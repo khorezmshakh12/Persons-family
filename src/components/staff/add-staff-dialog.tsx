@@ -28,6 +28,7 @@ const ALL_ROLES = [
   'mmd',
   'internship',
   'it_developer',
+  'project_manager',
 ] as const;
 
 export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {

@@ -39,6 +39,7 @@ const ROLES = [
   'mmd',
   'internship',
   'it_developer',
+  'project_manager',
 ] as const;
 
 /** CEO and Admin Manager are equal for day-to-day operations, but managing

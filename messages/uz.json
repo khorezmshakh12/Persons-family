@@ -42,7 +42,8 @@
     "profile": "Mening profilim",
     "materials": "Materiallar",
     "market": "Persons Market",
-    "analytics": "Analitika"
+    "analytics": "Analitika",
+    "strategy": "Strategiya"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -185,7 +186,8 @@
       "assistant": "O'qituvchi yordamchisi",
       "mmd": "MMD",
       "internship": "Amaliyotchi",
-      "it_developer": "IT dasturchi"
+      "it_developer": "IT dasturchi",
+      "project_manager": "Loyiha menejeri (PM)"
     },
     "status": {
       "active": "Faol",

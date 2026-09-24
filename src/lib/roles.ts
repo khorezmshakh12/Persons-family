@@ -7,6 +7,7 @@ const KNOWN_ROLES = new Set([
   'mmd',
   'internship',
   'it_developer',
+  'project_manager',
 ]);
 
 /**

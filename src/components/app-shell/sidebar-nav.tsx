@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   ChartColumn,
   Star,
+  Map as MapIcon,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -42,6 +43,7 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; st
   roadmap: Milestone,
   market: ShoppingBag,
   analytics: ChartColumn,
+  strategy: MapIcon,
   profile: User,
   settings: Settings,
   materials: BookOpen,

@@ -29,17 +29,17 @@ export const INTERACTIVE =
 /** Primary button — INK. One per screen. */
 export const BTN_PRIMARY =
   'inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-au-ctl bg-au-primary text-white ' +
-  'font-semibold text-sm shadow-au-btn hover:bg-black transition-colors disabled:opacity-50 disabled:pointer-events-none';
+  'font-semibold text-sm shadow-au-btn hover:bg-black transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
 
 /** Secondary button — white with a border. */
 export const BTN_SECONDARY =
   'inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-au-ctl bg-white/70 border border-au-line ' +
-  'text-au-ink font-semibold text-sm hover:bg-white transition-colors disabled:opacity-50 disabled:pointer-events-none';
+  'text-au-ink font-semibold text-sm hover:bg-white transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
 
 /** Accent button — star/reward actions only (buy, claim stars). */
 export const BTN_ACCENT =
   'inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-au-ctl bg-au-accent text-au-accent-ink ' +
-  'font-semibold text-sm hover:brightness-105 transition disabled:opacity-50 disabled:pointer-events-none';
+  'font-semibold text-sm hover:brightness-105 transition active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
 
 /** Input */
 export const INPUT =
@@ -56,9 +56,9 @@ export const CHIP_NEUTRAL = `${CHIP} bg-au-card-2 text-au-muted`;
 
 /** Sidebar navigation item */
 export const NAV_ITEM =
-  'flex items-center gap-3 h-9 px-2.5 rounded-au-ctl text-sm font-medium text-au-muted transition-colors duration-150 hover:bg-au-card hover:text-au-ink';
+  'nav-motion flex items-center gap-3 h-9 px-2.5 rounded-au-ctl text-sm font-medium text-au-muted hover:bg-au-card hover:text-au-ink';
 export const NAV_ITEM_ACTIVE =
-  'flex items-center gap-3 h-9 px-2.5 rounded-au-ctl text-sm font-semibold bg-au-card text-au-ink shadow-sm ring-1 ring-au-line';
+  'nav-motion flex items-center gap-3 h-9 px-2.5 rounded-au-ctl text-sm font-semibold bg-au-card text-au-ink shadow-sm ring-1 ring-au-line [&_svg]:text-au-accent-text';
 
 /** Card title row: title left, muted "Batafsil →" link right. */
 export const CARD_TITLE = 'text-[15px] leading-5 font-bold text-au-ink';

@@ -18,6 +18,7 @@ export function allowedTaskAssigneeRoles(actingRole: StaffRole): StaffRole[] {
     'mmd',
     'internship',
     'it_developer',
+    'project_manager',
     'head_teacher',
   ];
   if (actingRole === 'ceo') return ['admin_manager', ...nonAdminRoles];

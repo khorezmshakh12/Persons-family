@@ -6,7 +6,8 @@ export type StaffRole =
   | 'assistant'
   | 'mmd'
   | 'internship'
-  | 'it_developer';
+  | 'it_developer'
+  | 'project_manager';
 
 export type NavItem = {
   key:
@@ -24,6 +25,7 @@ export type NavItem = {
     | 'roadmap'
     | 'market'
     | 'analytics'
+    | 'strategy'
     | 'profile'
     | 'settings'
     | 'materials';
@@ -55,6 +57,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   lessonPlans: 'workflow',
   companyNews: 'workflow',
   materials: 'workflow',
+  strategy: 'management',
   analytics: 'management',
   roadmap: 'management',
   telegramSetup: 'management',
@@ -76,6 +79,7 @@ const NAV_SORT: NavItem['key'][] = [
   'lessonPlans',
   'companyNews',
   'materials',
+  'strategy',
   'analytics',
   'roadmap',
   'telegramSetup',
@@ -98,6 +102,11 @@ const NAV_SORT: NavItem['key'][] = [
 // it here hides the nav entry *and* makes lesson-plans/layout.tsx redirect
 // a direct URL visit, since that guard reuses this same list.
 export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant'];
+
+/** Strategy workspace (roadmap · mind map · board · list · gantt). The
+ * Project Manager role exists for exactly this area; CEO and Administrative
+ * Manager share it. Reused by the page guard and every strategy.ts action. */
+export const STRATEGY_ROLES: StaffRole[] = ['ceo', 'admin_manager', 'project_manager'];
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
@@ -140,6 +149,7 @@ export const NAV_ITEMS: NavItem[] = [
   // the page's own `notFound()` gate. Had no nav entry at all, so it was
   // only reachable by typing the URL.
   { key: 'analytics', href: '/analytics', roles: ['ceo'] },
+  { key: 'strategy', href: '/strategy', roles: STRATEGY_ROLES },
   // Persons Market — where an employee spends the stars they've accumulated.
   // No `roles`: everyone has a star balance, so everyone gets the shelf (the
   // CEO's curation controls live on the same page, gated inside it).

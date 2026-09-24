@@ -6,22 +6,23 @@ import { Link } from '@/i18n/navigation';
 import { logoutAction } from '@/lib/actions/auth';
 import { cn } from '@/lib/utils';
 import type { StaffRole } from '@/lib/nav';
+import { PersonsLogo } from '@/components/brand/persons-logo';
 import { SidebarNav } from './sidebar-nav';
 import { UserBadge } from './user-badge';
 
 export type SidebarGoal = { title: string; progress: number };
 
-/** Brand mark: ink square with the apricot "P". */
+/** Brand mark: the two-tone teal Persons "P" on a light tile. */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'grid size-[34px] shrink-0 place-items-center rounded-au-ctl bg-au-primary text-base font-bold text-au-accent',
+        'brand-mark grid size-[34px] shrink-0 place-items-center rounded-au-ctl border border-au-line bg-au-card shadow-au-card',
         className,
       )}
       aria-hidden
     >
-      P
+      <PersonsLogo className="size-[26px]" />
     </span>
   );
 }

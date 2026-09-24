@@ -465,3 +465,198 @@
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Persons brand mark + first-visit intro (components/brand/*).
+
+   The intro is a pointer-events:none overlay with a pure-CSS lifetime that
+   ends at visibility:hidden — the app under it is always rendered and
+   clickable, so it can never "white-screen" anything even if it stalls.
+--------------------------------------------------------------------------- */
+.persons-logo {
+  display: block;
+  overflow: visible;
+}
+.persons-logo path {
+  transform-box: fill-box;
+  transition: transform 0.5s var(--ease-bounce);
+}
+.brand-mark {
+  transition:
+    transform 0.4s var(--ease-bounce),
+    box-shadow 0.3s;
+}
+a:hover > .brand-mark {
+  transform: rotate(-6deg) scale(1.06);
+  box-shadow: 0 10px 22px -10px rgba(0, 208, 165, 0.55);
+}
+a:hover > .brand-mark .persons-logo-bowl {
+  transform: translate(6%, -6%);
+}
+a:hover > .brand-mark .persons-logo-stem {
+  transform: translate(-5%, 5%);
+}
+
+.intro-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(60% 70% at 85% 10%, #ffe2b8 0%, transparent 60%),
+    radial-gradient(55% 60% at 10% 95%, #c9fff0 0%, transparent 60%),
+    var(--au-bg, #f4f2ee);
+  clip-path: circle(150% at 50% 50%);
+  animation: intro-exit 0.75s cubic-bezier(0.7, 0, 0.2, 1) 1.75s forwards;
+}
+html[data-intro='seen'] .intro-splash {
+  display: none;
+}
+@keyframes intro-exit {
+  to {
+    clip-path: circle(0% at 50% 46%);
+    visibility: hidden;
+  }
+}
+.intro-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(46, 255, 204, 0.35), transparent 65%);
+  animation: intro-glow 2.4s ease-out both;
+}
+@keyframes intro-glow {
+  from {
+    transform: scale(0.3);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+}
+.intro-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.intro-logo {
+  width: 132px;
+  height: 132px;
+  animation: intro-lock 0.5s var(--ease-bounce) 0.62s both;
+}
+.intro-logo .persons-logo-stem {
+  animation: intro-stem 0.7s cubic-bezier(0.2, 0.9, 0.2, 1.15) 0.05s both;
+}
+.intro-logo .persons-logo-bowl {
+  animation: intro-bowl 0.7s cubic-bezier(0.2, 0.9, 0.2, 1.15) 0.18s both;
+}
+@keyframes intro-stem {
+  from {
+    transform: translate(-70%, 90%) rotate(-25deg) scale(0.6);
+  }
+}
+@keyframes intro-bowl {
+  from {
+    transform: translate(80%, -90%) rotate(30deg) scale(0.6);
+  }
+}
+@keyframes intro-lock {
+  40% {
+    transform: scale(1.12);
+  }
+}
+.intro-ring {
+  position: absolute;
+  top: 66px;
+  left: 50%;
+  width: 140px;
+  height: 140px;
+  margin: -70px 0 0 -70px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 208, 165, 0.55);
+  transform: scale(0.2);
+  visibility: hidden;
+  animation: intro-ring 0.9s ease-out 0.7s both;
+}
+@keyframes intro-ring {
+  from {
+    visibility: visible;
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    visibility: visible;
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.intro-word {
+  display: flex;
+  margin-top: 22px;
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--au-ink, #17161a);
+  overflow: hidden;
+  padding-bottom: 4px;
+}
+.intro-word span {
+  display: inline-block;
+  animation: intro-letter 0.55s var(--ease-bounce) both;
+}
+@keyframes intro-letter {
+  from {
+    transform: translateY(110%) rotate(8deg);
+  }
+}
+.intro-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--au-muted, #6c6873);
+  animation: intro-sub 0.6s var(--ease-snappy) 1.15s both;
+}
+@keyframes intro-sub {
+  from {
+    letter-spacing: 0.9em;
+    transform: translateY(6px);
+  }
+}
+
+/* Sidebar nav: the icon answers the pointer; the active item's icon takes
+   the accent. Transform-only, never gates visibility. */
+.nav-motion svg {
+  transition:
+    transform 0.35s var(--ease-bounce),
+    color 0.2s;
+}
+.nav-motion:hover svg {
+  transform: translateX(2px) scale(1.12);
+}
+.nav-motion:active {
+  transform: scale(0.97);
+}
+.nav-motion {
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    transform 0.2s var(--ease-bounce);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-splash {
+    display: none;
+  }
+  .persons-logo path,
+  .brand-mark,
+  .nav-motion,
+  .nav-motion svg {
+    transition: none;
+  }
+}
