@@ -405,7 +405,9 @@
       "updateFailed": "Murojaat holatini yangilab bo'lmadi. Qayta urinib ko'ring.",
       "notFound": "Bu murojaat endi mavjud emas.",
       "notDone": "Faqat bajarilgan murojaatlarni o'chirish mumkin.",
-      "deleteFailed": "Murojaatni o'chirib bo'lmadi. Qayta urinib ko'ring."
+      "deleteFailed": "Murojaatni o'chirib bo'lmadi. Qayta urinib ko'ring.",
+      "commentInvalid": "Izoh 1 dan 2000 belgigacha bo'lishi kerak.",
+      "commentFailed": "Izohni yuborib bo'lmadi. Qayta urinib ko'ring."
     },
     "stats": {
       "title": "Hal qilish ko‘rsatkichlari",
@@ -422,6 +424,22 @@
       "monthCounts": "{created} ta kelgan · {resolved} ta hal qilingan",
       "byRole": "Kim ko‘targaniga ko‘ra",
       "roleCounts": "{raised} ta ko‘targan · {resolved} ta hal qilingan"
+    },
+    "comments": {
+      "toggle": "Izohlar ({count})",
+      "awaitingReply": "Javob kutilmoqda",
+      "empty": "Hali izoh yo'q.",
+      "placeholderCeo": "CEO izohi: ko'rsatma yoki savol yozing…",
+      "placeholderReply": "Javob yozing…",
+      "sendComment": "Izoh yuborish",
+      "sendReply": "Javob yuborish",
+      "hint": "Ctrl + Enter — yuborish",
+      "roles": {
+        "ceo": "CEO",
+        "assignee": "Ijrochi",
+        "author": "Muallif",
+        "staff": "Xodim"
+      }
     }
   },
   "lessonPlans": {

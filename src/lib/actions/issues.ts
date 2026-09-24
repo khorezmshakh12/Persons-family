@@ -213,7 +213,84 @@ export type VisibleIssueRow = {
   voiceSignedUrl: string | null;
   reporter: { first_name: string; last_name: string } | null;
   assignee: { first_name: string; last_name: string } | null;
+  /** The issue's comment thread, oldest first — see loadIssueComments. */
+  comments: IssueComment[];
 };
+
+/** How the author relates to the issue, for the thread's role badge. The
+ * CEO wins over everything else; then the assignee (the one doing the
+ * work), then the reporter. `staff` only for someone who has since been
+ * unassigned — the thread keeps what they wrote. */
+export type IssueCommentRole = 'ceo' | 'assignee' | 'author' | 'staff';
+
+export type IssueComment = {
+  id: string;
+  body: string;
+  created_at: string;
+  /** Null once the author's profile has been removed (on delete set null). */
+  author_id: string | null;
+  authorName: string;
+  authorRole: IssueCommentRole;
+};
+
+type IssueCommentQueryRow = {
+  id: string;
+  issue_id: string;
+  body: string;
+  created_at: string;
+  author_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+};
+
+function toIssueComment(
+  row: IssueCommentQueryRow,
+  issue: { created_by: string; assigned_to: string | null },
+): IssueComment {
+  const authorRole: IssueCommentRole =
+    row.role === 'ceo'
+      ? 'ceo'
+      : row.author_id && row.author_id === issue.assigned_to
+        ? 'assignee'
+        : row.author_id && row.author_id === issue.created_by
+          ? 'author'
+          : 'staff';
+  return {
+    id: row.id,
+    body: row.body,
+    created_at: row.created_at,
+    author_id: row.author_id,
+    authorName: [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || '—',
+    authorRole,
+  };
+}
+
+/** Every comment on the given (already access-checked) issues in one query,
+ * grouped by issue, oldest first. A read-only helper: a DB failure is logged
+ * and degrades to empty threads rather than taking the board down. */
+async function loadIssueComments(issueIds: string[]): Promise<Map<string, IssueCommentQueryRow[]>> {
+  const byIssue = new Map<string, IssueCommentQueryRow[]>();
+  if (issueIds.length === 0) return byIssue;
+  try {
+    const rows = await sql<IssueCommentQueryRow[]>`
+      select c.id, c.issue_id, c.body, c.created_at, c.author_id,
+             p.first_name, p.last_name, p.role
+      from issue_comments c
+      left join profiles p on p.id = c.author_id
+      where c.issue_id in ${sql(issueIds)}
+      order by c.created_at, c.id
+    `;
+    for (const row of rows) {
+      const list = byIssue.get(row.issue_id);
+      if (list) list.push(row);
+      else byIssue.set(row.issue_id, [row]);
+    }
+  } catch (error) {
+    console.error('loadIssueComments failed', error instanceof Error ? error.message : error);
+  }
+  return byIssue;
+}
 
 const VOICE_URL_EXPIRY_SECONDS = 60 * 60;
 
@@ -232,7 +309,10 @@ type IssueQueryRow = {
   assignee_last_name: string | null;
 };
 
-async function toVisibleIssueRow(row: IssueQueryRow): Promise<VisibleIssueRow> {
+async function toVisibleIssueRow(
+  row: IssueQueryRow,
+  comments: IssueCommentQueryRow[] = [],
+): Promise<VisibleIssueRow> {
   return {
     id: row.id,
     title: row.title,
@@ -244,6 +324,7 @@ async function toVisibleIssueRow(row: IssueQueryRow): Promise<VisibleIssueRow> {
     voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
     reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
     assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
+    comments: comments.map((c) => toIssueComment(c, row)),
   };
 }
 
@@ -292,7 +373,11 @@ export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
         order by i.created_at desc
       `;
 
-  return Promise.all(rows.map(toVisibleIssueRow));
+  // Threads ride along with the board so everyone who can see an issue sees
+  // its conversation, and the live refresh (board_signals/issues, bumped by
+  // addIssueCommentAction too) picks new comments up for the other party.
+  const comments = await loadIssueComments(rows.map((r) => r.id));
+  return Promise.all(rows.map((row) => toVisibleIssueRow(row, comments.get(row.id))));
 }
 
 /**
@@ -536,4 +621,123 @@ export async function updateIssueAction(
 
   revalidatePath('/[locale]/issues', 'page');
   return {};
+}
+
+/** Telegram ping to the other side of an issue thread. Swallows its own
+ * errors — a Telegram hiccup must never fail the comment itself (same
+ * reasoning as notifyIssueAssigned, including why it is awaited inline). */
+async function notifyIssueComment({
+  recipientIds,
+  title,
+  authorName,
+  body,
+}: {
+  recipientIds: string[];
+  title: string;
+  authorName: string;
+  body: string;
+}) {
+  if (recipientIds.length === 0) return;
+  try {
+    const recipients = await sql<{ telegram_id: number | null }[]>`
+      select telegram_id from profiles where id in ${sql(recipientIds)} and is_active = true
+    `;
+    const preview = body.length > 300 ? `${body.slice(0, 300)}…` : body;
+    const text = `Murojaatga yangi izoh: <b>${escapeTelegramText(title)}</b>\n${escapeTelegramText(authorName)}: ${escapeTelegramText(preview)}`;
+    await Promise.all(
+      recipients
+        .filter((r): r is { telegram_id: number } => Boolean(r.telegram_id))
+        .map((r) => sendTelegramMessage(r.telegram_id, text)),
+    );
+  } catch (error) {
+    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+  }
+}
+
+const addIssueCommentSchema = z.object({
+  issueId: z.string().uuid(),
+  body: z.string().trim().min(1).max(2000),
+});
+
+export type AddIssueCommentState = { error?: string; comment?: IssueComment } | undefined;
+
+/**
+ * Adds a comment to an issue's thread. The CEO may comment on any issue
+ * (an instruction or a question); otherwise only the person who raised the
+ * issue or the one it is assigned to may reply — exactly the set of people
+ * getVisibleIssuesAction shows the issue to. Re-checked here against the
+ * row itself; the composer being visible on the card is not the boundary.
+ */
+export async function addIssueCommentAction(
+  _prevState: AddIssueCommentState,
+  formData: FormData,
+): Promise<AddIssueCommentState> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  const isCeo = profile.role === 'ceo';
+
+  const parsed = addIssueCommentSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'commentInvalid' };
+
+  let issue: { id: string; title: string; created_by: string; assigned_to: string | null } | undefined;
+  try {
+    [issue] = await sql<{ id: string; title: string; created_by: string; assigned_to: string | null }[]>`
+      select id, title, created_by, assigned_to from issues where id = ${parsed.data.issueId}
+    `;
+  } catch (error) {
+    console.error('addIssueCommentAction lookup failed', error instanceof Error ? error.message : error);
+    return { error: 'commentFailed' };
+  }
+  if (!issue) return { error: 'notFound' };
+  if (!isCeo && issue.created_by !== user.id && issue.assigned_to !== user.id) {
+    return { error: 'forbidden' };
+  }
+
+  let inserted: { id: string; created_at: string } | undefined;
+  try {
+    [inserted] = await sql<{ id: string; created_at: string }[]>`
+      insert into issue_comments (issue_id, author_id, body)
+      values (${issue.id}, ${user.id}, ${parsed.data.body})
+      returning id, created_at
+    `;
+  } catch (error) {
+    console.error('addIssueCommentAction failed', error instanceof Error ? error.message : error);
+    return { error: 'commentFailed' };
+  }
+  if (!inserted) return { error: 'commentFailed' };
+
+  await bumpBoardSignal('issues');
+
+  // The CEO's comment goes to the reporter and the assignee; a reply from
+  // either of them goes to the other one and to the CEO.
+  const recipients = new Set<string>([issue.created_by]);
+  if (issue.assigned_to) recipients.add(issue.assigned_to);
+  if (!isCeo) {
+    const ceoId = await ceoUserId().catch(() => null);
+    if (ceoId) recipients.add(ceoId);
+  }
+  recipients.delete(user.id);
+  await notifyIssueComment({
+    recipientIds: [...recipients],
+    title: issue.title,
+    authorName: `${profile.first_name} ${profile.last_name}`.trim(),
+    body: parsed.data.body,
+  });
+
+  revalidatePath('/[locale]/issues', 'page');
+  return {
+    comment: toIssueComment(
+      {
+        id: inserted.id,
+        issue_id: issue.id,
+        body: parsed.data.body,
+        created_at: inserted.created_at,
+        author_id: user.id,
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        role: profile.role,
+      },
+      issue,
+    ),
+  };
 }

@@ -405,7 +405,9 @@
       "updateFailed": "Could not update the issue's status. Please try again.",
       "notFound": "That issue no longer exists.",
       "notDone": "Only resolved issues can be deleted.",
-      "deleteFailed": "Could not delete the issue. Please try again."
+      "deleteFailed": "Could not delete the issue. Please try again.",
+      "commentInvalid": "A comment must be 1 to 2000 characters long.",
+      "commentFailed": "Could not send the comment. Please try again."
     },
     "stats": {
       "title": "Resolution overview",
@@ -422,6 +424,22 @@
       "monthCounts": "{created} raised · {resolved} resolved",
       "byRole": "By who raised it",
       "roleCounts": "{raised} raised · {resolved} resolved"
+    },
+    "comments": {
+      "toggle": "Comments ({count})",
+      "awaitingReply": "Awaiting reply",
+      "empty": "No comments yet.",
+      "placeholderCeo": "CEO comment: write an instruction or a question…",
+      "placeholderReply": "Write a reply…",
+      "sendComment": "Send comment",
+      "sendReply": "Send reply",
+      "hint": "Ctrl + Enter to send",
+      "roles": {
+        "ceo": "CEO",
+        "assignee": "Assignee",
+        "author": "Reporter",
+        "staff": "Staff"
+      }
     }
   },
   "lessonPlans": {

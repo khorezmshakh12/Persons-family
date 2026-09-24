@@ -8,6 +8,8 @@ import { Mic, GripVertical } from 'lucide-react';
 import { IssueStatusControl } from './issue-status-control';
 import { EditIssueDialog } from './edit-issue-dialog';
 import { DeleteIssueButton } from './delete-issue-button';
+import { IssueComments } from './issue-comments';
+import type { IssueComment } from '@/lib/actions/issues';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +23,8 @@ export type Issue = {
   voiceSignedUrl: string | null;
   reporter: { first_name: string; last_name: string } | null;
   assignee: { first_name: string; last_name: string } | null;
+  /** The issue's comment thread, oldest first. */
+  comments?: IssueComment[];
 };
 
 /**
@@ -135,6 +139,12 @@ function IssueCardImpl({
           <span>{format.dateTime(new Date(issue.created_at), { dateStyle: 'medium' })}</span>
         </div>
         {!readOnly && <IssueStatusControl status={issue.status} />}
+        {/* Everyone who sees an issue is a participant (the CEO, its reporter
+         * or its assignee), so all of them get the thread — just not the
+         * drag-overlay copy. */}
+        {!isOverlay && (
+          <IssueComments issueId={issue.id} comments={issue.comments ?? []} viewerIsCeo={!readOnly} />
+        )}
       </motion.div>
     </div>
   );
