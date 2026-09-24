@@ -149,7 +149,8 @@
       "title": "Xodimlarning Oylik O'sishi",
       "noTeachers": "Hozircha baholangan xodimlar yo'q.",
       "noData": "Hozircha baholangan oylar yo'q.",
-      "expand": "Kattalashtirish"
+      "expand": "Kattalashtirish",
+      "legendHint": "Chiziqni yashirish yoki ko‘rsatish uchun ismni bosing"
     },
     "starLeaderboard": {
       "title": "Yulduzlar reytingi",
@@ -1628,7 +1629,32 @@
     "doneLast7": "+{count} so‘nggi 7 kunda",
     "months": "Oylar",
     "lastMonths": "so‘nggi 6 oy",
-    "chartTotal": "Jami: <b>{complete}</b> / {total}"
+    "chartTotal": "Jami: <b>{complete}</b> / {total}",
+    "financeTitle": "Moliya · {month}",
+    "financeCompanySub": "jamoa oylik fondi",
+    "financeSelfSub": "mening oyligim",
+    "finPaidShare": "{pct}% to‘langan",
+    "finStaff": "{count} ta xodim rejada",
+    "feedCeoTitle": "Xodimlar bajargan vazifalar",
+    "feedSelfTitle": "Menga berilgan vazifalar",
+    "feedEmpty": "Hozircha bajarilgan vazifalar yo‘q.",
+    "feedSelfEmpty": "Hamma vazifa bajarilgan.",
+    "feedDone": "<b>{name}</b> bajardi",
+    "feedSubmitted": "<b>{name}</b> topshirdi",
+    "onTime": "O‘z vaqtida",
+    "late": "Kechikib",
+    "underReview": "Tekshiruvda",
+    "noDeadline": "Muddatsiz",
+    "due": "Muddat: {when}",
+    "empStatsTitle": "Xodimlar statistikasi",
+    "empStatsSub": "vazifalar bo‘yicha · saralash uchun ustunni bosing",
+    "colName": "Xodim",
+    "colAssigned": "Berilgan",
+    "colDone": "Bajarildi",
+    "colOnTime": "O‘z vaqtida",
+    "colOverdue": "Kechikkan",
+    "colStars": "Yulduzlar",
+    "empStatsEmpty": "Hozircha xodimlar yo‘q."
   },
   "themeSettings": {
     "title": "Mavzu",

@@ -2,6 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { sql } from '@/lib/db/client';
 import { getStarBalances } from '@/lib/stars';
+import { getPayrollSummary, getStaffPayroll } from '@/lib/payroll';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { LESSON_PLAN_ROLES, type StaffRole } from '@/lib/nav';
 import { addDaysToKey, tashkentDayKey, tashkentDayOfWeek, tashkentMidnight, startOfTashkentMonthKey, startOfPreviousTashkentMonthKey } from '@/lib/time';
@@ -545,5 +546,181 @@ export async function loadActivity(v: Viewer, limit = 5): Promise<ActivityItem[]
       })),
     ];
     return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, limit);
+  });
+}
+
+/* -------------------------------------------------------------- finance */
+
+/**
+ * The dashboard's Finance card (it took the place of the old task-status
+ * card). Same source as /finance and the profile's SalaryCard —
+ * lib/payroll.ts — for the current Asia/Tashkent month, so the three can
+ * never disagree:
+ *   - CEO: the whole team's payroll (planned gross, paid, still owed).
+ *   - everyone else: their own gross salary, paid so far, remaining.
+ */
+export type FinanceSnapshot = {
+  scope: 'company' | 'self';
+  /** 'YYYY-MM-01' (Tashkent). */
+  period: string;
+  gross: number;
+  paid: number;
+  remaining: number;
+  /** CEO only: how many active staff are on this month's payroll plan. */
+  staffCount?: number;
+};
+
+export async function loadFinanceSnapshot(v: Viewer): Promise<FinanceSnapshot | null> {
+  return safe('finance', async () => {
+    const period = startOfTashkentMonthKey();
+    if (isCompanyWide(v)) {
+      const summary = await getPayrollSummary(period);
+      return {
+        scope: 'company' as const,
+        period,
+        ...summary.totals,
+        staffCount: summary.rows.filter((r) => r.gross > 0).length,
+      };
+    }
+    const own = await getStaffPayroll(v.userId, period);
+    return { scope: 'self' as const, period, gross: own.gross, paid: own.paid, remaining: own.remaining };
+  });
+}
+
+/* ------------------------------------------------------------ task feed */
+
+/**
+ * CEO: what employees recently handed in — submitted for review, awaiting
+ * the proof upload, or approved — newest first.
+ * Everyone else: the tasks assigned to them that are still on their plate
+ * (open or under review), soonest deadline first.
+ *
+ * Same visibility the rest of the dashboard uses: the CEO sees every
+ * employee's tasks, anyone else only `assigned_to = self`.
+ */
+export type TaskFeedItem = {
+  id: string;
+  title: string;
+  status: string;
+  deadline: string | null;
+  /** CEO feed: when the work was handed in (completed_at ?? submitted_at). */
+  at: string | null;
+  /** CEO feed: handed in at/before the deadline (no deadline = on time). */
+  onTime: boolean | null;
+  /** CEO feed: the assignee. */
+  name: string | null;
+};
+
+export async function loadTaskFeed(v: Viewer, limit = 6): Promise<TaskFeedItem[] | null> {
+  return safe('task-feed', async () => {
+    if (isCompanyWide(v)) {
+      const rows = await sql<
+        {
+          id: string;
+          title: string;
+          status: string;
+          deadline: string | null;
+          at: string;
+          first_name: string;
+          last_name: string;
+        }[]
+      >`
+        select t.id, t.title, t.status, t.deadline,
+               coalesce(t.completed_at, t.submitted_at) as at,
+               p.first_name, p.last_name
+        from tasks t
+        join profiles p on p.id = t.assigned_to
+        where t.status in ('submitted', 'awaiting_upload', 'done')
+          and coalesce(t.completed_at, t.submitted_at) is not null
+          and p.role <> 'ceo'
+        order by coalesce(t.completed_at, t.submitted_at) desc
+        limit ${limit}
+      `;
+      return rows.map((r) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        deadline: r.deadline,
+        at: r.at,
+        // Instant comparison, never a calendar-day one — same rule as
+        // getTaskStatsAction / the weekly report.
+        onTime: r.deadline ? new Date(r.at).getTime() <= new Date(r.deadline).getTime() : true,
+        name: `${r.first_name} ${r.last_name ? `${r.last_name[0]}.` : ''}`.trim(),
+      }));
+    }
+
+    // Open work only, so the list is small — sorted in JS (soonest deadline
+    // first, no-deadline last) rather than a SQL "asc limit".
+    const rows = await sql<{ id: string; title: string; status: string; deadline: string | null; created_at: string }[]>`
+      select id, title, status, deadline, created_at
+      from tasks
+      where assigned_to = ${v.userId} and status <> 'done'
+    `;
+    const key = (d: string | null) => (d ? new Date(d).getTime() : Number.POSITIVE_INFINITY);
+    return rows
+      .sort((a, b) => key(a.deadline) - key(b.deadline) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, limit)
+      .map((r) => ({ id: r.id, title: r.title, status: r.status, deadline: r.deadline, at: null, onTime: null, name: null }));
+  });
+}
+
+/* -------------------------------------------------- employee statistics */
+
+/**
+ * CEO-only panel: per active employee, the tasks they were assigned, how
+ * many are done, the on-time share of those, how many are overdue right now
+ * and their star balance. "On time" = completed_at <= deadline (a task with
+ * no deadline can't be late); "overdue" = still open (pending/in_progress)
+ * past its deadline — the same rules as getTaskStatsAction and `is_overdue`.
+ */
+export type EmployeeTaskStat = {
+  id: string;
+  name: string;
+  assigned: number;
+  done: number;
+  /** 0-100, null when nothing is done yet. */
+  onTimeRate: number | null;
+  overdue: number;
+  stars: number;
+};
+
+export async function loadEmployeeTaskStats(): Promise<EmployeeTaskStat[] | null> {
+  return safe('employee-stats', async () => {
+    const rows = await sql<
+      {
+        id: string;
+        first_name: string;
+        last_name: string;
+        assigned: number;
+        done: number;
+        on_time: number;
+        overdue: number;
+      }[]
+    >`
+      select p.id, p.first_name, p.last_name,
+        count(t.id)::int as assigned,
+        count(t.id) filter (where t.status = 'done')::int as done,
+        count(t.id) filter (
+          where t.status = 'done' and (t.deadline is null or (t.completed_at is not null and t.completed_at <= t.deadline))
+        )::int as on_time,
+        count(t.id) filter (
+          where t.status in ('pending', 'in_progress') and t.deadline < now()
+        )::int as overdue
+      from profiles p
+      left join tasks t on t.assigned_to = p.id
+      where p.is_active = true and p.role <> 'ceo'
+      group by p.id
+      order by p.first_name asc
+    `;
+    const balances = await getStarBalances(rows.map((r) => r.id));
+    return rows.map((r) => ({
+      id: r.id,
+      name: `${r.first_name} ${r.last_name}`.trim(),
+      assigned: r.assigned,
+      done: r.done,
+      onTimeRate: r.done > 0 ? Math.round((r.on_time / r.done) * 100) : null,
+      overdue: r.overdue,
+      stars: balances[r.id] ?? 0,
+    }));
   });
 }

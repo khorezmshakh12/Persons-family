@@ -16,22 +16,28 @@ import {
   canSeeLessonPlans,
   loadActivity,
   loadDashboardCore,
+  loadEmployeeTaskStats,
+  loadFinanceSnapshot,
   loadLeaderboard,
   loadLessonPlanMonths,
   loadLessonPlanWeek,
   loadTasksDoneMonths,
+  loadTaskFeed,
   loadTasksDoneWeek,
   type Viewer,
 } from '@/lib/aurora-dashboard';
-import { CARD_TITLE, SKELETON, SURFACE_CARD, SURFACE_HERO } from '@/lib/glass';
+import { loadEmployeeGrowth } from '@/lib/employee-growth';
+import { SKELETON, SURFACE_CARD, SURFACE_HERO } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import type { StaffRole } from '@/lib/nav';
 import { HeroBanner } from '@/components/aurora/hero-banner';
 import { KpiCard } from '@/components/aurora/kpi-card';
 import { Leaderboard } from '@/components/aurora/leaderboard';
 import { WeekBarChart } from '@/components/aurora/week-bar-chart';
-import { DonutChart } from '@/components/aurora/donut-chart';
 import { ActivityFeed } from '@/components/aurora/activity-feed';
+import { FinanceCard } from '@/components/aurora/finance-card';
+import { TaskFeed } from '@/components/aurora/task-feed';
+import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
 export const dynamic = 'force-dynamic';
@@ -51,73 +57,11 @@ async function TeacherSelfDevelopmentCard({ userId, delayMs }: { userId: string;
 }
 
 // CEO-only: every active staff member's self-development score plotted as
-// its own line on one shared chart (not just teachers — self-development is
-// company-wide), pivoted here (one row per month, one column per person) so
-// the client component stays a dumb renderer with no data-fetching of its
-// own. Only people who have actually been scored at least once carry a line;
-// an employee the CEO hasn't reviewed yet has no "growth" to draw and would
-// just be an empty legend entry.
+// its own line on one shared chart. The pivot lives in lib/employee-growth.ts
+// (shared with the CEO view of /self-development).
 async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
-  const staffList = await sql<{ id: string; first_name: string; last_name: string }[]>`
-    select id, first_name, last_name from profiles
-    where is_active = true and role <> 'ceo'
-    order by first_name asc
-  `;
-
-  // `month` is normalized to a plain `YYYY-MM-01` string right here rather
-  // than shipped as whatever the column happens to be: the client card
-  // builds a Date out of it, and a raw timestamp wire value
-  // ("2026-09-01 00:00:00+00") makes `${month}T00:00:00Z` an Invalid Date —
-  // which throws out of Intl formatting and takes the whole chart with it.
-  // date_trunc also folds any row that wasn't stored on the 1st into its
-  // own month, so two entries can't produce two adjacent X points.
-  const scores =
-    staffList.length > 0
-      ? await sql<{ month: string; ceo_score: number; user_id: string }[]>`
-          select to_char(date_trunc('month', month), 'YYYY-MM-DD') as month,
-                 ceo_score,
-                 user_id
-          from self_development
-          where user_id in ${sql(staffList.map((t) => t.id))} and ceo_score is not null
-          order by date_trunc('month', month) asc
-        `
-      : [];
-
-  // Only the people who actually have a scored month get a line — keeps the
-  // legend and the plot legible when the company has many employees.
-  const scoredIds = new Set(scores.map((s) => s.user_id));
-  const seriesList = staffList.filter((s) => scoredIds.has(s.id));
-
-  const rowByMonth = new Map<string, Record<string, number | null>>();
-  for (const s of scores) {
-    let row = rowByMonth.get(s.month);
-    if (!row) {
-      row = {};
-      rowByMonth.set(s.month, row);
-    }
-    row[s.user_id] = s.ceo_score;
-  }
-
-  const teacherIds = seriesList.map((t) => t.id);
-  // Sorted here instead of relying on the query's ordering surviving the
-  // pivot — `YYYY-MM-01` strings sort lexicographically == chronologically.
-  // Every teacher gets an explicit `null` for a month they weren't scored
-  // in, so recharts sees a real gap (and `connectNulls` bridges it) rather
-  // than an absent key.
-  const data = [...rowByMonth.keys()].sort().map((month) => {
-    const row = rowByMonth.get(month)!;
-    const filled: Record<string, number | null> = {};
-    for (const id of teacherIds) filled[id] = row[id] ?? null;
-    return { month, ...filled };
-  });
-
-  return (
-    <TeacherProgressChartCard
-      teachers={seriesList.map((t) => ({ id: t.id, name: `${t.first_name} ${t.last_name}` }))}
-      data={data}
-      delayMs={delayMs}
-    />
-  );
+  const { teachers, data } = await loadEmployeeGrowth();
+  return <TeacherProgressChartCard teachers={teachers} data={data} delayMs={delayMs} />;
 }
 
 /* ------------------------------ Persons Aurora top section ------------------------------ */
@@ -125,13 +69,17 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
 // Grid placement (xl, 12 cols) — mirrors persons-aurora-kit's reference:
 //   hero 8    | leaderboard 4 (2 rows)
 //   KPI×4 8   |
-//   bars 5 | donut 3 | activity 4
+//   finance 8 | activity 4      (finance took the old task-status card's place)
+//   tasks feed 7 | bars 5
+//   employee statistics 12      (CEO only — the CEO has no "my tasks")
 const HERO_CELL = 'lg:col-span-12 xl:col-span-8';
 const LEAD_CELL = 'lg:col-span-6 xl:col-span-4 xl:col-start-9 xl:row-span-2 xl:row-start-1';
 const KPI_CELL = 'lg:col-span-6 xl:col-span-8';
-const BARS_CELL = 'lg:col-span-12 xl:col-span-5';
-const DONUT_CELL = 'lg:col-span-5 xl:col-span-3';
-const ACT_CELL = 'lg:col-span-7 xl:col-span-4';
+const FIN_CELL = 'lg:col-span-7 xl:col-span-8';
+const ACT_CELL = 'lg:col-span-5 xl:col-span-4';
+const FEED_CELL = 'lg:col-span-7';
+const BARS_CELL = 'lg:col-span-5';
+const STATS_CELL = 'lg:col-span-12';
 
 const formatCount = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
 
@@ -259,28 +207,25 @@ async function WeekChartSection({ viewer }: { viewer: Viewer }) {
   );
 }
 
-async function TaskStatusSection({ viewer }: { viewer: Viewer }) {
-  const t = await getTranslations('aurora');
-  const { hero } = await loadDashboardCore(viewer.userId, viewer.role);
-  const s = hero?.status;
+async function FinanceSection({ viewer }: { viewer: Viewer }) {
+  const data = await loadFinanceSnapshot(viewer);
   return (
-    <section className={cn(SURFACE_CARD, DONUT_CELL, 'flex flex-col p-5')}>
-      <h2 className={cn(CARD_TITLE, 'mb-3.5')}>{t('tasksStatus')}</h2>
-      {s ? (
-        <DonutChart
-          centerLabel={t('total')}
-          slices={[
-            { label: t('statusDone'), value: s.done, color: 'var(--au-chart-1)' },
-            { label: t('statusInProgress'), value: s.inProgress, color: 'var(--au-chart-2)' },
-            { label: t('statusTodo'), value: s.todo, color: 'var(--au-chart-3)' },
-            { label: t('statusOverdue'), value: s.overdue, color: 'var(--au-faint)' },
-          ]}
-        />
-      ) : (
-        <p className="py-10 text-center text-sm text-au-muted">{t('noData')}</p>
-      )}
-    </section>
+    <FinanceCard
+      data={data}
+      href={viewer.role === 'ceo' ? '/finance' : `/finance/${viewer.userId}`}
+      className={FIN_CELL}
+    />
   );
+}
+
+async function TaskFeedSection({ viewer }: { viewer: Viewer }) {
+  const items = await loadTaskFeed(viewer);
+  return <TaskFeed items={items} mode={viewer.role === 'ceo' ? 'ceo' : 'self'} className={FEED_CELL} />;
+}
+
+async function EmployeeStatsSection() {
+  const rows = await loadEmployeeTaskStats();
+  return <EmployeeStatsTable rows={rows} className={STATS_CELL} />;
 }
 
 async function ActivitySection({ viewer }: { viewer: Viewer }) {
@@ -320,15 +265,23 @@ export default async function DashboardPage() {
         <Suspense fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
           <LeaderboardSection userId={user!.id} />
         </Suspense>
-        <Suspense fallback={<CardSkeleton className={BARS_CELL} />}>
-          <WeekChartSection viewer={viewer} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton className={DONUT_CELL} />}>
-          <TaskStatusSection viewer={viewer} />
+        <Suspense fallback={<CardSkeleton className={FIN_CELL} />}>
+          <FinanceSection viewer={viewer} />
         </Suspense>
         <Suspense fallback={<CardSkeleton className={ACT_CELL} />}>
           <ActivitySection viewer={viewer} />
         </Suspense>
+        <Suspense fallback={<CardSkeleton className={FEED_CELL} />}>
+          <TaskFeedSection viewer={viewer} />
+        </Suspense>
+        <Suspense fallback={<CardSkeleton className={BARS_CELL} />}>
+          <WeekChartSection viewer={viewer} />
+        </Suspense>
+        {isCeo && (
+          <Suspense fallback={<CardSkeleton className={STATS_CELL} />}>
+            <EmployeeStatsSection />
+          </Suspense>
+        )}
       </div>
 
       {/* The period selector's state lives in this provider, above the

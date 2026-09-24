@@ -149,7 +149,8 @@
       "title": "Месячный рост сотрудников",
       "noTeachers": "Пока нет оценённых сотрудников.",
       "noData": "Пока нет оценённых месяцев.",
-      "expand": "Развернуть"
+      "expand": "Развернуть",
+      "legendHint": "Нажмите на имя, чтобы скрыть или показать линию"
     },
     "starLeaderboard": {
       "title": "Рейтинг звёзд",
@@ -1628,7 +1629,32 @@
     "doneLast7": "+{count} за 7 дней",
     "months": "Месяцы",
     "lastMonths": "последние 6 месяцев",
-    "chartTotal": "Всего: <b>{complete}</b> / {total}"
+    "chartTotal": "Всего: <b>{complete}</b> / {total}",
+    "financeTitle": "Финансы · {month}",
+    "financeCompanySub": "фонд зарплат команды",
+    "financeSelfSub": "моя зарплата",
+    "finPaidShare": "выплачено {pct}%",
+    "finStaff": "в плане: {count} сотр.",
+    "feedCeoTitle": "Задачи, выполненные сотрудниками",
+    "feedSelfTitle": "Мои задачи",
+    "feedEmpty": "Пока нет выполненных задач.",
+    "feedSelfEmpty": "Все задачи выполнены.",
+    "feedDone": "<b>{name}</b> выполнил(а)",
+    "feedSubmitted": "<b>{name}</b> сдал(а)",
+    "onTime": "Вовремя",
+    "late": "С опозданием",
+    "underReview": "На проверке",
+    "noDeadline": "Без срока",
+    "due": "Срок: {when}",
+    "empStatsTitle": "Статистика сотрудников",
+    "empStatsSub": "по задачам · нажмите на столбец для сортировки",
+    "colName": "Сотрудник",
+    "colAssigned": "Назначено",
+    "colDone": "Выполнено",
+    "colOnTime": "Вовремя",
+    "colOverdue": "Просрочено",
+    "colStars": "Звёзды",
+    "empStatsEmpty": "Пока нет сотрудников."
   },
   "themeSettings": {
     "title": "Тема",
