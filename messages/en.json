@@ -149,7 +149,8 @@
       "title": "Employee Monthly Growth",
       "noTeachers": "No employees have been scored yet.",
       "noData": "No scored months yet.",
-      "expand": "Expand"
+      "expand": "Expand",
+      "legendHint": "Click a name to hide or show its line"
     },
     "starLeaderboard": {
       "title": "Stars Leaderboard",
@@ -1646,7 +1647,32 @@
     "doneLast7": "+{count} in 7 days",
     "months": "Months",
     "lastMonths": "last 6 months",
-    "chartTotal": "Total: <b>{complete}</b> / {total}"
+    "chartTotal": "Total: <b>{complete}</b> / {total}",
+    "financeTitle": "Finance · {month}",
+    "financeCompanySub": "team payroll",
+    "financeSelfSub": "my salary",
+    "finPaidShare": "{pct}% paid",
+    "finStaff": "{count} staff on plan",
+    "feedCeoTitle": "Tasks completed by staff",
+    "feedSelfTitle": "Tasks assigned to me",
+    "feedEmpty": "No completed tasks yet.",
+    "feedSelfEmpty": "All tasks are done.",
+    "feedDone": "<b>{name}</b> completed",
+    "feedSubmitted": "<b>{name}</b> submitted",
+    "onTime": "On time",
+    "late": "Late",
+    "underReview": "Under review",
+    "noDeadline": "No deadline",
+    "due": "Due {when}",
+    "empStatsTitle": "Employee statistics",
+    "empStatsSub": "by tasks · click a column to sort",
+    "colName": "Employee",
+    "colAssigned": "Assigned",
+    "colDone": "Done",
+    "colOnTime": "On time",
+    "colOverdue": "Overdue",
+    "colStars": "Stars",
+    "empStatsEmpty": "No employees yet."
   },
   "themeSettings": {
     "title": "Theme",

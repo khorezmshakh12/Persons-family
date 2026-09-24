@@ -10,6 +10,8 @@ import { SubmissionCard, type Submission } from '@/components/self-development/s
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { LastMonthScoresChart, type StaffScorePoint } from '@/components/self-development/last-month-scores-chart';
 import { TeacherPicker } from '@/components/self-development/teacher-picker';
+import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
+import { loadEmployeeGrowth } from '@/lib/employee-growth';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
 import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
 import { ExportButtons } from '@/components/export/export-buttons';
@@ -53,7 +55,7 @@ export default async function SelfDevelopmentPage({
     const thisMonthSubmissions = submissions.filter((s) => s.month === currentMonth);
     const historySubmissions = submissions.filter((s) => s.month !== currentMonth);
 
-    const [staff, performance, entries, lastMonthScores] = await Promise.all([
+    const [staff, performance, entries, lastMonthScores, growth] = await Promise.all([
       sql<{ id: string; first_name: string; last_name: string; role: string }[]>`
         select id, first_name, last_name, role from profiles
         where is_active = true order by first_name asc
@@ -86,6 +88,9 @@ export default async function SelfDevelopmentPage({
         left join profiles p on p.id = sd.user_id
         where sd.month = ${firstOfPreviousMonth()} and sd.ceo_score is not null
       `,
+      // Every employee's CEO score over the months, one line each — the same
+      // chart (and the same pivot) as the CEO dashboard's growth card.
+      loadEmployeeGrowth(),
     ]);
 
     const lastMonthPoints: StaffScorePoint[] = lastMonthScores
@@ -132,6 +137,8 @@ export default async function SelfDevelopmentPage({
           </h1>
           <p className="text-au-muted">{t('subtitle')}</p>
         </div>
+
+        <TeacherProgressChartCard teachers={growth.teachers} data={growth.data} />
 
         <LastMonthScoresChart points={lastMonthPoints} />
 
