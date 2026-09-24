@@ -8,6 +8,7 @@ import { computeKpiScore } from '@/lib/kpi';
 import { addMonths, fmtMln, monthlySeries } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
 import { MONF } from '@/lib/strategy';
+import { tashkentDayKey } from '@/lib/time';
 import { deleteLeadAction, saveLeadAction } from '@/lib/actions/operations';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
@@ -60,6 +61,9 @@ const ROLE_GROUP: Record<string, string> = {
 };
 const KEY = 'persons-ops-tab';
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** Tashkent 'YYYY-MM-DD' of a timestamptz string (the raw value is UTC, so
+ * `.slice()` on it put 00:00–05:00 Tashkent on the previous day / month). */
+const tzDay = (s: string) => tashkentDayKey(new Date(s));
 
 export function OperationsWorkspace({ data, books, today }: { data: OpsData; books: Books; today: string }) {
   const [tab, setTab] = useState<Tab>('cap');
@@ -425,7 +429,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
                   <td className="l">{l.phone}</td>
                   <td className="l">{SOURCES.find((s) => s.k === l.source)?.n}</td>
                   <td className="l">{l.course}</td>
-                  <td className="l">{l.created_at.slice(0, 10).split('-').reverse().join('.')}</td>
+                  <td className="l">{tzDay(l.created_at).split('-').reverse().join('.')}</td>
                   <td className="l">
                     <select
                       className="sx-inp !h-[30px] !w-[160px]"
@@ -479,8 +483,8 @@ function Growth({ leads, books, today }: { leads: OpsData['leads']; books: Books
   const ym = today.slice(0, 7);
   const S = useMemo(() => monthlySeries(books.accounts, books.opening, books.entries, ym, 12), [books, ym]);
   const labels = S.map((m) => `${MONF[+m.ym.slice(5, 7) - 1].slice(0, 3)} ${m.ym.slice(2, 4)}`);
-  const newLeads = S.map((m) => leads.filter((l) => l.created_at.slice(0, 7) === m.ym).length);
-  const enrolled = S.map((m) => leads.filter((l) => l.enrolled_at?.slice(0, 7) === m.ym).length);
+  const newLeads = S.map((m) => leads.filter((l) => tzDay(l.created_at).slice(0, 7) === m.ym).length);
+  const enrolled = S.map((m) => leads.filter((l) => !!l.enrolled_at && tzDay(l.enrolled_at).slice(0, 7) === m.ym).length);
   const students = books.courses.reduce((a, c) => a + c.students, 0);
   const revNow = S[S.length - 1].revenue;
   const revPrev = S[S.length - 2]?.revenue ?? 0;

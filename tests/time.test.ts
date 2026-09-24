@@ -26,3 +26,13 @@ test('previous month wraps the year', () => {
 test('day arithmetic crosses month ends', () => {
   assert.equal(addDaysToKey('2026-02-28', 1), '2026-03-01');
 });
+
+// Raw timestamptz wire strings (postgres-js date parser is the identity, the
+// DB session zone is UTC): slicing them gives the UTC day, not Tashkent's —
+// the Perforce / Operatsiya bucketing bug. Parse, then take the Tashkent key.
+test('a raw UTC timestamptz string maps to the Tashkent day', () => {
+  const raw = '2026-09-30 20:30:00.123+00';
+  assert.equal(raw.slice(0, 10), '2026-09-30');
+  assert.equal(tashkentDayKey(new Date(raw)), '2026-10-01');
+  assert.equal(tashkentDayKey(new Date('2026-09-30 18:59:59+00')), '2026-09-30');
+});

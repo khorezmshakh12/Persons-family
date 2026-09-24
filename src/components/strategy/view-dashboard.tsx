@@ -17,9 +17,12 @@ import {
 import { Donut } from './bits';
 import type { WorkspaceApi } from './strategy-workspace';
 
-/** Counts up from 0 once on mount (skipped for reduced motion). */
+/** Counts up from 0 once on mount (skipped for reduced motion). After that
+ * it shows `value` as-is — it used to keep the first animated number, so the
+ * stat tiles went stale when a task moved (and froze mid-count if `value`
+ * changed during the animation). */
 function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
-  const [n, setN] = useState(value);
+  const [n, setN] = useState<number | null>(null);
   const ran = useRef(false);
   useEffect(() => {
     if (ran.current || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -28,15 +31,20 @@ function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
     let raf = 0;
     const tick = (t: number) => {
       const k = Math.min(1, (t - t0) / 700);
-      setN(Math.round(value * (1 - Math.pow(1 - k, 3))));
-      if (k < 1) raf = requestAnimationFrame(tick);
+      if (k < 1) {
+        setN(Math.round(value * (1 - Math.pow(1 - k, 3))));
+        raf = requestAnimationFrame(tick);
+      } else setN(null);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      setN(null);
+    };
   }, [value]);
   return (
     <>
-      {n}
+      {n ?? value}
       {suffix}
     </>
   );

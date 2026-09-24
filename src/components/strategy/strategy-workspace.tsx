@@ -244,25 +244,37 @@ export function StrategyWorkspace({
   }
 
   async function deleteTask(id: string) {
-    const prev = tasks;
+    const removed = tasks.find((t) => t.id === id);
     setTasks((list) => list.filter((t) => t.id !== id));
     setDrawer(null);
     const res = await deleteStrategyTaskAction(id);
     if (res.error !== undefined) {
-      setTasks(prev);
+      // Put back only this task — restoring the whole old list would also
+      // undo any edit that landed while the delete was in flight.
+      if (removed) setTasks((list) => (list.some((t) => t.id === id) ? list : [...list, removed]));
       toast.error(errorText(res.error));
     } else toast.success("Vazifa o'chirildi");
   }
 
   function setNodeStatus(roadmapId: string, nodeId: string, status: NodeStatus) {
-    const prev = roadmaps;
+    const before = roadmaps.find((r) => r.id === roadmapId)?.node_status[nodeId];
     setRoadmaps((list) =>
       list.map((r) => (r.id === roadmapId ? { ...r, node_status: { ...r.node_status, [nodeId]: status } } : r)),
     );
     startTransition(async () => {
       const res = await setRoadmapNodeStatusAction({ roadmapId, nodeId, status });
       if (res.error !== undefined) {
-        setRoadmaps(prev);
+        // Roll back just this node (the server writes one key via jsonb_set);
+        // restoring the whole snapshot undid other nodes toggled meanwhile.
+        setRoadmaps((list) =>
+          list.map((r) => {
+            if (r.id !== roadmapId) return r;
+            const ns = { ...r.node_status };
+            if (before === undefined) delete ns[nodeId];
+            else ns[nodeId] = before;
+            return { ...r, node_status: ns };
+          }),
+        );
         toast.error(errorText(res.error));
       }
     });

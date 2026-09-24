@@ -19,6 +19,7 @@ import {
   type TaskStatus,
 } from '@/lib/strategy';
 import { saveStrategyTaskAction } from '@/lib/actions/strategy';
+import { tashkentDayKey } from '@/lib/time';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
 import { PersonAvatar, PriorityChip, StatusChip } from './bits';
@@ -49,7 +50,11 @@ const KEY = 'persons-pf-tab';
 const WIP = { progress: 4, review: 3 } as const;
 /** Sprint 1 starts Monday 5 Jan 2026; sprints are 14 days. */
 const SPRINT_ANCHOR = '2026-01-05';
-const d10 = (s: string | null) => (s ? s.slice(0, 10) : null);
+/** Tashkent calendar day of a timestamptz string. The raw wire value is in
+ * the DB session's zone (UTC), so `.slice(0, 10)` put anything stamped
+ * 00:00–05:00 Tashkent on the previous day (wrong week/sprint bucket, and
+ * compared against the Tashkent `today`). */
+const d10 = (s: string | null) => (s ? tashkentDayKey(new Date(s)) : null);
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 function sprintOf(today: string) {
@@ -586,7 +591,8 @@ function Review({ data, personById, today }: { data: PfData; personById: Map<str
   const upload = T.filter((t) => t.status === 'awaiting_upload');
   const overdue = T.filter((t) => t.status !== 'done' && t.deadline && d10(t.deadline)! < today);
   const done30 = T.filter((t) => t.status === 'done' && t.completed_at && daysBetween(d10(t.completed_at)!, today) <= 30);
-  const onTime = done30.filter((t) => !t.deadline || d10(t.completed_at)! <= d10(t.deadline)!);
+  // Instant comparison, same definition as analytics.ts (`completed_at <= deadline`).
+  const onTime = done30.filter((t) => !t.deadline || Date.parse(t.completed_at!) <= Date.parse(t.deadline));
   const reviewed = done30.filter((t) => t.submitted_at);
   const avgReview = reviewed.length ? reviewed.reduce((a, t) => a + (Date.parse(t.completed_at!) - Date.parse(t.submitted_at!)) / 36e5, 0) / reviewed.length : null;
   const name = (id: string | null) => {
