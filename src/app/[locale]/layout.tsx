@@ -9,7 +9,6 @@ import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { CursorGlow } from '@/components/cursor-glow';
 import { IosActiveFix } from '@/components/ios-active-fix';
-import { IntroSplash } from '@/components/brand/intro-splash';
 import '../globals.css';
 
 // This app ships uz/ru/en. Google Fonts serves each subset as its own
@@ -110,7 +109,6 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
-        <IntroSplash />
         <ThemeProvider attribute="class" forcedTheme="light" disableTransitionOnChange>
           <NextIntlClientProvider messages={messages}>
             <CursorGlow />

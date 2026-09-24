@@ -486,14 +486,14 @@
     transform 0.4s var(--ease-bounce),
     box-shadow 0.3s;
 }
-a:hover > .brand-mark {
+[data-motion='on'] a:hover > .brand-mark {
   transform: rotate(-6deg) scale(1.06);
   box-shadow: 0 10px 22px -10px rgba(0, 208, 165, 0.55);
 }
-a:hover > .brand-mark .persons-logo-bowl {
+[data-motion='on'] a:hover > .brand-mark .persons-logo-bowl {
   transform: translate(6%, -6%);
 }
-a:hover > .brand-mark .persons-logo-stem {
+[data-motion='on'] a:hover > .brand-mark .persons-logo-stem {
   transform: translate(-5%, 5%);
 }
 
@@ -631,15 +631,15 @@ html[data-intro='seen'] .intro-splash {
 
 /* Sidebar nav: the icon answers the pointer; the active item's icon takes
    the accent. Transform-only, never gates visibility. */
-.nav-motion svg {
+[data-motion='on'] .nav-motion svg {
   transition:
     transform 0.35s var(--ease-bounce),
     color 0.2s;
 }
-.nav-motion:hover svg {
+[data-motion='on'] .nav-motion:hover svg {
   transform: translateX(2px) scale(1.12);
 }
-.nav-motion:active {
+[data-motion='on'] .nav-motion:active {
   transform: scale(0.97);
 }
 .nav-motion {
@@ -647,6 +647,9 @@ html[data-intro='seen'] .intro-splash {
     background-color 0.15s,
     color 0.15s,
     transform 0.2s var(--ease-bounce);
+}
+[data-motion='on'] .btn-motion:active {
+  transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {

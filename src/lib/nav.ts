@@ -109,6 +109,11 @@ export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher',
  * Reused by the page guard and every strategy.ts action. */
 export const STRATEGY_ROLES: StaffRole[] = ['ceo', 'it_developer', 'project_manager'];
 
+/** Who gets the first-visit intro and the new UI motion (nav/button/logo
+ * micro-interactions) — same audience as Strategy, per the owner. Everyone
+ * else keeps the calm UI; the new logo itself is shown to all. */
+export const MOTION_ROLES: StaffRole[] = STRATEGY_ROLES;
+
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
   // Goes through the SSO handoff route, not straight to /materials, so

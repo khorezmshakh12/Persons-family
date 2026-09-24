@@ -29,17 +29,17 @@ export const INTERACTIVE =
 /** Primary button — INK. One per screen. */
 export const BTN_PRIMARY =
   'inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-au-ctl bg-au-primary text-white ' +
-  'font-semibold text-sm shadow-au-btn hover:bg-black transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
+  'font-semibold text-sm shadow-au-btn hover:bg-black transition-[color,background-color,transform] duration-150 btn-motion disabled:opacity-50 disabled:pointer-events-none';
 
 /** Secondary button — white with a border. */
 export const BTN_SECONDARY =
   'inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-au-ctl bg-white/70 border border-au-line ' +
-  'text-au-ink font-semibold text-sm hover:bg-white transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
+  'text-au-ink font-semibold text-sm hover:bg-white transition-[color,background-color,transform] duration-150 btn-motion disabled:opacity-50 disabled:pointer-events-none';
 
 /** Accent button — star/reward actions only (buy, claim stars). */
 export const BTN_ACCENT =
   'inline-flex items-center justify-center gap-2 h-11 px-[18px] rounded-au-ctl bg-au-accent text-au-accent-ink ' +
-  'font-semibold text-sm hover:brightness-105 transition active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
+  'font-semibold text-sm hover:brightness-105 transition btn-motion disabled:opacity-50 disabled:pointer-events-none';
 
 /** Input */
 export const INPUT =

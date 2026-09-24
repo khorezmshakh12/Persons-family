@@ -5,6 +5,8 @@ import { sql } from '@/lib/db/client';
 import { computeNavBadgeKeys } from '@/lib/nav-badges';
 import { checkMaterialsLink } from '@/lib/sso/checkMaterialsLink';
 import { AppShell } from '@/components/app-shell/app-shell';
+import { IntroSplash } from '@/components/brand/intro-splash';
+import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
 
@@ -119,21 +121,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     createdAt: a.created_at,
   }));
 
+  const motion = MOTION_ROLES.includes(profile!.role);
+
+  // `display: contents` — no box of its own, so the shell's layout is
+  // untouched; it only scopes the [data-motion] CSS (globals.css).
   return (
-    <AppShell
-      profile={profile!}
-      userId={user!.id}
-      profileNames={profileNames}
-      initialUnreadChats={initialUnreadChats}
-      initialUnseenIssues={initialUnseenIssues}
-      initialUnseenTasks={initialUnseenTasks}
-      initialUnseenWarnings={initialUnseenWarnings}
-      initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
-      newNavKeys={newNavKeys}
-      materialsLinked={materialsLinked}
-    >
-      <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />
-      {children}
-    </AppShell>
+    <div className="contents" data-motion={motion ? 'on' : undefined}>
+      {motion && <IntroSplash />}
+      <AppShell
+        profile={profile!}
+        userId={user!.id}
+        profileNames={profileNames}
+        initialUnreadChats={initialUnreadChats}
+        initialUnseenIssues={initialUnseenIssues}
+        initialUnseenTasks={initialUnseenTasks}
+        initialUnseenWarnings={initialUnseenWarnings}
+        initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
+        newNavKeys={newNavKeys}
+        materialsLinked={materialsLinked}
+      >
+        <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />
+        {children}
+      </AppShell>
+    </div>
   );
 }
