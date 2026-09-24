@@ -79,7 +79,7 @@ export function Leaderboard({
   ];
 
   return (
-    <section className={cn(SURFACE_CARD, 'flex flex-col p-5', className)}>
+    <section className={cn(SURFACE_CARD, 'au-highlight flex flex-col p-5', className)}>
       <div className="mb-3.5 flex items-center justify-between gap-2">
         <h2 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
           <Trophy className="size-[17px]" strokeWidth={1.75} aria-hidden />

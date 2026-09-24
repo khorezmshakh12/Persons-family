@@ -1,0 +1,469 @@
+/* =========================================================================
+   PERSONS · MOTION v3 (src/components/motion/*)
+
+   Audience: MOTION_ROLES only (src/lib/nav.ts). Every rule below is scoped
+   under [data-motion='on'] (set by the (app) layout for those users) or
+   under html[data-theme='midnight'] — an attribute that only the motion
+   layer ever sets (and removes again on unmount). Everyone else's UI is
+   untouched.
+
+   SAFETY RULE (the app once white-screened on an entrance animation):
+   nothing here gives real UI a hidden resting state. Animations are
+   transform-only decoration on already-visible content; the only elements
+   that fade are ephemeral overlays (island, glare, shine) that are not
+   content. page-transition.tsx stays animation-free.
+   ========================================================================= */
+
+@property --au-ang {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ---------- Tungi rejim / Midnight ------------------------------------- */
+html[data-theme='midnight'] {
+  color-scheme: dark;
+  --au-bg: #0d0c10;
+  --au-sidebar: #121116;
+  --au-card: #18171c;
+  --au-card-2: #222027;
+  --au-line: #2b2930;
+  --au-ink: #f3efe9;
+  --au-muted: #aaa4ae;
+  --au-faint: #716c78;
+  --au-accent: #ff9f1c;
+  --au-accent-ink: #1d1200;
+  --au-accent-text: #ffb547;
+  --au-accent-soft: rgba(255, 159, 28, 0.2);
+  --au-primary: #ffa938;
+  --au-primary-ink: #1d1200;
+  --au-ok: #40d68b;
+  --au-info: #7cb9ff;
+  --au-bad: #ff6b60;
+  --au-ok-soft: rgba(47, 191, 115, 0.15);
+  --au-info-soft: rgba(60, 140, 230, 0.18);
+  --au-bad-soft: rgba(255, 90, 80, 0.16);
+  --au-chart-3: #f3efe9;
+  --au-chart-4: #2e2b33;
+  --au-ring-track: rgba(255, 255, 255, 0.1);
+  --au-hero:
+    radial-gradient(60% 90% at 90% 10%, rgba(255, 159, 28, 0.34) 0%, transparent 60%),
+    radial-gradient(50% 80% at 70% 100%, rgba(255, 90, 80, 0.22) 0%, transparent 60%),
+    radial-gradient(60% 90% at 10% 0%, rgba(122, 90, 248, 0.14) 0%, transparent 60%),
+    linear-gradient(135deg, #1b1714, #17120f);
+  --au-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --au-shadow-card-hover: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 22px 48px -18px rgba(0, 0, 0, 0.85);
+  --au-shadow-btn: 0 10px 30px -10px rgba(255, 140, 30, 0.45);
+}
+html[data-theme='midnight'] :focus-visible {
+  outline-color: rgba(243, 239, 233, 0.45);
+}
+/* Primary (ink) buttons turn apricot with dark ink — they hard-code
+   text-white / hover:bg-black, which would be unreadable on a light fill. */
+html[data-theme='midnight'] .bg-au-primary {
+  color: var(--au-primary-ink);
+}
+html[data-theme='midnight'] .bg-au-primary:hover {
+  background-color: #ffbb5c;
+}
+/* A few light surfaces are still spelled bg-white / text-black. */
+html[data-theme='midnight'] .bg-white {
+  background-color: var(--au-card);
+}
+html[data-theme='midnight'] .bg-white\/70,
+html[data-theme='midnight'] .bg-white\/60,
+html[data-theme='midnight'] .bg-white\/40 {
+  background-color: color-mix(in srgb, var(--au-card) 80%, transparent);
+}
+html[data-theme='midnight'] .hover\:bg-white:hover {
+  background-color: var(--au-card-2);
+}
+html[data-theme='midnight'] .text-black {
+  color: var(--au-ink);
+}
+/* Recharts: axis text, grid and tooltip default to light-theme greys. */
+html[data-theme='midnight'] .recharts-cartesian-axis-tick-value,
+html[data-theme='midnight'] .recharts-legend-item-text {
+  fill: var(--au-muted);
+  color: var(--au-muted) !important;
+}
+html[data-theme='midnight'] .recharts-cartesian-grid line,
+html[data-theme='midnight'] .recharts-cartesian-axis-line {
+  stroke: var(--au-line);
+}
+html[data-theme='midnight'] .recharts-default-tooltip {
+  background-color: var(--au-card) !important;
+  border-color: var(--au-line) !important;
+  color: var(--au-ink);
+}
+html[data-theme='midnight'] .recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.04);
+}
+html[data-theme='midnight'] ::-webkit-scrollbar-thumb {
+  background: #2c2a31;
+}
+
+/* The expanding-circle reveal (theme-toggle.tsx). Scoped to the class the
+   toggle adds for the duration of its own transition only. */
+html.au-vt-theme::view-transition-old(root),
+html.au-vt-theme::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* ---------- Theme toggle button (topbar) ------------------------------- */
+.au-theme-toggle {
+  position: relative;
+  overflow: hidden;
+}
+.au-theme-toggle .au-sun,
+.au-theme-toggle .au-moon {
+  position: absolute;
+  transition:
+    transform 0.6s var(--ease-bounce),
+    opacity 0.3s;
+}
+.au-theme-toggle .au-moon {
+  transform: translateY(26px) rotate(-90deg);
+  opacity: 0;
+}
+html[data-theme='midnight'] .au-theme-toggle .au-sun {
+  transform: translateY(-26px) rotate(90deg);
+  opacity: 0;
+}
+html[data-theme='midnight'] .au-theme-toggle .au-moon {
+  transform: none;
+  opacity: 1;
+  color: var(--au-accent-text);
+}
+
+/* ---------- 3D tilt (tilt.ts) ------------------------------------------ */
+/* .au-tilted is added on first hover and kept: it swaps the card's (already
+   finished) transform-only entrance for the tilt transform. */
+[data-motion='on'] .au-tilted {
+  animation: none !important;
+  transform: perspective(1100px) rotateX(var(--au-rx, 0deg)) rotateY(var(--au-ry, 0deg))
+    translateY(var(--au-ty, 0px));
+  transition:
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.45s;
+  will-change: transform;
+}
+[data-motion='on'] .au-tilted.au-tilt-live {
+  --au-ty: -4px;
+  transition:
+    transform 0.12s linear,
+    box-shadow 0.45s;
+}
+[data-motion='on'] .au-kpi {
+  position: relative;
+}
+[data-motion='on'] .au-kpi::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    280px circle at var(--au-mx, 50%) var(--au-my, 50%),
+    rgba(255, 255, 255, 0.35),
+    transparent 55%
+  );
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+[data-motion='on'] .au-kpi.au-tilt-live::after {
+  opacity: 1;
+}
+
+/* ---------- Hero: moving mesh + grain ---------------------------------- */
+[data-motion='on'] .bg-au-hero {
+  isolation: isolate;
+}
+[data-motion='on'] .bg-au-hero::before {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(22% 26% at 78% 22%, rgba(255, 181, 71, 0.75), transparent 70%),
+    radial-gradient(20% 24% at 58% 82%, rgba(255, 143, 138, 0.6), transparent 70%),
+    radial-gradient(20% 22% at 24% 26%, rgba(255, 226, 176, 0.8), transparent 70%);
+  filter: blur(28px);
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+  animation: au-mesh-drift 16s ease-in-out infinite alternate;
+}
+html[data-theme='midnight'] [data-motion='on'] .bg-au-hero::before {
+  mix-blend-mode: screen;
+  opacity: 0.35;
+}
+[data-motion='on'] .bg-au-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+}
+@keyframes au-mesh-drift {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate3d(-7%, 5%, 0) rotate(10deg) scale(1.12);
+  }
+  to {
+    transform: translate3d(5%, -4%, 0) rotate(-8deg) scale(1.2);
+  }
+}
+
+/* ---------- Rotating gradient border (highlight cards) ----------------- */
+[data-motion='on'] .au-highlight {
+  position: relative;
+  isolation: isolate;
+}
+[data-motion='on'] .au-highlight::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--au-ang),
+    transparent 0 55%,
+    #ff9f1c 70%,
+    #ff6b5b 80%,
+    #7a5af8 90%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  animation: au-ang 5s linear infinite;
+}
+@keyframes au-ang {
+  to {
+    --au-ang: 360deg;
+  }
+}
+
+/* ---------- KPI spark wave + live dot ---------------------------------- */
+[data-motion='on'] .au-spark > i {
+  transform-origin: bottom;
+  animation: au-wave 2.8s ease-in-out infinite;
+}
+[data-motion='on'] .au-spark > i:nth-child(2) { animation-delay: 0.15s; }
+[data-motion='on'] .au-spark > i:nth-child(3) { animation-delay: 0.3s; }
+[data-motion='on'] .au-spark > i:nth-child(4) { animation-delay: 0.45s; }
+[data-motion='on'] .au-spark > i:nth-child(5) { animation-delay: 0.6s; }
+[data-motion='on'] .au-spark > i:nth-child(6) { animation-delay: 0.75s; }
+[data-motion='on'] .au-spark > i:nth-child(7) { animation-delay: 0.9s; }
+[data-motion='on'] .au-spark > i:last-child {
+  position: relative;
+  box-shadow: 0 -6px 18px -4px rgba(255, 159, 28, 0.6);
+}
+[data-motion='on'] .au-spark > i:last-child::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--au-accent);
+  animation: au-live 1.8s ease-out infinite;
+}
+@keyframes au-wave {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.82);
+  }
+}
+@keyframes au-live {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 159, 28, 0.65);
+  }
+  to {
+    box-shadow: 0 0 0 8px rgba(255, 159, 28, 0);
+  }
+}
+
+/* ---------- Button shine ---------------------------------------------- */
+[data-motion='on'] .btn-motion.bg-au-primary,
+[data-motion='on'] .btn-motion.bg-au-accent {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+[data-motion='on'] .btn-motion.bg-au-primary::after,
+[data-motion='on'] .btn-motion.bg-au-accent::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.28) 48%, transparent 66%);
+  transform: translateX(-120%);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-motion='on'] .btn-motion.bg-au-primary:hover::after,
+[data-motion='on'] .btn-motion.bg-au-accent:hover::after {
+  transform: translateX(120%);
+}
+
+/* ---------- Scroll progress ------------------------------------------- */
+[data-motion='on'] .au-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  height: 2px;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, #ff9f1c, #ff6b5b, #7a5af8);
+}
+
+/* ---------- Dynamic Island -------------------------------------------- */
+[data-motion='on'] .au-island {
+  position: fixed;
+  top: 84px;
+  right: 28px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, calc(100vw - 24px));
+  height: 56px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 30px;
+  background: #0b0a0d;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    0 18px 40px -14px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  transform-origin: right center;
+  animation: au-island-in 0.6s var(--ease-bounce);
+}
+[data-motion='on'] .au-island.au-island-out {
+  animation: au-island-out 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+@media (max-width: 959px) {
+  [data-motion='on'] .au-island {
+    top: 70px;
+    right: 12px;
+  }
+}
+[data-motion='on'] .au-island-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 159, 28, 0.16);
+  color: #ffb547;
+  box-shadow: 0 0 0 1.5px #ff9f1c;
+}
+[data-motion='on'] .au-island-text {
+  flex: 1;
+  min-width: 0;
+}
+[data-motion='on'] .au-island-text small {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffb547;
+}
+[data-motion='on'] .au-island-text span {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+[data-motion='on'] .au-island-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  padding-right: 10px;
+}
+[data-motion='on'] .au-island-wave i {
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: #ff9f1c;
+  transform-origin: center;
+  animation: au-eq 0.9s ease-in-out infinite;
+}
+[data-motion='on'] .au-island-wave i:nth-child(2) { animation-delay: 0.15s; }
+[data-motion='on'] .au-island-wave i:nth-child(3) { animation-delay: 0.3s; }
+[data-motion='on'] .au-island-wave i:nth-child(4) { animation-delay: 0.45s; }
+@keyframes au-island-in {
+  from {
+    transform: translateY(-8px) scaleX(0.35) scaleY(0.7);
+  }
+}
+@keyframes au-island-out {
+  to {
+    transform: translateY(-8px) scaleX(0.35) scaleY(0.7);
+    opacity: 0;
+  }
+}
+@keyframes au-eq {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* ---------- Reduced motion -------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-motion='on'] .bg-au-hero::before,
+  [data-motion='on'] .au-highlight::before,
+  [data-motion='on'] .au-spark > i,
+  [data-motion='on'] .au-spark > i:last-child::after,
+  [data-motion='on'] .au-island,
+  [data-motion='on'] .au-island-wave i {
+    animation: none !important;
+  }
+  [data-motion='on'] .au-kpi::after,
+  [data-motion='on'] .btn-motion.bg-au-primary::after,
+  [data-motion='on'] .btn-motion.bg-au-accent::after,
+  [data-motion='on'] .au-scroll-progress {
+    display: none;
+  }
+  [data-motion='on'] .au-tilted {
+    transform: none;
+    transition: none;
+  }
+  .au-theme-toggle .au-sun,
+  .au-theme-toggle .au-moon {
+    transition: none;
+  }
+}

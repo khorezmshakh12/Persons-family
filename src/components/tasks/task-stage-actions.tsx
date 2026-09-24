@@ -20,6 +20,7 @@ import {
 } from '@/lib/task-status';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { celebrate } from '@/components/motion/events';
 import {
   Dialog,
   DialogContent,
@@ -76,10 +77,11 @@ export function TaskStageActions({
     undefined,
   );
 
-  function run(action: () => Promise<{ error?: string } | undefined>) {
+  function run(action: () => Promise<{ error?: string } | undefined>, onSuccess?: () => void) {
     startTransition(async () => {
       const result = await action();
       if (result?.error) toast.error(t(`errors.${result.error}`));
+      else onSuccess?.();
     });
   }
 
@@ -92,7 +94,7 @@ export function TaskStageActions({
   function handleApprove() {
     const formData = new FormData();
     formData.set('id', taskId);
-    run(() => approveTaskAction(formData));
+    run(() => approveTaskAction(formData), celebrate);
   }
 
   /**
