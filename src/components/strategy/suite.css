@@ -1,0 +1,784 @@
+/* Strategy suite chrome: section bar, ⌘K palette, sound toggle, ripple,
+   progress bar, card spotlight, and the shared table / form / stat pieces
+   used by Hisob-kitob, Operatsiya HQ and Perforce. Transform-only entrances. */
+
+.sx-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 70;
+  pointer-events: none;
+  background: linear-gradient(90deg, #ff9f1c, #2effcc);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.sx-topbar.go {
+  animation: sx-topbar 0.7s var(--sx-ease, ease) forwards;
+}
+@keyframes sx-topbar {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleX(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+.sx-secbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px;
+  margin-top: 4px;
+  border-radius: 14px;
+  background: var(--au-card-2);
+  animation: sx-rise-sm 0.45s var(--sx-ease);
+}
+.sx-secbar a {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--au-muted);
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s,
+    transform 0.3s var(--sx-spring);
+}
+.sx-secbar a:hover {
+  color: var(--au-ink);
+  transform: translateY(-1px);
+}
+.sx-secbar a.on {
+  background: var(--au-card);
+  color: var(--au-ink);
+  box-shadow: var(--au-shadow-card);
+}
+.sx-secbar a.on svg {
+  color: var(--au-accent-text);
+}
+.sx-secbar .kbtn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  min-width: 230px;
+  padding: 0 8px 0 12px;
+  border-radius: 10px;
+  background: var(--au-card);
+  border: 1px solid var(--au-line);
+  color: var(--au-faint);
+  font-size: 13px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.sx-secbar .kbtn:hover {
+  border-color: var(--au-accent);
+  box-shadow: 0 0 0 3px var(--au-accent-soft);
+}
+.sx-secbar .kbtn kbd {
+  margin-left: auto;
+}
+.sx-suite kbd,
+.sx-ck-bg kbd {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--au-card-2);
+  border: 1px solid var(--au-line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: var(--au-muted);
+  font-family: inherit;
+}
+.sx-secbar .ibtn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--au-card);
+  border: 1px solid var(--au-line);
+  color: var(--au-muted);
+}
+.sx-secbar .ibtn.on {
+  color: var(--au-accent-text);
+  border-color: var(--au-accent);
+}
+.sx-secbar .eq {
+  display: none;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.sx-secbar .ibtn.on .eq {
+  display: inline-flex;
+}
+.sx-secbar .eq i {
+  width: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  animation: sx-eq 0.9s ease-in-out infinite;
+}
+.sx-secbar .eq i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.sx-secbar .eq i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes sx-eq {
+  0%,
+  100% {
+    height: 3px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .sx-secbar .kbtn {
+    min-width: 0;
+  }
+  .sx-secbar .kbtn span,
+  .sx-secbar .kbtn kbd,
+  .sx-secbar a span {
+    display: none;
+  }
+}
+
+/* ripple */
+.sx-btn,
+.sx-tabs button,
+.sx-seg button,
+.sx-flow button,
+.sx-fchip,
+.sx-spaces button,
+.sx-chipb {
+  position: relative;
+  overflow: hidden;
+}
+.sx-rpl {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.16;
+  transform: scale(0);
+  animation: sx-rpl 0.6s ease-out forwards;
+}
+@keyframes sx-rpl {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* card spotlight */
+.sx-suite .sx-card {
+  position: relative;
+  isolation: isolate;
+}
+.sx-suite .sx-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(260px circle at var(--mx, -300px) var(--my, -300px), rgba(255, 159, 28, 0.1), transparent 70%);
+  transition: opacity 0.3s;
+}
+
+/* tab group labels */
+.sx-tabs .tg {
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 14px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--au-faint);
+  white-space: nowrap;
+}
+
+/* ⌘K */
+.sx-ck-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(23, 22, 26, 0.28);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.sx-ck-bg.open {
+  opacity: 1;
+}
+.sx-ck {
+  width: min(640px, 94vw);
+  background: var(--au-card);
+  color: var(--au-ink);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(23, 22, 26, 0.06),
+    0 40px 100px -30px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  transform: translateY(-10px) scale(0.96);
+  transition: transform 0.45s var(--sx-spring, ease);
+}
+.sx-ck-bg.open .sx-ck {
+  transform: none;
+}
+.sx-ck .ck-in {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--au-line);
+}
+.sx-ck .ck-in input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--au-ink);
+}
+.sx-ck .ck-l {
+  max-height: min(420px, 56vh);
+  overflow: auto;
+  padding: 8px;
+}
+.sx-ck .ck-g {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--au-faint);
+  padding: 10px 12px 6px;
+}
+.sx-ck .ck-it {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  animation: sx-rise-sm 0.3s both var(--sx-ease, ease);
+  transition: background-color 0.15s;
+}
+.sx-ck .ck-it.sel {
+  background: var(--au-card-2);
+  box-shadow: inset 0 0 0 1px var(--au-line);
+}
+.sx-ck .ck-it .t {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sx-ck .ck-it small {
+  color: var(--au-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sx-ck .ck-it kbd {
+  margin-left: auto;
+}
+.sx-ck .ck-it .go {
+  margin-left: auto;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.2s,
+    transform 0.3s var(--sx-spring, ease);
+  color: var(--au-muted);
+}
+.sx-ck .ck-it kbd + .go {
+  margin-left: 6px;
+}
+.sx-ck .ck-it.sel .go {
+  opacity: 1;
+  transform: none;
+}
+.sx-ck mark {
+  background: #ffe3b8;
+  color: inherit;
+  border-radius: 3px;
+}
+.sx-ck .ck-f {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--au-line);
+  font-size: 11px;
+  color: var(--au-faint);
+  background: var(--au-card-2);
+}
+.sx-ck .ck-e {
+  padding: 36px;
+  text-align: center;
+  color: var(--au-faint);
+}
+
+/* ---------- shared blocks for the three data sections ---------- */
+.sx-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 18px;
+  padding-top: 18px;
+}
+.sx-grid > .s3 {
+  grid-column: span 3;
+}
+.sx-grid > .s4 {
+  grid-column: span 4;
+}
+.sx-grid > .s5 {
+  grid-column: span 5;
+}
+.sx-grid > .s6 {
+  grid-column: span 6;
+}
+.sx-grid > .s7 {
+  grid-column: span 7;
+}
+.sx-grid > .s8 {
+  grid-column: span 8;
+}
+.sx-grid > .s12 {
+  grid-column: span 12;
+}
+@media (max-width: 1100px) {
+  .sx-grid > .s3,
+  .sx-grid > .s4,
+  .sx-grid > .s5,
+  .sx-grid > .s7,
+  .sx-grid > .s8 {
+    grid-column: span 6;
+  }
+}
+@media (max-width: 700px) {
+  .sx-grid > * {
+    grid-column: span 12 !important;
+  }
+}
+.sx-grid > .sx-card {
+  padding: 18px 20px;
+  animation: sx-rise 0.55s both var(--sx-spring, ease);
+}
+.sx-grid > .sx-card:nth-child(2) {
+  animation-delay: 50ms;
+}
+.sx-grid > .sx-card:nth-child(3) {
+  animation-delay: 100ms;
+}
+.sx-grid > .sx-card:nth-child(4) {
+  animation-delay: 150ms;
+}
+.sx-grid > .sx-card:nth-child(n + 5) {
+  animation-delay: 200ms;
+}
+.sx-stat .l {
+  font-size: 13px;
+  color: var(--au-muted);
+  font-weight: 500;
+}
+.sx-stat .v {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.sx-stat .d {
+  font-size: 12px;
+  color: var(--au-faint);
+  margin-top: 4px;
+}
+.sx-stat.dark {
+  background: var(--au-primary);
+  color: var(--au-primary-ink);
+  border-color: transparent;
+}
+.sx-stat.dark .l,
+.sx-stat.dark .d {
+  color: rgba(255, 255, 255, 0.65);
+}
+.sx-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.sx-h h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+.sx-h small {
+  font-size: 12px;
+  color: var(--au-faint);
+}
+.sx-h .sp {
+  flex: 1;
+}
+.sx-note {
+  font-size: 12px;
+  color: var(--au-faint);
+  margin-top: 10px;
+  line-height: 18px;
+}
+.sx-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.sx-tbl th {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--au-faint);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--au-line);
+  white-space: nowrap;
+  background: var(--au-card-2);
+}
+.sx-tbl td {
+  text-align: right;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--au-line);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sx-tbl th.l,
+.sx-tbl td.l {
+  text-align: left;
+  white-space: normal;
+}
+.sx-tbl tbody tr {
+  animation: sx-rise-sm 0.35s both var(--sx-ease, ease);
+  transition: background-color 0.15s;
+}
+.sx-tbl tbody tr:hover td {
+  background: color-mix(in srgb, var(--au-card-2) 55%, transparent);
+}
+.sx-tbl tfoot td {
+  font-weight: 700;
+  background: var(--au-card-2);
+}
+.sx-tbl tr.sub td {
+  font-weight: 700;
+}
+.sx-tbl tr.big td {
+  font-weight: 800;
+  font-size: 14px;
+  border-top: 2px solid var(--au-ink);
+}
+.sx-tbl .code {
+  font-weight: 700;
+  color: var(--au-accent-text);
+  margin-right: 6px;
+}
+.sx-tw {
+  overflow-x: auto;
+  border: 1px solid var(--au-line);
+  border-radius: 14px;
+}
+.sx-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.sx-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--au-muted);
+}
+.sx-form .sx-inp {
+  height: 34px;
+}
+.sx-plain-inp {
+  width: 110px;
+  height: 30px;
+  text-align: right;
+  border: 1px solid var(--au-line);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: var(--au-card);
+  color: var(--au-ink);
+  font-variant-numeric: tabular-nums;
+}
+.sx-plain-inp:focus {
+  outline: none;
+  border-color: var(--au-accent);
+  box-shadow: 0 0 0 3px var(--au-accent-soft);
+}
+.sx-pl {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sx-pl.ok {
+  background: var(--au-ok-soft);
+  color: var(--au-ok);
+}
+.sx-pl.warn {
+  background: var(--au-accent-soft);
+  color: var(--au-accent-text);
+}
+.sx-pl.bad {
+  background: var(--au-bad-soft);
+  color: var(--au-bad);
+}
+.sx-pl.info {
+  background: var(--au-info-soft);
+  color: var(--au-info);
+}
+.sx-pl.mute {
+  background: var(--au-card-2);
+  color: var(--au-muted);
+}
+.sx-chipb {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--au-line);
+  background: var(--au-card);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--au-muted);
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+.sx-chipb.on {
+  background: var(--au-primary);
+  color: var(--au-primary-ink);
+  border-color: var(--au-primary);
+}
+.sx-hbar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--au-card-2);
+  overflow: hidden;
+}
+.sx-hbar i {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  transform-origin: left;
+  animation: sx-grow-x 0.9s both var(--sx-ease, ease);
+  transition: width 0.5s var(--sx-ease, ease);
+}
+.sx-empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--au-faint);
+  font-size: 13px;
+}
+.sx-range {
+  width: 100%;
+  accent-color: var(--au-accent);
+}
+
+/* charts */
+.sx-chart {
+  position: relative;
+  width: 100%;
+}
+.sx-chart svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+.sx-chart .grid line {
+  stroke: var(--au-line);
+}
+.sx-chart .axis text {
+  font-size: 10px;
+  fill: var(--au-faint);
+  font-weight: 600;
+}
+.sx-chart .line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: sx-line 1.1s var(--sx-ease, ease) both;
+}
+@keyframes sx-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+.sx-chart .bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: sx-grow-y 0.7s both var(--sx-spring, ease);
+}
+.sx-chart .bar.neg {
+  transform-origin: top;
+}
+.sx-chart .hot {
+  fill: transparent;
+  cursor: crosshair;
+}
+.sx-tip {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  background: #17161a;
+  color: #fff;
+  font-size: 12px;
+  line-height: 17px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+  max-width: 260px;
+}
+.sx-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--au-muted);
+  margin-top: 8px;
+}
+.sx-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sx-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* rooms matrix */
+.sx-matrix {
+  display: grid;
+  gap: 6px;
+  min-width: max-content;
+}
+.sx-matrix .h {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--au-faint);
+  text-align: center;
+  padding: 4px;
+}
+.sx-matrix .rh {
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+.sx-matrix .cell {
+  min-height: 58px;
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 15px;
+  border: 1px dashed var(--au-line);
+  color: var(--au-faint);
+  animation: sx-pop 0.4s both var(--sx-spring, ease);
+  transition: transform 0.25s var(--sx-spring, ease);
+}
+.sx-matrix .cell.busy {
+  border: 0;
+  color: #17161a;
+}
+.sx-matrix .cell.busy:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+.sx-matrix .cell b {
+  display: block;
+  font-size: 12px;
+}
+
+/* funnel */
+.sx-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sx-funnel .st {
+  display: grid;
+  grid-template-columns: 120px 1fr 90px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.sx-funnel .tr {
+  height: 30px;
+  border-radius: 8px;
+  background: var(--au-card-2);
+  overflow: hidden;
+}
+.sx-funnel .tr i {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 8px;
+  transform-origin: left;
+  animation: sx-grow-x 0.9s both var(--sx-ease, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sx-topbar,
+  .sx-rpl {
+    display: none;
+  }
+}

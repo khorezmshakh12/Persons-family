@@ -2,25 +2,13 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { getAuthState } from '@/lib/auth/session';
-import { ForbiddenError, SessionExpiredError, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode } from '@/lib/auth/require-admin';
+import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { STRATEGY_ROLES } from '@/lib/nav';
 import type { StrategyMind, StrategyTask } from '@/lib/strategy';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
-
-/** CEO / IT Developer / Project Manager (STRATEGY_ROLES) — every action re-checks
- * this itself; the page guard only gates rendering. */
-async function requireStrategyEditor() {
-  const { user, profile } = await getAuthState();
-  if (!user) throw new SessionExpiredError('No session');
-  if (!profile || !STRATEGY_ROLES.includes(profile.role)) {
-    throw new ForbiddenError('Strategy access required');
-  }
-  return { user, profile };
-}
 
 const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -70,15 +58,16 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
           update strategy_tasks set
             title = ${v.title}, description = ${v.description}, workstream = ${v.workstream},
             assignee_id = ${v.assigneeId}, start_date = ${v.startDate}, end_date = ${v.endDate},
-            status = ${v.status}, priority = ${v.priority}, progress = ${progress}, updated_at = now()
+            status = ${v.status}, priority = ${v.priority}, progress = ${progress}, updated_at = now(),
+            done_at = case when ${v.status} = 'done' then coalesce(done_at, now()) else null end
           where id = ${v.id} and space_id = ${v.spaceId}
           returning ${TASK_COLUMNS}`
       : await sql<StrategyTask[]>`
           insert into strategy_tasks (space_id, title, description, workstream, assignee_id, start_date, end_date,
-            status, priority, progress, roadmap_id, roadmap_node, created_by)
+            status, priority, progress, roadmap_id, roadmap_node, created_by, done_at)
           values (${v.spaceId}, ${v.title}, ${v.description}, ${v.workstream}, ${v.assigneeId}, ${v.startDate},
             ${v.endDate}, ${v.status}, ${v.priority}, ${progress}, ${v.roadmapId ?? null}, ${v.roadmapNode ?? null},
-            ${profileId})
+            ${profileId}, ${v.status === 'done' ? sql`now()` : null})
           returning ${TASK_COLUMNS}`;
     if (rows.length === 0) return { error: 'notFound' };
     if (!v.id) logSystemAction('strategy.task.create', `Strategy task "${v.title}"`);

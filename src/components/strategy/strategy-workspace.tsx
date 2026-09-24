@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { toast } from 'sonner';
 import {
   CalendarRange,
   Columns3,
@@ -13,6 +12,8 @@ import {
   Search,
   Clock,
   X,
+  Wallet,
+  LineChart,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -43,9 +44,12 @@ import { BoardView } from './view-board';
 import { ListView } from './view-list';
 import { GanttView } from './view-gantt';
 import { TaskDrawer, NodeDrawer, SpaceDrawer } from './drawers';
+import { FinanceView, AnalyticsView, type BooksLite } from './view-finance';
+import { SuiteShell, playSound, toast, type PaletteItem } from './suite-shell';
 import './strategy.css';
+import './suite.css';
 
-export type ViewKey = 'dash' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt';
+export type ViewKey = 'dash' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'fin' | 'analytics';
 
 const TABS: { v: ViewKey; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { v: 'dash', n: 'Dashboard', Icon: LayoutDashboard },
@@ -54,12 +58,14 @@ const TABS: { v: ViewKey; n: string; Icon: React.ComponentType<{ className?: str
   { v: 'board', n: 'Board', Icon: Columns3 },
   { v: 'list', n: 'List', Icon: List },
   { v: 'gantt', n: 'Gantt', Icon: CalendarRange },
+  { v: 'fin', n: 'Moliya', Icon: Wallet },
+  { v: 'analytics', n: 'Tahlil', Icon: LineChart },
 ];
 const FLOW: { go: ViewKey; n: string; steps: ViewKey[] }[] = [
   { go: 'mind', n: "G'oya · Mind map", steps: ['mind'] },
-  { go: 'roadmap', n: 'Reja · Roadmap', steps: ['roadmap'] },
+  { go: 'roadmap', n: 'Reja · Roadmap / Moliya', steps: ['roadmap', 'fin'] },
   { go: 'board', n: 'Ijro · Board / List / Gantt', steps: ['board', 'list', 'gantt'] },
-  { go: 'dash', n: 'Natija · Dashboard', steps: ['dash'] },
+  { go: 'dash', n: 'Natija · Dashboard / Tahlil', steps: ['dash', 'analytics'] },
 ];
 const VIEW_KEY = 'persons-strategy-view';
 
@@ -94,6 +100,7 @@ export function StrategyWorkspace({
   roadmaps: initialRoadmaps,
   people,
   today,
+  books,
 }: {
   spaces: { id: string; name: string; color: string }[];
   space: StrategySpace | null;
@@ -102,6 +109,7 @@ export function StrategyWorkspace({
   roadmaps: StrategyRoadmap[];
   people: StrategyPerson[];
   today: string;
+  books: BooksLite;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -206,6 +214,7 @@ export function StrategyWorkspace({
   );
 
   const openTask = useCallback((id: string | null, preset?: Partial<StrategyTask>) => {
+    playSound('open');
     setDrawer({ kind: 'task', id, preset });
   }, []);
 
@@ -288,7 +297,24 @@ export function StrategyWorkspace({
   const lateCount = tasks.filter((t) => isLate(t, today)).length;
   const fullBleed = view === 'mind' || view === 'gantt';
 
+  const items: PaletteItem[] = [
+    ...(space
+      ? [
+          { g: 'Amallar', t: 'Yangi vazifa yaratish', k: 'N', run: () => openTask(null) },
+          { g: 'Amallar', t: lateOnly ? "Muddati o'tgan filtrini o'chirish" : "Muddati o'tgan vazifalar", run: () => setLateOnly((v) => !v) },
+          { g: 'Amallar', t: 'Yangi maydon yaratish', run: () => setDrawer({ kind: 'space' }) },
+        ]
+      : []),
+    ...spaces.map((sp) => ({ g: 'Maydonlar', t: sp.name, run: () => router.push(`/strategy?space=${sp.id}`) })),
+    ...tasks.map((t) => ({ g: 'Vazifalar', t: t.title, sub: statusName(t.status), run: () => openTask(t.id) })),
+  ];
+  const closeDrawer = () => {
+    if (drawer) playSound('close');
+    setDrawer(null);
+  };
+
   return (
+    <SuiteShell section="str" tabs={space ? TABS : []} onTab={(v) => go(v as ViewKey)} items={items} onNew={space ? () => openTask(null) : undefined}>
     <div className="sx-root flex min-h-0 flex-1 flex-col">
       <header className="sx-head px-4 pt-1 sm:px-7">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -421,11 +447,13 @@ export function StrategyWorkspace({
             {view === 'board' && <BoardView api={api} tasks={visible} onQuickAdd={(title, status) => createTask({ title, status })} />}
             {view === 'list' && <ListView api={api} tasks={visible} />}
             {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={milestones} />}
+            {view === 'fin' && <FinanceView books={books} today={today} />}
+            {view === 'analytics' && <AnalyticsView books={books} today={today} />}
           </div>
         </section>
       )}
 
-      <div className={cn('sx-scrim', drawer && 'open')} onClick={() => setDrawer(null)} />
+      <div className={cn('sx-scrim', drawer && 'open')} onClick={closeDrawer} />
       <aside className={cn('sx-drawer', drawer && 'open')} aria-label="Tafsilotlar">
         {drawer?.kind === 'task' && (
           <TaskDrawer
@@ -434,7 +462,7 @@ export function StrategyWorkspace({
             task={drawerTask}
             preset={drawer.preset}
             roadmaps={roadmaps}
-            onClose={() => setDrawer(null)}
+            onClose={closeDrawer}
             onCreate={async (d) => (await createTask(d)) && setDrawer(null)}
             onSave={(next) => {
               if (drawerTask) commit(next, drawerTask, 'Saqlandi');
@@ -450,7 +478,7 @@ export function StrategyWorkspace({
             roadmap={roadmaps.find((r) => r.id === drawer.roadmapId)!}
             nodeId={drawer.nodeId}
             tasks={tasks.filter((t) => t.roadmap_id === drawer.roadmapId && t.roadmap_node === drawer.nodeId)}
-            onClose={() => setDrawer(null)}
+            onClose={closeDrawer}
             onStatus={(s) => setNodeStatus(drawer.roadmapId, drawer.nodeId, s)}
             onMakeTask={async (title, ws) => {
               const r = roadmaps.find((x) => x.id === drawer.roadmapId)!;
@@ -460,9 +488,10 @@ export function StrategyWorkspace({
             }}
           />
         )}
-        {drawer?.kind === 'space' && <SpaceDrawer today={today} onClose={() => setDrawer(null)} onCreate={createSpace} />}
+        {drawer?.kind === 'space' && <SpaceDrawer today={today} onClose={closeDrawer} onCreate={createSpace} />}
       </aside>
     </div>
+    </SuiteShell>
   );
 }
 

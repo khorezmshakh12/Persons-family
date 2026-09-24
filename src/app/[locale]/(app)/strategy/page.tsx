@@ -11,6 +11,7 @@ import type {
   StrategyTask,
 } from '@/lib/strategy';
 import { StrategyWorkspace } from '@/components/strategy/strategy-workspace';
+import { loadBooks } from '@/lib/accounting-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
   const { profile } = await getAuthState();
   if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
 
-  const [spaces, roadmaps, people] = await Promise.all([
+  const [spaces, roadmaps, people, books] = await Promise.all([
     sql<StrategySpace[]>`
       select id, name, subtitle, color, start_date, end_date, mind, budget
       from strategy_spaces order by sort_order, created_at`,
@@ -28,6 +29,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
     sql<StrategyPerson[]>`
       select id, first_name, last_name, avatar_url, role::text as role
       from profiles where is_active = true order by first_name, last_name`,
+    loadBooks(),
   ]);
 
   const wanted = (await searchParams)?.space;
@@ -54,6 +56,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
       roadmaps={roadmaps}
       people={people}
       today={tashkentDayKey()}
+      books={{ accounts: books.accounts, opening: books.opening, entries: books.entries, courses: books.courses, tax: books.tax }}
     />
   );
 }

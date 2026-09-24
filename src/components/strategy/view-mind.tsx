@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from './suite-shell';
 import { CheckSquare, Maximize, Minus, Plus, X } from 'lucide-react';
 import { MIND_COLORS, guessWorkstream, type StrategyMind } from '@/lib/strategy';
 import type { WorkspaceApi } from './strategy-workspace';
@@ -126,7 +126,7 @@ export function MindView({
   function add() {
     const v = text.trim();
     if (!v) return;
-    if (!sel) return toast('Avval shox yoki markazni tanlang');
+    if (!sel) return toast.message('Avval shox yoki markazni tanlang');
     if ('root' in sel) {
       const next = {
         ...mind,
@@ -137,7 +137,7 @@ export function MindView({
     } else if (sel.k == null) {
       onChange({ ...mind, ch: mind.ch.map((b, i) => (i === sel.b ? { ...b, ch: [...b.ch, { t: v }] } : b)) });
       setCollapsed((c) => ({ ...c, [sel.b]: false }));
-    } else return toast('Faqat 2 daraja: asosiy shoxni tanlang');
+    } else return toast.message('Faqat 2 daraja: asosiy shoxni tanlang');
     setText('');
     toast.success(`«${v}» qo‘shildi`);
   }
@@ -151,7 +151,7 @@ export function MindView({
   }
 
   function toTask() {
-    if (!sel || 'root' in sel) return toast("Shox yoki g'oyani tanlang");
+    if (!sel || 'root' in sel) return toast.message("Shox yoki g'oyani tanlang");
     const B = mind.ch[sel.b];
     const title = sel.k != null ? B.ch[sel.k].t : B.t;
     api.openTask(null, { title, workstream: B.ws ?? guessWorkstream(title) });
