@@ -73,9 +73,14 @@ export async function awardStarsAction(
 
   // Guard against awarding to someone who isn't a staff member at all — the
   // FK would raise anyway, but that surfaces as an opaque 'createFailed'.
-  const [target] = await sql<{ id: string; telegram_id: number | null }[]>`
-    select id, telegram_id from profiles where id = ${userId}
-  `;
+  let target: { id: string; telegram_id: number | null } | undefined;
+  try {
+    [target] = await sql<{ id: string; telegram_id: number | null }[]>`
+      select id, telegram_id from profiles where id = ${userId}
+    `;
+  } catch {
+    return { error: 'createFailed' };
+  }
   if (!target) return { error: 'invalidInput' };
 
   try {

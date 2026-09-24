@@ -651,6 +651,12 @@ function MaCash({ books, today }: { books: Books; today: string }) {
 function FaJournal({ books, ym, today }: { books: Books; ym: string; today: string }) {
   const { run, pending } = useRun();
   const [f, setF] = useState({ date: today.slice(0, 7) === ym ? today : monthStart(ym), doc: '', description: '', debit: '5110', credit: '4010', amount: '' });
+  // Keep the default entry date inside the month picked above.
+  const [fYm, setFYm] = useState(ym);
+  if (fYm !== ym) {
+    setFYm(ym);
+    setF((x) => ({ ...x, date: today.slice(0, 7) === ym ? today : monthStart(ym) }));
+  }
   const [q, setQ] = useState('');
   const [acc, setAcc] = useState('all');
   const name = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? c;

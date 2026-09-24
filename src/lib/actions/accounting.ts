@@ -261,6 +261,16 @@ export async function deleteAssetAction(id: string): Promise<Result> {
     await sql.begin(async (tx) => {
       await tx`delete from acct_entries where source = ${`asset:${id}`}`;
       await tx`delete from acct_assets where id = ${id}`;
+      // Re-state every month whose depreciation was already posted, so the
+      // removed asset's charge doesn't linger in the journal.
+      const assets = await tx<Asset[]>`select id, name, category, cost, acquired, life_years, disposed from acct_assets`;
+      const posted = await tx<{ source: string; id: string }[]>`select id, source from acct_entries where source like 'depr:%'`;
+      for (const row of posted) {
+        const month = row.source.slice(5);
+        const amount = Math.round(assets.reduce((a, x) => a + depreciation(x, month).charge, 0) * 100) / 100;
+        if (amount > 0) await tx`update acct_entries set amount = ${amount} where id = ${row.id}`;
+        else await tx`delete from acct_entries where id = ${row.id}`;
+      }
     });
   } catch {
     return { error: 'updateFailed' };
