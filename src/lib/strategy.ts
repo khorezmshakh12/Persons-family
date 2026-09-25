@@ -134,3 +134,31 @@ export function roadmapNodeName(r: StrategyRoadmap, nodeId: string): string | nu
   }
   return null;
 }
+
+/** Progress a task should carry after a status change: done is always 100%,
+ * a finished task sent back to "todo" starts over, anything else keeps it. */
+export function progressForStatus(prev: Pick<StrategyTask, 'status' | 'progress'>, status: TaskStatus): number {
+  if (status === 'done') return 100;
+  if (status === 'todo' && prev.status === 'done' && prev.progress === 100) return 0;
+  return prev.progress;
+}
+
+type BudgetRow = StrategySpace['budget'][number];
+
+/** Budget rows in workstream order, amounts rounded to 0.1 mln, empty rows dropped. */
+export function normalizeBudget(rows: BudgetRow[]): BudgetRow[] {
+  const order = Object.keys(WORKSTREAMS) as Workstream[];
+  const r1 = (v: number) => Math.round((Number.isFinite(v) ? Math.max(0, v) : 0) * 10) / 10;
+  return rows
+    .filter((r) => order.includes(r.ws))
+    .map((r) => ({ ws: r.ws, plan: r1(r.plan), act: r1(r.act) }))
+    .filter((r) => r.plan > 0 || r.act > 0)
+    .sort((a, b) => order.indexOf(a.ws) - order.indexOf(b.ws));
+}
+
+/** Totals for a space budget: plan, actual, remaining and usage (0..n). */
+export function budgetTotals(rows: BudgetRow[]) {
+  const plan = Math.round(rows.reduce((a, r) => a + r.plan, 0) * 10) / 10;
+  const act = Math.round(rows.reduce((a, r) => a + r.act, 0) * 10) / 10;
+  return { plan, act, left: Math.round((plan - act) * 10) / 10, used: plan > 0 ? act / plan : 0, over: act > plan };
+}

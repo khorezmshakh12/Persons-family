@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   NODE_STATUSES,
@@ -9,11 +9,15 @@ import {
   STATUSES,
   WORKSTREAMS,
   addDays,
+  budgetTotals,
   guessWorkstream,
+  normalizeBudget,
   roadmapNodeName,
   type NodeStatus,
   type Priority,
+  type StrategyMilestone,
   type StrategyRoadmap,
+  type StrategySpace,
   type StrategyTask,
   type TaskStatus,
   type Workstream,
@@ -298,29 +302,74 @@ export function NodeDrawer({
 
 const SPACE_COLORS = ['#ff9f1c', '#2477c9', '#e8567a', '#7a5af8', '#139a52', '#0ea5a4'];
 
+export type SpaceInput = { name: string; subtitle: string; color: string; startDate: string; endDate: string };
+
+/** New space, or (with `space`) edit its name/dates, budget per workstream,
+ * milestones — and delete it. */
 export function SpaceDrawer({
   today,
+  space,
+  taskCount = 0,
+  milestones = [],
   onClose,
   onCreate,
+  onBudget,
+  onAddMilestone,
+  onDeleteMilestone,
+  onDeleteSpace,
 }: {
   today: string;
+  space?: StrategySpace;
+  taskCount?: number;
+  milestones?: StrategyMilestone[];
   onClose: () => void;
-  onCreate: (v: { name: string; subtitle: string; color: string; startDate: string; endDate: string }) => Promise<boolean>;
+  onCreate: (v: SpaceInput) => Promise<boolean>;
+  onBudget?: (b: StrategySpace['budget']) => Promise<boolean>;
+  onAddMilestone?: (title: string, date: string) => Promise<boolean>;
+  onDeleteMilestone?: (id: string) => Promise<void>;
+  onDeleteSpace?: () => Promise<void>;
 }) {
-  const [v, setV] = useState({ name: '', subtitle: '', color: SPACE_COLORS[1], startDate: today, endDate: addDays(today, 90) });
+  const edit = !!space;
+  const [v, setV] = useState<SpaceInput>(() =>
+    space
+      ? { name: space.name, subtitle: space.subtitle, color: space.color, startDate: space.start_date, endDate: space.end_date }
+      : { name: '', subtitle: '', color: SPACE_COLORS[1], startDate: today, endDate: addDays(today, 90) },
+  );
   const [busy, setBusy] = useState(false);
+  // Budget editor: one row per workstream, blank = not budgeted.
+  const [bud, setBud] = useState(() =>
+    (Object.keys(WORKSTREAMS) as Workstream[]).map((ws) => {
+      const r = space?.budget.find((b) => b.ws === ws);
+      return { ws, plan: r ? String(r.plan) : '', act: r ? String(r.act) : '' };
+    }),
+  );
+  const [msT, setMsT] = useState('');
+  const [msD, setMsD] = useState(today);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const budRows = normalizeBudget(bud.map((b) => ({ ws: b.ws, plan: Number(b.plan) || 0, act: Number(b.act) || 0 })));
+  const tot = budgetTotals(budRows);
+  const badNum = bud.some((b) => [b.plan, b.act].some((x) => x !== '' && !(Number(x) >= 0)));
+  const badDates = v.endDate < v.startDate;
+  const saveMain = async () => {
+    setBusy(true);
+    await onCreate({ ...v, name: v.name.trim() });
+    setBusy(false);
+  };
+
   return (
     <>
       <Head onClose={onClose}>
-        <span className="text-sm font-bold text-au-ink">Yangi maydon</span>
+        <span className="text-sm font-bold text-au-ink">{edit ? 'Maydon sozlamalari' : 'Yangi maydon'}</span>
       </Head>
       <div className="dr-b">
-        <p className="text-sm text-au-muted">
-          Maydon — alohida loyiha yoki yo‘nalish (masalan, Tech Lab, Pekin School). O‘z vazifalari, mind map va muhim sanalari bo‘ladi.
-        </p>
+        {!edit && (
+          <p className="text-sm text-au-muted">
+            Maydon — alohida loyiha yoki yo‘nalish (masalan, Tech Lab, Pekin School). O‘z vazifalari, mind map va muhim sanalari bo‘ladi.
+          </p>
+        )}
         <div className="fld">
           <label>Nomi</label>
-          <input className="sx-inp" autoFocus maxLength={120} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
+          <input className="sx-inp" autoFocus={!edit} maxLength={120} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
         </div>
         <div className="fld">
           <label>Tavsif</label>
@@ -328,7 +377,7 @@ export function SpaceDrawer({
         </div>
         <div className="fld">
           <label>Rang</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {SPACE_COLORS.map((c) => (
               <button
                 key={c}
@@ -355,19 +404,130 @@ export function SpaceDrawer({
             onChange={(e) => e.target.value && setV({ ...v, endDate: e.target.value })}
           />
         </div>
+        {badDates && <p className="text-xs text-au-bad">Tugash sanasi boshlanishdan oldin bo‘lishi mumkin emas.</p>}
+        {edit && (
+          <button className="sx-btn primary self-start" disabled={busy || !v.name.trim() || badDates} onClick={saveMain}>
+            Saqlash
+          </button>
+        )}
+
+        {edit && onBudget && (
+          <>
+            <div className="dr-sec">Budjet · mln so‘m (reja / fakt)</div>
+            <div className="flex flex-col gap-2">
+              {bud.map((b, i) => (
+                <div key={b.ws} className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-[96px] flex-1 text-[13px] font-semibold">
+                    <i className="mr-1.5 inline-block size-2.5 rounded-full" style={{ background: WORKSTREAMS[b.ws].c }} />
+                    {WORKSTREAMS[b.ws].n}
+                  </span>
+                  {(['plan', 'act'] as const).map((k) => (
+                    <input
+                      key={k}
+                      className="sx-inp !w-[92px]"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step={0.1}
+                      placeholder={k === 'plan' ? 'Reja' : 'Fakt'}
+                      aria-label={`${WORKSTREAMS[b.ws].n} ${k === 'plan' ? 'reja' : 'fakt'}`}
+                      value={b[k]}
+                      onChange={(e) => setBud(bud.map((x, j) => (j === i ? { ...x, [k]: e.target.value } : x)))}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <p className={cn('text-xs', tot.over ? 'text-au-bad' : 'text-au-muted')}>
+              Jami: reja {tot.plan} · fakt {tot.act} · qoldiq {tot.left}
+              {tot.plan > 0 && ` · ${Math.round(tot.used * 100)}% ishlatilgan`}
+            </p>
+            <button
+              className="sx-btn self-start"
+              disabled={busy || badNum}
+              onClick={async () => {
+                setBusy(true);
+                await onBudget(budRows);
+                setBusy(false);
+              }}
+            >
+              Budjetni saqlash
+            </button>
+          </>
+        )}
+
+        {edit && onAddMilestone && (
+          <>
+            <div className="dr-sec">Muhim sanalar · {milestones.length}</div>
+            {milestones.length === 0 && (
+              <p className="text-[13px] text-au-faint">Hali yo‘q — quyida nom va sana kiriting. Ular Gantt’da ko‘rinadi.</p>
+            )}
+            <div className="flex flex-col gap-1.5">
+              {milestones.map((m) => (
+                <div key={m.id} className="flex items-center gap-2 rounded-xl border border-au-line px-2.5 py-1.5 text-[13px]">
+                  <span className="tabular-nums text-au-muted">{m.date.split('-').reverse().join('.')}</span>
+                  <span className="flex-1 font-semibold">{m.title}</span>
+                  <button
+                    className="sx-btn sm text-au-bad"
+                    aria-label={`«${m.title}» ni o‘chirish`}
+                    onClick={() => window.confirm(`«${m.title}» muhim sanasi o‘chirilsinmi?`) && onDeleteMilestone?.(m.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                className="sx-inp min-w-[150px] flex-1"
+                maxLength={200}
+                placeholder="Masalan: Filial ochilishi"
+                value={msT}
+                onChange={(e) => setMsT(e.target.value)}
+              />
+              <input type="date" className="sx-inp !w-[150px]" value={msD} onChange={(e) => e.target.value && setMsD(e.target.value)} />
+              <button
+                className="sx-btn"
+                disabled={busy || !msT.trim()}
+                onClick={async () => {
+                  setBusy(true);
+                  if (await onAddMilestone(msT.trim(), msD)) setMsT('');
+                  setBusy(false);
+                }}
+              >
+                <Plus className="size-4" /> Qo‘shish
+              </button>
+            </div>
+          </>
+        )}
       </div>
       <div className="dr-f">
-        <button
-          className="sx-btn primary flex-1 justify-center"
-          disabled={busy || !v.name.trim() || v.endDate < v.startDate}
-          onClick={async () => {
-            setBusy(true);
-            await onCreate({ ...v, name: v.name.trim() });
-            setBusy(false);
-          }}
-        >
-          Yaratish
-        </button>
+        {!edit ? (
+          <button className="sx-btn primary flex-1 justify-center" disabled={busy || !v.name.trim() || badDates} onClick={saveMain}>
+            Yaratish
+          </button>
+        ) : confirmDel ? (
+          <>
+            <button className="sx-btn flex-1 justify-center" onClick={() => setConfirmDel(false)}>
+              Bekor qilish
+            </button>
+            <button
+              className="sx-btn danger"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await onDeleteSpace?.();
+                setBusy(false);
+              }}
+            >
+              Ha, {taskCount} ta vazifa bilan o‘chirish
+            </button>
+          </>
+        ) : (
+          <button className="sx-btn text-au-bad" onClick={() => setConfirmDel(true)}>
+            <Trash2 className="size-4" /> Maydonni o‘chirish
+          </button>
+        )}
       </div>
     </>
   );

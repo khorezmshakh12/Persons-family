@@ -29,11 +29,13 @@ export function GanttView({
   space,
   tasks,
   milestones,
+  onMilestones,
 }: {
   api: WorkspaceApi;
   space: StrategySpace;
   tasks: StrategyTask[];
   milestones: StrategyMilestone[];
+  onMilestones: () => void;
 }) {
   const { today } = api;
   const rightRef = useRef<HTMLDivElement>(null);
@@ -118,10 +120,11 @@ export function GanttView({
               {WORKSTREAMS[r.grp].n}
             </div>
           ) : 'ms' in r ? (
-            <div key="ms" className="g-row g-grp">
+            <button key="ms" className="g-row g-grp" onClick={onMilestones} title="Muhim sanalarni qo‘shish / o‘chirish">
               <i style={{ background: 'var(--au-ink)', transform: 'rotate(45deg)' }} />
-              Muhim sanalar
-            </div>
+              Muhim sanalar · {milestones.length}
+              <span className="ml-auto text-[11px] font-semibold text-au-accent-text">+ Tahrirlash</span>
+            </button>
           ) : (
             <button key={r.t.id} className="g-row" onClick={() => api.openTask(r.t.id)} style={{ animationDelay: `${i * 20}ms` }}>
               <PersonAvatar person={r.t.assignee_id ? api.personById.get(r.t.assignee_id) : undefined} size={22} />

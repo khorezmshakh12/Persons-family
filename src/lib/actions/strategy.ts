@@ -6,7 +6,7 @@ import { authErrorCode } from '@/lib/auth/require-admin';
 import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import type { StrategyMind, StrategyTask } from '@/lib/strategy';
+import { normalizeBudget, type StrategyMind, type StrategySpace, type StrategyTask } from '@/lib/strategy';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
@@ -222,7 +222,88 @@ export async function deleteStrategyMilestoneAction(id: string): Promise<Result>
   }
   if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
   try {
-    await sql`delete from strategy_milestones where id = ${id}`;
+    const res = await sql`delete from strategy_milestones where id = ${id}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/strategy', 'page');
+  return {};
+}
+
+const spaceUpdateSchema = spaceSchema.extend({ id: z.string().uuid() });
+
+export async function updateStrategySpaceAction(input: z.input<typeof spaceUpdateSchema>): Promise<Result> {
+  try {
+    await requireStrategyEditor();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const parsed = spaceUpdateSchema.safeParse(input);
+  if (!parsed.success || parsed.data.endDate < parsed.data.startDate) return { error: 'invalidInput' };
+  const v = parsed.data;
+  try {
+    const res = await sql`
+      update strategy_spaces set name = ${v.name}, subtitle = ${v.subtitle}, color = ${v.color},
+        start_date = ${v.startDate}, end_date = ${v.endDate}
+      where id = ${v.id}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('strategy.space.update', `Strategy space "${v.name}"`);
+  revalidatePath('/[locale]/strategy', 'page');
+  revalidatePath('/[locale]/perforce', 'page');
+  return {};
+}
+
+/** Deletes a space with its tasks and milestones (FK on delete cascade). */
+export async function deleteStrategySpaceAction(id: string): Promise<Result> {
+  try {
+    await requireStrategyEditor();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const rows = await sql<{ name: string }[]>`delete from strategy_spaces where id = ${id} returning name`;
+    if (rows.length === 0) return { error: 'notFound' };
+    logSystemAction('strategy.space.delete', `Deleted strategy space "${rows[0].name}"`);
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/strategy', 'page');
+  revalidatePath('/[locale]/perforce', 'page');
+  return {};
+}
+
+const budgetSchema = z
+  .array(
+    z.object({
+      ws: z.enum(['aka', 'it', 'mkt', 'fil', 'mol', 'hr']),
+      plan: z.number().finite().min(0).max(1e9),
+      act: z.number().finite().min(0).max(1e9),
+    }),
+  )
+  .max(6)
+  .refine((rows) => new Set(rows.map((r) => r.ws)).size === rows.length, { message: 'duplicateWorkstream' });
+
+/** Per-workstream plan / actual (million so'm) for a space. */
+export async function saveStrategyBudgetAction(
+  spaceId: string,
+  budget: StrategySpace['budget'],
+): Promise<Result> {
+  try {
+    await requireStrategyEditor();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const parsed = budgetSchema.safeParse(budget);
+  if (!parsed.success || !z.string().uuid().safeParse(spaceId).success) return { error: 'invalidInput' };
+  const rows = normalizeBudget(parsed.data);
+  try {
+    const res = await sql`update strategy_spaces set budget = ${sql.json(rows)} where id = ${spaceId}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch {
     return { error: 'updateFailed' };
   }

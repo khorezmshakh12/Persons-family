@@ -1797,8 +1797,22 @@ textarea.sx-inp {
     grid-template-columns: 1fr;
     gap: 4px;
   }
+  .sx-mm-tools {
+    left: 10px;
+    right: 10px;
+    top: 10px;
+  }
+  .sx-mm-tools .edit {
+    flex-wrap: wrap;
+    padding-left: 8px;
+  }
+  .sx-mm-tools .selname {
+    flex-basis: 100%;
+    max-width: none;
+  }
   .sx-mm-tools input {
-    width: 140px;
+    width: auto;
+    flex: 1 1 140px;
   }
   .sx-mm-hint {
     display: none;
