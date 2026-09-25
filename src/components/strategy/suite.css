@@ -782,3 +782,329 @@
     display: none;
   }
 }
+
+/* =====================================================================
+   MOTION PRO port (prototype 3162-3391) — driven by motion-kit.ts.
+   Transform/blur entrances only; resting state is always fully visible.
+   ===================================================================== */
+.sx-suite {
+  --sx-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ambient background blobs */
+.sx-amb {
+  display: none;
+}
+[data-motion='on'] .sx-suite .sx-amb {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.sx-amb i {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+  will-change: transform;
+}
+.sx-amb i:nth-child(1) {
+  width: 520px;
+  height: 520px;
+  background: #ffd9a0;
+  right: -120px;
+  top: -160px;
+  animation: sx-ab1 26s ease-in-out infinite alternate;
+}
+.sx-amb i:nth-child(2) {
+  width: 440px;
+  height: 440px;
+  background: #ffc2b4;
+  left: 28%;
+  bottom: -220px;
+  animation: sx-ab2 32s ease-in-out infinite alternate;
+}
+.sx-amb i:nth-child(3) {
+  width: 360px;
+  height: 360px;
+  background: #e9e1ff;
+  left: 12%;
+  top: 18%;
+  opacity: 0.22;
+  animation: sx-ab3 38s ease-in-out infinite alternate;
+}
+@keyframes sx-ab1 {
+  to {
+    transform: translate(-180px, 140px) scale(1.15);
+  }
+}
+@keyframes sx-ab2 {
+  to {
+    transform: translate(160px, -120px) scale(0.9);
+  }
+}
+@keyframes sx-ab3 {
+  to {
+    transform: translate(120px, 80px) scale(1.2);
+  }
+}
+
+/* tab icon pop, flow ring + marching past arrows, title shimmer */
+.sx-suite .sx-tabs button.on svg {
+  animation: sx-tabpop 0.5s var(--sx-spring, ease);
+}
+@keyframes sx-tabpop {
+  40% {
+    transform: scale(1.3) rotate(-10deg);
+  }
+}
+.sx-suite .sx-flow button.on {
+  animation: sx-ring 2.4s infinite;
+}
+@keyframes sx-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 159, 28, 0.45);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 8px rgba(255, 159, 28, 0);
+  }
+}
+.sx-suite .sx-flow .contents:has(> button.past) + .contents > .ar {
+  display: inline-block;
+  color: var(--au-accent-text, #ff9f1c);
+  animation: sx-arr 1.6s ease-in-out infinite;
+}
+@keyframes sx-arr {
+  50% {
+    transform: translateX(3px);
+  }
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .sx-suite .sx-title em {
+    background: linear-gradient(90deg, var(--au-ink) 0%, var(--au-ink) 40%, #ff9f1c 50%, var(--au-ink) 60%, var(--au-ink) 100%);
+    background-size: 250% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: sx-shim 6s 1s infinite;
+  }
+}
+@keyframes sx-shim {
+  0%,
+  60% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* view slides in from the direction of travel (--dx set on tab change) */
+.sx-suite .sx-fade {
+  animation: sx-vin 0.55s var(--sx-out);
+}
+@keyframes sx-vin {
+  from {
+    transform: translateX(var(--dx, 0)) translateY(8px);
+  }
+}
+
+/* magnetic primary buttons */
+.sx-suite .sx-btn.primary {
+  transition:
+    background-color 0.18s,
+    transform 0.35s var(--sx-spring, ease),
+    box-shadow 0.35s;
+}
+.sx-suite .sx-btn.primary.mg {
+  transition-duration: 0.18s, 0.12s, 0.35s;
+}
+.sx-suite .sx-btn.primary:hover {
+  box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.55);
+}
+
+/* card cursor ring (spot ::after) */
+.sx-suite .sx-grid > .sx-card:not(.hero)::after,
+.sx-suite .sx-dash .sx-card:not(.hero)::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 159, 28, 0.95), rgba(255, 107, 91, 0.4) 35%, transparent 65%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s;
+  pointer-events: none;
+}
+.sx-suite .sx-grid > .sx-card:not(.hero):hover::after,
+.sx-suite .sx-dash .sx-card:not(.hero):hover::after {
+  opacity: 1;
+}
+
+/* palette sliding highlight */
+.sx-ck .ck-l {
+  position: relative;
+}
+.sx-ck .ck-hl {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 0;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--au-card-2);
+  box-shadow: inset 0 0 0 1px var(--au-line);
+  transition:
+    transform 0.32s var(--sx-spring, ease),
+    height 0.2s;
+  pointer-events: none;
+}
+.sx-ck .ck-it {
+  position: relative;
+}
+.sx-ck .ck-it.sel {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* reveal + stagger + chart draw-in (prototype rvIn/rs/rp/rf/draw/gx/gy/sp/sp2) */
+.sx-root.sx-suite .sx-card.sx-rv-in {
+  animation: sx-rvin 0.7s var(--sx-out) backwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes sx-rvin {
+  from {
+    transform: translateY(18px) scale(0.985);
+    filter: blur(4px);
+  }
+}
+.sx-suite .sx-rs {
+  animation: sx-rs 0.55s var(--sx-out) backwards;
+  animation-delay: calc(var(--i, 0) * 32ms);
+}
+@keyframes sx-rs {
+  from {
+    transform: translateY(10px);
+  }
+}
+.sx-suite .sx-rp {
+  animation: sx-rp 0.6s var(--sx-spring, ease) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+@keyframes sx-rp {
+  from {
+    transform: scale(0.6);
+  }
+}
+@keyframes sx-rf {
+  from {
+    opacity: 0.25;
+  }
+}
+.sx-suite .sx-m-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sx-mdraw 1.3s var(--sx-out) forwards;
+  animation-delay: var(--d, 120ms);
+}
+@keyframes sx-mdraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.sx-suite .sx-m-gx {
+  transform-origin: left center;
+  animation: sx-mgx 1s var(--sx-out) backwards;
+  animation-delay: calc(var(--d, 120ms) + var(--i, 0) * 50ms);
+}
+@keyframes sx-mgx {
+  from {
+    transform: scaleX(0);
+  }
+}
+.sx-suite .sx-m-gy {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: sx-mgy 0.9s var(--sx-spring, ease) backwards;
+  animation-delay: calc(var(--d, 120ms) + var(--i, 0) * 70ms);
+}
+@keyframes sx-mgy {
+  from {
+    transform: scaleY(0);
+  }
+}
+.sx-suite .sx-m-sp {
+  animation: sx-msp 1.1s var(--sx-out) backwards;
+  animation-delay: var(--d, 100ms);
+}
+.sx-suite .dn svg.sx-m-sp,
+.sx-suite .ring svg.sx-m-sp {
+  animation-name: sx-msp2;
+}
+@keyframes sx-msp {
+  from {
+    transform: rotate(-120deg) scale(0.7);
+  }
+}
+@keyframes sx-msp2 {
+  from {
+    transform: rotate(-210deg) scale(0.7);
+  }
+  to {
+    transform: rotate(-90deg);
+  }
+}
+.sx-suite .sx-m-fade {
+  animation: sx-rf 0.8s var(--sx-out) backwards;
+  animation-delay: calc(var(--d, 300ms) + var(--i, 0) * 40ms);
+}
+.sx-suite .sx-cu {
+  font-variant-numeric: tabular-nums;
+}
+
+/* toast 2.0: shrinking progress line + icon pop (while the suite is open) */
+body:has([data-motion='on'] .sx-suite) [data-sonner-toast] {
+  background-image: linear-gradient(90deg, #ff9f1c, #ff6b5b);
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 0 2px;
+  animation: sx-tp 4s linear;
+}
+body:has([data-motion='on'] .sx-suite) [data-sonner-toast] [data-icon] {
+  animation: sx-tabpop 0.6s 0.1s var(--sx-spring, ease);
+}
+@keyframes sx-tp {
+  from {
+    background-size: 100% 2px;
+  }
+  to {
+    background-size: 0 2px;
+  }
+}
+
+@media (max-width: 760px) {
+  [data-motion='on'] .sx-suite .sx-amb {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-motion='on'] .sx-suite .sx-amb {
+    display: none;
+  }
+  .sx-suite .sx-title em,
+  .sx-suite .sx-fade,
+  .sx-suite .sx-flow button.on,
+  body:has(.sx-suite) [data-sonner-toast],
+  body:has(.sx-suite) [data-sonner-toast] [data-icon] {
+    animation: none !important;
+  }
+}

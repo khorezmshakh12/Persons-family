@@ -5,6 +5,7 @@ import { toast as sonner } from 'sonner';
 import { ArrowRight, Calculator, Gauge, Layers, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useMotionKit } from './motion-kit';
 
 /* =====================================================================
    Sound — Web Audio blips, opt-in (default off), remembered per browser.
@@ -129,9 +130,15 @@ export function SuiteShell({
     (v: string) => {
       playSound('nav');
       setBar((b) => b + 1);
+      // View slides in from the side of travel (prototype: ±28px).
+      const root = rootRef.current;
+      const order = tabs.map((t) => t.v);
+      const cur = root?.querySelector<HTMLElement>('.sx-tabs button.on')?.dataset.v;
+      const dir = cur ? Math.sign(order.indexOf(v) - order.indexOf(cur)) : 0;
+      root?.style.setProperty('--dx', `${dir * 28}px`);
       onTab(v);
     },
-    [onTab],
+    [onTab, tabs],
   );
 
   // Keyboard: Ctrl/⌘K or / → palette · 1–9 → tab · N → new · M → sound.
@@ -176,7 +183,24 @@ export function SuiteShell({
       setTimeout(() => d.remove(), 650);
       playSound('tick');
     };
+    // Magnetic primary buttons.
+    let mg: HTMLElement | null = null;
+    const unMg = () => {
+      if (mg) {
+        mg.classList.remove('mg');
+        mg.style.transform = '';
+      }
+      mg = null;
+    };
     const move = (e: PointerEvent) => {
+      const p = (e.target as HTMLElement).closest<HTMLElement>('.sx-btn.primary');
+      if (p !== mg) unMg();
+      if (p) {
+        const r = p.getBoundingClientRect();
+        mg = p;
+        p.classList.add('mg');
+        p.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.18}px,${(e.clientY - r.top - r.height / 2) * 0.3}px)`;
+      }
       const c = (e.target as HTMLElement).closest<HTMLElement>('.sx-card');
       if (!c) return;
       const r = c.getBoundingClientRect();
@@ -185,11 +209,15 @@ export function SuiteShell({
     };
     root.addEventListener('pointerdown', down);
     root.addEventListener('pointermove', move, { passive: true });
+    root.addEventListener('pointerleave', unMg);
     return () => {
+      root.removeEventListener('pointerleave', unMg);
       root.removeEventListener('pointerdown', down);
       root.removeEventListener('pointermove', move);
     };
   }, []);
+
+  useMotionKit(rootRef, playSound);
 
   const all: PaletteItem[] = useMemo(
     () => [
@@ -212,6 +240,11 @@ export function SuiteShell({
   return (
     <SuiteCtx.Provider value={{ openPalette: () => setCk(true) }}>
       <div ref={rootRef} className="sx-root sx-suite flex min-h-0 flex-1 flex-col">
+        <div className="sx-amb" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </div>
         <span key={bar} className={cn('sx-topbar', bar > 0 && 'go')} aria-hidden />
         <nav className="sx-secbar mx-4 sm:mx-7" aria-label="Strategiya bo'limlari">
           <span className="flex-1" />
@@ -250,9 +283,13 @@ function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () => void
     const r = requestAnimationFrame(() => setOpen(true));
     return () => cancelAnimationFrame(r);
   }, []);
+  const [hl, setHl] = useState<React.CSSProperties>({ opacity: 0 });
   useEffect(() => {
-    listRef.current?.querySelector(`[data-i="${cur}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [cur]);
+    const it = listRef.current?.querySelector<HTMLElement>(`[data-i="${cur}"]`);
+    it?.scrollIntoView({ block: 'nearest' });
+    // Sliding highlight follows the selection (prototype .ck-hl).
+    setHl(it ? { transform: `translateY(${it.offsetTop}px)`, height: it.offsetHeight } : { opacity: 0 });
+  }, [cur, q]);
 
   const close = () => {
     playSound('close');
@@ -310,6 +347,7 @@ function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () => void
           <kbd>Esc</kbd>
         </div>
         <div className="ck-l" ref={listRef}>
+          <span className="ck-hl" style={hl} aria-hidden />
           {list.length === 0 && <div className="ck-e">«{q}» bo‘yicha hech narsa topilmadi</div>}
           {list.map((x, i) => {
             const head = x.g !== g ? (g = x.g) : null;
