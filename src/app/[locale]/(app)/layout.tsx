@@ -4,6 +4,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { computeNavBadgeKeys } from '@/lib/nav-badges';
 import { checkMaterialsLink } from '@/lib/sso/checkMaterialsLink';
+import { coreViews } from '@/lib/core-state';
 import { AppShell } from '@/components/app-shell/app-shell';
 import { IntroSplash } from '@/components/brand/intro-splash';
 import { MotionRoot } from '@/components/motion/motion-root';
@@ -39,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     unseenLessonPlanAlertRows,
     newNavKeys,
     materialsLinked,
+    coreViewList,
   ] = await Promise.all([
       sql<{ id: string; first_name: string; last_name: string; date_of_birth: string | null }[]>`
         select id, first_name, last_name, date_of_birth from profiles where is_active = true
@@ -83,6 +85,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         checkMaterialsLink(profile!.phone),
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2500)),
       ]),
+      coreViews(profile!).catch(() => [] as string[]),
     ]);
   // Real per-user "unseen" state — not a time-based heuristic — so each dot
   // clears the moment its page is visited (see MarkTasksSeen/MarkIssuesSeen/
@@ -141,6 +144,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
         newNavKeys={newNavKeys}
         materialsLinked={materialsLinked}
+        coreViews={coreViewList}
         motion={motion}
       >
         <BirthdayReminder names={birthdayNames} todayKey={tashkentTodayKey()} />

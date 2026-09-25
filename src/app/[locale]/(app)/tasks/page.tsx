@@ -8,12 +8,43 @@ import { AssignTaskDialog } from '@/components/tasks/assign-task-dialog';
 import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskStats } from '@/components/tasks/task-stats';
 import { MarkTasksSeen } from '@/components/tasks/mark-tasks-seen';
+import { CoreFrame } from '@/components/core/core-frame';
+import { Link } from '@/i18n/navigation';
+import { coreViews } from '@/lib/core-state';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TasksPage() {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const t = await getTranslations('tasks');
+  const tNav = await getTranslations('nav');
   const { user, profile } = await getAuthState();
+  // Second tab: the same tasks in Core v2's own view (board / list / timeline).
+  const hasCore = (await coreViews(profile!).catch((): string[] => [])).includes('tasks');
+  const coreTab = hasCore && (await searchParams).view === 'core';
+  const tabs = hasCore && (
+    <div className="flex gap-1 self-start rounded-au-ctl bg-au-card p-1 shadow-[var(--au-shadow-card)]">
+      {[
+        { href: '/tasks', on: !coreTab, label: t('title') },
+        { href: '/tasks?view=core', on: coreTab, label: tNav('coreBoard') },
+      ].map((x) => (
+        <Link
+          key={x.href}
+          href={x.href}
+          className={`rounded-au-ctl px-4 py-1.5 text-sm font-semibold ${x.on ? 'bg-au-accent-soft text-au-accent-text' : 'text-au-muted hover:text-au-ink'}`}
+        >
+          {x.label}
+        </Link>
+      ))}
+    </div>
+  );
+  if (coreTab) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 pt-1 pb-8 sm:px-7">
+        {tabs}
+        <CoreFrame view="tasks" title={tNav('coreBoard')} />
+      </div>
+    );
+  }
   // CEO-only: assigning, editing, and deleting tasks is a CEO power alone
   // (requireTaskAssigner() in tasks.ts already enforces this) — IT Developer
   // lost it entirely, so this must not fall back to is_admin()'s ceo+it_developer
@@ -81,6 +112,7 @@ export default async function TasksPage() {
         </h1>
         {isAdmin && <AssignTaskDialog assignees={assignees} />}
       </div>
+      {tabs}
       <TaskStats stats={taskStats.data ?? null} />
       <TaskBoard
         tasks={tasks}

@@ -45,7 +45,12 @@
     "accounting": "Accounting",
     "operations": "Operations HQ",
     "perforce": "Persons Perforce",
-    "core": "Work platform"
+    "coreInbox": "Inbox · Approvals",
+    "sales": "Sales",
+    "hr": "HR",
+    "report": "Monthly report",
+    "platform": "Platform settings",
+    "coreBoard": "Platform view"
   },
   "auth": {
     "phone": "Phone number",

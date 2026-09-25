@@ -39,6 +39,8 @@ import { ActivityFeed } from '@/components/aurora/activity-feed';
 import { FinanceCard } from '@/components/aurora/finance-card';
 import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
+import { CoreFrame } from '@/components/core/core-frame';
+import { coreViews } from '@/lib/core-state';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
 export const dynamic = 'force-dynamic';
@@ -256,9 +258,12 @@ export default async function DashboardPage() {
   const isPersonalDashboard = !isCeo && !isTeacherTier;
 
   const viewer: Viewer = { userId: user!.id, role: profile!.role as StaffRole };
+  // Core v2's own home (the owner's design) on top — grows with its content.
+  const showCore = (await coreViews(profile!).catch((): string[] => [])).includes('home');
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
+      {showCore && <CoreFrame view="home" auto title="Persons Staff Core" />}
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
         <Suspense fallback={<HeroAndKpiSkeleton />}>

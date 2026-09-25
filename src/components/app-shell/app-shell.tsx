@@ -40,6 +40,7 @@ export async function AppShell({
   initialUnseenLessonPlanAlerts,
   newNavKeys,
   materialsLinked = false,
+  coreViews = [],
   motion = false,
   children,
 }: {
@@ -55,6 +56,8 @@ export async function AppShell({
   /** Whether this employee's phone number matches an active Materials
    * account — see src/lib/sso/checkMaterialsLink.ts. */
   materialsLinked?: boolean;
+  /** Core v2 pages this person may open (sidebar visibility). */
+  coreViews?: string[];
   /** MOTION_ROLES only: shows the midnight toggle (see components/motion). */
   motion?: boolean;
   children: ReactNode;
@@ -85,6 +88,7 @@ export async function AppShell({
     role: profile.role,
     roleLabel: tStaff(`roles.${profile.role}`),
     materialsLinked,
+    coreViews,
     starBalance,
     goal,
     userId,

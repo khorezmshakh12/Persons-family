@@ -364,3 +364,34 @@ async function syncTasks(next: CoreTask[], prev: CoreTask[], taskPr: Record<stri
   for (const id of before.keys()) if (isUuid(id) && !nowIds.has(id)) await run(await t.deleteTaskAction(fd({ id })));
   return { errors, taskPr };
 }
+
+/** Core's page ids, in its own nav order (ALL_V in core.html). */
+export const CORE_VIEWS = ['home', 'tasks', 'inbox', 'sales', 'hr', 'perforce', 'ops', 'strategy', 'report', 'settings'] as const;
+export type CoreView = (typeof CORE_VIEWS)[number];
+
+/** Which Core pages this person may open — Core's own can()/defAccess()
+ * rules, evaluated on the server so the site's sidebar and page guards
+ * agree with what the embedded Core shows. */
+export async function coreViews(me: Profile): Promise<CoreView[]> {
+  const [shared, ceo] = await Promise.all([
+    readShared(),
+    sql<{ id: string }[]>`select id from profiles where role = 'ceo' and is_active = true limit 1`,
+  ]);
+  const keys = (shared.keys as Record<string, string>) ?? {};
+  const acl = (shared.acl as Record<string, string[]> | undefined)?.[keys[me.id] ?? ''];
+  if (acl) return CORE_VIEWS.filter((v) => acl.includes(v));
+  if (me.role === 'ceo') return [...CORE_VIEWS];
+  const m = ((shared.staffMeta as Record<string, StaffMeta>) ?? {})[me.id] ?? {};
+  const d = m.d ?? ROLE_DEPT[me.role] ?? 'ops';
+  const r = m.r ?? ROLE_TITLE[me.role] ?? me.role;
+  const boss = keys[m.boss ?? ceo[0]?.id ?? ''];
+  const v = new Set<CoreView>(['home', 'tasks', 'inbox', 'hr']);
+  if (d === 'com') v.add('sales');
+  const add = (...xs: CoreView[]) => xs.forEach((x) => v.add(x));
+  if (d === 'ops' || r === 'COO') add('perforce', 'ops');
+  if (d === 'hr') add('ops', 'strategy', 'report');
+  if (d === 'fin') add('sales', 'strategy', 'report');
+  if (d === 'acad') add('perforce');
+  if (boss === 'AQ') add('strategy', 'report');
+  return CORE_VIEWS.filter((x) => v.has(x));
+}

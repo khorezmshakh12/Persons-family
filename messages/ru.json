@@ -45,7 +45,12 @@
     "accounting": "Бухгалтерия",
     "operations": "Операции HQ",
     "perforce": "Persons Perforce",
-    "core": "Рабочая платформа"
+    "coreInbox": "Входящие · Согласования",
+    "sales": "Продажи",
+    "hr": "HR",
+    "report": "Месячный отчёт",
+    "platform": "Настройки платформы",
+    "coreBoard": "Вид платформы"
   },
   "auth": {
     "phone": "Номер телефона",

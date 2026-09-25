@@ -12,7 +12,11 @@ export type StaffRole =
 export type NavItem = {
   key:
     | 'dashboard'
-    | 'core'
+    | 'coreInbox'
+    | 'sales'
+    | 'hr'
+    | 'report'
+    | 'platform'
     | 'staff'
     | 'chat'
     | 'issues'
@@ -38,6 +42,8 @@ export type NavItem = {
    * rendered as a plain `<a>`, never the i18n `Link`, since basePath/locale
    * prefixing would mangle the target. */
   external?: boolean;
+  /** Core v2 page this section shows; hidden unless it's in `coreViews`. */
+  core?: string;
 };
 
 /** Sidebar section an item is listed under (Persons Aurora layout). Purely
@@ -48,7 +54,11 @@ export const NAV_GROUP_ORDER: NavGroup[] = ['main', 'motivation', 'workflow', 'm
 
 const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   dashboard: 'main',
-  core: 'main',
+  coreInbox: 'main',
+  sales: 'main',
+  hr: 'main',
+  report: 'management',
+  platform: 'management',
   tasks: 'main',
   finance: 'main',
   staff: 'main',
@@ -72,13 +82,15 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
 // Order inside each sidebar section — mirrors the Aurora reference.
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
-  'core',
+  'coreInbox',
   'accounting',
   'operations',
   'perforce',
   'tasks',
   'finance',
   'staff',
+  'sales',
+  'hr',
   'market',
   'selfDevelopment',
   'chat',
@@ -87,10 +99,12 @@ const NAV_SORT: NavItem['key'][] = [
   'companyNews',
   'materials',
   'strategy',
+  'report',
   'roadmap',
   'telegramSetup',
   'profile',
   'settings',
+  'platform',
 ];
 
 /**
@@ -122,10 +136,15 @@ export const MOTION_ROLES: StaffRole[] = STRATEGY_ROLES;
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
-  // Core v2 — the owner's Claude-designed staff workspace (src/core/core.html,
-  // served 1:1 via /api/core/app). Everyone gets it; Core itself decides which
-  // of its sections each person sees (department / boss / ACL).
-  { key: 'core', href: '/core' },
+  // Core v2 (the owner's Claude-designed workspace, src/core/core.html) is
+  // spread over these sections, one Core page each, embedded 1:1. Who sees
+  // which is Core's own rule (department / boss / CEO-edited ACL), passed in
+  // as `coreViews` — see coreViews() in lib/core-state.ts.
+  { key: 'coreInbox', href: '/inbox', core: 'inbox' },
+  { key: 'sales', href: '/sales', core: 'sales' },
+  { key: 'hr', href: '/hr', core: 'hr' },
+  { key: 'report', href: '/report', core: 'report' },
+  { key: 'platform', href: '/platform', core: 'settings' },
   // Goes through the SSO handoff route, not straight to /materials, so
   // clicking it doesn't drop the employee on Materials' login screen — see
   // src/app/api/sso/materials/route.ts.
@@ -173,13 +192,17 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'settings', href: '/settings' },
 ];
 
-export function navItemsForRole(role: StaffRole, { materialsLinked = false }: { materialsLinked?: boolean } = {}) {
+export function navItemsForRole(
+  role: StaffRole,
+  { materialsLinked = false, coreViews = [] }: { materialsLinked?: boolean; coreViews?: string[] } = {},
+) {
   return NAV_ITEMS.filter((item) => {
     if (item.roles && !item.roles.includes(role)) return false;
     // Only shown once this employee's phone number is matched to an
     // active Materials account (see checkMaterialsLink) — otherwise the
     // link would just dump them on Materials' login screen.
     if (item.key === 'materials' && !materialsLinked) return false;
+    if (item.core && !coreViews.includes(item.core)) return false;
     return true;
   });
 }
@@ -188,7 +211,7 @@ export function navItemsForRole(role: StaffRole, { materialsLinked = false }: { 
  * dropped). Same visibility rules as navItemsForRole — it's built on it. */
 export function groupedNavItemsForRole(
   role: StaffRole,
-  opts: { materialsLinked?: boolean } = {},
+  opts: { materialsLinked?: boolean; coreViews?: string[] } = {},
 ): { group: NavGroup; items: NavItem[] }[] {
   const items = [...navItemsForRole(role, opts)].sort((a, b) => NAV_SORT.indexOf(a.key) - NAV_SORT.indexOf(b.key));
   return NAV_GROUP_ORDER.map((group) => ({ group, items: items.filter((i) => NAV_GROUP[i.key] === group) })).filter(

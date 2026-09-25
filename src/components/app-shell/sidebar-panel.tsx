@@ -35,6 +35,7 @@ export function SidebarPanel({
   role,
   roleLabel,
   materialsLinked,
+  coreViews,
   starBalance,
   goal,
   userId,
@@ -44,6 +45,7 @@ export function SidebarPanel({
   role: StaffRole;
   roleLabel: string;
   materialsLinked: boolean;
+  coreViews: string[];
   starBalance: number;
   goal: SidebarGoal | null;
   userId: string;
@@ -66,6 +68,7 @@ export function SidebarPanel({
         <SidebarNav
           role={role}
           materialsLinked={materialsLinked}
+          coreViews={coreViews}
           starBalance={starBalance}
           onNavigate={onNavigate}
         />

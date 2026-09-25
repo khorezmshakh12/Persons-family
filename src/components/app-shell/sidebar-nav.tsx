@@ -19,7 +19,10 @@ import {
   ShoppingBag,
   Star,
   Map as MapIcon,
-  Sparkles,
+  Inbox,
+  UserCog,
+  FileBarChart,
+  SlidersHorizontal,
   Calculator,
   Gauge,
   Layers,
@@ -32,7 +35,11 @@ import { useNavBadgeKeys } from './nav-badges-context';
 
 const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
   dashboard: LayoutDashboard,
-  core: Sparkles,
+  coreInbox: Inbox,
+  sales: TrendingUp,
+  hr: UserCog,
+  report: FileBarChart,
+  platform: SlidersHorizontal,
   staff: Users,
   chat: MessageSquare,
   issues: CircleAlert,
@@ -56,6 +63,7 @@ const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; st
 export function SidebarNav({
   role,
   materialsLinked = false,
+  coreViews,
   starBalance,
   onNavigate,
 }: {
@@ -63,6 +71,8 @@ export function SidebarNav({
   /** Whether this employee's phone number matches an active Materials
    * account — hides the "Materials" item entirely when it doesn't. */
   materialsLinked?: boolean;
+  /** Core v2 pages this person may open — see coreViews() in lib/core-state.ts. */
+  coreViews?: string[];
   /** Shown next to the Market entry; omitted = no pill. */
   starBalance?: number;
   onNavigate?: () => void;
@@ -70,7 +80,7 @@ export function SidebarNav({
   const t = useTranslations('nav');
   const tShell = useTranslations('shell');
   const pathname = usePathname();
-  const groups = groupedNavItemsForRole(role, { materialsLinked });
+  const groups = groupedNavItemsForRole(role, { materialsLinked, coreViews });
   // Live-updating "new" dot state — see NavBadgesProvider for why this
   // can't just be the static prop the layout computed at request time.
   const newKeys = useNavBadgeKeys();

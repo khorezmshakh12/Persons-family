@@ -45,7 +45,12 @@
     "accounting": "Hisob-kitob",
     "operations": "Operatsiya HQ",
     "perforce": "Persons Perforce",
-    "core": "Ish platformasi"
+    "coreInbox": "Inbox · Tasdiqlar",
+    "sales": "Sotuv",
+    "hr": "HR",
+    "report": "Oylik hisobot",
+    "platform": "Platforma sozlamalari",
+    "coreBoard": "Platforma ko'rinishi"
   },
   "auth": {
     "phone": "Telefon raqami",
