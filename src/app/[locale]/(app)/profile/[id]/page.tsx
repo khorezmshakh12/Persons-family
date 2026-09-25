@@ -62,7 +62,7 @@ async function StarsArchiveSection({ staffId }: { staffId: string }) {
 // layer was intermittently corrupting the client router's cache-node tree
 // on soft navigation and surfacing as a React #310 crash (a useMemo
 // dependency array changing size) — a white screen with no server-side
-// error at all. Same fix applied to /finance and /missions.
+// error at all. Same fix applied to /finance.
 export async function ProfileDetailContent({ id, month }: { id: string; month?: string }) {
   const tStaff = await getTranslations('staff');
   const tProfile = await getTranslations('profile');

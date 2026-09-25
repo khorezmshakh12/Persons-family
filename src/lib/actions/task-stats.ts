@@ -70,7 +70,7 @@ export type TaskStats = {
  * all. It is the same convention `onTimeRate` below already used.
  *
  * This is deliberately NOT the convention for the *efficiency* % in
- * lib/task-efficiency.ts / actions/analytics.ts: that one is a penalty score
+ * lib/task-efficiency.ts: that one is a penalty score
  * where "nothing was due" genuinely means "nothing was missed", so it scores
  * 100. Two different questions, two different answers at 0/0.
  */

@@ -36,13 +36,11 @@
     "selfDevelopment": "Self-Development",
     "performance": "Performance",
     "finance": "Finance",
-    "missions": "Missions",
     "roadmap": "Roadmap",
     "settings": "Settings",
     "profile": "My Profile",
     "materials": "Materials",
     "market": "Persons Market",
-    "analytics": "Analytics",
     "strategy": "Strategy",
     "accounting": "Accounting",
     "operations": "Operations HQ",
@@ -116,7 +114,6 @@
       "lessonPlans": "Lesson Plans",
       "chatActivity": "Chat Activity",
       "finance": "Finance",
-      "missions": "Missions",
       "tasks": "Tasks",
       "showAmount": "Show amount",
       "hideAmount": "Hide amount",
@@ -858,27 +855,6 @@
       }
     }
   },
-  "analytics": {
-    "title": "Global Analytics",
-    "subtitle": "A closer look at roles and growth across the whole platform.",
-    "staffPerformance": {
-      "title": "Staff Performance",
-      "noData": "No performance data yet."
-    },
-    "roadmapGoals": {
-      "title": "Roadmap Goals",
-      "noData": "No roadmap goals yet."
-    },
-    "adminKpi": {
-      "title": "Administration Team KPI",
-      "subtitle": "Monthly task efficiency of the Administration team over the last 12 months.",
-      "efficiency": "Efficiency",
-      "onTime": "On time",
-      "late": "Late",
-      "notDone": "Not done",
-      "noData": "No Administration team tasks in the last 12 months."
-    }
-  },
   "commandPalette": {
     "label": "Command palette",
     "placeholder": "Search staff, groups, issues...",
@@ -1206,63 +1182,10 @@
       "deleteFailed": "Could not delete. Please try again."
     }
   },
-  "missions": {
-    "title": "Missions",
-    "subtitle": "Your assigned missions.",
-    "adminSubtitle": "Assign and manage missions for every staff member.",
-    "noMissions": "No missions yet.",
-    "activeCount": "{count} active",
-    "assign": "Assign Mission",
-    "missionAssigned": "Mission assigned.",
-    "missionTitle": "Title",
-    "missionTitlePlaceholder": "e.g. Complete onboarding checklist",
-    "description": "Description",
-    "descriptionPlaceholder": "Optional details",
-    "deadline": "Deadline",
-    "bonusAmount": "Bonus amount (optional)",
-    "shortTerm": "Short Term",
-    "longTerm": "Long Term",
-    "noShortTerm": "No short term missions.",
-    "noLongTerm": "No long term missions.",
-    "start": "Start",
-    "submit": "Submit",
-    "submissionNote": "Note",
-    "submissionNotePlaceholder": "Describe what was done...",
-    "approve": "Approve",
-    "reject": "Reject",
-    "rejectionNote": "Rejection reason",
-    "overdue": "Overdue",
-    "countdown": {
-      "days": "Days",
-      "hours": "Hours",
-      "minutes": "Min",
-      "seconds": "Sec"
-    },
-    "statusLabels": {
-      "pending": "Pending",
-      "in_progress": "In Progress",
-      "submitted": "Submitted",
-      "approved": "Approved",
-      "rejected": "Rejected"
-    },
-    "delete": "Delete mission",
-    "confirmDeleteTitle": "Delete this mission?",
-    "confirmDeleteDescription": "This mission will be permanently deleted.",
-    "confirm": "Delete",
-    "errors": {
-      "forbidden": "You don't have permission to do this.",
-      "sessionExpired": "Your session expired — please refresh the page and log in again.",
-      "invalidInput": "Please check the values you entered.",
-      "updateFailed": "Could not save. Please try again.",
-      "staleState": "This mission already moved on. Refresh and try again.",
-      "deleteFailed": "Could not delete this mission.",
-      "cannotDeleteApproved": "An approved mission cannot be deleted — its bonus is part of the salary total."
-    }
-  },
   "salary": {
     "title": "Salary",
     "salaryLedger": "Salary",
-    "missions": "Missions",
+    "missions": "Mission bonuses (archive)",
     "total": "Total",
     "totalCommentPlaceholder": "Add a comment...",
     "commentSaved": "Comment saved.",

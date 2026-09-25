@@ -1,7 +1,7 @@
 /** Current calendar year+month in Asia/Tashkent — the whole staff is there
  * and Cloud Run's clock is UTC, so during the first ~5 hours of the 1st a
  * UTC-derived month would still read as the previous one. Mirrors the
- * Intl-based approach in src/lib/actions/missions.ts. */
+ * Intl-based approach in src/lib/time.ts. */
 function tashkentYearMonth(): { year: number; month: number } {
   const key = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
   const [year, month] = key.split('-').map(Number);

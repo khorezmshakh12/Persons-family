@@ -36,13 +36,11 @@
     "selfDevelopment": "Саморазвитие",
     "performance": "Эффективность",
     "finance": "Финансы",
-    "missions": "Миссии",
     "roadmap": "Дорожная карта",
     "settings": "Настройки",
     "profile": "Мой профиль",
     "materials": "Материалы",
     "market": "Persons Market",
-    "analytics": "Аналитика",
     "strategy": "Стратегия",
     "accounting": "Бухгалтерия",
     "operations": "Операции HQ",
@@ -116,7 +114,6 @@
       "lessonPlans": "Планы уроков",
       "chatActivity": "Активность чата",
       "finance": "Финансы",
-      "missions": "Миссии",
       "tasks": "Задачи",
       "showAmount": "Показать сумму",
       "hideAmount": "Скрыть сумму",
@@ -858,27 +855,6 @@
       }
     }
   },
-  "analytics": {
-    "title": "Общая аналитика",
-    "subtitle": "Подробный обзор ролей и роста по всей платформе.",
-    "staffPerformance": {
-      "title": "Эффективность сотрудников",
-      "noData": "Пока нет данных об эффективности."
-    },
-    "roadmapGoals": {
-      "title": "Цели дорожной карты",
-      "noData": "Пока нет целей дорожной карты."
-    },
-    "adminKpi": {
-      "title": "KPI команды администрации",
-      "subtitle": "Ежемесячная эффективность задач команды администрации за последние 12 месяцев.",
-      "efficiency": "Эффективность",
-      "onTime": "В срок",
-      "late": "С опозданием",
-      "notDone": "Не выполнено",
-      "noData": "За последние 12 месяцев у команды администрации не было задач."
-    }
-  },
   "commandPalette": {
     "label": "Палитра команд",
     "placeholder": "Поиск сотрудников, групп, обращений...",
@@ -1206,63 +1182,10 @@
       "deleteFailed": "Не удалось удалить. Попробуйте снова."
     }
   },
-  "missions": {
-    "title": "Миссии",
-    "subtitle": "Ваши назначенные миссии.",
-    "adminSubtitle": "Назначайте и управляйте миссиями каждого сотрудника.",
-    "noMissions": "Пока нет миссий.",
-    "activeCount": "{count} активных",
-    "assign": "Назначить миссию",
-    "missionAssigned": "Миссия назначена.",
-    "missionTitle": "Название",
-    "missionTitlePlaceholder": "напр. Пройти адаптацию",
-    "description": "Описание",
-    "descriptionPlaceholder": "Необязательные детали",
-    "deadline": "Срок",
-    "bonusAmount": "Сумма бонуса (необязательно)",
-    "shortTerm": "Краткосрочные",
-    "longTerm": "Долгосрочные",
-    "noShortTerm": "Нет краткосрочных миссий.",
-    "noLongTerm": "Нет долгосрочных миссий.",
-    "start": "Начать",
-    "submit": "Сдать",
-    "submissionNote": "Комментарий",
-    "submissionNotePlaceholder": "Опишите, что было сделано...",
-    "approve": "Утвердить",
-    "reject": "Отклонить",
-    "rejectionNote": "Причина отклонения",
-    "overdue": "Срок истёк",
-    "countdown": {
-      "days": "Дни",
-      "hours": "Часы",
-      "minutes": "Мин",
-      "seconds": "Сек"
-    },
-    "statusLabels": {
-      "pending": "Ожидает",
-      "in_progress": "В процессе",
-      "submitted": "Сдана",
-      "approved": "Утверждена",
-      "rejected": "Отклонена"
-    },
-    "delete": "Удалить миссию",
-    "confirmDeleteTitle": "Удалить эту миссию?",
-    "confirmDeleteDescription": "Эта миссия будет удалена безвозвратно.",
-    "confirm": "Удалить",
-    "errors": {
-      "forbidden": "У вас нет прав для этого действия.",
-      "sessionExpired": "Сессия истекла — обновите страницу и войдите снова.",
-      "invalidInput": "Проверьте введённые значения.",
-      "updateFailed": "Не удалось сохранить. Попробуйте снова.",
-      "staleState": "Статус этой миссии уже изменился. Обновите страницу и попробуйте снова.",
-      "deleteFailed": "Не удалось удалить миссию.",
-      "cannotDeleteApproved": "Одобренную миссию нельзя удалить — её бонус входит в итог зарплаты."
-    }
-  },
   "salary": {
     "title": "Зарплата",
     "salaryLedger": "Зарплата",
-    "missions": "Миссии",
+    "missions": "Бонусы за миссии (архив)",
     "total": "Итого (Total)",
     "totalCommentPlaceholder": "Добавить комментарий...",
     "commentSaved": "Комментарий сохранён.",

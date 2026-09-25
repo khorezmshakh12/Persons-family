@@ -14,7 +14,7 @@ import { SalaryTotal } from './salary-total';
  * a single "Salary" section on /finance/[id]: the Salary ledger itself
  * (moved in from what used to be the whole page), Bonuses/Penalties and
  * Self Development (both reused as-is from Profile, shown in both places
- * per the CEO's own call), KPI, a read-only Missions summary, and a Total
+ * per the CEO's own call), KPI, a read-only archive of past approved Mission bonuses, and a Total
  * that sums all of the above. */
 export async function SalarySection({
   staffId,

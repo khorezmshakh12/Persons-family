@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CalendarDays, Layers, ListTodo, Target, Users, Wallet } from 'lucide-react';
+import { CalendarDays, Layers, ListTodo, Users, Wallet } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { GLASS_INTERACTIVE } from '@/lib/glass';
 import { changePercent, lastPoint, type PeriodSeries } from '@/lib/dashboard-stats';
@@ -21,7 +21,6 @@ const STAT_ICONS = {
   wallet: Wallet,
   layers: Layers,
   calendar: CalendarDays,
-  target: Target,
   tasks: ListTodo,
 } as const;
 
@@ -67,7 +66,7 @@ export type StatValueFormat = 'count' | 'uzs';
  * independently-measured headline to drift out of sync with the chart, and
  * switching kunlik/haftalik/oylik switches all three together.
  *
- * `higherIsBetter: false` for backlog metrics (open missions, open tasks):
+ * `higherIsBetter: false` for backlog metrics (open tasks):
  * the arrow still points the way the number moved, but a growing pile of
  * unfinished work is coloured as the bad news it is.
  */

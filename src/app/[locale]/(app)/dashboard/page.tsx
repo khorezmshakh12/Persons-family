@@ -232,7 +232,7 @@ async function EmployeeStatsSection() {
 
 async function ActivitySection({ viewer }: { viewer: Viewer }) {
   const items = await loadActivity(viewer);
-  return <ActivityFeed items={items} href={viewer.role === 'ceo' ? '/analytics' : '/profile'} className={ACT_CELL} />;
+  return <ActivityFeed items={items} href={viewer.role === 'ceo' ? '/staff' : '/profile'} className={ACT_CELL} />;
 }
 
 // Every block fetches its own data and streams in behind its own Suspense
@@ -245,7 +245,7 @@ export default async function DashboardPage() {
   // Head Teacher gets a regular teacher's dashboard plus the Active
   // Groups/Lesson Plans cards (RLS already scopes both platform-wide for
   // it, same as CEO) — everyone else who isn't a teacher/assistant gets a
-  // personal Finance/Missions/Tasks view instead of company-wide totals
+  // personal Finance/Tasks view instead of company-wide totals
   // that aren't relevant to their day-to-day (assistant keeps today's
   // teacher-like treatment — it's still operationally lesson-plan-focused,
   // unlike admin_manager/mmd/internship/it_developer). Teacher

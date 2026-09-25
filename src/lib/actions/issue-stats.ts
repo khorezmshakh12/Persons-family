@@ -13,7 +13,7 @@ import { sql } from '@/lib/db/client';
  * CEO-only, and checked *here* rather than relying on the /issues page's
  * `notFound()` — a Server Action is its own POST endpoint and a page guard
  * does not gate it (AGENTS.md, "a page guard doesn't gate the POST
- * endpoint"). Mirrors getAdminTeamKpiAction in actions/analytics.ts for the
+ * endpoint"). Follows the same pattern as the other stats actions for the
  * timezone idiom, the auth try/catch, the DB-read try/catch and the
  * getFormatter() month-label approach.
  *
@@ -57,7 +57,7 @@ export type IssueStats = {
 };
 
 /** total === 0 scores 100 rather than NaN — same convention as the
- * efficiency % in actions/analytics.ts. */
+ * efficiency % in lib/task-efficiency.ts. */
 const asRate = (part: number, whole: number) =>
   whole === 0 ? 100 : Math.round((part / whole) * 100);
 
