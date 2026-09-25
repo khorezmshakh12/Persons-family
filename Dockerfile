@@ -31,7 +31,11 @@ ENV NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSyC3A8aOcsuhhmbE8QOkAIGBXplaeN8pxqw"
 ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID="persons-staff-b01a83bd"
 ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="persons-staff-b01a83bd.firebaseapp.com"
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# Unique id per build → Next.js version-skew protection (next.config
+# deploymentId / NEXT_DEPLOYMENT_ID): a tab opened before a deploy detects
+# the mismatch and hard-reloads instead of calling Server Actions whose IDs
+# no longer exist ("Failed to find Server Action" → dead buttons).
+RUN NEXT_DEPLOYMENT_ID="d$(date +%s)" npm run build
 
 FROM node:24-slim AS runner
 WORKDIR /app
