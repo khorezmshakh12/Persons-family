@@ -21,6 +21,7 @@ import {
   loadLeaderboard,
   loadLessonPlanMonths,
   loadLessonPlanWeek,
+  showsLessonPlanStats,
   loadTasksDoneMonths,
   loadTaskFeed,
   loadTasksDoneWeek,
@@ -192,7 +193,8 @@ async function LeaderboardSection({ userId }: { userId: string }) {
 
 async function WeekChartSection({ viewer }: { viewer: Viewer }) {
   const t = await getTranslations('aurora');
-  const lessons = canSeeLessonPlans(viewer.role);
+  // Teacher tier only — lesson-plan completion is never a company stat.
+  const lessons = showsLessonPlanStats(viewer.role);
   const [week, months] = lessons
     ? await Promise.all([loadLessonPlanWeek(viewer), loadLessonPlanMonths(viewer)])
     : await Promise.all([loadTasksDoneWeek(viewer), loadTasksDoneMonths(viewer)]);
@@ -292,6 +294,7 @@ export default async function DashboardPage() {
           <StatsRow
             showTotalStaff={isCeo}
             showLessonPlanCards={!isPersonalDashboard}
+            showLessonPlanCount={isTeacherTier}
             personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
             financeUserId={isTeacherTier ? user!.id : undefined}
           />

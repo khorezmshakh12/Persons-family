@@ -356,13 +356,23 @@ export function canSeeLessonPlans(role: StaffRole): boolean {
   return LESSON_PLAN_ROLES.includes(role);
 }
 
+/**
+ * Lesson plans are a teachers-only tool and must not feed any company
+ * statistic (owner's rule). Lesson-plan completion charts on the dashboard
+ * are therefore shown only to the teacher tier for their own work — the CEO
+ * keeps full access to /lesson-plans itself but gets the tasks chart here.
+ */
+export function showsLessonPlanStats(role: StaffRole): boolean {
+  return canSeeLessonPlans(role) && role !== 'ceo';
+}
+
 export async function loadLessonPlanWeek(v: Viewer): Promise<WeekBar[] | null> {
-  if (!canSeeLessonPlans(v.role)) return null;
+  if (!showsLessonPlanStats(v.role)) return null;
   return safe('lesson-week', async () => {
     const monday = mondayKey();
     const today = tashkentDayKey();
     const days = Array.from({ length: 6 }, (_, i) => addDaysToKey(monday, i)); // Mon–Sat (6-day week)
-    const everything = v.role === 'ceo' || v.role === 'head_teacher';
+    const everything = v.role === 'head_teacher';
 
     const groups = await sql<{ id: string; schedule_type: string | null }[]>`
       select id, schedule_type from groups
@@ -418,11 +428,11 @@ function recentMonthKeys(): string[] {
  * left out so they can't drag the ratio down.
  */
 export async function loadLessonPlanMonths(v: Viewer): Promise<MonthBar[] | null> {
-  if (!canSeeLessonPlans(v.role)) return null;
+  if (!showsLessonPlanStats(v.role)) return null;
   return safe('lesson-months', async () => {
     const months = recentMonthKeys();
     const today = tashkentDayKey();
-    const everything = v.role === 'ceo' || v.role === 'head_teacher';
+    const everything = v.role === 'head_teacher';
     const rows = await sql<(LessonRow & { ym: string })[]>`
       select to_char(cl.lesson_date, 'YYYY-MM') as ym, cl.group_id, cl.topic, cl.aim, cl.language_focus,
              cl.anticipated_problems, cl.homework, cl.moved_to_lesson_id

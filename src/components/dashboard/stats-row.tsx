@@ -44,6 +44,7 @@ const isMissionOpen = (status: string) => status !== 'approved' && status !== 'r
 export async function StatsRow({
   showTotalStaff,
   showLessonPlanCards,
+  showLessonPlanCount,
   personalDashboardUserId,
   financeUserId,
 }: {
@@ -52,6 +53,10 @@ export async function StatsRow({
   /** Active Groups/Lesson Plans — CEO and Head Teacher see every group/
    * lesson, teacher/assistant see their own. */
   showLessonPlanCards: boolean;
+  /** Lesson Plans count card — teacher tier only. Lesson plans are a
+   * teachers-only tool and never a company statistic, so the CEO doesn't
+   * get this card (Active Groups stays). */
+  showLessonPlanCount: boolean;
   /** Every other non-teacher role (assistant, admin_manager, mmd,
    * internship, it_developer): a personal Finance/Missions/Tasks view
    * instead of company-wide totals that aren't relevant to their work.
@@ -152,7 +157,7 @@ export async function StatsRow({
           where ${isCeoOrHeadTeacher} or teacher_id = ${uid} or assigned_ta_id = ${uid}
         `
       : Promise.resolve([]),
-    showLessonPlanCards
+    showLessonPlanCount
       ? sql<{ created_at: string }[]>`
           select cl.created_at from course_lessons cl
           join groups g on g.id = cl.group_id
@@ -201,7 +206,7 @@ export async function StatsRow({
       tint: 'blue' as const,
       href: '/lesson-plans',
     },
-    showLessonPlanCards && {
+    showLessonPlanCount && {
       label: t('lessonPlans'),
       series: lessonSeries,
       icon: 'calendar',
