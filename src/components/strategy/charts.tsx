@@ -25,11 +25,14 @@ export function Chart({
   series,
   height = 220,
   fmt = short,
+  refLine,
 }: {
   labels: string[];
   series: Series[];
   height?: number;
   fmt?: (v: number) => string;
+  /** Dashed horizontal target line (e.g. the student goal). */
+  refLine?: { v: number; t: string };
 }) {
   const [tip, setTip] = useState<Tip>(null);
   // Draw at the container's real width so text and bars keep their size.
@@ -44,7 +47,7 @@ export function Chart({
   }, []);
   const H = height;
   const pad = { l: 44, r: 10, t: 12, b: 24 };
-  const all = series.flatMap((s) => s.v).filter(Number.isFinite);
+  const all = [...series.flatMap((s) => s.v), ...(refLine ? [refLine.v] : [])].filter(Number.isFinite);
   const max = niceMax(Math.max(0, ...all));
   const minRaw = Math.min(0, ...all);
   const min = minRaw < 0 ? -niceMax(-minRaw) : 0;
@@ -80,6 +83,14 @@ export function Chart({
             ) : null,
           )}
         </g>
+        {refLine && (
+          <g className="ref">
+            <line x1={pad.l} x2={W - pad.r} y1={y(refLine.v)} y2={y(refLine.v)} stroke="var(--au-bad)" strokeDasharray="6 4" />
+            <text x={W - pad.r} y={y(refLine.v) - 4} textAnchor="end" fill="var(--au-bad)" fontSize={10} fontWeight={700}>
+              {refLine.t}
+            </text>
+          </g>
+        )}
         {bars.map((s, si) =>
           s.v.map((v, i) => {
             const x0 = x(i) - (bw * bars.length) / 2 + si * bw;
