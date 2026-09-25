@@ -3,6 +3,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { STRATEGY_ROLES } from '@/lib/nav';
 import { tashkentDayKey } from '@/lib/time';
+import { withSignedAvatars } from '@/lib/strategy-people';
 import type {
   StrategyMilestone,
   StrategyPerson,
@@ -54,7 +55,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
       tasks={tasks}
       milestones={milestones}
       roadmaps={roadmaps}
-      people={people}
+      people={await withSignedAvatars([...people])}
       today={tashkentDayKey()}
       books={{ accounts: books.accounts, opening: books.opening, entries: books.entries, courses: books.courses, tax: books.tax }}
     />

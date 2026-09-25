@@ -3,6 +3,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { STRATEGY_ROLES } from '@/lib/nav';
 import { tashkentDayKey } from '@/lib/time';
+import { withSignedAvatars } from '@/lib/strategy-people';
 import { PerforceWorkspace, type PfData } from '@/components/strategy/perforce-workspace';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +38,7 @@ export default async function PerforcePage() {
         stasks: [...stasks],
         tasks: [...tasks],
         issues: [...issues],
-        people: [...people],
+        people: await withSignedAvatars([...people]),
         milestones: [...milestones],
       }}
       today={tashkentDayKey()}

@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { CursorGlow } from '@/components/cursor-glow';
 import { IosActiveFix } from '@/components/ios-active-fix';
+import { IntlUzShim } from '@/components/intl-uz-shim';
 import '../globals.css';
 
 // This app ships uz/ru/en. Google Fonts serves each subset as its own
@@ -109,6 +110,7 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
+        <IntlUzShim />
         <ThemeProvider attribute="class" forcedTheme="light" disableTransitionOnChange>
           <NextIntlClientProvider messages={messages}>
             <CursorGlow />

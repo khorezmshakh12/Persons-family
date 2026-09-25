@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Flag } from 'lucide-react';
 import { avatarGradientClass, initialsOf } from '@/lib/avatar-palette';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ import {
 } from '@/lib/strategy';
 
 export function PersonAvatar({ person, size = 26 }: { person: StrategyPerson | undefined; size?: number }) {
+  const [broken, setBroken] = useState(false);
   const style = { width: size, height: size, fontSize: size < 26 ? 9 : 11 };
   if (!person) {
     return (
@@ -30,9 +32,16 @@ export function PersonAvatar({ person, size = 26 }: { person: StrategyPerson | u
     );
   }
   const name = `${person.first_name} ${person.last_name}`;
-  return person.avatar_url ? (
+  return person.avatar_url && !broken ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={person.avatar_url} alt={name} title={name} className="shrink-0 rounded-full object-cover" style={style} />
+    <img
+      src={person.avatar_url}
+      alt={name}
+      title={name}
+      className="shrink-0 rounded-full object-cover"
+      style={style}
+      onError={() => setBroken(true)}
+    />
   ) : (
     <span
       title={name}
