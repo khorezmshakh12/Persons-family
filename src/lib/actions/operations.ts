@@ -2,6 +2,8 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
+import { scoreLead } from '@/lib/ai-triage';
 import { authErrorCode } from '@/lib/auth/require-admin';
 import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
@@ -31,6 +33,7 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
   const p = leadSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
+  let leadId = v.id;
   try {
     if (v.id) {
       const res = await sql`
@@ -40,13 +43,22 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
         where id = ${v.id}`;
       if (res.count === 0) return { error: 'notFound' };
     } else {
-      await sql`
+      const [row] = await sql<{ id: string }[]>`
         insert into ops_leads (name, phone, source, course, stage, note, owner_id, enrolled_at)
         values (${v.name}, ${v.phone}, ${v.source}, ${v.course}, ${v.stage}, ${v.note}, ${by},
-          ${v.stage === 'enrolled' ? sql`now()` : null})`;
+          ${v.stage === 'enrolled' ? sql`now()` : null})
+        returning id`;
+      leadId = row.id;
     }
   } catch {
     return { error: 'updateFailed' };
+  }
+  // TypeSafe intent score after the response (best-effort, never blocks).
+  if (leadId) {
+    const id = leadId;
+    after(async () => {
+      await scoreLead(id);
+    });
   }
   revalidatePath('/[locale]/operations', 'page');
   return {};

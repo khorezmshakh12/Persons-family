@@ -20,7 +20,7 @@ export type Stage = 'new' | 'contacted' | 'trial' | 'enrolled' | 'lost';
 export type Source = 'instagram' | 'telegram' | 'referral' | 'walkin' | 'website' | 'other';
 export type OpsData = {
   groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string }[];
-  leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null }[];
+  leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null; ai_intent?: number | null; ai_hot?: number | null }[];
   staff: { id: string; name: string; role: string }[];
   metrics: { id: string; staff_id: string; weight_percentage: number }[];
   entries: { metric_id: string; month: string; target_value: number; actual_value: number | null }[];
@@ -409,6 +409,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
                 <th className="l">Manba</th>
                 <th className="l">Kurs</th>
                 <th className="l">Sana</th>
+                <th className="l">AI baho</th>
                 <th className="l">Bosqich</th>
                 <th />
               </tr>
@@ -416,7 +417,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
             <tbody>
               {list.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="l">
+                  <td colSpan={8} className="l">
                     <div className="sx-empty">Lid yo‘q</div>
                   </td>
                 </tr>
@@ -430,6 +431,16 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
                   <td className="l">{SOURCES.find((s) => s.k === l.source)?.n}</td>
                   <td className="l">{l.course}</td>
                   <td className="l">{tzDay(l.created_at).split('-').reverse().join('.')}</td>
+                  <td className="l">
+                    {l.ai_intent == null ? (
+                      <span className="text-au-faint">—</span>
+                    ) : (
+                      <span className={cn('sx-pl', l.ai_intent >= 2 ? 'ok' : l.ai_intent >= 1 ? 'warn' : 'mute')} title="TypeSafe AI: yozilish ehtimoli">
+                        {['Past', "O'rta", 'Yuqori', 'Juda yuqori'][Math.max(0, Math.min(3, Math.round(l.ai_intent)))]}
+                        {(l.ai_hot ?? 0) >= 0.6 ? ' · bugun qo‘ng‘iroq' : ''}
+                      </span>
+                    )}
+                  </td>
                   <td className="l">
                     <select
                       className="sx-inp !h-[30px] !w-[160px]"

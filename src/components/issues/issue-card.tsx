@@ -9,7 +9,8 @@ import { IssueStatusControl } from './issue-status-control';
 import { EditIssueDialog } from './edit-issue-dialog';
 import { DeleteIssueButton } from './delete-issue-button';
 import { IssueComments } from './issue-comments';
-import type { IssueComment } from '@/lib/actions/issues';
+import type { IssueAi, IssueComment } from '@/lib/actions/issues';
+import { IssueAiChips } from './issue-ai-chips';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,8 @@ export type Issue = {
   assignee: { first_name: string; last_name: string } | null;
   /** The issue's comment thread, oldest first. */
   comments?: IssueComment[];
+  /** TypeSafe triage, when it has run. */
+  ai?: IssueAi | null;
 };
 
 /**
@@ -138,6 +141,7 @@ function IssueCardImpl({
           </span>
           <span>{format.dateTime(new Date(issue.created_at), { dateStyle: 'medium' })}</span>
         </div>
+        <IssueAiChips ai={issue.ai} />
         {!readOnly && <IssueStatusControl status={issue.status} />}
         {/* Everyone who sees an issue is a participant (the CEO, its reporter
          * or its assignee), so all of them get the thread — just not the

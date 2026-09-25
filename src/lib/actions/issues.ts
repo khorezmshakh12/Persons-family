@@ -1,6 +1,8 @@
 'use server';
 
 import { z } from 'zod';
+import { after } from 'next/server';
+import { triageIssue } from '@/lib/ai-triage';
 import { revalidatePath } from 'next/cache';
 import { getFormatter } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
@@ -104,14 +106,21 @@ export async function createIssueAction(
   const voiceUrl =
     parsed.data.voiceUrl && parsed.data.voiceUrl.startsWith(`${userId}/`) ? parsed.data.voiceUrl : null;
 
+  let newIssueId: string;
   try {
-    await sql`
+    const [row] = await sql<{ id: string }[]>`
       insert into issues (created_by, title, description, assigned_to, voice_url)
       values (${userId}, ${parsed.data.title}, ${parsed.data.description || null}, ${assignedTo}, ${voiceUrl})
+      returning id
     `;
+    newIssueId = row.id;
   } catch {
     return { error: 'createFailed' };
   }
+  // AI triage (TypeSafe) after the response — never delays or fails the save.
+  after(async () => {
+    if (await triageIssue(newIssueId)) await bumpBoardSignal('issues');
+  });
 
   await bumpBoardSignal('issues');
   if (assignedTo) await bumpNavBadgeSignal(assignedTo);
@@ -215,6 +224,15 @@ export type VisibleIssueRow = {
   assignee: { first_name: string; last_name: string } | null;
   /** The issue's comment thread, oldest first — see loadIssueComments. */
   comments: IssueComment[];
+  /** TypeSafe triage (lib/ai-triage.ts); null until/unless it has run. */
+  ai: IssueAi | null;
+};
+
+export type IssueAi = {
+  category: string | null;
+  categoryConfidence: number | null;
+  urgency: number | null;
+  itBug: number | null;
 };
 
 /** How the author relates to the issue, for the thread's role badge. The
@@ -312,6 +330,7 @@ type IssueQueryRow = {
 async function toVisibleIssueRow(
   row: IssueQueryRow,
   comments: IssueCommentQueryRow[] = [],
+  ai: IssueAi | null = null,
 ): Promise<VisibleIssueRow> {
   return {
     id: row.id,
@@ -325,7 +344,23 @@ async function toVisibleIssueRow(
     reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
     assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
     comments: comments.map((c) => toIssueComment(c, row)),
+    ai,
   };
+}
+
+async function loadIssueAi(ids: string[]): Promise<Map<string, IssueAi>> {
+  if (ids.length === 0) return new Map();
+  try {
+    const rows = await sql<
+      { issue_id: string; category: string | null; category_confidence: number | null; urgency: number | null; it_bug: number | null }[]
+    >`select issue_id, category, category_confidence, urgency, it_bug from issue_ai where issue_id = any(${ids}::uuid[])`;
+    return new Map(
+      rows.map((r) => [r.issue_id, { category: r.category, categoryConfidence: r.category_confidence, urgency: r.urgency, itBug: r.it_bug }]),
+    );
+  } catch {
+    // Table not migrated yet / transient DB error: the board still renders.
+    return new Map();
+  }
 }
 
 /**
@@ -376,8 +411,8 @@ export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
   // Threads ride along with the board so everyone who can see an issue sees
   // its conversation, and the live refresh (board_signals/issues, bumped by
   // addIssueCommentAction too) picks new comments up for the other party.
-  const comments = await loadIssueComments(rows.map((r) => r.id));
-  return Promise.all(rows.map((row) => toVisibleIssueRow(row, comments.get(row.id))));
+  const [comments, ai] = await Promise.all([loadIssueComments(rows.map((r) => r.id)), loadIssueAi(rows.map((r) => r.id))]);
+  return Promise.all(rows.map((row) => toVisibleIssueRow(row, comments.get(row.id), ai.get(row.id) ?? null)));
 }
 
 /**
@@ -619,6 +654,11 @@ export async function updateIssueAction(
 
   await bumpBoardSignal('issues');
 
+  // Title/description changed → refresh the AI triage after the response.
+  const editedId = parsed.data.id;
+  after(async () => {
+    if (await triageIssue(editedId)) await bumpBoardSignal('issues');
+  });
   revalidatePath('/[locale]/issues', 'page');
   return {};
 }
@@ -740,4 +780,28 @@ export async function addIssueCommentAction(
       issue,
     ),
   };
+}
+
+/** CEO: run TypeSafe triage for open issues that have none yet (backfill /
+ * retry after the key was added). Bounded so one click can't run long. */
+export async function triageOpenIssuesAction(): Promise<{ error?: string; done?: number }> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  if (profile.role !== 'ceo') return { error: 'forbidden' };
+  let ids: { id: string }[];
+  try {
+    ids = await sql<{ id: string }[]>`
+      select i.id from issues i left join issue_ai a on a.issue_id = i.id
+      where i.status <> 'done' and a.issue_id is null
+      order by i.created_at desc limit 25`;
+  } catch {
+    return { error: 'loadFailed' };
+  }
+  let done = 0;
+  for (const { id } of ids) if (await triageIssue(id)) done++;
+  if (done) {
+    await bumpBoardSignal('issues');
+    revalidatePath('/[locale]/issues', 'page');
+  }
+  return { done };
 }

@@ -4,6 +4,7 @@ import { sql } from '@/lib/db/client';
 import { getMonthlyIssueArchiveAction, getVisibleIssuesAction } from '@/lib/actions/issues';
 import { getIssueStatsAction } from '@/lib/actions/issue-stats';
 import { CreateIssueDialog } from '@/components/issues/create-issue-dialog';
+import { AiTriageButton } from '@/components/issues/ai-triage-button';
 import { IssuesBoard } from '@/components/issues/issues-board';
 import { IssuesStats } from '@/components/issues/issues-stats';
 import { MonthlyIssueArchive } from '@/components/issues/monthly-issue-archive';
@@ -47,7 +48,10 @@ export default async function IssuesPage() {
       <MarkIssuesSeen />
       <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
         <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
-        <CreateIssueDialog assignees={assignees} canAssign={isCeo} />
+        <div className="flex flex-wrap items-center gap-2">
+          {isCeo && <AiTriageButton />}
+          <CreateIssueDialog assignees={assignees} canAssign={isCeo} />
+        </div>
       </div>
       {isCeo && <IssuesStats stats={issueStats.data ?? null} />}
       <IssuesBoard issues={issues as unknown as Issue[]} readOnly={!isCeo} />

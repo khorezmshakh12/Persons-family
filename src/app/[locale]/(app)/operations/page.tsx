@@ -21,7 +21,7 @@ export default async function OperationsPage() {
       from groups g left join profiles p on p.id = g.teacher_id
       order by g.name`,
     sql<OpsData['leads']>`
-      select id, name, phone, source, course, stage, note, created_at, enrolled_at
+      select id, name, phone, source, course, stage, note, created_at, enrolled_at, ai_intent, ai_hot
       from ops_leads order by created_at desc`,
     sql<OpsData['staff']>`
       select id, first_name || ' ' || last_name as name, role::text as role
