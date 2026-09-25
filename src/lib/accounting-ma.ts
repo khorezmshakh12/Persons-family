@@ -80,12 +80,42 @@ export function segmentPL(courses: Course[], fixed: number, driver: Driver) {
       students: c.students,
       ...e,
       perStudent: c.students ? r2(e.contribution / c.students) : 0,
+      hours: c.hours_month ?? 0,
       alloc,
       segment,
       keep: e.contribution > 0,
       status: segment < 0 ? ('loss' as const) : e.margin < 0.5 ? ('low' as const) : ('ok' as const),
     };
   });
+}
+
+/** Monthly teacher cost of a course: `share` % of its revenue when a share is
+ * set (the teacher-share pay model), otherwise the fixed monthly cost. */
+export function teacherCostFor(fee: number, students: number, share: number | null | undefined, fixed: number) {
+  if (share === null || share === undefined || !Number.isFinite(share)) return r2(fixed);
+  return r2((fee * students * Math.min(100, Math.max(0, share))) / 100);
+}
+
+/** Cost of one lesson hour: (direct + fixed monthly cost) / lesson hours per
+ * month; null when no hours are recorded. */
+export function costPerLessonHour(courses: Course[], fixed: number) {
+  const hours = courses.reduce((a, c) => a + (c.hours_month ?? 0), 0);
+  const cost = courseTotals(courses).direct + fixed;
+  return { hours: r2(hours), cost: r2(cost), perHour: hours > 0 ? r2(cost / hours) : null };
+}
+
+/** Seat capacity of the timetable: Σ room seats × time slots × cohorts
+ * (odd/even days) — same basis as the operations plan. `rooms` are the room
+ * codes in use; `caps` the room register; unknown rooms use `defaultSeats`. */
+export function seatCapacity(rooms: string[], caps: { code: string; capacity: number }[], defaultSeats: number, slots: number, cohorts = 2) {
+  const seats = [...new Set(rooms.filter(Boolean))].reduce((a, r) => a + (caps.find((c) => c.code === r)?.capacity ?? defaultSeats), 0);
+  return seats * Math.max(0, slots) * cohorts;
+}
+
+/** Does the head-count `need` fit into `cap` seats? util = need / cap. */
+export function capacityFit(need: number | null, cap: number) {
+  if (need === null || cap <= 0) return { fits: null, util: null };
+  return { fits: need <= cap, util: need / cap };
 }
 
 /* -------------------------------------------------------- flexible budget */

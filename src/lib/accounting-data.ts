@@ -23,7 +23,7 @@ export async function loadBooks(): Promise<Books> {
       select id, entry_date, doc, description, debit, credit, amount, source
       from acct_entries order by entry_date, created_at`,
     sql<Asset[]>`select id, name, category, cost, acquired, life_years, disposed from acct_assets order by acquired`,
-    sql<Course[]>`select id, name, fee, students, teacher_cost, book_cost from acct_courses order by sort_order, name`,
+    sql<Course[]>`select id, name, fee, students, teacher_cost, book_cost, teacher_share::float8 as teacher_share, hours_month::float8 as hours_month from acct_courses order by sort_order, name`,
     sql<{ value: Partial<TaxSettings> }[]>`select value from acct_settings where key = 'tax'`,
     sql<{ period: string; code: string; amount: number }[]>`select period, code, amount from acct_budget`,
     sql<{ value: Record<string, number> }[]>`select value from acct_settings where key = 'plan_students'`,

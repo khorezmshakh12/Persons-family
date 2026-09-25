@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast as sonner } from 'sonner';
-import { ArrowRight, Calculator, Gauge, Layers, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Calculator, FileDown, Gauge, Layers, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { useMotionKit } from './motion-kit';
@@ -252,6 +252,9 @@ export function SuiteShell({
             <Search className="size-4" />
             <span>Qidirish yoki buyruq…</span>
             <kbd>Ctrl K</kbd>
+          </button>
+          <button className="ibtn" onClick={() => window.print()} title="Joriy hisobotni PDF sifatida saqlash (chop etish → PDF)" aria-label="PDF eksport">
+            <FileDown className="size-4" />
           </button>
           <button className={cn('ibtn', snd && 'on')} onClick={toggleSound} title="UI ovozlari (M)" aria-label="UI ovozlari">
             {snd ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}

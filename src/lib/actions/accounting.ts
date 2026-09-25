@@ -8,6 +8,7 @@ import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { getPayrollSummary } from '@/lib/payroll';
+import { teacherCostFor } from '@/lib/accounting-ma';
 import {
   DEFAULT_TAX,
   depreciation,
@@ -373,6 +374,8 @@ const courseSchema = z.object({
   students: z.number().int().min(0).max(100000),
   teacherCost: z.number().finite().min(0).max(1e12),
   bookCost: z.number().finite().min(0).max(1e11),
+  teacherShare: z.number().finite().min(0).max(100).nullable().optional(),
+  hoursMonth: z.number().finite().min(0).max(100000).optional(),
 });
 
 export async function saveCourseAction(input: z.input<typeof courseSchema>): Promise<Result> {
@@ -381,17 +384,22 @@ export async function saveCourseAction(input: z.input<typeof courseSchema>): Pro
   const p = courseSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
+  const share = v.teacherShare ?? null;
+  const hours = v.hoursMonth ?? 0;
+  // Teacher-share pay model: the monthly cost follows fee × students × share.
+  const teacherCost = teacherCostFor(v.fee, v.students, share, v.teacherCost);
   try {
     if (v.id) {
       const res = await sql`
         update acct_courses set name = ${v.name}, fee = ${v.fee}, students = ${v.students},
-          teacher_cost = ${v.teacherCost}, book_cost = ${v.bookCost}, updated_at = now()
+          teacher_cost = ${teacherCost}, book_cost = ${v.bookCost}, teacher_share = ${share},
+          hours_month = ${hours}, updated_at = now()
         where id = ${v.id}`;
       if (res.count === 0) return { error: 'notFound' };
     } else {
       await sql`
-        insert into acct_courses (name, fee, students, teacher_cost, book_cost, sort_order)
-        values (${v.name}, ${v.fee}, ${v.students}, ${v.teacherCost}, ${v.bookCost},
+        insert into acct_courses (name, fee, students, teacher_cost, book_cost, teacher_share, hours_month, sort_order)
+        values (${v.name}, ${v.fee}, ${v.students}, ${teacherCost}, ${v.bookCost}, ${share}, ${hours},
           (select coalesce(max(sort_order), 0) + 1 from acct_courses))`;
     }
   } catch {

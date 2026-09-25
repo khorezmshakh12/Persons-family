@@ -128,3 +128,35 @@ export function cumulativeFlow(tasks: PTask[], days: string[]) {
     return { d, done, open: Math.max(0, created - done) };
   });
 }
+
+/* ------------------------------------------------ ISO 31000 risk register */
+
+export type RiskStatus = 'open' | 'monitoring' | 'closed' | 'occurred';
+export type Risk = { id: string; likelihood: number; impact: number; status: RiskStatus; review_date: string | null; postmortem: string };
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+/** ISO 31000 / 5×5 matrix: score = likelihood × impact (1..25). */
+export const riskScore = (r: Pick<Risk, 'likelihood' | 'impact'>) => Math.min(5, Math.max(1, r.likelihood)) * Math.min(5, Math.max(1, r.impact));
+export function riskLevel(score: number): RiskLevel {
+  return score >= 20 ? 'critical' : score >= 12 ? 'high' : score >= 6 ? 'medium' : 'low';
+}
+
+/** Live (open / monitoring) risks on the 5×5 heat map: m[impact-1][likelihood-1]
+ * = count; plus the register summary (overdue review, post-mortems owed). */
+export function riskSummary(risks: Risk[], today: string) {
+  const m = Array.from({ length: 5 }, () => [0, 0, 0, 0, 0]);
+  const by: Record<RiskLevel, number> = { low: 0, medium: 0, high: 0, critical: 0 };
+  let live = 0;
+  let overdue = 0;
+  let pmDue = 0;
+  for (const r of risks) {
+    if (r.status === 'occurred' && !r.postmortem.trim()) pmDue++;
+    if (r.status !== 'open' && r.status !== 'monitoring') continue;
+    live++;
+    const s = riskScore(r);
+    by[riskLevel(s)]++;
+    m[Math.min(5, Math.max(1, r.impact)) - 1][Math.min(5, Math.max(1, r.likelihood)) - 1]++;
+    if (r.review_date && r.review_date < today) overdue++;
+  }
+  return { matrix: m, by, live, overdue, pmDue };
+}

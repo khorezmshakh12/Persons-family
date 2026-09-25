@@ -49,6 +49,7 @@ import {
 import { tashkentDayKey } from '@/lib/time';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
+import { RiskRegister, type RiskRow } from './risk-register';
 import { PersonAvatar, PriorityChip, StatusChip } from './bits';
 import './strategy.css';
 import './suite.css';
@@ -66,6 +67,7 @@ export type PfData = {
   crComments: { id: string; cr_id: string; author_id: string | null; body: string; created_at: string }[];
   crVotes: { cr_id: string; voter_id: string }[];
   goals: { sprint_no: number; goal: string }[];
+  risks: RiskRow[];
 };
 type CRStatus = 'needs' | 'review' | 'approved' | 'rejected' | 'submitted';
 type CR = {
@@ -971,6 +973,7 @@ function Alm({ data, stasks, personById, today }: { data: PfData; stasks: STask[
         )}
       </div>
       <TestCases data={data} stasks={stasks} />
+      <RiskRegister risks={data.risks} spaces={data.spaces} people={data.people} personById={personById} today={today} />
     </div>
   );
 }

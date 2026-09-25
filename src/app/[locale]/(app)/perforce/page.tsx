@@ -12,7 +12,7 @@ export default async function PerforcePage() {
   const { profile } = await getAuthState();
   if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
 
-  const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals] = await Promise.all([
+  const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals, risks] = await Promise.all([
     sql<PfData['spaces']>`select id, name, color, start_date, end_date, budget from strategy_spaces order by sort_order, created_at`,
     sql<PfData['stasks']>`
       select id, space_id, title, description, workstream, assignee_id, start_date, end_date, status, priority, progress,
@@ -39,6 +39,10 @@ export default async function PerforcePage() {
       order by c.created_at`,
     sql<PfData['crVotes']>`select cr_id, voter_id from pf_cr_votes`,
     sql<PfData['goals']>`select sprint_no, goal from pf_sprint_goals`,
+    sql<PfData['risks']>`
+      select id, space_id, title, category, likelihood, impact, treatment, mitigation, owner_id,
+             to_char(review_date, 'YYYY-MM-DD') as review_date, status, postmortem, updated_at
+      from pf_risks order by created_at desc limit 300`,
   ]);
 
   return (
@@ -55,6 +59,7 @@ export default async function PerforcePage() {
         crComments: [...crComments],
         crVotes: [...crVotes],
         goals: [...goals],
+        risks: [...risks],
       }}
       today={tashkentDayKey()}
     />

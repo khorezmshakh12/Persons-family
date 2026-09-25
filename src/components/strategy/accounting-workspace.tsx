@@ -47,6 +47,9 @@ import {
   ratios,
   reconcile,
   segmentPL,
+  costPerLessonHour,
+  capacityFit,
+  teacherCostFor,
   studentsForTarget,
   taxCalendar,
   tornado,
@@ -118,11 +121,14 @@ export function AccountingWorkspace({
   books,
   today,
   courseGroups,
+  seatCap = 0,
 }: {
   books: Books;
   today: string;
   /** Real groups per course_name — suggests the course list. */
   courseGroups: { course: string; groups: number }[];
+  /** Timetable seat capacity (rooms × slots × cohorts), 0 = unknown. */
+  seatCap?: number;
 }) {
   const [tab, setTab] = useState<Tab>('fa_jr');
   const [ym, setYm] = useState(today.slice(0, 7));
@@ -166,7 +172,7 @@ export function AccountingWorkspace({
         <div key={tab} className="sx-fade">
           {tab === 'ma_cost' && <MaCost books={books} ym={ym} courseGroups={courseGroups} />}
           {tab === 'ma_bud' && <MaBudget books={books} ym={ym} />}
-          {tab === 'ma_sim' && <MaSim books={books} ym={ym} />}
+          {tab === 'ma_sim' && <MaSim books={books} ym={ym} seatCap={seatCap} />}
           {tab === 'ma_cash' && <MaCash books={books} today={today} />}
           {tab === 'fa_jr' && <FaJournal books={books} ym={ym} today={today} />}
           {tab === 'fa_gl' && <FaLedger books={books} ym={ym} />}
@@ -189,8 +195,9 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
     (a, x) => ({ rev: a.rev + x.e.revenue, dir: a.dir + x.e.direct, con: a.con + x.e.contribution, st: a.st + x.c.students }),
     { rev: 0, dir: 0, con: 0, st: 0 },
   );
+  const hr = costPerLessonHour(books.courses, fixed);
   const missing = courseGroups.filter((g) => g.course && !books.courses.some((c) => c.name.toLowerCase() === g.course.toLowerCase()));
-  const save = (id: string | undefined, v: { name: string; fee: number; students: number; teacherCost: number; bookCost: number }) =>
+  const save = (id: string | undefined, v: { name: string; fee: number; students: number; teacherCost: number; bookCost: number; teacherShare?: number | null; hoursMonth?: number }) =>
     run(() => saveCourseAction({ id, ...v }), id ? `«${v.name}» saqlandi` : "Kurs qo'shildi");
 
   return (
@@ -251,8 +258,10 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
                 <th className="l">Kurs</th>
                 <th>Oylik narx</th>
                 <th>O‘quvchi</th>
+                <th title="Bo‘sh — qat’iy oylik xarajat; to‘ldirilsa tushumning shu ulushi">O‘qituvchi ulushi, %</th>
                 <th>O‘qituvchi xarajati</th>
                 <th>Darslik / o‘quvchi</th>
+                <th>Soat/oy</th>
                 <th>Tushum</th>
                 <th>Qoplama</th>
                 <th>Marja</th>
@@ -263,7 +272,7 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="l">
+                  <td colSpan={12} className="l">
                     <div className="sx-empty">Kurs qo‘shing — tushum, marja va zararsizlik nuqtasi shu yerda hisoblanadi.</div>
                   </td>
                 </tr>
@@ -280,6 +289,8 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
                   <td>{tot.st}</td>
                   <td />
                   <td />
+                  <td />
+                  <td>{hr.hours || '—'}</td>
                   <td>{fmtNum(tot.rev)}</td>
                   <td>{fmtNum(tot.con)}</td>
                   <td>{tot.rev ? pct(tot.con / tot.rev) : '—'}</td>
@@ -290,6 +301,10 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
             )}
           </table>
         </div>
+        <p className="sx-note">
+          1 dars soati tannarxi: <b>{hr.perHour === null ? '—' : `${fmtNum(hr.perHour)} so‘m`}</b> — (to‘g‘ridan-to‘g‘ri + doimiy xarajat) / {hr.hours || 0} soat/oy.
+          O‘qituvchi ulushi to‘ldirilsa, o‘qituvchi xarajati tushumning shu foizi sifatida hisoblanadi.
+        </p>
       </div>
       {rows.length > 0 && (
         <div className="sx-card s12">
@@ -447,6 +462,7 @@ function CostAnalysis({ books, st }: { books: Books; st: ReturnType<typeof state
                 <th>CM</th>
                 <th>CM %</th>
                 <th>CM / o‘quvchi</th>
+                <th>Soat/oy</th>
                 <th>Taqsimlangan doimiy</th>
                 <th>Segment foydasi</th>
                 <th />
@@ -464,6 +480,7 @@ function CostAnalysis({ books, st }: { books: Books; st: ReturnType<typeof state
                   </td>
                   <td>{pct(r.margin)}</td>
                   <td>{fmtNum(r.perStudent)}</td>
+                  <td>{r.hours || '—'}</td>
                   <td>{fmtNum(r.alloc)}</td>
                   <td style={{ color: r.segment < 0 ? 'var(--au-bad)' : 'var(--au-ok)' }}>
                     <b>{fmtNum(r.segment)}</b>
@@ -485,6 +502,7 @@ function CostAnalysis({ books, st }: { books: Books; st: ReturnType<typeof state
                 <td>{fmtNum(c.contribution)}</td>
                 <td>{c.revenue ? pct(c.contribution / c.revenue) : '—'}</td>
                 <td>{fmtNum(c.cm)}</td>
+                <td>{seg.reduce((a, r) => a + r.hours, 0) || '—'}</td>
                 <td>{fmtNum(fixed)}</td>
                 <td>{fmtNum(c.profit)}</td>
                 <td />
@@ -507,23 +525,40 @@ function CourseRow({
   c: Books['courses'][number];
   e: ReturnType<typeof courseEconomics>;
   i: number;
-  onSave: (v: { name: string; fee: number; students: number; teacherCost: number; bookCost: number }) => void;
+  onSave: (v: { name: string; fee: number; students: number; teacherCost: number; bookCost: number; teacherShare: number | null; hoursMonth: number }) => void;
   onDelete: () => void;
 }) {
-  const [v, setV] = useState({ name: c.name, fee: c.fee, students: c.students, teacherCost: c.teacher_cost, bookCost: c.book_cost });
+  const [v, setV] = useState({
+    name: c.name,
+    fee: c.fee,
+    students: c.students,
+    teacherCost: c.teacher_cost,
+    bookCost: c.book_cost,
+    teacherShare: c.teacher_share ?? null,
+    hoursMonth: c.hours_month ?? 0,
+  });
   const commit = (next = v) => {
     if (
       next.name.trim() &&
-      (next.name !== c.name || next.fee !== c.fee || next.students !== c.students || next.teacherCost !== c.teacher_cost || next.bookCost !== c.book_cost)
+      (next.name !== c.name ||
+        next.fee !== c.fee ||
+        next.students !== c.students ||
+        next.teacherCost !== c.teacher_cost ||
+        next.bookCost !== c.book_cost ||
+        next.teacherShare !== (c.teacher_share ?? null) ||
+        next.hoursMonth !== (c.hours_month ?? 0))
     )
       onSave({ ...next, name: next.name.trim() });
   };
-  const num = (k: 'fee' | 'students' | 'teacherCost' | 'bookCost') => (
+  const shared = v.teacherShare !== null;
+  const num = (k: 'fee' | 'students' | 'teacherCost' | 'bookCost' | 'hoursMonth') => (
     <input
       className="sx-plain-inp"
       type="number"
       min={0}
-      value={v[k]}
+      disabled={k === 'teacherCost' && shared}
+      title={k === 'teacherCost' && shared ? 'O‘qituvchi ulushidan hisoblanadi' : undefined}
+      value={k === 'teacherCost' && shared ? teacherCostFor(v.fee, v.students, v.teacherShare, v.teacherCost) : v[k]}
       onChange={(ev) => setV({ ...v, [k]: Math.max(0, Number(ev.target.value) || 0) })}
       onBlur={() => commit()}
       onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
@@ -542,8 +577,23 @@ function CourseRow({
       </td>
       <td>{num('fee')}</td>
       <td>{num('students')}</td>
+      <td>
+        <input
+          className="sx-plain-inp !w-[64px]"
+          type="number"
+          min={0}
+          max={100}
+          placeholder="—"
+          aria-label="O‘qituvchi ulushi, %"
+          value={v.teacherShare ?? ''}
+          onChange={(ev) => setV({ ...v, teacherShare: ev.target.value === '' ? null : Math.min(100, Math.max(0, Number(ev.target.value) || 0)) })}
+          onBlur={() => commit()}
+          onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
+        />
+      </td>
       <td>{num('teacherCost')}</td>
       <td>{num('bookCost')}</td>
+      <td>{num('hoursMonth')}</td>
       <td>{fmtNum(e.revenue)}</td>
       <td style={{ color: e.contribution < 0 ? 'var(--au-bad)' : undefined }}>{fmtNum(e.contribution)}</td>
       <td>{e.revenue ? pct(e.margin) : '—'}</td>
@@ -747,7 +797,7 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
 }
 
 /* ------------------------------------------------------------------- MA · sim */
-function MaSim({ books, ym }: { books: Books; ym: string }) {
+function MaSim({ books, ym, seatCap }: { books: Books; ym: string; seatCap: number }) {
   const [sm, setSm] = useState({ price: 0, students: 0, teacher: 0, admin: 0, mkt: 0 });
   const st = statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
   const model = (k: typeof sm) => {
@@ -848,7 +898,7 @@ function MaSim({ books, ym }: { books: Books; ym: string }) {
           />
         </div>
       </div>
-      <SimExtra model={(k) => model(k).profit} sm={sm} setSm={setSm} books={books} st={st} />
+      <SimExtra model={(k) => model(k).profit} sm={sm} setSm={setSm} books={books} st={st} seatCap={seatCap} />
     </div>
   );
 }
@@ -868,7 +918,9 @@ function SimExtra({
   setSm,
   books,
   st,
+  seatCap,
 }: {
+  seatCap: number;
   model: (k: Record<SimK, number>) => number;
   sm: Record<SimK, number>;
   setSm: (v: Record<SimK, number>) => void;
@@ -880,6 +932,7 @@ function SimExtra({
   const mx = Math.max(1, ...tor.map((t) => t.range));
   const c = cvp(books.courses, st.selling + st.admin + st.other);
   const need = studentsForTarget(c.fixed, target, c.cm);
+  const fit = capacityFit(need, seatCap);
   return (
     <>
       <div className="sx-card s5">
@@ -902,7 +955,7 @@ function SimExtra({
           <input className="sx-inp !w-[160px] text-right" type="number" min={0} value={target} onChange={(e) => setTarget(Math.max(0, Number(e.target.value) || 0))} />
           so‘m
         </label>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           <div>
             Kerakli o‘quvchi <b className="block text-lg tabular-nums">{need ?? '—'}</b>
           </div>
@@ -913,6 +966,12 @@ function SimExtra({
             Farq{' '}
             <b className="block text-lg" style={{ color: need !== null && need <= c.N ? 'var(--au-ok)' : 'var(--au-bad)' }}>
               {need === null ? 'Marja manfiy' : need <= c.N ? 'maqsadga yetildi' : `+${need - c.N} kerak`}
+            </b>
+          </div>
+          <div title={seatCap ? `Jadval sig‘imi: ${seatCap} o‘rin (xonalar × vaqtlar × toq/juft)` : 'Operatsiyalarda xona/vaqt kiritilmagan'}>
+            Sig‘imga sig‘adimi{' '}
+            <b className="block text-lg" style={{ color: fit.fits === null ? undefined : fit.fits ? 'var(--au-ok)' : 'var(--au-bad)' }}>
+              {fit.fits === null ? '—' : fit.fits ? `ha (${pct(fit.util ?? 0)})` : 'yo‘q'}
             </b>
           </div>
         </div>

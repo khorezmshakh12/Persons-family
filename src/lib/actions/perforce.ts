@@ -209,3 +209,59 @@ export async function commentChangeRequestAction(input: z.input<typeof commentSc
   }
   return done();
 }
+
+/* ------------------------------------------------ ISO 31000 risk register */
+
+const riskSchema = z.object({
+  id: uuid.optional(),
+  spaceId: uuid.nullable(),
+  title: z.string().trim().min(1).max(300),
+  category: z.enum(['strategic', 'operational', 'financial', 'compliance', 'people', 'technology']),
+  likelihood: z.number().int().min(1).max(5),
+  impact: z.number().int().min(1).max(5),
+  treatment: z.enum(['avoid', 'reduce', 'transfer', 'accept']),
+  mitigation: z.string().trim().max(2000),
+  ownerId: uuid.nullable(),
+  reviewDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  status: z.enum(['open', 'monitoring', 'closed', 'occurred']),
+  postmortem: z.string().trim().max(4000),
+});
+
+export async function saveRiskAction(input: z.input<typeof riskSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = riskSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    if (v.id) {
+      const r = await sql`
+        update pf_risks set space_id = ${v.spaceId}, title = ${v.title}, category = ${v.category},
+          likelihood = ${v.likelihood}, impact = ${v.impact}, treatment = ${v.treatment}, mitigation = ${v.mitigation},
+          owner_id = ${v.ownerId}, review_date = ${v.reviewDate}, status = ${v.status}, postmortem = ${v.postmortem},
+          updated_at = now()
+        where id = ${v.id}`;
+      if (r.count === 0) return { error: 'notFound' };
+    } else {
+      await sql`
+        insert into pf_risks (space_id, title, category, likelihood, impact, treatment, mitigation, owner_id, review_date, status, postmortem, created_by)
+        values (${v.spaceId}, ${v.title}, ${v.category}, ${v.likelihood}, ${v.impact}, ${v.treatment}, ${v.mitigation},
+          ${v.ownerId}, ${v.reviewDate}, ${v.status}, ${v.postmortem}, ${g.id})`;
+    }
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}
+
+export async function deleteRiskAction(id: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    await sql`delete from pf_risks where id = ${id}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}

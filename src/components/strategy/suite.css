@@ -1107,6 +1107,7 @@ body:has([data-motion='on'] .sx-suite) [data-sonner-toast] [data-icon] {
   body:has(.sx-suite) [data-sonner-toast] [data-icon] {
     animation: none !important;
   }
+}
 /* ---------------------------------------------------------- Operatsiya HQ */
 .sx-kpis5 {
   display: grid;
@@ -1411,4 +1412,20 @@ body:has([data-motion='on'] .sx-suite) [data-sonner-toast] [data-icon] {
 .sx-dtabs button.on {
   background: var(--au-primary);
   color: var(--au-primary-ink);
+}
+
+/* PDF export (window.print → "Save as PDF"): only the current suite view,
+   no app chrome, section bar, tabs or buttons. */
+@page {
+  size: A4 landscape;
+  margin: 12mm;
+}
+@media print {
+  body * { visibility: hidden; }
+  .sx-suite, .sx-suite * { visibility: visible; }
+  .sx-suite { position: absolute; inset: 0 auto auto 0; width: 100%; background: #fff; color: #111; }
+  .sx-suite .sx-amb, .sx-suite .sx-topbar, .sx-suite .sx-secbar, .sx-suite .sx-tabs,
+  .sx-suite button, .sx-suite .sx-pager { display: none !important; }
+  .sx-suite .sx-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+  .sx-suite .sx-fade, .sx-suite [style*='animation'] { animation: none !important; opacity: 1 !important; transform: none !important; }
 }

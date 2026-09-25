@@ -30,6 +30,10 @@ export type Course = {
   students: number;
   teacher_cost: number;
   book_cost: number;
+  /** Teacher share of course revenue, % (null = fixed teacher_cost). */
+  teacher_share?: number | null;
+  /** Lesson hours per month (groups × hours). */
+  hours_month?: number;
 };
 export type TaxSettings = {
   turnover: number;
@@ -390,6 +394,7 @@ export const JOURNAL_TEMPLATES: [string, string, string][] = [
   ['Asosiy vosita xaridi', '0100', '5110'],
   ['Darslik xaridi', '2910', '6010'],
   ['Kassadan bankka', '5110', '5010'],
+  ['Ustav kapitaliga badal', '5110', '8300'],
 ];
 
 /** Relative change from `prev` to `now` (0.1 = +10%); null when there is no
