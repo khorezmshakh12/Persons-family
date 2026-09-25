@@ -535,7 +535,7 @@
       "noLessonsThisMonth": "Bu oy uchun hali darslar rejalashtirilmagan."
     },
     "staffChat": {
-      "title": "Staff Chat: {name}"
+      "title": "Xodimlar chati: {name}"
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
@@ -1029,7 +1029,7 @@
     "fromWarning": "Ogohlantirishdan"
   },
   "finance": {
-    "title": "Finance",
+    "title": "Moliya",
     "subtitle": "Sizning moliyaviy tarixingiz.",
     "adminSubtitle": "Har bir xodimning moliya yozuvlarini boshqaring.",
     "netTotal": "Jami",
@@ -1207,7 +1207,7 @@
     }
   },
   "missions": {
-    "title": "Missions",
+    "title": "Missiyalar",
     "subtitle": "Sizga biriktirilgan vazifalar (missiyalar).",
     "adminSubtitle": "Har bir xodimga missiya biriktiring va boshqaring.",
     "noMissions": "Hozircha missiyalar yo'q.",
@@ -1260,7 +1260,7 @@
     }
   },
   "salary": {
-    "title": "Salary",
+    "title": "Ish haqi",
     "salaryLedger": "Maosh",
     "missions": "Missiyalar",
     "total": "Jami (Total)",
@@ -1580,7 +1580,7 @@
     }
   },
   "shell": {
-    "subtitle": "Education Platform",
+    "subtitle": "Ta’lim platformasi",
     "root": "Persons",
     "groups": {
       "motivation": "Motivatsiya",
@@ -1691,7 +1691,7 @@
     "description": "Platformaning ko‘rinishi.",
     "aurora": "Aurora",
     "auroraHint": "Yorqin, iliq — standart mavzu.",
-    "dark": "Dark",
+    "dark": "Qorong‘i",
     "soon": "Tez orada",
     "active": "Faol"
   },
