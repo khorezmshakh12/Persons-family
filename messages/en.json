@@ -44,7 +44,8 @@
     "strategy": "Strategy",
     "accounting": "Accounting",
     "operations": "Operations HQ",
-    "perforce": "Persons Perforce"
+    "perforce": "Persons Perforce",
+    "core": "Work platform"
   },
   "auth": {
     "phone": "Phone number",

@@ -44,7 +44,8 @@
     "strategy": "Strategiya",
     "accounting": "Hisob-kitob",
     "operations": "Operatsiya HQ",
-    "perforce": "Persons Perforce"
+    "perforce": "Persons Perforce",
+    "core": "Ish platformasi"
   },
   "auth": {
     "phone": "Telefon raqami",

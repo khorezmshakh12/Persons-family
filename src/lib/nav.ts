@@ -12,6 +12,7 @@ export type StaffRole =
 export type NavItem = {
   key:
     | 'dashboard'
+    | 'core'
     | 'staff'
     | 'chat'
     | 'issues'
@@ -47,6 +48,7 @@ export const NAV_GROUP_ORDER: NavGroup[] = ['main', 'motivation', 'workflow', 'm
 
 const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   dashboard: 'main',
+  core: 'main',
   tasks: 'main',
   finance: 'main',
   staff: 'main',
@@ -70,6 +72,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
 // Order inside each sidebar section — mirrors the Aurora reference.
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
+  'core',
   'accounting',
   'operations',
   'perforce',
@@ -119,6 +122,10 @@ export const MOTION_ROLES: StaffRole[] = STRATEGY_ROLES;
 
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
+  // Core v2 — the owner's Claude-designed staff workspace (src/core/core.html,
+  // served 1:1 via /api/core/app). Everyone gets it; Core itself decides which
+  // of its sections each person sees (department / boss / ACL).
+  { key: 'core', href: '/core' },
   // Goes through the SSO handoff route, not straight to /materials, so
   // clicking it doesn't drop the employee on Materials' login screen — see
   // src/app/api/sso/materials/route.ts.

@@ -44,7 +44,8 @@
     "strategy": "Стратегия",
     "accounting": "Бухгалтерия",
     "operations": "Операции HQ",
-    "perforce": "Persons Perforce"
+    "perforce": "Persons Perforce",
+    "core": "Рабочая платформа"
   },
   "auth": {
     "phone": "Номер телефона",

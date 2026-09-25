@@ -19,6 +19,7 @@ import {
   ShoppingBag,
   Star,
   Map as MapIcon,
+  Sparkles,
   Calculator,
   Gauge,
   Layers,
@@ -31,6 +32,7 @@ import { useNavBadgeKeys } from './nav-badges-context';
 
 const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
   dashboard: LayoutDashboard,
+  core: Sparkles,
   staff: Users,
   chat: MessageSquare,
   issues: CircleAlert,
