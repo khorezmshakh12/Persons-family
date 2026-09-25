@@ -13,17 +13,22 @@ import { deleteLeadAction, saveLeadAction } from '@/lib/actions/operations';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
 import { MonthPicker } from './view-finance';
+import { SC_KEYS, type OpsPlan, type ScKey } from '@/lib/ops-plan';
+import { DeptKpi, OpsTop, PlanFunnel, PlanModal, RoomRegister, SlotModal, Trajectory, buildModel, type Cell, type Cohort, type OpsModel } from './operations-plan';
 import './strategy.css';
 import './suite.css';
 
 export type Stage = 'new' | 'contacted' | 'trial' | 'enrolled' | 'lost';
 export type Source = 'instagram' | 'telegram' | 'referral' | 'walkin' | 'website' | 'other';
 export type OpsData = {
-  groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string }[];
+  groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null }[];
   leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null; ai_intent?: number | null; ai_hot?: number | null }[];
   staff: { id: string; name: string; role: string }[];
-  metrics: { id: string; staff_id: string; weight_percentage: number }[];
+  metrics: { id: string; staff_id: string; name: string; weight_percentage: number }[];
   entries: { metric_id: string; month: string; target_value: number; actual_value: number | null }[];
+  rooms: { code: string; title: string; capacity: number; note: string }[];
+  holds: { id: string; room: string; time: string; cohort: 'odd' | 'even'; kind: 'trial' | 'buffer'; title: string }[];
+  plan: OpsPlan;
 };
 
 type Tab = 'cap' | 'fun' | 'gro' | 'kpi';
@@ -60,6 +65,7 @@ const ROLE_GROUP: Record<string, string> = {
   ceo: 'Rahbariyat',
 };
 const KEY = 'persons-ops-tab';
+const SC_KEY = 'persons-ops-sc';
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 /** Tashkent 'YYYY-MM-DD' of a timestamptz string (the raw value is UTC, so
  * `.slice()` on it put 00:00–05:00 Tashkent on the previous day / month). */
@@ -67,6 +73,17 @@ const tzDay = (s: string) => tashkentDayKey(new Date(s));
 
 export function OperationsWorkspace({ data, books, today }: { data: OpsData; books: Books; today: string }) {
   const [tab, setTab] = useState<Tab>('cap');
+  const [sc, setSc] = useState<ScKey>('average');
+  const [planOpen, setPlanOpen] = useState(false);
+  const m = useMemo(() => buildModel(data, books, today, sc), [data, books, today, sc]);
+  const pickSc = (v: ScKey) => {
+    setSc(v);
+    playSound('tick');
+    try {
+      localStorage.setItem(SC_KEY, v);
+    } catch {}
+  };
+  const openPlan = () => setPlanOpen(true);
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current) return;
@@ -74,6 +91,8 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
     try {
       const v = localStorage.getItem(KEY) as Tab | null;
       if (v && TABS.some((t) => t.v === v)) setTab(v);
+      const c = localStorage.getItem(SC_KEY) as ScKey | null;
+      if (c && SC_KEYS.includes(c)) setSc(c);
     } catch {}
   }, []);
   const go = (v: string) => {
@@ -85,6 +104,7 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
   const scheduled = data.groups.filter((g) => g.room && g.time && g.schedule_type);
   const items: PaletteItem[] = [
     { g: 'Amallar', t: "Yangi lid qo'shish", run: () => go('fun') },
+    { g: 'Amallar', t: 'Reja sozlamalari', run: openPlan },
     ...data.leads.slice(0, 50).map((l) => ({ g: 'Lidlar', t: l.name, sub: STAGES.find((s) => s.k === l.stage)?.n, run: () => go('fun') })),
     ...data.groups.map((g) => ({ g: 'Guruhlar', t: g.name, sub: [g.room, g.time].filter(Boolean).join(' · '), run: () => go('cap') })),
   ];
@@ -100,135 +120,230 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
         <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">
+        <div className="sx-grid">
+          <OpsTop m={m} onSc={pickSc} onPlan={openPlan} />
+        </div>
         <div key={tab} className="sx-fade">
-          {tab === 'cap' && <Rooms groups={data.groups} />}
-          {tab === 'fun' && <Funnel leads={data.leads} />}
-          {tab === 'gro' && <Growth leads={data.leads} books={books} today={today} />}
+          {tab === 'cap' && <Rooms data={data} m={m} />}
+          {tab === 'fun' && <Funnel leads={data.leads} m={m} onPlan={openPlan} />}
+          {tab === 'gro' && <Growth data={data} books={books} today={today} m={m} onPlan={openPlan} />}
           {tab === 'kpi' && <Kpi data={data} today={today} />}
         </div>
+        {planOpen && <PlanModal plan={data.plan} leads={data.leads} onClose={() => setPlanOpen(false)} />}
       </section>
     </SuiteShell>
   );
 }
 
 /* ------------------------------------------------------------------- rooms */
-const COURSE_COLORS = ['#ffd9a0', '#bfe3ff', '#ffc9d6', '#d8ccff', '#c6f0d6', '#bff0ee', '#ffe7a8'];
-function Rooms({ groups }: { groups: OpsData['groups'] }) {
-  const [coh, setCoh] = useState<'odd' | 'even'>('odd');
+const isIelts = (g: OpsData['groups'][number]) => /ielts/i.test(`${g.course} ${g.name}`);
+function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
+  const { groups, holds } = data;
+  const [coh, setCoh] = useState<Cohort>('odd');
+  const [roomF, setRoomF] = useState('all');
+  const [open, setOpen] = useState<{ room: string; time: string } | null>(null);
   const ok = groups.filter((g) => g.room && g.time && g.schedule_type);
-  const rooms = [...new Set(ok.map((g) => g.room))].sort();
-  const times = [...new Set(ok.map((g) => g.time))].sort();
-  const courses = [...new Set(ok.map((g) => g.course || '—'))];
-  const color = (c: string) => COURSE_COLORS[courses.indexOf(c || '—') % COURSE_COLORS.length];
-  const cell = (room: string, time: string) => ok.filter((g) => g.room === room && g.time === time && g.schedule_type === coh);
-  const slots = rooms.length * times.length;
-  const busy = (c: 'odd' | 'even') => new Set(ok.filter((g) => g.schedule_type === c).map((g) => `${g.room}|${g.time}`)).size;
-  const clashes = rooms.flatMap((r) => times.map((t) => cell(r, t))).filter((x) => x.length > 1);
+  const { rooms, times } = m;
+  const shown = roomF === 'all' ? rooms : rooms.filter((r) => r === roomF);
+  const info = (r: string) => data.rooms.find((x) => x.code === r);
+  const cellOf = (room: string, time: string): Cell => {
+    const gs = ok.filter((g) => g.room === room && g.time === time && g.schedule_type === coh);
+    if (gs.length) return { kind: 'group', g: gs[0], clash: gs.length };
+    const h = holds.find((x) => x.room === room && x.time === time && x.cohort === coh);
+    return h ? { kind: 'hold', h } : { kind: 'free' };
+  };
+  const cells = rooms.flatMap((r) => times.map((t) => cellOf(r, t)));
+  const gCells = cells.filter((c) => c.kind === 'group');
+  const cohGroups = ok.filter((g) => g.schedule_type === coh);
+  const trials = holds.filter((h) => h.cohort === coh && h.kind === 'trial').length;
+  const buffers = holds.filter((h) => h.cohort === coh && h.kind === 'buffer').length;
+  const free = cells.filter((c) => c.kind === 'free').length;
+  const util = cells.length ? (gCells.length / cells.length) * 100 : 0;
+  const counted = cohGroups.filter((g) => g.enrolled != null);
+  const seats = counted.reduce((a, g) => a + (g.enrolled ?? 0), 0);
+  const clashes = cells.filter((c) => c.kind === 'group' && c.clash > 1).length;
   const missing = groups.filter((g) => !(g.room && g.time && g.schedule_type));
-  const perRoom = rooms.map((r) => ({
-    n: r,
-    v: new Set(ok.filter((g) => g.room === r).map((g) => `${g.time}|${g.schedule_type}`)).size,
-  }));
+  const load = (t: string) => rooms.filter((r) => cellOf(r, t).kind === 'group').length;
+  const peakN = Math.max(0, ...times.map(load));
+  const C = 2 * Math.PI * 42;
+  const cohName = coh === 'odd' ? 'Toq kunlar' : 'Juft kunlar';
+  const cls = (c: Cell) => (c.kind === 'group' ? (isIelts(c.g) ? 'ie' : 'gr') : c.kind === 'hold' ? (c.h.kind === 'trial' ? 'tr' : 'bf') : '');
+  const sel = open ? cellOf(open.room, open.time) : null;
   return (
     <div className="sx-grid">
-      <div className="sx-card sx-stat dark s3">
-        <div className="l">Xonalar · vaqt oraliqlari</div>
-        <div className="v">
-          {rooms.length} · {times.length}
+      <div className="sx-card s4">
+        <div className="sx-h">
+          <h3>Quvvat bandligi</h3>
+          <small>{cohName} · guruh slotlari / jami slotlar</small>
         </div>
-        <div className="d">guruh sozlamalaridagi xona va vaqtdan</div>
-      </div>
-      <div className="sx-card sx-stat s3">
-        <div className="l">Bandlik — toq kunlar</div>
-        <div className="v">{slots ? pct(busy('odd') / slots) : '—'}</div>
-        <div className="d">
-          {busy('odd')} / {slots} slot
+        <div className="sx-gauge">
+          <svg viewBox="0 0 100 100" width={150} height={150}>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--au-card-2)" strokeWidth="9" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--au-ink)" strokeWidth="9" strokeLinecap="round" strokeDasharray={`${(util / 100) * C} ${C}`} />
+          </svg>
+          <div className="c">
+            <b>{cells.length ? `${util.toFixed(1)}%` : '—'}</b>
+            <small>bandlik</small>
+          </div>
+        </div>
+        <div className="text-center">
+          <span className={cn('sx-pl', util <= 85 ? 'ok' : 'warn')}>{util <= 85 ? 'Lean optimal · Kingman xavfsiz zonasi' : 'Yuqori yuklama · navbat xavfi (>85%)'}</span>
+          <p className="mt-2 text-xs text-au-muted">
+            {buffers} bufer slot zaxirada · {free} katak bo‘sh{clashes ? ` · ${clashes} to‘qnashuv` : ''}
+          </p>
         </div>
       </div>
-      <div className="sx-card sx-stat s3">
-        <div className="l">Bandlik — juft kunlar</div>
-        <div className="v">{slots ? pct(busy('even') / slots) : '—'}</div>
-        <div className="d">
-          {busy('even')} / {slots} slot
+      <div className="s8 grid grid-cols-2 gap-[18px] lg:grid-cols-4">
+        <div className="sx-card sx-stat dark">
+          <div className="l">Faol guruhlar</div>
+          <div className="v">{cohGroups.length}</div>
+          <div className="d">{counted.length ? `${seats} o‘rin band · o‘rtacha ${(seats / counted.length).toFixed(1)} o‘q.` : 'o‘quvchi soni kiritilmagan'}</div>
         </div>
-      </div>
-      <div className="sx-card sx-stat s3">
-        <div className="l">To‘qnashuvlar</div>
-        <div className="v" style={{ color: clashes.length ? 'var(--au-bad)' : 'var(--au-ok)' }}>{clashes.length}</div>
-        <div className="d">bir xona, bir vaqtda 2+ guruh ({coh === 'odd' ? 'toq' : 'juft'})</div>
+        <div className="sx-card sx-stat">
+          <div className="l">Nazariy maksimum</div>
+          <div className="v">{m.maxSeats}</div>
+          <div className="d">{rooms.length * times.length * 2} guruh sloti × sig‘im (2 kohorta)</div>
+        </div>
+        <div className="sx-card sx-stat">
+          <div className="l">Sinov darslari</div>
+          <div className="v">{trials}</div>
+          <div className="d">trial slotlar · sotuv bilan</div>
+        </div>
+        <div className="sx-card sx-stat">
+          <div className="l">Lean bufer</div>
+          <div className="v">{buffers}</div>
+          <div className="d">makeup, klub, audit, zaxira</div>
+        </div>
+        <div className="sx-card col-span-2 lg:col-span-4">
+          <div className="sx-h">
+            <h3>Xonalar kesimida bandlik</h3>
+            <small>{cohName}</small>
+          </div>
+          {rooms.length === 0 ? (
+            <div className="sx-empty">—</div>
+          ) : (
+            rooms.map((r) => {
+              const g = times.filter((t) => cellOf(r, t).kind === 'group').length;
+              const p = times.length ? (g / times.length) * 100 : 0;
+              return (
+                <div key={r} className="sx-rmr">
+                  <span className="truncate">{info(r)?.title || r}</span>
+                  <div className="sx-hb">
+                    <i style={{ width: `${p}%`, background: p >= 85 ? 'var(--au-accent)' : 'var(--au-ink)' }} />
+                  </div>
+                  <b>
+                    {g}/{times.length}
+                  </b>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
       <div className="sx-card s12">
         <div className="sx-h">
-          <h3>Xonalar matritsasi</h3>
-          <small>satr — xona, ustun — dars vaqti</small>
+          <h3>Darslar matritsasi</h3>
+          <small>
+            {rooms.length} auditoriya × {times.length} slot{times.length ? ` · ${times[0]}–${times[times.length - 1]}` : ''}
+          </small>
           <span className="sp" />
           <div className="sx-seg">
             <button className={cn(coh === 'odd' && 'on')} onClick={() => setCoh('odd')}>
-              Toq kunlar (Du-Chor-Ju)
+              Toq kunlar · Du-Chor-Ju
             </button>
             <button className={cn(coh === 'even' && 'on')} onClick={() => setCoh('even')}>
-              Juft kunlar (Se-Pay-Sha)
+              Juft kunlar · Se-Pay-Sha
             </button>
           </div>
+          <select className="sx-inp !h-[32px] !w-[200px]" value={roomF} onChange={(e) => setRoomF(e.target.value)} aria-label="Xona filtri">
+            <option value="all">Barcha xonalar ({rooms.length})</option>
+            {rooms.map((r) => (
+              <option key={r} value={r}>
+                {info(r)?.title ? `${info(r)?.title} (${r})` : r}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-3 flex flex-wrap gap-3 text-xs text-au-muted">
+          {[
+            ['Faol guruh', 'var(--au-primary)'],
+            ['IELTS guruh', 'var(--au-info)'],
+            ['Sinov darsi', 'var(--au-accent)'],
+            ['Lean bufer', 'var(--au-chart-4)'],
+          ].map(([n, c]) => (
+            <span key={n}>
+              <i className="sx-sw" style={{ background: c }} />
+              {n}
+            </span>
+          ))}
         </div>
         {rooms.length === 0 ? (
           <div className="sx-empty">
-            Guruhlarda xona va vaqt ko‘rsatilmagan. Dars reja taxtasida guruhni tahrirlab «Xona», «Vaqt» va jadval turini kiriting — matritsa avtomatik
-            to‘ladi.
+            Guruhlarda xona va vaqt ko‘rsatilmagan. Dars reja taxtasida guruhni tahrirlab «Xona», «Vaqt» va jadval turini kiriting — matritsa avtomatik to‘ladi.
           </div>
         ) : (
           <div className="overflow-x-auto pb-2">
-            <div className="sx-matrix" style={{ gridTemplateColumns: `120px repeat(${times.length}, minmax(130px, 1fr))` }}>
-              <div />
-              {times.map((t) => (
-                <div key={t} className="h">
-                  {t}
+            <div className="sx-matrix" style={{ gridTemplateColumns: `110px repeat(${shown.length}, minmax(150px, 1fr))` }}>
+              <div className="h">Vaqt sloti</div>
+              {shown.map((r) => (
+                <div key={r} className="h">
+                  {info(r)?.title || r}
+                  <div className="font-normal">
+                    {r} · {m.cap(r)} o‘rin{info(r)?.note ? ` · ${info(r)?.note}` : ''}
+                  </div>
                 </div>
               ))}
-              {rooms.map((r, ri) => (
-                <div key={r} className="contents">
-                  <div className="rh">{r}</div>
-                  {times.map((t, ti) => {
-                    const gs = cell(r, t);
-                    return (
-                      <div
-                        key={t}
-                        className={cn('cell', gs.length > 0 && 'busy')}
-                        style={{
-                          background: gs.length ? color(gs[0].course) : undefined,
-                          outline: gs.length > 1 ? '2px solid var(--au-bad)' : undefined,
-                          animationDelay: `${Math.min(ri * times.length + ti, 40) * 12}ms`,
-                        }}
-                      >
-                        {gs.length === 0
-                          ? 'bo‘sh'
-                          : gs.map((g) => (
-                              <div key={g.id}>
-                                <b>{g.name}</b>
-                                {g.course} · {g.teacher}
-                              </div>
-                            ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+              {times.map((t, ti) => {
+                const pk = peakN > 0 && load(t) === peakN;
+                return (
+                  <div key={t} className="contents">
+                    <div className={cn('sx-tslot', pk && 'pk')}>
+                      <span>
+                        {ti + 1}-slot{pk ? ' · pik' : ''}
+                      </span>
+                      <b>{t}</b>
+                    </div>
+                    {shown.map((r, ri) => {
+                      const c = cellOf(r, t);
+                      return (
+                        <button
+                          key={r}
+                          className={cn('sx-slot', cls(c), c.kind === 'group' && c.clash > 1 && 'clash')}
+                          style={{ animationDelay: `${Math.min(ti * shown.length + ri, 40) * 12}ms` }}
+                          onClick={() => setOpen({ room: r, time: t })}
+                        >
+                          {c.kind === 'group' ? (
+                            <>
+                              <span className="t">
+                                <span className="truncate">{c.g.course || '—'}</span>
+                                <em>{c.g.enrolled == null ? '—' : `${c.g.enrolled}/${m.cap(r)}`}</em>
+                              </span>
+                              <b>
+                                {c.g.name}
+                                {c.clash > 1 ? ` +${c.clash - 1}` : ''}
+                              </b>
+                              <small>{c.g.teacher}</small>
+                            </>
+                          ) : c.kind === 'hold' ? (
+                            <>
+                              <span className="t">{c.h.kind === 'trial' ? 'Sinov darsi' : 'Lean bufer'}</span>
+                              <b>{c.h.title || '—'}</b>
+                            </>
+                          ) : (
+                            'bo‘sh'
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
       </div>
-      <div className="sx-card s6">
-        <div className="sx-h">
-          <h3>Xonalar yuklamasi</h3>
-          <small>band slotlar (toq + juft)</small>
-        </div>
-        {perRoom.length ? (
-          <HBars fmt={(v) => `${v} / ${times.length * 2}`} rows={perRoom.map((r, i) => ({ ...r, c: ['#ff9f1c', '#2477c9', '#e8567a', '#7a5af8', '#139a52'][i % 5] }))} />
-        ) : (
-          <div className="sx-empty">—</div>
-        )}
-      </div>
-      <div className="sx-card s6">
+      <RoomRegister rooms={data.rooms} known={rooms} seats={data.plan.seats} />
+      <div className="sx-card s12">
         <div className="sx-h">
           <h3>Jadvalga kiritilmagan guruhlar</h3>
           <small>{missing.length} ta</small>
@@ -248,12 +363,25 @@ function Rooms({ groups }: { groups: OpsData['groups'] }) {
           </div>
         )}
       </div>
+      {open && sel && (
+        <SlotModal
+          key={`${open.room}|${open.time}|${coh}`}
+          cell={sel}
+          room={open.room}
+          roomInfo={info(open.room)}
+          time={open.time}
+          cohort={coh}
+          peak={peakN > 0 && load(open.time) === peakN}
+          cap={m.cap(open.room)}
+          onClose={() => setOpen(null)}
+        />
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ funnel */
-function Funnel({ leads }: { leads: OpsData['leads'] }) {
+function Funnel({ leads, m, onPlan }: { leads: OpsData['leads']; m: OpsModel; onPlan: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const empty = { name: '', phone: '', source: 'instagram' as Source, course: '', stage: 'new' as Stage, note: '' };
@@ -283,6 +411,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
   const list = leads.filter((l) => filter === 'all' || l.stage === filter);
   return (
     <div className="sx-grid">
+      <PlanFunnel key={`${m.sc}-${JSON.stringify(m.plan.scenarios[m.sc])}`} m={m} onPlan={onPlan} />
       <div className="sx-card sx-stat dark s3">
         <div className="l">Jami lidlar</div>
         <div className="v">{total}</div>
@@ -523,7 +652,8 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
 }
 
 /* ------------------------------------------------------------------ growth */
-function Growth({ leads, books, today }: { leads: OpsData['leads']; books: Books; today: string }) {
+function Growth({ data, books, today, m, onPlan }: { data: OpsData; books: Books; today: string; m: OpsModel; onPlan: () => void }) {
+  const leads = data.leads;
   const ym = today.slice(0, 7);
   const S = useMemo(() => monthlySeries(books.accounts, books.opening, books.entries, ym, 12), [books, ym]);
   const labels = S.map((m) => `${MONF[+m.ym.slice(5, 7) - 1].slice(0, 3)} ${m.ym.slice(2, 4)}`);
@@ -537,6 +667,7 @@ function Growth({ leads, books, today }: { leads: OpsData['leads']; books: Books
   const prevQ = q(6);
   return (
     <div className="sx-grid">
+      <Trajectory m={m} data={data} onPlan={onPlan} />
       <div className="sx-card sx-stat dark s3">
         <div className="l">Joriy o‘quvchilar</div>
         <div className="v">{students}</div>
@@ -618,6 +749,7 @@ function Kpi({ data, today }: { data: OpsData; today: string }) {
           <span className="text-sm text-au-muted">Moliya → KPI bo‘limida kiritilgan maqsad va natijalardan (vazn bilan, 150% cheklov)</span>
         </div>
       </div>
+      <DeptKpi data={data} ym={ym} deptOf={(r) => ROLE_GROUP[r] ?? r} />
       <div className="sx-card sx-stat dark s4">
         <div className="l">Kompaniya o‘rtachasi</div>
         <div className="v">{avg === null ? '—' : `${avg.toFixed(1)}%`}</div>
