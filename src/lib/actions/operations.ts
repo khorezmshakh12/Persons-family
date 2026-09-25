@@ -72,7 +72,8 @@ export async function deleteLeadAction(id: string): Promise<Result> {
   }
   if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
   try {
-    await sql`delete from ops_leads where id = ${id}`;
+    const res = await sql`delete from ops_leads where id = ${id}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch {
     return { error: 'updateFailed' };
   }

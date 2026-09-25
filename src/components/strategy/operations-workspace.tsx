@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Filter, Grid3x3, Plus, Target, Trash2, TrendingUp } from 'lucide-react';
+import { Filter, Grid3x3, Pencil, Plus, Target, Trash2, TrendingUp } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { computeKpiScore } from '@/lib/kpi';
-import { addMonths, fmtMln, monthlySeries } from '@/lib/accounting';
+import { addMonths, fmtGrowth, fmtMln, growthRate, monthlySeries } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
 import { MONF } from '@/lib/strategy';
 import { tashkentDayKey } from '@/lib/time';
@@ -258,11 +258,13 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
   const [pending, start] = useTransition();
   const empty = { name: '', phone: '', source: 'instagram' as Source, course: '', stage: 'new' as Stage, note: '' };
   const [f, setF] = useState(empty);
+  const [editId, setEditId] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<Stage | 'all'>('all');
   const save = (input: Parameters<typeof saveLeadAction>[0], ok?: string, after?: () => void) =>
     start(async () => {
       const r = await saveLeadAction(input);
-      if (r.error) toast.error("Saqlab bo'lmadi");
+      if (r.error) toast.error(r.error === 'forbidden' ? "Ruxsat yo'q" : r.error === 'invalidInput' ? "Ma'lumot noto'g'ri" : r.error === 'notFound' ? 'Topilmadi — sahifani yangilang' : "Saqlab bo'lmadi");
       else {
         if (ok) toast.success(ok);
         after?.();
@@ -339,9 +341,10 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
           />
         )}
       </div>
-      <div className="sx-card s12">
+      <div className="sx-card s12" ref={formRef}>
         <div className="sx-h">
-          <h3>Yangi lid</h3>
+          <h3>{editId ? 'Lidni tahrirlash' : 'Yangi lid'}</h3>
+          {editId && <small>o‘zgartiring va «Saqlash»ni bosing</small>}
         </div>
         <div className="sx-form">
           <label className="min-w-[180px] flex-1">
@@ -376,13 +379,27 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
               ))}
             </select>
           </label>
+          <label className="min-w-[200px] flex-1">
+            Izoh
+            <input className="sx-inp" maxLength={1000} value={f.note} placeholder="Masalan: kechqurun qo‘ng‘iroq qilish" onChange={(e) => setF({ ...f, note: e.target.value })} />
+          </label>
           <button
             className="sx-btn primary"
             disabled={pending || !f.name.trim()}
-            onClick={() => save(f, "Lid qo'shildi", () => setF(empty))}
+            onClick={() =>
+              save({ ...f, id: editId ?? undefined }, editId ? 'Lid saqlandi' : "Lid qo'shildi", () => {
+                setF(empty);
+                setEditId(null);
+              })
+            }
           >
-            <Plus className="size-4" /> Qo‘shish
+            {editId ? 'Saqlash' : <><Plus className="size-4" /> Qo‘shish</>}
           </button>
+          {editId && (
+            <button className="sx-btn" onClick={() => { setEditId(null); setF(empty); }}>
+              Bekor qilish
+            </button>
+          )}
         </div>
       </div>
       <div className="sx-card s12">
@@ -418,7 +435,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
               {list.length === 0 && (
                 <tr>
                   <td colSpan={8} className="l">
-                    <div className="sx-empty">Lid yo‘q</div>
+                    <div className="sx-empty">{filter === 'all' ? 'Hali lid yo‘q — yuqoridagi «Yangi lid» formasidan qo‘shing.' : 'Bu bosqichda lid yo‘q'}</div>
                   </td>
                 </tr>
               )}
@@ -426,6 +443,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
                 <tr key={l.id} style={{ animationDelay: `${Math.min(i, 20) * 20}ms` }}>
                   <td className="l">
                     <b>{l.name}</b>
+                    {l.note && <div className="max-w-[260px] truncate text-xs text-au-muted" title={l.note}>{l.note}</div>}
                   </td>
                   <td className="l">{l.phone}</td>
                   <td className="l">{SOURCES.find((s) => s.k === l.source)?.n}</td>
@@ -462,10 +480,24 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
                     </select>
                   </td>
                   <td>
+                    <span className="inline-flex items-center gap-1">
                     <button
-                      className="text-au-faint hover:text-au-bad"
+                      className="sx-btn sm"
+                      aria-label="Tahrirlash"
+                      onClick={() => {
+                        setEditId(l.id);
+                        setF({ name: l.name, phone: l.phone, source: l.source, course: l.course, stage: l.stage, note: l.note ?? '' });
+                        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      className="sx-btn sm text-au-bad"
                       aria-label="O'chirish"
+                      disabled={pending}
                       onClick={() =>
+                        window.confirm(`«${l.name}» lidi o'chirilsinmi?`) &&
                         start(async () => {
                           const r = await deleteLeadAction(l.id);
                           if (r.error) toast.error("O'chirib bo'lmadi");
@@ -478,6 +510,7 @@ function Funnel({ leads }: { leads: OpsData['leads'] }) {
                     >
                       <Trash2 className="size-4" />
                     </button>
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -512,13 +545,13 @@ function Growth({ leads, books, today }: { leads: OpsData['leads']; books: Books
       <div className="sx-card sx-stat s3">
         <div className="l">Oylik tushum o‘sishi</div>
         <div className="v" style={{ color: revNow >= revPrev ? 'var(--au-ok)' : 'var(--au-bad)' }}>
-          {revPrev ? `${revNow >= revPrev ? '+' : ''}${(((revNow - revPrev) / revPrev) * 100).toFixed(1)}%` : '—'}
+          {fmtGrowth(growthRate(revNow, revPrev))}
         </div>
         <div className="d">{fmtMln(revNow)} shu oy</div>
       </div>
       <div className="sx-card sx-stat s3">
         <div className="l">Chorak o‘sishi</div>
-        <div className="v">{prevQ ? `${lastQ >= prevQ ? '+' : ''}${(((lastQ - prevQ) / prevQ) * 100).toFixed(1)}%` : '—'}</div>
+        <div className="v" style={{ color: lastQ < prevQ ? 'var(--au-bad)' : undefined }}>{fmtGrowth(growthRate(lastQ, prevQ))}</div>
         <div className="d">oxirgi 3 oy vs oldingi 3 oy</div>
       </div>
       <div className="sx-card sx-stat s3">

@@ -14,12 +14,14 @@ import {
   X,
   Wallet,
   LineChart,
+  Settings2,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
   addDays,
   isLate,
+  progressForStatus,
   type StrategyMilestone,
   type StrategyMind,
   type StrategyPerson,
@@ -30,8 +32,13 @@ import {
   type NodeStatus,
 } from '@/lib/strategy';
 import {
+  addStrategyMilestoneAction,
   createStrategySpaceAction,
+  deleteStrategyMilestoneAction,
+  deleteStrategySpaceAction,
   deleteStrategyTaskAction,
+  saveStrategyBudgetAction,
+  updateStrategySpaceAction,
   saveStrategyMindAction,
   saveStrategyTaskAction,
   setRoadmapNodeStatusAction,
@@ -43,7 +50,7 @@ import { MindView } from './view-mind';
 import { BoardView } from './view-board';
 import { ListView } from './view-list';
 import { GanttView } from './view-gantt';
-import { TaskDrawer, NodeDrawer, SpaceDrawer } from './drawers';
+import { TaskDrawer, NodeDrawer, SpaceDrawer, type SpaceInput } from './drawers';
 import { FinanceView, AnalyticsView, type BooksLite } from './view-finance';
 import { SuiteShell, playSound, toast, type PaletteItem } from './suite-shell';
 import './strategy.css';
@@ -73,7 +80,7 @@ export type Draft = Partial<StrategyTask> & { title: string };
 export type DrawerState =
   | { kind: 'task'; id: string | null; preset?: Partial<StrategyTask> }
   | { kind: 'node'; roadmapId: string; nodeId: string }
-  | { kind: 'space' }
+  | { kind: 'space'; edit?: boolean }
   | null;
 
 export type WorkspaceApi = {
@@ -89,6 +96,7 @@ function errorText(code: string) {
   if (code === 'forbidden') return "Ruxsat yo'q";
   if (code === 'sessionExpired') return 'Sessiya tugadi — qayta kiring';
   if (code === 'invalidInput') return "Ma'lumot noto'g'ri";
+  if (code === 'notFound') return 'Topilmadi — sahifani yangilang';
   return 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
 }
 
@@ -116,6 +124,7 @@ export function StrategyWorkspace({
   const [tasks, setTasks] = useState(initialTasks);
   const [roadmaps, setRoadmaps] = useState(initialRoadmaps);
   const [mind, setMind] = useState<StrategyMind>(space?.mind ?? { t: '', ch: [] });
+  const [ms, setMs] = useState(milestones);
   const [view, setView] = useState<ViewKey>('dash');
   const [q, setQ] = useState('');
   const [lateOnly, setLateOnly] = useState(false);
@@ -207,7 +216,7 @@ export function StrategyWorkspace({
     (id: string, status: TaskStatus) => {
       const prev = tasks.find((t) => t.id === id);
       if (!prev || prev.status === status) return;
-      const progress = status === 'done' ? 100 : status === 'todo' && prev.progress === 100 ? 0 : prev.progress;
+      const progress = progressForStatus(prev, status);
       commit({ ...prev, status, progress }, prev, `«${prev.title}» → ${statusName(status)}`);
     },
     [tasks, commit],
@@ -292,7 +301,63 @@ export function StrategyWorkspace({
     }, 500);
   }
 
-  async function createSpace(input: { name: string; subtitle: string; color: string; startDate: string; endDate: string }) {
+  async function updateSpace(input: SpaceInput) {
+    if (!space) return false;
+    const res = await updateStrategySpaceAction({ id: space.id, ...input });
+    if (res.error !== undefined) {
+      toast.error(errorText(res.error));
+      return false;
+    }
+    toast.success('Maydon saqlandi');
+    router.refresh();
+    return true;
+  }
+
+  async function removeSpace() {
+    if (!space) return;
+    const res = await deleteStrategySpaceAction(space.id);
+    if (res.error !== undefined) return void toast.error(errorText(res.error));
+    setDrawer(null);
+    toast.success(`«${space.name}» maydoni o'chirildi`);
+    router.push('/strategy');
+    router.refresh();
+  }
+
+  async function saveBudget(budget: StrategySpace['budget']) {
+    if (!space) return false;
+    const res = await saveStrategyBudgetAction(space.id, budget);
+    if (res.error !== undefined) {
+      toast.error(errorText(res.error));
+      return false;
+    }
+    toast.success('Budjet saqlandi');
+    router.refresh();
+    return true;
+  }
+
+  async function addMilestone(title: string, date: string) {
+    if (!space) return false;
+    const res = await addStrategyMilestoneAction({ spaceId: space.id, title, date });
+    if (res.error !== undefined) {
+      toast.error(errorText(res.error));
+      return false;
+    }
+    setMs((list) => [...list, res.milestone].sort((a, b) => a.date.localeCompare(b.date)));
+    toast.success('Muhim sana qo‘shildi');
+    return true;
+  }
+
+  async function removeMilestone(id: string) {
+    const removed = ms.find((m) => m.id === id);
+    setMs((list) => list.filter((m) => m.id !== id));
+    const res = await deleteStrategyMilestoneAction(id);
+    if (res.error !== undefined) {
+      if (removed) setMs((list) => (list.some((m) => m.id === id) ? list : [...list, removed].sort((a, b) => a.date.localeCompare(b.date))));
+      toast.error(errorText(res.error));
+    } else toast.success("Muhim sana o'chirildi");
+  }
+
+  async function createSpace(input: SpaceInput) {
     const res = await createStrategySpaceAction(input);
     if (res.error !== undefined) {
       toast.error(errorText(res.error));
@@ -315,6 +380,7 @@ export function StrategyWorkspace({
           { g: 'Amallar', t: 'Yangi vazifa yaratish', k: 'N', run: () => openTask(null) },
           { g: 'Amallar', t: lateOnly ? "Muddati o'tgan filtrini o'chirish" : "Muddati o'tgan vazifalar", run: () => setLateOnly((v) => !v) },
           { g: 'Amallar', t: 'Yangi maydon yaratish', run: () => setDrawer({ kind: 'space' }) },
+          { g: 'Amallar', t: 'Maydon sozlamalari (nom, budjet, muhim sanalar)', run: () => setDrawer({ kind: 'space', edit: true }) },
         ]
       : []),
     ...spaces.map((sp) => ({ g: 'Maydonlar', t: sp.name, run: () => router.push(`/strategy?space=${sp.id}`) })),
@@ -365,6 +431,12 @@ export function StrategyWorkspace({
               <Plus className="size-3.5" />
             </button>
           </div>
+          {space && (
+            <button className="sx-btn" onClick={() => setDrawer({ kind: 'space', edit: true })} title="Nom, budjet, muhim sanalar, o‘chirish">
+              <Settings2 className="size-4" />
+              Sozlamalar
+            </button>
+          )}
           {space && (
             <button className="sx-btn primary" onClick={() => openTask(null)}>
               <Plus className="size-4" />
@@ -445,7 +517,7 @@ export function StrategyWorkspace({
         <section className={cn('sx-view', fullBleed ? 'canvas' : 'px-4 pb-8 sm:px-7')}>
           <div key={view} className="sx-fade h-full">
             {view === 'dash' && (
-              <DashboardView api={api} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} />
+              <DashboardView api={api} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} />
             )}
             {view === 'roadmap' && (
               <RoadmapView
@@ -458,7 +530,7 @@ export function StrategyWorkspace({
             {view === 'mind' && <MindView api={api} mind={mind} onChange={updateMind} />}
             {view === 'board' && <BoardView api={api} tasks={visible} onQuickAdd={(title, status) => createTask({ title, status })} />}
             {view === 'list' && <ListView api={api} tasks={visible} />}
-            {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={milestones} />}
+            {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={ms} onMilestones={() => setDrawer({ kind: 'space', edit: true })} />}
             {view === 'fin' && <FinanceView books={books} today={today} />}
             {view === 'analytics' && <AnalyticsView books={books} today={today} />}
           </div>
@@ -500,7 +572,21 @@ export function StrategyWorkspace({
             }}
           />
         )}
-        {drawer?.kind === 'space' && <SpaceDrawer today={today} onClose={closeDrawer} onCreate={createSpace} />}
+        {drawer?.kind === 'space' && (
+          <SpaceDrawer
+            key={drawer.edit && space ? `edit-${space.id}` : 'new'}
+            today={today}
+            space={drawer.edit && space ? space : undefined}
+            taskCount={tasks.length}
+            milestones={ms}
+            onClose={closeDrawer}
+            onCreate={drawer.edit ? updateSpace : createSpace}
+            onBudget={saveBudget}
+            onAddMilestone={addMilestone}
+            onDeleteMilestone={removeMilestone}
+            onDeleteSpace={removeSpace}
+          />
+        )}
       </aside>
     </div>
     </SuiteShell>

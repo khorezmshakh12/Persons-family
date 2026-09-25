@@ -6,6 +6,7 @@ import {
   PRIORITIES,
   STATUSES,
   WORKSTREAMS,
+  budgetTotals,
   daysBetween,
   fmtDay,
   isLate,
@@ -56,19 +57,20 @@ export function DashboardView({
   tasks: T,
   all,
   onGantt,
+  onEditSpace,
 }: {
   api: WorkspaceApi;
   space: StrategySpace;
   tasks: StrategyTask[];
   all: StrategyTask[];
   onGantt: () => void;
+  onEditSpace: () => void;
 }) {
   const { today } = api;
   const pct = all.length ? Math.round(all.reduce((a, t) => a + t.progress, 0) / all.length) : 0;
   const cnt = (k: TaskStatus) => T.filter((t) => t.status === k).length;
   const lateN = T.filter((t) => isLate(t, today)).length;
-  const bP = space.budget.reduce((a, b) => a + b.plan, 0);
-  const bA = space.budget.reduce((a, b) => a + b.act, 0);
+  const { plan: bP, act: bA } = budgetTotals(space.budget);
   const bMax = Math.max(1, ...space.budget.map((b) => b.plan));
 
   const r0 = space.start_date;
@@ -260,9 +262,14 @@ export function DashboardView({
       <div className="sx-card budget sx-rise" style={{ '--i': 8 } as React.CSSProperties}>
         <div className="ct">
           <h3>Budjet</h3>
-          <small>mln so‘m · reja / fakt</small>
+          <small>mln so‘m · reja / fakt{bP > 0 ? ` · ${bA} / ${bP}` : ''}</small>
+          <button className="sx-btn sm ml-auto" onClick={onEditSpace}>
+            Tahrirlash
+          </button>
         </div>
-        {space.budget.length === 0 && <p className="text-sm text-au-faint">Budjet kiritilmagan</p>}
+        {space.budget.length === 0 && (
+          <p className="text-sm text-au-faint">Budjet kiritilmagan — «Tahrirlash» orqali yo‘nalishlar bo‘yicha reja va faktni kiriting.</p>
+        )}
         {space.budget.map((b, i) => (
           <div key={b.ws} className="bgt-row">
             <div className="top">

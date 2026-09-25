@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from './suite-shell';
-import { CheckSquare, Maximize, Minus, Plus, X } from 'lucide-react';
+import { CheckSquare, Maximize, Minus, Pencil, Plus, X } from 'lucide-react';
 import { MIND_COLORS, guessWorkstream, type StrategyMind } from '@/lib/strategy';
 import type { WorkspaceApi } from './strategy-workspace';
 
@@ -83,6 +83,7 @@ export function MindView({
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [panning, setPanning] = useState(false);
   const [text, setText] = useState('');
+  const [renaming, setRenaming] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const pan = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean } | null>(null);
 
@@ -123,7 +124,29 @@ export function MindView({
     return { b: Number(g.dataset.b), k: g.dataset.k != null ? Number(g.dataset.k) : null };
   }
 
+  function startRename() {
+    if (!sel) return toast.message('Avval shox yoki markazni tanlang');
+    setText(selName ?? '');
+    setRenaming(true);
+  }
+
+  function rename() {
+    const v = text.trim();
+    if (!v || !sel) return;
+    if ('root' in sel) onChange({ ...mind, t: v });
+    else if (sel.k == null) onChange({ ...mind, ch: mind.ch.map((b, i) => (i === sel.b ? { ...b, t: v } : b)) });
+    else
+      onChange({
+        ...mind,
+        ch: mind.ch.map((b, i) => (i === sel.b ? { ...b, ch: b.ch.map((c, j) => (j === sel.k ? { t: v } : c)) } : b)),
+      });
+    setRenaming(false);
+    setText('');
+    toast.success('Nomi o‘zgartirildi');
+  }
+
   function add() {
+    if (renaming) return rename();
     const v = text.trim();
     if (!v) return;
     if (!sel) return toast.message('Avval shox yoki markazni tanlang');
@@ -144,6 +167,8 @@ export function MindView({
 
   function remove() {
     if (!sel || 'root' in sel) return;
+    const kids = sel.k == null ? (mind.ch[sel.b]?.ch.length ?? 0) : 0;
+    if (!window.confirm(kids ? `«${selName}» va undagi ${kids} ta g'oya o'chirilsinmi?` : `«${selName}» o'chirilsinmi?`)) return;
     if (sel.k != null)
       onChange({ ...mind, ch: mind.ch.map((b, i) => (i === sel.b ? { ...b, ch: b.ch.filter((_, j) => j !== sel.k) } : b)) });
     else onChange({ ...mind, ch: mind.ch.filter((_, i) => i !== sel.b) });
@@ -186,6 +211,7 @@ export function MindView({
           if (!p || p.moved) return;
           const el = document.elementFromPoint(e.clientX, e.clientY);
           setSel(hit(el));
+          setRenaming(false);
         }}
         onDoubleClick={(e) => {
           const s = hit(document.elementFromPoint(e.clientX, e.clientY));
@@ -278,10 +304,18 @@ export function MindView({
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') add();
+              if (e.key === 'Escape' && renaming) {
+                setRenaming(false);
+                setText('');
+              }
+            }}
             maxLength={80}
             placeholder={
-              !sel
+              renaming
+                ? 'Yangi nom… (Enter)'
+                : !sel
                 ? 'Avval shox tanlang'
                 : 'root' in sel
                   ? 'Yangi asosiy shox… (Enter)'
@@ -290,11 +324,17 @@ export function MindView({
                     : "Yangi g'oya… (Enter)"
             }
           />
+          <button className="sx-btn sm" onClick={add} disabled={!sel || !text.trim()} title={renaming ? 'Nomni saqlash' : "Qo'shish"}>
+            {renaming ? 'Saqlash' : <Plus className="size-3.5" />}
+          </button>
+          <button className="sx-btn sm" onClick={startRename} disabled={!sel} title="Nomini o'zgartirish" aria-label="Nomini o'zgartirish">
+            <Pencil className="size-3.5" />
+          </button>
           <button className="sx-btn sm" onClick={toTask} title="Tanlangan g'oyani vazifaga aylantirish">
             <CheckSquare className="size-3.5" />
             Vazifaga
           </button>
-          <button className="sx-btn sm" onClick={remove} title="O'chirish" disabled={!sel || 'root' in sel}>
+          <button className="sx-btn sm" onClick={remove} title="O'chirish" aria-label="O'chirish" disabled={!sel || 'root' in sel}>
             <X className="size-3.5" />
           </button>
         </div>

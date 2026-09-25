@@ -254,6 +254,24 @@ export function depreciation(a: Asset, ym: string) {
   };
 }
 
+/** Is the asset on the balance sheet at the end of month `ym`? (acquired by
+ * then and not disposed in or before it). */
+export const assetOnBooks = (a: Pick<Asset, 'acquired' | 'disposed'>, ym: string) =>
+  a.acquired.slice(0, 7) <= ym && !(a.disposed && a.disposed.slice(0, 7) <= ym);
+
+/** Journal rows that write a disposed asset off the books on its disposal
+ * date: accumulated depreciation (Dt 0200) and the remaining book value as a
+ * loss (Dt 9430) against the original cost (Kt 0100). */
+export function disposalPostings(a: Asset): { debit: string; credit: string; amount: number; description: string }[] {
+  if (!a.disposed) return [];
+  const d = depreciation(a, a.disposed.slice(0, 7));
+  const rows = [
+    { debit: '0200', credit: '0100', amount: d.accumulated, description: `Eskirish hisobdan chiqarildi: ${a.name}` },
+    { debit: '9430', credit: '0100', amount: d.net, description: `Asosiy vosita hisobdan chiqarildi (qoldiq): ${a.name}` },
+  ];
+  return rows.filter((r) => r.amount > 0);
+}
+
 export type PayrollRow = { staffId: string; name: string; role: string; gross: number; paid: number };
 
 /** Roles whose pay is a direct cost of teaching (9130); everyone else is
@@ -372,6 +390,14 @@ export const JOURNAL_TEMPLATES: [string, string, string][] = [
   ['Darslik xaridi', '2910', '6010'],
   ['Kassadan bankka', '5110', '5010'],
 ];
+
+/** Relative change from `prev` to `now` (0.1 = +10%); null when there is no
+ * base. Uses |prev| so growth from a negative base still reads as growth. */
+export function growthRate(now: number, prev: number): number | null {
+  if (!prev) return null;
+  return (now - prev) / Math.abs(prev);
+}
+export const fmtGrowth = (g: number | null) => (g === null ? '—' : `${g >= 0 ? '+' : ''}${(g * 100).toFixed(1)}%`);
 
 export const fmtMln = (v: number) => {
   const a = Math.abs(v);

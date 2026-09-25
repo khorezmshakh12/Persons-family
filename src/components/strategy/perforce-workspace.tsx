@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { BarChart3, Briefcase, CalendarRange, CheckCheck, ListTodo, ShieldCheck, Zap } from 'lucide-react';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
   MONF,
@@ -14,6 +14,7 @@ import {
   daysBetween,
   fmtDay,
   isLate,
+  progressForStatus,
   type StrategyPerson,
   type StrategyTask,
   type TaskStatus,
@@ -57,6 +58,16 @@ const SPRINT_ANCHOR = '2026-01-05';
 const d10 = (s: string | null) => (s ? tashkentDayKey(new Date(s)) : null);
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
+/** Start work on a backlog task: status → in progress, and if its dates miss
+ * the current sprint, pull them in so it shows on the sprint board. */
+function takeIntoSprint(t: Pick<STask, 'start_date' | 'end_date'>, today: string): Partial<STask> {
+  const sp = sprintOf(today);
+  if (t.start_date <= sp.to && t.end_date >= sp.from) return { status: 'progress' };
+  const start = t.start_date > sp.to ? today : t.start_date;
+  const end = t.end_date < sp.from || t.end_date < start ? sp.to : t.end_date;
+  return { status: 'progress', start_date: start, end_date: end };
+}
+
 function sprintOf(today: string) {
   const n = Math.floor(daysBetween(SPRINT_ANCHOR, today) / 14);
   const from = addDays(SPRINT_ANCHOR, n * 14);
@@ -99,7 +110,7 @@ export function PerforceWorkspace({ data, today }: { data: PfData; today: string
     const prev = stasks.find((t) => t.id === id);
     if (!prev) return;
     const next = { ...prev, ...p };
-    if (p.status === 'done') next.progress = 100;
+    if (p.status) next.progress = progressForStatus(prev, p.status);
     setStasks((l) => l.map((t) => (t.id === id ? next : t)));
     start(async () => {
       const r = await saveStrategyTaskAction({
@@ -198,7 +209,7 @@ function Portfolio({ data, stasks, today }: { data: PfData; stasks: STask[]; tod
           <small>progress vs o‘tgan vaqt · kechikkan vazifalar ulushi</small>
         </div>
         {rows.length === 0 ? (
-          <div className="sx-empty">Strategiyada maydon yo‘q</div>
+          <div className="sx-empty">Strategiyada maydon yo‘q — <Link className="font-semibold text-au-accent-text underline" href="/strategy">Strategiya</Link> bo‘limida maydon yarating.</div>
         ) : (
           <div className="sx-tw">
             <table className="sx-tbl">
@@ -294,7 +305,7 @@ function Backlog({
               {list.length === 0 && (
                 <tr>
                   <td colSpan={7} className="l">
-                    <div className="sx-empty">Backlog bo‘sh</div>
+                    <div className="sx-empty">Backlog bo‘sh — «Rejada» holatidagi vazifalar shu yerda chiqadi. Yangi vazifani <Link className="font-semibold text-au-accent-text underline" href="/strategy">Strategiya</Link> bo‘limida qo‘shing.</div>
                   </td>
                 </tr>
               )}
@@ -326,7 +337,7 @@ function Backlog({
                     </select>
                   </td>
                   <td>
-                    <button className="sx-btn sm" onClick={() => patch(t.id, { status: 'progress' }, `«${t.title}» sprintga olindi`)}>
+                    <button className="sx-btn sm whitespace-nowrap" onClick={() => patch(t.id, takeIntoSprint(t, today), `«${t.title}» sprintga olindi`)}>
                       Ishga olish →
                     </button>
                   </td>
@@ -443,7 +454,7 @@ function Sprint({ stasks, personById, today, patch }: { stasks: STask[]; personB
 
 /* ----------------------------------------------------------------- schedule */
 function Schedule({ data, stasks, today }: { data: PfData; stasks: STask[]; today: string }) {
-  if (data.spaces.length === 0) return <div className="sx-card sx-empty mt-4">Loyiha yo‘q</div>;
+  if (data.spaces.length === 0) return <div className="sx-card sx-empty mt-4">Loyiha yo‘q — <Link className="font-semibold text-au-accent-text underline" href="/strategy">Strategiya</Link> bo‘limida maydon yarating.</div>;
   const from = [...data.spaces.map((s) => s.start_date), ...data.milestones.map((m) => m.date)].sort()[0];
   const to = [...data.spaces.map((s) => s.end_date), ...data.milestones.map((m) => m.date)].sort().at(-1)!;
   const r0 = addDays(from, -7);

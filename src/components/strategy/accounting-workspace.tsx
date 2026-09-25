@@ -11,6 +11,7 @@ import {
   Rows3,
   SlidersHorizontal,
   Wallet,
+  Pencil,
   Trash2,
   Plus,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ import {
   cashWeeks,
   courseEconomics,
   debitNormal,
+  assetOnBooks,
   depreciation,
   fmtMln,
   fmtNum,
@@ -40,6 +42,7 @@ import {
   deleteAssetAction,
   deleteCourseAction,
   deleteJournalEntryAction,
+  disposeAssetAction,
   getPayrollForMonthAction,
   postDepreciationAction,
   postPayrollAction,
@@ -170,7 +173,7 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
   );
   const missing = courseGroups.filter((g) => g.course && !books.courses.some((c) => c.name.toLowerCase() === g.course.toLowerCase()));
   const save = (id: string | undefined, v: { name: string; fee: number; students: number; teacherCost: number; bookCost: number }) =>
-    run(() => saveCourseAction({ id, ...v }), id ? undefined : "Kurs qo'shildi");
+    run(() => saveCourseAction({ id, ...v }), id ? `«${v.name}» saqlandi` : "Kurs qo'shildi");
 
   return (
     <div className="sx-grid">
@@ -248,7 +251,7 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
                 </tr>
               )}
               {rows.map(({ c, e }, i) => (
-                <CourseRow key={c.id + c.fee + c.students + c.teacher_cost + c.book_cost + c.name} c={c} e={e} i={i} onSave={(v) => save(c.id, v)} onDelete={() => run(() => deleteCourseAction(c.id), "Kurs o'chirildi")} />
+                <CourseRow key={c.id + c.fee + c.students + c.teacher_cost + c.book_cost + c.name} c={c} e={e} i={i} onSave={(v) => save(c.id, v)} onDelete={() => window.confirm(`«${c.name}» kursi o'chirilsinmi?`) && run(() => deleteCourseAction(c.id), "Kurs o'chirildi")} />
               ))}
             </tbody>
             {rows.length > 0 && (
@@ -348,7 +351,7 @@ function CourseRow({
         )}
       </td>
       <td>
-        <button className="text-au-faint hover:text-au-bad" onClick={onDelete} aria-label="O'chirish">
+        <button className="sx-btn sm text-au-bad" onClick={onDelete} aria-label="O'chirish">
           <Trash2 className="size-4" />
         </button>
       </td>
@@ -659,6 +662,8 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
   }
   const [q, setQ] = useState('');
   const [acc, setAcc] = useState('all');
+  const [editId, setEditId] = useState<string | null>(null);
+  const blank = { doc: '', description: '', amount: '' };
   const name = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? c;
   const list = books.entries
     .filter((e) => e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym))
@@ -669,7 +674,10 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
   const submit = () => {
     const amount = Number(f.amount);
     if (!f.description.trim() || !(amount > 0) || f.debit === f.credit) return toast.error("Tavsif, summa va turli hisoblarni kiriting");
-    run(() => addJournalEntryAction({ ...f, amount }), 'Yozuv jurnalga qo‘shildi', () => setF({ ...f, doc: '', description: '', amount: '' }));
+    run(() => addJournalEntryAction({ ...f, amount, id: editId ?? undefined }), editId ? 'Yozuv saqlandi' : 'Yozuv jurnalga qo‘shildi', () => {
+      setF({ ...f, ...blank });
+      setEditId(null);
+    });
   };
   const accSel = (k: 'debit' | 'credit') => (
     <select className="sx-inp !w-[220px]" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}>
@@ -684,7 +692,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
     <div className="sx-grid">
       <div className="sx-card s12">
         <div className="sx-h">
-          <h3>Yangi provodka</h3>
+          <h3>{editId ? 'Provodkani tahrirlash' : 'Yangi provodka'}</h3>
           <small>Dt / Kt — ikki tomonlama yozuv</small>
         </div>
         <div className="mb-3 flex flex-wrap gap-1.5">
@@ -727,8 +735,13 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             />
           </label>
           <button className="sx-btn primary" disabled={pending} onClick={submit}>
-            <Plus className="size-4" /> Qo‘shish
+            {editId ? 'Saqlash' : <><Plus className="size-4" /> Qo‘shish</>}
           </button>
+          {editId && (
+            <button className="sx-btn" onClick={() => { setEditId(null); setF({ ...f, ...blank }); }}>
+              Bekor qilish
+            </button>
+          )}
         </div>
       </div>
       <div className="sx-card s12">
@@ -783,9 +796,23 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
                   <td>{fmtNum(e.amount)}</td>
                   <td>
                     {!e.source && (
-                      <button className="text-au-faint hover:text-au-bad" onClick={() => run(() => deleteJournalEntryAction(e.id), "Yozuv o'chirildi")} aria-label="O'chirish">
+                      <span className="inline-flex items-center gap-1">
+                      <button
+                        className="sx-btn sm"
+                        aria-label="Tahrirlash"
+                        onClick={() => {
+                          setEditId(e.id);
+                          setF({ date: e.entry_date, doc: e.doc ?? '', description: e.description, debit: e.debit, credit: e.credit, amount: String(e.amount) });
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button className="sx-btn sm text-au-bad" onClick={() => window.confirm(`Yozuv o'chirilsinmi?
+${e.debit}/${e.credit} · ${fmtNum(e.amount)} · ${e.description}`) && run(() => deleteJournalEntryAction(e.id), "Yozuv o'chirildi")} aria-label="O'chirish">
                         <Trash2 className="size-4" />
                       </button>
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -837,7 +864,7 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-au-muted">
               Hisob yuritish boshlangan kundagi qoldiqlar (tabiiy tomonida).
               <span className={cn('sx-pl', Math.abs(obD - obK) < 0.01 ? 'ok' : 'bad')}>
-                Aktiv {fmtNum(obD)} · Passiv {fmtNum(obK)}
+                Dt {fmtNum(obD)} · Kt {fmtNum(obK)}{Math.abs(obD - obK) >= 0.01 ? ` · farq ${fmtNum(obD - obK)}` : ''}
               </span>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -861,7 +888,11 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
             <button
               className="sx-btn primary sm mt-3"
               disabled={pending}
-              onClick={() => run(() => setOpeningBalancesAction(ob), 'Boshlang‘ich qoldiqlar saqlandi', () => setEdit(false))}
+              onClick={() =>
+                (Math.abs(obD - obK) < 0.01 ||
+                  window.confirm(`Qoldiqlar muvozanatda emas (Dt − Kt = ${fmtNum(obD - obK)}). Balans teng chiqmaydi. Baribir saqlansinmi?`)) &&
+                run(() => setOpeningBalancesAction(ob), 'Boshlang‘ich qoldiqlar saqlandi', () => setEdit(false))
+              }
             >
               Saqlash
             </button>
@@ -1197,7 +1228,12 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
   const { run, pending } = useRun();
   const [f, setF] = useState({ name: '', category: '', cost: '', acquired: today, lifeYears: '3', journal: true });
   const rows = books.assets.map((a) => ({ a, d: depreciation(a, ym) }));
-  const tot = rows.reduce((s, r) => ({ cost: s.cost + r.a.cost, acc: s.acc + r.d.accumulated, net: s.net + r.d.net, ch: s.ch + r.d.charge }), { cost: 0, acc: 0, net: 0, ch: 0 });
+  // Balance-sheet totals only for assets still on the books at month end; the
+  // month's charge also counts an asset disposed during that month.
+  const tot = {
+    ...rows.filter((r) => assetOnBooks(r.a, ym)).reduce((s, r) => ({ cost: s.cost + r.a.cost, acc: s.acc + r.d.accumulated, net: s.net + r.d.net }), { cost: 0, acc: 0, net: 0 }),
+    ch: rows.reduce((s, r) => s + r.d.charge, 0),
+  };
   const posted = books.entries.find((e) => e.source === `depr:${ym}`);
   const submit = () => {
     const cost = Number(f.cost);
@@ -1290,7 +1326,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={10} className="l">
-                    <div className="sx-empty">Asosiy vositalar kiritilmagan</div>
+                    <div className="sx-empty">Asosiy vositalar kiritilmagan — yuqoridagi formadan nomi, qiymati va muddatini kiriting.</div>
                   </td>
                 </tr>
               )}
@@ -1312,9 +1348,42 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
                     </div>
                   </td>
                   <td>
-                    <button className="text-au-faint hover:text-au-bad" onClick={() => run(() => deleteAssetAction(a.id), "Vosita o'chirildi")} aria-label="O'chirish">
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      {a.disposed ? (
+                        <>
+                          <span className="sx-pl mute whitespace-nowrap">Chiqarilgan {a.disposed.split('-').reverse().join('.')}</span>
+                          <button
+                            className="sx-btn sm"
+                            disabled={pending}
+                            onClick={() => run(() => disposeAssetAction({ id: a.id, date: null }), `«${a.name}» qayta tiklandi`)}
+                          >
+                            Qaytarish
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="sx-btn sm whitespace-nowrap"
+                          disabled={pending}
+                          title="Sotilgan / yaroqsiz — eskirish to‘xtaydi, qoldiq 9430 ga hisobdan chiqariladi"
+                          onClick={() => {
+                            const d = window.prompt(`«${a.name}» qaysi sanada hisobdan chiqarilsin? (YYYY-MM-DD)`, today);
+                            if (d == null) return;
+                            if (!/^\d{4}-\d{2}-\d{2}$/.test(d.trim()) || d.trim() < a.acquired) return toast.error("Sana noto'g'ri (xarid sanasidan oldin bo'lmasin)");
+                            run(() => disposeAssetAction({ id: a.id, date: d.trim() }), `«${a.name}» hisobdan chiqarildi`);
+                          }}
+                        >
+                          Chiqarish
+                        </button>
+                      )}
+                      <button
+                        className="sx-btn sm text-au-bad"
+                        disabled={pending}
+                        onClick={() => window.confirm(`«${a.name}» butunlay o'chirilsinmi? Xarid va eskirish yozuvlari ham qayta hisoblanadi.`) && run(() => deleteAssetAction(a.id), "Vosita o'chirildi")}
+                        aria-label="O'chirish"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

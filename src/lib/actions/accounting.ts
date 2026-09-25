@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import type { TransactionSql } from 'postgres';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
 import { requireStrategyEditor } from '@/lib/strategy-auth';
@@ -10,6 +11,7 @@ import { getPayrollSummary } from '@/lib/payroll';
 import {
   DEFAULT_TAX,
   depreciation,
+  disposalPostings,
   monthEnd,
   monthStart,
   payrollPostings,
@@ -63,6 +65,8 @@ async function replacePostings(
 }
 
 const entrySchema = z.object({
+  /** Edit an existing manual entry (auto postings are re-posted instead). */
+  id: z.string().uuid().optional(),
   date: ymd,
   doc: z.string().trim().max(40).default(''),
   description: z.string().trim().min(1).max(300),
@@ -76,11 +80,20 @@ export async function addJournalEntryAction(input: z.input<typeof entrySchema>):
   if ('error' in g) return g;
   const p = entrySchema.safeParse(input);
   if (!p.success || p.data.debit === p.data.credit) return { error: 'invalidInput' };
+  const amount = Math.round(p.data.amount * 100) / 100;
   try {
-    await sql`
-      insert into acct_entries (entry_date, doc, description, debit, credit, amount, created_by)
-      values (${p.data.date}, ${p.data.doc}, ${p.data.description}, ${p.data.debit}, ${p.data.credit},
-        ${Math.round(p.data.amount * 100) / 100}, ${g.id})`;
+    if (p.data.id) {
+      const res = await sql`
+        update acct_entries set entry_date = ${p.data.date}, doc = ${p.data.doc}, description = ${p.data.description},
+          debit = ${p.data.debit}, credit = ${p.data.credit}, amount = ${amount}
+        where id = ${p.data.id} and source is null`;
+      if (res.count === 0) return { error: 'notFound' };
+    } else {
+      await sql`
+        insert into acct_entries (entry_date, doc, description, debit, credit, amount, created_by)
+        values (${p.data.date}, ${p.data.doc}, ${p.data.description}, ${p.data.debit}, ${p.data.credit},
+          ${amount}, ${g.id})`;
+    }
   } catch {
     return { error: 'updateFailed' };
   }
@@ -260,23 +273,76 @@ export async function deleteAssetAction(id: string): Promise<Result> {
   try {
     await sql.begin(async (tx) => {
       await tx`delete from acct_entries where source = ${`asset:${id}`}`;
-      await tx`delete from acct_assets where id = ${id}`;
+      await tx`delete from acct_entries where source = ${`dispose:${id}`}`;
+      const res = await tx`delete from acct_assets where id = ${id}`;
+      if (res.count === 0) throw new NotFound();
       // Re-state every month whose depreciation was already posted, so the
       // removed asset's charge doesn't linger in the journal.
-      const assets = await tx<Asset[]>`select id, name, category, cost, acquired, life_years, disposed from acct_assets`;
-      const posted = await tx<{ source: string; id: string }[]>`select id, source from acct_entries where source like 'depr:%'`;
-      for (const row of posted) {
-        const month = row.source.slice(5);
-        const amount = Math.round(assets.reduce((a, x) => a + depreciation(x, month).charge, 0) * 100) / 100;
-        if (amount > 0) await tx`update acct_entries set amount = ${amount} where id = ${row.id}`;
-        else await tx`delete from acct_entries where id = ${row.id}`;
-      }
+      await restateDepreciation(tx);
     });
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (e) {
+    return { error: e instanceof NotFound ? 'notFound' : 'updateFailed' };
   }
+  logSystemAction('acct.asset_delete', `Deleted asset ${id}`);
   return done();
 }
+
+class NotFound extends Error {}
+
+type Tx = TransactionSql<{}>; // eslint-disable-line @typescript-eslint/no-empty-object-type
+
+/** Recompute every already-posted monthly depreciation row from the current
+ * asset list (after an asset is removed, disposed or restored). */
+async function restateDepreciation(tx: Tx) {
+  const assets = await tx<Asset[]>`select id, name, category, cost, acquired, life_years, disposed from acct_assets`;
+  const posted = await tx<{ source: string; id: string }[]>`select id, source from acct_entries where source like 'depr:%'`;
+  for (const row of posted) {
+    const month = row.source.slice(5);
+    const amount = Math.round(assets.reduce((a, x) => a + depreciation(x, month).charge, 0) * 100) / 100;
+    if (amount > 0) await tx`update acct_entries set amount = ${amount} where id = ${row.id}`;
+    else await tx`delete from acct_entries where id = ${row.id}`;
+  }
+}
+
+const disposeSchema = z.object({ id: z.string().uuid(), date: ymd.nullable() });
+
+/**
+ * Dispose of (write off) a fixed asset on `date`, or restore it with
+ * `date: null`. Depreciation stops after the disposal month; if the purchase
+ * was booked in the journal, the write-off is booked too (see disposalPostings).
+ */
+export async function disposeAssetAction(input: z.input<typeof disposeSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = disposeSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const { id, date } = p.data;
+  try {
+    await sql.begin(async (tx) => {
+      const [asset] = await tx<Asset[]>`
+        select id, name, category, cost, acquired, life_years, disposed from acct_assets where id = ${id} for update`;
+      if (!asset) throw new NotFound();
+      if (date && date < asset.acquired) throw new Invalid();
+      await tx`update acct_assets set disposed = ${date} where id = ${id}`;
+      await tx`delete from acct_entries where source = ${`dispose:${id}`}`;
+      const [booked] = await tx`select 1 from acct_entries where source = ${`asset:${id}`}`;
+      if (date && booked) {
+        for (const r of disposalPostings({ ...asset, disposed: date })) {
+          await tx`
+            insert into acct_entries (entry_date, doc, description, debit, credit, amount, source, created_by)
+            values (${date}, 'AV', ${r.description}, ${r.debit}, ${r.credit}, ${r.amount}, ${`dispose:${id}`}, ${g.id})`;
+        }
+      }
+      await restateDepreciation(tx);
+    });
+  } catch (e) {
+    return { error: e instanceof NotFound ? 'notFound' : e instanceof Invalid ? 'invalidInput' : 'updateFailed' };
+  }
+  logSystemAction('acct.asset_dispose', `${date ? 'Disposed' : 'Restored'} asset ${id}`);
+  return done();
+}
+
+class Invalid extends Error {}
 
 const budgetSchema = z.object({ month: ym, code, amount: z.number().finite().min(0).max(1e13) });
 
