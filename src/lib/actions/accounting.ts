@@ -136,15 +136,20 @@ export async function setOpeningBalancesAction(values: Record<string, number>): 
   return done();
 }
 
-export async function postPayrollAction(month: string): Promise<Result & { count?: number }> {
+const overridesSchema = z.record(z.string().uuid(), z.number().finite().min(0).max(1e12)).default({});
+
+/** Posts the month's payroll. `overrides` (staffId → gross) are the
+ * accountant's corrections to the accrued amount made in the vedomost. */
+export async function postPayrollAction(month: string, overrides: Record<string, number> = {}): Promise<Result & { count?: number }> {
   const g = await requireEditor();
   if ('error' in g) return g;
-  if (!ym.safeParse(month).success) return { error: 'invalidInput' };
+  const ov = overridesSchema.safeParse(overrides);
+  if (!ym.safeParse(month).success || !ov.success) return { error: 'invalidInput' };
   try {
     const [summary, tax] = await Promise.all([getPayrollSummary(monthStart(month)), loadTax()]);
     const rows = payrollPostings(
       month,
-      summary.rows.map((r) => ({ staffId: r.staffId, name: r.name, role: r.role, gross: r.gross, paid: r.paid })),
+      summary.rows.map((r) => ({ staffId: r.staffId, name: r.name, role: r.role, gross: ov.data[r.staffId] ?? r.gross, paid: r.paid })),
       tax,
     );
     await replacePostings(`payroll:${month}:`, monthEnd(month), rows, g.id);
@@ -425,4 +430,23 @@ export async function getPayrollForMonthAction(month: string): Promise<{ error?:
   } catch {
     return { error: 'loadFailed' };
   }
+}
+
+const planSchema = z.object({ month: ym, students: z.number().int().min(0).max(1e6) });
+
+/** Planned head-count for a month — drives the flexible budget. */
+export async function setPlanStudentsAction(input: z.input<typeof planSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = planSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    await sql`
+      insert into acct_settings (key, value) values ('plan_students', ${sql.json({ [p.data.month]: p.data.students })})
+      on conflict (key) do update set value = acct_settings.value || excluded.value`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('acct.plan_students', `${p.data.month}: ${p.data.students}`);
+  return done();
 }
