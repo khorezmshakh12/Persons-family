@@ -63,6 +63,7 @@ export async function triageIssue(issueId: string): Promise<boolean> {
           },
         },
       },
+      'issue_triage',
     );
     if (!res) return false;
     const cat = res.answers.category;
@@ -109,6 +110,7 @@ export async function scoreLead(leadId: string): Promise<boolean> {
           instructions: 'Should the manager contact this lead today because they show strong, time-sensitive intent to enrol?',
         },
       },
+      'lead_score',
     );
     if (!res) return false;
     const intent = res.answers.intent;

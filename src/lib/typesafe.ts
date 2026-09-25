@@ -1,4 +1,5 @@
 import 'server-only';
+import { sql } from '@/lib/db/client';
 
 // Minimal TypeSafe (System One / Jev) client — https://docs.typesafe.ai/api
 // Server-only: the key lives in TYPESAFE_API_KEY (Cloud Run secret) and never
@@ -21,13 +22,24 @@ export type TsAnswer =
   | { type: 'choice'; choice: string; probabilities: Record<string, number>; confidence: number }
   | { type: 'score'; score: number; probabilities: Record<string, number>; legend: Record<string, string>; confidence: number };
 
-export type TsResult = { model: string; answers: Record<string, TsAnswer> };
+export type TsResult = {
+  model: string;
+  answers: Record<string, TsAnswer>;
+  usage?: { input_tokens: number; output_tokens: number };
+};
+
+/** Jev bills input tokens only: $0.042 per million (docs.typesafe.ai/models). */
+export const JEV_USD_PER_MTOK = 0.042;
 
 export const typesafeEnabled = () => !!process.env.TYPESAFE_API_KEY;
 
 /** One request, all questions evaluated in parallel over the same state.
  * Retries once on 429/529 (rate limit / overloaded). */
-export async function askTypeSafe(state: unknown, questions: Record<string, TsQuestion>): Promise<TsResult | null> {
+export async function askTypeSafe(
+  state: unknown,
+  questions: Record<string, TsQuestion>,
+  feature = 'other',
+): Promise<TsResult | null> {
   const key = process.env.TYPESAFE_API_KEY;
   if (!key) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -47,7 +59,14 @@ export async function askTypeSafe(state: unknown, questions: Record<string, TsQu
         console.error('typesafe request failed', res.status, (await res.text()).slice(0, 300));
         return null;
       }
-      return (await res.json()) as TsResult;
+      const out = (await res.json()) as TsResult;
+      // Usage ledger for the cost report — never fails the call.
+      if (out.usage) {
+        await sql`
+          insert into ai_usage (feature, model, input_tokens, output_tokens)
+          values (${feature}, ${out.model ?? MODEL}, ${out.usage.input_tokens ?? 0}, ${out.usage.output_tokens ?? 0})`.catch(() => {});
+      }
+      return out;
     } catch (error) {
       console.error('typesafe request error', error instanceof Error ? error.message : error);
       return null;
