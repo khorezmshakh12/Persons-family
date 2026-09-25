@@ -50,7 +50,11 @@ export type StrategyRoadmap = {
   icon: string;
   sections: RoadmapSection[];
   node_status: Record<string, NodeStatus>;
+  /** Resources per node (DOC / SHEET / LINK). */
+  node_links: Record<string, NodeLink[]>;
 };
+
+export type NodeLink = { k: 'DOC' | 'SHEET' | 'LINK'; t: string; url: string };
 
 export type StrategyMilestone = { id: string; title: string; date: string };
 
