@@ -52,6 +52,7 @@ import { ListView } from './view-list';
 import { GanttView } from './view-gantt';
 import { TaskDrawer, NodeDrawer, SpaceDrawer, type SpaceInput } from './drawers';
 import { FinanceView, AnalyticsView, type BooksLite } from './view-finance';
+import type { FinInputs } from '@/lib/strategy-finance';
 import { SuiteShell, playSound, toast, type PaletteItem } from './suite-shell';
 import './strategy.css';
 import './suite.css';
@@ -109,6 +110,7 @@ export function StrategyWorkspace({
   people,
   today,
   books,
+  fin,
 }: {
   spaces: { id: string; name: string; color: string }[];
   space: StrategySpace | null;
@@ -118,6 +120,7 @@ export function StrategyWorkspace({
   people: StrategyPerson[];
   today: string;
   books: BooksLite;
+  fin: FinInputs;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -531,8 +534,8 @@ export function StrategyWorkspace({
             {view === 'board' && <BoardView api={api} tasks={visible} onQuickAdd={(title, status) => createTask({ title, status })} />}
             {view === 'list' && <ListView api={api} tasks={visible} />}
             {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={ms} onMilestones={() => setDrawer({ kind: 'space', edit: true })} />}
-            {view === 'fin' && <FinanceView books={books} today={today} />}
-            {view === 'analytics' && <AnalyticsView books={books} today={today} />}
+            {view === 'fin' && <FinanceView books={books} fin={fin} today={today} onGo={() => go('analytics')} />}
+            {view === 'analytics' && <AnalyticsView books={books} fin={fin} today={today} />}
           </div>
         </section>
       )}
@@ -564,6 +567,11 @@ export function StrategyWorkspace({
             tasks={tasks.filter((t) => t.roadmap_id === drawer.roadmapId && t.roadmap_node === drawer.nodeId)}
             onClose={closeDrawer}
             onStatus={(s) => setNodeStatus(drawer.roadmapId, drawer.nodeId, s)}
+            onLinks={(links) =>
+              setRoadmaps((list) =>
+                list.map((r) => (r.id === drawer.roadmapId ? { ...r, node_links: { ...r.node_links, [drawer.nodeId]: links } } : r)),
+              )
+            }
             onMakeTask={async (title, ws) => {
               const r = roadmaps.find((x) => x.id === drawer.roadmapId)!;
               const ok = await createTask({ title, workstream: ws }, { roadmapId: drawer.roadmapId, nodeId: drawer.nodeId });

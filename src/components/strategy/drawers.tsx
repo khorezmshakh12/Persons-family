@@ -21,8 +21,11 @@ import {
   type StrategyTask,
   type TaskStatus,
   type Workstream,
+  type NodeLink,
 } from '@/lib/strategy';
 import { PersonAvatar, StatusChip } from './bits';
+import { toast } from './suite-shell';
+import { setRoadmapNodeLinksAction } from '@/lib/actions/strategy-finance';
 import type { Draft, WorkspaceApi } from './strategy-workspace';
 
 function Seg<K extends string>({ value, options, onChange }: { value: K; options: [K, string][]; onChange: (k: K) => void }) {
@@ -239,6 +242,7 @@ export function NodeDrawer({
   onClose,
   onStatus,
   onMakeTask,
+  onLinks,
 }: {
   api: WorkspaceApi;
   roadmap: StrategyRoadmap;
@@ -247,8 +251,23 @@ export function NodeDrawer({
   onClose: () => void;
   onStatus: (s: NodeStatus) => void;
   onMakeTask: (title: string, ws: Workstream) => Promise<void>;
+  onLinks: (links: NodeLink[]) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const links = roadmap.node_links?.[nodeId] ?? [];
+  const [nl, setNl] = useState<NodeLink>({ k: 'DOC', t: '', url: '' });
+  const saveLinks = async (next: NodeLink[], msg: string) => {
+    setBusy(true);
+    const res = await setRoadmapNodeLinksAction({ roadmapId: roadmap.id, nodeId, links: next });
+    setBusy(false);
+    if (res.error) {
+      toast.error(res.error === 'invalidInput' ? "Havola noto'g'ri (https://… bo'lishi kerak)" : "Saqlab bo'lmadi");
+      return false;
+    }
+    onLinks(next);
+    toast.success(msg);
+    return true;
+  };
   const sec = roadmap.sections.find((s) => nodeId === s.id || nodeId.startsWith(`${s.id}-`));
   const main = sec?.id === nodeId;
   const name = roadmapNodeName(roadmap, nodeId) ?? nodeId;
@@ -295,6 +314,46 @@ export function NodeDrawer({
           <Plus className="size-4" />
           Shu mavzudan vazifa yaratish
         </button>
+        <div className="dr-sec">Resurslar · {links.length}</div>
+        <div className="sx-res">
+          {links.length === 0 && <div className="text-[13px] text-au-faint">Hali resurs yo‘q — nizom, byudjet jadvali yoki havola qo‘shing</div>}
+          {links.map((l, i) => (
+            <div key={i} className="sx-resi">
+              <a href={l.url} target="_blank" rel="noopener noreferrer">
+                <span>{l.k}</span>
+                {l.t}
+              </a>
+              <button
+                className="sx-chipb"
+                disabled={busy}
+                aria-label="Resursni o‘chirish"
+                onClick={() => saveLinks(links.filter((_, j) => j !== i), 'Resurs o‘chirildi')}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <div className="sx-resf">
+            <select className="sx-inp" value={nl.k} onChange={(e) => setNl({ ...nl, k: e.target.value as NodeLink['k'] })} aria-label="Turi">
+              <option value="DOC">DOC</option>
+              <option value="SHEET">SHEET</option>
+              <option value="LINK">LINK</option>
+            </select>
+            <input className="sx-inp" placeholder="Nomi (masalan: Tashabbus nizomi)" value={nl.t} onChange={(e) => setNl({ ...nl, t: e.target.value })} />
+            <input className="sx-inp" placeholder="https://…" value={nl.url} onChange={(e) => setNl({ ...nl, url: e.target.value })} />
+            <button
+              className="sx-btn sm"
+              disabled={busy || !nl.t.trim() || !nl.url.trim()}
+              onClick={async () => {
+                if (await saveLinks([...links, { ...nl, t: nl.t.trim(), url: nl.url.trim() }], 'Resurs qo‘shildi'))
+                  setNl({ k: 'DOC', t: '', url: '' });
+              }}
+            >
+              <Plus className="size-4" />
+              Resurs
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );
