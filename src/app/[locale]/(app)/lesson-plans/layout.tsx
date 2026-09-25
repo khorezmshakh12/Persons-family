@@ -17,7 +17,7 @@ import { LESSON_PLAN_ROLES } from '@/lib/nav';
 // meta-tag redirect instead of a clean HTTP 307) — which was intermittently
 // corrupting the client router's cache-node tree on soft navigation and
 // surfacing as a React #310 crash (the same "Something went wrong" bug fixed
-// for /profile, /finance and /missions — see the comment on
+// for /profile and /finance — see the comment on
 // ProfileDetailContent in profile/[id]/page.tsx). A layout.tsx is not itself
 // wrapped by a loading.tsx in the same folder, so doing the redirect here
 // instead is a clean, non-streaming HTTP redirect.

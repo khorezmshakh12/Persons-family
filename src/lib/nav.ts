@@ -21,10 +21,8 @@ export type NavItem = {
     | 'telegramSetup'
     | 'selfDevelopment'
     | 'finance'
-    | 'missions'
     | 'roadmap'
     | 'market'
-    | 'analytics'
     | 'strategy'
     | 'accounting'
     | 'operations'
@@ -53,7 +51,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   finance: 'main',
   staff: 'main',
   market: 'motivation',
-  missions: 'motivation',
   selfDevelopment: 'motivation',
   chat: 'workflow',
   issues: 'workflow',
@@ -64,7 +61,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   accounting: 'main',
   operations: 'main',
   perforce: 'main',
-  analytics: 'management',
   roadmap: 'management',
   telegramSetup: 'management',
   profile: 'management',
@@ -81,7 +77,6 @@ const NAV_SORT: NavItem['key'][] = [
   'finance',
   'staff',
   'market',
-  'missions',
   'selfDevelopment',
   'chat',
   'issues',
@@ -89,7 +84,6 @@ const NAV_SORT: NavItem['key'][] = [
   'companyNews',
   'materials',
   'strategy',
-  'analytics',
   'roadmap',
   'telegramSetup',
   'profile',
@@ -154,16 +148,11 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },
-  { key: 'missions', href: '/missions' },
   // Roadmap (incl. its Monthly Goals section) is CEO/Administrative Manager
   // territory specifically — mirrors its table's RLS (an explicit
   // `current_role() in ('ceo','admin_manager')`, not the shared
   // is_admin()). IT Developer, now a plain regular employee, never has it.
   { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
-  // Analytics (staff performance + roadmap-goals charts) — CEO-only, same as
-  // the page's own `notFound()` gate. Had no nav entry at all, so it was
-  // only reachable by typing the URL.
-  { key: 'analytics', href: '/analytics', roles: ['ceo'] },
   { key: 'strategy', href: '/strategy', roles: STRATEGY_ROLES },
   { key: 'accounting', href: '/accounting', roles: STRATEGY_ROLES },
   { key: 'operations', href: '/operations', roles: STRATEGY_ROLES },

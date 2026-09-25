@@ -36,11 +36,6 @@ type Card = {
   higherIsBetter?: boolean;
 };
 
-/** Missions are open until the CEO approves them (a rejection sends them
- * back to in_progress, so it isn't a terminal state) — the same rule
- * /missions counts "active" by. */
-const isMissionOpen = (status: string) => status !== 'approved' && status !== 'rejected';
-
 export async function StatsRow({
   showTotalStaff,
   showLessonPlanCards,
@@ -53,7 +48,7 @@ export async function StatsRow({
    * lesson, teacher/assistant see their own. */
   showLessonPlanCards: boolean;
   /** Every other non-teacher role (assistant, admin_manager, mmd,
-   * internship, it_developer): a personal Finance/Missions/Tasks view
+   * internship, it_developer): a personal Finance/Tasks view
    * instead of company-wide totals that aren't relevant to their work.
    * Mutually exclusive with the two flags above. */
   personalDashboardUserId?: string;
@@ -67,15 +62,13 @@ export async function StatsRow({
 
   if (personalDashboardUserId) {
     const userId = personalDashboardUserId;
-    const [financeEntries, missionRows, taskRows] = await Promise.all([
+    const [financeEntries, taskRows] = await Promise.all([
       // The *whole* net-earnings ledger (salary + bonus/penalty + self
-      // development + approved missions), which is what /finance/[id] totals.
+      // development + archived approved mission bonuses), which is what
+      // /finance/[id] totals.
       // This card used to sum finance_entries alone and so disagreed with the
       // page it links to.
       getNetEarningEntries(userId),
-      sql<{ created_at: string; status: string; approved_at: string | null }[]>`
-        select created_at, status, approved_at from missions where staff_id = ${userId}
-      `,
       sql<{ created_at: string; status: string; completed_at: string | null }[]>`
         select created_at, status, completed_at from tasks where assigned_to = ${userId}
       `,
@@ -87,20 +80,15 @@ export async function StatsRow({
       cumulativeAmountSeries(financeEntries, period),
     );
 
-    // 2/3. Missions & Tasks: how many were still OPEN at each bucket end.
+    // 2. Tasks: how many were still OPEN at each bucket end.
     // The old series counted "rows open today, by the month they were raised
     // in", which only ever went up — the badge on an open-work card could
     // never report a decrease however much work was closed.
-    const missionBacklog = missionRows.map((m) => ({
-      createdAt: m.created_at,
-      openUntil: isMissionOpen(m.status) ? null : (m.approved_at ?? m.created_at),
-    }));
     const taskBacklog = taskRows.map((task) => ({
       createdAt: task.created_at,
       openUntil: task.status !== 'done' ? null : (task.completed_at ?? task.created_at),
     }));
 
-    const missionSeries = buildPeriodSeries((period) => openBacklogSeries(missionBacklog, period));
     const taskSeries = buildPeriodSeries((period) => openBacklogSeries(taskBacklog, period));
 
     const cards: Card[] = [
@@ -114,14 +102,6 @@ export async function StatsRow({
         maskable: true,
       },
       {
-        label: t('missions'),
-        series: missionSeries,
-        icon: 'target',
-        tint: 'blue',
-        href: `/missions/${userId}`,
-        higherIsBetter: false,
-      },
-      {
         label: t('tasks'),
         series: taskSeries,
         icon: 'tasks',
@@ -131,7 +111,7 @@ export async function StatsRow({
       },
     ];
 
-    return <CardsGrid cards={cards} columns={3} />;
+    return <CardsGrid cards={cards} columns={2} />;
   }
 
   // profiles are visible platform-wide, but groups/course_lessons used to
@@ -213,7 +193,7 @@ export async function StatsRow({
   return <CardsGrid cards={cards} columns={4} />;
 }
 
-function CardsGrid({ cards, columns }: { cards: Card[]; columns: 3 | 4 }) {
+function CardsGrid({ cards, columns }: { cards: Card[]; columns: 2 | 3 | 4 }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
@@ -221,9 +201,11 @@ function CardsGrid({ cards, columns }: { cards: Card[]; columns: 3 | 4 }) {
       </div>
       <div
         className={
-          columns === 3
-            ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
-            : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'
+          columns === 2
+            ? 'grid grid-cols-1 gap-4 sm:grid-cols-2'
+            : columns === 3
+              ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+              : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'
         }
       >
         {cards.map((c, index) => (

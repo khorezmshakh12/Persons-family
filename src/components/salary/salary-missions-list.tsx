@@ -1,58 +1,34 @@
 import { getTranslations } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
-import { Link } from '@/i18n/navigation';
-import { Badge } from '@/components/ui/badge';
 import { formatUZS } from '@/lib/format-currency';
 
-const STATUS_TINT = {
-  pending: 'slate',
-  in_progress: 'blue',
-  submitted: 'amber',
-  approved: 'green',
-  rejected: 'red',
-} as const;
-
-/** Read-only summary — interacting with a mission (start/submit/approve)
- * happens on /missions/[staffId], not duplicated here. This just needs to
- * show which missions contributed money to the Salary Total above. */
+/** Read-only archive. The Missions section was removed from the site, but
+ * bonuses from missions approved before that are still part of the salary
+ * total (lib/finance-net.ts sums them with this same filter), so they stay
+ * listed here. Renders nothing for staff who never had one. */
 export async function SalaryMissionsList({ staffId }: { staffId: string }) {
   const t = await getTranslations('salary');
-  const tMissions = await getTranslations('missions');
-  const missions = await sql<{ id: string; title: string; status: string; bonus_amount: number | null }[]>`
-    select id, title, status, bonus_amount from missions
-    where staff_id = ${staffId} order by created_at desc
+  const missions = await sql<{ id: string; title: string; bonus_amount: number }[]>`
+    select id, title, bonus_amount from missions
+    where staff_id = ${staffId} and status = 'approved' and bonus_amount is not null
+    order by coalesce(approved_at, created_at) desc
   `;
+  if (missions.length === 0) return null;
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-au-ink">{t('missions')}</h3>
-        <Link href={`/missions/${staffId}`} className="text-xs text-au-muted hover:text-au-ink hover:underline">
-          {tMissions('title')}
-        </Link>
+      <h3 className="text-sm font-medium text-au-ink">{t('missions')}</h3>
+      <div className="flex flex-col gap-2">
+        {missions.map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 px-3 py-2 text-sm"
+          >
+            <span className="min-w-0 truncate text-au-ink">{m.title}</span>
+            <span className="shrink-0 font-semibold tabular-nums text-emerald-600">{formatUZS(m.bonus_amount)}</span>
+          </div>
+        ))}
       </div>
-      {missions.length === 0 ? (
-        <p className="text-sm text-au-muted">{tMissions('noMissions')}</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {missions.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 px-3 py-2 text-sm"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-au-ink">{m.title}</span>
-                <Badge variant="tint" tint={STATUS_TINT[m.status as keyof typeof STATUS_TINT]} className="text-[10px]">
-                  {tMissions(`statusLabels.${m.status}`)}
-                </Badge>
-              </div>
-              {m.bonus_amount != null && (
-                <span className="shrink-0 font-semibold tabular-nums text-emerald-600">{formatUZS(m.bonus_amount)}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

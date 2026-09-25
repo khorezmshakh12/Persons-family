@@ -136,7 +136,7 @@ export type BacklogItem = { createdAt: string | null; openUntil: string | null }
 /**
  * How many items were **still open at the end of each bucket** (oldest →
  * newest) — for headlines that count what is currently outstanding
- * ("Missions", "Tasks").
+ * ("Tasks").
  *
  * This replaces the old "cumulative count of the rows that are open *today*,
  * bucketed by when they were raised". That series was monotonically

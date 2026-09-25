@@ -36,13 +36,11 @@
     "selfDevelopment": "O'z-o'zini Rivojlantirish",
     "performance": "Samaradorlik",
     "finance": "Moliya",
-    "missions": "Missiyalar",
     "roadmap": "Yo'l xaritasi",
     "settings": "Sozlamalar",
     "profile": "Mening profilim",
     "materials": "Materiallar",
     "market": "Persons Market",
-    "analytics": "Analitika",
     "strategy": "Strategiya",
     "accounting": "Hisob-kitob",
     "operations": "Operatsiya HQ",
@@ -116,7 +114,6 @@
       "lessonPlans": "Dars Rejalari",
       "chatActivity": "Chat Faolligi",
       "finance": "Moliya",
-      "missions": "Missiyalar",
       "tasks": "Vazifalar",
       "showAmount": "Summani ko'rsatish",
       "hideAmount": "Summani yashirish",
@@ -858,27 +855,6 @@
       }
     }
   },
-  "analytics": {
-    "title": "Umumiy Tahlillar",
-    "subtitle": "Butun platforma bo'yicha lavozimlar va o'sish haqida batafsil ma'lumot.",
-    "staffPerformance": {
-      "title": "Xodimlar Samaradorligi",
-      "noData": "Hozircha samaradorlik ma'lumotlari yo'q."
-    },
-    "roadmapGoals": {
-      "title": "Yo'l Xaritasi Maqsadlari",
-      "noData": "Hozircha yo'l xaritasi maqsadlari yo'q."
-    },
-    "adminKpi": {
-      "title": "Administratsiya jamoasi KPI",
-      "subtitle": "Administratsiya jamoasining so'nggi 12 oydagi oylik vazifa samaradorligi.",
-      "efficiency": "Samaradorlik",
-      "onTime": "Muddatida",
-      "late": "Kechikkan",
-      "notDone": "Bajarilmagan",
-      "noData": "So'nggi 12 oyda administratsiya jamoasiga vazifalar bo'lmagan."
-    }
-  },
   "commandPalette": {
     "label": "Buyruqlar paneli",
     "placeholder": "Xodim, guruh, murojaatlarni qidiring...",
@@ -1206,63 +1182,10 @@
       "deleteFailed": "O'chirib bo'lmadi. Qaytadan urinib ko'ring."
     }
   },
-  "missions": {
-    "title": "Missiyalar",
-    "subtitle": "Sizga biriktirilgan vazifalar (missiyalar).",
-    "adminSubtitle": "Har bir xodimga missiya biriktiring va boshqaring.",
-    "noMissions": "Hozircha missiyalar yo'q.",
-    "activeCount": "{count} ta faol",
-    "assign": "Missiya biriktirish",
-    "missionAssigned": "Missiya biriktirildi.",
-    "missionTitle": "Sarlavha",
-    "missionTitlePlaceholder": "masalan: Onboarding ro'yxatini yakunlash",
-    "description": "Tavsif",
-    "descriptionPlaceholder": "Ixtiyoriy tafsilotlar",
-    "deadline": "Muddat",
-    "bonusAmount": "Bonus summasi (ixtiyoriy)",
-    "shortTerm": "Qisqa muddatli",
-    "longTerm": "Uzoq muddatli",
-    "noShortTerm": "Qisqa muddatli missiyalar yo'q.",
-    "noLongTerm": "Uzoq muddatli missiyalar yo'q.",
-    "start": "Boshlash",
-    "submit": "Topshirish",
-    "submissionNote": "Izoh",
-    "submissionNotePlaceholder": "Nima qilinganini yozing...",
-    "approve": "Tasdiqlash",
-    "reject": "Rad etish",
-    "rejectionNote": "Rad etish sababi",
-    "overdue": "Muddati o'tgan",
-    "countdown": {
-      "days": "Kun",
-      "hours": "Soat",
-      "minutes": "Daqiqa",
-      "seconds": "Soniya"
-    },
-    "statusLabels": {
-      "pending": "Kutilmoqda",
-      "in_progress": "Boshlandi",
-      "submitted": "Topshirildi",
-      "approved": "Tasdiqlandi",
-      "rejected": "Rad etildi"
-    },
-    "delete": "Missiyani o'chirish",
-    "confirmDeleteTitle": "Bu missiya o'chirilsinmi?",
-    "confirmDeleteDescription": "Bu missiya butunlay o'chiriladi.",
-    "confirm": "O'chirish",
-    "errors": {
-      "forbidden": "Buni qilish uchun ruxsatingiz yo'q.",
-      "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
-      "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
-      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
-      "staleState": "Bu missiya holati allaqachon o'zgargan. Sahifani yangilab, qayta urining.",
-      "deleteFailed": "Bu missiyani o'chirib bo'lmadi.",
-      "cannotDeleteApproved": "Tasdiqlangan missiyani o'chirib bo'lmaydi — uning bonusi maosh jamiga kiradi."
-    }
-  },
   "salary": {
     "title": "Ish haqi",
     "salaryLedger": "Maosh",
-    "missions": "Missiyalar",
+    "missions": "Missiya bonuslari (arxiv)",
     "total": "Jami (Total)",
     "totalCommentPlaceholder": "Izoh qo'shish...",
     "commentSaved": "Izoh saqlandi.",

@@ -591,7 +591,7 @@ function Review({ data, personById, today }: { data: PfData; personById: Map<str
   const upload = T.filter((t) => t.status === 'awaiting_upload');
   const overdue = T.filter((t) => t.status !== 'done' && t.deadline && d10(t.deadline)! < today);
   const done30 = T.filter((t) => t.status === 'done' && t.completed_at && daysBetween(d10(t.completed_at)!, today) <= 30);
-  // Instant comparison, same definition as analytics.ts (`completed_at <= deadline`).
+  // Instant comparison, same definition as lib/task-efficiency.ts (`completed_at <= deadline`).
   const onTime = done30.filter((t) => !t.deadline || Date.parse(t.completed_at!) <= Date.parse(t.deadline));
   const reviewed = done30.filter((t) => t.submitted_at);
   const avgReview = reviewed.length ? reviewed.reduce((a, t) => a + (Date.parse(t.completed_at!) - Date.parse(t.submitted_at!)) / 36e5, 0) / reviewed.length : null;
