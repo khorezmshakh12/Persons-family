@@ -365,6 +365,8 @@ async function syncTasks(next: CoreTask[], prev: CoreTask[], taskPr: Record<stri
   return { errors, taskPr };
 }
 
+export const CORE_ROLES: string[] = ['ceo', 'it_developer'];
+
 /** Core's page ids, in its own nav order (ALL_V in core.html). */
 export const CORE_VIEWS = ['home', 'tasks', 'inbox', 'sales', 'hr', 'perforce', 'ops', 'strategy', 'report', 'settings'] as const;
 export type CoreView = (typeof CORE_VIEWS)[number];
@@ -373,6 +375,9 @@ export type CoreView = (typeof CORE_VIEWS)[number];
  * rules, evaluated on the server so the site's sidebar and page guards
  * agree with what the embedded Core shows. */
 export async function coreViews(me: Profile): Promise<CoreView[]> {
+  // Owner's decision: the whole Core platform is CEO + IT Developer only for now.
+  if (!CORE_ROLES.includes(me.role)) return [];
+  if (me.role === 'it_developer') return [...CORE_VIEWS];
   const [shared, ceo] = await Promise.all([
     readShared(),
     sql<{ id: string }[]>`select id from profiles where role = 'ceo' and is_active = true limit 1`,
