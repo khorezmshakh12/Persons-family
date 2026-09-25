@@ -380,6 +380,7 @@ export const JOURNAL_TEMPLATES: [string, string, string][] = [
   ["O'quvchi to'lovi (kassa)", '5010', '4010'],
   ["O'qish to'lovi hisoblandi", '4010', '9030'],
   ["Oldindan to'lov", '5110', '6310'],
+  ['Ish haqi hisoblash', '9130', '6710'],
   ['Ijara hisob-fakturasi', '9420', '6010'],
   ["Yetkazib beruvchiga to'lov", '6010', '5110'],
   ['Marketing xarajati', '9410', '5110'],

@@ -12,8 +12,8 @@ export default async function PerforcePage() {
   const { profile } = await getAuthState();
   if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
 
-  const [spaces, stasks, tasks, issues, people, milestones] = await Promise.all([
-    sql<PfData['spaces']>`select id, name, color, start_date, end_date from strategy_spaces order by sort_order, created_at`,
+  const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals] = await Promise.all([
+    sql<PfData['spaces']>`select id, name, color, start_date, end_date, budget from strategy_spaces order by sort_order, created_at`,
     sql<PfData['stasks']>`
       select id, space_id, title, description, workstream, assignee_id, start_date, end_date, status, priority, progress,
              roadmap_id, roadmap_node, created_at, done_at
@@ -29,6 +29,16 @@ export default async function PerforcePage() {
     sql<PfData['people']>`
       select id, first_name, last_name, avatar_url, role::text as role from profiles where is_active = true`,
     sql<PfData['milestones']>`select id, space_id, title, date from strategy_milestones order by date`,
+    sql<PfData['tests']>`select id, space_id, stask_id, title, result, issue_id, run_at from pf_test_cases order by created_at`,
+    sql<PfData['crs']>`
+      select id, space_id, stask_id, title, description, status, author_id, decided_by, decided_at, created_at
+      from (select * from pf_change_requests order by created_at desc limit 200) c order by created_at desc`,
+    sql<PfData['crComments']>`
+      select c.id, c.cr_id, c.author_id, c.body, c.created_at
+      from pf_cr_comments c join (select id from pf_change_requests order by created_at desc limit 200) r on r.id = c.cr_id
+      order by c.created_at`,
+    sql<PfData['crVotes']>`select cr_id, voter_id from pf_cr_votes`,
+    sql<PfData['goals']>`select sprint_no, goal from pf_sprint_goals`,
   ]);
 
   return (
@@ -40,6 +50,11 @@ export default async function PerforcePage() {
         issues: [...issues],
         people: await withSignedAvatars([...people]),
         milestones: [...milestones],
+        tests: [...tests],
+        crs: [...crs],
+        crComments: [...crComments],
+        crVotes: [...crVotes],
+        goals: [...goals],
       }}
       today={tashkentDayKey()}
     />

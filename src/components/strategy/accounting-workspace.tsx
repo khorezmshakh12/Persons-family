@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   BookOpen,
   Building2,
@@ -37,6 +37,23 @@ import {
 } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
 import {
+  CASH_BUCKETS,
+  cashFlowStatement,
+  cashForecast,
+  cvp,
+  cvpCurve,
+  flexBudget,
+  nbvByCategory,
+  ratios,
+  reconcile,
+  segmentPL,
+  studentsForTarget,
+  taxCalendar,
+  tornado,
+  type BudgetLine,
+  type Driver,
+} from '@/lib/accounting-ma';
+import {
   addAssetAction,
   addJournalEntryAction,
   deleteAssetAction,
@@ -51,6 +68,7 @@ import {
   saveTaxSettingsAction,
   setBudgetAction,
   setOpeningBalancesAction,
+  setPlanStudentsAction,
   type PayrollLine,
 } from '@/lib/actions/accounting';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
@@ -291,7 +309,191 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
           />
         </div>
       )}
+      {rows.length > 0 && <CostAnalysis books={books} st={st} />}
     </div>
+  );
+}
+
+/** Cost structure, CVP, keep/close decision and segment P&L — all from the
+ * course model plus the month's journal fixed costs. */
+function CostAnalysis({ books, st }: { books: Books; st: ReturnType<typeof statements> }) {
+  const [drv, setDrv] = useState<Driver>('students');
+  const fixed = st.selling + st.admin + st.other;
+  const c = cvp(books.courses, fixed);
+  const curve = cvpCurve(c);
+  const seg = segmentPL(books.courses, fixed, drv);
+  const parts = [
+    { n: 'O‘qituvchilar', v: c.teacher, col: '#17161a', vr: true },
+    { n: 'Darsliklar', v: c.books, col: '#5c5760', vr: true },
+    { n: 'Sotish / marketing (9410)', v: st.selling, col: '#ff9f1c', vr: false },
+    { n: "Ma'muriy (9420)", v: st.admin, col: '#ffc46b', vr: false },
+    { n: 'Boshqa (9430)', v: st.other, col: '#ffe0ad', vr: false },
+  ].filter((p) => p.v > 0);
+  const T = parts.reduce((a, p) => a + p.v, 0) || 1;
+  const maxCm = Math.max(1, ...seg.map((r) => Math.abs(r.contribution)));
+  return (
+    <>
+      <div className="sx-card sx-stat dark s4">
+        <div className="l">Marjinal daromad (CM)</div>
+        <div className="v">{c.revenue ? pct(c.contribution / c.revenue) : '—'}</div>
+        <div className="d">
+          CM: {fmtMln(c.contribution)} · 1 o‘quvchidan {fmtMln(c.cm)}
+        </div>
+        <div className="d">
+          Operatsion leverage: {c.leverage === null ? '—' : `${c.leverage.toFixed(1)}×`} · Xavfsizlik zonasi: {c.safety === null ? '—' : pct(c.safety)}
+        </div>
+      </div>
+      <div className="sx-card s8">
+        <div className="sx-h">
+          <h3>Xarajatlar tuzilishi</h3>
+          <small>Fixed vs variable · o‘zgaruvchan = kurslar modelidagi to‘g‘ridan-to‘g‘ri xarajat, doimiy = jurnal (9410/9420/9430)</small>
+        </div>
+        <div className="flex h-7 overflow-hidden rounded-lg">
+          {parts.map((p) => (
+            <div key={p.n} title={`${p.n}: ${fmtNum(p.v)} (${pct(p.v / T)})`} style={{ flex: p.v, background: p.col }} />
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-au-muted">
+          {parts.map((p) => (
+            <span key={p.n} className="inline-flex items-center gap-1.5">
+              <i className="size-2.5 rounded-sm" style={{ background: p.col }} />
+              {p.n} <b className="text-au-ink">{pct(p.v / T)}</b>
+            </span>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <div>
+            O‘zgaruvchan / o‘quvchi <b className="block tabular-nums">{fmtNum(c.vc)}</b>
+          </div>
+          <div>
+            O‘rtacha to‘lov <b className="block tabular-nums">{fmtNum(c.fee)}</b>
+          </div>
+          <div>
+            Zararsizlik <b className="block tabular-nums">{c.breakEven ?? '—'} o‘q.</b>
+          </div>
+          <div>
+            O‘zgaruvchan / doimiy{' '}
+            <b className="block tabular-nums">
+              {pct(c.direct / T)} / {pct(fixed / T)}
+            </b>
+          </div>
+        </div>
+      </div>
+      <div className="sx-card s7">
+        <div className="sx-h">
+          <h3>CVP tahlili</h3>
+          <small>Tushum = narx × N · Jami xarajat = doimiy + o‘zgaruvchan × N · hozir {c.N} o‘quvchi</small>
+        </div>
+        <Chart
+          labels={curve.map((p) => `${p.n}`)}
+          fmt={fmtMln}
+          height={230}
+          series={[
+            { n: 'Tushum', c: '#17161a', v: curve.map((p) => p.revenue), kind: 'line' },
+            { n: 'Jami xarajat', c: '#c7322b', v: curve.map((p) => p.cost), kind: 'line' },
+            { n: 'Doimiy xarajat', c: '#a39fa8', v: curve.map((p) => p.fixed), kind: 'line', dash: true },
+          ]}
+        />
+        <p className="sx-note">
+          X o‘qi — o‘quvchilar soni. Zararsizlik nuqtasi (BEP): <b>{c.breakEven ?? '—'}</b> o‘quvchi; undan o‘ngda — foyda zonasi.
+        </p>
+      </div>
+      <div className="sx-card s5">
+        <div className="sx-h">
+          <h3>Kursni yopish qarori</h3>
+          <small>Relevant costing</small>
+        </div>
+        <p className="mb-2 text-xs text-au-muted">
+          Taqsimlangan doimiy xarajat kurs yopilganda yo‘qolmaydi. Qaror faqat <b>CM</b> ga qarab qabul qilinadi.
+        </p>
+        <div className="flex flex-col gap-2">
+          {seg.map((r) => (
+            <div key={r.id} className="flex items-center gap-2 text-sm">
+              <span className="w-[110px] truncate">{r.name}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded bg-au-card-2">
+                <i className="block h-full rounded" style={{ width: `${Math.max(2, (Math.abs(r.contribution) / maxCm) * 100)}%`, background: r.keep ? 'var(--au-ink)' : 'var(--au-bad)' }} />
+              </div>
+              <b className="w-[70px] text-right tabular-nums">{fmtMln(r.contribution)}</b>
+              <span className={cn('sx-pl', r.keep ? 'ok' : 'bad')}>{r.keep ? 'Davom ettirish' : 'Qayta ko‘rish'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="sx-card s12">
+        <div className="sx-h">
+          <h3>Kurslar bo‘yicha segment hisoboti</h3>
+          <small>Segment P&amp;L · doimiy xarajatni taqsimlash asosi:</small>
+          <span className="sp" />
+          {(
+            [
+              ['students', 'O‘quvchi soni'],
+              ['revenue', 'Tushum ulushi'],
+              ['equal', 'Teng'],
+            ] as const
+          ).map(([k, n]) => (
+            <button key={k} className={cn('sx-chipb', drv === k && 'on')} onClick={() => setDrv(k)}>
+              {n}
+            </button>
+          ))}
+        </div>
+        <div className="sx-tw">
+          <table className="sx-tbl">
+            <thead>
+              <tr>
+                <th className="l">Kurs</th>
+                <th>O‘quvchi</th>
+                <th>Tushum</th>
+                <th>O‘zgaruvchan</th>
+                <th>CM</th>
+                <th>CM %</th>
+                <th>CM / o‘quvchi</th>
+                <th>Taqsimlangan doimiy</th>
+                <th>Segment foydasi</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {seg.map((r) => (
+                <tr key={r.id}>
+                  <td className="l">{r.name}</td>
+                  <td>{r.students}</td>
+                  <td>{fmtNum(r.revenue)}</td>
+                  <td>{fmtNum(r.direct)}</td>
+                  <td>
+                    <b>{fmtNum(r.contribution)}</b>
+                  </td>
+                  <td>{pct(r.margin)}</td>
+                  <td>{fmtNum(r.perStudent)}</td>
+                  <td>{fmtNum(r.alloc)}</td>
+                  <td style={{ color: r.segment < 0 ? 'var(--au-bad)' : 'var(--au-ok)' }}>
+                    <b>{fmtNum(r.segment)}</b>
+                  </td>
+                  <td>
+                    <span className={cn('sx-pl', r.status === 'loss' ? 'bad' : r.status === 'low' ? 'warn' : 'ok')}>
+                      {r.status === 'loss' ? 'Zarar' : r.status === 'low' ? 'Past marja' : 'Sog‘lom'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="l">Jami</td>
+                <td>{c.N}</td>
+                <td>{fmtNum(c.revenue)}</td>
+                <td>{fmtNum(c.direct)}</td>
+                <td>{fmtNum(c.contribution)}</td>
+                <td>{c.revenue ? pct(c.contribution / c.revenue) : '—'}</td>
+                <td>{fmtNum(c.cm)}</td>
+                <td>{fmtNum(fixed)}</td>
+                <td>{fmtNum(c.profit)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -363,20 +565,24 @@ function CourseRow({
 const BUDGET_LINES = ['9030', '9130', '9410', '9420', '9430', '9810'];
 function MaBudget({ books, ym }: { books: Books; ym: string }) {
   const { run } = useRun();
+  const [flex, setFlex] = useState(true);
   const L = ledger(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
-  const lines = BUDGET_LINES.filter((c) => L[c]).map((code) => {
+  const lines: BudgetLine[] = BUDGET_LINES.filter((c) => L[c]).map((code) => {
     const a = L[code];
     const actual = a.type === 'R' ? a.credit - a.debit : a.debit - a.credit;
     const plan = books.budget.find((b) => b.period === ym && b.code === code)?.amount ?? 0;
-    const variance = actual - plan;
-    // For revenue above plan is good; for expense below plan is good.
-    const good = a.type === 'R' ? variance >= 0 : variance <= 0;
-    return { code, name: a.name, type: a.type, plan, actual, variance, good };
+    return { code, name: a.name, type: a.type === 'R' ? 'R' : 'X', plan, actual };
   });
-  const rev = lines.find((l) => l.code === '9030');
-  const exp = lines.filter((l) => l.type === 'X');
-  const planProfit = (rev?.plan ?? 0) - exp.reduce((a, l) => a + l.plan, 0);
-  const actProfit = (rev?.actual ?? 0) - exp.reduce((a, l) => a + l.actual, 0);
+  const plannedN = books.planStudents[ym] ?? 0;
+  const actualN = books.courses.reduce((a, c) => a + c.students, 0);
+  const fb = flexBudget(lines, plannedN, actualN, flex);
+  const maxV = Math.max(1, ...fb.rows.map((r) => Math.abs(r.total)));
+  const vv = (v: number) => (
+    <span style={{ color: v === 0 ? undefined : v > 0 ? 'var(--au-ok)' : 'var(--au-bad)' }}>
+      {v > 0 ? '+' : v < 0 ? '−' : ''}
+      {fmtNum(Math.abs(v))} {v === 0 ? '' : v > 0 ? 'F' : 'U'}
+    </span>
+  );
   const copyPrev = () => {
     const prev = books.budget.filter((b) => b.period === addMonths(ym, -1));
     if (!prev.length) return toast.message("O'tgan oy byudjeti yo'q");
@@ -390,51 +596,92 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
   };
   return (
     <div className="sx-grid">
-      <div className="sx-card sx-stat s4">
-        <div className="l">Rejadagi foyda</div>
-        <div className="v">{fmtMln(planProfit)}</div>
+      <div className="sx-card sx-stat s3">
+        <div className="l">Byudjet foydasi</div>
+        <div className="v">{fmtMln(fb.plan)}</div>
+        <div className="d">{plannedN ? `${plannedN} o‘quvchi rejasida` : 'Rejadagi o‘quvchi kiritilmagan'}</div>
       </div>
-      <div className="sx-card sx-stat dark s4">
-        <div className="l">Haqiqiy foyda</div>
-        <div className="v">{fmtMln(actProfit)}</div>
-      </div>
-      <div className="sx-card sx-stat s4">
-        <div className="l">Farq</div>
-        <div className="v" style={{ color: actProfit >= planProfit ? 'var(--au-ok)' : 'var(--au-bad)' }}>
-          {fmtMln(actProfit - planProfit)}
+      <div className="sx-card sx-stat s3">
+        <div className="l">Moslashuvchan byudjet · Flexed</div>
+        <div className="v">{fmtMln(fb.flexed)}</div>
+        <div className="d">
+          Fakt hajmi: {actualN} o‘quvchi{fb.k !== 1 ? ` (${fb.k >= 1 ? '+' : ''}${((fb.k - 1) * 100).toFixed(1)}%)` : ''}
         </div>
+      </div>
+      <div className="sx-card sx-stat s3">
+        <div className="l">Fakt foydasi</div>
+        <div className="v" style={{ color: fb.actual >= fb.plan ? 'var(--au-ok)' : 'var(--au-bad)' }}>
+          {fmtMln(fb.actual)}
+        </div>
+        <div className="d">Soliq va kommunal bilan · jurnaldan</div>
+      </div>
+      <div className="sx-card sx-stat dark s3">
+        <div className="l">Umumiy og‘ish · Total variance</div>
+        <div className="v">{fmtMln(fb.actual - fb.plan)}</div>
+        <div className="d">{fb.actual >= fb.plan ? 'Rejadan yaxshi (F)' : 'Rejadan yomon (U)'}</div>
       </div>
       <div className="sx-card s12">
         <div className="sx-h">
-          <h3>Byudjet vs fakt</h3>
-          <small>reja — qo‘lda, fakt — jurnaldan</small>
+          <h3>Og‘ishlar tahlili</h3>
+          <small>Hajm og‘ishi = Moslashuvchan − Statik · Narx/samaradorlik = Fakt − Moslashuvchan</small>
           <span className="sp" />
+          <button className={cn('sx-chipb', flex && 'on')} onClick={() => setFlex(true)}>
+            Moslashuvchan byudjet
+          </button>
+          <button className={cn('sx-chipb', !flex && 'on')} onClick={() => setFlex(false)}>
+            Statik byudjet
+          </button>
           <button className="sx-btn sm" onClick={copyPrev}>
             O‘tgan oydan ko‘chirish
           </button>
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-au-muted">
+          <span>F — foydali, U — zararli og‘ish. Byudjet ustunini tahrirlash mumkin.</span>
+          <label className="inline-flex items-center gap-2">
+            Rejadagi o‘quvchi
+            <input
+              key={`${ym}${plannedN}`}
+              className="sx-plain-inp !w-[90px]"
+              type="number"
+              min={0}
+              defaultValue={plannedN}
+              onBlur={(e) => {
+                const v = Math.max(0, Math.round(Number(e.target.value) || 0));
+                if (v !== plannedN) run(() => setPlanStudentsAction({ month: ym, students: v }), 'Rejadagi o‘quvchi saqlandi');
+              }}
+            />
+            ta
+          </label>
+          <span>Fakt o‘quvchi — «Tannarx va marja» kurslar jadvalidan ({actualN}).</span>
         </div>
         <div className="sx-tw">
           <table className="sx-tbl">
             <thead>
               <tr>
                 <th className="l">Modda</th>
-                <th>Reja</th>
+                <th>Statik byudjet</th>
+                <th>Moslashuvchan</th>
                 <th>Fakt</th>
-                <th>Farq</th>
-                <th>Bajarilish</th>
+                <th>Hajm og‘ishi</th>
+                <th>Narx / samaradorlik</th>
+                <th>Jami og‘ish</th>
+                <th className="l" style={{ width: '18%' }}>
+                  Foydaga ta’siri
+                </th>
               </tr>
             </thead>
             <tbody>
-              {lines.map((l, i) => (
+              {fb.rows.map((l, i) => (
                 <tr key={l.code} style={{ animationDelay: `${i * 30}ms` }}>
                   <td className="l">
                     <span className="code">{l.code}</span>
                     {l.name}
+                    {l.variable && <small className="ml-1 text-au-faint">o‘zg.</small>}
                   </td>
                   <td>
                     <input
                       key={`${ym}${l.plan}`}
-                      className="sx-plain-inp !w-[140px]"
+                      className="sx-plain-inp !w-[130px]"
                       type="number"
                       min={0}
                       defaultValue={l.plan}
@@ -444,28 +691,56 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
                       }}
                     />
                   </td>
-                  <td>{fmtNum(l.actual)}</td>
-                  <td style={{ color: l.variance === 0 ? undefined : l.good ? 'var(--au-ok)' : 'var(--au-bad)' }}>
-                    {l.variance > 0 ? '+' : ''}
-                    {fmtNum(l.variance)}
+                  <td>{fmtNum(l.flexed)}</td>
+                  <td>
+                    <b>{fmtNum(l.actual)}</b>
                   </td>
-                  <td>{l.plan ? <span className={cn('sx-pl', l.good ? 'ok' : 'bad')}>{pct(l.actual / l.plan)}</span> : '—'}</td>
+                  <td>{vv(l.volume)}</td>
+                  <td>{vv(l.spending)}</td>
+                  <td>
+                    <b>{vv(l.total)}</b>
+                  </td>
+                  <td className="l">
+                    <div className="relative h-2 rounded bg-au-card-2">
+                      <i
+                        className="absolute inset-y-0 rounded"
+                        style={{
+                          [l.total >= 0 ? 'left' : 'right']: '50%',
+                          width: `${(Math.abs(l.total) / maxV) * 50}%`,
+                          background: l.total >= 0 ? 'var(--au-ok)' : 'var(--au-bad)',
+                        }}
+                      />
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr>
+                <td className="l">Foyda</td>
+                <td>{fmtNum(fb.plan)}</td>
+                <td>{fmtNum(fb.flexed)}</td>
+                <td>{fmtNum(fb.actual)}</td>
+                <td>{vv(fb.flexed - fb.plan)}</td>
+                <td>{vv(fb.actual - fb.flexed)}</td>
+                <td>{vv(fb.actual - fb.plan)}</td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
         <div className="mt-4">
           <Chart
-            labels={lines.map((l) => l.code)}
+            labels={fb.rows.map((l) => l.code)}
             fmt={fmtMln}
             height={180}
             series={[
-              { n: 'Reja', c: '#d9d2c6', v: lines.map((l) => l.plan) },
-              { n: 'Fakt', c: '#ff9f1c', v: lines.map((l) => l.actual) },
+              { n: flex ? 'Moslashuvchan reja' : 'Reja', c: '#d9d2c6', v: fb.rows.map((l) => l.flexed) },
+              { n: 'Fakt', c: '#ff9f1c', v: fb.rows.map((l) => l.actual) },
             ]}
           />
         </div>
+        <p className="sx-note">O‘zgaruvchan moddalar (tushum 9030, tannarx 9130, soliq 9810) fakt/reja o‘quvchi nisbatida moslashtiriladi; qolganlari doimiy.</p>
       </div>
     </div>
   );
@@ -573,7 +848,95 @@ function MaSim({ books, ym }: { books: Books; ym: string }) {
           />
         </div>
       </div>
+      <SimExtra model={(k) => model(k).profit} sm={sm} setSm={setSm} books={books} st={st} />
     </div>
+  );
+}
+
+const SIM_LABEL = { price: 'Kurs narxi', students: "O'quvchilar soni", teacher: "O'qituvchi xarajati", admin: "Ma'muriy xarajat", mkt: 'Marketing' } as const;
+type SimK = keyof typeof SIM_LABEL;
+const PRESETS: [string, Partial<Record<SimK, number>>][] = [
+  ['Narx +10%', { price: 10, students: -4 }],
+  ['Kengayish', { students: 25, mkt: 60, admin: 30 }],
+  ['Inqiroz', { students: -20, price: -5 }],
+];
+
+/** Presets, tornado sensitivity and the target-profit head-count. */
+function SimExtra({
+  model,
+  sm,
+  setSm,
+  books,
+  st,
+}: {
+  model: (k: Record<SimK, number>) => number;
+  sm: Record<SimK, number>;
+  setSm: (v: Record<SimK, number>) => void;
+  books: Books;
+  st: ReturnType<typeof statements>;
+}) {
+  const [target, setTarget] = useState(0);
+  const tor = tornado(model, sm, 10);
+  const mx = Math.max(1, ...tor.map((t) => t.range));
+  const c = cvp(books.courses, st.selling + st.admin + st.other);
+  const need = studentsForTarget(c.fixed, target, c.cm);
+  return (
+    <>
+      <div className="sx-card s5">
+        <div className="sx-h">
+          <h3>Tayyor ssenariylar</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map(([n, p]) => (
+            <button key={n} className="sx-chipb" onClick={() => { setSm({ price: 0, students: 0, teacher: 0, admin: 0, mkt: 0, ...p }); toast.success(`Ssenariy qo‘llandi: ${n}`); }}>
+              {n}
+            </button>
+          ))}
+        </div>
+        <div className="sx-h mt-5">
+          <h3>Maqsadli foyda uchun kerakli o‘quvchilar</h3>
+        </div>
+        <p className="mb-2 text-xs text-au-muted">N = (Doimiy xarajat + Maqsadli foyda) / (1 o‘quvchi marjasi)</p>
+        <label className="flex items-center gap-2 text-xs font-semibold text-au-muted">
+          Maqsadli oylik sof foyda
+          <input className="sx-inp !w-[160px] text-right" type="number" min={0} value={target} onChange={(e) => setTarget(Math.max(0, Number(e.target.value) || 0))} />
+          so‘m
+        </label>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+          <div>
+            Kerakli o‘quvchi <b className="block text-lg tabular-nums">{need ?? '—'}</b>
+          </div>
+          <div>
+            Hozir <b className="block text-lg tabular-nums">{c.N}</b>
+          </div>
+          <div>
+            Farq{' '}
+            <b className="block text-lg" style={{ color: need !== null && need <= c.N ? 'var(--au-ok)' : 'var(--au-bad)' }}>
+              {need === null ? 'Marja manfiy' : need <= c.N ? 'maqsadga yetildi' : `+${need - c.N} kerak`}
+            </b>
+          </div>
+        </div>
+      </div>
+      <div className="sx-card s7">
+        <div className="sx-h">
+          <h3>Sezuvchanlik (tornado)</h3>
+          <small>har bir drayver ±10 p.p. o‘zgarishining foydaga ta’siri</small>
+        </div>
+        <div className="flex flex-col gap-2">
+          {tor.map((t) => (
+            <div key={t.k} className="flex items-center gap-2 text-sm">
+              <span className="w-[140px] truncate">{SIM_LABEL[t.k]}</span>
+              <div className="relative h-3 flex-1 rounded bg-au-card-2">
+                <i className="absolute inset-y-0 rounded-l" style={{ right: '50%', width: `${(Math.abs(Math.min(t.up, t.down, 0)) / mx) * 50}%`, background: 'var(--au-bad)' }} />
+                <i className="absolute inset-y-0 rounded-r" style={{ left: '50%', width: `${(Math.max(t.up, t.down, 0) / mx) * 50}%`, background: 'var(--au-ok)' }} />
+              </div>
+              <b className="w-[80px] text-right tabular-nums">±{fmtMln(t.range)}</b>
+            </div>
+          ))}
+        </div>
+        <p className="sx-note">Qizil — foydani kamaytiradi, yashil — oshiradi.</p>
+      </div>
+    </>
   );
 }
 
@@ -646,7 +1009,88 @@ function MaCash({ books, today }: { books: Books; today: string }) {
           </table>
         </div>
       </div>
+      <CashForecast books={books} today={today} min={min} />
     </div>
+  );
+}
+
+/** Forward 13-week projection from the last 13 weeks' real averages. */
+function CashForecast({ books, today, min }: { books: Books; today: string; min: number }) {
+  const f = cashForecast(books.accounts, books.opening, books.entries, today, 13, 13);
+  const lbl = (s: string) => `${+s.slice(8, 10)}.${s.slice(5, 7)}`;
+  const low = f.weeks.find((w) => w.closing < min);
+  const minBal = Math.min(...f.weeks.map((w) => w.closing));
+  return (
+    <>
+      <div className="sx-card sx-stat s4">
+        <div className="l">13 hafta oxirida (prognoz)</div>
+        <div className="v" style={{ color: (f.weeks.at(-1)?.closing ?? 0) >= f.opening ? 'var(--au-ok)' : 'var(--au-bad)' }}>{fmtMln(f.weeks.at(-1)?.closing ?? 0)}</div>
+        <div className="d">hozir {fmtMln(f.opening)}</div>
+      </div>
+      <div className="sx-card sx-stat s4">
+        <div className="l">Eng past qoldiq (prognoz)</div>
+        <div className="v" style={{ color: minBal < min ? 'var(--au-bad)' : undefined }}>{fmtMln(minBal)}</div>
+      </div>
+      <div className={cn('sx-card sx-stat s4', low && 'dark')}>
+        <div className="l">Minimal zaxira chegarasi</div>
+        <div className="v">{fmtMln(min)}</div>
+        <div className="d">{low ? `${lbl(low.from)} haftasida chegaradan pastga tushadi` : 'Butun davrda xavfsiz'}</div>
+      </div>
+      <div className="sx-card s12">
+        <div className="sx-h">
+          <h3>13 haftalik pul oqimi prognozi</h3>
+          <small>oxirgi 13 haftadagi haqiqiy kirim/chiqimning haftalik o‘rtachasi bo‘yicha</small>
+        </div>
+        {f.avgIn === 0 && f.outTotal === 0 ? (
+          <div className="sx-empty">Prognoz uchun oxirgi 13 haftada kassa/bank harakati yo‘q.</div>
+        ) : (
+          <>
+            <Chart
+              labels={f.weeks.map((w) => lbl(w.from))}
+              fmt={fmtMln}
+              series={[
+                { n: 'Kirim', c: '#139a52', v: f.weeks.map((w) => w.inflow) },
+                { n: 'Chiqim', c: '#e8567a', v: f.weeks.map((w) => -w.outflow) },
+                { n: 'Hafta oxiri qoldig‘i', c: '#17161a', v: f.weeks.map((w) => w.closing), kind: 'line' },
+                { n: 'Minimal zaxira', c: '#ff9f1c', v: f.weeks.map(() => min), kind: 'line', dash: true },
+              ]}
+            />
+            <div className="sx-tw mt-4">
+              <table className="sx-tbl">
+                <thead>
+                  <tr>
+                    <th className="l">Hafta</th>
+                    <th>Kirim</th>
+                    {CASH_BUCKETS.map(([k, n]) => (
+                      <th key={k}>{n}</th>
+                    ))}
+                    <th>Sof oqim</th>
+                    <th>Qoldiq</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {f.weeks.map((w) => (
+                    <tr key={w.from}>
+                      <td className="l">{lbl(w.from)}</td>
+                      <td style={{ color: 'var(--au-ok)' }}>{fmtMln(w.inflow)}</td>
+                      {CASH_BUCKETS.map(([k]) => (
+                        <td key={k}>{w.out[k] ? fmtMln(w.out[k]) : '—'}</td>
+                      ))}
+                      <td style={{ color: w.inflow - w.outflow < 0 ? 'var(--au-bad)' : 'var(--au-ok)' }}>
+                        <b>{fmtMln(w.inflow - w.outflow)}</b>
+                      </td>
+                      <td style={{ color: w.closing < min ? 'var(--au-bad)' : undefined }}>
+                        <b>{fmtMln(w.closing)}</b>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -673,7 +1117,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
   const total = list.reduce((a, e) => a + e.amount, 0);
   const submit = () => {
     const amount = Number(f.amount);
-    if (!f.description.trim() || !(amount > 0) || f.debit === f.credit) return toast.error("Tavsif, summa va turli hisoblarni kiriting");
+    if (!f.description.trim() || !(amount > 0) || f.debit === f.credit) return toast.error("Yozuv to'liq emas: tavsif, summa va turli hisoblar kerak");
     run(() => addJournalEntryAction({ ...f, amount, id: editId ?? undefined }), editId ? 'Yozuv saqlandi' : 'Yozuv jurnalga qo‘shildi', () => {
       setF({ ...f, ...blank });
       setEditId(null);
@@ -724,7 +1168,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             {accSel('credit')}
           </label>
           <label>
-            Summa (so‘m)
+            Summa, so‘m
             <input
               className="sx-inp !w-[150px] text-right"
               type="number"
@@ -735,7 +1179,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             />
           </label>
           <button className="sx-btn primary" disabled={pending} onClick={submit}>
-            {editId ? 'Saqlash' : <><Plus className="size-4" /> Qo‘shish</>}
+            {editId ? 'Saqlash' : <><Plus className="size-4" /> Provodka qilish</>}
           </button>
           {editId && (
             <button className="sx-btn" onClick={() => { setEditId(null); setF({ ...f, ...blank }); }}>
@@ -743,6 +1187,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             </button>
           )}
         </div>
+        <JournalCheck debit={f.debit} credit={f.credit} amount={Number(f.amount) || 0} name={name} />
       </div>
       <div className="sx-card s12">
         <div className="sx-h">
@@ -826,6 +1271,33 @@ ${e.debit}/${e.credit} · ${fmtNum(e.amount)} · ${e.description}`) && run(() =>
   );
 }
 
+/** Live double-entry preview: the same amount lands on both sides. */
+function JournalCheck({ debit, credit, amount, name }: { debit: string; credit: string; amount: number; name: (c: string) => string }) {
+  const same = debit === credit;
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-au-line bg-au-card-2 p-3 text-sm">
+      <div className="min-w-[180px] flex-1">
+        <div className="text-[11px] font-bold text-au-muted uppercase">Debet</div>
+        <b>
+          {debit} · {name(debit)}
+        </b>
+        <div className="tabular-nums text-au-ok">+ {fmtNum(amount)}</div>
+      </div>
+      <b className="text-xl">{same ? '≠' : '='}</b>
+      <div className="min-w-[180px] flex-1">
+        <div className="text-[11px] font-bold text-au-muted uppercase">Kredit</div>
+        <b>
+          {credit} · {name(credit)}
+        </b>
+        <div className="tabular-nums text-au-ok">+ {fmtNum(amount)}</div>
+      </div>
+      <span className={cn('sx-pl', same ? 'bad' : amount <= 0 ? 'warn' : 'ok')}>
+        {same ? 'Debet va kredit bir xil bo‘lmasin' : amount <= 0 ? 'Summani kiriting' : 'Balans saqlanadi'}
+      </span>
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- FA · ledger */
 function FaLedger({ books, ym }: { books: Books; ym: string }) {
   const { run, pending } = useRun();
@@ -850,7 +1322,7 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
       <div className="sx-card s12">
         <div className="sx-h">
           <h3>Aylanma-saldo vedomosti</h3>
-          <small>{ym}</small>
+          <small>{ym} · Qatorni bosing — hisob kartochkasi ochiladi</small>
           <span className={cn('sx-pl', Math.abs(tD - tK) < 0.01 ? 'ok' : 'bad')}>
             {Math.abs(tD - tK) < 0.01 ? 'Dt = Kt' : `Dt ≠ Kt (${fmtNum(tD - tK)})`}
           </span>
@@ -907,8 +1379,8 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
                 <th>Boshi Kt</th>
                 <th>Aylanma Dt</th>
                 <th>Aylanma Kt</th>
-                <th>Oxiri Dt</th>
-                <th>Oxiri Kt</th>
+                <th>Oxirgi qoldiq Dt</th>
+                <th>Oxirgi qoldiq Kt</th>
               </tr>
             </thead>
             <tbody>
@@ -944,44 +1416,75 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
           </table>
         </div>
       </div>
-      {open && (
-        <div className="sx-card s12">
-          <div className="sx-h">
-            <h3>
-              {open} · {L[open].name}
-            </h3>
-            <small>shu oydagi harakatlar</small>
-          </div>
-          {rows.length === 0 ? (
-            <div className="sx-empty">Harakat yo‘q</div>
-          ) : (
-            <div className="sx-tw">
-              <table className="sx-tbl">
-                <thead>
-                  <tr>
-                    <th className="l">Sana</th>
-                    <th className="l">Tavsif</th>
-                    <th className="l">Korr. hisob</th>
-                    <th>Debet</th>
-                    <th>Kredit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((e) => (
-                    <tr key={e.id}>
-                      <td className="l">{e.entry_date.split('-').reverse().join('.')}</td>
-                      <td className="l">{e.description}</td>
-                      <td className="l">
-                        <span className="code">{e.debit === open ? e.credit : e.debit}</span>
-                      </td>
-                      <td>{e.debit === open ? fmtNum(e.amount) : ''}</td>
-                      <td>{e.credit === open ? fmtNum(e.amount) : ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {open && L[open] && <TAccount line={L[open]} rows={rows} />}
+    </div>
+  );
+}
+
+/** Account card as a T-account (debit | credit) with the running balance. */
+function TAccount({ line, rows }: { line: ReturnType<typeof ledger>[string]; rows: Books['entries'] }) {
+  const dn = debitNormal(line.type);
+  const code = line.code;
+  const sorted = [...rows].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+  const run = sorted.reduce<number[]>((acc, e) => [...acc, (acc.at(-1) ?? line.openingPeriod) + (e.debit === code ? 1 : -1) * (dn ? 1 : -1) * e.amount], []);
+  const side = (d: boolean) => sorted.filter((e) => (e.debit === code) === d);
+  const openSide = line.openingPeriod === 0 ? null : (line.openingPeriod > 0) === dn ? 'd' : 'k';
+  const col = (d: boolean) => (
+    <div className="flex flex-col gap-1 p-2">
+      {openSide === (d ? 'd' : 'k') && (
+        <div className="flex justify-between gap-2 text-xs text-au-muted">
+          <span>Boshlang‘ich qoldiq</span>
+          <b className="tabular-nums">{fmtNum(Math.abs(line.openingPeriod))}</b>
+        </div>
+      )}
+      {side(d).map((e) => (
+        <div key={e.id} className="flex justify-between gap-2 text-xs">
+          <span className="truncate">
+            {e.entry_date.slice(8)}.{e.entry_date.slice(5, 7)} · {e.description} <em className="text-au-faint">({d ? e.credit : e.debit})</em>
+          </span>
+          <b className="tabular-nums">{fmtNum(e.amount)}</b>
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <div className="sx-card s12">
+      <div className="sx-h">
+        <h3>
+          Hisob kartochkasi (T-hisob) · {code} {line.name}
+        </h3>
+        <small>shu oydagi harakatlar</small>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-au-line">
+        <div className="grid grid-cols-2 border-b border-au-line bg-au-card-2 text-center text-xs font-bold">
+          <span className="p-1.5">Debet</span>
+          <span className="border-l border-au-line p-1.5">Kredit</span>
+        </div>
+        <div className="grid grid-cols-2">
+          {col(true)}
+          <div className="border-l border-au-line">{col(false)}</div>
+        </div>
+        <div className="grid grid-cols-2 border-t border-au-line text-xs">
+          <span className="p-1.5">
+            Aylanma: <b>{fmtNum(line.debit)}</b>
+          </span>
+          <span className="border-l border-au-line p-1.5">
+            Aylanma: <b>{fmtNum(line.credit)}</b>
+          </span>
+        </div>
+        <div className="border-t border-au-line p-2 text-right text-sm">
+          Oxirgi qoldiq: <b>{fmtNum(Math.abs(line.closing))}</b>{' '}
+          {line.closing === 0 ? '' : (line.closing > 0) === dn ? '(debet)' : '(kredit)'}
+        </div>
+      </div>
+      {sorted.length > 0 && (
+        <div className="mt-4">
+          <Chart
+            labels={['Boshi', ...sorted.map((e) => `${e.entry_date.slice(8)}.${e.entry_date.slice(5, 7)}`)]}
+            fmt={fmtMln}
+            height={170}
+            series={[{ n: 'Qoldiq', c: '#17161a', v: [line.openingPeriod, ...run], kind: 'line' }]}
+          />
         </div>
       )}
     </div>
@@ -991,33 +1494,34 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
 /* ---------------------------------------------------------------- FA · reports */
 function FaReports({ books, ym }: { books: Books; ym: string }) {
   const s = statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
+  const L = ledger(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
+  const cf = cashFlowStatement(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
+  const q = ratios(s);
+  const rec = reconcile(books.courses, s);
+  const accName = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? c;
   const row = (n: string, v: number, cls = '') => (
     <tr className={cls}>
       <td className="l">{n}</td>
       <td style={{ color: v < 0 ? 'var(--au-bad)' : undefined }}>{fmtNum(v)}</td>
     </tr>
   );
+  const grp = (n: string) => (
+    <tr>
+      <td className="l text-[11px] font-bold tracking-wide text-au-muted uppercase" colSpan={2}>
+        {n}
+      </td>
+    </tr>
+  );
+  const R: [string, string, number | null, string, number, number | null][] = [
+    ['Joriy likvidlik', 'Current ratio', q.current, '×', 2, 1.5],
+    ['Tezkor likvidlik', 'Quick ratio', q.quick, '×', 2, 1],
+    ['Sotuv rentabelligi', 'ROS', q.ros === null ? null : q.ros * 100, '%', 1, 10],
+    ['Aktivlar rentabelligi', 'ROA (oylik)', q.roa === null ? null : q.roa * 100, '%', 1, 2],
+    ['Kapital rentabelligi', 'ROE (oylik)', q.roe === null ? null : q.roe * 100, '%', 1, 3],
+    ['Qarz / kapital', 'D/E', q.de, '×', 2, null],
+  ];
   return (
     <div className="sx-grid">
-      <div className="sx-card s6">
-        <div className="sx-h">
-          <h3>Moliyaviy natijalar hisoboti</h3>
-          <small>{ym} · 2-shakl</small>
-        </div>
-        <table className="sx-tbl">
-          <tbody>
-            {row("Ta'lim xizmatlaridan tushum (9030)", s.revenue)}
-            {row('Tannarx (9130)', -s.cogs)}
-            {row('Yalpi foyda', s.gross, 'sub')}
-            {row('Sotish xarajatlari (9410)', -s.selling)}
-            {row("Ma'muriy xarajatlar (9420)", -s.admin)}
-            {row('Boshqa operatsion (9430)', -s.other)}
-            {row('Operatsion foyda', s.operating, 'sub')}
-            {row('Soliq (9810)', -s.tax)}
-            {row('Sof foyda', s.net, 'big')}
-          </tbody>
-        </table>
-      </div>
       <div className="sx-card s6">
         <div className="sx-h">
           <h3>Buxgalteriya balansi</h3>
@@ -1029,20 +1533,29 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
         </div>
         <table className="sx-tbl">
           <tbody>
-            {row('Asosiy vositalar (qoldiq qiymati)', s.fixedNet)}
+            {grp('Aktivlar · I. Uzoq muddatli aktivlar')}
+            {row('Asosiy vositalar (boshlang‘ich qiymat, 0100)', L['0100']?.closing ?? 0)}
+            {row('Eskirish (0200)', -(L['0200']?.closing ?? 0))}
+            {row('Asosiy vositalar (qoldiq qiymat)', s.fixedNet, 'sub')}
+            {grp('II. Joriy aktivlar')}
             {row('Tovar-moddiy zaxiralar (2910)', s.inventory)}
-            {row('Debitorlik (4010)', s.receivables)}
+            {row('Debitorlik qarzlari (4010)', s.receivables)}
             {row('Pul mablag‘lari (5010 + 5110)', s.cash)}
-            {row('AKTIVLAR JAMI', s.assets, 'big')}
-            {row('Yetkazib beruvchilar (6010)', s.payables)}
-            {row('Olingan bo‘naklar (6310)', s.advances)}
-            {row('Soliqlar (6410)', s.taxPayable)}
-            {row('Ijtimoiy soliq (6520)', s.socialPayable)}
-            {row('Mehnat haqi (6710)', s.wagesPayable)}
-            {row('Majburiyatlar jami', s.liabilities, 'sub')}
+            {row('Jami joriy aktivlar', s.currentAssets, 'sub')}
+            {row('BALANS AKTIVI', s.assets, 'big')}
+            {grp('Passivlar · I. O‘z mablag‘lari manbalari')}
             {row('Ustav kapitali (8300)', s.capital)}
-            {row('Taqsimlanmagan foyda', s.retained)}
-            {row('PASSIVLAR JAMI', s.liabilities + s.equity, 'big')}
+            {row('Taqsimlanmagan foyda (o‘tgan davrlar)', s.retained - s.net)}
+            {row('Hisobot davri sof foydasi (zarari)', s.net)}
+            {row('Jami o‘z mablag‘lari', s.equity, 'sub')}
+            {grp('II. Majburiyatlar')}
+            {row('Yetkazib beruvchilarga qarz (6010)', s.payables)}
+            {row('Olingan bo‘naklar (6310)', s.advances)}
+            {row('Budjetga qarz (6410)', s.taxPayable)}
+            {row('Ijtimoiy soliq bo‘yicha qarz (6520)', s.socialPayable)}
+            {row('Mehnat haqi bo‘yicha qarz (6710)', s.wagesPayable)}
+            {row('Jami majburiyatlar', s.liabilities, 'sub')}
+            {row('BALANS PASSIVI', s.liabilities + s.equity, 'big')}
           </tbody>
         </table>
         {s.imbalance !== 0 && (
@@ -1051,6 +1564,98 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
             tekshiring.
           </p>
         )}
+      </div>
+      <div className="s6 flex flex-col gap-4">
+        <div className="sx-card">
+          <div className="sx-h">
+            <h3>Moliyaviy natijalar to‘g‘risida hisobot</h3>
+            <small>{ym} · 2-shakl</small>
+          </div>
+          <table className="sx-tbl">
+            <tbody>
+              {row("Sof tushum — ta'lim xizmatlari (9030)", s.revenue)}
+              {row('Sotilgan xizmatlar tannarxi (9130)', -s.cogs)}
+              {row('Yalpi foyda', s.gross, 'sub')}
+              {row('Sotish xarajatlari (9410)', -s.selling)}
+              {row("Ma'muriy xarajatlar (9420)", -s.admin)}
+              {row('Boshqa operatsion xarajatlar (9430)', -s.other)}
+              {row('Operatsion foyda', s.operating, 'sub')}
+              {row('Soliq xarajatlari (9810)', -s.tax)}
+              {row('SOF FOYDA (ZARAR)', s.net, 'big')}
+            </tbody>
+          </table>
+        </div>
+        <div className="sx-card">
+          <div className="sx-h">
+            <h3>Pul oqimlari to‘g‘risida hisobot</h3>
+            <small>to‘g‘ridan-to‘g‘ri usul · {ym}</small>
+            <span className="sp" />
+            <span className={cn('sx-pl', Math.abs(cf.closing - s.cash) < 0.01 ? 'ok' : 'bad')}>
+              {Math.abs(cf.closing - s.cash) < 0.01 ? 'Balans bilan mos' : 'Mos emas'}
+            </span>
+          </div>
+          <table className="sx-tbl">
+            <tbody>
+              {row('Davr boshidagi pul', cf.opening)}
+              {(
+                [
+                  ['op', 'Operatsion faoliyat'],
+                  ['inv', 'Investitsiya faoliyati'],
+                  ['fin', 'Moliyaviy faoliyat'],
+                ] as const
+              ).map(([k, n]) => (
+                <Fragment key={k}>
+                  {grp(n)}
+                  {cf.lines
+                    .filter((l) => l.cat === k)
+                    .map((l) => (
+                      <Fragment key={`${l.code}${l.amount > 0}`}>{row(`${l.amount >= 0 ? 'Kirim' : 'Chiqim'}: ${l.code} ${accName(l.code)}`, l.amount)}</Fragment>
+                    ))}
+                  {row('Sof oqim', cf[k], 'sub')}
+                </Fragment>
+              ))}
+              {row('Davr oxiridagi pul', cf.closing, 'big')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="sx-card s7">
+        <div className="sx-h">
+          <h3>Moliyaviy koeffitsientlar</h3>
+          <small>Ratio analysis</small>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {R.map(([n, en, v, u, d, norm]) => (
+            <div key={en} className="rounded-xl border border-au-line bg-au-card-2 p-3">
+              <div className="text-[11px] text-au-faint">{en}</div>
+              <div className="text-xs font-semibold text-au-muted">{n}</div>
+              <div className="text-xl font-bold tabular-nums" style={{ color: v === null || norm === null ? undefined : v >= norm ? 'var(--au-ok)' : 'var(--au-bad)' }}>
+                {v === null ? '—' : `${v.toFixed(d)}${u}`}
+              </div>
+              <div className="text-[11px] text-au-faint">{norm === null ? 'past = xavfsiz' : `me'yor ≥ ${norm}${u}`}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="sx-card s5">
+        <div className="sx-h">
+          <h3>MA → FA solishtirish</h3>
+          <small>Reconciliation</small>
+        </div>
+        <p className="mb-2 text-xs text-au-muted">Nega boshqaruv foydasi va buxgalteriya foydasi farq qiladi:</p>
+        <table className="sx-tbl">
+          <tbody>
+            {row('Boshqaruv hisobi sof foydasi', rec.ma, 'sub')}
+            {rec.rows.map((r) => (
+              <Fragment key={r.n}>{row(r.n, r.v)}</Fragment>
+            ))}
+            {row('Moliyaviy hisob sof foydasi', rec.fa, 'big')}
+          </tbody>
+        </table>
+        <p className="sx-note">
+          Boshqaruv foydasi = kurslar modeli qoplamasi (Tannarx va marja) − jurnaldagi doimiy xarajatlar (9410 + 9420 + 9430). Qolgan farq — model
+          bilan jurnal o‘rtasidagi tushum/tannarx tafovuti va soliq.
+        </p>
       </div>
     </div>
   );
@@ -1075,7 +1680,10 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
       setRows(null);
     };
   }, [ym]);
-  const p = payrollTaxes(rows ?? [], t);
+  // Accountant's corrections to the accrued gross, per month (staffId → so'm).
+  const [ovs, setOvs] = useState<Record<string, Record<string, number>>>({});
+  const ov = ovs[ym] ?? {};
+  const p = payrollTaxes((rows ?? []).map((r) => (r.staffId in ov ? { ...r, gross: ov[r.staffId] } : r)), t);
   const s = statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
   const cmp = taxCompare(s.revenue, s.net + s.tax, t);
   const posted = books.entries.some((e) => e.source?.startsWith(`payroll:${ym}:`));
@@ -1149,13 +1757,13 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
       <div className="sx-card s12">
         <div className="sx-h">
           <h3>Ish haqi vedomosti</h3>
-          <small>{ym} · Moliya bo‘limidagi haqiqiy ish haqi va to‘lovlar</small>
+          <small>{ym} · Moliya bo‘limidagi haqiqiy ish haqi · Hisoblangan summani tahrirlang — jami va soliqlar qayta hisoblanadi</small>
           <span className="sp" />
           {posted && <span className="sx-pl ok">Jurnalga o‘tkazilgan</span>}
           <button
             className="sx-btn primary sm"
             disabled={pending || !rows || rows.length === 0}
-            onClick={() => run(() => postPayrollAction(ym), `Ish haqi ${ym} jurnalga o‘tkazildi`)}
+            onClick={() => run(() => postPayrollAction(ym, ov), `Ish haqi ${ym} jurnalga o‘tkazildi`)}
           >
             {posted ? 'Qayta o‘tkazish' : 'Jurnalga o‘tkazish'}
           </button>
@@ -1188,7 +1796,15 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
                     <td className="l">
                       <span className="code">{r.teaching ? '9130' : '9420'}</span>
                     </td>
-                    <td>{fmtNum(r.gross)}</td>
+                    <td>
+                      <input
+                        className={cn('sx-plain-inp !w-[120px]', r.staffId in ov && 'font-bold text-au-accent-text')}
+                        type="number"
+                        min={0}
+                        value={r.gross}
+                        onChange={(e) => setOvs({ ...ovs, [ym]: { ...ov, [r.staffId]: Math.max(0, Number(e.target.value) || 0) } })}
+                      />
+                    </td>
                     <td>{fmtNum(r.pit)}</td>
                     <td>
                       <b>{fmtNum(r.net)}</b>
@@ -1216,8 +1832,43 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
         )}
         <p className="sx-note">
           Jurnalga: hisoblash (Dt 9130/9420 — Kt 6710), JShDS (Dt 6710 — Kt 6410), ijtimoiy soliq (Dt 9130/9420 — Kt 6520), to‘lov (Dt 6710 — Kt
-          5110). O‘qituvchi, bosh o‘qituvchi va assistent — tannarx (9130), qolganlar — ma’muriy (9420).
+          5110). O‘qituvchi, bosh o‘qituvchi va assistent — tannarx (9130), qolganlar — ma’muriy (9420). Tahrirlangan summalar faqat jurnalga
+          o‘tkazishda ishlatiladi (Moliya bo‘limidagi ish haqi o‘zgarmaydi).
         </p>
+      </div>
+      <div className="sx-card s7">
+        <div className="sx-h">
+          <h3>Soliq yuklamasi tarkibi</h3>
+          <small>oylik · {t.regime === 'turn' ? 'aylanma rejim' : 'umumiy rejim'}</small>
+        </div>
+        <Chart
+          labels={['Aylanma soliq', 'JShDS', 'Ijtimoiy soliq', 'Foyda solig‘i', 'QQS']}
+          fmt={fmtMln}
+          height={200}
+          series={[
+            {
+              n: 'Summa',
+              c: '#ff9f1c',
+              v: [t.regime === 'turn' ? cmp.turnover : 0, p.pit, p.social, t.regime === 'gen' ? cmp.profit : 0, t.regime === 'gen' ? cmp.vat : 0],
+            },
+          ]}
+        />
+      </div>
+      <div className="sx-card s5">
+        <div className="sx-h">
+          <h3>Soliq kalendari</h3>
+          <small>buxgalter tasdiqlasin</small>
+        </div>
+        <div className="flex flex-col gap-2">
+          {taxCalendar(ym, { pit: p.pit, social: p.social, turnover: t.regime === 'turn' ? cmp.turnover : 0 }).map((c) => (
+            <div key={c.n} className="flex items-center gap-3 text-sm">
+              <span className="sx-pl info tabular-nums">{c.date.split('-').reverse().join('.')}</span>
+              <span className="flex-1">{c.n}</span>
+              <b className="tabular-nums">{c.amount === null ? 'hisobot' : c.amount ? fmtMln(c.amount) : '—'}</b>
+            </div>
+          ))}
+        </div>
+        <p className="sx-note">Muddat va stavkalarni buxgalter hamda soliq.uz bilan tasdiqlang.</p>
       </div>
     </div>
   );
@@ -1248,17 +1899,20 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
       <div className="sx-card sx-stat s3">
         <div className="l">Boshlang‘ich qiymat</div>
         <div className="v">{fmtMln(tot.cost)}</div>
+        <div className="d">{rows.filter((r) => assetOnBooks(r.a, ym)).length} ta obyekt</div>
       </div>
       <div className="sx-card sx-stat s3">
         <div className="l">Jamg‘arilgan eskirish</div>
         <div className="v">{fmtMln(tot.acc)}</div>
+        <div className="d">{tot.cost ? pct(tot.acc / tot.cost) : '—'} eskirgan</div>
       </div>
       <div className="sx-card sx-stat dark s3">
-        <div className="l">Qoldiq qiymat</div>
+        <div className="l">Qoldiq qiymat · NBV</div>
         <div className="v">{fmtMln(tot.net)}</div>
+        <div className="d">balansdagi qiymat</div>
       </div>
       <div className="sx-card sx-stat s3">
-        <div className="l">{ym} eskirishi</div>
+        <div className="l">Oylik amortizatsiya · {ym}</div>
         <div className="v">{fmtMln(tot.ch)}</div>
         <div className="d">
           <button
@@ -1272,8 +1926,8 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
       </div>
       <div className="sx-card s12">
         <div className="sx-h">
-          <h3>Yangi asosiy vosita</h3>
-          <small>to‘g‘ri chiziqli eskirish · keyingi oydan boshlanadi</small>
+          <h3>Yangi obyekt</h3>
+          <small>to‘g‘ri chiziqli usul · keyingi oydan boshlanadi</small>
         </div>
         <div className="sx-form">
           <label className="min-w-[200px] flex-1">
@@ -1285,7 +1939,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
             <input className="sx-inp !w-[140px]" maxLength={80} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />
           </label>
           <label>
-            Qiymati (so‘m)
+            Qiymat, so‘m
             <input className="sx-inp !w-[150px] text-right" type="number" min={0} value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} />
           </label>
           <label>
@@ -1293,7 +1947,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
             <input type="date" className="sx-inp" value={f.acquired} onChange={(e) => e.target.value && setF({ ...f, acquired: e.target.value })} />
           </label>
           <label>
-            Muddat (yil)
+            Muddat, yil
             <input className="sx-inp !w-[80px] text-right" type="number" min={1} max={50} value={f.lifeYears} onChange={(e) => setF({ ...f, lifeYears: e.target.value })} />
           </label>
           <label className="!flex-row items-center gap-2 pb-2">
@@ -1306,19 +1960,23 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
         </div>
       </div>
       <div className="sx-card s12">
+        <div className="sx-h">
+          <h3>Asosiy vositalar reyestri</h3>
+          <small>inventar kartochkalari</small>
+        </div>
         <div className="sx-tw">
           <table className="sx-tbl">
             <thead>
               <tr>
                 <th className="l">Vosita</th>
                 <th className="l">Toifa</th>
-                <th className="l">Sana</th>
+                <th className="l">Kirim sanasi</th>
                 <th>Qiymat</th>
                 <th>Muddat</th>
                 <th>Oylik eskirish</th>
                 <th>Jamg‘arilgan</th>
                 <th>Qoldiq</th>
-                <th>Holat</th>
+                <th>Eskirish darajasi</th>
                 <th />
               </tr>
             </thead>
@@ -1344,7 +2002,13 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
                   <td>{fmtNum(d.net)}</td>
                   <td>
                     <div className="sx-hbar !h-[6px] w-[90px]">
-                      <i style={{ width: `${(d.monthsUsed / (a.life_years * 12)) * 100}%`, background: '#ff9f1c' }} />
+                      <i
+                        title={`${Math.round((d.monthsUsed / (a.life_years * 12)) * 100)}%`}
+                        style={{
+                          width: `${(d.monthsUsed / (a.life_years * 12)) * 100}%`,
+                          background: d.monthsUsed / (a.life_years * 12) > 0.8 ? 'var(--au-bad)' : d.monthsUsed / (a.life_years * 12) > 0.5 ? '#ff9f1c' : 'var(--au-ink)',
+                        }}
+                      />
                     </div>
                   </td>
                   <td>
@@ -1391,6 +2055,28 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
           </table>
         </div>
       </div>
+      {books.assets.length > 0 && <NbvForecast books={books} ym={ym} />}
+    </div>
+  );
+}
+
+/** Net book value by category, 12 months back to 24 ahead (quarterly). */
+function NbvForecast({ books, ym }: { books: Books; ym: string }) {
+  const months = Array.from({ length: 13 }, (_, i) => addMonths(ym, -12 + i * 3));
+  const series = nbvByCategory(books.assets, months);
+  const pal = ['#2477c9', '#ff9f1c', '#0ea5a4', '#7a5af8', '#e8567a', '#139a52'];
+  return (
+    <div className="sx-card s12">
+      <div className="sx-h">
+        <h3>Qoldiq qiymat prognozi</h3>
+        <small>NBV · toifalar bo‘yicha · har chorak</small>
+      </div>
+      <Chart
+        labels={months.map((m) => `${m.slice(5)}.${m.slice(2, 4)}`)}
+        fmt={fmtMln}
+        height={230}
+        series={series.map((x, i) => ({ n: x.category, c: pal[i % pal.length], v: x.values, kind: 'line' as const }))}
+      />
     </div>
   );
 }
