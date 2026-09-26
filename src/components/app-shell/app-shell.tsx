@@ -63,10 +63,9 @@ export async function AppShell({
   children: ReactNode;
 }) {
   const tStaff = await getTranslations('staff');
-  // Roadmap goals are CEO / Administrative Manager territory (same gate as
-  // the /roadmap page and its nav entry), so only they get the sidebar goal
-  // card — everyone else simply doesn't render it.
-  const canSeeGoals = profile.role === 'ceo' || profile.role === 'admin_manager';
+  // The Roadmap section was removed (owner, 2026-09-26), and with it the
+  // sidebar goal card that linked to it.
+  const canSeeGoals = false;
   const [[announcement], initialAvatarUrl, starBalance, goalRows] = await Promise.all([
     sql<{ message: string }[]>`
       select message from platform_announcements order by created_at desc limit 1

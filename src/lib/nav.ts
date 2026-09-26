@@ -178,7 +178,6 @@ export const NAV_ITEMS: NavItem[] = [
   // territory specifically — mirrors its table's RLS (an explicit
   // `current_role() in ('ceo','admin_manager')`, not the shared
   // is_admin()). IT Developer, now a plain regular employee, never has it.
-  { key: 'roadmap', href: '/roadmap', roles: ['ceo', 'admin_manager'] },
   { key: 'strategy', href: '/strategy', roles: STRATEGY_ROLES },
   { key: 'accounting', href: '/accounting', roles: STRATEGY_ROLES },
   { key: 'operations', href: '/operations', roles: STRATEGY_ROLES },
