@@ -120,19 +120,20 @@ function CardSkeleton({ className }: { className?: string }) {
   );
 }
 
-async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: string }) {
+async function HeroAndKpis({ viewer, firstName, hideHero }: { viewer: Viewer; firstName: string; hideHero?: boolean }) {
   const t = await getTranslations('aurora');
   const { hero, kpis } = await loadDashboardCore(viewer.userId, viewer.role);
   const isCeo = viewer.role === 'ceo';
 
   return (
     <>
-      <HeroBanner
+      {/* Core's own hero (greeting, clock, month summary) replaces it when shown above. */}
+      {!hideHero && <HeroBanner
         firstName={firstName}
         data={hero}
         showLessonPlans={canSeeLessonPlans(viewer.role)}
         className={HERO_CELL}
-      />
+      />}
       <div className={cn(KPI_CELL, 'grid grid-cols-1 gap-[18px] min-[420px]:grid-cols-2 xl:grid-cols-4')}>
         {kpis ? (
           <>
@@ -267,7 +268,7 @@ export default async function DashboardPage() {
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
         <Suspense fallback={<HeroAndKpiSkeleton />}>
-          <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
+          <HeroAndKpis viewer={viewer} firstName={profile!.first_name} hideHero={showCore} />
         </Suspense>
         <Suspense fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
           <LeaderboardSection userId={user!.id} />

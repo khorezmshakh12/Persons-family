@@ -72,5 +72,15 @@ export const getAuthState = cache(async function getAuthState() {
     return { user: null, profile: null as Profile | null, suspended: false, frozenReason: null as string | null };
   }
 
+  // TEMPORARY (owner's decision, 2026-09-26): IT Developer gets every CEO
+  // right while the site is being fixed; restrictions come back later —
+  // delete this block to revert. Only the in-request role is lifted; the
+  // stored role, claims and every `where role = 'ceo'` lookup are untouched.
+  if (profile && FULL_ACCESS_ROLES.includes(profile.role)) {
+    return { user, profile: { ...profile, role: 'ceo' as StaffRole }, suspended: false, frozenReason: null as string | null };
+  }
+
   return { user, profile: profile ?? null, suspended: false, frozenReason: null as string | null };
 });
+
+const FULL_ACCESS_ROLES: StaffRole[] = ['it_developer'];
