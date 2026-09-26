@@ -39,8 +39,8 @@ import { ActivityFeed } from '@/components/aurora/activity-feed';
 import { FinanceCard } from '@/components/aurora/finance-card';
 import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
-import { CoreFrame } from '@/components/core/core-frame';
-import { coreViews } from '@/lib/core-state';
+import { SalesCard } from '@/components/aurora/sales-card';
+import { coreViews, loadSalesSnapshot } from '@/lib/core-state';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
 export const dynamic = 'force-dynamic';
@@ -120,20 +120,19 @@ function CardSkeleton({ className }: { className?: string }) {
   );
 }
 
-async function HeroAndKpis({ viewer, firstName, hideHero }: { viewer: Viewer; firstName: string; hideHero?: boolean }) {
+async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: string }) {
   const t = await getTranslations('aurora');
   const { hero, kpis } = await loadDashboardCore(viewer.userId, viewer.role);
   const isCeo = viewer.role === 'ceo';
 
   return (
     <>
-      {/* Core's own hero (greeting, clock, month summary) replaces it when shown above. */}
-      {!hideHero && <HeroBanner
+      <HeroBanner
         firstName={firstName}
         data={hero}
         showLessonPlans={canSeeLessonPlans(viewer.role)}
         className={HERO_CELL}
-      />}
+      />
       <div className={cn(KPI_CELL, 'grid grid-cols-1 gap-[18px] min-[420px]:grid-cols-2 xl:grid-cols-4')}>
         {kpis ? (
           <>
@@ -233,6 +232,11 @@ async function EmployeeStatsSection() {
   return <EmployeeStatsTable rows={rows} className={STATS_CELL} />;
 }
 
+async function SalesSection() {
+  const data = await loadSalesSnapshot();
+  return <SalesCard data={data} className="lg:col-span-12" />;
+}
+
 async function ActivitySection({ viewer }: { viewer: Viewer }) {
   const items = await loadActivity(viewer);
   return <ActivityFeed items={items} href={viewer.role === 'ceo' ? '/staff' : '/profile'} className={ACT_CELL} />;
@@ -259,16 +263,15 @@ export default async function DashboardPage() {
   const isPersonalDashboard = !isCeo && !isTeacherTier;
 
   const viewer: Viewer = { userId: user!.id, role: profile!.role as StaffRole };
-  // Core v2's own home (the owner's design) on top — grows with its content.
-  const showCore = (await coreViews(profile!).catch((): string[] => [])).includes('home');
+  // Sales card for whoever has the Sales section (same access rule).
+  const showSales = (await coreViews(profile!).catch((): string[] => [])).includes('sales');
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
-      {showCore && <CoreFrame view="home" auto title="Persons Staff Core" />}
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
         <Suspense fallback={<HeroAndKpiSkeleton />}>
-          <HeroAndKpis viewer={viewer} firstName={profile!.first_name} hideHero={showCore} />
+          <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
         </Suspense>
         <Suspense fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
           <LeaderboardSection userId={user!.id} />
@@ -279,6 +282,11 @@ export default async function DashboardPage() {
         <Suspense fallback={<CardSkeleton className={ACT_CELL} />}>
           <ActivitySection viewer={viewer} />
         </Suspense>
+        {showSales && (
+          <Suspense fallback={<CardSkeleton className="lg:col-span-12" />}>
+            <SalesSection />
+          </Suspense>
+        )}
         <Suspense fallback={<CardSkeleton className={FEED_CELL} />}>
           <TaskFeedSection viewer={viewer} />
         </Suspense>

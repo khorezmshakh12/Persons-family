@@ -1637,5 +1637,19 @@
       "success": "Bajarildi",
       "info": "Yangilik"
     }
+  },
+  "salesCard": {
+    "title": "Sotuv · shu oy",
+    "open": "Sotuvga o'tish",
+    "leads": "Lidlar",
+    "contracts": "Shartnomalar",
+    "conversion": "Konversiya",
+    "noTarget": "maqsad yo'q",
+    "spend": "sarf {v}",
+    "flow": "Lid oqimi · 7 kun",
+    "channels": "Kanallar",
+    "empty": "Hali lid yo'q",
+    "leadsN": "{n} lid",
+    "wonN": "{n} shartnoma"
   }
 }

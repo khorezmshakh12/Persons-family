@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
 import { askTypeSafe } from '@/lib/typesafe';
+import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
 import type { Profile } from '@/lib/auth/session';
 
 // Bridge between the Core v2 page (src/core/core.html, run unmodified) and
@@ -400,3 +401,33 @@ export async function coreViews(me: Profile): Promise<CoreView[]> {
   if (boss === 'AQ') add('strategy', 'report');
   return CORE_VIEWS.filter((x) => v.has(x));
 }
+
+type Lead = { at: number; st: string; ch: string; hist?: { st: string; at: number }[] };
+export const CORE_CHANNELS: Record<string, string> = { ig: 'Instagram', meta: 'Meta Ads', tg: 'Telegram', gg: 'Google', ref: 'Tavsiya', off: 'Offline' };
+
+/** This Tashkent month's sales from Core's lead data, with the same formulas
+ * as Core's salesCalc(): leads = created this month, contracts = those now
+ * 'won', CAC = month spend / contracts; plus a 7-day lead flow and channels. */
+export async function loadSalesSnapshot() {
+  const s = await readShared();
+  const leads = (s.leads as Lead[] | undefined) ?? [];
+  const m = tashkentMonthKey();
+  const inMonth = leads.filter((l) => tashkentMonthKey(new Date(l.at)) === m);
+  const sp = ((s.spend as Record<string, Record<string, number>> | undefined) ?? {})[m] ?? {};
+  const tg = ((s.tgt as Record<string, { leads?: number; won?: number }> | undefined) ?? {})[m] ?? {};
+  const spend = Object.values(sp).reduce((a, v) => a + (Number(v) || 0), 0);
+  const won = inMonth.filter((l) => l.st === 'won').length;
+  const today = tashkentDayKey();
+  const days = Array.from({ length: 7 }, (_, i) => addDaysToKey(today, i - 6));
+  const flow = days.map((d) => ({ day: d, n: leads.filter((l) => tashkentDayKey(new Date(l.at)) === d).length }));
+  const channels = Object.entries(CORE_CHANNELS)
+    .map(([k, name]) => {
+      const n = inMonth.filter((l) => l.ch === k).length;
+      const cs = Number(sp[k]) || 0;
+      return { k, name, n, won: inMonth.filter((l) => l.ch === k && l.st === 'won').length, spend: cs, cpl: n ? cs / n : 0 };
+    })
+    .filter((c) => c.n || c.spend)
+    .sort((a, b) => b.n - a.n);
+  return { month: m, leads: inMonth.length, won, targetLeads: tg.leads ?? 0, targetWon: tg.won ?? 0, spend, cac: won ? spend / won : 0, conv: inMonth.length ? (won / inMonth.length) * 100 : 0, flow, channels };
+}
+export type SalesSnapshot = Awaited<ReturnType<typeof loadSalesSnapshot>>;

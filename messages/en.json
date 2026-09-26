@@ -1637,5 +1637,19 @@
       "success": "Done",
       "info": "Update"
     }
+  },
+  "salesCard": {
+    "title": "Sales · this month",
+    "open": "Open Sales",
+    "leads": "Leads",
+    "contracts": "Contracts",
+    "conversion": "Conversion",
+    "noTarget": "no target",
+    "spend": "spend {v}",
+    "flow": "Lead flow · 7 days",
+    "channels": "Channels",
+    "empty": "No leads yet",
+    "leadsN": "{n} leads",
+    "wonN": "{n} won"
   }
 }
