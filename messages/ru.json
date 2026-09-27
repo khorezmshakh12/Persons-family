@@ -1436,7 +1436,8 @@
       "pending": "На рассмотрении",
       "approved": "Одобрено",
       "rejected": "Отклонено",
-      "fulfilled": "Выдано"
+      "fulfilled": "Выдано",
+      "cancelled": "Отменён"
     },
     "errors": {
       "invalidInput": "Проверьте поля и попробуйте снова.",
@@ -1505,7 +1506,28 @@
       "deleteItem": "Удалить приз",
       "confirmDeleteItemTitle": "Удалить этот приз?",
       "confirmDeleteItemDescription": "«{name}» будет безвозвратно удалён из каталога. Отменить нельзя.",
-      "itemDeleted": "Приз удалён."
+      "itemDeleted": "Приз удалён.",
+      "category": "Категория"
+    },
+    "comingSoon": "Persons Market скоро откроется — готовим новые награды.",
+    "starsNeeded": "Нужно ещё {count} звёзд",
+    "cancelOrder": "Отменить",
+    "cancelConfirm": "Точно? Нажмите ещё",
+    "cancelSuccess": "Заказ отменён, звёзды возвращены.",
+    "categories": {
+      "gift": "Подарки",
+      "food": "Еда и напитки",
+      "time": "Время и льготы",
+      "learning": "Обучение",
+      "experience": "Впечатления",
+      "special": "Особое"
+    },
+    "wishlist": {
+      "title": "Избранное",
+      "add": "В избранное",
+      "remove": "Убрать из избранного",
+      "affordable": "Уже можно получить!",
+      "count": "Сколько сотрудников хотят"
     }
   },
   "shell": {

@@ -1436,7 +1436,8 @@
       "pending": "Kutilmoqda",
       "approved": "Tasdiqlangan",
       "rejected": "Rad etilgan",
-      "fulfilled": "Topshirilgan"
+      "fulfilled": "Topshirilgan",
+      "cancelled": "Bekor qilingan"
     },
     "errors": {
       "invalidInput": "Maydonlarni tekshirib, qayta urinib ko'ring.",
@@ -1505,7 +1506,28 @@
       "deleteItem": "Sovg'ani o'chirish",
       "confirmDeleteItemTitle": "Sovg'a o'chirilsinmi?",
       "confirmDeleteItemDescription": "\"{name}\" katalogdan butunlay o'chiriladi. Bu amalni orqaga qaytarib bo'lmaydi.",
-      "itemDeleted": "Sovg'a o'chirildi."
+      "itemDeleted": "Sovg'a o'chirildi.",
+      "category": "Kategoriya"
+    },
+    "comingSoon": "Persons Market tez orada ochiladi — hozir yangi sovg'alar tayyorlanmoqda.",
+    "starsNeeded": "Yana {count} yulduz kerak",
+    "cancelOrder": "Bekor qilish",
+    "cancelConfirm": "Aniqmi? Bosing",
+    "cancelSuccess": "Buyurtma bekor qilindi, yulduzlar qaytarildi.",
+    "categories": {
+      "gift": "Jismoniy sovg'alar",
+      "food": "Ovqat va ichimlik",
+      "time": "Vaqt va imtiyozlar",
+      "learning": "O'qish",
+      "experience": "Tajriba",
+      "special": "Maxsus"
+    },
+    "wishlist": {
+      "title": "Istaklarim",
+      "add": "Istaklarga qo'shish",
+      "remove": "Istaklardan olib tashlash",
+      "affordable": "Endi olishingiz mumkin!",
+      "count": "Nechta xodim xohlaydi"
     }
   },
   "shell": {

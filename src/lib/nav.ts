@@ -134,6 +134,12 @@ export const STRATEGY_ROLES: StaffRole[] = ['ceo', 'it_developer', 'project_mana
  * else keeps the calm UI; the new logo itself is shown to all. */
 export const MOTION_ROLES: StaffRole[] = STRATEGY_ROLES;
 
+/** Persons Market audience. TEMPORARY (owner, 2026-09-27): only CEO and IT
+ * Developer while the new 60-item catalogue is being edited — widen this
+ * back to every role to open the shop to everyone. Reused by the page guard
+ * and every employee-side market.ts action. */
+export const MARKET_ROLES: StaffRole[] = ['ceo', 'it_developer'];
+
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
   // Core v2 (the owner's Claude-designed workspace, src/core/core.html) is
@@ -183,9 +189,9 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'operations', href: '/operations', roles: STRATEGY_ROLES },
   { key: 'perforce', href: '/perforce', roles: STRATEGY_ROLES },
   // Persons Market — where an employee spends the stars they've accumulated.
-  // No `roles`: everyone has a star balance, so everyone gets the shelf (the
-  // CEO's curation controls live on the same page, gated inside it).
-  { key: 'market', href: '/market' },
+  // Gated by MARKET_ROLES while the new catalogue is being prepared (the CEO's
+  // curation controls live on the same page, gated inside it).
+  { key: 'market', href: '/market', roles: MARKET_ROLES },
   { key: 'profile', href: '/profile' },
   { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo'] },
   { key: 'settings', href: '/settings' },

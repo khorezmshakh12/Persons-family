@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
 import { updateMarketItemAction, type MarketActionState, type MarketItemRow } from '@/lib/actions/market';
 import { MarketImageField } from './market-image-field';
+import { CategorySelect } from './category-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -104,6 +105,8 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
               onUploadingChange={setIsUploadingImage}
             />
           </div>
+
+          <CategorySelect id={`edit-category-${item.id}`} defaultValue={item.category} />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">

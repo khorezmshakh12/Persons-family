@@ -21,11 +21,18 @@ import {
   History,
   Minus,
   Plus,
+  Heart,
+  Ban,
 } from 'lucide-react';
 
 import type { MarketItemRow, MarketOrderRow, MarketAdminOrderRow, MarketAdminView } from '@/lib/actions/market';
-import { setMarketItemActiveAction, adjustMarketItemStockAction } from '@/lib/actions/market';
-import { isLowStock } from '@/lib/market';
+import {
+  setMarketItemActiveAction,
+  adjustMarketItemStockAction,
+  cancelMarketOrderAction,
+  toggleMarketWishlistAction,
+} from '@/lib/actions/market';
+import { isLowStock, MARKET_CATEGORIES, type MarketCategory } from '@/lib/market';
 import { GLASS_CARD, SURFACE_HERO } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,6 +52,78 @@ type MarketViewProps = {
 
 type MarketTab = 'shop' | 'myOrders' | 'admin';
 type SortMode = 'default' | 'price-asc' | 'price-desc' | 'name';
+type ShopFilter = 'all' | 'wishlist' | MarketCategory;
+
+/** Heart toggle on a shop card. Optimistic: flips at once, rolls back on error. */
+function WishlistHeart({ item }: { item: MarketItemRow }) {
+  const t = useTranslations('market');
+  const [on, setOn] = useState(item.wishlisted);
+  const [isPending, startTransition] = useTransition();
+
+  function toggle() {
+    const next = !on;
+    setOn(next);
+    startTransition(async () => {
+      const result = await toggleMarketWishlistAction(item.id);
+      if (result.error) {
+        setOn(!next);
+        toast.error(t(`errors.${result.error}`));
+      }
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={toggle}
+      aria-pressed={on}
+      aria-label={on ? t('wishlist.remove') : t('wishlist.add')}
+      title={on ? t('wishlist.remove') : t('wishlist.add')}
+      className="tap-scale flex size-8 items-center justify-center rounded-full border border-au-line bg-au-card text-au-muted shadow-sm transition-colors hover:text-red-600"
+    >
+      <Heart className={cn('size-4', on && 'fill-red-500 text-red-500')} />
+    </button>
+  );
+}
+
+/** "Cancel" on the buyer's own pending order — two clicks, no browser dialog. */
+function CancelOrderButton({ orderId }: { orderId: string }) {
+  const t = useTranslations('market');
+  const [armed, setArmed] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  function cancel() {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    startTransition(async () => {
+      const result = await cancelMarketOrderAction(orderId);
+      if (result?.error) toast.error(t(`errors.${result.error}`));
+      else toast.success(t('cancelSuccess'));
+      setArmed(false);
+    });
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      disabled={isPending}
+      onClick={cancel}
+      onBlur={() => setArmed(false)}
+      className={cn(
+        'h-8 gap-1.5 text-xs font-medium',
+        armed ? 'bg-red-500/10 text-red-700 hover:bg-red-500/15' : 'text-au-muted hover:text-red-700',
+      )}
+    >
+      <Ban className="size-3.5" />
+      {armed ? t('cancelConfirm') : t('cancelOrder')}
+    </Button>
+  );
+}
 
 function ItemActiveToggle({ item }: { item: MarketItemRow }) {
   const t = useTranslations('market');
@@ -193,12 +272,14 @@ function OrderStatusBadge({ status }: { status: MarketOrderRow['status'] }) {
         // Legacy rows only — the CEO UI hasn't written this status since the
         // approve/reject split.
         status === 'fulfilled' && 'bg-blue-500/20 text-blue-700 border-blue-500/40',
+        status === 'cancelled' && 'bg-au-card-2 text-au-muted border-au-line',
       )}
     >
       {status === 'pending' && <Clock className="size-3" />}
       {status === 'approved' && <CheckCircle2 className="size-3" />}
       {status === 'rejected' && <XCircle className="size-3" />}
       {status === 'fulfilled' && <PackageCheck className="size-3" />}
+      {status === 'cancelled' && <Ban className="size-3" />}
       {t(`status.${status}`)}
     </span>
   );
@@ -211,9 +292,16 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
   const [activeTab, setActiveTab] = useState<MarketTab>('shop');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('default');
+  const [filter, setFilter] = useState<ShopFilter>('all');
+
+  // Only categories that actually have items get a chip.
+  const presentCategories = MARKET_CATEGORIES.filter((c) => items.some((i) => i.category === c));
+  const wishlistCount = items.filter((i) => i.wishlisted).length;
 
   // Shop Items filtering & sorting
   const shopItems = items.filter((item) => {
+    if (filter === 'wishlist' && !item.wishlisted) return false;
+    if (filter !== 'all' && filter !== 'wishlist' && item.category !== filter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -349,6 +437,27 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
             </div>
           </div>
 
+          {/* Category / wishlist chips */}
+          <div className="flex flex-wrap gap-2">
+            {(['all', ...presentCategories, 'wishlist'] as ShopFilter[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  filter === f
+                    ? 'border-au-ink bg-au-ink text-au-card'
+                    : 'border-au-line bg-au-card text-au-muted hover:text-au-ink',
+                )}
+              >
+                {f === 'wishlist' && <Heart className="size-3" />}
+                {f === 'all' ? t('allRewards') : f === 'wishlist' ? t('wishlist.title') : t(`categories.${f}`)}
+                {f === 'wishlist' && wishlistCount > 0 && <span className="tabular-nums">{wishlistCount}</span>}
+              </button>
+            ))}
+          </div>
+
           {/* Items Grid */}
           {shopItems.length === 0 ? (
             <div className={cn(GLASS_CARD, 'flex flex-col items-center justify-center gap-2 py-16 text-center')}>
@@ -359,6 +468,8 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {shopItems.map((item, index) => {
                 const isOutOfStock = item.stock !== null && item.stock <= 0;
+                const missing = item.star_cost - balance;
+                const progress = Math.min(100, Math.round((Math.max(balance, 0) / item.star_cost) * 100));
                 return (
                   <div
                     key={item.id}
@@ -386,6 +497,10 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           <PackageCheck className="size-12" />
                         </div>
                       )}
+
+                      <div className="absolute top-2.5 left-2.5">
+                        <WishlistHeart item={item} />
+                      </div>
 
                       {/* Stock Badge */}
                       <div className="absolute top-2.5 right-2.5">
@@ -429,6 +544,19 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           </p>
                         )}
                       </div>
+
+                      {missing > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-au-card-2">
+                            <div className="h-full rounded-full bg-amber-500" style={{ width: `${progress}%` }} />
+                          </div>
+                          <span className="text-xs text-au-muted">{t('starsNeeded', { count: missing })}</span>
+                        </div>
+                      ) : (
+                        item.wishlisted && (
+                          <span className="text-xs font-semibold text-emerald-700">{t('wishlist.affordable')}</span>
+                        )
+                      )}
 
                       <div className="pt-2">
                         <OrderRewardDialog item={item} balance={balance} />
@@ -482,6 +610,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                         {t('starCount', { count: order.star_cost })}
                       </span>
 
+                      {order.status === 'pending' && <CancelOrderButton orderId={order.id} />}
                       <OrderStatusBadge status={order.status} />
                     </div>
                   </div>
@@ -634,6 +763,15 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                       <div className="flex flex-col gap-1">
                         <span className="font-medium text-au-ink">{item.name}</span>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-au-muted">
+                          <span className="rounded-full border border-au-line bg-au-card-2 px-2 py-0.5">
+                            {t(`categories.${item.category}`)}
+                          </span>
+                          {item.wishlist_count > 0 && (
+                            <span className="flex items-center gap-1 text-red-600" title={t('wishlist.count')}>
+                              <Heart className="size-3 fill-current" />
+                              {item.wishlist_count}
+                            </span>
+                          )}
                           <span>
                             {item.stock === null ? t('unlimitedStock') : t('stockLeft', { count: item.stock })}
                           </span>

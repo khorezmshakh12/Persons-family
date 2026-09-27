@@ -14,3 +14,7 @@ export const MARKET_LOW_STOCK_THRESHOLD = 3;
 export function isLowStock(stock: number | null): boolean {
   return stock !== null && stock > 0 && stock <= MARKET_LOW_STOCK_THRESHOLD;
 }
+
+/** Shop categories — mirrors the market_items_category_check constraint. */
+export const MARKET_CATEGORIES = ['gift', 'food', 'time', 'learning', 'experience', 'special'] as const;
+export type MarketCategory = (typeof MARKET_CATEGORIES)[number];

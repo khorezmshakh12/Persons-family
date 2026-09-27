@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { createMarketItemAction, type MarketActionState } from '@/lib/actions/market';
 import { MarketImageField } from './market-image-field';
+import { CategorySelect } from './category-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,6 +97,8 @@ export function CreateItemDialog() {
             <Label>{t('admin.imageLabel')}</Label>
             <MarketImageField name="imageUrl" onUploadingChange={setIsUploadingImage} />
           </div>
+
+          <CategorySelect id="create-category" />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">

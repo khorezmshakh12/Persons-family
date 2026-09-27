@@ -11,6 +11,8 @@ import { getStarBalance } from '@/lib/stars';
 import { insertStarTransaction } from '@/lib/stars-write';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
+import { MARKET_CATEGORIES, type MarketCategory } from '@/lib/market';
+import { MARKET_ROLES } from '@/lib/nav';
 
 export type MarketActionState =
   | {
@@ -106,7 +108,42 @@ const itemFieldsSchema = z.object({
   imageUrl: z.string().trim().max(2000).optional().or(z.literal('')),
   starCost: z.coerce.number().int().positive(),
   stock: optionalStock,
+  category: z.enum(MARKET_CATEGORIES).default('gift'),
 });
+
+/** Employee-side gate: the shop is limited to MARKET_ROLES for now. */
+async function requireMarketUser(): Promise<{ id: string } | { error: string }> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  if (!MARKET_ROLES.includes(profile.role)) return { error: 'forbidden' };
+  return { id: user.id };
+}
+
+/**
+ * Tells everyone who hearted an item that it is back in stock. Called via
+ * `after()` only when a stocked item goes from 0 to >0, so a routine +1 on an
+ * item that was never empty pings nobody.
+ */
+async function notifyWishlistRestock(itemId: string) {
+  try {
+    const rows = await sql<{ telegram_id: number | null; name: string }[]>`
+      select p.telegram_id, i.name
+      from market_wishlist w
+      join profiles p on p.id = w.user_id
+      join market_items i on i.id = w.item_id
+      where w.item_id = ${itemId} and p.is_active and p.telegram_id is not null
+    `;
+    for (const r of rows) {
+      if (!r.telegram_id) continue;
+      await sendTelegramMessage(
+        r.telegram_id,
+        `<b>Persons Market</b>\nIstaklaringizdagi "${escapeTelegramText(r.name)}" yana mavjud!`,
+      );
+    }
+  } catch (error) {
+    console.error('notifyWishlistRestock failed', error instanceof Error ? error.message : error);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // CEO — item curation
@@ -127,17 +164,18 @@ export async function createMarketItemAction(
 
   const parsed = itemFieldsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-  const { name, starCost, stock } = parsed.data;
+  const { name, starCost, stock, category } = parsed.data;
 
   try {
     await sql`
-      insert into market_items (name, description, image_url, star_cost, stock, created_by)
+      insert into market_items (name, description, image_url, star_cost, stock, category, created_by)
       values (
         ${name},
         ${parsed.data.description || null},
         ${parsed.data.imageUrl || null},
         ${starCost},
         ${stock},
+        ${category},
         ${actorId}
       )
     `;
@@ -164,24 +202,30 @@ export async function updateMarketItemAction(
 
   const parsed = updateItemSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-  const { itemId, name, starCost, stock } = parsed.data;
+  const { itemId, name, starCost, stock, category } = parsed.data;
 
+  let restocked = false;
   try {
-    const rows = await sql<{ id: string }[]>`
-      update market_items set
+    const rows = await sql<{ id: string; old_stock: number | null }[]>`
+      with old as (select id, stock from market_items where id = ${itemId})
+      update market_items m set
         name        = ${name},
         description = ${parsed.data.description || null},
         image_url   = ${parsed.data.imageUrl || null},
         star_cost   = ${starCost},
         stock       = ${stock},
+        category    = ${category},
         updated_at  = now()
-      where id = ${itemId}
-      returning id
+      from old
+      where m.id = old.id
+      returning m.id, old.stock as old_stock
     `;
     if (rows.length === 0) return { error: 'itemNotFound' };
+    restocked = rows[0].old_stock === 0 && (stock === null || stock > 0);
   } catch {
     return { error: 'updateFailed' };
   }
+  if (restocked) after(() => notifyWishlistRestock(itemId));
 
   logSystemAction('market.item.update', `Updated market item ${itemId}`);
   revalidateMarket();
@@ -256,17 +300,21 @@ export async function adjustMarketItemStockAction(
   if (!parsed.success) return { error: 'invalidInput' };
   const { itemId, delta } = parsed.data;
 
+  let restocked = false;
   try {
-    const rows = await sql<{ id: string }[]>`
+    const rows = await sql<{ id: string; stock: number }[]>`
       update market_items
          set stock = greatest(0, stock + ${delta}), updated_at = now()
        where id = ${itemId} and stock is not null
-      returning id
+      returning id, stock
     `;
     if (rows.length === 0) return { error: 'itemNotFound' };
+    // Went from 0 to exactly `delta` → it was sold out a moment ago.
+    restocked = delta > 0 && rows[0].stock === delta;
   } catch {
     return { error: 'updateFailed' };
   }
+  if (restocked) after(() => notifyWishlistRestock(itemId));
 
   logSystemAction('market.item.stock', `Adjusted market item ${itemId} stock by ${delta}`);
   revalidateMarket();
@@ -505,8 +553,8 @@ export async function decideMarketOrderAction(
  * for the last unit.
  */
 export async function placeMarketOrderAction(itemId: string): Promise<MarketActionState> {
-  const { user } = await getAuthState();
-  if (!user) return { error: 'sessionExpired' };
+  const user = await requireMarketUser();
+  if ('error' in user) return { error: user.error };
 
   const parsedId = z.string().uuid().safeParse(itemId);
   if (!parsedId.success) return { error: 'invalidInput' };
@@ -579,6 +627,85 @@ export async function placeMarketOrderAction(itemId: string): Promise<MarketActi
   return {};
 }
 
+/**
+ * An employee withdraws their own still-pending order: status → cancelled,
+ * the stars come back as a `refund` ledger row and the unit returns to the
+ * shelf — all in one transaction, under the buyer's row lock like a purchase.
+ */
+export async function cancelMarketOrderAction(orderId: string): Promise<MarketActionState> {
+  const user = await requireMarketUser();
+  if ('error' in user) return { error: user.error };
+
+  const parsedId = z.string().uuid().safeParse(orderId);
+  if (!parsedId.success) return { error: 'invalidInput' };
+
+  try {
+    await sql.begin(async (tx) => {
+      await tx`select id from profiles where id = ${user.id} for update`;
+      const rows = await tx<{ id: string; item_id: string; star_cost: number; item_name: string }[]>`
+        update market_orders o
+           set status = 'cancelled', decided_at = now()
+          from market_items i
+         where o.id = ${parsedId.data} and o.user_id = ${user.id}
+           and o.status = 'pending' and i.id = o.item_id
+        returning o.id, o.item_id, o.star_cost, i.name as item_name
+      `;
+      // 0 rows: not theirs, or the CEO decided it a moment ago.
+      if (rows.length === 0) throw new MarketError('alreadyDecided');
+      const order = rows[0];
+
+      await insertStarTransaction(tx, {
+        userId: user.id,
+        delta: order.star_cost,
+        reason: `Persons Market: "${order.item_name}" bekor qilindi`,
+        sourceType: 'refund',
+        sourceId: order.id,
+        createdBy: user.id,
+      });
+      await tx`
+        update market_items set stock = stock + 1, updated_at = now()
+        where id = ${order.item_id} and stock is not null
+      `;
+    });
+  } catch (error) {
+    return marketErrorResult(error, 'updateFailed');
+  }
+
+  logSystemAction('market.order.cancel', `Cancelled own market order ${parsedId.data}`);
+  revalidateMarket();
+  return {};
+}
+
+/** Hearts / un-hearts an item. Returns the new state so the UI can settle. */
+export async function toggleMarketWishlistAction(
+  itemId: string,
+): Promise<{ error?: string; wishlisted?: boolean }> {
+  const user = await requireMarketUser();
+  if ('error' in user) return { error: user.error };
+
+  const parsedId = z.string().uuid().safeParse(itemId);
+  if (!parsedId.success) return { error: 'invalidInput' };
+
+  let wishlisted = true;
+  try {
+    const removed = await sql`
+      delete from market_wishlist where user_id = ${user.id} and item_id = ${parsedId.data}
+    `;
+    if (removed.count > 0) {
+      wishlisted = false;
+    } else {
+      await sql`
+        insert into market_wishlist (user_id, item_id) values (${user.id}, ${parsedId.data})
+        on conflict do nothing
+      `;
+    }
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidateMarket();
+  return { wishlisted };
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -596,6 +723,11 @@ export type MarketItemRow = {
   star_cost: number;
   stock: number | null;
   is_active: boolean;
+  category: MarketCategory;
+  /** Whether the viewer hearted it (shop view only; false in the CEO catalog). */
+  wishlisted: boolean;
+  /** How many employees hearted it (CEO catalog only; 0 in the shop). */
+  wishlist_count: number;
   /** Non-null once the CEO removed an item that had order history. Never
    *  reaches the shop; shown in the CEO catalog so the row can be restored. */
   archived_at: string | null;
@@ -606,7 +738,7 @@ export type MarketOrderRow = {
   item_id: string;
   item_name: string;
   star_cost: number;
-  status: 'pending' | 'approved' | 'rejected' | 'fulfilled';
+  status: 'pending' | 'approved' | 'rejected' | 'fulfilled' | 'cancelled';
   note: string | null;
   created_at: string;
   decided_at: string | null;
@@ -622,14 +754,17 @@ const EMPTY_MARKET: MarketView = { balance: 0, items: [], orders: [] };
 
 /** What an employee sees: the shelf, their own orders, their own balance. */
 export async function getMarketAction(): Promise<MarketView> {
-  const { user } = await getAuthState();
-  if (!user) return EMPTY_MARKET;
+  const user = await requireMarketUser();
+  if ('error' in user) return EMPTY_MARKET;
 
   const [balance, items, orders] = await Promise.all([
     getStarBalance(user.id),
     sql<MarketItemRow[]>`
-      select id, name, description, image_url, star_cost, stock, is_active, archived_at
-      from market_items
+      select i.id, i.name, i.description, i.image_url, i.star_cost, i.stock, i.is_active,
+             i.archived_at, i.category, 0 as wishlist_count,
+             exists (select 1 from market_wishlist w
+                      where w.item_id = i.id and w.user_id = ${user.id}) as wishlisted
+      from market_items i
       where is_active = true and archived_at is null
       order by star_cost asc, created_at desc
     `,
@@ -691,8 +826,10 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
 
   const [items, orders, [stats]] = await Promise.all([
     sql<MarketItemRow[]>`
-      select id, name, description, image_url, star_cost, stock, is_active, archived_at
-      from market_items
+      select i.id, i.name, i.description, i.image_url, i.star_cost, i.stock, i.is_active,
+             i.archived_at, i.category, false as wishlisted,
+             (select count(*)::int from market_wishlist w where w.item_id = i.id) as wishlist_count
+      from market_items i
       order by (archived_at is not null) asc, is_active desc, created_at desc
     `,
     sql<MarketAdminOrderRow[]>`
