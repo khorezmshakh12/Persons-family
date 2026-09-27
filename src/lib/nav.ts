@@ -1,13 +1,7 @@
-export type StaffRole =
-  | 'ceo'
-  | 'admin_manager'
-  | 'teacher'
-  | 'head_teacher'
-  | 'assistant'
-  | 'mmd'
-  | 'internship'
-  | 'it_developer'
-  | 'project_manager';
+import { canSee, SECTION_ROLES, type Role, type SectionKey } from '@/lib/permissions';
+
+/** The closed role set — defined (with every role's access) in lib/permissions.ts. */
+export type StaffRole = Role;
 
 export type NavItem = {
   key:
@@ -36,7 +30,6 @@ export type NavItem = {
     | 'settings'
     | 'materials';
   href: string;
-  roles?: StaffRole[];
   /** Points at a different app on the shared gateway (see
    * persons-staffs-gateway), not a route inside this Next.js app — must be
    * rendered as a plain `<a>`, never the i18n `Link`, since basePath/locale
@@ -107,45 +100,29 @@ const NAV_SORT: NavItem['key'][] = [
   'platform',
 ];
 
-/**
- * Who can see lesson plans at all. Exported (and reused as the nav entry's
- * own `roles` below, so the two can't drift) because the lesson-plan pages
- * have to re-check it server-side: this scoping used to come from the
- * groups/course_lessons RLS policies, which returned zero rows to every
- * other role, and with RLS gone a direct URL visit is otherwise ungated.
- */
-// IT Developer is deliberately NOT here. It had been re-added at one point
-// (view-only) so it could see the lesson-plan data the compliance bot
-// reports on, but that has been reverted — the role is back to a plain
-// regular employee with no lesson-plan reach at all, matching the earlier
-// role rework ("IT Developer lost lesson-plan access entirely"). Removing
-// it here hides the nav entry *and* makes lesson-plans/layout.tsx redirect
-// a direct URL visit, since that guard reuses this same list.
-export const LESSON_PLAN_ROLES: StaffRole[] = ['ceo', 'head_teacher', 'teacher', 'assistant'];
-
-/** Strategy workspace (roadmap · mind map · board · list · gantt). Only
- * CEO, IT Developer and Project Manager (the role exists for exactly this
- * area) — per the owner's decision; Administrative Manager does NOT get it.
- * Reused by the page guard and every strategy.ts action. */
-export const STRATEGY_ROLES: StaffRole[] = ['ceo', 'it_developer', 'project_manager'];
+// Per-section audiences — derived from lib/permissions.ts (the single role
+// matrix) and kept as named exports because page guards and actions import
+// them. Edit SECTION_ROLES there, not these.
+export const LESSON_PLAN_ROLES: StaffRole[] = [...SECTION_ROLES.lessonPlans];
+export const STRATEGY_ROLES: StaffRole[] = [...SECTION_ROLES.strategy];
+export const ACCOUNTING_ROLES: StaffRole[] = [...SECTION_ROLES.accounting];
+export const OPERATIONS_ROLES: StaffRole[] = [...SECTION_ROLES.operations];
+export const PERFORCE_ROLES: StaffRole[] = [...SECTION_ROLES.perforce];
+export const MARKET_ROLES: StaffRole[] = [...SECTION_ROLES.market];
 
 /** Who gets the first-visit intro and the new UI motion (nav/button/logo
- * micro-interactions) — same audience as Strategy, per the owner. Everyone
+ * micro-interactions) — the Strategy audience, per the owner. Everyone
  * else keeps the calm UI; the new logo itself is shown to all. */
 export const MOTION_ROLES: StaffRole[] = STRATEGY_ROLES;
 
-/** Persons Market audience. TEMPORARY (owner, 2026-09-27): only CEO and IT
- * Developer while the new 60-item catalogue is being edited — widen this
- * back to every role to open the shop to everyone. Reused by the page guard
- * and every employee-side market.ts action. */
-export const MARKET_ROLES: StaffRole[] = ['ceo', 'it_developer'];
-
+// Who sees each entry: SECTION_ROLES in lib/permissions.ts (checked by
+// navItemsForRole below and by each page's own guard).
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard' },
   // Core v2 (the owner's Claude-designed workspace, src/core/core.html) is
-  // spread over these sections, one Core page each, embedded 1:1. Who sees
-  // which is Core's own rule (department / boss / CEO-edited ACL), passed in
-  // as `coreViews` — see coreViews() in lib/core-state.ts.
+  // spread over these sections, one Core page each, embedded 1:1. On top of
+  // SECTION_ROLES, the CEO's per-person ACL in Core can narrow them — passed
+  // in as `coreViews`, see coreViews() in lib/core-state.ts.
   { key: 'coreInbox', href: '/inbox', core: 'inbox' },
   { key: 'sales', href: '/sales', core: 'sales' },
   { key: 'hr', href: '/hr', core: 'hr' },
@@ -155,45 +132,24 @@ export const NAV_ITEMS: NavItem[] = [
   // clicking it doesn't drop the employee on Materials' login screen — see
   // src/app/api/sso/materials/route.ts.
   { key: 'materials', href: '/staff/api/sso/materials', external: true },
-  // IT Developer regained staff (employee) management specifically — see
-  // requireStaffManager() in lib/auth/require-admin.ts — but not the other
-  // CEO-only areas (roadmap, telegram setup, deleting a staff account).
-  { key: 'staff', href: '/staff', roles: ['ceo', 'it_developer'] },
+  { key: 'staff', href: '/staff' },
   { key: 'chat', href: '/chat' },
-  // Any staff member can report an issue and see the ones they raised.
-  // Managing the board — status changes, reassignment, deletion, the
-  // resolution-stats panel — stays CEO-only; the /issues page and every
-  // issues.ts Server Action enforce that themselves, independent of this
-  // nav entry being ungated.
+  // Any staff member can report an issue and see the ones they raised;
+  // managing the board is the 'issues.manage' capability.
   { key: 'issues', href: '/issues' },
-  {
-    key: 'lessonPlans',
-    href: '/lesson-plans',
-    // Head Teacher can see every teacher's lesson plans and comment on
-    // them. IT Developer does not (see LESSON_PLAN_ROLES' own comment), and
-    // MMD ranks below teacher/assistant and never sees lesson plans either.
-    // No local `roles` array on purpose: reusing LESSON_PLAN_ROLES keeps the
-    // sidebar and the lesson-plans layout guard from drifting apart.
-    roles: LESSON_PLAN_ROLES,
-  },
+  { key: 'lessonPlans', href: '/lesson-plans' },
   { key: 'tasks', href: '/tasks' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },
-  // Roadmap (incl. its Monthly Goals section) is CEO/Administrative Manager
-  // territory specifically — mirrors its table's RLS (an explicit
-  // `current_role() in ('ceo','admin_manager')`, not the shared
-  // is_admin()). IT Developer, now a plain regular employee, never has it.
-  { key: 'strategy', href: '/strategy', roles: STRATEGY_ROLES },
-  { key: 'accounting', href: '/accounting', roles: STRATEGY_ROLES },
-  { key: 'operations', href: '/operations', roles: STRATEGY_ROLES },
-  { key: 'perforce', href: '/perforce', roles: STRATEGY_ROLES },
-  // Persons Market — where an employee spends the stars they've accumulated.
-  // Gated by MARKET_ROLES while the new catalogue is being prepared (the CEO's
-  // curation controls live on the same page, gated inside it).
-  { key: 'market', href: '/market', roles: MARKET_ROLES },
+  { key: 'strategy', href: '/strategy' },
+  { key: 'accounting', href: '/accounting' },
+  { key: 'operations', href: '/operations' },
+  { key: 'perforce', href: '/perforce' },
+  // Persons Market — curation is the 'market.manage' capability.
+  { key: 'market', href: '/market' },
   { key: 'profile', href: '/profile' },
-  { key: 'telegramSetup', href: '/telegram-setup', roles: ['ceo'] },
+  { key: 'telegramSetup', href: '/telegram-setup' },
   { key: 'settings', href: '/settings' },
 ];
 
@@ -202,7 +158,7 @@ export function navItemsForRole(
   { materialsLinked = false, coreViews = [] }: { materialsLinked?: boolean; coreViews?: string[] } = {},
 ) {
   return NAV_ITEMS.filter((item) => {
-    if (item.roles && !item.roles.includes(role)) return false;
+    if (item.key in SECTION_ROLES && !canSee(role, item.key as SectionKey)) return false;
     // Only shown once this employee's phone number is matched to an
     // active Materials account (see checkMaterialsLink) — otherwise the
     // link would just dump them on Materials' login screen.

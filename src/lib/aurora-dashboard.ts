@@ -7,6 +7,7 @@ import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { LESSON_PLAN_ROLES, type StaffRole } from '@/lib/nav';
 import { addDaysToKey, tashkentDayKey, tashkentDayOfWeek, tashkentMidnight, startOfTashkentMonthKey, startOfPreviousTashkentMonthKey } from '@/lib/time';
 import { changePercent, lastPoint, openBacklogSeries, periodBucketEnds } from '@/lib/dashboard-stats';
+import { can } from '@/lib/permissions';
 
 /**
  * Data for the Persons Aurora dashboard (hero, leaderboard, KPI row, lesson
@@ -20,7 +21,7 @@ import { changePercent, lastPoint, openBacklogSeries, periodBucketEnds } from '@
 
 export type Viewer = { userId: string; role: StaffRole };
 
-const isCompanyWide = (v: Viewer) => v.role === 'ceo';
+const isCompanyWide = (v: Viewer) => can(v.role, 'company.overview');
 
 /** Monday 00:00 Tashkent of the current week, as a day key. */
 function mondayKey(at: Date = new Date()): string {
@@ -372,7 +373,7 @@ export async function loadLessonPlanWeek(v: Viewer): Promise<WeekBar[] | null> {
     const monday = mondayKey();
     const today = tashkentDayKey();
     const days = Array.from({ length: 6 }, (_, i) => addDaysToKey(monday, i)); // Mon–Sat (6-day week)
-    const everything = v.role === 'head_teacher';
+    const everything = can(v.role, 'academic.viewAll');
 
     const groups = await sql<{ id: string; schedule_type: string | null }[]>`
       select id, schedule_type from groups
@@ -432,7 +433,7 @@ export async function loadLessonPlanMonths(v: Viewer): Promise<MonthBar[] | null
   return safe('lesson-months', async () => {
     const months = recentMonthKeys();
     const today = tashkentDayKey();
-    const everything = v.role === 'head_teacher';
+    const everything = can(v.role, 'academic.viewAll');
     const rows = await sql<(LessonRow & { ym: string })[]>`
       select to_char(cl.lesson_date, 'YYYY-MM') as ym, cl.group_id, cl.topic, cl.aim, cl.language_focus,
              cl.anticipated_problems, cl.homework, cl.moved_to_lesson_id

@@ -1,5 +1,6 @@
 'use client';
 
+import { isProtectedRole } from '@/lib/permissions';
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
@@ -48,8 +49,7 @@ export function StaffRowActions({
   const isSelf = target.id === currentUserId;
   // CEO and Admin Manager are equal for day-to-day operations, but managing
   // another CEO or Admin account (not your own) is reserved to the CEO.
-  const isProtectedRole = target.role === 'ceo' || target.role === 'admin_manager';
-  const canManage = isSelf || !(isProtectedRole && actingRole !== 'ceo');
+  const canManage = isSelf || !(isProtectedRole(target.role) && actingRole !== 'ceo');
   const canAssignCeo = actingRole === 'ceo';
   const canDeactivate = !isSelf;
   const canDelete = !isSelf && actingRole === 'ceo';

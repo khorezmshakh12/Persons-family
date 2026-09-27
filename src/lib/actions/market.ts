@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -54,7 +54,7 @@ export async function requestMarketImageUploadUrlAction(
   fileType: string,
 ): Promise<MarketImageUploadResult> {
   try {
-    await requireCeo();
+    await requireCap('market.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -157,7 +157,7 @@ export async function createMarketItemAction(
   try {
     ({
       user: { id: actorId },
-    } = await requireCeo());
+    } = await requireCap('market.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -195,7 +195,7 @@ export async function updateMarketItemAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireCap('market.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -244,7 +244,7 @@ export async function setMarketItemActiveAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireCap('market.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -291,7 +291,7 @@ export async function adjustMarketItemStockAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireCap('market.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -340,7 +340,7 @@ export async function deleteMarketItemAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireCap('market.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -449,7 +449,7 @@ export async function decideMarketOrderAction(
   try {
     ({
       user: { id: actorId },
-    } = await requireCeo());
+    } = await requireCap('market.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -819,7 +819,7 @@ const EMPTY_ADMIN_VIEW: MarketAdminView = {
  *  queue, and the decided-order history. */
 export async function getMarketAdminAction(): Promise<MarketAdminView> {
   try {
-    await requireCeo();
+    await requireCap('market.manage');
   } catch {
     return EMPTY_ADMIN_VIEW;
   }

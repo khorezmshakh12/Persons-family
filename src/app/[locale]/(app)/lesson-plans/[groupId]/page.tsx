@@ -21,6 +21,7 @@ import {
   GlassCardSkeleton,
   GlassCourseLessonsSkeleton,
 } from '@/components/skeletons/glass-skeletons';
+import { can } from '@/lib/permissions';
 
 const EditGroupDialog = nextDynamic(() =>
   import('@/components/lesson-plans/edit-group-dialog').then((mod) => mod.EditGroupDialog),
@@ -78,12 +79,11 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   };
 
   const isOwnerTeacher = profile!.role === 'teacher' && group.teacher_id === user!.id;
-  // Head Teacher only got view + comment rights (mirrors lesson_comments_*
-  // RLS) — group management and content moderation (course_lessons_update /
-  // lesson_materials_*) stayed CEO-only, so isCeo itself must stay literal
-  // 'ceo' rather than folding head_teacher in here too.
-  const isCeo = profile!.role === 'ceo';
-  const isHeadTeacher = profile!.role === 'head_teacher';
+  // Group management / content moderation: academic.manage (CEO, Academic
+  // Director). View + comment on every group: academic.viewAll, which adds
+  // the Head Teacher (and the COO) on top.
+  const isCeo = can(profile!.role, 'academic.manage');
+  const isHeadTeacher = !isCeo && can(profile!.role, 'academic.viewAll');
   const isAssistant = profile!.role === 'assistant';
   // Only the assistant specifically assigned to this group counts as "the
   // group's TA" now — RLS already narrows their access to this group alone,

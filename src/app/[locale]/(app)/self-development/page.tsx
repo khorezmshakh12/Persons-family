@@ -16,6 +16,7 @@ import { ManageStaffPerformanceDialog } from '@/components/performance/manage-st
 import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
 import { ExportButtons } from '@/components/export/export-buttons';
 import { Badge } from '@/components/ui/badge';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ export default async function SelfDevelopmentPage({
   const tp = await getTranslations('performance');
   const { teacher } = await searchParams;
   const { user, profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo';
+  const isCeo = can(profile!.role, 'selfDev.review');
   const isAdmin = isCeo;
 
   const submissions = await sql<Submission[]>`

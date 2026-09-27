@@ -1,4 +1,5 @@
 import { getAuthState } from './session';
+import { can, canSee, type Capability, type SectionKey } from '@/lib/permissions';
 
 export class ForbiddenError extends Error {}
 
@@ -75,7 +76,7 @@ export async function requireAdmin() {
 export async function requireStaffManager() {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
-  if (!profile || (profile.role !== 'ceo' && profile.role !== 'it_developer')) {
+  if (!profile || !can(profile.role, 'staff.manage')) {
     throw new ForbiddenError('Staff management access required');
   }
   return { user, profile };
@@ -89,6 +90,30 @@ export async function requireStaffManager() {
  * through is_admin() and silently drifted out of sync with this comment
  * every time is_admin()'s own meaning changed — decoupled for good).
  */
+/**
+ * Capability gate — see CAP_ROLES in lib/permissions.ts for who holds what.
+ * Every Server Action whose audience grew past the CEO in the role model
+ * (2026-09-27) calls this instead of requireCeo()/requireAdmin().
+ */
+export async function requireCap(cap: Capability) {
+  const { user, profile } = await getAuthState();
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || !can(profile.role, cap)) {
+    throw new ForbiddenError(`Missing capability ${cap}`);
+  }
+  return { user, profile };
+}
+
+/** Section gate for Server Actions behind a whole page (SECTION_ROLES). */
+export async function requireSection(section: SectionKey) {
+  const { user, profile } = await getAuthState();
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || !canSee(profile.role, section)) {
+    throw new ForbiddenError(`No access to ${section}`);
+  }
+  return { user, profile };
+}
+
 export async function requireCeoOrAdminManager() {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');

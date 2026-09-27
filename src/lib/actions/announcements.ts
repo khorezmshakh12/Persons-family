@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -19,7 +19,7 @@ export async function publishAnnouncementAction(
   formData: FormData,
 ): Promise<AnnouncementActionState> {
   try {
-    await requireAdmin();
+    await requireCap('news.publish');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -69,7 +69,7 @@ export async function getCurrentAnnouncementAction(): Promise<string | null> {
 
 export async function clearAnnouncementAction(): Promise<AnnouncementActionState> {
   try {
-    await requireAdmin();
+    await requireCap('news.publish');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

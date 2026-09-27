@@ -4,7 +4,6 @@ import { z } from 'zod';
 import type { TransactionSql } from 'postgres';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
-import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { getPayrollSummary } from '@/lib/payroll';
@@ -19,6 +18,7 @@ import {
   type Asset,
   type TaxSettings,
 } from '@/lib/accounting';
+import { requireCap } from '@/lib/auth/require-admin';
 
 type Result = { error?: string };
 
@@ -35,7 +35,7 @@ function done(path = '/[locale]/accounting') {
 
 async function requireEditor(): Promise<{ id: string } | { error: string }> {
   try {
-    const { profile } = await requireStrategyEditor();
+    const { profile } = await requireCap('accounting.edit');
     return { id: profile.id };
   } catch (error) {
     return { error: authErrorCode(error) };

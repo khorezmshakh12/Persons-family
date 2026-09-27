@@ -5,8 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { scoreLead } from '@/lib/ai-triage';
 import { authErrorCode } from '@/lib/auth/require-admin';
-import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
+import { requireCap } from '@/lib/auth/require-admin';
 
 type Result = { error?: string };
 
@@ -26,7 +26,7 @@ const leadSchema = z.object({
 export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise<Result> {
   let by: string;
   try {
-    ({ profile: { id: by } } = await requireStrategyEditor());
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -66,7 +66,7 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
 
 export async function deleteLeadAction(id: string): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -99,7 +99,7 @@ const planSchema = z.object({
 
 export async function savePlanAction(input: z.input<typeof planSchema>): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -123,7 +123,7 @@ const roomSchema = z.object({
 });
 export async function saveRoomAction(input: z.input<typeof roomSchema>): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -142,7 +142,7 @@ export async function saveRoomAction(input: z.input<typeof roomSchema>): Promise
 
 export async function deleteRoomAction(code: string): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -158,7 +158,7 @@ export async function deleteRoomAction(code: string): Promise<Result> {
 
 export async function setGroupEnrollmentAction(groupId: string, enrolled: number): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -183,7 +183,7 @@ const holdSchema = z.object({
 export async function saveSlotHoldAction(input: z.input<typeof holdSchema>): Promise<Result> {
   let by: string;
   try {
-    ({ profile: { id: by } } = await requireStrategyEditor());
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -203,7 +203,7 @@ export async function saveSlotHoldAction(input: z.input<typeof holdSchema>): Pro
 
 export async function deleteSlotHoldAction(id: string): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
@@ -31,7 +31,7 @@ export async function addFinanceEntryAction(
   try {
     ({
       user: { id: adminId },
-    } = await requireAdmin());
+    } = await requireCap('finance.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -80,7 +80,7 @@ export async function setSalaryMonthAction(
   try {
     ({
       user: { id: adminId },
-    } = await requireAdmin());
+    } = await requireCap('finance.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -117,7 +117,7 @@ export async function deleteFinanceEntryAction(
   formData: FormData,
 ): Promise<FinanceActionState> {
   try {
-    await requireAdmin();
+    await requireCap('finance.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { STRATEGY_ROLES } from '@/lib/nav';
+import { OPERATIONS_ROLES } from '@/lib/nav';
 import { tashkentDayKey } from '@/lib/time';
 import { loadBooks } from '@/lib/accounting-data';
 import { addMonths } from '@/lib/accounting';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function OperationsPage() {
   const { profile } = await getAuthState();
-  if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
+  if (!profile || !OPERATIONS_ROLES.includes(profile.role)) notFound();
 
   const [groups, leads, staff, metrics, entries, books, planRows, rooms, holds] = await Promise.all([
     sql<OpsData['groups']>`

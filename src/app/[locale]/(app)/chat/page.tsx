@@ -5,6 +5,7 @@ import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { ChatHubClient } from '@/components/chat-hub/chat-hub-client';
 import type { ConversationState } from '@/components/chat-hub/types';
 import type { StaffRole } from '@/lib/nav';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,15 +58,15 @@ export default async function ChatPage() {
   // message (see sendStaffChatAction). Without this, a brand new contact
   // for a CEO would incorrectly show "Send chat request" instead of going
   // straight to the composer.
-  const iAmBypass = profile!.role === 'ceo';
+  const iAmBypass = can(profile!.role, 'chat.moderate');
   for (const s of staff) {
     if (conversationStates[s.id]) continue;
-    if (iAmBypass || s.role === 'ceo') {
+    if (iAmBypass || can(s.role, 'chat.moderate')) {
       conversationStates[s.id] = { kind: 'accepted', conversationId: '' };
     }
   }
 
-  const canModerateDmImportance = profile!.role === 'ceo';
+  const canModerateDmImportance = can(profile!.role, 'chat.moderate');
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-5.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">

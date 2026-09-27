@@ -1,7 +1,7 @@
 'use server';
 
 import { getFormatter } from 'next-intl/server';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 
 /**
@@ -72,7 +72,7 @@ type RoleRow = { role: string; raised: number; resolved: number };
 
 export async function getIssueStatsAction(): Promise<{ data?: IssueStats; error?: string }> {
   try {
-    await requireCeo();
+    await requireCap('issues.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

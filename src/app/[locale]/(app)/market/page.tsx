@@ -1,6 +1,5 @@
 import { getMarketAction, getMarketAdminAction } from '@/lib/actions/market';
-import { getTranslations } from 'next-intl/server';
-import { ShoppingBag } from 'lucide-react';
+import { notFound } from 'next/navigation';
 import { MarketView } from '@/components/market/market-view';
 import { getAuthState } from '@/lib/auth/session';
 import { MARKET_ROLES } from '@/lib/nav';
@@ -9,19 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function MarketPage() {
   const { profile } = await getAuthState();
-  // Closed to everyone else while the catalogue is prepared. The star pill,
-  // dashboard KPI and hero button still link here, so show a friendly
-  // "coming soon" card instead of a 404.
-  if (!profile || !MARKET_ROLES.includes(profile.role)) {
-    const t = await getTranslations('market');
-    return (
-      <div className="mx-auto flex max-w-xl flex-col items-center gap-3 p-10 text-center">
-        <ShoppingBag className="size-12 text-au-faint" />
-        <h1 className="text-xl font-bold text-au-ink">{t('title')}</h1>
-        <p className="text-sm text-au-muted">{t('comingSoon')}</p>
-      </div>
-    );
-  }
+  if (!profile || !MARKET_ROLES.includes(profile.role)) notFound();
 
   const [marketData, adminData] = await Promise.all([
     getMarketAction(),

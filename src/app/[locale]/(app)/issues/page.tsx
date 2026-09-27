@@ -10,13 +10,14 @@ import { IssuesStats } from '@/components/issues/issues-stats';
 import { MonthlyIssueArchive } from '@/components/issues/monthly-issue-archive';
 import { MarkIssuesSeen } from '@/components/issues/mark-issues-seen';
 import type { Issue } from '@/components/issues/issue-card';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function IssuesPage() {
   const t = await getTranslations('issues');
   const { profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo';
+  const isCeo = can(profile!.role, 'issues.manage');
 
   // Every staff member reaches this page: a non-CEO gets a read-only view of
   // just the issues they raised (getVisibleIssuesAction scopes the query to

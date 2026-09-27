@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { STRATEGY_ROLES } from '@/lib/nav';
+import { PERFORCE_ROLES } from '@/lib/nav';
 import { tashkentDayKey } from '@/lib/time';
 import { withSignedAvatars } from '@/lib/strategy-people';
 import { PerforceWorkspace, type PfData } from '@/components/strategy/perforce-workspace';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function PerforcePage() {
   const { profile } = await getAuthState();
-  if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
+  if (!profile || !PERFORCE_ROLES.includes(profile.role)) notFound();
 
   const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals, risks] = await Promise.all([
     sql<PfData['spaces']>`select id, name, color, start_date, end_date, budget from strategy_spaces order by sort_order, created_at`,

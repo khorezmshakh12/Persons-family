@@ -11,6 +11,7 @@ import { MotionRoot } from '@/components/motion/motion-root';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
+import { CAP_ROLES } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       sql<{ id: string; summary: string; created_at: string }[]>`
         select id, summary, created_at from lesson_plan_compliance_alerts
         where is_seen = false
-          and exists (select 1 from profiles where id = ${user!.id} and role = 'ceo')
+          and exists (select 1 from profiles where id = ${user!.id} and role::text = any(${[...CAP_ROLES['academic.viewAll']]}))
         order by created_at desc limit 50
       `,
       computeNavBadgeKeys(user!.id),

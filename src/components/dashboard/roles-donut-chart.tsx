@@ -14,6 +14,13 @@ const ROLE_ORDER = [
   'internship',
   'it_developer',
   'project_manager',
+  'coo',
+  'commercial_director',
+  'academic_director',
+  'financist',
+  'operations_manager',
+  'sales_manager',
+  'event_manager',
 ] as const;
 const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   ceo: '#a855f7',
@@ -25,6 +32,13 @@ const ROLE_COLOR: Record<(typeof ROLE_ORDER)[number], string> = {
   internship: '#14b8a6',
   it_developer: '#06b6d4',
   project_manager: '#ff9f1c',
+  coo: '#7c3aed',
+  commercial_director: '#e11d48',
+  academic_director: '#16a34a',
+  financist: '#0d9488',
+  operations_manager: '#2563eb',
+  sales_manager: '#f43f5e',
+  event_manager: '#d946ef',
 };
 
 export async function RolesDonutChart({

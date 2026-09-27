@@ -26,6 +26,7 @@ import { DutiesCard } from '@/components/profile/duties-card';
 import { ContractsCard } from '@/components/profile/contracts-card';
 import { SectionErrorBoundary } from '@/components/profile/section-error-boundary';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,11 +71,11 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
   const { user, profile: viewerProfile } = await getAuthState();
 
   const isSelf = user!.id === id;
-  const isCeo = viewerProfile!.role === 'ceo';
-  // IT Developer has no elevated reach anywhere anymore — plain regular
-  // employee, same as any other non-admin role.
+  // Full profile (self-development, duties, contracts, management): CEO/COO.
+  // Warnings/bonuses/punishments: warnings.manage (adds Admin Manager).
+  const isCeo = can(viewerProfile!.role, 'company.overview');
   const isAdmin = isCeo;
-  const isAdminManager = viewerProfile!.role === 'admin_manager';
+  const isAdminManager = !isAdmin && can(viewerProfile!.role, 'warnings.manage');
   // Warnings/bonuses/punishments are visible to CEO and Administrative
   // Manager for anyone (mirrors is_ceo_or_admin_manager() RLS);
   // self-development, duties, and contracts stay admin-or-self only

@@ -203,7 +203,9 @@ function TaskCardImpl({
             {task.title}
           </span>
           <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">
-            {isAdmin && (
+            {/* Edit/delete only on tasks this person handed out — a team lead
+                also sees tasks their own boss gave them. */}
+            {isAdmin && isReviewer && (
               <div className="flex items-center gap-1">
                 <EditTaskDialog
                   task={{

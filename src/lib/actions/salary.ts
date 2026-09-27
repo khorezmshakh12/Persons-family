@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 
 export type SalaryActionState = { error?: string } | undefined;
@@ -23,7 +23,7 @@ export async function upsertSalaryNoteAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('finance.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }

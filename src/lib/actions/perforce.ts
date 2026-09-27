@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
-import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { triageIssue } from '@/lib/ai-triage';
 import { bumpBoardSignal } from '@/lib/gcp/firestoreAdmin';
+import { requireCap } from '@/lib/auth/require-admin';
 
 type Result = { error?: string };
 const uuid = z.string().uuid();
@@ -20,7 +20,7 @@ function done() {
 
 async function requireEditor(): Promise<{ id: string } | { error: string }> {
   try {
-    const { profile } = await requireStrategyEditor();
+    const { profile } = await requireCap('perforce.edit');
     return { id: profile.id };
   } catch (error) {
     return { error: authErrorCode(error) };

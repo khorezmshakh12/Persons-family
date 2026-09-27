@@ -2,11 +2,12 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { createSignedWriteUrl, createSignedReadUrl, deleteObject } from '@/lib/gcp/storage';
 import { logSystemAction } from '@/lib/audit-log';
+import { can } from '@/lib/permissions';
 
 export type ContractActionState = { error?: string } | undefined;
 
@@ -28,7 +29,7 @@ export async function createContractAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireAdmin());
+    } = await requireCap('contracts.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -60,7 +61,7 @@ export async function updateContractAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireAdmin();
+    await requireCap('contracts.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -88,7 +89,7 @@ export async function deleteContractAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireAdmin();
+    await requireCap('contracts.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -119,7 +120,7 @@ export async function createDutyAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireAdmin());
+    } = await requireCap('contracts.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -145,7 +146,7 @@ export async function deleteDutyAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireAdmin();
+    await requireCap('contracts.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -219,7 +220,7 @@ export async function reviewContractRequestAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireAdmin());
+    } = await requireCap('contracts.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -252,7 +253,7 @@ export async function reviewContractRequestAction(
 }
 
 // Attachments -----------------------------------------------------------------
-// Authorization here is entirely in requireAdmin()/the ownership checks
+// Authorization here is entirely in requireCap('contracts.manage')/the ownership checks
 // below, not in bucket-level policy — there is no RLS-equivalent layer for
 // Cloud Storage, so the Server Action boundary is the real (and only)
 // authorization boundary, same as it effectively was before.
@@ -265,7 +266,7 @@ export async function requestContractFileUploadUrlAction(
   fileType: string,
 ): Promise<ContractUploadUrlResult> {
   try {
-    await requireAdmin();
+    await requireCap('contracts.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -296,7 +297,7 @@ export async function attachContractFileAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireAdmin());
+    } = await requireCap('contracts.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -322,7 +323,7 @@ export async function deleteContractAttachmentAction(
   formData: FormData,
 ): Promise<ContractActionState> {
   try {
-    await requireAdmin();
+    await requireCap('contracts.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -366,7 +367,7 @@ export async function requestContractFileReadUrlAction(
   `;
   if (!attachment) return { error: 'notFound' };
 
-  if (profile.role !== 'ceo') {
+  if (!can(profile.role, 'contracts.manage')) {
     const [contract] = await sql<{ staff_id: string }[]>`
       select staff_id from staff_contracts where id = ${attachment.contract_id}
     `;
