@@ -41,6 +41,7 @@ import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { SalesCard } from '@/components/aurora/sales-card';
 import { coreViews, loadSalesSnapshot } from '@/lib/core-state';
+import { can } from '@/lib/permissions';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
 export const dynamic = 'force-dynamic';
@@ -123,7 +124,7 @@ function CardSkeleton({ className }: { className?: string }) {
 async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: string }) {
   const t = await getTranslations('aurora');
   const { hero, kpis } = await loadDashboardCore(viewer.userId, viewer.role);
-  const isCeo = viewer.role === 'ceo';
+  const isCeo = can(viewer.role, 'company.overview');
 
   return (
     <>
@@ -216,7 +217,7 @@ async function FinanceSection({ viewer }: { viewer: Viewer }) {
   return (
     <FinanceCard
       data={data}
-      href={viewer.role === 'ceo' ? '/finance' : `/finance/${viewer.userId}`}
+      href={can(viewer.role, 'finance.viewAll') ? '/finance' : `/finance/${viewer.userId}`}
       className={FIN_CELL}
     />
   );
@@ -224,7 +225,7 @@ async function FinanceSection({ viewer }: { viewer: Viewer }) {
 
 async function TaskFeedSection({ viewer }: { viewer: Viewer }) {
   const items = await loadTaskFeed(viewer);
-  return <TaskFeed items={items} mode={viewer.role === 'ceo' ? 'ceo' : 'self'} className={FEED_CELL} />;
+  return <TaskFeed items={items} mode={can(viewer.role, 'company.overview') ? 'ceo' : 'self'} className={FEED_CELL} />;
 }
 
 async function EmployeeStatsSection() {
@@ -239,7 +240,7 @@ async function SalesSection() {
 
 async function ActivitySection({ viewer }: { viewer: Viewer }) {
   const items = await loadActivity(viewer);
-  return <ActivityFeed items={items} href={viewer.role === 'ceo' ? '/staff' : '/profile'} className={ACT_CELL} />;
+  return <ActivityFeed items={items} href={can(viewer.role, 'company.overview') ? '/staff' : '/profile'} className={ACT_CELL} />;
 }
 
 // Every block fetches its own data and streams in behind its own Suspense
@@ -247,8 +248,8 @@ async function ActivitySection({ viewer }: { viewer: Viewer }) {
 // blocking on the slowest of several independent database queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo';
-  const isHeadTeacher = profile!.role === 'head_teacher';
+  const isCeo = can(profile!.role, 'company.overview');
+  const isHeadTeacher = profile!.role === 'head_teacher' || profile!.role === 'academic_director';
   // Head Teacher gets a regular teacher's dashboard plus the Active
   // Groups/Lesson Plans cards (RLS already scopes both platform-wide for
   // it, same as CEO) — everyone else who isn't a teacher/assistant gets a

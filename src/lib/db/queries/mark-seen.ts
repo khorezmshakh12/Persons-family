@@ -1,6 +1,7 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
 import { bumpNavBadgeSignal, markChatMirrorRead } from '@/lib/gcp/firestoreAdmin';
+import { can } from '@/lib/permissions';
 
 // Straight ports of the old security-definer RPCs (mark_tasks_seen etc.) —
 // `auth.uid()` there is simply `userId` here, since the caller is always
@@ -58,12 +59,10 @@ export async function markCompanyNewsSeen(userId: string): Promise<boolean> {
   return true;
 }
 
-/** CEO-only in the original RPC (a plpgsql role check, not RLS) — a
- * non-CEO caller silently no-ops there, so this mirrors that rather than
- * throwing, to avoid changing behavior for any caller relying on the
- * silent-noop shape. */
+/** Only for whoever receives the alerts (academic.viewAll) — anyone else
+ * silently no-ops, the shape the original CEO-only RPC had. */
 export async function markLessonPlanAlertsSeen(callerRole: string): Promise<boolean> {
-  if (callerRole !== 'ceo') return false;
+  if (!can(callerRole, 'academic.viewAll')) return false;
   const res = await sql`update lesson_plan_compliance_alerts set is_seen = true where is_seen = false`;
   return res.count > 0;
 }

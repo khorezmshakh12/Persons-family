@@ -3,10 +3,10 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
-import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { tashkentDayKey } from '@/lib/time';
+import { requireCap } from '@/lib/auth/require-admin';
 
 type Result = { error?: string };
 
@@ -16,7 +16,7 @@ const count = z.number().int().min(0).max(1_000_000);
 
 async function requireEditor(): Promise<{ id: string } | { error: string }> {
   try {
-    const { profile } = await requireStrategyEditor();
+    const { profile } = await requireCap('strategy.edit');
     return { id: profile.id };
   } catch (error) {
     return { error: authErrorCode(error) };

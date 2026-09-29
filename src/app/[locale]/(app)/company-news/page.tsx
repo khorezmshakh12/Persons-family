@@ -5,13 +5,14 @@ import { companyNewsCutoff } from '@/lib/company-news';
 import { CreateNewsDialog } from '@/components/company-news/create-news-dialog';
 import { NewsList } from '@/components/company-news/news-list';
 import { MarkCompanyNewsSeen } from '@/components/company-news/mark-company-news-seen';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CompanyNewsPage() {
   const t = await getTranslations('companyNews');
   const { user, profile } = await getAuthState();
-  const isAdmin = profile?.role === 'ceo';
+  const isAdmin = can(profile?.role, 'news.publish');
 
   const rows = await sql<
     { id: string; title: string; content: string; created_at: string; created_by: string; author_first_name: string | null; author_last_name: string | null }[]

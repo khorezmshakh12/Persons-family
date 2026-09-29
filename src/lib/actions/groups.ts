@@ -14,6 +14,7 @@ import {
   pruneOffScheduleBlankSlots,
 } from '@/lib/lesson-generation';
 import { currentMonthKey } from '@/lib/lesson-months';
+import { can } from '@/lib/permissions';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -199,7 +200,7 @@ export async function updateGroupAction(
   // CEO-only) — RLS used to narrow this update to the owning teacher, so
   // without the extra predicate any employee could rename/reassign any
   // group by posting its id.
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'academic.manage');
   const scheduleType = normalizeScheduleType(parsed.data.scheduleType);
 
   // The `previous` CTE reads the row as it was at the start of this
@@ -291,7 +292,7 @@ export async function resyncGroupScheduleAction(formData: FormData): Promise<Res
   `;
   if (!group) return { error: 'notFound' };
 
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'academic.manage');
   const isOwnerTeacher = profile.role === 'teacher' && group.teacher_id === user.id;
   if (!isCeo && !isOwnerTeacher) return { error: 'forbidden' };
   if (!group.schedule_type) return { error: 'noSchedule' };
@@ -325,7 +326,7 @@ export async function deleteGroupAction(formData: FormData): Promise<void> {
   // (`public.is_admin() or teacher_id = auth.uid()`, is_admin() now being
   // CEO-only) — the chat metadata is only torn down if the row really was
   // this caller's to delete.
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'academic.manage');
   const [deleted] = await sql<{ id: string }[]>`
     delete from groups where id = ${parsed.data.id} and (${isCeo} or teacher_id = ${user.id})
     returning id

@@ -3,6 +3,8 @@ import { sql } from '@/lib/db/client';
 import { askTypeSafe } from '@/lib/typesafe';
 import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
 import type { Profile } from '@/lib/auth/session';
+import { can, canSee, ROLE_DEPT as PERMISSION_DEPT, type SectionKey } from '@/lib/permissions';
+import { defaultBosses, redactForViewer } from '@/lib/core-access';
 
 // Bridge between the Core v2 page (src/core/core.html, run unmodified) and
 // the real site. Core keeps all of its data in one object `S`; here we:
@@ -42,18 +44,15 @@ const ROLE_TITLE: Record<string, string> = {
   internship: 'Amaliyotchi',
   it_developer: 'IT dasturchi',
   project_manager: 'Loyiha menejeri (PM)',
+  coo: 'COO',
+  commercial_director: 'Tijorat direktori',
+  academic_director: 'Akademik direktor',
+  financist: 'Moliyachi',
+  operations_manager: 'Operatsion menejer',
+  sales_manager: "Sotuv bo'limi menejeri",
+  event_manager: 'Tadbirlar menejeri',
 };
-const ROLE_DEPT: Record<string, CoreStaff['d']> = {
-  ceo: 'top',
-  admin_manager: 'ops',
-  teacher: 'acad',
-  head_teacher: 'acad',
-  assistant: 'acad',
-  mmd: 'com',
-  internship: 'acad',
-  it_developer: 'ops',
-  project_manager: 'ops',
-};
+const ROLE_DEPT: Record<string, CoreStaff['d']> = PERMISSION_DEPT;
 const PAL = [
   ['#ffb547', '#ff7a45'], ['#6fb6ff', '#2477c9'], ['#ff8fb1', '#d63d66'], ['#5fd6a0', '#139a52'],
   ['#c9b8ff', '#7a5af8'], ['#6fe0df', '#0ea5a4'], ['#ffd28a', '#f0a030'], ['#9d8cff', '#6a4cf0'],
@@ -171,6 +170,7 @@ export async function loadCore(me: Profile) {
     await sql`update core_state set data = data || ${sql.json({ staffMeta: meta, keys: keys.byId } as never)} where id = 1`;
   }
   const ceo = profiles.find((p) => p.role === 'ceo' && p.is_active);
+  const bossOf = defaultBosses(profiles, ceo?.id ?? null);
   const staff: Record<string, CoreStaff> = {};
   for (const p of profiles) {
     const m = meta[p.id] ?? {};
@@ -182,7 +182,7 @@ export async function loadCore(me: Profile) {
       c: grad(p.id),
       hired: p.created_at.slice(0, 10),
       sal: Number(p.monthly_salary ?? 0),
-      boss: top ? null : K(m.boss ?? ceo?.id ?? null),
+      boss: top ? null : K(m.boss ?? bossOf[p.id] ?? null),
       ph: p.phone ?? '',
       em: p.email ?? '',
       active: p.is_active ? 1 : 0,
@@ -199,7 +199,7 @@ export async function loadCore(me: Profile) {
     grew = false;
     for (const [id, s] of Object.entries(staff)) if (s.boss && subtree.has(s.boss) && !subtree.has(id)) (subtree.add(id), (grew = true));
   }
-  const isTop = me.role === 'ceo';
+  const isTop = can(me.role, 'company.overview');
   const taskRows = await sql<
     { id: string; title: string; description: string | null; assigned_to: string | null; assigned_by: string | null; deadline: string | null; status: string; created_at: string; completed_at: string | null }[]
   >`
@@ -229,6 +229,7 @@ export async function loadCore(me: Profile) {
 
   const clean: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(shared)) if (!UI_KEYS.has(k) && k !== 'staffMeta' && k !== 'taskPr' && k !== 'keys') clean[k] = v;
+  redactForViewer(me.role, K(me.id)!, subtree, staff, clean);
   return { me: K(me.id)!, state: { v: 2, ...clean, staff, tasks, me: K(me.id)! } };
 }
 
@@ -246,10 +247,11 @@ const isUuid = (s: unknown) => typeof s === 'string' && /^[0-9a-f-]{36}$/i.test(
  * shared logs/requests; sales data if Core gives them the Sales section
  * (department or the CEO's ACL); KPI/bonus only for themselves and their
  * Core subtree (enforced per entry in applyCorePatch). */
-function writableKeys(me: Profile, dept: string | undefined, acl: string[] | undefined): Set<string> | 'all' {
+function writableKeys(me: Profile): Set<string> | 'all' {
   if (me.role === 'ceo') return 'all';
   const keys = new Set(['notif', 'log', 'm11', 'vac', 'leave', 'kpi', 'bonus']);
-  if (dept === 'com' || dept === 'fin' || acl?.includes('sales')) ['leads', 'spend', 'tgt'].forEach((k) => keys.add(k));
+  if (can(me.role, 'core.sales.edit')) ['leads', 'spend', 'tgt'].forEach((k) => keys.add(k));
+  if (can(me.role, 'company.overview')) ['cfg', 'closed'].forEach((k) => keys.add(k));
   return keys;
 }
 
@@ -266,8 +268,7 @@ export async function applyCorePatch(me: Profile, patch: Json, prevTasks: CoreTa
   const keyOf = (shared.keys as Record<string, string>) ?? {};
   const byKey = Object.fromEntries(Object.entries(keyOf).map(([id, k]) => [k, id]));
   const myKey = keyOf[me.id];
-  const acl = (shared.acl as Record<string, string[]> | null)?.[myKey];
-  const allowed = writableKeys(me, meta[me.id]?.d, acl);
+  const allowed = writableKeys(me);
   // Me + everyone whose Core boss chain leads to me.
   const mine = new Set<string>([myKey]);
   for (let grew = true; grew; ) {
@@ -366,40 +367,36 @@ async function syncTasks(next: CoreTask[], prev: CoreTask[], taskPr: Record<stri
   return { errors, taskPr };
 }
 
-export const CORE_ROLES: string[] = ['ceo', 'it_developer'];
-
 /** Core's page ids, in its own nav order (ALL_V in core.html). */
 export const CORE_VIEWS = ['home', 'tasks', 'inbox', 'sales', 'hr', 'perforce', 'ops', 'strategy', 'report', 'settings'] as const;
 export type CoreView = (typeof CORE_VIEWS)[number];
 
-/** Which Core pages this person may open — Core's own can()/defAccess()
- * rules, evaluated on the server so the site's sidebar and page guards
- * agree with what the embedded Core shows. */
+/** The site section each Core page lives under — Core pages follow the
+ * same SECTION_ROLES as the rest of the site. */
+const VIEW_SECTION: Record<CoreView, SectionKey> = {
+  home: 'dashboard',
+  tasks: 'tasks',
+  inbox: 'coreInbox',
+  sales: 'sales',
+  hr: 'hr',
+  perforce: 'perforce',
+  ops: 'operations',
+  strategy: 'strategy',
+  report: 'report',
+  settings: 'platform',
+};
+
+/** Which Core pages this person may open: their role's sections
+ * (lib/permissions.ts), narrowed — never widened — by a per-person access
+ * list the CEO sets inside Core. Evaluated on the server so the sidebar,
+ * the page guards and /api/core/* all agree. */
 export async function coreViews(me: Profile): Promise<CoreView[]> {
-  // Owner's decision: the whole Core platform is CEO + IT Developer only for now.
-  if (!CORE_ROLES.includes(me.role)) return [];
-  if (me.role === 'it_developer') return [...CORE_VIEWS];
-  const [shared, ceo] = await Promise.all([
-    readShared(),
-    sql<{ id: string }[]>`select id from profiles where role = 'ceo' and is_active = true limit 1`,
-  ]);
+  const byRole = CORE_VIEWS.filter((v) => canSee(me.role, VIEW_SECTION[v]));
+  if (me.role === 'ceo') return byRole;
+  const shared = await readShared();
   const keys = (shared.keys as Record<string, string>) ?? {};
   const acl = (shared.acl as Record<string, string[]> | undefined)?.[keys[me.id] ?? ''];
-  if (acl) return CORE_VIEWS.filter((v) => acl.includes(v));
-  if (me.role === 'ceo') return [...CORE_VIEWS];
-  const m = ((shared.staffMeta as Record<string, StaffMeta>) ?? {})[me.id] ?? {};
-  const d = m.d ?? ROLE_DEPT[me.role] ?? 'ops';
-  const r = m.r ?? ROLE_TITLE[me.role] ?? me.role;
-  const boss = keys[m.boss ?? ceo[0]?.id ?? ''];
-  const v = new Set<CoreView>(['home', 'tasks', 'inbox', 'hr']);
-  if (d === 'com') v.add('sales');
-  const add = (...xs: CoreView[]) => xs.forEach((x) => v.add(x));
-  if (d === 'ops' || r === 'COO') add('perforce', 'ops');
-  if (d === 'hr') add('ops', 'strategy', 'report');
-  if (d === 'fin') add('sales', 'strategy', 'report');
-  if (d === 'acad') add('perforce');
-  if (boss === 'AQ') add('strategy', 'report');
-  return CORE_VIEWS.filter((x) => v.has(x));
+  return acl ? byRole.filter((v) => acl.includes(v)) : byRole;
 }
 
 type Lead = { at: number; st: string; ch: string; hist?: { st: string; at: number }[] };

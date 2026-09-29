@@ -194,7 +194,14 @@
       "mmd": "MMD",
       "internship": "Стажёр",
       "it_developer": "IT-разработчик",
-      "project_manager": "Проект-менеджер"
+      "project_manager": "Проект-менеджер",
+      "coo": "COO (операционный директор)",
+      "commercial_director": "Коммерческий директор",
+      "academic_director": "Академический директор",
+      "financist": "Финансист",
+      "operations_manager": "Операционный менеджер",
+      "sales_manager": "Менеджер отдела продаж",
+      "event_manager": "Ивент-менеджер"
     },
     "status": {
       "active": "Активен",

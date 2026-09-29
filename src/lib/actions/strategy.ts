@@ -3,10 +3,10 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
-import { requireStrategyEditor } from '@/lib/strategy-auth';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { normalizeBudget, type StrategyMind, type StrategySpace, type StrategyTask } from '@/lib/strategy';
+import { requireCap } from '@/lib/auth/require-admin';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
@@ -38,7 +38,7 @@ const TASK_COLUMNS = sql`
 export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>): Promise<Result<{ task: StrategyTask }>> {
   let profileId: string;
   try {
-    ({ profile: { id: profileId } } = await requireStrategyEditor());
+    ({ profile: { id: profileId } } = await requireCap('strategy.edit'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -80,7 +80,7 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
 
 export async function deleteStrategyTaskAction(taskId: string): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -104,7 +104,7 @@ const nodeSchema = z.object({
 
 export async function setRoadmapNodeStatusAction(input: z.input<typeof nodeSchema>): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -141,7 +141,7 @@ const mindSchema: z.ZodType<StrategyMind> = z.object({
 
 export async function saveStrategyMindAction(spaceId: string, mind: StrategyMind): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -168,7 +168,7 @@ const spaceSchema = z.object({
 export async function createStrategySpaceAction(input: z.input<typeof spaceSchema>): Promise<Result<{ id: string }>> {
   let profileId: string;
   try {
-    ({ profile: { id: profileId } } = await requireStrategyEditor());
+    ({ profile: { id: profileId } } = await requireCap('strategy.edit'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -196,7 +196,7 @@ export async function addStrategyMilestoneAction(
   input: z.input<typeof milestoneSchema>,
 ): Promise<Result<{ milestone: { id: string; title: string; date: string } }>> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -216,7 +216,7 @@ export async function addStrategyMilestoneAction(
 
 export async function deleteStrategyMilestoneAction(id: string): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -235,7 +235,7 @@ const spaceUpdateSchema = spaceSchema.extend({ id: z.string().uuid() });
 
 export async function updateStrategySpaceAction(input: z.input<typeof spaceUpdateSchema>): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -260,7 +260,7 @@ export async function updateStrategySpaceAction(input: z.input<typeof spaceUpdat
 /** Deletes a space with its tasks and milestones (FK on delete cascade). */
 export async function deleteStrategySpaceAction(id: string): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -294,7 +294,7 @@ export async function saveStrategyBudgetAction(
   budget: StrategySpace['budget'],
 ): Promise<Result> {
   try {
-    await requireStrategyEditor();
+    await requireCap('strategy.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

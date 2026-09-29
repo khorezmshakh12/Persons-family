@@ -1,5 +1,6 @@
 'use client';
 
+import { isProtectedRole, ROLES } from '@/lib/permissions';
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Pencil } from 'lucide-react';
@@ -24,17 +25,7 @@ import { TEACHER_LEVELS } from '@/lib/teacher-level';
 import { roleLabel } from '@/lib/roles';
 import type { Profile } from '@/lib/auth/session';
 
-const ALL_ROLES = [
-  'ceo',
-  'admin_manager',
-  'teacher',
-  'head_teacher',
-  'assistant',
-  'mmd',
-  'internship',
-  'it_developer',
-  'project_manager',
-] as const;
+const ALL_ROLES = ROLES;
 
 export function EditStaffDialog({
   profile,
@@ -55,7 +46,7 @@ export function EditStaffDialog({
   // otherwise be offered as a new choice.
   const roles = canAssignCeo
     ? ALL_ROLES
-    : ALL_ROLES.filter((r) => r === profile.role || (r !== 'ceo' && r !== 'admin_manager'));
+    : ALL_ROLES.filter((r) => r === profile.role || !isProtectedRole(r));
 
   function handleSubmit(formData: FormData) {
     setError(null);

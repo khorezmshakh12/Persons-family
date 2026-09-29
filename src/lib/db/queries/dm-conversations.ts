@@ -1,5 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
+import { can } from '@/lib/permissions';
 
 export type DmRequestStatus = 'pending' | 'accepted';
 
@@ -19,7 +20,7 @@ export async function startDmConversation(
   ]);
   if (!otherProfile) throw new Error('Recipient not found');
 
-  const bypass = myProfile?.role === 'ceo' || otherProfile.role === 'ceo';
+  const bypass = can(myProfile?.role, 'chat.moderate') || can(otherProfile.role, 'chat.moderate');
   const [p1, p2] = [me, otherUserId].sort();
 
   return sql.begin(async (tx) => {

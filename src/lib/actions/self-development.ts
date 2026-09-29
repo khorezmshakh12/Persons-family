@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { TEACHER_LEVELS, type TeacherLevel } from '@/lib/teacher-level';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import { insertStarTransaction } from '@/lib/stars-write';
@@ -77,7 +77,7 @@ export async function saveEvaluationAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('selfDev.review'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }

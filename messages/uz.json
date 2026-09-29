@@ -194,7 +194,14 @@
       "mmd": "MMD",
       "internship": "Amaliyotchi",
       "it_developer": "IT dasturchi",
-      "project_manager": "Loyiha menejeri (PM)"
+      "project_manager": "Loyiha menejeri (PM)",
+      "coo": "COO (Bosh operatsion direktor)",
+      "commercial_director": "Tijorat direktori",
+      "academic_director": "Akademik direktor",
+      "financist": "Moliyachi",
+      "operations_manager": "Operatsion menejer",
+      "sales_manager": "Sotuv bo'limi menejeri",
+      "event_manager": "Tadbirlar menejeri"
     },
     "status": {
       "active": "Faol",

@@ -3,11 +3,12 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
 import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
+import { can } from '@/lib/permissions';
 
 export type CompanyNewsActionState = { error?: string } | undefined;
 
@@ -37,7 +38,7 @@ export async function createNewsAction(
 ): Promise<CompanyNewsActionState> {
   let actingUserId: string;
   try {
-    const { user } = await requireAdmin();
+    const { user } = await requireCap('news.publish');
     actingUserId = user.id;
   } catch (error) {
     return { error: authErrorCode(error) };
@@ -84,7 +85,7 @@ export type DeleteNewsResult = { error?: string };
 export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'forbidden' };
-  const isAdmin = profile.role === 'ceo';
+  const isAdmin = can(profile.role, 'news.publish');
 
   const parsed = deleteNewsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };

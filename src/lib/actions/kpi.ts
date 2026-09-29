@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -27,7 +27,7 @@ export async function addKpiMetricAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('kpi.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -68,7 +68,7 @@ export async function updateKpiMetricAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('kpi.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -104,7 +104,7 @@ export async function deleteKpiMetricAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('kpi.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -144,7 +144,7 @@ export async function upsertKpiEntryAction(
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('kpi.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }

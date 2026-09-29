@@ -4,13 +4,14 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { getFormatter } from 'next-intl/server';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { insertStarTransaction, type StarSourceType } from '@/lib/stars-write';
+import { can } from '@/lib/permissions';
 
 export type StarsActionState = { error?: string } | undefined;
 
@@ -59,7 +60,7 @@ export async function awardStarsAction(
   try {
     ({
       user: { id: actorId },
-    } = await requireCeo());
+    } = await requireCap('stars.grant'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -147,7 +148,7 @@ export async function getStarLedgerAction(userId?: string): Promise<StarLedgerEn
   if (!user) return [];
 
   const targetId = userId ?? user.id;
-  if (targetId !== user.id && profile?.role !== 'ceo') return [];
+  if (targetId !== user.id && !can(profile?.role, 'stars.grant')) return [];
   if (!z.string().uuid().safeParse(targetId).success) return [];
 
   return sql<StarLedgerEntry[]>`
@@ -209,7 +210,7 @@ export async function getMonthlyStarsArchiveAction(
     if (!user) return [];
 
     const targetId = userId ?? user.id;
-    if (targetId !== user.id && profile?.role !== 'ceo') return [];
+    if (targetId !== user.id && !can(profile?.role, 'stars.grant')) return [];
     if (!z.string().uuid().safeParse(targetId).success) return [];
 
     const rows = await sql<(ArchivedStarRow & { month_key: string })[]>`

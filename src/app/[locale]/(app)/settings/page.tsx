@@ -6,6 +6,7 @@ import { TelegramConnectSection } from '@/components/settings/telegram-connect-s
 import { AnnouncementSection } from '@/components/settings/announcement-section';
 import { SystemHealthSection } from '@/components/settings/system-health-section';
 import { sql } from '@/lib/db/client';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ export default async function SettingsPage() {
   const t = await getTranslations('settings');
   const tTheme = await getTranslations('themeSettings');
   const { profile } = await getAuthState();
-  const isCeo = profile!.role === 'ceo';
+  const isCeo = can(profile!.role, 'news.publish');
 
   let currentAnnouncement: string | null = null;
   if (isCeo) {

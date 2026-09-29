@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getAuthState } from '@/lib/auth/session';
-import { applyCorePatch, loadCore, CORE_ROLES } from '@/lib/core-state';
+import { applyCorePatch, coreViews, loadCore } from '@/lib/core-state';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const { profile } = await getAuthState();
-  if (!profile || !CORE_ROLES.includes(profile.role)) return NextResponse.json({ error: 'forbidden' }, { status: profile ? 403 : 401 });
+  if (!profile) return NextResponse.json({ error: 'forbidden' }, { status: 401 });
+  // Anyone with at least one Core page; loadCore redacts per role.
+  if ((await coreViews(profile)).length === 0) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   try {
     const { state } = await loadCore(profile);
     return NextResponse.json({ state });
@@ -19,7 +21,7 @@ export async function GET() {
 export async function PUT(req: Request) {
   const { profile } = await getAuthState();
   if (!profile) return NextResponse.json({ errors: ['Sessiya tugagan — qayta kiring'] }, { status: 401 });
-  if (!CORE_ROLES.includes(profile.role)) return NextResponse.json({ errors: ['Ruxsat yo‘q'] }, { status: 403 });
+  if ((await coreViews(profile)).length === 0) return NextResponse.json({ errors: ['Ruxsat yo‘q'] }, { status: 403 });
   let body: { patch?: Record<string, unknown>; prevTasks?: never[] };
   try {
     body = await req.json();

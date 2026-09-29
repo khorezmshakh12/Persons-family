@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -45,7 +45,7 @@ async function requireRoadmapManager(staffId: string): Promise<
   try {
     ({
       user: { id: ceoId },
-    } = await requireCeo());
+    } = await requireCap('finance.viewAll'));
   } catch (error) {
     return { ok: false, error: authErrorCode(error) };
   }

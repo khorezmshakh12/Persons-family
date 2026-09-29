@@ -9,6 +9,7 @@ import type {
   UnseenWarningItem,
   UnseenLessonPlanAlertItem,
 } from '@/components/app-shell/notification-bell';
+import { CAP_ROLES } from '@/lib/permissions';
 
 export type NotificationBellData = {
   unreadChats: UnreadChatItem[];
@@ -50,13 +51,12 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
       from staff_chats where receiver_id = ${user.id} and is_read = false
       order by created_at desc limit 50
     `,
-    // Issues is CEO-exclusive (see actions/issues.ts + nav.ts) — a non-CEO
-    // can no longer open /issues, so they must not get bell entries for one
-    // either, even if a stale row still points `assigned_to` at them.
+    // Bell entries for assigned issues only reach the issue managers
+    // (issues.manage), even if a stale row points `assigned_to` elsewhere.
     sql<UnseenIssueItem[]>`
       select id, title, created_at as "createdAt" from issues
       where assigned_to = ${user.id} and is_seen = false
-        and exists (select 1 from profiles where id = ${user.id} and role = 'ceo')
+        and exists (select 1 from profiles where id = ${user.id} and role::text = any(${[...CAP_ROLES['issues.manage']]}))
       order by created_at desc limit 50
     `,
     sql<UnseenTaskItem[]>`
@@ -72,7 +72,7 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
     sql<UnseenLessonPlanAlertItem[]>`
       select id, summary, created_at as "createdAt" from lesson_plan_compliance_alerts
       where is_seen = false
-        and exists (select 1 from profiles where id = ${user.id} and role = 'ceo')
+        and exists (select 1 from profiles where id = ${user.id} and role::text = any(${[...CAP_ROLES['academic.viewAll']]}))
       order by created_at desc limit 50
     `,
   ]);

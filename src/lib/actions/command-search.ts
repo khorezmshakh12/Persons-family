@@ -2,6 +2,7 @@
 
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
+import { can } from '@/lib/permissions';
 
 export type CommandSearchResult = {
   staff: { id: string; name: string; role: string }[];
@@ -31,8 +32,8 @@ export async function searchCommandPaletteAction(query: string): Promise<Command
   if (!user || !profile) return EMPTY;
 
   const pattern = `%${trimmed}%`;
-  const isCeo = profile.role === 'ceo';
-  const canSeeAllGroups = profile.role === 'ceo' || profile.role === 'head_teacher';
+  const isCeo = can(profile.role, 'company.overview');
+  const canSeeAllGroups = can(profile.role, 'academic.viewAll');
 
   const [staffRows, groups, issues] = await Promise.all([
     sql<{ id: string; first_name: string; last_name: string; role: string }[]>`

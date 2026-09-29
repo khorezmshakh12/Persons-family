@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { getFormatter } from 'next-intl/server';
-import { requireAdmin, requireCeoOrAdminManager, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -45,7 +45,7 @@ export async function issueWarningAction(
   try {
     ({
       user: { id: issuerId },
-    } = await requireCeoOrAdminManager());
+    } = await requireCap('warnings.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -85,7 +85,7 @@ export async function deleteWarningAction(
   formData: FormData,
 ): Promise<WarningActionState> {
   try {
-    await requireAdmin();
+    await requireCap('warnings.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -124,7 +124,7 @@ export async function assignPunishmentAction(
   try {
     ({
       user: { id: actorId },
-    } = await requireCeoOrAdminManager());
+    } = await requireCap('warnings.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -200,7 +200,7 @@ export async function getMonthlyWarningsArchiveAction(
 
     if (staffId !== user.id) {
       try {
-        await requireCeoOrAdminManager();
+        await requireCap('warnings.manage');
       } catch {
         return [];
       }

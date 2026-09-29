@@ -1,14 +1,6 @@
-const KNOWN_ROLES = new Set([
-  'ceo',
-  'admin_manager',
-  'teacher',
-  'head_teacher',
-  'assistant',
-  'mmd',
-  'internship',
-  'it_developer',
-  'project_manager',
-]);
+import { ROLES } from '@/lib/permissions';
+
+const KNOWN_ROLES = new Set<string>(ROLES);
 
 /**
  * `staff.roles` only has entries for the closed role set above. A profile

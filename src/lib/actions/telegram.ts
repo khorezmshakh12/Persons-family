@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { requireAdmin, requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap, requireSection } from '@/lib/auth/require-admin';
 import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText } from '@/lib/telegram';
 
 export type TelegramActionState = { error?: string; success?: boolean } | undefined;
@@ -39,7 +39,7 @@ export async function adminDisconnectTelegramAction(
   formData: FormData,
 ): Promise<TelegramActionState> {
   try {
-    await requireCeo();
+    await requireCap('staff.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -66,7 +66,7 @@ export async function sendBroadcastAction(
   formData: FormData,
 ): Promise<TelegramActionState> {
   try {
-    await requireAdmin();
+    await requireCap('news.publish');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -95,7 +95,7 @@ export async function sendBroadcastAction(
  * manual curl command. CEO-only, same as the rest of /telegram-setup. */
 export async function registerTelegramWebhookAction(): Promise<{ error?: string; success?: boolean }> {
   try {
-    await requireAdmin();
+    await requireSection('telegramSetup');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

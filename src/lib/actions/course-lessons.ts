@@ -7,6 +7,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 import { currentMonthKey, isPastMonth } from '@/lib/lesson-months';
+import { can } from '@/lib/permissions';
 
 export type LessonActionState = { error?: string; errorParams?: Record<string, string> } | undefined;
 export type UploadUrlResult = { path?: string; url?: string; error?: string; detail?: string };
@@ -43,7 +44,7 @@ async function lessonWriteDenial(lessonId: string, uid: string, role: string | u
   `;
   if (!row) return 'forbidden';
   if (isPastMonth(row.lesson_date)) return 'monthLocked';
-  if (role === 'ceo') return null;
+  if (can(role, 'academic.manage')) return null;
   return row.teacher_id === uid ? null : 'forbidden';
 }
 
@@ -507,7 +508,7 @@ export async function createLessonCommentAction(
 
   // Administrative Manager and IT Developer have no lesson-plan access at
   // all. Head Teacher took IT Developer's place for viewing/commenting.
-  const isAuthorized = profile.role === 'ceo' || profile.role === 'head_teacher' || profile.role === 'assistant';
+  const isAuthorized = can(profile.role, 'academic.viewAll') || profile.role === 'assistant';
   if (!isAuthorized) return { error: 'forbidden' };
 
   const parsed = createCommentSchema.safeParse(Object.fromEntries(formData));
@@ -548,7 +549,7 @@ export async function deleteLessonCommentAction(formData: FormData): Promise<voi
   // Mirrors the old `lesson_comments_delete_own` policy
   // (`user_id = auth.uid() or public.is_admin()`, is_admin() now being
   // CEO-only) — without it any employee could delete anyone's comment by id.
-  const isCeo = profile?.role === 'ceo';
+  const isCeo = can(profile?.role, 'academic.manage');
   // Same closed-month rule as posting one: a finished month's discussion is
   // part of its record, so it can't be edited away afterwards either. The
   // join keeps this in the single delete statement rather than a

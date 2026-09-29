@@ -1,5 +1,6 @@
 'use server';
 
+import { isProtectedRole, ROLES } from '@/lib/permissions';
 import { z } from 'zod';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
@@ -30,25 +31,9 @@ export type StaffActionState =
     }
   | undefined;
 
-const ROLES = [
-  'ceo',
-  'admin_manager',
-  'teacher',
-  'head_teacher',
-  'assistant',
-  'mmd',
-  'internship',
-  'it_developer',
-  'project_manager',
-] as const;
-
-/** CEO and Admin Manager are equal for day-to-day operations, but managing
- * an Admin (or CEO) account itself — editing, deactivating, resetting their
- * password, or promoting someone into either role — is reserved to the CEO
- * alone. */
-function isProtectedRole(role: string) {
-  return role === 'ceo' || role === 'admin_manager';
-}
+// Managing a protected account (PROTECTED_ROLES in lib/permissions.ts) —
+// editing, deactivating, resetting its password, or promoting someone into
+// one — is reserved to the CEO alone.
 
 function assignRoleError(role: string): 'cannotAssignCeo' | 'cannotAssignAdmin' {
   return role === 'ceo' ? 'cannotAssignCeo' : 'cannotAssignAdmin';

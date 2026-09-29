@@ -10,6 +10,7 @@ import type { FinanceEntry } from '@/components/finance/finance-entries-list';
 import { PayrollSection } from '@/components/finance/payroll-section';
 import { getPayrollSummary, resolvePeriod } from '@/lib/payroll';
 import { FinanceDetailContent } from './[staffId]/page';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export default async function FinancePage({
   const t = await getTranslations('finance');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
-  const isAdmin = profile!.role === 'ceo';
+  const isAdmin = can(profile!.role, 'finance.viewAll');
 
   if (isAdmin) {
     // `?period=` is user-supplied — normalised (or replaced with the current

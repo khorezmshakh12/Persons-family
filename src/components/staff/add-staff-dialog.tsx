@@ -1,5 +1,6 @@
 'use client';
 
+import { isProtectedRole, ROLES } from '@/lib/permissions';
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
@@ -19,17 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TempPasswordResult } from './temp-password-result';
 
-const ALL_ROLES = [
-  'ceo',
-  'admin_manager',
-  'teacher',
-  'head_teacher',
-  'assistant',
-  'mmd',
-  'internship',
-  'it_developer',
-  'project_manager',
-] as const;
+const ALL_ROLES = ROLES;
 
 export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
   const t = useTranslations('staff');
@@ -40,10 +31,10 @@ export function AddStaffDialog({ canAssignCeo }: { canAssignCeo: boolean }) {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Only the CEO can grant either elevated role — an admin_manager creating
-  // a new hire never sees 'ceo' or 'admin_manager' as options (matches the
-  // server-side check in createStaffAction, which would reject either).
-  const roles = canAssignCeo ? ALL_ROLES : ALL_ROLES.filter((r) => r !== 'ceo' && r !== 'admin_manager');
+  // Only the CEO can grant a protected (leadership / pay-level) role — a
+  // staff manager never sees them as options (matches the server-side check
+  // in createStaffAction, which would reject them).
+  const roles = canAssignCeo ? ALL_ROLES : ALL_ROLES.filter((r) => !isProtectedRole(r));
 
   function handleOpenChange(next: boolean) {
     setOpen(next);

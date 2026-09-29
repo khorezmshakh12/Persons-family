@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 
@@ -25,7 +25,7 @@ export async function updateStaffTierAction(
   formData: FormData,
 ): Promise<PerformanceActionState> {
   try {
-    await requireAdmin();
+    await requireCap('kpi.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -72,7 +72,7 @@ export async function addPerformanceEntryAction(
   try {
     ({
       user: { id: adminId },
-    } = await requireAdmin());
+    } = await requireCap('kpi.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -105,7 +105,7 @@ export async function deletePerformanceEntryAction(
   formData: FormData,
 ): Promise<PerformanceActionState> {
   try {
-    await requireAdmin();
+    await requireCap('kpi.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

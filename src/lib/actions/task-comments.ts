@@ -6,6 +6,7 @@ import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { bumpBoardSignal } from '@/lib/gcp/firestoreAdmin';
+import { can } from '@/lib/permissions';
 
 export type TaskCommentActionState = { error?: string } | undefined;
 
@@ -31,7 +32,7 @@ async function loadCommentableTask(taskId: string, uid: string, role: string | u
     select id, assigned_to, assigned_by from tasks where id = ${taskId}
   `;
   if (!task) return null;
-  if (role === 'ceo' || task.assigned_to === uid || task.assigned_by === uid) return task;
+  if (can(role, 'company.overview') || task.assigned_to === uid || task.assigned_by === uid) return task;
   return null;
 }
 
@@ -85,7 +86,7 @@ export async function deleteTaskCommentAction(formData: FormData): Promise<void>
   // Mirrors deleteLessonCommentAction: your own comment, or anything at all
   // if you're the CEO. Folded into the WHERE clause so a mismatched id
   // simply deletes nothing instead of needing a second round trip.
-  const isCeo = profile?.role === 'ceo';
+  const isCeo = can(profile?.role, 'company.overview');
   try {
     await sql`delete from task_comments where id = ${parsed.data.id} and (${isCeo} or author_id = ${user.id})`;
   } catch (error) {

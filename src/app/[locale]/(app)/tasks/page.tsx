@@ -3,7 +3,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { getMonthlyTaskArchiveAction, getVisibleTasksAction } from '@/lib/actions/tasks';
 import { getTaskStatsAction } from '@/lib/actions/task-stats';
-import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
+import { allowedTaskAssigneeRoles, canAssignTasks } from '@/lib/task-roles';
 import { AssignTaskDialog } from '@/components/tasks/assign-task-dialog';
 import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskStats } from '@/components/tasks/task-stats';
@@ -45,12 +45,9 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       </div>
     );
   }
-  // CEO-only: assigning, editing, and deleting tasks is a CEO power alone
-  // (requireTaskAssigner() in tasks.ts already enforces this) — IT Developer
-  // lost it entirely, so this must not fall back to is_admin()'s ceo+it_developer
-  // definition or the board shows Assign/Edit/Delete controls to IT Developer
-  // that every submit then rejects as forbidden.
-  const isAdmin = profile!.role === 'ceo';
+  // Assign/Edit/Delete controls for anyone who leads a team (same rule as
+  // requireTaskAssigner() in tasks.ts); the dropdown lists only their people.
+  const isAdmin = canAssignTasks(profile!.role);
 
   // The board itself only carries active tasks plus the ones completed this
   // Tashkent month (see getVisibleTasksAction) — everything finished before

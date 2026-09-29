@@ -7,12 +7,13 @@ import { revalidatePath } from 'next/cache';
 import { getFormatter } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { can } from '@/lib/permissions';
 
 // Issues is a CEO-managed board, but reporting is open to everyone: any
 // signed-in staff member may create an issue (it's auto-assigned to the
@@ -77,7 +78,7 @@ export async function createIssueAction(
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
   const userId = user.id;
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'issues.manage');
 
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
@@ -183,7 +184,7 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
   try {
     ({
       user: { id: userId },
-    } = await requireCeo());
+    } = await requireCap('issues.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -379,7 +380,7 @@ async function loadIssueAi(ids: string[]): Promise<Map<string, IssueAi>> {
 export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return [];
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'issues.manage');
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -483,7 +484,7 @@ type RaisedMonthRow = { month_key: string; raised: number };
 export async function getMonthlyIssueArchiveAction(): Promise<MonthlyIssueArchiveEntry[]> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return [];
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'issues.manage');
 
   let rows: ArchiveIssueQueryRow[];
   let raisedRows: RaisedMonthRow[];
@@ -592,7 +593,7 @@ export type DeleteIssueResult = { error?: string };
 /** CEO-only, at any status. */
 export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
   try {
-    await requireCeo();
+    await requireCap('issues.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -631,7 +632,7 @@ export async function updateIssueAction(
   formData: FormData,
 ): Promise<IssueActionState> {
   try {
-    await requireCeo();
+    await requireCap('issues.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -714,7 +715,7 @@ export async function addIssueCommentAction(
 ): Promise<AddIssueCommentState> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
-  const isCeo = profile.role === 'ceo';
+  const isCeo = can(profile.role, 'issues.manage');
 
   const parsed = addIssueCommentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'commentInvalid' };
@@ -787,7 +788,7 @@ export async function addIssueCommentAction(
 export async function triageOpenIssuesAction(): Promise<{ error?: string; done?: number }> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
-  if (profile.role !== 'ceo') return { error: 'forbidden' };
+  if (!can(profile.role, 'issues.manage')) return { error: 'forbidden' };
   let ids: { id: string }[];
   try {
     ids = await sql<{ id: string }[]>`

@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type FinanceEntry } from '@/components/finance/finance-entries-list';
 import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,9 +35,11 @@ export async function FinanceDetailContent({
   const { user, profile } = await getAuthState();
 
   const isSelf = user!.id === staffId;
-  const isCeo = profile!.role === 'ceo';
+  // Viewing anyone's pay: finance.viewAll (CEO, COO, Financist). Changing it:
+  // finance.manage (CEO, Financist) — the COO reads only.
+  const isCeo = can(profile!.role, 'finance.manage');
   const isAdmin = isCeo;
-  if (!isSelf && !isAdmin) redirect({ href: '/dashboard', locale });
+  if (!isSelf && !can(profile!.role, 'finance.viewAll')) redirect({ href: '/dashboard', locale });
 
   const sp = searchParams instanceof Promise ? await searchParams : searchParams;
   const yearParam = sp?.incomeYear ? Number(sp.incomeYear) : undefined;

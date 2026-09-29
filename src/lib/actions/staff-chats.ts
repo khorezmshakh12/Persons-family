@@ -8,6 +8,7 @@ import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 import { mirrorChatMessage, bumpNavBadgeSignal, deleteChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
 import { startDmConversation, respondToDmRequest, toggleStaffChatReaction } from '@/lib/db/queries/dm-conversations';
+import { can, CAP_ROLES } from '@/lib/permissions';
 
 const MEDIA_TYPES = ['image', 'video', 'voice', 'none'] as const;
 
@@ -37,7 +38,7 @@ const CHAT_MEDIA_READ_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 365 * 5;
 /** CEO is always reachable — no request/accept step in either direction.
  * Everyone else needs an accepted dm_conversations row before they can
  * exchange messages at all. */
-const BYPASS_ROLES = ['ceo'];
+const BYPASS_ROLES: readonly string[] = CAP_ROLES['chat.moderate'];
 
 const sendSchema = z
   .object({
@@ -350,7 +351,7 @@ export async function setDmConversationStatusAction(
   formData: FormData,
 ): Promise<StaffChatsActionState> {
   const { profile } = await getAuthState();
-  if (!profile || profile.role !== 'ceo') return { error: 'forbidden' };
+  if (!profile || !can(profile.role, 'chat.moderate')) return { error: 'forbidden' };
 
   const parsed = dmStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
@@ -372,7 +373,7 @@ export type ModerationConversationRow = {
  * only participants + status). */
 export async function listDmConversationsForModerationAction(all: boolean): Promise<ModerationConversationRow[]> {
   const { profile } = await getAuthState();
-  if (!profile || profile.role !== 'ceo') return [];
+  if (!profile || !can(profile.role, 'chat.moderate')) return [];
 
   return sql<ModerationConversationRow[]>`
     select

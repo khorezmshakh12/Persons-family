@@ -194,7 +194,14 @@
       "mmd": "MMD",
       "internship": "Intern",
       "it_developer": "IT Developer",
-      "project_manager": "Project Manager"
+      "project_manager": "Project Manager",
+      "coo": "COO",
+      "commercial_director": "Commercial Director",
+      "academic_director": "Academic Director",
+      "financist": "Financist",
+      "operations_manager": "Operations Manager",
+      "sales_manager": "Sales Manager",
+      "event_manager": "Event Manager"
     },
     "status": {
       "active": "Active",

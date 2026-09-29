@@ -6,7 +6,7 @@ import { getFormatter } from 'next-intl/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
+import { allowedTaskAssigneeRoles, canAssignTasks } from '@/lib/task-roles';
 import { efficiencyForMonth, type EfficiencyStats } from '@/lib/task-efficiency';
 import type { StaffRole } from '@/lib/nav';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
@@ -25,12 +25,12 @@ import { createSignedWriteUrl } from '@/lib/gcp/storage';
 
 export type TaskActionState = { error?: string } | undefined;
 
-/** CEO-only — IT Developer lost task assignment/edit/delete entirely
- * (previously shared this with the CEO via a narrow admin_manager-only
- * carve-out). */
+/** Anyone who leads someone (MANAGES in lib/permissions.ts): CEO, COO,
+ * directors and team leads. Which assignees each may pick is re-checked
+ * against allowedTaskAssigneeRoles(); reviews stay "you assigned it". */
 async function requireTaskAssigner() {
   const { user, profile } = await getAuthState();
-  if (!user || !profile || profile.role !== 'ceo') {
+  if (!user || !profile || !canAssignTasks(profile.role)) {
     throw new ForbiddenError('Task assignment access required');
   }
   return { user, profile };

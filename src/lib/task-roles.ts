@@ -1,26 +1,19 @@
 import type { StaffRole } from '@/lib/nav';
+import { managedRoles } from '@/lib/permissions';
 
-/** Roles a given assigner may delegate a task to. Only the CEO may delegate
- * to the Administrative Manager or any non-admin staff member — IT
- * Developer lost task-assignment entirely (requireTaskAssigner() in
- * tasks.ts is CEO-only now), so its branch here is unreachable in practice
- * and kept only because everyone else falls through to the same
- * plain-assignee list regardless of role.
+/** Roles a given assigner may delegate a task to — the org chart in
+ * MANAGES (lib/permissions.ts): the CEO/COO everyone below them, each
+ * director/lead only their own department. Empty = may not assign at all.
  *
  * Shared between the Tasks page (to scope the "Assignee" dropdown) and the
  * assign/update Server Actions (to re-validate the choice server-side) —
  * this can't live in tasks.ts itself since a 'use server' file may only
  * export async Server Actions. */
 export function allowedTaskAssigneeRoles(actingRole: StaffRole): StaffRole[] {
-  const nonAdminRoles: StaffRole[] = [
-    'teacher',
-    'assistant',
-    'mmd',
-    'internship',
-    'it_developer',
-    'project_manager',
-    'head_teacher',
-  ];
-  if (actingRole === 'ceo') return ['admin_manager', ...nonAdminRoles];
-  return nonAdminRoles;
+  return managedRoles(actingRole);
+}
+
+/** Whether this role assigns (and so reviews) tasks at all. */
+export function canAssignTasks(actingRole: StaffRole): boolean {
+  return managedRoles(actingRole).length > 0;
 }

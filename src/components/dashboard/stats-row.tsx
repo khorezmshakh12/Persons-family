@@ -11,6 +11,7 @@ import {
 import { getNetEarningEntries } from '@/lib/finance-net';
 import { StatCard, type StatIconName, type StatValueFormat } from './stat-card';
 import { StatsPeriodToggle } from './stats-period';
+import { can } from '@/lib/permissions';
 
 // Every card on this row is built series-first: the card gets the metric's
 // value at the end of each bucket, for all three periods, and derives its
@@ -126,7 +127,7 @@ export async function StatsRow({
   // below, so a non-admin's cards keep reading as "my" totals, not the
   // company's.
   const { user, profile } = await getAuthState();
-  const isCeoOrHeadTeacher = profile?.role === 'ceo' || profile?.role === 'head_teacher';
+  const isCeoOrHeadTeacher = can(profile?.role, 'academic.viewAll');
   const uid = user?.id ?? '';
 
   const [staffRows, groupRows, lessonRows, financeEntries] = await Promise.all([

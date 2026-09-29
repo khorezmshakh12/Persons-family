@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { LessonsCalendarClient, type CalendarLesson } from './lessons-calendar-client';
+import { can } from '@/lib/permissions';
 
 type LessonRow = {
   id: string;
@@ -31,7 +32,7 @@ export async function LessonsCalendar() {
   // else only lessons for a group they own (teacher_id) or are the
   // assigned TA for — same scoping is_group_owner()/is_assigned_ta() gave
   // for free before, now baked into this query's WHERE clause instead.
-  const canSeeAll = profile!.role === 'ceo' || profile!.role === 'head_teacher';
+  const canSeeAll = can(profile!.role, 'academic.viewAll');
 
   const rows = await sql<LessonRow[]>`
     select

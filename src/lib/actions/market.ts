@@ -3,7 +3,8 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { requireCeo, authErrorCode, ForbiddenError, SessionExpiredError } from '@/lib/auth/require-admin';
+import { authErrorCode, requireCap, ForbiddenError, SessionExpiredError } from '@/lib/auth/require-admin';
+import { can } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -121,11 +122,12 @@ async function requireMarketUser(): Promise<{ id: string } | { error: string }> 
 }
 
 /** Item management (add / edit / photo / stars / stock / hide / delete):
- *  the CEO or a market editor. Order decisions stay requireCeo(). */
+ *  'market.manage' holders or a market editor. Order decisions stay
+ *  requireCap('market.manage'). */
 async function requireMarketEditor() {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
-  if (!profile || (profile.role !== 'ceo' && !(await isMarketEditor(user.id)))) {
+  if (!profile || (!can(profile.role, 'market.manage') && !(await isMarketEditor(user.id)))) {
     throw new ForbiddenError('Market editor access required');
   }
   return { user, profile };
@@ -461,7 +463,7 @@ export async function decideMarketOrderAction(
   try {
     ({
       user: { id: actorId },
-    } = await requireCeo());
+    } = await requireCap('market.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -832,7 +834,7 @@ const EMPTY_ADMIN_VIEW: MarketAdminView = {
 export async function getMarketAdminAction(): Promise<MarketAdminView> {
   let isCeo: boolean;
   try {
-    isCeo = (await requireMarketEditor()).profile.role === 'ceo';
+    isCeo = can((await requireMarketEditor()).profile.role, 'market.manage');
   } catch {
     return EMPTY_ADMIN_VIEW;
   }
