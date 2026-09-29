@@ -160,6 +160,8 @@ export function navItemsForRole(
   return NAV_ITEMS.filter((item) => {
     // `coreViews` also carries per-person grants as 'grant:<nav key>' (e.g.
     // 'grant:market' for a market editor), opening an item beyond its roles.
+    // Per-person overrides arrive as 'deny:<key>' (Platform settings).
+    if (coreViews.includes(`deny:${item.key}`)) return false;
     if (item.key in SECTION_ROLES && !canSee(role, item.key as SectionKey) && !coreViews.includes(`grant:${item.key}`)) return false;
     // Only shown once this employee's phone number is matched to an
     // active Materials account (see checkMaterialsLink) — otherwise the

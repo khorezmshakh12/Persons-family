@@ -250,3 +250,41 @@ export function canGrantRole(held: readonly string[] | null | undefined, role: s
   if (role === 'ceo' || targetHeld.includes('ceo')) return actorIsCeo;
   return true;
 }
+
+/** Section access for a specific person: a Platform-settings override
+ * (section_access) wins over the role matrix. Use this in page guards. */
+export function canSeeFor(
+  p: { role: string | null | undefined; section_overrides?: Record<string, boolean> | null } | null | undefined,
+  section: SectionKey,
+): boolean {
+  if (!p) return false;
+  const o = p.section_overrides?.[section];
+  return typeof o === 'boolean' ? o : canSee(p.role, section);
+}
+
+/** Capabilities that are simply "may work in this section" — they follow a
+ * per-person section override too. */
+export const CAP_SECTION: Partial<Record<Capability, SectionKey>> = {
+  'strategy.edit': 'strategy',
+  'operations.edit': 'operations',
+  'perforce.edit': 'perforce',
+};
+
+export function canFor(
+  p: { role: string | null | undefined; section_overrides?: Record<string, boolean> | null } | null | undefined,
+  cap: Capability,
+): boolean {
+  if (!p) return false;
+  const sec = CAP_SECTION[cap];
+  const o = sec ? p.section_overrides?.[sec] : undefined;
+  return typeof o === 'boolean' ? o : can(p.role, cap);
+}
+
+/** Sections the Platform settings page lets CEO / COO open or close per
+ * person. Personal basics (dashboard, profile, settings) and Platform itself
+ * are not switchable (no lock-outs); financial ones only by the CEO. */
+export const OVERRIDABLE_SECTIONS: SectionKey[] = [
+  'coreInbox', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'finance', 'hr', 'sales',
+  'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'market', 'telegramSetup', 'materials',
+];
+export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];

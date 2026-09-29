@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { authErrorCode, requireCap, ForbiddenError, SessionExpiredError } from '@/lib/auth/require-admin';
-import { can } from '@/lib/permissions';
+import { can, canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -13,7 +13,7 @@ import { insertStarTransaction } from '@/lib/stars-write';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 import { MARKET_CATEGORIES, type MarketCategory } from '@/lib/market';
-import { MARKET_ROLES } from '@/lib/nav';
+
 import { isMarketEditor } from '@/lib/market-editors';
 
 export type MarketActionState =
@@ -117,7 +117,7 @@ const itemFieldsSchema = z.object({
 async function requireMarketUser(): Promise<{ id: string } | { error: string }> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
-  if (!MARKET_ROLES.includes(profile.role) && !(await isMarketEditor(user.id))) return { error: 'forbidden' };
+  if (!canSeeFor(profile, 'market') && !(await isMarketEditor(user.id))) return { error: 'forbidden' };
   return { id: user.id };
 }
 

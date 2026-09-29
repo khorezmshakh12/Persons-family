@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
+import { canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { ACCOUNTING_ROLES } from '@/lib/nav';
+
 import { tashkentDayKey } from '@/lib/time';
 import { loadBooks } from '@/lib/accounting-data';
 import { seatCapacity } from '@/lib/accounting-ma';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AccountingPage() {
   const { profile } = await getAuthState();
-  if (!profile || !ACCOUNTING_ROLES.includes(profile.role)) notFound();
+  if (!profile || !canSeeFor(profile, 'accounting')) notFound();
 
   const [books, courseGroups, slots, rooms, plan] = await Promise.all([
     loadBooks(),

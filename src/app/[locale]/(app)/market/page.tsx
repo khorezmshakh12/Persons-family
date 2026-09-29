@@ -1,9 +1,10 @@
 import { getMarketAction, getMarketAdminAction } from '@/lib/actions/market';
+import { canSeeFor } from '@/lib/permissions';
 import { getTranslations } from 'next-intl/server';
 import { ShoppingBag } from 'lucide-react';
 import { MarketView } from '@/components/market/market-view';
 import { getAuthState } from '@/lib/auth/session';
-import { MARKET_ROLES } from '@/lib/nav';
+
 import { isMarketEditor } from '@/lib/market-editors';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ export default async function MarketPage() {
   // Closed to everyone else while the catalogue is prepared. The star pill,
   // dashboard KPI and hero button still link here, so show a friendly
   // "coming soon" card instead of a 404.
-  if (!profile || (!MARKET_ROLES.includes(profile.role) && !(await isMarketEditor(profile.id)))) {
+  if (!profile || (!canSeeFor(profile, 'market') && !(await isMarketEditor(profile.id)))) {
     const t = await getTranslations('market');
     return (
       <div className="mx-auto flex max-w-xl flex-col items-center gap-3 p-10 text-center">

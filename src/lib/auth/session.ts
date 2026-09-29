@@ -45,6 +45,8 @@ export interface Profile {
   primary_role?: StaffRole;
   /** Every position this person holds (primary first). */
   roles?: StaffRole[];
+  /** Per-person section overrides (Platform settings): section → open/closed. */
+  section_overrides?: Record<string, boolean>;
 }
 
 
@@ -67,7 +69,8 @@ export const getAuthState = cache(async function getAuthState() {
   }
 
   const [profile] = await sql<Profile[]>`
-    select p.*, array(select r.role::text from profile_roles r where r.user_id = p.id order by r.role) as extra_roles
+    select p.*, array(select r.role::text from profile_roles r where r.user_id = p.id order by r.role) as extra_roles,
+      (select coalesce(jsonb_object_agg(a.section, a.allow), '{}'::jsonb) from section_access a where a.user_id = p.id) as section_overrides
     from profiles p where p.id = ${user.uid}
   `;
 

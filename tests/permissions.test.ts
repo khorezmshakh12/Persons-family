@@ -173,14 +173,15 @@ test('Core redaction: what each role actually receives', () => {
 test('every restricted page guards with the matrix', () => {
   const app = 'src/app/[locale]/(app)/';
   const guards: [string, RegExp][] = [
-    [`${app}staff/layout.tsx`, /canSee\(profile\.role, 'staff'\)/],
-    [`${app}telegram-setup/layout.tsx`, /canSee\(profile\.role, 'telegramSetup'\)/],
-    [`${app}lesson-plans/layout.tsx`, /LESSON_PLAN_ROLES\.includes/],
-    [`${app}strategy/page.tsx`, /STRATEGY_ROLES\.includes/],
-    [`${app}accounting/page.tsx`, /ACCOUNTING_ROLES\.includes/],
-    [`${app}operations/page.tsx`, /OPERATIONS_ROLES\.includes/],
-    [`${app}perforce/page.tsx`, /PERFORCE_ROLES\.includes/],
-    [`${app}market/page.tsx`, /MARKET_ROLES\.includes/],
+    // canSeeFor = the role matrix plus Platform-settings per-person overrides.
+    [`${app}staff/layout.tsx`, /canSeeFor\(profile, 'staff'\)/],
+    [`${app}telegram-setup/layout.tsx`, /canSeeFor\(profile, 'telegramSetup'\)/],
+    [`${app}lesson-plans/layout.tsx`, /canSeeFor\(profile, 'lessonPlans'\)/],
+    [`${app}strategy/page.tsx`, /canSeeFor\(profile, 'strategy'\)/],
+    [`${app}accounting/page.tsx`, /canSeeFor\(profile, 'accounting'\)/],
+    [`${app}operations/page.tsx`, /canSeeFor\(profile, 'operations'\)/],
+    [`${app}perforce/page.tsx`, /canSeeFor\(profile, 'perforce'\)/],
+    [`${app}market/page.tsx`, /canSeeFor\(profile, 'market'\)/],
     ['src/components/core/core-section.tsx', /coreViews\(profile!?\)\)\.includes\(view\)/],
     ['src/app/api/core/app/route.ts', /coreViews\(profile\)\)\.includes\(view\)/],
   ];

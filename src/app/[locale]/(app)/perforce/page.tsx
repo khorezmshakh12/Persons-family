@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
-import { can } from '@/lib/permissions';
+import { can, canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { PERFORCE_ROLES } from '@/lib/nav';
+
 import { tashkentDayKey } from '@/lib/time';
 import { withSignedAvatars } from '@/lib/strategy-people';
 import { PerforceWorkspace, type PfData } from '@/components/strategy/perforce-workspace';
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function PerforcePage() {
   const { profile } = await getAuthState();
-  if (!profile || !PERFORCE_ROLES.includes(profile.role)) notFound();
+  if (!profile || !canSeeFor(profile, 'perforce')) notFound();
 
   const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals, risks] = await Promise.all([
     // Project budgets are financial figures — CEO only; others get none (the

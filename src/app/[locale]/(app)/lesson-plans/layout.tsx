@@ -1,7 +1,7 @@
 import { getLocale } from 'next-intl/server';
+import { canSeeFor } from '@/lib/permissions';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
-import { LESSON_PLAN_ROLES } from '@/lib/nav';
 
 // Lesson-plan visibility is CEO / Head Teacher / owning teacher / assigned
 // TA only — the nav item is already hidden for everyone else
@@ -25,7 +25,7 @@ export default async function LessonPlansLayout({ children }: { children: React.
   const { profile } = await getAuthState();
   const locale = await getLocale();
 
-  if (!profile || !LESSON_PLAN_ROLES.includes(profile.role)) {
+  if (!profile || !canSeeFor(profile, 'lessonPlans')) {
     redirect({ href: '/dashboard', locale });
   }
 

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { STRATEGY_ROLES } from '@/lib/nav';
+
 import { tashkentDayKey } from '@/lib/time';
 import { withSignedAvatars } from '@/lib/strategy-people';
 import type {
@@ -14,13 +14,13 @@ import type {
 import { StrategyWorkspace } from '@/components/strategy/strategy-workspace';
 import { loadBooks } from '@/lib/accounting-data';
 import { loadFinInputs } from '@/lib/strategy-finance-data';
-import { can } from '@/lib/permissions';
+import { can, canSeeFor } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StrategyPage({ searchParams }: { searchParams: Promise<{ space?: string }> }) {
   const { profile } = await getAuthState();
-  if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
+  if (!profile || !canSeeFor(profile, 'strategy')) notFound();
   const finance = can(profile.role, 'finance.viewAll');
 
   const [spaces, roadmaps, people, books, fin] = await Promise.all([

@@ -3,7 +3,7 @@ import { sql } from '@/lib/db/client';
 import { askTypeSafe } from '@/lib/typesafe';
 import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
 import type { Profile } from '@/lib/auth/session';
-import { can, canSee, ROLE_DEPT as PERMISSION_DEPT, type SectionKey } from '@/lib/permissions';
+import { can, canSeeFor, ROLE_DEPT as PERMISSION_DEPT, type SectionKey } from '@/lib/permissions';
 import { defaultBosses, redactForViewer } from '@/lib/core-access';
 
 // Bridge between the Core v2 page (src/core/core.html, run unmodified) and
@@ -391,7 +391,7 @@ const VIEW_SECTION: Record<CoreView, SectionKey> = {
  * list the CEO sets inside Core. Evaluated on the server so the sidebar,
  * the page guards and /api/core/* all agree. */
 export async function coreViews(me: Profile): Promise<CoreView[]> {
-  const byRole = CORE_VIEWS.filter((v) => canSee(me.role, VIEW_SECTION[v]));
+  const byRole = CORE_VIEWS.filter((v) => canSeeFor(me, VIEW_SECTION[v]));
   if (me.role === 'ceo') return byRole;
   const shared = await readShared();
   const keys = (shared.keys as Record<string, string>) ?? {};

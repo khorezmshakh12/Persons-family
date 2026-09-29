@@ -1,5 +1,5 @@
 import { getAuthState } from './session';
-import { can, canSee, type Capability, type SectionKey } from '@/lib/permissions';
+import { can, type Capability, type SectionKey, canFor, canSeeFor } from '@/lib/permissions';
 
 export class ForbiddenError extends Error {}
 
@@ -98,7 +98,7 @@ export async function requireStaffManager() {
 export async function requireCap(cap: Capability) {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
-  if (!profile || !can(profile.role, cap)) {
+  if (!profile || !canFor(profile, cap)) {
     throw new ForbiddenError(`Missing capability ${cap}`);
   }
   return { user, profile };
@@ -108,7 +108,7 @@ export async function requireCap(cap: Capability) {
 export async function requireSection(section: SectionKey) {
   const { user, profile } = await getAuthState();
   if (!user) throw new SessionExpiredError('No session');
-  if (!profile || !canSee(profile.role, section)) {
+  if (!profile || !canSeeFor(profile, section)) {
     throw new ForbiddenError(`No access to ${section}`);
   }
   return { user, profile };
