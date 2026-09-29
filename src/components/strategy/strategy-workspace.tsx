@@ -111,6 +111,7 @@ export function StrategyWorkspace({
   today,
   books,
   fin,
+  finance = false,
 }: {
   spaces: { id: string; name: string; color: string }[];
   space: StrategySpace | null;
@@ -119,8 +120,10 @@ export function StrategyWorkspace({
   roadmaps: StrategyRoadmap[];
   people: StrategyPerson[];
   today: string;
-  books: BooksLite;
-  fin: FinInputs;
+  books: BooksLite | null;
+  fin: FinInputs | null;
+  /** Financial views (Moliya, Tahlil, budget) — CEO only (finance.viewAll). */
+  finance?: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -135,6 +138,7 @@ export function StrategyWorkspace({
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [inkStyle, setInkStyle] = useState<React.CSSProperties>({});
   const tabsRef = useRef<HTMLDivElement>(null);
+  const tabs = finance ? TABS : TABS.filter((t) => t.v !== 'fin' && t.v !== 'analytics');
   const restored = useRef(false);
 
   // Remember the last tab (per browser). Mount-only.
@@ -143,7 +147,7 @@ export function StrategyWorkspace({
     restored.current = true;
     try {
       const v = localStorage.getItem(VIEW_KEY) as ViewKey | null;
-      if (v && TABS.some((t) => t.v === v)) setView(v);
+      if (v && tabs.some((t) => t.v === v)) setView(v);
     } catch {}
   }, []);
 
@@ -395,7 +399,7 @@ export function StrategyWorkspace({
   };
 
   return (
-    <SuiteShell section="str" tabs={space ? TABS : []} onTab={(v) => go(v as ViewKey)} items={items} onNew={space ? () => openTask(null) : undefined}>
+    <SuiteShell section="str" tabs={space ? tabs : []} onTab={(v) => go(v as ViewKey)} items={items} onNew={space ? () => openTask(null) : undefined}>
     <div className="sx-root flex min-h-0 flex-1 flex-col">
       <header className="sx-head px-4 pt-1 sm:px-7">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -467,7 +471,7 @@ export function StrategyWorkspace({
             <div className="flex flex-wrap items-center gap-3 pb-3">
               <div className="sx-tabs" ref={tabsRef}>
                 <span className="ink" style={inkStyle} aria-hidden />
-                {TABS.map(({ v, n, Icon }) => (
+                {tabs.map(({ v, n, Icon }) => (
                   <button key={v} data-v={v} className={cn(view === v && 'on')} onClick={() => go(v)}>
                     <Icon className="size-4" />
                     <span>{n}</span>
@@ -520,7 +524,7 @@ export function StrategyWorkspace({
         <section className={cn('sx-view', fullBleed ? 'canvas' : 'px-4 pb-8 sm:px-7')}>
           <div key={view} className="sx-fade h-full">
             {view === 'dash' && (
-              <DashboardView api={api} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} />
+              <DashboardView api={api} finance={finance} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} />
             )}
             {view === 'roadmap' && (
               <RoadmapView
@@ -534,8 +538,8 @@ export function StrategyWorkspace({
             {view === 'board' && <BoardView api={api} tasks={visible} onQuickAdd={(title, status) => createTask({ title, status })} />}
             {view === 'list' && <ListView api={api} tasks={visible} />}
             {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={ms} onMilestones={() => setDrawer({ kind: 'space', edit: true })} />}
-            {view === 'fin' && <FinanceView books={books} fin={fin} today={today} onGo={() => go('analytics')} />}
-            {view === 'analytics' && <AnalyticsView books={books} fin={fin} today={today} />}
+            {finance && books && fin && view === 'fin' && <FinanceView books={books} fin={fin} today={today} onGo={() => go('analytics')} />}
+            {finance && books && fin && view === 'analytics' && <AnalyticsView books={books} fin={fin} today={today} />}
           </div>
         </section>
       )}
@@ -589,7 +593,7 @@ export function StrategyWorkspace({
             milestones={ms}
             onClose={closeDrawer}
             onCreate={drawer.edit ? updateSpace : createSpace}
-            onBudget={saveBudget}
+            onBudget={finance ? saveBudget : undefined}
             onAddMilestone={addMilestone}
             onDeleteMilestone={removeMilestone}
             onDeleteSpace={removeSpace}

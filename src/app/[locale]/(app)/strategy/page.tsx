@@ -14,12 +14,14 @@ import type {
 import { StrategyWorkspace } from '@/components/strategy/strategy-workspace';
 import { loadBooks } from '@/lib/accounting-data';
 import { loadFinInputs } from '@/lib/strategy-finance-data';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StrategyPage({ searchParams }: { searchParams: Promise<{ space?: string }> }) {
   const { profile } = await getAuthState();
   if (!profile || !STRATEGY_ROLES.includes(profile.role)) notFound();
+  const finance = can(profile.role, 'finance.viewAll');
 
   const [spaces, roadmaps, people, books, fin] = await Promise.all([
     sql<StrategySpace[]>`
@@ -31,8 +33,9 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
     sql<StrategyPerson[]>`
       select id, first_name, last_name, avatar_url, role::text as role
       from profiles where is_active = true order by first_name, last_name`,
-    loadBooks(),
-    loadFinInputs(),
+    // Financial figures are CEO-only — others never receive the books.
+    finance ? loadBooks() : Promise.resolve(null),
+    finance ? loadFinInputs() : Promise.resolve(null),
   ]);
 
   const wanted = (await searchParams)?.space;
@@ -59,8 +62,13 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
       roadmaps={roadmaps}
       people={await withSignedAvatars([...people])}
       today={tashkentDayKey()}
-      books={{ accounts: books.accounts, opening: books.opening, entries: books.entries, courses: books.courses, tax: books.tax }}
+      books={
+        books
+          ? { accounts: books.accounts, opening: books.opening, entries: books.entries, courses: books.courses, tax: books.tax }
+          : null
+      }
       fin={fin}
+      finance={finance}
     />
   );
 }

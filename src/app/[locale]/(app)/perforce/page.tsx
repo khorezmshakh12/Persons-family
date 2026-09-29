@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { can } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { PERFORCE_ROLES } from '@/lib/nav';
@@ -13,7 +14,11 @@ export default async function PerforcePage() {
   if (!profile || !PERFORCE_ROLES.includes(profile.role)) notFound();
 
   const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals, risks] = await Promise.all([
-    sql<PfData['spaces']>`select id, name, color, start_date, end_date, budget from strategy_spaces order by sort_order, created_at`,
+    // Project budgets are financial figures — CEO only; others get none (the
+    // cards then show progress by tasks and '—' for budget / CPI).
+    can(profile.role, 'finance.viewAll')
+      ? sql<PfData['spaces']>`select id, name, color, start_date, end_date, budget from strategy_spaces order by sort_order, created_at`
+      : sql<PfData['spaces']>`select id, name, color, start_date, end_date, '[]'::jsonb as budget from strategy_spaces order by sort_order, created_at`,
     sql<PfData['stasks']>`
       select id, space_id, title, description, workstream, assignee_id, start_date, end_date, status, priority, progress,
              roadmap_id, roadmap_node, created_at, done_at

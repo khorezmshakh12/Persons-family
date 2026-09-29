@@ -58,8 +58,11 @@ export function DashboardView({
   all,
   onGantt,
   onEditSpace,
+  finance = false,
 }: {
   api: WorkspaceApi;
+  /** Budget figures are CEO-only (finance.viewAll). */
+  finance?: boolean;
   space: StrategySpace;
   tasks: StrategyTask[];
   all: StrategyTask[];
@@ -151,7 +154,7 @@ export function DashboardView({
           d: lateN ? "Darhol e'tibor kerak" : "Hammasi o'z vaqtida",
           c: lateN ? 'var(--au-bad)' : undefined,
         },
-        { l: 'Budjet sarfi', v: bP ? Math.round((bA / bP) * 100) : 0, s: '%', d: `${bA} / ${bP} mln so'm` },
+        ...(finance ? [{ l: 'Budjet sarfi', v: bP ? Math.round((bA / bP) * 100) : 0, s: '%', d: `${bA} / ${bP} mln so'm` }] : []),
       ].map((k, i) => (
         <div key={k.l} className="sx-card kpi sx-rise" style={{ '--i': i + 1 } as React.CSSProperties}>
           <div className="l">{k.l}</div>
@@ -259,7 +262,7 @@ export function DashboardView({
         </div>
       </div>
 
-      <div className="sx-card budget sx-rise" style={{ '--i': 8 } as React.CSSProperties}>
+      {finance && (<div className="sx-card budget sx-rise" style={{ '--i': 8 } as React.CSSProperties}>
         <div className="ct">
           <h3>Budjet</h3>
           <small>mln so‘m · reja / fakt{bP > 0 ? ` · ${bA} / ${bP}` : ''}</small>
@@ -291,7 +294,7 @@ export function DashboardView({
             </div>
           </div>
         ))}
-      </div>
+      </div>)}
 
       <div className="sx-card pend sx-rise" style={{ '--i': 9 } as React.CSSProperties}>
         <div className="ct">

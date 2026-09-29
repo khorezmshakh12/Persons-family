@@ -125,11 +125,14 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   hr: ALL, // own leave / vacation requests; other people's pay is redacted
   // Department sections.
   sales: [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],
-  report: [...LEADERSHIP, 'commercial_director', 'academic_director', 'financist'],
+  // Monthly report removed for now (owner, 2026-09-30).
+  report: [],
   staff: [...LEADERSHIP, 'admin_manager', 'it_developer'],
   lessonPlans: ['ceo', 'academic_director', 'head_teacher', 'teacher', 'assistant'],
-  strategy: [...LEADERSHIP, 'commercial_director', 'academic_director', 'operations_manager', 'project_manager', 'it_developer'],
-  accounting: [...LEADERSHIP, 'financist'],
+  // For now CEO, COO and PM only (owner, 2026-09-30).
+  strategy: [...LEADERSHIP, 'project_manager'],
+  // Financial figures are CEO-only (owner, 2026-09-30) — even the COO.
+  accounting: ['ceo'],
   operations: [
     ...LEADERSHIP,
     'operations_manager',
@@ -142,7 +145,7 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
     'it_developer',
   ],
   perforce: [...LEADERSHIP, 'operations_manager', 'project_manager', 'it_developer'],
-  platform: ['ceo', 'coo', 'it_developer'],
+  platform: LEADERSHIP,
   telegramSetup: ['ceo', 'coo', 'it_developer'],
 };
 
@@ -170,16 +173,19 @@ export type Capability =
   | 'perforce.edit';
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
-  'company.overview': LEADERSHIP,
+  // Company-wide statistics: CEO only; everyone else (COO too) sees own.
+  'company.overview': ['ceo'],
   'staff.manage': [...LEADERSHIP, 'admin_manager', 'it_developer'],
   'staff.manageProtected': ['ceo'],
-  'finance.viewAll': [...LEADERSHIP, 'financist'],
-  'finance.manage': ['ceo', 'financist'],
+  'finance.viewAll': ['ceo'],
+  'finance.manage': ['ceo'],
   'stars.grant': LEADERSHIP,
   'warnings.manage': [...LEADERSHIP, 'admin_manager'],
   'contracts.manage': [...LEADERSHIP, 'admin_manager'],
   'kpi.manage': LEADERSHIP,
-  'selfDev.review': [...LEADERSHIP, 'academic_director'],
+  // Everyone but the CEO submits a self-development report; reviewing
+  // stays with the CEO.
+  'selfDev.review': ['ceo'],
   'issues.manage': [...LEADERSHIP, 'operations_manager', 'it_developer'],
   'news.publish': [...LEADERSHIP, 'admin_manager', 'event_manager', 'commercial_director'],
   'market.manage': [...LEADERSHIP, 'admin_manager'],
@@ -188,7 +194,7 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'chat.moderate': LEADERSHIP,
   'core.sales.edit': [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],
   'strategy.edit': SECTION_ROLES.strategy,
-  'accounting.edit': ['ceo', 'financist'],
+  'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
   'perforce.edit': SECTION_ROLES.perforce,
 };

@@ -33,18 +33,20 @@ const EVERYONE: SectionKey[] = [
 
 // The owner-facing matrix: department sections per role, on top of EVERYONE.
 const EXPECTED: Record<Role, SectionKey[]> = {
-  // Market is closed to all but CEO / COO / IT Developer (owner, 2026-09-30).
-  ceo: ['sales', 'report', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
-  coo: ['sales', 'report', 'staff', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
-  commercial_director: ['sales', 'report', 'strategy', 'operations'],
-  academic_director: ['report', 'lessonPlans', 'strategy', 'operations'],
-  financist: ['sales', 'report', 'accounting'],
-  operations_manager: ['strategy', 'operations', 'perforce'],
+  // Owner, 2026-09-30: Market closed to all but CEO / COO / IT Developer;
+  // monthly report removed; Strategy = CEO, COO, PM; Accounting = CEO only;
+  // Platform settings = CEO, COO.
+  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
+  coo: ['sales', 'staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
+  commercial_director: ['sales', 'operations'],
+  academic_director: ['lessonPlans', 'operations'],
+  financist: ['sales'],
+  operations_manager: ['operations', 'perforce'],
   admin_manager: ['staff', 'operations'],
   sales_manager: ['sales', 'operations'],
   event_manager: ['operations'],
   project_manager: ['strategy', 'operations', 'perforce'],
-  it_developer: ['staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
+  it_developer: ['staff', 'operations', 'perforce', 'telegramSetup', 'market'],
   head_teacher: ['lessonPlans'],
   teacher: ['lessonPlans'],
   assistant: ['lessonPlans'],
@@ -80,9 +82,9 @@ test('unknown / stale roles fail closed', () => {
   assert.equal(can('', 'staff.manage'), false);
 });
 
-test('pay: only CEO, COO and Financist read everyone\'s; only CEO and Financist change it', () => {
-  assert.deepEqual([...CAP_ROLES['finance.viewAll']].sort(), ['ceo', 'coo', 'financist']);
-  assert.deepEqual([...CAP_ROLES['finance.manage']].sort(), ['ceo', 'financist']);
+test("pay: only the CEO reads everyone's and changes it (owner, 2026-09-30)", () => {
+  assert.deepEqual([...CAP_ROLES['finance.viewAll']], ['ceo']);
+  assert.deepEqual([...CAP_ROLES['finance.manage']], ['ceo']);
 });
 
 test('every leadership / pay-level role is protected (only the CEO grants it)', () => {
