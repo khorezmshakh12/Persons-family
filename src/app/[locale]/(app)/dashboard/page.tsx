@@ -42,6 +42,8 @@ import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { SalesCard } from '@/components/aurora/sales-card';
 import { MonthTop3 } from '@/components/aurora/month-top3';
+import { SelfDevReminder } from '@/components/aurora/self-dev-reminder';
+import { firstOfCurrentMonth } from '@/lib/self-development';
 import { coreViews, loadSalesSnapshot } from '@/lib/core-state';
 import { can } from '@/lib/permissions';
 
@@ -235,6 +237,14 @@ async function EmployeeStatsSection() {
   return <EmployeeStatsTable rows={rows} className={STATS_CELL} />;
 }
 
+async function SelfDevReminderSection({ userId, reviewer }: { userId: string; reviewer: boolean }) {
+  if (reviewer) return null;
+  const [row] = await sql<{ n: number }[]>`
+    select count(*)::int as n from self_development where user_id = ${userId} and month = ${firstOfCurrentMonth()}
+  `.catch(() => [{ n: 1 }]);
+  return row && row.n > 0 ? null : <SelfDevReminder />;
+}
+
 async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   const top = await loadLastMonthTop3();
   return top ? <MonthTop3 month={top.month} people={top.people} viewerId={viewerId} /> : null;
@@ -276,6 +286,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
+      {/* Monthly self-development is mandatory for everyone but the CEO. */}
+      <Suspense fallback={null}>
+        <SelfDevReminderSection userId={user!.id} reviewer={can(profile!.role, 'selfDev.review')} />
+      </Suspense>
       {/* Last month's top 3 — everyone sees it for the whole month. */}
       <Suspense fallback={null}>
         <MonthTop3Section viewerId={user!.id} />

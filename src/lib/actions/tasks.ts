@@ -367,6 +367,10 @@ async function transitionToSubmitted(
     ceoTelegramId,
     `<b>${escapeTelegramText(actorName)}</b> "${escapeTelegramText(existing.title)}" vazifasini tekshiruvga yubordi.`,
   );
+  await notifyCeos(
+    `✅ <b>${escapeTelegramText(actorName)}</b> "${escapeTelegramText(existing.title)}" vazifasini bajardi va tekshiruvga yubordi.`,
+    [ceoTelegramId],
+  );
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -551,6 +555,29 @@ async function finalizeTaskDone(
  * which no longer exists as a DB-level guard now that there's no
  * database-side trigger layer; this app-layer check is now the only thing
  * enforcing it, not defense in depth on top of one. */
+/** Telegram chats of every active CEO (primary or extra position). The
+ * owner wants the CEO told whenever staff finish a task, whoever assigned
+ * it — managers assign too since roles v2. */
+async function ceoTelegramIds(): Promise<number[]> {
+  try {
+    const rows = await sql<{ telegram_id: number }[]>`
+      select distinct p.telegram_id from profiles p
+      where p.is_active and p.telegram_id is not null
+        and (p.role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = p.id and r.role = 'ceo'))
+    `;
+    return rows.map((r) => Number(r.telegram_id));
+  } catch (error) {
+    console.error('ceoTelegramIds failed', error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+/** Same text to every CEO, skipping chats that already got it. */
+async function notifyCeos(text: string, skip: (number | null)[] = []) {
+  const done = new Set(skip.filter((x): x is number => x != null).map(Number));
+  for (const id of await ceoTelegramIds()) if (!done.has(id)) await notifyTelegram(id, text);
+}
+
 export async function updateTaskStatusAction(formData: FormData): Promise<UpdateTaskStatusResult> {
   const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
@@ -716,6 +743,18 @@ export async function approveTaskAction(formData: FormData): Promise<UpdateTaskS
     existing.requires_proof
       ? `✅ "${escapeTelegramText(existing.title)}" vazifangiz tasdiqlandi.\nEndi tasdiqlovchi faylni yuklashingiz kerak.`
       : `✅ "${escapeTelegramText(existing.title)}" vazifangiz tasdiqlandi va yakunlandi.`,
+  );
+
+  // A manager approving counts as finishing it — tell the CEO (skipped when
+  // the approver is the CEO themself).
+  const [approverTg, approverName, assigneeName] = await Promise.all([
+    telegramIdFor(actingUserId),
+    displayNameFor(actingUserId),
+    displayNameFor(existing.assigned_to),
+  ]);
+  await notifyCeos(
+    `✅ <b>${escapeTelegramText(assigneeName)}</b> "${escapeTelegramText(existing.title)}" vazifasi <b>${escapeTelegramText(approverName)}</b> tomonidan tasdiqlandi.`,
+    [approverTg],
   );
 
   revalidatePath('/[locale]/tasks', 'page');
@@ -930,6 +969,10 @@ export async function uploadTaskProofAction(formData: FormData): Promise<UpdateT
   await notifyTelegram(
     ceoTelegramId,
     `📎 <b>${escapeTelegramText(actorName)}</b> "${escapeTelegramText(existing.title)}" vazifasi uchun faylni yukladi. Vazifa yakunlandi.`,
+  );
+  await notifyCeos(
+    `📎 <b>${escapeTelegramText(actorName)}</b> "${escapeTelegramText(existing.title)}" vazifasi uchun faylni yukladi. Vazifa yakunlandi.`,
+    [ceoTelegramId],
   );
 
   revalidatePath('/[locale]/tasks', 'page');
