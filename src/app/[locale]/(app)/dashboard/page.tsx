@@ -240,9 +240,9 @@ async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   return top ? <MonthTop3 month={top.month} people={top.people} viewerId={viewerId} /> : null;
 }
 
-async function SalesSection() {
+async function SalesSection({ money }: { money: boolean }) {
   const data = await loadSalesSnapshot();
-  return <SalesCard data={data} className="lg:col-span-12" />;
+  return <SalesCard data={data} money={money} className="lg:col-span-12" />;
 }
 
 async function ActivitySection({ viewer }: { viewer: Viewer }) {
@@ -296,7 +296,7 @@ export default async function DashboardPage() {
         </Suspense>
         {showSales && (
           <Suspense fallback={<CardSkeleton className="lg:col-span-12" />}>
-            <SalesSection />
+            <SalesSection money={can(profile!.role, 'finance.viewAll')} />
           </Suspense>
         )}
         <Suspense fallback={<CardSkeleton className={FEED_CELL} />}>

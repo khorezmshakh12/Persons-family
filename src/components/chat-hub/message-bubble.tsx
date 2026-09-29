@@ -81,7 +81,8 @@ function MessageBubbleComponent({
       initial={isOptimistic ? { opacity: 0, y: 14, scale: 0.94 } : false}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className={cn('flex gap-3', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}
+      data-own={isOwn}
+      className={cn('flex gap-3', !isOptimistic && 'ch-row', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}
     >
       <Avatar className="size-8 shrink-0">
         <AvatarImage src={sender?.avatar_url ?? undefined} alt="" />
@@ -108,10 +109,8 @@ function MessageBubbleComponent({
         <div className="flex items-center gap-1">
           <div
             className={cn(
-              'flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
-              isOwn
-                ? 'bg-white text-black'
-                : 'bg-au-card text-au-ink',
+              'ch-bubble flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
+              isOwn ? 'ch-own' : 'ch-other',
             )}
           >
             {message.reply_to_id && repliedQuote && (

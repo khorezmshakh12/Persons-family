@@ -10,6 +10,7 @@ import { ensureRealtimeSignedIn, getRealtimeDb } from '@/lib/firebase/client';
 import { getDmHistoryAction } from '@/lib/actions/staff-chats';
 import { markConversationReadAction } from '@/lib/actions/notifications';
 import { ChatSidebar } from './chat-sidebar';
+import './chat.css';
 import { ConversationView } from './conversation-view';
 import type { ChatSender } from './message-bubble';
 import type {
@@ -429,7 +430,7 @@ export function ChatHubClient({
   }
 
   return (
-    <div className={cn(GLASS_CARD, 'flex h-full min-h-0 flex-col overflow-hidden sm:flex-row')}>
+    <div className={cn(GLASS_CARD, 'ch-shell flex h-full min-h-0 flex-col overflow-hidden sm:flex-row')}>
       {/* Below `sm:`, the sidebar and the active thread would otherwise
           share the viewport's height and squeeze each other unusable — show
           exactly one at a time (list, or the open thread with a back

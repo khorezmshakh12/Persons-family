@@ -157,7 +157,7 @@ export function ConversationView({
   if (!active) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-        <MessagesSquare className="size-8 text-au-faint" />
+        <MessagesSquare className="ch-empty-icon size-10 text-au-accent-text" strokeWidth={1.5} />
         <p className="text-sm text-au-muted">{t('selectContact')}</p>
       </div>
     );
@@ -170,7 +170,7 @@ export function ConversationView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-3 border-b border-au-line px-4 py-3">
+      <div className="ch-head flex items-center gap-3 border-b border-au-line px-4 py-3">
         <button
           type="button"
           onClick={onBack}
@@ -224,7 +224,7 @@ export function ConversationView({
           <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="min-h-0 flex-1 overflow-y-auto p-4"
+            className="ch-stream min-h-0 flex-1 overflow-y-auto p-4"
           >
             {messages.length === 0 ? (
               <p className="text-center text-sm text-au-muted">{t('empty')}</p>

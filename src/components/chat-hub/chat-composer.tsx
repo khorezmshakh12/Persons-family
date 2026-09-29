@@ -204,7 +204,7 @@ export function ChatComposer({
     <form
       ref={formRef}
       action={formAction}
-      className="flex flex-col gap-2 border-t border-au-line p-4"
+      className="ch-composer flex flex-col gap-2 border-t border-au-line p-4"
     >
       <input type="hidden" name="receiverId" value={receiverId} />
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
@@ -280,7 +280,7 @@ export function ChatComposer({
           size="icon"
           disabled={isPending || isUploading || isRecording || !text.trim()}
           aria-label={t('send')}
-          className="shrink-0"
+          className="ch-send shrink-0"
         >
           {isPending || isUploading ? (
             <Loader2 className="size-4 animate-spin" />

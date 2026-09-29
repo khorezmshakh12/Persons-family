@@ -1,0 +1,209 @@
+/* ==========================================================================
+   Chat — Persons Aurora look + motion (owner, 2026-09-30).
+   Scoped under .ch-shell; tokens only (var(--au-*)), no backdrop blur.
+   Every animation is dropped under prefers-reduced-motion.
+   ========================================================================== */
+
+.ch-shell {
+  --ch-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ch-out: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  isolation: isolate;
+}
+
+/* ---- sidebar ----------------------------------------------------------- */
+.ch-side {
+  background: linear-gradient(180deg, var(--au-card) 0%, var(--au-card-2) 100%);
+}
+.ch-item {
+  position: relative;
+  transition:
+    background-color 0.18s var(--ch-out),
+    color 0.18s var(--ch-out),
+    transform 0.25s var(--ch-spring),
+    box-shadow 0.25s var(--ch-out);
+}
+.ch-item:hover {
+  transform: translateX(3px);
+}
+.ch-item[data-active='true'] {
+  background: var(--au-card);
+  color: var(--au-ink);
+  box-shadow: var(--au-shadow-card);
+}
+.ch-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--au-accent);
+  transform: scaleY(0);
+  transition: transform 0.3s var(--ch-spring);
+}
+.ch-item[data-active='true']::before {
+  transform: scaleY(1);
+}
+.ch-item .ch-avatar {
+  transition: transform 0.3s var(--ch-spring);
+}
+.ch-item:hover .ch-avatar,
+.ch-item[data-active='true'] .ch-avatar {
+  transform: scale(1.08);
+}
+.ch-unread {
+  background: var(--au-accent);
+  box-shadow: 0 0 0 0 var(--au-accent);
+  animation:
+    ch-pop 0.4s var(--ch-spring) both,
+    ch-ping 2s var(--ch-out) 0.4s infinite;
+}
+
+/* ---- conversation ------------------------------------------------------ */
+.ch-head {
+  background: var(--au-card);
+  position: relative;
+}
+.ch-head::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--au-accent), transparent);
+  opacity: 0.35;
+  transform-origin: center;
+  animation: ch-line 0.6s var(--ch-out) both;
+}
+.ch-stream {
+  background-color: var(--au-bg);
+  background-image: radial-gradient(var(--au-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+  scroll-behavior: smooth;
+}
+.ch-row {
+  animation: ch-in 0.32s var(--ch-out) both;
+}
+.ch-row[data-own='true'] {
+  animation-name: ch-in-own;
+}
+
+.ch-bubble {
+  position: relative;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  transition:
+    transform 0.2s var(--ch-spring),
+    box-shadow 0.2s var(--ch-out);
+}
+.ch-bubble:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--au-shadow-card);
+}
+.ch-bubble.ch-own {
+  background: linear-gradient(135deg, var(--au-accent) 0%, color-mix(in oklab, var(--au-accent) 78%, var(--au-primary)) 100%);
+  color: var(--au-accent-ink);
+  border-bottom-right-radius: 6px;
+}
+.ch-bubble.ch-other {
+  background: var(--au-card);
+  color: var(--au-ink);
+  border: 1px solid var(--au-line);
+  border-bottom-left-radius: 6px;
+}
+.ch-bubble.ch-own a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ---- composer ---------------------------------------------------------- */
+.ch-composer {
+  background: var(--au-card);
+}
+.ch-composer textarea {
+  transition:
+    box-shadow 0.2s var(--ch-out),
+    border-color 0.2s var(--ch-out);
+}
+.ch-composer textarea:focus-visible {
+  border-color: var(--au-accent);
+  box-shadow: 0 0 0 4px var(--au-accent-soft);
+}
+.ch-send {
+  transition: transform 0.25s var(--ch-spring);
+}
+.ch-send:not(:disabled):hover {
+  transform: scale(1.08) rotate(-8deg);
+}
+.ch-send:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+/* ---- empty state ------------------------------------------------------- */
+.ch-empty-icon {
+  animation: ch-float 3.2s ease-in-out infinite;
+}
+
+@keyframes ch-in {
+  from {
+    opacity: 0;
+    transform: translate(-10px, 8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ch-in-own {
+  from {
+    opacity: 0;
+    transform: translate(10px, 8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ch-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes ch-ping {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--au-accent) 60%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+@keyframes ch-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes ch-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-shell *,
+  .ch-shell *::before,
+  .ch-shell *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

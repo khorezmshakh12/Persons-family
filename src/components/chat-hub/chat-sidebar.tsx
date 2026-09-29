@@ -36,13 +36,15 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
       type="button"
       onClick={() => onSelect(person.id)}
       style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }}
+      data-active={isActive}
+      aria-current={isActive ? 'true' : undefined}
       className={cn(
-        'tap-scale animate-fade-in-up flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
-        isActive ? 'bg-au-card-2 text-au-ink' : 'text-au-muted hover:bg-au-card-2',
+        'ch-item tap-scale animate-fade-in-up flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
+        isActive ? 'text-au-ink' : 'text-au-muted hover:bg-au-card-2',
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="size-8">
+        <Avatar className="ch-avatar size-8">
           <AvatarImage src={person.avatar_url ?? undefined} alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
@@ -61,7 +63,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
         />
       )}
       {isUnread && !isActive && (
-        <span className="size-2 shrink-0 rounded-full bg-white" aria-hidden />
+        <span className="ch-unread size-2.5 shrink-0 rounded-full" aria-label={t('newMessage')} />
       )}
     </button>
   );
@@ -160,7 +162,7 @@ export function ChatSidebar({
   const visibleContacts = staff.filter((s) => conversationStates[s.id]?.kind !== 'pendingIncoming');
 
   return (
-    <nav className="flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-au-line">
+    <nav className="ch-side flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-au-line">
       {canModerateDmImportance && (
         <div className="mb-2">
           <ImportantChatsPanel />

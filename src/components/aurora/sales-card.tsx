@@ -8,7 +8,8 @@ import type { SalesSnapshot } from '@/lib/core-state';
 /** Dashboard Sales card — this month's leads / contracts / CAC, the 7-day
  * lead flow and the top channels, from the Sales section's own data
  * (loadSalesSnapshot, same formulas as the Sales page). */
-export async function SalesCard({ data, className }: { data: SalesSnapshot; className?: string }) {
+/** `money` = show ad spend / CAC / CPL (CEO only — finance.viewAll). */
+export async function SalesCard({ data, className, money = false }: { data: SalesSnapshot; className?: string; money?: boolean }) {
   const t = await getTranslations('salesCard');
   const locale = await getLocale();
   const num = (v: number) => Math.round(v).toLocaleString(locale);
@@ -17,7 +18,7 @@ export async function SalesCard({ data, className }: { data: SalesSnapshot; clas
     { label: t('leads'), value: num(data.leads), sub: data.targetLeads ? `/ ${num(data.targetLeads)}` : t('noTarget') },
     { label: t('contracts'), value: num(data.won), sub: data.targetWon ? `/ ${num(data.targetWon)}` : t('noTarget') },
     { label: t('conversion'), value: `${data.conv.toFixed(1)}%`, sub: '' },
-    { label: 'CAC', value: data.won ? num(data.cac) : '—', sub: t('spend', { v: num(data.spend) }) },
+    ...(money ? [{ label: 'CAC', value: data.won ? num(data.cac) : '—', sub: t('spend', { v: num(data.spend) }) }] : []),
   ];
   return (
     <section className={cn(SURFACE_CARD, 'flex flex-col gap-4 p-5', className)}>
@@ -29,7 +30,7 @@ export async function SalesCard({ data, className }: { data: SalesSnapshot; clas
           {t('open')}
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className={cn('grid grid-cols-2 gap-3', money ? 'md:grid-cols-4' : 'md:grid-cols-3')}>
         {tiles.map((x) => (
           <div key={x.label} className="rounded-au-ctl bg-au-card-2 p-3">
             <div className="text-xs text-au-muted">{x.label}</div>
@@ -64,7 +65,7 @@ export async function SalesCard({ data, className }: { data: SalesSnapshot; clas
                     <td className="py-1.5 text-au-ink">{c.name}</td>
                     <td className="py-1.5 text-right tabular-nums">{t('leadsN', { n: c.n })}</td>
                     <td className="py-1.5 text-right tabular-nums text-au-ok">{t('wonN', { n: c.won })}</td>
-                    <td className="py-1.5 text-right tabular-nums text-au-muted">CPL {c.n ? num(c.cpl) : '—'}</td>
+                    {money && <td className="py-1.5 text-right tabular-nums text-au-muted">CPL {c.n ? num(c.cpl) : '—'}</td>}
                   </tr>
                 ))}
               </tbody>

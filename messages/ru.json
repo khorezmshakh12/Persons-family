@@ -352,7 +352,8 @@
       "sending": "Отправка...",
       "waitingForApproval": "Запрос отправлен {name} — ожидайте ответа.",
       "incomingPrompt": "{name} хочет начать с вами чат."
-    }
+    },
+    "newMessage": "Новое сообщение"
   },
   "issues": {
     "title": "Проблемы",
