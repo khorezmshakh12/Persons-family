@@ -740,3 +740,40 @@ export async function loadEmployeeTaskStats(): Promise<EmployeeTaskStat[] | null
     }));
   });
 }
+
+/* ------------------------------------------------ last month's top 3 */
+
+export type MonthTopPerson = { id: string; name: string; avatarUrl: string | null; stars: number; rank: number };
+
+/** The three people who earned the most stars in the previous Tashkent
+ * month — shown on everyone's dashboard for the whole following month.
+ * Same population and metric as the leaderboard's "Oy" tab (active,
+ * non-CEO, net stars within the month). Ties: whoever got there first. */
+export async function loadLastMonthTop3(): Promise<{ month: string; people: MonthTopPerson[] } | null> {
+  return safe('lastMonthTop3', async () => {
+    const monthKey = startOfPreviousTashkentMonthKey();
+    const from = tashkentMidnight(monthKey).toISOString();
+    const to = tashkentMidnight(startOfTashkentMonthKey()).toISOString();
+    const rows = await sql<{ id: string; first_name: string; last_name: string; avatar_url: string | null; stars: number }[]>`
+      select p.id, p.first_name, p.last_name, p.avatar_url, sum(st.delta)::int as stars
+      from star_transactions st
+      join profiles p on p.id = st.user_id
+      where st.created_at >= ${from} and st.created_at < ${to}
+        and p.is_active = true and p.role <> 'ceo'
+      group by p.id
+      having sum(st.delta) > 0
+      order by sum(st.delta) desc, max(st.created_at), p.first_name
+      limit 3
+    `;
+    const people = await Promise.all(
+      rows.map(async (r, i) => ({
+        id: r.id,
+        name: `${r.first_name} ${r.last_name}`.trim(),
+        avatarUrl: r.avatar_url ? await resolveAvatarUrl(r.avatar_url) : null,
+        stars: r.stars,
+        rank: i + 1,
+      })),
+    );
+    return { month: monthKey, people };
+  });
+}

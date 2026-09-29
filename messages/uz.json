@@ -1708,5 +1708,12 @@
       "sessionExpired": "Sessiya tugagan — qayta kiring",
       "saveFailed": "Saqlab bo'lmadi, qayta urinib ko'ring"
     }
+  },
+  "monthTop3": {
+    "eyebrow": "Oy yulduzlari",
+    "title": "{month} oyida Persons'dagi top 3 xodimimiz",
+    "subtitle": "O'tgan oyda eng ko'p yulduz yig'gan hamkasblarimiz — tabriklaymiz! Keyingi oy sizning ismingiz shu yerda bo'lishi mumkin.",
+    "youAreIn": "Tabriklaymiz! Siz o'tgan oyda {rank}-o'rinni egalladingiz — butun oy davomida shu yerda turasiz.",
+    "stars": "{n} ★"
   }
 }

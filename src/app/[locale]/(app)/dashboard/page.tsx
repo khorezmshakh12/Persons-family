@@ -18,6 +18,7 @@ import {
   loadDashboardCore,
   loadEmployeeTaskStats,
   loadFinanceSnapshot,
+  loadLastMonthTop3,
   loadLeaderboard,
   loadLessonPlanMonths,
   loadLessonPlanWeek,
@@ -40,6 +41,7 @@ import { FinanceCard } from '@/components/aurora/finance-card';
 import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { SalesCard } from '@/components/aurora/sales-card';
+import { MonthTop3 } from '@/components/aurora/month-top3';
 import { coreViews, loadSalesSnapshot } from '@/lib/core-state';
 import { can } from '@/lib/permissions';
 
@@ -233,6 +235,11 @@ async function EmployeeStatsSection() {
   return <EmployeeStatsTable rows={rows} className={STATS_CELL} />;
 }
 
+async function MonthTop3Section({ viewerId }: { viewerId: string }) {
+  const top = await loadLastMonthTop3();
+  return top ? <MonthTop3 month={top.month} people={top.people} viewerId={viewerId} /> : null;
+}
+
 async function SalesSection() {
   const data = await loadSalesSnapshot();
   return <SalesCard data={data} className="lg:col-span-12" />;
@@ -269,6 +276,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
+      {/* Last month's top 3 — everyone sees it for the whole month. */}
+      <Suspense fallback={null}>
+        <MonthTop3Section viewerId={user!.id} />
+      </Suspense>
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
         <Suspense fallback={<HeroAndKpiSkeleton />}>
