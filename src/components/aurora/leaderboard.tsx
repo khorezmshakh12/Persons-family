@@ -43,10 +43,14 @@ export function Leaderboard({
   people,
   currentUserId,
   className,
+  compact = false,
 }: {
   people: LeaderboardPerson[] | null;
   currentUserId: string;
   className?: string;
+  /** Everyone but the overview roles: the podium (top 3) and their own
+   *  place only — nobody else's score. */
+  compact?: boolean;
 }) {
   const t = useTranslations('aurora');
   const [mode, setMode] = useState<Mode>('month');
@@ -67,7 +71,7 @@ export function Leaderboard({
   }, [people, mode]);
 
   const podium = [ranked[1], ranked[0], ranked[2]];
-  const rows = ranked.slice(3, 6);
+  const rows = compact ? [] : ranked.slice(3, 6);
   const me = ranked.find((p) => p.id === currentUserId);
   const above = me && me.rank > 1 ? ranked[me.rank - 2] : null;
   const hasAny = ranked.some((p) => p.score !== 0);

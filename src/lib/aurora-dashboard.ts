@@ -76,6 +76,8 @@ export type HeroData = {
   activeTasks: number;
   dueToday: number;
   teamStarsThisWeek: number;
+  /** Stars/figures above are the viewer's own, not the team's. */
+  personal?: boolean;
   /** All-time: every completed task + everything still open. */
   status: TaskStatusBreakdown;
   /** This month's completions + everything still open (hero ring). */
@@ -139,6 +141,8 @@ async function loadDashboardCoreImpl(v: Viewer): Promise<{ hero: HeroData | null
         from star_transactions st
         join profiles p on p.id = st.user_id
         where st.delta > 0 and st.created_at >= ${weekStart} and p.role <> 'ceo'
+          -- Company total only for the overview roles; everyone else their own.
+          and (${isCompanyWide(v)} or st.user_id = ${v.userId})
       `,
     ]);
 
@@ -192,6 +196,7 @@ async function loadDashboardCoreImpl(v: Viewer): Promise<{ hero: HeroData | null
       activeTasks: open.length,
       dueToday,
       teamStarsThisWeek: teamWeek[0]?.total ?? 0,
+      personal: !isCompanyWide(v),
       status,
       monthStatus,
     };

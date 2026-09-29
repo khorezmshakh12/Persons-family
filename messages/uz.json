@@ -1569,6 +1569,7 @@
     },
     "tashkent": "Toshkent",
     "summary": "Sizda <b>{tasks} ta faol vazifa</b> bor, ulardan <b>{dueToday} tasi</b> bugun tugaydi. Jamoa bu hafta <b>{stars} yulduz</b> yig‘di.",
+    "summaryPersonal": "Sizda <b>{tasks} ta faol vazifa</b> bor, ulardan <b>{dueToday} tasi</b> bugun tugaydi. Bu hafta siz <b>{stars} yulduz</b> yig‘dingiz.",
     "newTask": "Vazifalar",
     "reviewPlans": "Dars rejalari",
     "openMarket": "Market",

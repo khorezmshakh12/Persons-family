@@ -1569,6 +1569,7 @@
     },
     "tashkent": "Tashkent",
     "summary": "You have <b>{tasks} active tasks</b>, <b>{dueToday}</b> of them due today. The team earned <b>{stars} stars</b> this week.",
+    "summaryPersonal": "You have <b>{tasks} active tasks</b>, <b>{dueToday}</b> of them due today. You earned <b>{stars} stars</b> this week.",
     "newTask": "Tasks",
     "reviewPlans": "Lesson plans",
     "openMarket": "Market",

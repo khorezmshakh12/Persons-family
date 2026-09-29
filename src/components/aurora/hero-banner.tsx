@@ -77,7 +77,7 @@ export async function HeroBanner({
         </h1>
         {data && (
           <p className="max-w-[460px] text-[15px] leading-[23px] text-au-muted">
-            {t.rich('summary', {
+            {t.rich(data.personal ? 'summaryPersonal' : 'summary', {
               tasks: format.number(data.activeTasks),
               dueToday: format.number(data.dueToday),
               stars: `+${format.number(data.teamStarsThisWeek)}`,

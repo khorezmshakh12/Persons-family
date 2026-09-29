@@ -189,9 +189,9 @@ async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: s
   );
 }
 
-async function LeaderboardSection({ userId }: { userId: string }) {
+async function LeaderboardSection({ userId, compact }: { userId: string; compact: boolean }) {
   const people = await loadLeaderboard();
-  return <Leaderboard people={people} currentUserId={userId} className={LEAD_CELL} />;
+  return <Leaderboard people={people} currentUserId={userId} compact={compact} className={LEAD_CELL} />;
 }
 
 async function WeekChartSection({ viewer }: { viewer: Viewer }) {
@@ -275,7 +275,7 @@ export default async function DashboardPage() {
           <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
         </Suspense>
         <Suspense fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
-          <LeaderboardSection userId={user!.id} />
+          <LeaderboardSection userId={user!.id} compact={!isCeo} />
         </Suspense>
         <Suspense fallback={<CardSkeleton className={FIN_CELL} />}>
           <FinanceSection viewer={viewer} />
@@ -340,7 +340,9 @@ export default async function DashboardPage() {
           </Suspense>
         )}
         <Suspense fallback={<GlassCardSkeleton />}>
-          {isPersonalDashboard ? (
+          {/* Company-wide chat activity is overview data; everyone else gets
+              their own task calendar. */}
+          {!isCeo ? (
             <TasksCalendar userId={user!.id} />
           ) : (
             <ActivityHeatmap href="/calendar" delayMs={90} />
