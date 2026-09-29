@@ -80,7 +80,7 @@ export function RoleSwitcher({ roles, active, canManage }: { roles: string[]; ac
             </button>
           ))}
           {canManage && (
-            <Link href="/roles" onClick={() => setOpen(false)} className="mt-1 flex items-center gap-2 border-t border-au-line px-2.5 pt-2 pb-1.5 text-sm text-au-muted hover:text-au-ink">
+            <Link href="/platform?tab=roles" onClick={() => setOpen(false)} className="mt-1 flex items-center gap-2 border-t border-au-line px-2.5 pt-2 pb-1.5 text-sm text-au-muted hover:text-au-ink">
               <Settings2 className="size-4" /> {t('manage')}
             </Link>
           )}

@@ -1715,5 +1715,46 @@
     "subtitle": "O'tgan oyda eng ko'p yulduz yig'gan hamkasblarimiz — tabriklaymiz! Keyingi oy sizning ismingiz shu yerda bo'lishi mumkin.",
     "youAreIn": "Tabriklaymiz! Siz o'tgan oyda {rank}-o'rinni egalladingiz — butun oy davomida shu yerda turasiz.",
     "stars": "{n} ★"
+  },
+  "platform": {
+    "title": "Platforma sozlamalari",
+    "subtitle": "Lavozimlar, xodimlarning bo'lim ruxsatlari va oylik sotuv maqsadlari. Faqat CEO va COO uchun.",
+    "tabs": {
+      "roles": "Lavozimlar",
+      "access": "Bo'lim ruxsatlari",
+      "targets": "Sotuv maqsadlari"
+    },
+    "access": {
+      "person": "Xodim",
+      "customised": "sozlangan",
+      "hint": "«Standart» — lavozimidan kelib chiqadi (yashil nuqta = ochiq). «Ochiq»/«Yopiq» shu xodim uchun lavozimidan qat'i nazar ishlaydi. O'zgarish xodimning keyingi sahifa ochishida kuchga kiradi.",
+      "ceoLocked": "CEO akkauntining ruxsatlarini faqat CEO o'zgartira oladi.",
+      "ceoOnlyTag": "faqat CEO",
+      "defaultOn": "Standart · ochiq",
+      "defaultOff": "Standart · yopiq",
+      "allow": "Ochiq",
+      "deny": "Yopiq",
+      "saved": "Saqlandi",
+      "errors": {
+        "ceoOnly": "Buni faqat CEO o'zgartira oladi",
+        "forbidden": "Ruxsatingiz yo'q",
+        "notFound": "Xodim topilmadi",
+        "invalidInput": "Noto'g'ri ma'lumot",
+        "sessionExpired": "Sessiya tugagan — qayta kiring",
+        "saveFailed": "Saqlab bo'lmadi, qayta urinib ko'ring"
+      }
+    },
+    "targets": {
+      "hint": "Oylik lid va shartnoma maqsadlari «Sotuv» bo'limi va Dashboard'dagi Sotuv kartasida ko'rinadi.",
+      "leads": "Lidlar maqsadi",
+      "won": "Shartnomalar maqsadi",
+      "current": "joriy oy",
+      "save": "Saqlash",
+      "saving": "Saqlanmoqda…",
+      "saved": "{month} maqsadi saqlandi",
+      "failed": "Saqlab bo'lmadi",
+      "invalid": "Butun musbat son kiriting",
+      "wonOverLeads": "Shartnomalar lidlardan ko'p bo'lishi mumkin emas"
+    }
   }
 }

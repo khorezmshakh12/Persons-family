@@ -1715,5 +1715,46 @@
     "subtitle": "The colleagues who earned the most stars last month — congratulations! Next month it could be you.",
     "youAreIn": "Congratulations! You took #{rank} last month — you stay up here all month.",
     "stars": "{n} ★"
+  },
+  "platform": {
+    "title": "Platform settings",
+    "subtitle": "Positions, per-person section access and monthly sales targets. CEO and COO only.",
+    "tabs": {
+      "roles": "Positions",
+      "access": "Section access",
+      "targets": "Sales targets"
+    },
+    "access": {
+      "person": "Person",
+      "customised": "customised",
+      "hint": "“Default” follows their position (green dot = open). “Open”/“Closed” apply to this person regardless of position, from their next page load.",
+      "ceoLocked": "Only the CEO can change a CEO account's access.",
+      "ceoOnlyTag": "CEO only",
+      "defaultOn": "Default · open",
+      "defaultOff": "Default · closed",
+      "allow": "Open",
+      "deny": "Closed",
+      "saved": "Saved",
+      "errors": {
+        "ceoOnly": "Only the CEO can change this",
+        "forbidden": "You don't have permission",
+        "notFound": "Person not found",
+        "invalidInput": "Invalid input",
+        "sessionExpired": "Session expired — sign in again",
+        "saveFailed": "Couldn't save, try again"
+      }
+    },
+    "targets": {
+      "hint": "Monthly lead and contract targets show in Sales and on the dashboard Sales card.",
+      "leads": "Leads target",
+      "won": "Contracts target",
+      "current": "this month",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "{month} target saved",
+      "failed": "Couldn't save",
+      "invalid": "Enter a whole positive number",
+      "wonOverLeads": "Contracts can't exceed leads"
+    }
   }
 }
