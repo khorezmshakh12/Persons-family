@@ -5,6 +5,7 @@ import { sql } from '@/lib/db/client';
 import { computeNavBadgeKeys } from '@/lib/nav-badges';
 import { checkMaterialsLink } from '@/lib/sso/checkMaterialsLink';
 import { coreViews } from '@/lib/core-state';
+import { isMarketEditor } from '@/lib/market-editors';
 import { AppShell } from '@/components/app-shell/app-shell';
 import { IntroSplash } from '@/components/brand/intro-splash';
 import { MotionRoot } from '@/components/motion/motion-root';
@@ -85,7 +86,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         checkMaterialsLink(profile!.phone),
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2500)),
       ]),
-      coreViews(profile!).catch(() => [] as string[]),
+      // Core pages + per-person grants (market editor) that open a nav item
+      // beyond its role list — see navItemsForRole.
+      Promise.all([coreViews(profile!), isMarketEditor(profile!.id)])
+        .then(([v, m]) => (m ? [...v, 'market'] : v))
+        .catch(() => [] as string[]),
     ]);
   // Real per-user "unseen" state — not a time-based heuristic — so each dot
   // clears the moment its page is visited (see MarkTasksSeen/MarkIssuesSeen/

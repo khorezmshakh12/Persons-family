@@ -202,7 +202,9 @@ export function navItemsForRole(
   { materialsLinked = false, coreViews = [] }: { materialsLinked?: boolean; coreViews?: string[] } = {},
 ) {
   return NAV_ITEMS.filter((item) => {
-    if (item.roles && !item.roles.includes(role)) return false;
+    // `coreViews` also carries per-person grants by nav key (e.g. 'market'
+    // for a market editor), which open an item beyond its role list.
+    if (item.roles && !item.roles.includes(role) && !coreViews.includes(item.key)) return false;
     // Only shown once this employee's phone number is matched to an
     // active Materials account (see checkMaterialsLink) — otherwise the
     // link would just dump them on Materials' login screen.

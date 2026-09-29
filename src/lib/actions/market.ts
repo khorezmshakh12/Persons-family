@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { requireCeo, authErrorCode } from '@/lib/auth/require-admin';
+import { requireCeo, authErrorCode, ForbiddenError, SessionExpiredError } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -13,6 +13,7 @@ import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 import { MARKET_CATEGORIES, type MarketCategory } from '@/lib/market';
 import { MARKET_ROLES } from '@/lib/nav';
+import { isMarketEditor } from '@/lib/market-editors';
 
 export type MarketActionState =
   | {
@@ -54,7 +55,7 @@ export async function requestMarketImageUploadUrlAction(
   fileType: string,
 ): Promise<MarketImageUploadResult> {
   try {
-    await requireCeo();
+    await requireMarketEditor();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -115,8 +116,19 @@ const itemFieldsSchema = z.object({
 async function requireMarketUser(): Promise<{ id: string } | { error: string }> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
-  if (!MARKET_ROLES.includes(profile.role)) return { error: 'forbidden' };
+  if (!MARKET_ROLES.includes(profile.role) && !(await isMarketEditor(user.id))) return { error: 'forbidden' };
   return { id: user.id };
+}
+
+/** Item management (add / edit / photo / stars / stock / hide / delete):
+ *  the CEO or a market editor. Order decisions stay requireCeo(). */
+async function requireMarketEditor() {
+  const { user, profile } = await getAuthState();
+  if (!user) throw new SessionExpiredError('No session');
+  if (!profile || (profile.role !== 'ceo' && !(await isMarketEditor(user.id)))) {
+    throw new ForbiddenError('Market editor access required');
+  }
+  return { user, profile };
 }
 
 /**
@@ -157,7 +169,7 @@ export async function createMarketItemAction(
   try {
     ({
       user: { id: actorId },
-    } = await requireCeo());
+    } = await requireMarketEditor());
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -195,7 +207,7 @@ export async function updateMarketItemAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireMarketEditor();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -244,7 +256,7 @@ export async function setMarketItemActiveAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireMarketEditor();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -291,7 +303,7 @@ export async function adjustMarketItemStockAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireMarketEditor();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -340,7 +352,7 @@ export async function deleteMarketItemAction(
   formData: FormData,
 ): Promise<MarketActionState> {
   try {
-    await requireCeo();
+    await requireMarketEditor();
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -818,8 +830,9 @@ const EMPTY_ADMIN_VIEW: MarketAdminView = {
 /** What the CEO sees: every item (inactive + archived included), the pending
  *  queue, and the decided-order history. */
 export async function getMarketAdminAction(): Promise<MarketAdminView> {
+  let isCeo: boolean;
   try {
-    await requireCeo();
+    isCeo = (await requireMarketEditor()).profile.role === 'ceo';
   } catch {
     return EMPTY_ADMIN_VIEW;
   }
@@ -866,13 +879,15 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
     items: itemsWithImages,
     // One query, split here — the pending queue is ordered oldest-first (a
     // work queue), the history newest-first (a log).
-    pendingOrders: orders.filter((o) => o.status === 'pending').reverse(),
-    decidedOrders: orders.filter((o) => o.status !== 'pending'),
-    stats: {
+    // Market editors manage items only — orders (who bought what, star
+    // decisions) stay with the CEO.
+    pendingOrders: isCeo ? orders.filter((o) => o.status === 'pending').reverse() : [],
+    decidedOrders: isCeo ? orders.filter((o) => o.status !== 'pending') : [],
+    stats: isCeo ? {
       pending: stats?.pending ?? 0,
       approved: stats?.approved ?? 0,
       rejected: stats?.rejected ?? 0,
       starsSpent: stats?.stars_spent ?? 0,
-    },
+    } : EMPTY_ADMIN_VIEW.stats,
   };
 }
