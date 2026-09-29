@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { sql } from "@/lib/db/client";
 import { getCurrentUser, revokeUserSessions } from "@/lib/gcp/session";
 import type { StaffRole } from "@/lib/nav";
@@ -38,6 +39,12 @@ export interface Profile {
    * it only exists once 20260923120000_profile_sessions_revoked_at.sql is
    * applied — until then the check below is simply skipped. */
   sessions_revoked_at?: string | null;
+  /** Extra positions from profile_roles (raw, as loaded). */
+  extra_roles?: string[];
+  /** The stored profiles.role — `role` above is the ACTIVE position. */
+  primary_role?: StaffRole;
+  /** Every position this person holds (primary first). */
+  roles?: StaffRole[];
 }
 
 
@@ -59,7 +66,10 @@ export const getAuthState = cache(async function getAuthState() {
     return { user: null, profile: null as Profile | null, suspended: false, frozenReason: null as string | null };
   }
 
-  const [profile] = await sql<Profile[]>`select * from profiles where id = ${user.uid}`;
+  const [profile] = await sql<Profile[]>`
+    select p.*, array(select r.role::text from profile_roles r where r.user_id = p.id order by r.role) as extra_roles
+    from profiles p where p.id = ${user.uid}
+  `;
 
   if (profile && !profile.is_active) {
     await revokeUserSessions(user.uid);
@@ -72,15 +82,23 @@ export const getAuthState = cache(async function getAuthState() {
     return { user: null, profile: null as Profile | null, suspended: false, frozenReason: null as string | null };
   }
 
-  // TEMPORARY (owner's decision, 2026-09-26): IT Developer gets every CEO
-  // right while the site is being fixed; restrictions come back later —
-  // delete this block to revert. Only the in-request role is lifted; the
-  // stored role, claims and every `where role = 'ceo'` lookup are untouched.
-  if (profile && FULL_ACCESS_ROLES.includes(profile.role)) {
-    return { user, profile: { ...profile, role: 'ceo' as StaffRole }, suspended: false, frozenReason: null as string | null };
-  }
+  if (!profile) return { user, profile: null as Profile | null, suspended: false, frozenReason: null as string | null };
 
-  return { user, profile: profile ?? null, suspended: false, frozenReason: null as string | null };
+  // One person may hold several positions (profile_roles) and works in one
+  // of them at a time — the "active role" picked in the header switcher
+  // (cookie, re-validated against the DB here on every request, so a
+  // revoked position stops working immediately). Everything downstream
+  // reads `profile.role`, which is therefore the ACTIVE role; the stored
+  // one stays in `primary_role`.
+  const held = [profile.role, ...((profile.extra_roles ?? []) as StaffRole[]).filter((r) => r !== profile.role)];
+  const wanted = (await cookies()).get(ACTIVE_ROLE_COOKIE)?.value as StaffRole | undefined;
+  const active = wanted && held.includes(wanted) ? wanted : profile.role;
+  return {
+    user,
+    profile: { ...profile, role: active, primary_role: profile.role, roles: held },
+    suspended: false,
+    frozenReason: null as string | null,
+  };
 });
 
-const FULL_ACCESS_ROLES: StaffRole[] = ['it_developer'];
+export const ACTIVE_ROLE_COOKIE = 'persons_active_role';

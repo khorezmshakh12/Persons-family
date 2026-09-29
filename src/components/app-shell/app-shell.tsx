@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { RoleSwitcher } from './role-switcher';
+import { canAssignRoles } from '@/lib/permissions';
 import { getTranslations } from 'next-intl/server';
 import packageJson from '../../../package.json';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -130,6 +132,7 @@ export async function AppShell({
                     initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}
                   />
                   <StarPill balance={starBalance} />
+                  <RoleSwitcher roles={profile.roles ?? [profile.role]} active={profile.role} canManage={canAssignRoles(profile.roles)} />
                   <LanguageSwitcher compact className="hidden sm:flex" />
                 </header>
 

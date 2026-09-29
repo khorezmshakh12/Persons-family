@@ -1680,5 +1680,32 @@
     "empty": "No leads yet",
     "leadsN": "{n} leads",
     "wonN": "{n} won"
+  },
+  "roleSwitcher": {
+    "title": "Position",
+    "switched": "You now work as “{role}”",
+    "failed": "Couldn't switch position",
+    "manage": "Manage positions"
+  },
+  "rolesPage": {
+    "title": "Positions",
+    "subtitle": "Give anyone (yourself included) several positions. The primary one is changed in Staff; extras here. Everyone picks the position they work in from the header switcher.",
+    "search": "Search staff…",
+    "you": "you",
+    "primary": "primary",
+    "primaryHint": "The primary position is changed in Staff",
+    "add": "Add position",
+    "remove": "Remove “{role}”",
+    "added": "“{role}” added",
+    "removed": "“{role}” removed",
+    "errors": {
+      "forbidden": "You don't have permission",
+      "primaryRole": "The primary position is changed in Staff",
+      "lastGranter": "You can't remove your last managing position",
+      "notFound": "Staff member not found",
+      "invalidInput": "Invalid input",
+      "sessionExpired": "Session expired — sign in again",
+      "saveFailed": "Couldn't save, try again"
+    }
   }
 }

@@ -1680,5 +1680,32 @@
     "empty": "Hali lid yo'q",
     "leadsN": "{n} lid",
     "wonN": "{n} shartnoma"
+  },
+  "roleSwitcher": {
+    "title": "Lavozim",
+    "switched": "Endi siz «{role}» sifatida ishlayapsiz",
+    "failed": "Lavozimni almashtirib bo'lmadi",
+    "manage": "Lavozimlarni boshqarish"
+  },
+  "rolesPage": {
+    "title": "Lavozimlar",
+    "subtitle": "Xodimga (o'zingizga ham) bir nechta lavozim biriktiring. Asosiy lavozim «Xodimlar» bo'limida o'zgaradi; qo'shimchalari shu yerda. Har kim tepadagi almashtirgichda qaysi lavozimda ishlashini tanlaydi.",
+    "search": "Xodimni qidirish…",
+    "you": "siz",
+    "primary": "asosiy",
+    "primaryHint": "Asosiy lavozim «Xodimlar» bo'limida o'zgartiriladi",
+    "add": "Lavozim qo'shish",
+    "remove": "«{role}» ni olib tashlash",
+    "added": "«{role}» qo'shildi",
+    "removed": "«{role}» olib tashlandi",
+    "errors": {
+      "forbidden": "Bunga ruxsatingiz yo'q",
+      "primaryRole": "Asosiy lavozim «Xodimlar» bo'limida o'zgaradi",
+      "lastGranter": "O'zingizdan oxirgi boshqaruv lavozimini olib bo'lmaydi",
+      "notFound": "Xodim topilmadi",
+      "invalidInput": "Noto'g'ri ma'lumot",
+      "sessionExpired": "Sessiya tugagan — qayta kiring",
+      "saveFailed": "Saqlab bo'lmadi, qayta urinib ko'ring"
+    }
   }
 }

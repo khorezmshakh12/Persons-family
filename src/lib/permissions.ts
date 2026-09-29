@@ -227,3 +227,20 @@ export const PROTECTED_ROLES: readonly Role[] = [
 export function isProtectedRole(role: string): boolean {
   return (PROTECTED_ROLES as readonly string[]).includes(role);
 }
+
+/** Who may grant / revoke extra positions (profile_roles) — decided on the
+ * positions a person HOLDS, not the one they're currently working in, so a
+ * CEO browsing as a teacher can still manage roles. Only a CEO touches the
+ * CEO position itself (or the accounts of people holding it). */
+export const ROLE_GRANTERS: readonly Role[] = ['ceo', 'coo'];
+
+export function canAssignRoles(held: readonly string[] | null | undefined): boolean {
+  return !!held && held.some((r) => (ROLE_GRANTERS as readonly string[]).includes(r));
+}
+
+export function canGrantRole(held: readonly string[] | null | undefined, role: string, targetHeld: readonly string[]): boolean {
+  if (!canAssignRoles(held) || !isKnownRole(role)) return false;
+  const actorIsCeo = !!held?.includes('ceo');
+  if (role === 'ceo' || targetHeld.includes('ceo')) return actorIsCeo;
+  return true;
+}
