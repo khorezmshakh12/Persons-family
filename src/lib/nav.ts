@@ -158,9 +158,9 @@ export function navItemsForRole(
   { materialsLinked = false, coreViews = [] }: { materialsLinked?: boolean; coreViews?: string[] } = {},
 ) {
   return NAV_ITEMS.filter((item) => {
-    // `coreViews` also carries per-person grants by nav key (e.g. 'market'
-    // for a market editor), which open an item beyond its role list.
-    if (item.key in SECTION_ROLES && !canSee(role, item.key as SectionKey) && !coreViews.includes(item.key)) return false;
+    // `coreViews` also carries per-person grants as 'grant:<nav key>' (e.g.
+    // 'grant:market' for a market editor), opening an item beyond its roles.
+    if (item.key in SECTION_ROLES && !canSee(role, item.key as SectionKey) && !coreViews.includes(`grant:${item.key}`)) return false;
     // Only shown once this employee's phone number is matched to an
     // active Materials account (see checkMaterialsLink) — otherwise the
     // link would just dump them on Materials' login screen.

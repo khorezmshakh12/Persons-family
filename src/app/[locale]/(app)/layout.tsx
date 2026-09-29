@@ -90,7 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // Core pages + per-person grants (market editor) that open a nav item
       // beyond its role list — see navItemsForRole.
       Promise.all([coreViews(profile!), isMarketEditor(profile!.id)])
-        .then(([v, m]) => (m ? [...v, 'market'] : v))
+        .then(([v, m]) => (m ? [...v, 'grant:market'] : v))
         .catch(() => [] as string[]),
     ]);
   // Real per-user "unseen" state — not a time-based heuristic — so each dot
