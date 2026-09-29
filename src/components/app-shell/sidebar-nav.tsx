@@ -1,5 +1,6 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
@@ -17,7 +18,6 @@ import {
   Milestone,
   BookOpen,
   ShoppingBag,
-  Star,
   Map as MapIcon,
   Inbox,
   UserCog,
@@ -108,7 +108,7 @@ export function SidebarNav({
                 <span className="truncate">{t(item.key)}</span>
                 {item.key === 'market' && starBalance !== undefined && (
                   <span className="ml-auto inline-flex items-center gap-0.5 text-xs font-semibold text-au-accent-text tabular-nums">
-                    <Star className="size-3 fill-current" strokeWidth={1.75} aria-hidden />
+                    <StarIcon className="size-3" />
                     {starBalance}
                   </span>
                 )}

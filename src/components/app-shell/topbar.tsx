@@ -1,7 +1,8 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useTranslations } from 'next-intl';
-import { ChevronRight, Search, Star } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { navItemForPath } from '@/lib/nav';
 import { OPEN_COMMAND_PALETTE_EVENT } from '@/components/command-palette/command-palette';
@@ -57,7 +58,7 @@ export function StarPill({ balance }: { balance: number }) {
       aria-label={`${t('starBalance')}: ${balance}`}
       className="flex h-[38px] shrink-0 items-center gap-1.5 rounded-au-ctl border border-au-accent/30 bg-au-accent-soft px-3 font-bold text-au-accent-text tabular-nums transition-colors hover:border-au-accent/60"
     >
-      <Star className="size-[15px] fill-current" strokeWidth={1.75} aria-hidden />
+      <StarIcon className="size-[15px]" />
       {balance}
     </Link>
   );

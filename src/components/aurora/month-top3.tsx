@@ -3,6 +3,7 @@ import { Crown, Trophy } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { SURFACE_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { StarIcon } from '@/components/ui/star-icon';
 import type { MonthTopPerson } from '@/lib/aurora-dashboard';
 
 const initials = (name: string) =>
@@ -58,7 +59,7 @@ export async function MonthTop3({ month, people, viewerId }: { month: string; pe
                   )}
                 </span>
                 <span className="mt-2 max-w-full truncate text-[13px] font-semibold text-au-ink">{p.name}</span>
-                <span className="text-xs font-bold text-au-accent-text tabular-nums">{t('stars', { n: p.stars })}</span>
+                <span className="text-xs font-bold text-au-accent-text tabular-nums">{p.stars} <StarIcon className="inline size-3 align-[-1px]" /></span>
                 <span
                   className={cn(
                     'mt-2 grid w-full place-items-center rounded-[12px_12px_4px_4px] text-xl font-bold tabular-nums',

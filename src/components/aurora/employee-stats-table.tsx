@@ -1,5 +1,6 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
@@ -123,7 +124,7 @@ export function EmployeeStatsTable({ rows, className }: { rows: EmployeeTaskStat
                     >
                       {r.overdue}
                     </td>
-                    <td className="py-2.5 text-right tabular-nums text-au-accent-text">{r.stars} ★</td>
+                    <td className="py-2.5 text-right tabular-nums text-au-accent-text">{r.stars} <StarIcon className="inline size-3 align-[-1px]" /></td>
                   </tr>
                 );
               })}

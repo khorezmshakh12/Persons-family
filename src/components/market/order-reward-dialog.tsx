@@ -1,9 +1,10 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { ShoppingBag, Star, PackageCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, PackageCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { placeMarketOrderAction, type MarketItemRow } from '@/lib/actions/market';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -128,7 +129,7 @@ export function OrderRewardDialog({
             <div className="flex items-center justify-between border-t border-au-line pt-2">
               <span className="text-au-muted">{t('admin.starCost')}:</span>
               <span className="flex items-center gap-1 font-bold text-amber-700">
-                <Star className="size-3.5 fill-amber-300 text-amber-700" />
+                <StarIcon className="text-amber-600" />
                 {t('starCount', { count: item.star_cost })}
               </span>
             </div>

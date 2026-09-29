@@ -1,5 +1,6 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { memo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
@@ -8,7 +9,6 @@ import {
   ChevronDown,
   GripVertical,
   Minus,
-  Star,
   ExternalLink,
   Undo2,
 } from 'lucide-react';
@@ -332,7 +332,7 @@ function TaskCardImpl({
             <TaskStatusControl status={task.status} />
             {!!task.star_reward && task.star_reward > 0 && (
               <Badge variant="tint" tint="amber" className="text-xs font-semibold gap-1">
-                <Star className="size-3 fill-amber-400 text-amber-600" />
+                <StarIcon className="size-3 text-amber-600" />
                 +{task.star_reward}
               </Badge>
             )}

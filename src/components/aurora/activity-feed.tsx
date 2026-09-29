@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { StarIcon } from '@/components/ui/star-icon';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { Check, CircleAlert, ShoppingBag, Star, TrendingDown } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
@@ -45,7 +46,7 @@ export async function ActivityFeed({
           <>
             {t.rich('actOrder', { b, name })}{' '}
             <span className={cn(CHIP_ACCENT, 'h-5 px-1.5 align-[1px] text-[11px] tabular-nums')}>
-              {Math.abs(item.delta ?? 0)} ★
+              {Math.abs(item.delta ?? 0)} <StarIcon className="inline size-3 align-[-1px]" />
             </span>
           </>
         );

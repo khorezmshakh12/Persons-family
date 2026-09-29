@@ -1,10 +1,11 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { isProtectedRole } from '@/lib/permissions';
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
-import { KeyRound, Ban, CheckCircle2, Trash2, Unlink, MoreVertical, Sparkles } from 'lucide-react';
+import { KeyRound, Ban, CheckCircle2, Trash2, Unlink, MoreVertical } from 'lucide-react';
 import type { Profile } from '@/lib/auth/session';
 import { Button } from '@/components/ui/button';
 import {
@@ -97,7 +98,7 @@ export function StaffRowActions({
             )}
             {canAwardStars && (
               <DropdownMenuItem onClick={() => setMenuAction('manageStars')}>
-                <Sparkles className="text-amber-600" />
+                <StarIcon className="size-4 text-amber-600" />
                 {tStars('manageStars')}
               </DropdownMenuItem>
             )}

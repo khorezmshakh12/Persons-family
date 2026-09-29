@@ -1,5 +1,6 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Crown, Trophy } from 'lucide-react';
@@ -124,7 +125,7 @@ export function Leaderboard({
                     <PersonAvatar person={p} size={first ? 'xl' : 'lg'} />
                   </div>
                   <span className="mt-2 max-w-full truncate text-[13px] font-semibold text-au-ink">{p.shortName}</span>
-                  <span className="text-xs font-bold text-au-accent-text tabular-nums">{p.score} ★</span>
+                  <span className="text-xs font-bold text-au-accent-text tabular-nums">{p.score} <StarIcon className="inline size-3 align-[-1px]" /></span>
                   <div
                     className={cn(
                       'mt-2.5 grid w-full place-items-center rounded-[12px_12px_4px_4px] text-[22px] font-bold tabular-nums',

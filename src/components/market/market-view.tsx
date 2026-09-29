@@ -1,10 +1,10 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useState, useTransition } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
 import {
-  Sparkles,
   ShoppingBag,
   Package,
   ShieldCheck,
@@ -249,7 +249,7 @@ function PendingOrderRow({
 
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
-          <Sparkles className="size-3.5" />
+          <StarIcon />
           {t('starCount', { count: order.star_cost })}
         </span>
         <DecideOrderActions order={order} onDecided={setDecision} />
@@ -335,7 +335,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
           {/* Balance Box */}
           <div className="flex items-center gap-3.5 rounded-au-ctl border border-au-line bg-white/70 px-5 py-3">
             <div className="flex size-10 items-center justify-center rounded-au-ctl bg-au-accent-soft text-au-accent-text">
-              <Sparkles className="size-6" strokeWidth={1.75} />
+              <StarIcon className="size-6" />
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-au-muted">{t('yourBalance')}</span>
@@ -533,7 +533,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                             {item.name}
                           </h3>
                           <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-500/30">
-                            <Sparkles className="size-3.5" />
+                            <StarIcon />
                             {item.star_cost}
                           </span>
                         </div>
@@ -606,7 +606,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
 
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
-                        <Sparkles className="size-3.5" />
+                        <StarIcon />
                         {t('starCount', { count: order.star_cost })}
                       </span>
 
@@ -715,7 +715,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
 
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
-                        <Sparkles className="size-3.5" />
+                        <StarIcon />
                         {t('starCount', { count: order.star_cost })}
                       </span>
                       <OrderStatusBadge status={order.status} />
@@ -798,7 +798,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
 
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="flex items-center gap-1 text-sm font-bold text-amber-700">
-                        <Sparkles className="size-3.5" />
+                        <StarIcon />
                         {t('starCount', { count: item.star_cost })}
                       </span>
                       <StockAdjust item={item} />

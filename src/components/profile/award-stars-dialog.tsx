@@ -1,9 +1,10 @@
 'use client';
 
+import { StarIcon } from '@/components/ui/star-icon';
 import { useActionState, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Sparkles, AlertTriangle, PlusCircle, MinusCircle } from 'lucide-react';
+import { AlertTriangle, PlusCircle, MinusCircle } from 'lucide-react';
 import { awardStarsAction, type StarsActionState } from '@/lib/actions/stars';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,7 +81,7 @@ export function AwardStarsDialog({
             />
           }
         >
-          <Sparkles className="size-4" />
+          <StarIcon className="size-4" />
           {t('manageStars')}
         </DialogTrigger>
       )}
