@@ -69,7 +69,7 @@ export default async function ChatPage() {
   const canModerateDmImportance = can(profile!.role, 'chat.moderate');
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-5.5rem)] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">
+    <div className="mx-auto flex h-[calc(100dvh-var(--app-chrome))] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">
       <Suspense>
         <ChatHubClient
           currentUserId={user!.id}

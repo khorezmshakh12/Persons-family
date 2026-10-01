@@ -9,6 +9,15 @@ const token = process.env.TELEGRAM_BOT_TOKEN;
 // client is only ever used to send messages and to register the webhook.
 export const telegramBot = token ? new Telegraf(token) : null;
 
+/** The Mini App entry the bot's buttons open (app/[locale]/tg). On the
+ * public domain, not NEXT_PUBLIC_APP_URL (the bare Cloud Run host). */
+export const TELEGRAM_WEBAPP_URL = process.env.TELEGRAM_WEBAPP_URL || 'https://www.persons-staffs.uz/staff/uz/tg';
+
+/** Inline "open the app" button for bot replies. */
+export function openAppKeyboard(text = '📱 Persons ilovasini ochish') {
+  return { inline_keyboard: [[{ text, web_app: { url: TELEGRAM_WEBAPP_URL } }]] };
+}
+
 export function isTelegramConfigured(): boolean {
   return telegramBot !== null;
 }

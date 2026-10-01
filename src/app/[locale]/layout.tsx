@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist_Mono, Instrument_Serif, Inter } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
@@ -10,6 +10,8 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { CursorGlow } from '@/components/cursor-glow';
 import { IosActiveFix } from '@/components/ios-active-fix';
 import { IntlUzShim } from '@/components/intl-uz-shim';
+import { AppModeScript } from '@/components/app-mode/app-mode-script';
+import { TelegramBridge } from '@/components/app-mode/telegram-bridge';
 import '../globals.css';
 
 // This app ships uz/ru/en. Google Fonts serves each subset as its own
@@ -36,6 +38,15 @@ const instrumentSerif = Instrument_Serif({
   style: ['normal', 'italic'],
 });
 
+// viewport-fit=cover lets the installed app / Telegram draw under the
+// notch; the shell pads itself with env(safe-area-inset-*) (globals.css).
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#f4f2ee',
+};
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -60,6 +71,12 @@ export async function generateMetadata({
     },
     description: t('description'),
     applicationName: 'Persons Staff',
+    // Installable as a home-screen app (app/manifest.ts).
+    manifest: '/staff/manifest.webmanifest',
+    appleWebApp: { capable: true, title: 'Persons', statusBarStyle: 'default' },
+    icons: {
+      apple: [{ url: '/staff/app-icons/apple-touch-icon.png', sizes: '180x180' }],
+    },
     keywords: ['Persons Staff', 'Persons Education', 'persons-staffs.uz', 'xodimlar platformasi', 'staff platform'],
     alternates: {
       canonical: loginPath,
@@ -110,11 +127,13 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
+        <AppModeScript />
         <IntlUzShim />
         <ThemeProvider attribute="class" forcedTheme="light" disableTransitionOnChange>
           <NextIntlClientProvider messages={messages}>
             <CursorGlow />
             <IosActiveFix />
+            <TelegramBridge />
             {children}
             <Toaster />
           </NextIntlClientProvider>

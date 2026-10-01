@@ -28,7 +28,7 @@ export function CoreFrame({ view, auto = false, title }: { view: string; auto?: 
       title={title}
       src={`/staff/api/core/app?l=${locale}&p=${view}${auto ? '&h=auto' : ''}`}
       className="w-full rounded-2xl border border-[var(--au-line)] bg-[var(--au-card)]"
-      style={auto ? { height: h } : { height: 'calc(100dvh - 8.5rem)', minHeight: 560 }}
+      style={auto ? { height: h } : { height: 'calc(100dvh - var(--app-chrome) - 3rem)', minHeight: 560 }}
     />
   );
 }

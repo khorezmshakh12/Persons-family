@@ -5,8 +5,9 @@ import { getTranslations } from 'next-intl/server';
 import packageJson from '../../../package.json';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { BackgroundProvider } from '@/components/theme/background-context';
-import { MobileNav } from './mobile-nav';
-import { SidebarPanel, type SidebarGoal } from './sidebar-panel';
+import { BottomTabBar } from './bottom-tab-bar';
+import { BrandMark, SidebarPanel, type SidebarGoal } from './sidebar-panel';
+import { Link } from '@/i18n/navigation';
 import { Breadcrumbs, SearchTrigger, StarPill } from './topbar';
 import { ProfileProvider } from './profile-context';
 import { NavBadgesProvider } from './nav-badges-context';
@@ -114,10 +115,12 @@ export async function AppShell({
               </aside>
 
               <div className="flex min-w-0 flex-1 flex-col">
-                <header className="sticky top-0 z-40 flex h-[62px] items-center gap-2 bg-au-bg px-4 sm:gap-3 sm:px-7 min-[960px]:h-[76px]">
-                  <div className="min-[960px]:hidden">
-                    <MobileNav {...panelProps} />
-                  </div>
+                <header className="app-header sticky top-0 z-40 flex h-[62px] items-center gap-2 bg-au-bg px-4 sm:gap-3 sm:px-7 min-[960px]:h-[76px]">
+                  {/* Mobile app layout: the brand mark stands where the
+                      sidebar would be; sections live in BottomTabBar. */}
+                  <Link href="/dashboard" aria-label="Persons" className="min-[960px]:hidden">
+                    <BrandMark className="size-[38px]" />
+                  </Link>
                   <Breadcrumbs />
                   <div className="flex-1" />
                   <SearchTrigger />
@@ -136,15 +139,24 @@ export async function AppShell({
                   <LanguageSwitcher compact className="hidden sm:flex" />
                 </header>
 
-                <main className="min-h-0 min-w-0 flex-1">
+                <main className="app-main min-h-0 min-w-0 flex-1">
                   <PageTransition>{children}</PageTransition>
                 </main>
 
-                <footer className="flex h-9 shrink-0 items-center justify-end px-4 text-xs text-au-muted sm:px-7">
+                <footer className="hidden h-9 shrink-0 items-center justify-end px-4 text-xs text-au-muted sm:px-7 min-[960px]:flex">
                   <TashkentClock />
                 </footer>
               </div>
             </div>
+            <BottomTabBar
+              role={profile.role}
+              roleLabel={panelProps.roleLabel}
+              materialsLinked={materialsLinked}
+              coreViews={coreViews}
+              starBalance={starBalance}
+              userId={userId}
+              version={packageJson.version}
+            />
           </NavBadgesProvider>
         </PresenceProvider>
       </ProfileProvider>

@@ -1762,5 +1762,20 @@
     "title": "Your self-development report for this month is missing",
     "body": "Everyone except the CEO must submit a monthly self-development report.",
     "cta": "Submit now"
+  },
+  "appMode": {
+    "connecting": "Signing in…",
+    "notLinkedTitle": "Telegram is not linked",
+    "notLinkedBody": "Sign in with your phone and password first, then link Telegram in Settings. After that the bot signs you in with one tap.",
+    "ambiguous": "This Telegram account is linked to more than one employee. Contact an administrator.",
+    "suspended": "Your account is inactive.",
+    "starFrozen": "Your account is frozen because of the star balance.",
+    "error": "Could not connect. Check your internet and try again.",
+    "retry": "Try again",
+    "loginWithPassword": "Sign in with password",
+    "openInTelegram": "This page opens inside the Telegram bot.",
+    "allSections": "All sections",
+    "more": "Menu",
+    "home": "Home"
   }
 }

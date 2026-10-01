@@ -1,4 +1,4 @@
-import { telegramBot } from './telegram';
+import { openAppKeyboard, telegramBot } from './telegram';
 import { sql } from './db/client';
 
 // Registered once at module load (the webhook route imports this module
@@ -10,8 +10,16 @@ if (telegramBot) {
   telegramBot.start(async (ctx) => {
     const token = ctx.startPayload;
     if (!token) {
+      // Already linked → straight into the app; otherwise explain linking
+      // (the app's launch screen says the same if they tap it anyway).
+      const [linked] = ctx.chat.type === 'private'
+        ? await sql<{ first_name: string }[]>`select first_name from profiles where telegram_id = ${ctx.chat.id} and is_active = true limit 1`
+        : [];
       await ctx.reply(
-        "Ushbu botga ulanish uchun Persons Education platformasidagi Sozlamalar bo'limidan shaxsiy havoladan foydalaning.",
+        linked
+          ? `Salom, ${linked.first_name}! Persons ilovasini quyidagi tugma orqali oching.`
+          : "Ushbu botga ulanish uchun Persons Education platformasidagi Sozlamalar bo'limidan shaxsiy havoladan foydalaning.",
+        linked ? { reply_markup: openAppKeyboard() } : undefined,
       );
       return;
     }
@@ -46,6 +54,7 @@ if (telegramBot) {
 
     await ctx.reply(
       `✅ Xush kelibsiz${profile ? `, ${profile.first_name}` : ''}! Telegram hisobingiz Persons Education platformasiga ulandi. Endi muhim bildirishnomalarni shu yerda olasiz.`,
+      { reply_markup: openAppKeyboard() },
     );
   });
 

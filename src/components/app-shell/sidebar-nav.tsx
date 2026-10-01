@@ -33,7 +33,7 @@ import { NAV_ITEM, NAV_ITEM_ACTIVE } from '@/lib/glass';
 import { groupedNavItemsForRole, type NavItem, type StaffRole } from '@/lib/nav';
 import { useNavBadgeKeys } from './nav-badges-context';
 
-const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+export const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
   dashboard: LayoutDashboard,
   coreInbox: Inbox,
   sales: TrendingUp,

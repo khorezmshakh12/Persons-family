@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap, requireSection } from '@/lib/auth/require-admin';
-import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText } from '@/lib/telegram';
+import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText, TELEGRAM_WEBAPP_URL } from '@/lib/telegram';
 
 export type TelegramActionState = { error?: string; success?: boolean } | undefined;
 
@@ -114,6 +114,11 @@ export async function registerTelegramWebhookAction(): Promise<{ error?: string;
     // undelivered) — same /staff-omission bug already hit twice today in
     // the Cloud Scheduler job URLs.
     await telegramBot.telegram.setWebhook(`${appUrl}/staff/api/telegram/webhook`, { secret_token: secret });
+    // The chat's menu button opens the Persons Mini App (app/[locale]/tg).
+    // Best-effort: a failure here must not report the webhook as failed.
+    await telegramBot.telegram
+      .setChatMenuButton({ menuButton: { type: 'web_app', text: 'Persons', web_app: { url: TELEGRAM_WEBAPP_URL } } })
+      .catch((error: unknown) => console.error('setChatMenuButton failed', error instanceof Error ? error.message : error));
     return { success: true };
   } catch {
     return { error: 'webhookFailed' };

@@ -126,6 +126,10 @@ export default async function proxy(request: NextRequest) {
     return stampCache(request, copyCookies(intlResponse, NextResponse.redirect(url)));
   };
 
+  // Telegram Mini App entry (app/[locale]/tg): signs in with Telegram's
+  // initData itself, so it must load with or without a session.
+  if (path === '/tg') return stampCache(request, intlResponse);
+
   if (!user) {
     if (path === '/login') return stampCache(request, intlResponse);
     return redirectTo('/login', suspended ? { reason: 'suspended' } : undefined);

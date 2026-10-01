@@ -1762,5 +1762,20 @@
     "title": "Shu oylik self-development hisobotingiz hali kiritilmagan",
     "body": "CEO'dan boshqa har bir xodim har oy o'z rivojlanishi haqida hisobot kiritishi shart.",
     "cta": "Hozir kiritish"
+  },
+  "appMode": {
+    "connecting": "Kirilmoqda…",
+    "notLinkedTitle": "Telegram hisobingiz ulanmagan",
+    "notLinkedBody": "Avval telefon raqam va parol bilan kiring, so‘ng Sozlamalar bo‘limida Telegramni ulang. Keyin bot orqali bir bosishda kirasiz.",
+    "ambiguous": "Bu Telegram hisobi bir nechta xodimga ulangan. Administratorga murojaat qiling.",
+    "suspended": "Hisobingiz faol emas.",
+    "starFrozen": "Hisobingiz yulduz balansi sababli muzlatilgan.",
+    "error": "Ulanib bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.",
+    "retry": "Qayta urinish",
+    "loginWithPassword": "Parol bilan kirish",
+    "openInTelegram": "Bu sahifa Telegram bot ichida ochiladi.",
+    "allSections": "Barcha bo‘limlar",
+    "more": "Menyu",
+    "home": "Asosiy"
   }
 }

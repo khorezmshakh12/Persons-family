@@ -659,6 +659,172 @@ html[data-intro='seen'] .intro-splash {
   }
 }
 
+/* Telegram launch screen (/tg, components/app-mode/tg-entry.tsx): the same
+   P assembly as .intro-splash, but it stays until sign-in finishes. */
+.tg-entry {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(60% 70% at 85% 10%, #ffe2b8 0%, transparent 60%),
+    radial-gradient(55% 60% at 10% 95%, #c9fff0 0%, transparent 60%),
+    var(--au-bg, #f4f2ee);
+  overflow: hidden;
+}
+.tg-entry .intro-logo {
+  animation:
+    intro-lock 0.5s var(--ease-bounce) 0.62s both,
+    tg-breathe 2.4s ease-in-out 1.6s infinite;
+}
+@keyframes tg-breathe {
+  50% {
+    transform: scale(1.05);
+  }
+}
+.tg-entry-status {
+  display: flex;
+  justify-content: center;
+  min-height: 140px;
+  width: min(320px, calc(100vw - 48px));
+  margin-top: 28px;
+  animation: intro-sub 0.6s var(--ease-snappy) 1.3s both;
+}
+
+/* Handoff from /tg: that screen already played the assembly, so the
+   dashboard's intro starts on its final frame and only irises away. */
+html[data-intro='handoff'] .intro-splash {
+  animation-delay: 0.12s;
+  animation-duration: 0.7s;
+}
+html[data-intro='handoff'] .intro-splash *,
+html[data-intro='handoff'] .intro-splash .persons-logo path {
+  animation: none !important;
+}
+html[data-intro='handoff'] .intro-ring {
+  visibility: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile app mode (< 960px, and the Telegram Mini App / installed PWA).
+   The sidebar gives way to a native-style bottom tab bar
+   (components/app-shell/bottom-tab-bar.tsx); full-height pages size
+   themselves with --app-chrome (header + tab bar + safe area).
+--------------------------------------------------------------------------- */
+:root {
+  --app-tabbar-h: 64px;
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-chrome: 5.5rem;
+}
+@media (max-width: 959.98px) {
+  :root {
+    --app-chrome: calc(62px + var(--app-tabbar-h) + var(--app-safe-bottom) + 12px);
+  }
+  .app-main {
+    padding-bottom: calc(var(--app-tabbar-h) + var(--app-safe-bottom) + 12px);
+  }
+  html[data-app] body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  /* iOS zooms into any focused field under 16px — an app never does. */
+  html[data-app] :is(input, textarea, select) {
+    font-size: max(16px, 1em);
+  }
+}
+html[data-app='pwa'] .app-header {
+  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(62px + env(safe-area-inset-top, 0px));
+}
+.app-safe-bottom {
+  height: var(--app-safe-bottom);
+}
+
+.app-tabbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 45;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  height: calc(var(--app-tabbar-h) + var(--app-safe-bottom));
+  padding: 6px 6px var(--app-safe-bottom);
+  background: color-mix(in srgb, var(--au-card) 94%, transparent);
+  border-top: 1px solid var(--au-line);
+  box-shadow: 0 -10px 30px -18px rgba(23, 22, 26, 0.18);
+  animation: app-tabbar-in 0.5s var(--ease-snappy) both;
+}
+@keyframes app-tabbar-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+.app-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  color: var(--au-faint);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: color 0.2s;
+}
+.app-tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 30px;
+  border-radius: 999px;
+  transition:
+    background-color 0.25s,
+    transform 0.35s var(--ease-bounce);
+}
+.app-tab:active .app-tab-icon {
+  transform: scale(0.88);
+}
+.app-tab[data-active] {
+  color: var(--au-accent-text);
+}
+.app-tab[data-active] .app-tab-icon {
+  background: var(--au-accent-soft);
+  animation: app-tab-pop 0.4s var(--ease-bounce);
+}
+@keyframes app-tab-pop {
+  from {
+    transform: scale(0.7);
+  }
+}
+.app-tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.app-tab:not([data-active]) .app-tab-label {
+  color: var(--au-muted);
+}
+.app-tab-dot {
+  position: absolute;
+  top: 2px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--au-bad);
+  box-shadow: 0 0 0 2px var(--au-card);
+}
+.app-sheet .app-tile {
+  transition: transform 0.3s var(--ease-bounce);
+}
+
 /* Sidebar nav: the icon answers the pointer; the active item's icon takes
    the accent. Transform-only, never gates visibility. */
 [data-motion='on'] .nav-motion svg {
@@ -685,6 +851,11 @@ html[data-intro='seen'] .intro-splash {
 @media (prefers-reduced-motion: reduce) {
   .intro-splash {
     display: none;
+  }
+  .tg-entry *,
+  .app-tabbar,
+  .app-tab-icon {
+    animation: none !important;
   }
   .persons-logo path,
   .brand-mark,
