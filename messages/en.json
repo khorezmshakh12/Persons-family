@@ -755,7 +755,8 @@
       "viewOnly": "You can only view this."
     },
     "deletedToast": "Task deleted",
-    "undo": "Undo"
+    "undo": "Undo",
+    "calendarView": "Calendar"
   },
   "companyNews": {
     "title": "Company News",

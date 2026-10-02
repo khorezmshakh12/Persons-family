@@ -1272,8 +1272,8 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
                 <th className="l">Sana</th>
                 <th className="l">Hujjat</th>
                 <th className="l">Tavsif</th>
-                <th className="l">Debet</th>
-                <th className="l">Kredit</th>
+                <th className="l" title="Debet (Dt) — hisobning chap tomoni: aktiv va xarajat ko‘payadi, majburiyat va daromad kamayadi">Debet</th>
+                <th className="l" title="Kredit (Kt) — hisobning o‘ng tomoni: majburiyat va daromad ko‘payadi, aktiv kamayadi">Kredit</th>
                 <th>Summa</th>
                 <th />
               </tr>
@@ -1336,7 +1336,7 @@ function JournalCheck({ debit, credit, amount, name }: { debit: string; credit: 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-au-line bg-au-card-2 p-3 text-sm">
       <div className="min-w-[180px] flex-1">
-        <div className="text-[11px] font-bold text-au-muted uppercase">Debet</div>
+        <div className="text-[11px] font-bold text-au-muted uppercase" title="Debet (Dt) — hisobning chap tomoni: aktiv va xarajat ko‘payadi, majburiyat va daromad kamayadi">Debet</div>
         <b>
           {debit} · {name(debit)}
         </b>
@@ -1344,7 +1344,7 @@ function JournalCheck({ debit, credit, amount, name }: { debit: string; credit: 
       </div>
       <b className="text-xl">{same ? '≠' : '='}</b>
       <div className="min-w-[180px] flex-1">
-        <div className="text-[11px] font-bold text-au-muted uppercase">Kredit</div>
+        <div className="text-[11px] font-bold text-au-muted uppercase" title="Kredit (Kt) — hisobning o‘ng tomoni: majburiyat va daromad ko‘payadi, aktiv kamayadi">Kredit</div>
         <b>
           {credit} · {name(credit)}
         </b>
@@ -1516,8 +1516,8 @@ function TAccount({ line, rows }: { line: ReturnType<typeof ledger>[string]; row
       </div>
       <div className="overflow-hidden rounded-xl border border-au-line">
         <div className="grid grid-cols-2 border-b border-au-line bg-au-card-2 text-center text-xs font-bold">
-          <span className="p-1.5">Debet</span>
-          <span className="border-l border-au-line p-1.5">Kredit</span>
+          <span className="p-1.5" title="Debet (Dt) — hisobning chap tomoni: aktiv va xarajat ko‘payadi, majburiyat va daromad kamayadi">Debet</span>
+          <span className="border-l border-au-line p-1.5" title="Kredit (Kt) — hisobning o‘ng tomoni: majburiyat va daromad ko‘payadi, aktiv kamayadi">Kredit</span>
         </div>
         <div className="grid grid-cols-2">
           {col(true)}

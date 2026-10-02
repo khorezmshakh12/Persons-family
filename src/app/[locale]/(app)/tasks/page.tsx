@@ -9,6 +9,7 @@ import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskStats } from '@/components/tasks/task-stats';
 import { MarkTasksSeen } from '@/components/tasks/mark-tasks-seen';
 import { CoreFrame } from '@/components/core/core-frame';
+import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { Link } from '@/i18n/navigation';
 import { coreViews } from '@/lib/core-state';
 
@@ -20,12 +21,15 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const { user, profile } = await getAuthState();
   // Second tab: the same tasks in Core v2's own view (board / list / timeline).
   const hasCore = (await coreViews(profile!).catch((): string[] => [])).includes('tasks');
-  const coreTab = hasCore && (await searchParams).view === 'core';
-  const tabs = hasCore && (
+  const view = (await searchParams).view;
+  const coreTab = hasCore && view === 'core';
+  const calendarTab = view === 'calendar';
+  const tabs = (
     <div className="flex gap-1 self-start rounded-au-ctl bg-au-card p-1 shadow-[var(--au-shadow-card)]">
       {[
-        { href: '/tasks', on: !coreTab, label: t('title') },
-        { href: '/tasks?view=core', on: coreTab, label: tNav('coreBoard') },
+        { href: '/tasks', on: !coreTab && !calendarTab, label: t('title') },
+        { href: '/tasks?view=calendar', on: calendarTab, label: t('calendarView') },
+        ...(hasCore ? [{ href: '/tasks?view=core', on: coreTab, label: tNav('coreBoard') }] : []),
       ].map((x) => (
         <Link
           key={x.href}
@@ -37,6 +41,14 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       ))}
     </div>
   );
+  if (calendarTab) {
+    return (
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-7">
+        {tabs}
+        <TasksCalendar userId={user!.id} />
+      </div>
+    );
+  }
   if (coreTab) {
     return (
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 pt-1 pb-8 sm:px-7">

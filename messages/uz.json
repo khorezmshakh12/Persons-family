@@ -755,7 +755,8 @@
       "viewOnly": "Siz faqat ko‘rishingiz mumkin."
     },
     "deletedToast": "Vazifa o‘chirildi",
-    "undo": "Bekor qilish"
+    "undo": "Bekor qilish",
+    "calendarView": "Kalendar"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
