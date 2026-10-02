@@ -707,21 +707,29 @@ html[data-intro='handoff'] .intro-ring {
 }
 
 /* ---------------------------------------------------------------------------
-   Mobile app mode (< 960px, and the Telegram Mini App / installed PWA).
-   The sidebar gives way to a native-style bottom tab bar
-   (components/app-shell/bottom-tab-bar.tsx); full-height pages size
-   themselves with --app-chrome (header + tab bar + safe area).
+   Mobile app mode: ONLY the Telegram Mini App / installed PWA
+   (<html data-app>, app-mode-script.tsx), below 960px. The browser site
+   keeps its hamburger drawer and footer. In app mode the sidebar gives way
+   to a native-style bottom tab bar (components/app-shell/bottom-tab-bar.tsx);
+   full-height pages size themselves with --app-chrome (header + tab bar +
+   safe area).
 --------------------------------------------------------------------------- */
 :root {
   --app-tabbar-h: 64px;
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-chrome: 5.5rem;
 }
+html:not([data-app]) .app-only {
+  display: none !important;
+}
 @media (max-width: 959.98px) {
-  :root {
+  html[data-app] .web-only {
+    display: none !important;
+  }
+  html[data-app] {
     --app-chrome: calc(62px + var(--app-tabbar-h) + var(--app-safe-bottom) + 12px);
   }
-  .app-main {
+  html[data-app] .app-main {
     padding-bottom: calc(var(--app-tabbar-h) + var(--app-safe-bottom) + 12px);
   }
   html[data-app] body {

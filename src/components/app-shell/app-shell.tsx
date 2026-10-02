@@ -6,6 +6,7 @@ import packageJson from '../../../package.json';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { BackgroundProvider } from '@/components/theme/background-context';
 import { BottomTabBar } from './bottom-tab-bar';
+import { MobileNav } from './mobile-nav';
 import { BrandMark, SidebarPanel, type SidebarGoal } from './sidebar-panel';
 import { Link } from '@/i18n/navigation';
 import { Breadcrumbs, SearchTrigger, StarPill } from './topbar';
@@ -116,9 +117,13 @@ export async function AppShell({
 
               <div className="flex min-w-0 flex-1 flex-col">
                 <header className="app-header sticky top-0 z-40 flex h-[62px] items-center gap-2 bg-au-bg px-4 sm:gap-3 sm:px-7 min-[960px]:h-[76px]">
-                  {/* Mobile app layout: the brand mark stands where the
-                      sidebar would be; sections live in BottomTabBar. */}
-                  <Link href="/dashboard" aria-label="Persons" className="min-[960px]:hidden">
+                  {/* Browser below 960px: the hamburger drawer. Telegram Mini
+                      App / installed app (<html data-app>): the brand mark,
+                      with sections in BottomTabBar. */}
+                  <div className="web-only min-[960px]:hidden">
+                    <MobileNav {...panelProps} />
+                  </div>
+                  <Link href="/dashboard" aria-label="Persons" className="app-only min-[960px]:hidden">
                     <BrandMark className="size-[38px]" />
                   </Link>
                   <Breadcrumbs />
@@ -143,7 +148,7 @@ export async function AppShell({
                   <PageTransition>{children}</PageTransition>
                 </main>
 
-                <footer className="hidden h-9 shrink-0 items-center justify-end px-4 text-xs text-au-muted sm:px-7 min-[960px]:flex">
+                <footer className="web-only flex h-9 shrink-0 items-center justify-end px-4 text-xs text-au-muted sm:px-7">
                   <TashkentClock />
                 </footer>
               </div>

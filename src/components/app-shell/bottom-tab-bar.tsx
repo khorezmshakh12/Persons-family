@@ -80,7 +80,7 @@ export function BottomTabBar({
 
   return (
     <>
-      <nav className="app-tabbar min-[960px]:hidden" aria-label={tApp('allSections')}>
+      <nav className="app-tabbar app-only min-[960px]:hidden" aria-label={tApp('allSections')}>
         {tabs.map((item) => {
           const Icon = ICONS[item.key];
           const active = isActive(pathname, item);
