@@ -753,7 +753,9 @@
       "uploading": "Yuklanmoqda…",
       "add": "Fayl qo'shish",
       "viewOnly": "Siz faqat ko‘rishingiz mumkin."
-    }
+    },
+    "deletedToast": "Vazifa o‘chirildi",
+    "undo": "Bekor qilish"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -1436,6 +1438,13 @@
       "net": "Jami {net}",
       "earned": "Olingan: {count}",
       "spent": "Sarflangan: {count}"
+    },
+    "tabs": {
+      "overview": "Asosiy",
+      "stars": "Yulduzlar",
+      "finance": "Moliya",
+      "discipline": "Intizom",
+      "growth": "Rivojlanish"
     }
   },
   "market": {

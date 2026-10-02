@@ -271,16 +271,18 @@ export function TaskBoard({
     })();
   }
 
-  // Strict optimistic UI: the card is filtered out of local state instantly
-  // — before the delete Server Action is even awaited — which is what
-  // makes the click feel instant instead of freezing the board until the
-  // round trip resolves. Only a failure puts the card back and surfaces a
-  // toast; the common (successful) case never waits on the network at all.
+  // Optimistic, with a 5-second undo: the card leaves the board at once, but
+  // the delete Server Action only runs once the "Undo" window closes. Undo
+  // puts the card back and nothing reaches the server; a failed delete also
+  // puts it back with an error toast. Leaving the page inside the window
+  // simply cancels the delete (the safe direction).
   function handleRequestDelete(task: Task) {
     const previousTasks = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
 
-    (async () => {
+    let undone = false;
+    const timer = setTimeout(async () => {
+      if (undone) return;
       const formData = new FormData();
       formData.set('id', task.id);
       const result = await deleteTaskAction(formData);
@@ -288,7 +290,18 @@ export function TaskBoard({
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
       }
-    })();
+    }, 5000);
+    toast(t('deletedToast'), {
+      duration: 5000,
+      action: {
+        label: t('undo'),
+        onClick: () => {
+          undone = true;
+          clearTimeout(timer);
+          setTasks(previousTasks);
+        },
+      },
+    });
   }
 
   return (

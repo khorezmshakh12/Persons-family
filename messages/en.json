@@ -753,7 +753,9 @@
       "uploading": "Uploading…",
       "add": "Add file",
       "viewOnly": "You can only view this."
-    }
+    },
+    "deletedToast": "Task deleted",
+    "undo": "Undo"
   },
   "companyNews": {
     "title": "Company News",
@@ -1436,6 +1438,13 @@
       "net": "Net {net}",
       "earned": "Earned: {count}",
       "spent": "Spent: {count}"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "stars": "Stars",
+      "finance": "Finance",
+      "discipline": "Discipline",
+      "growth": "Growth"
     }
   },
   "market": {

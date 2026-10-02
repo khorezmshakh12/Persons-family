@@ -7,6 +7,7 @@ import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { SURFACE_HERO } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { ProfileTabs } from '@/components/profile/profile-tabs';
 import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TeacherLevelBadge } from '@/components/staff/teacher-level-badge';
@@ -64,7 +65,18 @@ async function StarsArchiveSection({ staffId }: { staffId: string }) {
 // on soft navigation and surfacing as a React #310 crash (a useMemo
 // dependency array changing size) — a white screen with no server-side
 // error at all. Same fix applied to /finance.
-export async function ProfileDetailContent({ id, month }: { id: string; month?: string }) {
+export async function ProfileDetailContent({
+  id,
+  month,
+  tab: tabParam,
+  hrefBase,
+}: {
+  id: string;
+  month?: string;
+  tab?: string;
+  /** Where the tab links point: '/profile' for "my profile", else /profile/[id]. */
+  hrefBase?: string;
+}) {
   const tStaff = await getTranslations('staff');
   const tProfile = await getTranslations('profile');
   const locale = await getLocale();
@@ -106,6 +118,14 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
     from profiles where id = ${id}
   `;
   if (!target) notFound();
+
+  // One long scroll of ten cards became five tabs; only the open tab's
+  // cards are rendered (and fetched).
+  const tabs = (['overview', 'stars', 'finance', 'discipline', 'growth'] as const).filter(
+    (k) => canViewCeoScoped || (k !== 'stars' && k !== 'growth'),
+  );
+  const tab = (tabs as readonly string[]).includes(tabParam ?? '') ? (tabParam as (typeof tabs)[number]) : 'overview';
+  const tabLabels = Object.fromEntries(tabs.map((k) => [k, tProfile(`tabs.${k}`)]));
   const avatarSignedUrl = await resolveAvatarUrl(target.avatar_url);
 
   return (
@@ -133,99 +153,105 @@ export async function ProfileDetailContent({ id, month }: { id: string; month?: 
         </div>
       </div>
 
-      <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-          <Suspense fallback={<GlassCardSkeleton />}>
-            <ContactInfoCard profile={target} isSelf={isSelf} />
-          </Suspense>
-        </SectionErrorBoundary>
-      </div>
+      <ProfileTabs current={tab} tabs={tabs} hrefBase={hrefBase ?? `/profile/${id}`} labels={tabLabels} />
 
-      {/* Stars are self-or-CEO, same scope as self-development —
-          getStarLedgerAction enforces that server-side too and returns []
-          for anyone else, so this gate only controls whether the card is
-          worth rendering at all. */}
-      {canViewCeoScoped && (
-        <div className="enter-rise" style={{ animationDelay: '140ms' }}>
+      {tab === 'overview' && (
+        <>
+        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <ContactInfoCard profile={target} isSelf={isSelf} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+          {canViewCeoScoped && (
+            <>
+        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <DutiesCard staffId={id} canManage={canManage} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+        <div className="enter-rise" style={{ animationDelay: '170ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+            </>
+          )}
+        </>
+      )}
+
+      {tab === 'stars' && canViewCeoScoped && (
+        <>
+        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <StarBalanceCard staffId={id} canManage={canManage} />
             </Suspense>
           </SectionErrorBoundary>
         </div>
-      )}
-
-      {canViewCeoScoped && (
-        <div className="enter-rise" style={{ animationDelay: '170ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <SalaryCard staffId={id} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-      )}
-
-      {canViewCeoScoped && (
-        <div className="enter-rise" style={{ animationDelay: '185ms' }}>
+        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={null}>
               <StarsArchiveSection staffId={id} />
             </Suspense>
           </SectionErrorBoundary>
         </div>
+        </>
       )}
 
-      {canViewCeoScoped && (
-        <div className="enter-rise" style={{ animationDelay: '210ms' }}>
+      {tab === 'finance' && (
+        <>
+          {canViewCeoScoped && (
+        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <SalaryCard staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+          )}
+        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <BonusesPunishmentsCard staffId={id} canManage={canManage} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+        </>
+      )}
+
+      {tab === 'discipline' && (
+        <>
+        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={<GlassCardSkeleton />}>
+              <WarningsCard staffId={id} canManage={canManageWarnings} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+            <Suspense fallback={null}>
+              <WarningsArchiveSection staffId={id} />
+            </Suspense>
+          </SectionErrorBoundary>
+        </div>
+        </>
+      )}
+
+      {tab === 'growth' && canViewCeoScoped && (
+        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
           <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
             <Suspense fallback={<GlassCardSkeleton />}>
               <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
             </Suspense>
           </SectionErrorBoundary>
         </div>
-      )}
-
-      <div className="enter-rise" style={{ animationDelay: '280ms' }}>
-        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-          <Suspense fallback={<GlassCardSkeleton />}>
-            <WarningsCard staffId={id} canManage={canManageWarnings} />
-          </Suspense>
-        </SectionErrorBoundary>
-      </div>
-
-      <div className="enter-rise" style={{ animationDelay: '310ms' }}>
-        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-          <Suspense fallback={null}>
-            <WarningsArchiveSection staffId={id} />
-          </Suspense>
-        </SectionErrorBoundary>
-      </div>
-
-      <div className="enter-rise" style={{ animationDelay: '350ms' }}>
-        <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-          <Suspense fallback={<GlassCardSkeleton />}>
-            <BonusesPunishmentsCard staffId={id} canManage={canManage} />
-          </Suspense>
-        </SectionErrorBoundary>
-      </div>
-
-      {canViewCeoScoped && (
-        <>
-          <div className="enter-rise" style={{ animationDelay: '420ms' }}>
-            <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-              <Suspense fallback={<GlassCardSkeleton />}>
-                <DutiesCard staffId={id} canManage={canManage} />
-              </Suspense>
-            </SectionErrorBoundary>
-          </div>
-          <div className="enter-rise" style={{ animationDelay: '490ms' }}>
-            <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-              <Suspense fallback={<GlassCardSkeleton />}>
-                <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
-              </Suspense>
-            </SectionErrorBoundary>
-          </div>
-        </>
       )}
     </div>
   );
@@ -236,9 +262,9 @@ export default async function ProfileDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; tab?: string }>;
 }) {
   const { id } = await params;
-  const { month } = await searchParams;
-  return <ProfileDetailContent id={id} month={month} />;
+  const { month, tab } = await searchParams;
+  return <ProfileDetailContent id={id} month={month} tab={tab} hrefBase={`/profile/${id}`} />;
 }

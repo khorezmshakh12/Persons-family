@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 // rather than redirect()-ing to /profile/[id] — see the comment on
 // ProfileDetailContent for why that redirect was crashing the client
 // router under Next 16.
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { user } = await getAuthState();
-  return <ProfileDetailContent id={user!.id} />;
+  const { tab } = await searchParams;
+  return <ProfileDetailContent id={user!.id} tab={tab} hrefBase="/profile" />;
 }
