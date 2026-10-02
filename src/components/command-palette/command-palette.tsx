@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import { Command } from 'cmdk';
 import { useTranslations } from 'next-intl';
-import { Search, Users, Layers, AlertCircle, CornerDownLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, Search, Users, Layers, AlertCircle, CornerDownLeft, Loader2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { searchCommandPaletteAction, type CommandSearchResult } from '@/lib/actions/command-search';
 import { cn } from '@/lib/utils';
@@ -73,7 +73,7 @@ const GROUP_ICON_TINT: Record<Row['group'], string> = {
   issues: 'bg-au-accent-soft text-au-accent-text',
 };
 
-export function CommandPalette() {
+export function CommandPalette({ pages = [] }: { pages?: { href: string; label: string }[] }) {
   const t = useTranslations('commandPalette');
   const tStaff = useTranslations('staff');
   const router = useRouter();
@@ -167,12 +167,17 @@ export function CommandPalette() {
     router.push(href);
   }
 
+  // Sections are matched locally and shown even before typing, so the
+  // palette doubles as quick navigation.
+  const q = query.trim().toLowerCase();
+  const pageRows = pages.filter((p) => !q || p.label.toLowerCase().includes(q)).slice(0, q ? 6 : 8);
+
   const groups = (['staff', 'groups', 'issues'] as const)
     .map((g) => ({ key: g, rows: rows.filter((r) => r.group === g) }))
     .filter((g) => g.rows.length > 0);
 
   let emptyState: ReactNode = null;
-  if (rows.length === 0) {
+  if (rows.length === 0 && pageRows.length === 0) {
     if (tooShort) {
       emptyState = t('hint');
     } else if (isPending) {
@@ -216,7 +221,7 @@ export function CommandPalette() {
 
       <Command.List className="max-h-[min(22rem,60vh)] scroll-py-2 overflow-y-auto overscroll-contain p-2">
         <div ref={listInnerRef} className="relative">
-          {pill && rows.length > 0 && (
+          {pill && (rows.length > 0 || pageRows.length > 0) && (
             <div
               aria-hidden
               className={cn(
@@ -233,6 +238,29 @@ export function CommandPalette() {
             <div className="px-3 py-8 text-center text-sm text-au-muted" role="status">
               {emptyState}
             </div>
+          )}
+
+          {pageRows.length > 0 && (
+            <Command.Group
+              heading={t('groups.pages')}
+              className="pb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-au-muted [&_[cmdk-group-heading]]:uppercase"
+            >
+              {pageRows.map((p) => (
+                <Command.Item
+                  key={`page:${p.href}`}
+                  value={`page:${p.href}`}
+                  onSelect={() => go(p.href)}
+                  className="relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-au-ink"
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-au-card-2 text-au-muted">
+                    <ArrowRight className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    <Highlight text={p.label} query={query} />
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
           )}
 
           {groups.map((g) => (

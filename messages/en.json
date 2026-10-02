@@ -452,7 +452,8 @@
         "author": "Reporter",
         "staff": "Staff"
       }
-    }
+    },
+    "noIssuesHint": "No open issues. If something breaks, report it with “New report”."
   },
   "lessonPlans": {
     "title": "Lesson Plan Board",
@@ -884,7 +885,8 @@
     "groups": {
       "staff": "Staff",
       "groups": "Groups",
-      "issues": "Issues"
+      "issues": "Issues",
+      "pages": "Pages"
     }
   },
   "export": {

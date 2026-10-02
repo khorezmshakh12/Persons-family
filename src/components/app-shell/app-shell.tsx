@@ -21,6 +21,7 @@ import {
   type UnseenLessonPlanAlertItem,
 } from './notification-bell';
 import { CommandPalette } from '@/components/command-palette/command-palette';
+import { navItemsForRole } from '@/lib/nav';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
 import { AnnouncementBanner } from '@/components/announcements/announcement-banner';
@@ -67,6 +68,11 @@ export async function AppShell({
   children: ReactNode;
 }) {
   const tStaff = await getTranslations('staff');
+  const tNav = await getTranslations('nav');
+  // ⌘K "Pages": exactly the sections this person's sidebar shows.
+  const palettePages = navItemsForRole(profile.role, { materialsLinked, coreViews })
+    .filter((i) => !i.external)
+    .map((i) => ({ href: i.href, label: tNav(i.key) }));
   // The Roadmap section was removed (owner, 2026-09-26), and with it the
   // sidebar goal card that linked to it.
   const canSeeGoals = false;
@@ -109,7 +115,7 @@ export async function AppShell({
       >
         <PresenceProvider userId={userId}>
           <NavBadgesProvider userId={userId} initialKeys={newNavKeys}>
-            <CommandPalette />
+            <CommandPalette pages={palettePages} />
             <div className="relative flex min-h-screen bg-au-bg">
               <aside className="sticky top-0 hidden h-screen w-[244px] shrink-0 flex-col border-r border-au-line bg-au-sidebar px-3.5 py-5 min-[960px]:flex">
                 <SidebarPanel {...panelProps} />

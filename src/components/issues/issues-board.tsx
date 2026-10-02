@@ -1,5 +1,8 @@
 'use client';
 
+import { CircleCheck } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -173,7 +176,7 @@ export function IssuesBoard({
   }
 
   if (issues.length === 0) {
-    return <p className="text-sm text-au-muted">{t('noIssues')}</p>;
+    return <EmptyState icon={CircleCheck} title={t('noIssues')} hint={t('noIssuesHint')} />;
   }
 
   return (

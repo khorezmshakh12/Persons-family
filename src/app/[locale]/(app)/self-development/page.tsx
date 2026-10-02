@@ -275,14 +275,19 @@ export default async function SelfDevelopmentPage({
         <p className="text-au-muted">{t('subtitle')}</p>
       </div>
 
-      <SelfDevelopmentLineChart
-        points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
-      />
-
+      {/* The month's report is the job on this page — it leads until it's in.
+          The trend chart only earns its space once there are two months to
+          compare (one dot on an empty axis says nothing). */}
       <div className="rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
         <h2 className="font-heading mb-4 text-lg font-semibold text-au-ink">{t('submitTitle')}</h2>
         {hasSubmittedThisMonth ? <p className="text-sm text-au-muted">{t('submittedThisMonth')}</p> : <SubmitForm />}
       </div>
+
+      {submissions.length >= 2 && (
+        <SelfDevelopmentLineChart
+          points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+        />
+      )}
 
       {performance && (
         <div className={cn(GLASS_CARD, 'flex flex-wrap items-center gap-3 p-6')}>

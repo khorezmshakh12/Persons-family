@@ -452,7 +452,8 @@
         "author": "Muallif",
         "staff": "Xodim"
       }
-    }
+    },
+    "noIssuesHint": "Hozircha ochiq muammo yo'q. Biror narsa ishlamasa, «Yangi murojaat» orqali yuboring."
   },
   "lessonPlans": {
     "title": "Dars Reja Taxtasi",
@@ -884,7 +885,8 @@
     "groups": {
       "staff": "Xodimlar",
       "groups": "Guruhlar",
-      "issues": "Murojaatlar"
+      "issues": "Murojaatlar",
+      "pages": "Sahifalar"
     }
   },
   "export": {

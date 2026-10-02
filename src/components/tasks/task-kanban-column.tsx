@@ -1,5 +1,7 @@
 'use client';
 
+import { EmptyState } from '@/components/ui/empty-state';
+
 import { memo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { ChevronDown } from 'lucide-react';
@@ -99,7 +101,7 @@ function TaskKanbanColumnImpl({
             className="flex flex-col gap-3 min-w-0 w-full overflow-hidden"
           >
             {tasks.length === 0 ? (
-              <p className="text-sm text-au-muted px-2 py-2">{emptyLabel}</p>
+              <EmptyState compact title={emptyLabel} />
             ) : (
               tasks.map((task) => (
                 <TaskCard
