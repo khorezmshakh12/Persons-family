@@ -70,6 +70,9 @@ function DialogContent({
           // the default match. The auth pages style their own fields
           // explicitly and are unaffected.
           "fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl border border-au-line bg-au-card p-4 text-sm text-au-ink ring-1 ring-au-line duration-200 ease-snappy outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Phones: a bottom sheet — full width, anchored to the bottom edge
+          // above the home indicator, sliding up instead of zooming.
+          "max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:max-h-[90dvh] max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))] max-sm:data-open:zoom-in-100 max-sm:data-open:slide-in-from-bottom-8 max-sm:data-closed:zoom-out-100 max-sm:data-closed:slide-out-to-bottom-8",
           className
         )}
         {...props}

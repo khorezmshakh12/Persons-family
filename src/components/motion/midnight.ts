@@ -4,13 +4,18 @@
  * person's last light theme rather than always to Aurora.
  */
 import { currentTheme, lastLightTheme, setTheme, subscribeTheme, THEME_SWATCHES } from '@/lib/themes';
+import { setUiThemeAction } from '@/lib/actions/profile';
 
 export function isMidnight(): boolean {
   return THEME_SWATCHES[currentTheme()].dark;
 }
 
 export function setMidnight(on: boolean) {
-  setTheme(on ? 'midnight' : lastLightTheme());
+  const next = on ? 'midnight' : lastLightTheme();
+  setTheme(next);
+  // Saved on the profile too, or the next page load's server theme would
+  // undo the toggle.
+  void setUiThemeAction(next).catch(() => {});
 }
 
 export const subscribeMidnight = subscribeTheme;

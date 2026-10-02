@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from '@/i18n/navigation';
 import { NAV_ITEMS } from '@/lib/nav';
 import { getTelegramWebApp, isTelegramApp } from '@/lib/telegram-webapp';
+import { subscribeTheme } from '@/lib/themes';
 
 const ROOT_PATHS = new Set(['/', '/login', '/tg', '/set-password', ...NAV_ITEMS.map((i) => i.href)]);
 
@@ -25,6 +26,7 @@ export function TelegramBridge() {
   useEffect(() => {
     if (!isTelegramApp()) return;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
     void getTelegramWebApp().then((wa) => {
       if (!wa || cancelled) return;
       setSdkReady(true);
@@ -32,19 +34,31 @@ export function TelegramBridge() {
         wa.ready();
         wa.expand();
         if (wa.isVersionAtLeast('7.7')) wa.disableVerticalSwipes?.();
-        const bg = getComputedStyle(document.documentElement).getPropertyValue('--au-bg').trim();
-        const card = getComputedStyle(document.documentElement).getPropertyValue('--au-card').trim();
-        if (wa.isVersionAtLeast('6.1') && bg.startsWith('#')) {
-          wa.setHeaderColor(bg);
-          wa.setBackgroundColor(bg);
-        }
-        if (wa.isVersionAtLeast('7.10') && card.startsWith('#')) wa.setBottomBarColor?.(card);
       } catch {
         // an old Telegram client missing one of these — the page still works
       }
+      // Telegram's chrome follows the page colour — and again on every
+      // theme switch (lib/themes.ts flips data-theme on <html>).
+      const paint = () => {
+        try {
+          const css = getComputedStyle(document.documentElement);
+          const bg = css.getPropertyValue('--au-bg').trim();
+          const card = css.getPropertyValue('--au-card').trim();
+          if (wa.isVersionAtLeast('6.1') && bg.startsWith('#')) {
+            wa.setHeaderColor(bg);
+            wa.setBackgroundColor(bg);
+          }
+          if (wa.isVersionAtLeast('7.10') && card.startsWith('#')) wa.setBottomBarColor?.(card);
+        } catch {
+          // old client
+        }
+      };
+      paint();
+      if (!cancelled) unsubscribe = subscribeTheme(paint);
     });
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, []);
 

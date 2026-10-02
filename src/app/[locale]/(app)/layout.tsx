@@ -143,7 +143,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // untouched; it only scopes the [data-motion] CSS (globals.css).
   return (
     <div className="contents" data-motion={motion ? 'on' : undefined}>
-      <ThemeBoot />
+      <ThemeBoot serverTheme={profile!.ui_theme} />
       <IntroSplash motion={motion} />
       {motion && <MotionRoot />}
       <AppShell

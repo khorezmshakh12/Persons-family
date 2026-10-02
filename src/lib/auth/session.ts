@@ -9,6 +9,8 @@ import { isSessionRevoked } from "@/lib/auth/session-revocation";
 
 export interface Profile {
   id: string;
+  /** Chosen UI theme (lib/themes.ts); null/absent = Aurora. */
+  ui_theme?: string | null;
   phone: string;
   first_name: string;
   last_name: string;
