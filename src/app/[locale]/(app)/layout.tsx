@@ -9,6 +9,7 @@ import { isMarketEditor } from '@/lib/market-editors';
 import { AppShell } from '@/components/app-shell/app-shell';
 import { IntroSplash } from '@/components/brand/intro-splash';
 import { MotionRoot } from '@/components/motion/motion-root';
+import { ThemeBoot } from '@/components/theme/theme-boot';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
@@ -142,6 +143,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // untouched; it only scopes the [data-motion] CSS (globals.css).
   return (
     <div className="contents" data-motion={motion ? 'on' : undefined}>
+      <ThemeBoot />
       <IntroSplash motion={motion} />
       {motion && <MotionRoot />}
       <AppShell

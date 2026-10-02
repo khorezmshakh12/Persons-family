@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-import { applyMidnight, readMidnightPref } from './midnight';
 import { useTilt } from './use-tilt';
 import { useConfetti } from './use-confetti';
 import { ScrollProgress } from './scroll-progress';
@@ -14,14 +12,6 @@ import { DynamicIsland } from './dynamic-island';
  * never hide real UI.
  */
 export function MotionLayer() {
-  useEffect(() => {
-    // Sync with the stored choice (covers client-side arrivals where the
-    // inline boot script didn't run), and leave <html> clean on unmount so
-    // a different user signing in on this browser never inherits midnight.
-    applyMidnight(readMidnightPref());
-    return () => applyMidnight(false);
-  }, []);
-
   useTilt();
   useConfetti();
 

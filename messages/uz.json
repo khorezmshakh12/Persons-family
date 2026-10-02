@@ -1648,12 +1648,51 @@
   },
   "themeSettings": {
     "title": "Mavzu",
-    "description": "Platformaning ko‘rinishi.",
-    "aurora": "Aurora",
-    "auroraHint": "Yorqin, iliq — standart mavzu.",
-    "dark": "Qorong‘i",
-    "soon": "Tez orada",
-    "active": "Faol"
+    "description": "Platformaning ko‘rinishi va harakatlari. Tanlov shu qurilmada saqlanadi.",
+    "active": "Faol",
+    "motionLabel": "Harakat",
+    "themes": {
+      "aurora": {
+        "name": "Aurora",
+        "hint": "Yorqin, iliq — standart mavzu.",
+        "motion": "Yumshoq prujina"
+      },
+      "shimol": {
+        "name": "Shimol",
+        "hint": "Toza, sovuq ko‘k — korporativ.",
+        "motion": "Tez va aniq"
+      },
+      "midnight": {
+        "name": "Tun",
+        "hint": "Qorong‘i, to‘q sariq nur bilan.",
+        "motion": "Sokin nur"
+      },
+      "zumrad": {
+        "name": "Zumrad",
+        "hint": "Tinch yashil, yumaloq shakllar.",
+        "motion": "Prujinali, jonli"
+      },
+      "qum": {
+        "name": "Qum",
+        "hint": "Klassik: serif sarlavhalar, o‘tkir burchaklar.",
+        "motion": "Sekin, nafis"
+      },
+      "grafit": {
+        "name": "Grafit",
+        "hint": "Oq-qora minimalizm, binafsha aksent.",
+        "motion": "Bir zumda, qat’iy"
+      },
+      "lola": {
+        "name": "Lola",
+        "hint": "Iliq pushti, quvnoq.",
+        "motion": "O‘ynoqi sakrash"
+      },
+      "okean": {
+        "name": "Okean",
+        "hint": "To‘q ko‘k qorong‘i, moviy nur.",
+        "motion": "To‘lqinsimon, sekin"
+      }
+    }
   },
   "motion": {
     "midnight": "Tungi rejim",

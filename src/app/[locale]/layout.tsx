@@ -1,5 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist_Mono, Instrument_Serif, Inter } from 'next/font/google';
+import {
+  DM_Sans,
+  Geist,
+  Geist_Mono,
+  Instrument_Serif,
+  Inter,
+  Manrope,
+  Plus_Jakarta_Sans,
+  Space_Grotesk,
+} from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { hasLocale } from 'next-intl';
@@ -29,14 +38,23 @@ const geistMono = Geist_Mono({
   subsets: ['latin', 'latin-ext', 'cyrillic'],
 });
 
-// Display face for the hero's italic name accent only (`font-display
-// italic`) — never used anywhere else.
+// Display face for the hero's italic name accent (`font-display italic`),
+// and the Qum theme's headings (themes.css).
 const instrumentSerif = Instrument_Serif({
   variable: '--font-instrument-serif',
   subsets: ['latin', 'latin-ext'],
   weight: '400',
   style: ['normal', 'italic'],
 });
+
+// Theme faces (src/app/themes.css). preload: false — the CSS only names a
+// face under its own html[data-theme], so Aurora users never download them.
+const jakarta = Plus_Jakarta_Sans({ variable: '--font-jakarta', subsets: ['latin', 'latin-ext'], preload: false, display: 'swap' });
+const manrope = Manrope({ variable: '--font-manrope', subsets: ['latin', 'latin-ext'], preload: false, display: 'swap' });
+const geist = Geist({ variable: '--font-geist', subsets: ['latin', 'latin-ext'], preload: false, display: 'swap' });
+const dmSans = DM_Sans({ variable: '--font-dm-sans', subsets: ['latin', 'latin-ext'], preload: false, display: 'swap' });
+const spaceGrotesk = Space_Grotesk({ variable: '--font-space-grotesk', subsets: ['latin', 'latin-ext'], preload: false, display: 'swap' });
+const themeFontVars = [jakarta, manrope, geist, dmSans, spaceGrotesk].map((f) => f.variable).join(' ');
 
 // viewport-fit=cover lets the installed app / Telegram draw under the
 // notch; the shell pads itself with env(safe-area-inset-*) (globals.css).
@@ -123,7 +141,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${inter.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} ${instrumentSerif.variable} ${themeFontVars} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">

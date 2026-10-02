@@ -1648,12 +1648,51 @@
   },
   "themeSettings": {
     "title": "Theme",
-    "description": "How the platform looks.",
-    "aurora": "Aurora",
-    "auroraHint": "Bright and warm — the default theme.",
-    "dark": "Dark",
-    "soon": "Coming soon",
-    "active": "Active"
+    "description": "How the platform looks and moves. Saved on this device.",
+    "active": "Active",
+    "motionLabel": "Motion",
+    "themes": {
+      "aurora": {
+        "name": "Aurora",
+        "hint": "Bright and warm — the default theme.",
+        "motion": "Soft spring"
+      },
+      "shimol": {
+        "name": "Shimol",
+        "hint": "Clean, cool blue — corporate.",
+        "motion": "Quick and crisp"
+      },
+      "midnight": {
+        "name": "Tun",
+        "hint": "Dark, with an apricot glow.",
+        "motion": "Calm glow"
+      },
+      "zumrad": {
+        "name": "Zumrad",
+        "hint": "Calm green, rounded shapes.",
+        "motion": "Springy, lively"
+      },
+      "qum": {
+        "name": "Qum",
+        "hint": "Classic: serif headings, sharp corners.",
+        "motion": "Slow, elegant"
+      },
+      "grafit": {
+        "name": "Grafit",
+        "hint": "Black-and-white minimal, violet accent.",
+        "motion": "Instant, strict"
+      },
+      "lola": {
+        "name": "Lola",
+        "hint": "Warm rose, playful.",
+        "motion": "Playful bounce"
+      },
+      "okean": {
+        "name": "Okean",
+        "hint": "Deep navy dark, cyan glow.",
+        "motion": "Wavelike, unhurried"
+      }
+    }
   },
   "motion": {
     "midnight": "Night mode",

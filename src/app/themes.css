@@ -1,0 +1,522 @@
+/* =========================================================================
+   PERSONS THEMES — html[data-theme="<id>"] (ids: src/lib/themes.ts)
+
+   Each theme re-points the Aurora tokens (aurora.css) and carries its own
+   motion profile. Aurora itself sets no attribute, so nothing here touches
+   it. Midnight ("Tun") keeps its tokens in motion.css (it predates this
+   file); its motion profile lives here with the others.
+
+   SAFETY RULE (same as motion.css / globals.css fade-in-up): every keyframe
+   below is TRANSFORM-ONLY. A stalled `both`-fill animation must leave the
+   element slightly offset, never invisible. Do not add opacity to them.
+   ========================================================================= */
+
+/* ---------- 1 · Shimol — cool, crisp, corporate blue -------------------- */
+html[data-theme='shimol'] {
+  --au-bg: #f2f4f8;
+  --au-sidebar: #ffffff;
+  --au-card: #ffffff;
+  --au-card-2: #f2f5fa;
+  --au-line: #e2e7ef;
+  --au-ink: #0f172a;
+  --au-muted: #5b6474;
+  --au-faint: #9aa3b2;
+  --au-accent: #2563eb;
+  --au-accent-ink: #ffffff;
+  --au-accent-text: #1d4ed8;
+  --au-accent-soft: rgba(37, 99, 235, 0.12);
+  --au-primary: #2563eb;
+  --au-primary-ink: #ffffff;
+  --au-ok: #15803d;
+  --au-info: #1d4ed8;
+  --au-bad: #c2410c;
+  --au-ok-soft: rgba(21, 128, 61, 0.1);
+  --au-info-soft: rgba(29, 78, 216, 0.1);
+  --au-bad-soft: rgba(194, 65, 12, 0.1);
+  --au-chart-1: #2563eb;
+  --au-chart-2: #60a5fa;
+  --au-chart-3: #0f172a;
+  --au-chart-4: #e6ebf3;
+  --au-ring-track: rgba(15, 23, 42, 0.08);
+  --au-hero:
+    radial-gradient(60% 90% at 90% 10%, #cfe0ff 0%, transparent 60%),
+    radial-gradient(50% 80% at 70% 100%, #dbeafe 0%, transparent 60%), linear-gradient(135deg, #f8fbff, #eef3fb);
+  --au-podium: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  --au-radius-card: 14px;
+  --au-radius-ctl: 8px;
+  --au-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px -14px rgba(15, 23, 42, 0.12);
+  --au-shadow-card-hover: 0 1px 2px rgba(15, 23, 42, 0.06), 0 16px 32px -14px rgba(37, 99, 235, 0.25);
+  --au-shadow-btn: 0 8px 20px -10px rgba(37, 99, 235, 0.6);
+  --au-font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --au-m-enter: au-enter-slide;
+  --au-m-dur: 0.32s;
+  --au-m-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --au-m-fast: 0.14s;
+  --au-m-lift: -2px;
+  --au-m-press: 0.97;
+}
+
+/* ---------- 3 · Zumrad — calm green, soft and rounded ------------------- */
+html[data-theme='zumrad'] {
+  --au-bg: #eef5f1;
+  --au-sidebar: #f7faf8;
+  --au-card: #ffffff;
+  --au-card-2: #eef5f1;
+  --au-line: #d9e7df;
+  --au-ink: #0f2a20;
+  --au-muted: #4f6b5f;
+  --au-faint: #93ab9f;
+  --au-accent: #0f9d6b;
+  --au-accent-ink: #ffffff;
+  --au-accent-text: #0b7a53;
+  --au-accent-soft: rgba(15, 157, 107, 0.13);
+  --au-primary: #0f2a20;
+  --au-primary-ink: #ffffff;
+  --au-ok: #0b7a53;
+  --au-info: #1f5fb5;
+  --au-bad: #c2410c;
+  --au-ok-soft: rgba(15, 157, 107, 0.12);
+  --au-info-soft: rgba(31, 95, 181, 0.1);
+  --au-bad-soft: rgba(194, 65, 12, 0.1);
+  --au-chart-1: #0f9d6b;
+  --au-chart-2: #f59e0b;
+  --au-chart-3: #0f2a20;
+  --au-chart-4: #e3eee8;
+  --au-ring-track: rgba(15, 42, 32, 0.08);
+  --au-hero:
+    radial-gradient(60% 90% at 90% 10%, #bfead6 0%, transparent 60%),
+    radial-gradient(50% 80% at 70% 100%, #fde7b0 0%, transparent 60%), linear-gradient(135deg, #f5fbf8, #e6f4ec);
+  --au-podium: linear-gradient(180deg, #10b981, #047857);
+  --au-radius-card: 24px;
+  --au-radius-ctl: 14px;
+  --au-shadow-card: 0 1px 2px rgba(15, 42, 32, 0.05), 0 14px 30px -16px rgba(15, 42, 32, 0.16);
+  --au-shadow-card-hover: 0 1px 2px rgba(15, 42, 32, 0.06), 0 22px 40px -16px rgba(15, 157, 107, 0.3);
+  --au-shadow-btn: 0 10px 24px -12px rgba(15, 42, 32, 0.55);
+  --au-font-sans: var(--font-manrope), 'Manrope', system-ui, sans-serif;
+  --au-m-enter: au-enter-spring;
+  --au-m-dur: 0.6s;
+  --au-m-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --au-m-fast: 0.35s;
+  --au-m-lift: -3px;
+  --au-m-press: 0.95;
+}
+
+/* ---------- 4 · Qum — editorial, serif headings, quiet and slow --------- */
+html[data-theme='qum'] {
+  --au-bg: #f6f1e8;
+  --au-sidebar: #f6f1e8;
+  --au-card: #fffdf8;
+  --au-card-2: #efe7da;
+  --au-line: #e3d7c4;
+  --au-ink: #231c15;
+  --au-muted: #6e6253;
+  --au-faint: #a99c89;
+  --au-accent: #c2410c;
+  --au-accent-ink: #ffffff;
+  --au-accent-text: #9a3412;
+  --au-accent-soft: rgba(194, 65, 12, 0.11);
+  --au-primary: #231c15;
+  --au-primary-ink: #fffdf8;
+  --au-ok: #3f7d3a;
+  --au-info: #3b5b8c;
+  --au-bad: #b42318;
+  --au-ok-soft: rgba(63, 125, 58, 0.12);
+  --au-info-soft: rgba(59, 91, 140, 0.1);
+  --au-bad-soft: rgba(180, 35, 24, 0.1);
+  --au-chart-1: #c2410c;
+  --au-chart-2: #d4a373;
+  --au-chart-3: #231c15;
+  --au-chart-4: #ece2d2;
+  --au-ring-track: rgba(35, 28, 21, 0.08);
+  --au-hero: linear-gradient(135deg, #fbf6ed, #f2e8d8);
+  --au-podium: linear-gradient(180deg, #c2410c, #7c2d12);
+  --au-radius-card: 6px;
+  --au-radius-ctl: 4px;
+  --au-shadow-card: 0 1px 0 rgba(35, 28, 21, 0.04);
+  --au-shadow-card-hover: 0 1px 0 rgba(35, 28, 21, 0.06), 0 10px 24px -16px rgba(35, 28, 21, 0.3);
+  --au-shadow-btn: none;
+  --au-m-enter: au-enter-rise;
+  --au-m-dur: 0.8s;
+  --au-m-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --au-m-fast: 0.3s;
+  --au-m-lift: 0px;
+  --au-m-press: 0.985;
+}
+/* Headings in the editorial serif already loaded for the hero accent
+   (a variable serif stalled rendering here — keep it a static face). */
+html[data-theme='qum'] :is(h1, h2, .font-heading) {
+  font-family: var(--au-font-display);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* ---------- 5 · Grafit — monochrome, sharp, instant --------------------- */
+html[data-theme='grafit'] {
+  --au-bg: #ffffff;
+  --au-sidebar: #fafafa;
+  --au-card: #ffffff;
+  --au-card-2: #f4f4f5;
+  --au-line: #e4e4e7;
+  --au-ink: #09090b;
+  --au-muted: #5f5f67;
+  --au-faint: #a1a1aa;
+  --au-accent: #5b4cf0;
+  --au-accent-ink: #ffffff;
+  --au-accent-text: #4636d6;
+  --au-accent-soft: rgba(91, 76, 240, 0.1);
+  --au-primary: #09090b;
+  --au-primary-ink: #ffffff;
+  --au-ok: #15803d;
+  --au-info: #4636d6;
+  --au-bad: #dc2626;
+  --au-ok-soft: rgba(21, 128, 61, 0.1);
+  --au-info-soft: rgba(70, 54, 214, 0.1);
+  --au-bad-soft: rgba(220, 38, 38, 0.09);
+  --au-chart-1: #5b4cf0;
+  --au-chart-2: #a1a1aa;
+  --au-chart-3: #09090b;
+  --au-chart-4: #f0f0f2;
+  --au-ring-track: rgba(9, 9, 11, 0.08);
+  --au-hero: linear-gradient(135deg, #fafafa, #f1f0fe);
+  --au-podium: linear-gradient(180deg, #27272a, #09090b);
+  --au-radius-card: 10px;
+  --au-radius-ctl: 6px;
+  --au-shadow-card: none;
+  --au-shadow-card-hover: 0 0 0 1px #09090b;
+  --au-shadow-btn: none;
+  --au-font-sans: var(--font-geist), 'Geist', system-ui, sans-serif;
+  --au-m-enter: au-enter-snap;
+  --au-m-dur: 0.2s;
+  --au-m-ease: cubic-bezier(0.2, 0, 0, 1);
+  --au-m-fast: 0.08s;
+  --au-m-lift: 0px;
+  --au-m-press: 0.98;
+}
+
+/* ---------- 6 · Lola — warm rose, playful ------------------------------- */
+html[data-theme='lola'] {
+  --au-bg: #faf2f4;
+  --au-sidebar: #fdf7f8;
+  --au-card: #ffffff;
+  --au-card-2: #f8eaee;
+  --au-line: #f0dde3;
+  --au-ink: #2a1520;
+  --au-muted: #6f5561;
+  --au-faint: #b39aa5;
+  --au-accent: #d6336c;
+  --au-accent-ink: #ffffff;
+  --au-accent-text: #b0234f;
+  --au-accent-soft: rgba(214, 51, 108, 0.12);
+  --au-primary: #2a1520;
+  --au-primary-ink: #ffffff;
+  --au-ok: #1a7f4b;
+  --au-info: #6d3fc4;
+  --au-bad: #c2261f;
+  --au-ok-soft: rgba(26, 127, 75, 0.1);
+  --au-info-soft: rgba(109, 63, 196, 0.1);
+  --au-bad-soft: rgba(194, 38, 31, 0.1);
+  --au-chart-1: #d6336c;
+  --au-chart-2: #f59fb8;
+  --au-chart-3: #2a1520;
+  --au-chart-4: #f6e6eb;
+  --au-ring-track: rgba(42, 21, 32, 0.08);
+  --au-hero:
+    radial-gradient(60% 90% at 90% 10%, #ffd0de 0%, transparent 60%),
+    radial-gradient(50% 80% at 70% 100%, #e9d5ff 0%, transparent 60%), linear-gradient(135deg, #fff5f8, #fbe7ee);
+  --au-podium: linear-gradient(180deg, #ec4899, #be185d);
+  --au-radius-card: 22px;
+  --au-radius-ctl: 14px;
+  --au-shadow-card: 0 1px 2px rgba(42, 21, 32, 0.04), 0 14px 32px -16px rgba(214, 51, 108, 0.2);
+  --au-shadow-card-hover: 0 1px 2px rgba(42, 21, 32, 0.05), 0 22px 44px -16px rgba(214, 51, 108, 0.35);
+  --au-shadow-btn: 0 10px 24px -10px rgba(214, 51, 108, 0.55);
+  --au-font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --au-m-enter: au-enter-pop;
+  --au-m-dur: 0.5s;
+  --au-m-ease: cubic-bezier(0.34, 1.7, 0.64, 1);
+  --au-m-fast: 0.3s;
+  --au-m-lift: -3px;
+  --au-m-press: 0.93;
+}
+
+/* ---------- 7 · Okean — deep navy dark, cyan glow, slow waves ----------- */
+html[data-theme='okean'] {
+  color-scheme: dark;
+  --au-bg: #08111f;
+  --au-sidebar: #0b1626;
+  --au-card: #0f1b2e;
+  --au-card-2: #16243a;
+  --au-line: #1f3048;
+  --au-ink: #e6f0fb;
+  --au-muted: #93a6c0;
+  --au-faint: #5d7190;
+  --au-accent: #22d3ee;
+  --au-accent-ink: #04202a;
+  --au-accent-text: #67e8f9;
+  --au-accent-soft: rgba(34, 211, 238, 0.14);
+  --au-primary: #22d3ee;
+  --au-primary-ink: #04202a;
+  --au-ok: #4ade80;
+  --au-info: #7cb9ff;
+  --au-bad: #fb7185;
+  --au-ok-soft: rgba(74, 222, 128, 0.14);
+  --au-info-soft: rgba(124, 185, 255, 0.14);
+  --au-bad-soft: rgba(251, 113, 133, 0.15);
+  --au-chart-1: #22d3ee;
+  --au-chart-2: #818cf8;
+  --au-chart-3: #e6f0fb;
+  --au-chart-4: #1c2c44;
+  --au-ring-track: rgba(255, 255, 255, 0.1);
+  --au-hero:
+    radial-gradient(60% 90% at 90% 10%, rgba(34, 211, 238, 0.3) 0%, transparent 60%),
+    radial-gradient(50% 80% at 70% 100%, rgba(129, 140, 248, 0.25) 0%, transparent 60%),
+    linear-gradient(135deg, #0c1a2e, #0a1424);
+  --au-podium: linear-gradient(180deg, #22d3ee, #0e7490);
+  --au-radius-card: 18px;
+  --au-radius-ctl: 10px;
+  --au-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --au-shadow-card-hover: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 0 0 1px rgba(34, 211, 238, 0.3),
+    0 22px 48px -18px rgba(34, 211, 238, 0.25);
+  --au-shadow-btn: 0 10px 30px -10px rgba(34, 211, 238, 0.5);
+  --au-font-sans: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  --au-m-enter: au-enter-wave;
+  --au-m-dur: 0.9s;
+  --au-m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --au-m-fast: 0.25s;
+  --au-m-lift: -2px;
+  --au-m-press: 0.97;
+}
+
+/* ---------- 2 · Tun (midnight) — tokens in motion.css; motion here ------ */
+html[data-theme='midnight'] {
+  --au-m-enter: au-enter-glow;
+  --au-m-dur: 0.6s;
+  --au-m-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --au-m-fast: 0.2s;
+  --au-m-lift: -2px;
+  --au-m-press: 0.97;
+}
+
+/* ---------- Shared fixes for every non-Aurora theme --------------------- */
+/* Primary buttons hard-code text-white; on a light primary (Okean's cyan)
+   that would be unreadable, so they follow the theme's primary ink. */
+html[data-theme] .bg-au-primary {
+  color: var(--au-primary-ink);
+}
+html[data-theme] .bg-au-primary:hover {
+  background-color: color-mix(in srgb, var(--au-primary) 88%, var(--au-ink));
+}
+html[data-theme] .focus-visible\:ring-black\/15:focus-visible {
+  --tw-ring-color: color-mix(in srgb, var(--au-accent) 45%, transparent);
+}
+
+/* Okean is dark: the same light-surface fixes midnight has (motion.css). */
+html[data-theme='okean'] .bg-white {
+  background-color: var(--au-card);
+}
+html[data-theme='okean'] .bg-white\/70,
+html[data-theme='okean'] .bg-white\/60,
+html[data-theme='okean'] .bg-white\/40 {
+  background-color: color-mix(in srgb, var(--au-card) 80%, transparent);
+}
+html[data-theme='okean'] .hover\:bg-white:hover {
+  background-color: var(--au-card-2);
+}
+html[data-theme='okean'] .text-black {
+  color: var(--au-ink);
+}
+html[data-theme='okean'] .recharts-cartesian-axis-tick-value,
+html[data-theme='okean'] .recharts-legend-item-text {
+  fill: var(--au-muted);
+  color: var(--au-muted) !important;
+}
+html[data-theme='okean'] .recharts-cartesian-grid line,
+html[data-theme='okean'] .recharts-cartesian-axis-line {
+  stroke: var(--au-line);
+}
+html[data-theme='okean'] .recharts-default-tooltip {
+  background-color: var(--au-card) !important;
+  border-color: var(--au-line) !important;
+  color: var(--au-ink);
+}
+html[data-theme='okean'] ::-webkit-scrollbar-thumb {
+  background: #1f3048;
+}
+html[data-theme='okean'] :focus-visible {
+  outline-color: rgba(103, 232, 249, 0.5);
+}
+
+/* =========================================================================
+   MOTION PROFILES — only when the person hasn't asked for reduced motion.
+   Each theme feeds the same hooks (.animate-fade-in-up, .btn-motion,
+   .nav-motion, interactive cards) with its own keyframe, timing and feel.
+   ========================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+  /* Entrance: the theme's own keyframe, duration and curve. */
+  html[data-theme] .animate-fade-in-up {
+    animation: var(--au-m-enter) var(--au-m-dur) both var(--au-m-ease);
+  }
+
+  /* Buttons: theme timing on hover, theme-specific squeeze on press. */
+  html[data-theme] .btn-motion {
+    transition:
+      transform var(--au-m-fast) var(--au-m-ease),
+      background-color var(--au-m-fast) ease,
+      color var(--au-m-fast) ease,
+      box-shadow var(--au-m-fast) ease;
+  }
+  html[data-theme] .btn-motion:active {
+    transform: scale(var(--au-m-press));
+  }
+
+  /* Clickable cards: lift by the theme's amount (0 = stays put). */
+  html[data-theme] .cursor-pointer.hover\:shadow-au-card-hover {
+    transition:
+      transform var(--au-m-fast) var(--au-m-ease),
+      box-shadow var(--au-m-fast) ease,
+      border-color var(--au-m-fast) ease;
+  }
+  html[data-theme] .cursor-pointer.hover\:shadow-au-card-hover:hover {
+    transform: translateY(var(--au-m-lift));
+  }
+
+  /* Sidebar items glide in the theme's timing. */
+  html[data-theme] .nav-motion {
+    transition:
+      background-color var(--au-m-fast) ease,
+      color var(--au-m-fast) ease,
+      transform var(--au-m-fast) var(--au-m-ease);
+  }
+
+  /* --- Signatures: one small thing each theme does that others don't --- */
+
+  /* Shimol: active sidebar item slides in a few px, like a ledger tab. */
+  html[data-theme='shimol'] .nav-motion:hover {
+    transform: translateX(2px);
+  }
+
+  /* Tun: cards answer the pointer with a soft apricot glow. */
+  html[data-theme='midnight'] .cursor-pointer.hover\:shadow-au-card-hover:hover {
+    box-shadow:
+      0 0 0 1px rgba(255, 159, 28, 0.28),
+      0 18px 44px -16px rgba(255, 159, 28, 0.3);
+  }
+
+  /* Zumrad: buttons breathe — a springy grow on hover. */
+  html[data-theme='zumrad'] .btn-motion:hover {
+    transform: scale(1.03);
+  }
+  html[data-theme='zumrad'] .btn-motion:active {
+    transform: scale(var(--au-m-press));
+  }
+
+  /* Qum: links get a slow underline that draws in from the left. */
+  html[data-theme='qum'] main a:not([class*='rounded']):not([class*='inline-flex']) {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.5s var(--au-m-ease);
+  }
+  html[data-theme='qum'] main a:not([class*='rounded']):not([class*='inline-flex']):hover {
+    background-size: 100% 1px;
+  }
+
+  /* Grafit: no movement at all on hover — an ink outline snaps on instead. */
+  html[data-theme='grafit'] .nav-motion:hover {
+    box-shadow: inset 2px 0 0 var(--au-ink);
+  }
+
+  /* Lola: a playful wobble on button press and a tilt on card hover. */
+  html[data-theme='lola'] .btn-motion:active {
+    animation: au-lola-wobble 0.45s var(--au-m-ease);
+  }
+  html[data-theme='lola'] .cursor-pointer.hover\:shadow-au-card-hover:hover {
+    transform: translateY(var(--au-m-lift)) rotate(-0.4deg);
+  }
+
+  /* Okean: the hero breathes like a slow tide. */
+  html[data-theme='okean'] .bg-au-hero {
+    background-size: 140% 140%;
+    animation: au-okean-tide 14s ease-in-out infinite alternate;
+  }
+}
+
+/* ---------- Keyframes (transform-only — see the safety rule above) ------ */
+@keyframes au-enter-slide {
+  from {
+    transform: translateY(6px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-enter-glow {
+  from {
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-enter-spring {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-enter-rise {
+  from {
+    transform: translateY(16px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-enter-snap {
+  from {
+    transform: translateX(-8px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-enter-pop {
+  from {
+    transform: scale(0.9) rotate(-1.2deg);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-enter-wave {
+  from {
+    transform: translateY(18px) skewY(1.2deg);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes au-lola-wobble {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(0.92) rotate(-2deg);
+  }
+  60% {
+    transform: scale(1.04) rotate(1.5deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes au-okean-tide {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 100% 100%;
+  }
+}
