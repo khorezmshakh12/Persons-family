@@ -4,6 +4,7 @@ import { isTelegramConfigured } from '@/lib/telegram';
 import { BroadcastForm } from '@/components/telegram/broadcast-form';
 import { WebhookRegisterButton } from '@/components/telegram/webhook-register-button';
 import { cn } from '@/lib/utils';
+import { Page, PageHeader } from '@/components/app-shell/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,8 @@ export default async function TelegramSetupPage() {
   const configured = isTelegramConfigured();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <div className="relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 text-au-ink sm:px-[30px] sm:py-7">
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
-          {t('title')}
-        </h1>
-        <p className="mt-1 text-au-muted">{t('subtitle')}</p>
-      </div>
+    <Page width="narrow">
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       <div className="flex flex-col gap-4 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
         <div className="flex items-center gap-2">
@@ -47,6 +43,6 @@ export default async function TelegramSetupPage() {
         </div>
         <BroadcastForm />
       </div>
-    </div>
+    </Page>
   );
 }

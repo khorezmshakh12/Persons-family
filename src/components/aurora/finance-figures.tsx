@@ -31,7 +31,7 @@ export function FinanceFigures({
     <>
       <div className="flex items-end gap-3">
         <div className="min-w-0">
-          <div className="font-display text-[44px] leading-[44px] tracking-[-0.02em] text-au-ink tabular-nums sm:text-[52px] sm:leading-[52px]">
+          <div className="text-[36px] leading-[40px] font-bold tracking-tight text-au-ink tabular-nums sm:text-[42px] sm:leading-[46px]">
             {show(headline)}
           </div>
           <div className="mt-1 text-xs font-medium text-au-muted">{headlineCaption}</div>

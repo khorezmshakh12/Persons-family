@@ -9,6 +9,7 @@ import type { StaffRole } from '@/lib/nav';
 import { PersonsLogo } from '@/components/brand/persons-logo';
 import { SidebarNav } from './sidebar-nav';
 import { UserBadge } from './user-badge';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 export type SidebarGoal = { title: string; progress: number };
 
@@ -104,6 +105,8 @@ export function SidebarPanel({
         <Link href="/profile" onClick={onNavigate} className="min-w-0 flex-1">
           <UserBadge userId={userId} nameClassName="font-semibold text-au-ink text-[13px]" subtitle={roleLabel} />
         </Link>
+        {/* Language lives here, not in the top bar — it is set once. */}
+        <LanguageSwitcher compact />
         <form action={logoutAction}>
           <button
             type="submit"

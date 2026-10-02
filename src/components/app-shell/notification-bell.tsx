@@ -339,7 +339,24 @@ export function NotificationBell({
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="end" sideOffset={10} className="z-50 outline-none">
             <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-80 max-w-[90vw] flex-col gap-3 p-4')}>
-              <h3 className="text-sm font-semibold text-au-ink">{t('title')}</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-au-ink">{t('title')}</h3>
+                {/* Per-device sound switch, kept inside the notifications
+                    panel it belongs to, so the top bar stays short. Sound is
+                    on by default, and the choice lives in localStorage rather
+                    than on the profile row because it is about *this*
+                    device's speakers, not about the person. */}
+                <button
+                  type="button"
+                  onClick={toggleMuted}
+                  aria-pressed={muted}
+                  aria-label={muted ? t('unmuteSound') : t('muteSound')}
+                  title={muted ? t('unmuteSound') : t('muteSound')}
+                  className="tap-scale flex size-8 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
+                >
+                  {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                </button>
+              </div>
               {totalCount === 0 ? (
                 <p className="text-sm text-au-muted">{t('empty')}</p>
               ) : (
@@ -451,22 +468,6 @@ export function NotificationBell({
         </PopoverPrimitive.Portal>
       </PopoverPrimitive.Root>
 
-      {/* Per-device sound switch, sitting right next to the thing it
-          silences so it is findable the first time the chime surprises
-          someone. Sound is on by default, and the choice lives in
-          localStorage rather than on the profile row because it is about
-          *this* device's speakers - a shared front-desk machine, a laptop in
-          a quiet staff room - not about the person. */}
-      <button
-        type="button"
-        onClick={toggleMuted}
-        aria-pressed={muted}
-        aria-label={muted ? t('unmuteSound') : t('muteSound')}
-        title={muted ? t('unmuteSound') : t('muteSound')}
-        className="tap-scale flex size-8 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
-      >
-        {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-      </button>
     </div>
   );
 }

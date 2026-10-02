@@ -35,42 +35,45 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
     },
   ];
 
+  // Months with nothing raised or resolved are noise.
+  const months = byMonth.filter((m) => m.created > 0 || m.resolved > 0);
+
   return (
-    <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
+    <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-5')}>
       <div>
-        <h2 className="font-heading text-lg font-semibold text-au-ink">
-          {t('title')}
-        </h2>
-        <p className="mt-1 text-sm text-au-muted">{t('subtitle')}</p>
+        <h2 className="text-base font-semibold text-au-ink">{t('title')}</h2>
+        <p className="mt-0.5 text-sm text-au-muted">{t('subtitle')}</p>
       </div>
 
-      {/* Top strip: stat tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map((tile) => (
-          <div
-            key={tile.key}
-            className="flex flex-col gap-1 rounded-xl bg-au-card-2 px-3 py-3"
-          >
-            <span className="text-2xl font-bold tracking-tight text-au-ink">{tile.value}</span>
+          <div key={tile.key} className="flex flex-col gap-0.5 rounded-xl bg-au-card-2 px-3 py-2.5">
+            <span className="text-xl font-bold tracking-tight text-au-ink tabular-nums">{tile.value}</span>
             <span className="text-xs text-au-muted">{t(`tiles.${tile.key}`)}</span>
           </div>
         ))}
       </div>
 
+      {/* The breakdowns stay one click away instead of pushing the page down. */}
+      <details className="group">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-au-muted select-none hover:text-au-ink [&::-webkit-details-marker]:hidden">
+          <span className="inline-block transition-transform group-open:rotate-90">›</span> {t('byMonth')} · {t('byRole')}
+        </summary>
+        <div className="mt-3 flex flex-col gap-5">
       {/* 6-month section */}
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold tracking-tight text-au-ink">{t('byMonth')}</h3>
-        {byMonth.length === 0 ? (
+        {months.length === 0 ? (
           <p className="text-sm text-au-muted">{t('noData')}</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {byMonth.map((month) => (
+            {months.map((month) => (
               <li key={month.monthKey} className="flex items-center gap-3 text-xs">
                 <span className="w-20 shrink-0 capitalize text-au-ink">{month.label}</span>
                 <span className="w-28 shrink-0 text-au-muted">
                   {t('monthCounts', { created: month.created, resolved: month.resolved })}
                 </span>
-                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-au-card">
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-au-card-2">
                   <div
                     className="absolute inset-y-0 left-0 rounded-full bg-emerald-400/80"
                     style={{ width: `${month.resolutionRate}%` }}
@@ -115,6 +118,8 @@ export function IssuesStats({ stats }: { stats: IssueStats | null }) {
           </ul>
         )}
       </section>
+        </div>
+      </details>
     </div>
   );
 }

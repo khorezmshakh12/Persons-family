@@ -32,7 +32,7 @@ export async function MonthTop3({ month, people, viewerId }: { month: string; pe
           <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-au-accent-text uppercase">
             <Trophy className="size-4" strokeWidth={1.75} aria-hidden /> {t('eyebrow')}
           </div>
-          <h2 className="mt-1.5 font-display text-[26px] leading-tight font-bold text-au-ink sm:text-[30px]">
+          <h2 className="mt-1.5 text-[22px] leading-tight font-bold tracking-tight text-au-ink sm:text-[24px]">
             {t('title', { month: monthName })}
           </h2>
           <p className="mt-1.5 text-sm text-au-muted">{mine ? t('youAreIn', { rank: mine.rank }) : t('subtitle', { month: monthName })}</p>

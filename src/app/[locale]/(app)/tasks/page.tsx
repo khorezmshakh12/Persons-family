@@ -9,6 +9,7 @@ import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskStats } from '@/components/tasks/task-stats';
 import { MarkTasksSeen } from '@/components/tasks/mark-tasks-seen';
 import { CoreFrame } from '@/components/core/core-frame';
+import { Page, PageHeader } from '@/components/app-shell/page';
 import { Link } from '@/i18n/navigation';
 import { coreViews } from '@/lib/core-state';
 
@@ -101,16 +102,11 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+    <Page>
       <MarkTasksSeen />
-      <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
-          {t('title')}
-        </h1>
-        {isAdmin && <AssignTaskDialog assignees={assignees} />}
-      </div>
+      <PageHeader title={t('title')} actions={isAdmin && <AssignTaskDialog assignees={assignees} />} />
       {tabs}
-      <TaskStats stats={taskStats.data ?? null} />
+      {/* Work first: the board leads, the personal stats follow it. */}
       <TaskBoard
         tasks={tasks}
         isAdmin={isAdmin}
@@ -118,6 +114,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         currentUserId={user!.id}
         archive={archive}
       />
-    </div>
+      <TaskStats stats={taskStats.data ?? null} />
+    </Page>
   );
 }

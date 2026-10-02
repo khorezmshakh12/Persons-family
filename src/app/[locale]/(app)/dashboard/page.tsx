@@ -290,10 +290,6 @@ export default async function DashboardPage() {
       <Suspense fallback={null}>
         <SelfDevReminderSection userId={user!.id} reviewer={can(profile!.role, 'selfDev.review')} />
       </Suspense>
-      {/* Last month's top 3 — everyone sees it for the whole month. */}
-      <Suspense fallback={null}>
-        <MonthTop3Section viewerId={user!.id} />
-      </Suspense>
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
         <Suspense fallback={<HeroAndKpiSkeleton />}>
@@ -325,6 +321,12 @@ export default async function DashboardPage() {
           </Suspense>
         )}
       </div>
+
+      {/* Last month's top 3 — everyone sees it for the whole month; it sits
+          after the personal overview so the day's work leads the page. */}
+      <Suspense fallback={null}>
+        <MonthTop3Section viewerId={user!.id} />
+      </Suspense>
 
       {/* The period selector's state lives in this provider, above the
           streamed server cards, so a realtime router.refresh() re-renders

@@ -4,14 +4,13 @@ import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
-import { GLASS_CARD } from '@/lib/glass';
-import { cn } from '@/lib/utils';
 import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type FinanceEntry } from '@/components/finance/finance-entries-list';
 import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
 import { can } from '@/lib/permissions';
+import { Page, PageHeader } from '@/components/app-shell/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,25 +59,20 @@ export async function FinanceDetailContent({
   const net = netTotal(entries);
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <div
-        style={{ animationDelay: '0ms' }}
-        className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
-      >
-        <Avatar className="size-16 border border-au-line">
-          <AvatarImage src={avatarSrc ?? undefined} alt="" />
-          <AvatarFallback className="text-lg">
-            {target.first_name[0]}
-            {target.last_name[0]}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
-          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
-            {target.first_name} {target.last_name}
-          </h1>
-          <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
-        </div>
-      </div>
+    <Page width="narrow">
+      <PageHeader
+        title={`${target.first_name} ${target.last_name}`}
+        subtitle={roleLabel(tStaff, target.role)}
+        leading={
+          <Avatar className="size-12 border border-au-line">
+            <AvatarImage src={avatarSrc ?? undefined} alt="" />
+            <AvatarFallback>
+              {target.first_name[0]}
+              {target.last_name[0]}
+            </AvatarFallback>
+          </Avatar>
+        }
+      />
 
       <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
         <SalarySection
@@ -94,7 +88,7 @@ export async function FinanceDetailContent({
       <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
         <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} />
       </div>
-    </div>
+    </Page>
   );
 }
 

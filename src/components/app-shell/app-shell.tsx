@@ -3,7 +3,6 @@ import { RoleSwitcher } from './role-switcher';
 import { canAssignRoles } from '@/lib/permissions';
 import { getTranslations } from 'next-intl/server';
 import packageJson from '../../../package.json';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { BackgroundProvider } from '@/components/theme/background-context';
 import { BottomTabBar } from './bottom-tab-bar';
 import { MobileNav } from './mobile-nav';
@@ -141,7 +140,6 @@ export async function AppShell({
                   />
                   <StarPill balance={starBalance} />
                   <RoleSwitcher roles={profile.roles ?? [profile.role]} active={profile.role} canManage={canAssignRoles(profile.roles)} />
-                  <LanguageSwitcher compact className="hidden sm:flex" />
                 </header>
 
                 <main className="app-main min-h-0 min-w-0 flex-1">

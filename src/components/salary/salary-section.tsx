@@ -33,7 +33,10 @@ export async function SalarySection({
 }) {
   const t = await getTranslations('salary');
 
+  // Sub-sections that draw their own card sit beside the salary card, not
+  // inside it — no card-in-card.
   return (
+    <div className="flex flex-col gap-5">
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
       <h2 className="font-heading text-lg font-semibold text-au-ink">
         {t('title')}
@@ -56,24 +59,17 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-au-line pt-4">
-        <BonusesPunishmentsCard staffId={staffId} canManage={isAdmin} />
-      </div>
-
-      <div className="border-t border-au-line pt-4">
-        <KpiSection staffId={staffId} canManage={isCeo && !isSelf} />
-      </div>
-
-      <div className="border-t border-au-line pt-4">
-        <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} selectedMonth="all" />
-      </div>
-
-      <div className="border-t border-au-line pt-4">
         <SalaryMissionsList staffId={staffId} />
       </div>
 
       <div className="border-t border-au-line pt-4">
         <SalaryTotal staffId={staffId} isCeo={isCeo && !isSelf} />
       </div>
+    </div>
+
+    <BonusesPunishmentsCard staffId={staffId} canManage={isAdmin} />
+    <KpiSection staffId={staffId} canManage={isCeo && !isSelf} />
+    <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} selectedMonth="all" />
     </div>
   );
 }
