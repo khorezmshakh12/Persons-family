@@ -655,7 +655,9 @@
       "onTime": "✓ O'z vaqtida",
       "late": "✓ Kechikib bajarildi",
       "left": "Muddatgacha {time}",
-      "overdueBy": "Muddatdan {time} o'tdi"
+      "overdueBy": "Muddatdan {time} o'tdi",
+      "daysLeft": "{count} kun qoldi",
+      "dayShort": "k"
     },
     "comments": {
       "title": "Izohlar",

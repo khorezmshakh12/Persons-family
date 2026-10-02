@@ -655,7 +655,9 @@
       "onTime": "✓ Вовремя",
       "late": "✓ Выполнено с опозданием",
       "left": "Осталось {time}",
-      "overdueBy": "Просрочено на {time}"
+      "overdueBy": "Просрочено на {time}",
+      "daysLeft": "Осталось {count} дн.",
+      "dayShort": "д"
     },
     "comments": {
       "title": "Комментарии",

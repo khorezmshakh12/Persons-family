@@ -150,7 +150,7 @@ export function ManageStaffPerformanceDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`reason-${staffId}`}>{t('reason')}</Label>
-            <Textarea id={`reason-${staffId}`} name="reason" placeholder={t('reasonPlaceholder')} />
+            <Textarea id={`reason-${staffId}`} name="reason" required minLength={3} maxLength={500} placeholder={t('reasonPlaceholder')} />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isEntryPending} size="sm">

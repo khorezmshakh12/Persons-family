@@ -20,7 +20,9 @@ const awardSchema = z.object({
   // A signed integer: > 0 awards, < 0 deducts (and raises a warning). 0 is
   // rejected — an empty ledger row would be noise, not a record.
   delta: z.coerce.number().int().refine((n) => n !== 0, 'delta must be non-zero'),
-  reason: z.string().trim().max(500).optional().or(z.literal('')),
+  // Every bonus, penalty and manual star change must say why — the person
+  // it lands on reads it, and an unexplained deduction is a complaint.
+  reason: z.string().trim().min(3).max(500),
 });
 
 /** Fire-and-forget — mirrors notifyWarningIssued in warnings.ts. A Telegram

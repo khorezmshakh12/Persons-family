@@ -655,7 +655,9 @@
       "onTime": "✓ On time",
       "late": "✓ Completed late",
       "left": "{time} left",
-      "overdueBy": "{time} overdue"
+      "overdueBy": "{time} overdue",
+      "daysLeft": "{count} days left",
+      "dayShort": "d"
     },
     "comments": {
       "title": "Comments",

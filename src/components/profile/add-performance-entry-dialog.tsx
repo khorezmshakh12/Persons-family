@@ -89,7 +89,7 @@ export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="reason">{t('reason')}</Label>
-            <Textarea id="reason" name="reason" placeholder={t('reasonPlaceholder')} />
+            <Textarea id="reason" name="reason" required minLength={3} maxLength={500} placeholder={t('reasonPlaceholder')} />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isPending} size="sm">
