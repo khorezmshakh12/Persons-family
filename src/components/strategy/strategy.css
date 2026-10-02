@@ -371,8 +371,8 @@
   font-size: 11px;
   font-weight: 700;
   background: var(--sx-yellow);
-  border: 1.5px solid #17161a;
-  color: #17161a;
+  border: 1.5px solid var(--au-ink);
+  color: var(--au-ink);
 }
 
 /* ---------- dashboard ---------- */
@@ -912,8 +912,8 @@
     transform 0.3s var(--sx-spring);
 }
 .sx-list .chk.on {
-  background: #139a52;
-  border-color: #139a52;
+  background: var(--au-ok);
+  border-color: var(--au-ok);
   color: #fff;
   transform: scale(1.1);
 }
@@ -1168,8 +1168,8 @@
   position: fixed;
   z-index: 60;
   pointer-events: none;
-  background: #17161a;
-  color: #fff;
+  background: var(--au-primary);
+  color: var(--au-primary-ink);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 10px;
@@ -1230,7 +1230,7 @@
   font-weight: 600;
   border-radius: 10px;
   padding: 0 12px;
-  color: #17161a;
+  color: var(--au-ink);
   animation: sx-pop 0.5s both var(--sx-spring);
   transition:
     transform 0.25s var(--sx-spring),
@@ -1248,21 +1248,21 @@
 }
 .sx-rm-wrap .rn.main {
   background: var(--sx-yellow);
-  border: 2px solid #17161a;
+  border: 2px solid var(--au-ink);
   font-size: 15px;
   font-weight: 700;
-  box-shadow: 3px 3px 0 #17161a;
+  box-shadow: 3px 3px 0 var(--au-ink);
 }
 .sx-rm-wrap .rn.main:hover {
-  box-shadow: 5px 5px 0 #17161a;
+  box-shadow: 5px 5px 0 var(--au-ink);
 }
 .sx-rm-wrap .rn.topic {
-  background: #fff;
-  border: 1.5px solid #17161a;
+  background: var(--au-card);
+  border: 1.5px solid var(--au-ink);
 }
 .sx-rm-wrap .rn.done {
   background: #e3f5ea;
-  border-color: #139a52;
+  border-color: var(--au-ok);
   color: #0c5a30;
 }
 .sx-rm-wrap .rn.done::after {
@@ -1273,13 +1273,13 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #139a52
+  background: var(--au-ok)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
     center/11px no-repeat;
 }
 .sx-rm-wrap .rn.progress {
   background: #fff4e1;
-  border-color: #ff9f1c;
+  border-color: var(--au-accent);
 }
 .sx-rm-wrap .rn.progress::after {
   content: '';
@@ -1289,7 +1289,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #ff9f1c;
+  background: var(--au-accent);
   box-shadow: 0 0 0 3px #fff4e1;
   animation: sx-pulse 1.8s infinite;
 }
@@ -1304,8 +1304,8 @@
 }
 .sx-rm-wrap .rn.main.done {
   background: #bde8cc;
-  border-color: #17161a;
-  color: #17161a;
+  border-color: var(--au-ink);
+  color: var(--au-ink);
 }
 .sx-rm-wrap .rn.sel {
   outline: 3px solid #2477c9;
@@ -1360,7 +1360,7 @@
 .sx-rm-wrap .rm-prog .bar span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--sx-yellow), #ff9f1c);
+  background: linear-gradient(90deg, var(--sx-yellow), var(--au-accent));
   transform-origin: left;
   animation: sx-grow-x 1s both var(--sx-ease);
   transition: width 0.6s var(--sx-ease);
@@ -1381,7 +1381,7 @@
   width: 18px;
   height: 12px;
   border-radius: 4px;
-  border: 1.5px solid #17161a;
+  border: 1.5px solid var(--au-ink);
 }
 .sx-rm-wrap .rm-pick {
   display: flex;
@@ -1422,8 +1422,8 @@
   display: grid;
   place-items: center;
   background: var(--sx-yellow);
-  border: 1.5px solid #17161a;
-  color: #17161a;
+  border: 1.5px solid var(--au-ink);
+  color: var(--au-ink);
   font-weight: 800;
   flex-shrink: 0;
 }
@@ -1463,7 +1463,7 @@
 }
 .sx-mm .sel-ring {
   fill: none;
-  stroke: #17161a;
+  stroke: var(--au-ink);
   stroke-width: 2.5;
   stroke-dasharray: 5 4;
   animation: sx-dash 1s linear infinite;
