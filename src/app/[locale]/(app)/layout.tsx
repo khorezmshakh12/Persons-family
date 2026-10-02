@@ -10,6 +10,7 @@ import { AppShell } from '@/components/app-shell/app-shell';
 import { IntroSplash } from '@/components/brand/intro-splash';
 import { MotionRoot } from '@/components/motion/motion-root';
 import { ThemeBoot } from '@/components/theme/theme-boot';
+import { ErrorReporter } from '@/components/app-shell/error-reporter';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
@@ -144,6 +145,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="contents" data-motion={motion ? 'on' : undefined}>
       <ThemeBoot serverTheme={profile!.ui_theme} />
+      <ErrorReporter />
       <IntroSplash motion={motion} />
       {motion && <MotionRoot />}
       <AppShell

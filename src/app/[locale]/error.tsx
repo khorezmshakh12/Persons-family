@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
+import { reportClientError } from '@/components/app-shell/error-reporter';
 
 export default function Error({
   error,
@@ -22,6 +23,8 @@ export default function Error({
   // otherwise be lost entirely.
   useEffect(() => {
     console.error('Route error boundary caught:', error);
+    // Errors a boundary catches never reach window.onerror — report them here.
+    if (!isChunkLoadError(error)) reportClientError(`[boundary] ${error.message}${error.digest ? ` (${error.digest})` : ''}`, error.stack);
     // A tab left open across a deploy holds JS chunk URLs from the old
     // build; the next soft navigation that needs a chunk not in that tab's
     // cache 404s against the new deployment and lands here. "Try again"
