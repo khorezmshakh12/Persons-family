@@ -23,7 +23,7 @@ const migrationPath = join(here, '..', 'supabase', 'migrations', '20260901000000
 // Same proxy connection string scripts/backfill-lesson-slots.ts uses.
 // max: 1 so postgres-js allows the file's own `begin; ... commit;` through
 // sql.unsafe() (it refuses embedded transaction commands on a pool).
-const sql = postgres('postgres://postgres:rnQTe2aILZonLj0NaWkV8XBb@127.0.0.1:5433/app', { ssl: false, max: 1 });
+const sql = postgres((process.env.DATABASE_URL ?? (() => { throw new Error('Set DATABASE_URL (password: Secret Manager db-password)'); })()), { ssl: false, max: 1 });
 
 async function main() {
   const migrationSql = readFileSync(migrationPath, 'utf8');

@@ -11,8 +11,7 @@ substitutions:
   _DB_NAME: 'app_staging'
   _SERVICE: 'persons-staff-app-staging'
   _REGION: 'europe-west3'
-  _BASE_URL: 'https://persons-staff-app-staging-121315485439.europe-west3.run.app'
-  _DB_PASSWORD: 'rnQTe2aILZonLj0NaWkV8XBb' # TODO: Secret Manager (see cloudbuild.yaml)
+  _BASE_URL: 'https://persons-staff-app-staging-121315485439.europe-west3.run.app' # TODO: Secret Manager (see cloudbuild.yaml)
 
 steps:
   - id: verify
@@ -28,6 +27,7 @@ steps:
   - id: migrate
     name: 'node:24'
     entrypoint: bash
+    secretEnv: ['DB_PASSWORD']
     args:
       - -ceu
       - |
@@ -36,7 +36,7 @@ steps:
         chmod +x /workspace/cloud-sql-proxy
         /workspace/cloud-sql-proxy "${_INSTANCE}" --port 5432 &
         sleep 8
-        DATABASE_URL="postgres://postgres:${_DB_PASSWORD}@127.0.0.1:5432/${_DB_NAME}" npx tsx scripts/migrate.ts
+        DATABASE_URL="postgres://postgres:$$DB_PASSWORD@127.0.0.1:5432/${_DB_NAME}" npx tsx scripts/migrate.ts
 
   - id: deploy
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -59,3 +59,10 @@ steps:
 timeout: 1800s
 options:
   logging: CLOUD_LOGGING_ONLY
+
+# The Cloud SQL password comes from Secret Manager (the same secret the
+# Cloud Run services read), never from this file.
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/db-password/versions/latest
+      env: DB_PASSWORD

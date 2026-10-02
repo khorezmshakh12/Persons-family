@@ -28,7 +28,7 @@ import postgres from 'postgres';
 // connects over the public IP, which needs the caller's current egress IP
 // authorized in Cloud SQL's authorized-networks list, and that IP has been
 // rotating throughout this session.
-const sql = postgres('postgres://postgres:rnQTe2aILZonLj0NaWkV8XBb@127.0.0.1:5433/app', { ssl: false });
+const sql = postgres((process.env.DATABASE_URL ?? (() => { throw new Error('Set DATABASE_URL (password: Secret Manager db-password)'); })()), { ssl: false });
 
 function toDateKey(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
