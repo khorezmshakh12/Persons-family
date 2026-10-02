@@ -12,6 +12,8 @@ import { type FinanceEntry } from '@/components/finance/finance-entries-list';
 import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
 import { can } from '@/lib/permissions';
+import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
+import { formatUZS } from '@/lib/format-currency';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +33,7 @@ export async function FinanceDetailContent({
   searchParams?: Promise<{ incomeYear?: string }> | { incomeYear?: string };
 }) {
   const tStaff = await getTranslations('staff');
+  const tSum = await getTranslations('finance.summary');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
 
@@ -52,32 +55,60 @@ export async function FinanceDetailContent({
 
   const avatarSrc = await resolveAvatarUrl(target.avatar_url);
 
-  const entries = await sql<FinanceEntry[]>`
-    select id, title, amount, note, created_at from finance_entries
-    where staff_id = ${staffId} order by created_at desc
-  `;
+  const [entries, earnings, [pen]] = await Promise.all([
+    sql<FinanceEntry[]>`
+      select id, title, amount, note, created_at from finance_entries
+      where staff_id = ${staffId} order by created_at desc
+    `,
+    getNetEarningEntries(staffId),
+    sql<{ penalties: number }[]>`
+      select coalesce(sum(amount) filter (where entry_type = 'penalty'), 0) as penalties
+      from performance_entries where staff_id = ${staffId}
+    `,
+  ]);
 
   const net = netTotal(entries);
+  // The four numbers that answer "what did I get": same totals SalaryTotal
+  // shows (finance-net.ts), split so bonuses and penalties are visible.
+  const total = netEarnings(earnings);
+  const penalties = Math.round(Number(pen?.penalties) || 0);
+  const bonuses = total - net + penalties;
+  const summary = [
+    { key: 'salary', value: formatUZS(net), tone: 'text-au-ink' },
+    { key: 'bonuses', value: `+${formatUZS(bonuses)}`, tone: 'text-au-ok' },
+    { key: 'penalties', value: `−${formatUZS(penalties)}`, tone: 'text-au-bad' },
+    { key: 'total', value: formatUZS(total), tone: 'text-au-ink' },
+  ] as const;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <div
-        style={{ animationDelay: '0ms' }}
-        className={cn(GLASS_CARD, 'animate-fade-in-up flex items-center gap-4 p-6')}
-      >
-        <Avatar className="size-16 border border-au-line">
+      <div className="animate-fade-in-up flex items-center gap-4">
+        <Avatar className="size-14 border border-au-line">
           <AvatarImage src={avatarSrc ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
             {target.first_name[0]}
             {target.last_name[0]}
           </AvatarFallback>
         </Avatar>
-        <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
-          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
+        <div className="flex min-w-0 flex-col">
+          <h1 className="truncate text-[26px] leading-8 font-bold tracking-tight text-au-ink">
             {target.first_name} {target.last_name}
           </h1>
           <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {summary.map((k, i) => (
+          <div
+            key={k.key}
+            style={{ animationDelay: `${i * 50}ms` }}
+            className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-4', k.key === 'total' && 'bg-au-card-2')}
+          >
+            <span className="text-xs font-medium text-au-muted">{tSum(k.key)}</span>
+            <span className={cn('text-xl font-bold tabular-nums sm:text-2xl', k.tone)}>{k.value}</span>
+          </div>
+        ))}
       </div>
 
       <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">

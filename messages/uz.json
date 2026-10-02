@@ -1074,6 +1074,12 @@
         "sessionExpired": "Sessiya tugadi — qayta kiring.",
         "nonzero": "Summa nol bo‘lishi mumkin emas."
       }
+    },
+    "summary": {
+      "salary": "Maosh",
+      "bonuses": "Bonuslar",
+      "penalties": "Jarimalar",
+      "total": "Jami olingan"
     }
   },
   "kpi": {

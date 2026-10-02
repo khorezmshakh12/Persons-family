@@ -1074,6 +1074,12 @@
         "sessionExpired": "Session expired — sign in again.",
         "nonzero": "Amount cannot be zero."
       }
+    },
+    "summary": {
+      "salary": "Salary",
+      "bonuses": "Bonuses",
+      "penalties": "Penalties",
+      "total": "Total received"
     }
   },
   "kpi": {
