@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Reveal } from '@/components/motion/reveal';
 import { getTranslations } from 'next-intl/server';
 import { CircleAlert, ListTodo, Star, SquareCheckBig } from 'lucide-react';
 import { getAuthState } from '@/lib/auth/session';
@@ -287,42 +287,42 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
       {/* Monthly self-development is mandatory for everyone but the CEO. */}
-      <Suspense fallback={null}>
+      <Reveal fallback={null}>
         <SelfDevReminderSection userId={user!.id} reviewer={can(profile!.role, 'selfDev.review')} />
-      </Suspense>
+      </Reveal>
       {/* Last month's top 3 — everyone sees it for the whole month. */}
-      <Suspense fallback={null}>
+      <Reveal fallback={null}>
         <MonthTop3Section viewerId={user!.id} />
-      </Suspense>
+      </Reveal>
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div data-stagger className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
-        <Suspense fallback={<HeroAndKpiSkeleton />}>
+        <Reveal fallback={<HeroAndKpiSkeleton />}>
           <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
+        </Reveal>
+        <Reveal fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
           <LeaderboardSection userId={user!.id} compact={!isCeo} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton className={FIN_CELL} />}>
+        </Reveal>
+        <Reveal fallback={<CardSkeleton className={FIN_CELL} />}>
           <FinanceSection viewer={viewer} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton className={ACT_CELL} />}>
+        </Reveal>
+        <Reveal fallback={<CardSkeleton className={ACT_CELL} />}>
           <ActivitySection viewer={viewer} />
-        </Suspense>
+        </Reveal>
         {showSales && (
-          <Suspense fallback={<CardSkeleton className="lg:col-span-12" />}>
+          <Reveal fallback={<CardSkeleton className="lg:col-span-12" />}>
             <SalesSection money={can(profile!.role, 'finance.viewAll')} />
-          </Suspense>
+          </Reveal>
         )}
-        <Suspense fallback={<CardSkeleton className={FEED_CELL} />}>
+        <Reveal fallback={<CardSkeleton className={FEED_CELL} />}>
           <TaskFeedSection viewer={viewer} />
-        </Suspense>
-        <Suspense fallback={<CardSkeleton className={BARS_CELL} />}>
+        </Reveal>
+        <Reveal fallback={<CardSkeleton className={BARS_CELL} />}>
           <WeekChartSection viewer={viewer} />
-        </Suspense>
+        </Reveal>
         {isCeo && (
-          <Suspense fallback={<CardSkeleton className={STATS_CELL} />}>
+          <Reveal fallback={<CardSkeleton className={STATS_CELL} />}>
             <EmployeeStatsSection />
-          </Suspense>
+          </Reveal>
         )}
       </div>
 
@@ -330,7 +330,7 @@ export default async function DashboardPage() {
           streamed server cards, so a realtime router.refresh() re-renders
           them without resetting the viewer's kunlik/haftalik/oylik choice. */}
       <StatsPeriodProvider>
-        <Suspense fallback={<GlassStatsRowSkeleton />}>
+        <Reveal fallback={<GlassStatsRowSkeleton />}>
           <StatsRow
             showTotalStaff={isCeo}
             showLessonPlanCards={!isPersonalDashboard}
@@ -338,33 +338,33 @@ export default async function DashboardPage() {
             personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
             financeUserId={isTeacherTier ? user!.id : undefined}
           />
-        </Suspense>
+        </Reveal>
       </StatsPeriodProvider>
 
       {isCeo ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Suspense fallback={<GlassCardSkeleton />}>
+          <Reveal fallback={<GlassCardSkeleton />}>
             <ActiveIssuesOverview delayMs={0} />
-          </Suspense>
-          <Suspense fallback={<GlassCardSkeleton />}>
+          </Reveal>
+          <Reveal fallback={<GlassCardSkeleton />}>
             <CompanyNewsCard isAdmin delayMs={90} />
-          </Suspense>
+          </Reveal>
         </div>
       ) : (
-        <Suspense fallback={<GlassCardSkeleton />}>
+        <Reveal fallback={<GlassCardSkeleton />}>
           <CompanyNewsCard isAdmin={false} delayMs={0} />
-        </Suspense>
+        </Reveal>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* The role/"rules" breakdown is CEO-only now — no other role sees
             it. Only the CEO gets this chart cell. */}
         {isCeo && (
-          <Suspense fallback={<GlassCardSkeleton />}>
+          <Reveal fallback={<GlassCardSkeleton />}>
             <TeacherProgressChartSection delayMs={0} />
-          </Suspense>
+          </Reveal>
         )}
-        <Suspense fallback={<GlassCardSkeleton />}>
+        <Reveal fallback={<GlassCardSkeleton />}>
           {/* Company-wide chat activity is overview data; everyone else gets
               their own task calendar. */}
           {!isCeo ? (
@@ -372,10 +372,10 @@ export default async function DashboardPage() {
           ) : (
             <ActivityHeatmap href="/calendar" delayMs={90} />
           )}
-        </Suspense>
-        <Suspense fallback={<GlassCardSkeleton />}>
+        </Reveal>
+        <Reveal fallback={<GlassCardSkeleton />}>
           <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />
-        </Suspense>
+        </Reveal>
       </div>
     </div>
   );
