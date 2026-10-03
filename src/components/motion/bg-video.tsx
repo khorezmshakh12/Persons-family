@@ -58,14 +58,16 @@ export function BgVideo({ variant, theme }: { variant: 'site' | 'hero' | 'login'
     };
   }, [play, variant, id]);
 
+  // ?v bumps whenever the loops are re-rendered, so browsers drop the old files.
   const base = `/staff/bg/${id}`;
+  const v = '?v=2';
   const fill = 'pointer-events-none h-full w-full object-cover';
   const media = play ? (
     <video
       key={id}
       ref={ref}
       className={fill}
-      poster={`${base}.jpg`}
+      poster={`${base}.jpg${v}`}
       autoPlay
       muted
       loop
@@ -74,22 +76,22 @@ export function BgVideo({ variant, theme }: { variant: 'site' | 'hero' | 'login'
       aria-hidden
       tabIndex={-1}
     >
-      <source src={`${base}.webm`} type="video/webm" />
-      <source src={`${base}.mp4`} type="video/mp4" />
+      <source src={`${base}.webm${v}`} type="video/webm" />
+      <source src={`${base}.mp4${v}`} type="video/mp4" />
     </video>
   ) : (
     // eslint-disable-next-line @next/next/no-img-element -- decorative still, already tiny
-    <img src={`${base}.jpg`} alt="" aria-hidden className={fill} />
+    <img src={`${base}.jpg${v}`} alt="" aria-hidden className={fill} />
   );
 
   if (variant === 'hero') {
-    return <div className="absolute inset-0 -z-10 opacity-90">{media}</div>;
+    return <div className="absolute inset-0 -z-10">{media}</div>;
   }
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
       {media}
       {/* Scrim: the motion reads as light, the page as calm. */}
-      <div className={cn('absolute inset-0', variant === 'site' ? 'bg-au-bg/70' : 'bg-au-bg/35')} />
+      <div className={cn('absolute inset-0', variant === 'site' ? 'bg-au-bg/40' : 'bg-au-bg/20')} />
     </div>
   );
 }
