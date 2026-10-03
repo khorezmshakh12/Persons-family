@@ -1,0 +1,143 @@
+/* =========================================================================
+   MOTION v4 — tokens, page transitions, shared choreography.
+
+   SAFETY: page and shared-element motion uses the View Transitions API.
+   It animates *snapshots* of the old and new page; the real DOM underneath
+   is always fully visible, so a stalled or skipped animation can never
+   strand content at opacity 0 (the failure that once white-screened the
+   app — see globals.css fade-in-up). Every other keyframe here is
+   transform-only.
+   Levels: html[data-motion-level] = off | calm | full (lib/motion-level.ts).
+   ========================================================================= */
+
+/* ---------- Tokens (#28) — themes override via their --au-m-* profile ---- */
+:root {
+  --m-fast: 140ms;
+  --m-base: 240ms;
+  --m-slow: 420ms;
+  --m-stagger: 40ms;
+  --m-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --m-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --m-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+html[data-theme] {
+  --m-base: var(--au-m-dur, 240ms);
+  --m-fast: var(--au-m-fast, 140ms);
+  --m-ease-out: var(--au-m-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+/* ---------- Page transitions (#1, #3) ----------------------------------- */
+/* The header/sidebar keep their own names so they stay put while the page
+   content swaps underneath them. */
+.app-header {
+  view-transition-name: app-header;
+}
+::view-transition-group(app-header) {
+  animation: none;
+}
+
+::view-transition-old(.page-out) {
+  animation: var(--m-fast) var(--m-ease-in) both vt-fade-out;
+}
+::view-transition-new(.page-in) {
+  animation:
+    var(--m-base) var(--m-ease-out) var(--m-fast) both vt-fade-in,
+    var(--m-slow) var(--m-ease-out) var(--m-fast) both vt-rise;
+}
+/* Directional: deeper in the menu slides up from below, back up slides down. */
+::view-transition-old(.nav-forward) {
+  animation:
+    var(--m-fast) var(--m-ease-in) both vt-fade-out,
+    var(--m-fast) var(--m-ease-in) both vt-sink-up;
+}
+::view-transition-new(.nav-forward) {
+  animation:
+    var(--m-base) var(--m-ease-out) var(--m-fast) both vt-fade-in,
+    var(--m-slow) var(--m-ease-out) var(--m-fast) both vt-rise;
+}
+::view-transition-old(.nav-back) {
+  animation:
+    var(--m-fast) var(--m-ease-in) both vt-fade-out,
+    var(--m-fast) var(--m-ease-in) both vt-sink-down;
+}
+::view-transition-new(.nav-back) {
+  animation:
+    var(--m-base) var(--m-ease-out) var(--m-fast) both vt-fade-in,
+    var(--m-slow) var(--m-ease-out) var(--m-fast) both vt-drop;
+}
+/* Same-route content swaps (tabs, filters): a quick crossfade (#4). */
+::view-transition-old(.swap),
+::view-transition-new(.swap) {
+  animation-duration: var(--m-base);
+  animation-timing-function: var(--m-ease-out);
+}
+/* Shared elements (#2): the browser morphs position/size; soften it. */
+::view-transition-group(.morph) {
+  animation-duration: var(--m-slow);
+  animation-timing-function: var(--m-ease-out);
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-rise {
+  from {
+    transform: translateY(14px);
+  }
+}
+@keyframes vt-drop {
+  from {
+    transform: translateY(-14px);
+  }
+}
+@keyframes vt-sink-up {
+  to {
+    transform: translateY(-8px);
+  }
+}
+@keyframes vt-sink-down {
+  to {
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- Staggered entrances for everyone (#6) ----------------------- */
+/* Children of [data-stagger] rise in one after another. Transform-only. */
+html:not([data-motion-level='off']) [data-stagger] > * {
+  animation: m-rise var(--m-slow) var(--m-ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--m-stagger));
+}
+@keyframes m-rise {
+  from {
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+/* ---------- Level: off — nothing moves ---------------------------------- */
+html[data-motion-level='off'] *,
+html[data-motion-level='off'] *::before,
+html[data-motion-level='off'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html[data-motion-level='off']::view-transition-group(*),
+html[data-motion-level='off']::view-transition-old(*),
+html[data-motion-level='off']::view-transition-new(*) {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

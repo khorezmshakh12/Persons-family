@@ -1836,5 +1836,22 @@
     "allSections": "All sections",
     "more": "Menu",
     "home": "Home"
+  },
+  "motionSettings": {
+    "title": "Motion",
+    "description": "How much the interface moves. Saved on this device.",
+    "active": "Active",
+    "off": {
+      "name": "Off",
+      "hint": "Nothing moves."
+    },
+    "calm": {
+      "name": "Calm",
+      "hint": "Page transitions, entrances, counting numbers."
+    },
+    "full": {
+      "name": "Full",
+      "hint": "Everything: island, 3D tilt, confetti, living background."
+    }
   }
 }

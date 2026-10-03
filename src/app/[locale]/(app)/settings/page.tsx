@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { ThemeSettingsCard } from '@/components/theme/theme-settings-card';
+import { MotionSettingsCard } from '@/components/theme/motion-settings-card';
 import { ProfileSection } from '@/components/settings/profile-section';
 import { TelegramConnectSection } from '@/components/settings/telegram-connect-section';
 import { AnnouncementSection } from '@/components/settings/announcement-section';
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage() {
   const t = await getTranslations('settings');
   const tTheme = await getTranslations('themeSettings');
+  const tMotion = await getTranslations('motionSettings');
   const { profile } = await getAuthState();
   const isCeo = can(profile!.role, 'news.publish');
 
@@ -74,6 +76,14 @@ export default async function SettingsPage() {
           <p className="text-au-muted">{tTheme('description')}</p>
         </div>
         <ThemeSettingsCard />
+      </div>
+
+      <div className="flex flex-col gap-6 rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl font-bold tracking-tight font-heading text-au-ink">{tMotion('title')}</h2>
+          <p className="text-au-muted">{tMotion('description')}</p>
+        </div>
+        <MotionSettingsCard />
       </div>
     </div>
   );

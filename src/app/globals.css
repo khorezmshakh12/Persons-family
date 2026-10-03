@@ -4,6 +4,7 @@
 @import "./aurora.css";
 @import "./motion.css";
 @import "./themes.css";
+@import "./motion-v4.css";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { CELEBRATE_EVENT } from './events';
+import { motionAllowed } from '@/lib/motion-level';
 
 /** Palette comes from the Aurora tokens (no hex in components). */
 const COLOR_TOKENS = ['--au-chart-1', '--au-chart-2', '--au-accent-text', '--au-ok', '--au-info', '--au-bad'];
@@ -24,7 +25,9 @@ export function useConfetti() {
     }
 
     function burst() {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      // Celebrations are for everyone above 'off' (the level already folds
+      // in prefers-reduced-motion).
+      if (!motionAllowed('calm')) return;
       if (live.size >= 2) return;
       const w = window.innerWidth;
       const h = window.innerHeight;

@@ -1836,5 +1836,22 @@
     "allSections": "Barcha bo‘limlar",
     "more": "Menyu",
     "home": "Asosiy"
+  },
+  "motionSettings": {
+    "title": "Harakat",
+    "description": "Animatsiyalar qanchalik ko‘p bo‘lsin. Shu qurilmada saqlanadi.",
+    "active": "Faol",
+    "off": {
+      "name": "O‘chiq",
+      "hint": "Hech narsa harakatlanmaydi."
+    },
+    "calm": {
+      "name": "Tinch",
+      "hint": "Sahifa o‘tishlari, kirish effektlari, raqamlar sanalishi."
+    },
+    "full": {
+      "name": "To‘liq",
+      "hint": "Hammasi: island, 3D egilish, konfetti, jonli fon."
+    }
   }
 }

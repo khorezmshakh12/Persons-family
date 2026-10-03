@@ -84,6 +84,10 @@ export function SidebarNav({
   // Live-updating "new" dot state — see NavBadgesProvider for why this
   // can't just be the static prop the layout computed at request time.
   const newKeys = useNavBadgeKeys();
+  // Sidebar order drives the page transition's direction (motion-v4.css):
+  // an item below the current one slides in from below, above from above.
+  const order = groups.flatMap((g) => g.items).filter((i) => !i.external);
+  const currentIndex = order.findIndex((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
 
   return (
     <nav className="flex flex-col">
@@ -146,6 +150,11 @@ export function SidebarNav({
                 // clicking a sidebar item then swaps in an already-fetched
                 // response instead of starting cold.
                 prefetch
+                transitionTypes={
+                  currentIndex < 0 || active
+                    ? undefined
+                    : [order.indexOf(item) > currentIndex ? 'nav-forward' : 'nav-back']
+                }
                 className={itemClassName}
               >
                 {content}
