@@ -58,3 +58,16 @@ export function motionAllowed(min: Exclude<MotionLevel, 'off'> = 'calm'): boolea
   const l = currentMotionLevel();
   return min === 'calm' ? l !== 'off' : l === 'full';
 }
+
+/** The level this device should be on: stored choice, else the role default;
+ * reduced-motion always caps it at 'off'. Mirrors motionBootScript. */
+export function readStoredMotionLevel(roleDefault: MotionLevel): MotionLevel {
+  try {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'off';
+    const v = localStorage.getItem(MOTION_KEY);
+    if (isMotionLevel(v)) return v;
+  } catch {
+    /* storage blocked */
+  }
+  return roleDefault;
+}

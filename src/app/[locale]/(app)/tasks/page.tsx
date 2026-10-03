@@ -12,6 +12,7 @@ import { CoreFrame } from '@/components/core/core-frame';
 import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { Link } from '@/i18n/navigation';
 import { coreViews } from '@/lib/core-state';
+import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,6 +117,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <MarkTasksSeen />
       <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+        <BgVideo variant="hero" />
         <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>

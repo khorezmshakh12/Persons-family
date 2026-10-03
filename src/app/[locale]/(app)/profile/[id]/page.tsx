@@ -28,6 +28,7 @@ import { ContractsCard } from '@/components/profile/contracts-card';
 import { SectionErrorBoundary } from '@/components/profile/section-error-boundary';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 import { can } from '@/lib/permissions';
+import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,6 +136,7 @@ export async function ProfileDetailContent({
         style={{ animationDelay: '0ms' }}
         className={cn(SURFACE_HERO, 'enter-rise flex items-center gap-4 px-6 py-6 sm:px-[30px] sm:py-7')}
       >
+        <BgVideo variant="hero" />
         <Avatar
           className="size-16 border border-au-line"
           style={{ viewTransitionName: `avatar-${target.id}`, viewTransitionClass: 'morph' }}

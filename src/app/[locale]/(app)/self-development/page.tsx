@@ -17,6 +17,7 @@ import { PerformanceEntriesList, type PerformanceEntry } from '@/components/perf
 import { ExportButtons } from '@/components/export/export-buttons';
 import { Badge } from '@/components/ui/badge';
 import { can } from '@/lib/permissions';
+import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +134,7 @@ export default async function SelfDevelopmentPage({
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6 sm:p-8">
         <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+          <BgVideo variant="hero" />
           <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
             {t('title')}
           </h1>
@@ -269,6 +271,7 @@ export default async function SelfDevelopmentPage({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+        <BgVideo variant="hero" />
         <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>

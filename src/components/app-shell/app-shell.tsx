@@ -21,6 +21,7 @@ import {
   type UnseenLessonPlanAlertItem,
 } from './notification-bell';
 import { CommandPalette } from '@/components/command-palette/command-palette';
+import { BgVideo } from '@/components/motion/bg-video';
 import { navItemsForRole } from '@/lib/nav';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PageTransition } from './page-transition';
@@ -117,11 +118,13 @@ export async function AppShell({
           <NavBadgesProvider userId={userId} initialKeys={newNavKeys}>
             <CommandPalette pages={palettePages} />
             <div className="relative flex min-h-screen bg-au-bg">
-              <aside className="sticky top-0 hidden h-screen w-[244px] shrink-0 flex-col border-r border-au-line bg-au-sidebar px-3.5 py-5 min-[960px]:flex">
+              {/* Moving themed background behind the whole app, under a scrim. */}
+              <BgVideo variant="site" />
+              <aside className="sticky top-0 z-[1] hidden h-screen w-[244px] shrink-0 flex-col border-r border-au-line bg-au-sidebar px-3.5 py-5 min-[960px]:flex">
                 <SidebarPanel {...panelProps} />
               </aside>
 
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="relative z-[1] flex min-w-0 flex-1 flex-col">
                 <header className="app-header sticky top-0 z-40 flex h-[62px] items-center gap-2 bg-au-bg px-4 sm:gap-3 sm:px-7 min-[960px]:h-[76px]">
                   {/* Browser below 960px: the hamburger drawer. Telegram Mini
                       App / installed app (<html data-app>): the brand mark,
