@@ -148,7 +148,7 @@ html:not([data-motion-level='off']) [data-stagger] > :nth-child(12) {
 }
 
 /* ---------- KPI mini bars grow from the baseline (#12) ------------------ */
-html:not([data-motion-level='off']) .au-spark > i {
+html:not([data-motion-level='off']) .au-spark i {
   transform-origin: bottom;
   animation: m-grow var(--m-slow) var(--m-ease-out) both;
 }
@@ -292,5 +292,57 @@ html:not([data-motion-level='off']) .m-ring-fill {
 @keyframes m-ring {
   from {
     stroke-dashoffset: var(--m-ring-len, 300);
+  }
+}
+
+/* ---------- List items enter / leave / move (#7) ------------------------ */
+::view-transition-old(.card-out) {
+  animation: var(--m-base) var(--m-ease-in) both m-card-out;
+}
+::view-transition-new(.card-in) {
+  animation: var(--m-slow) var(--m-ease-spring) both m-card-in;
+}
+::view-transition-group(.card-move) {
+  animation-duration: var(--m-slow);
+  animation-timing-function: var(--m-ease-out);
+}
+@keyframes m-card-out {
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+@keyframes m-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+/* ---------- Drag: the picked-up card lifts and tilts (#19) -------------- */
+html:not([data-motion-level='off']) .m-lift {
+  animation: m-lift var(--m-base) var(--m-ease-spring) forwards;
+}
+@keyframes m-lift {
+  to {
+    transform: scale(1.03) rotate(1.5deg);
+  }
+}
+
+/* ---------- Market images blur up (#24) --------------------------------- */
+html:not([data-motion-level='off']) img.m-blur-up:not([data-loaded]) {
+  filter: blur(12px);
+  transform: scale(1.04);
+  animation: m-unblur 0.4s ease-out 2s forwards;
+}
+html:not([data-motion-level='off']) img.m-blur-up {
+  transition:
+    filter 0.5s var(--m-ease-out),
+    transform 0.5s var(--m-ease-out);
+}
+@keyframes m-unblur {
+  to {
+    filter: none;
+    transform: none;
   }
 }

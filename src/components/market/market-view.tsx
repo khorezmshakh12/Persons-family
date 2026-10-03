@@ -490,7 +490,15 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           alt={item.name}
                           referrerPolicy="no-referrer"
                           loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-300"
+                          // Blur-up (#24): sharpens once loaded; a CSS fallback
+                          // unblurs after 2 s even if the load event was missed.
+                          ref={(img) => {
+                            if (img?.complete) img.dataset.loaded = '';
+                          }}
+                          onLoad={(e) => {
+                            e.currentTarget.dataset.loaded = '';
+                          }}
+                          className="m-blur-up h-full w-full object-cover transition-transform duration-300"
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-au-faint">

@@ -1,5 +1,7 @@
 'use client';
 
+import { celebrate } from '@/components/motion/events';
+
 import { StarIcon } from '@/components/ui/star-icon';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
@@ -59,6 +61,8 @@ export function OrderRewardDialog({
       // the animation only pulses it and lays particles over it, so a stalled
       // or disabled animation still shows the confirmed state and still closes.
       setCelebrating(true);
+      // The spent stars float off the button with a confetti beat (#24).
+      celebrate(`−${item.star_cost} ★`);
       toast.success(t('orderSuccess'));
       closeTimer.current = setTimeout(() => {
         setOpen(false);

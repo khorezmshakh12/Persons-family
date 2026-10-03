@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -265,8 +265,9 @@ export function TaskBoard({
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
       } else if (nextStatus === 'done') {
-        // Handed in — a genuine success beat (MOTION_ROLES only; no-op otherwise).
-        celebrate();
+        // Handed in — a genuine success beat; the reward floats up (#18).
+        const reward = previousTasks.find((x) => x.id === taskId)?.star_reward ?? 0;
+        celebrate(reward > 0 ? `+${reward} ★` : undefined);
       }
     })();
   }
@@ -278,7 +279,8 @@ export function TaskBoard({
   // simply cancels the delete (the safe direction).
   function handleRequestDelete(task: Task) {
     const previousTasks = tasks;
-    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    // In a transition so the card's <ViewTransition> exit plays (#7).
+    startTransition(() => setTasks((prev) => prev.filter((t) => t.id !== task.id)));
 
     let undone = false;
     const timer = setTimeout(async () => {
@@ -298,7 +300,7 @@ export function TaskBoard({
         onClick: () => {
           undone = true;
           clearTimeout(timer);
-          setTasks(previousTasks);
+          startTransition(() => setTasks(previousTasks));
         },
       },
     });
