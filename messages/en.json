@@ -1854,5 +1854,23 @@
       "name": "Full",
       "hint": "Everything: island, 3D tilt, confetti, living background."
     }
+  },
+  "bgSettings": {
+    "title": "Background",
+    "description": "A moving background behind every section. Saved on this device.",
+    "active": "Active",
+    "soon": "Coming soon",
+    "off": {
+      "name": "Off",
+      "hint": "A plain, calm background."
+    },
+    "flow": {
+      "name": "Colour flow",
+      "hint": "A slow gradient in the theme’s colours."
+    },
+    "aquarium": {
+      "name": "Aquarium",
+      "hint": "Real fish swimming."
+    }
   }
 }

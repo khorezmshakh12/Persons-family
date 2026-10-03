@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
-import { currentTheme, subscribeTheme, type ThemeId } from '@/lib/themes';
+import { currentTheme, subscribeTheme, THEME_SWATCHES, type ThemeId } from '@/lib/themes';
+import { currentBg, readStoredBg, subscribeBg, type BgMode } from '@/lib/bg-mode';
 import { currentMotionLevel, subscribeMotionLevel } from '@/lib/motion-level';
 
 /**
@@ -24,6 +25,13 @@ export function BgVideo({ variant, theme }: { variant: 'site' | 'hero' | 'login'
   const live = useSyncExternalStore(subscribeTheme, currentTheme, () => 'aurora' as ThemeId);
   const id: ThemeId = theme ?? live;
   const level = useSyncExternalStore(subscribeMotionLevel, currentMotionLevel, () => 'off' as const);
+  // Settings › Orqa fon. The login screen has no boot script, so fall back to
+  // this device's stored choice there.
+  const mode = useSyncExternalStore<BgMode>(
+    subscribeBg,
+    () => (document.documentElement.hasAttribute('data-bg') ? currentBg() : readStoredBg()),
+    () => 'off',
+  );
   const ref = useRef<HTMLVideoElement>(null);
   const [lowData, setLowData] = useState(false);
 
@@ -56,15 +64,18 @@ export function BgVideo({ variant, theme }: { variant: 'site' | 'hero' | 'login'
       io?.disconnect();
       document.removeEventListener('visibilitychange', sync);
     };
-  }, [play, variant, id]);
+  }, [play, variant, id, mode]);
 
   // ?v bumps whenever the loops are re-rendered, so browsers drop the old files.
-  const base = `/staff/bg/${id}`;
+  const base =
+    mode === 'aquarium' ? `/staff/bg/aquarium/${THEME_SWATCHES[id].dark ? 'dark' : 'light'}` : `/staff/bg/${id}`;
   const v = '?v=2';
   const fill = 'pointer-events-none h-full w-full object-cover';
+  // Off (the default): nothing at all — heroes keep their gradient.
+  if (mode === 'off') return null;
   const media = play ? (
     <video
-      key={id}
+      key={`${mode}-${id}`}
       ref={ref}
       className={fill}
       poster={`${base}.jpg${v}`}

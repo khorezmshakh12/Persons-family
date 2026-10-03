@@ -1854,5 +1854,23 @@
       "name": "To‘liq",
       "hint": "Hammasi: island, 3D egilish, konfetti, jonli fon."
     }
+  },
+  "bgSettings": {
+    "title": "Orqa fon",
+    "description": "Barcha bo‘limlar ortida harakatlanuvchi fon. Shu qurilmada saqlanadi.",
+    "active": "Faol",
+    "soon": "Tez orada",
+    "off": {
+      "name": "O‘chiq",
+      "hint": "Oddiy, tinch fon."
+    },
+    "flow": {
+      "name": "Rangli oqim",
+      "hint": "Mavzu ranglarida asta oqayotgan gradient."
+    },
+    "aquarium": {
+      "name": "Akvarium",
+      "hint": "Haqiqiy baliqlar suzib yuradi."
+    }
   }
 }

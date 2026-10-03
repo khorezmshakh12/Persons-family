@@ -11,6 +11,7 @@ import { IntroSplash } from '@/components/brand/intro-splash';
 import { MotionRoot } from '@/components/motion/motion-root';
 import { ThemeBoot } from '@/components/theme/theme-boot';
 import { motionBootScript } from '@/lib/motion-level';
+import { BG_BOOT_SCRIPT } from '@/lib/bg-mode';
 import { MotionSync } from '@/components/motion/motion-sync';
 import { ErrorReporter } from '@/components/app-shell/error-reporter';
 import { FormFeedback } from '@/components/motion/form-feedback';
@@ -150,6 +151,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="contents">
       <script dangerouslySetInnerHTML={{ __html: motionBootScript(motion ? 'full' : 'calm') }} />
       <MotionSync roleDefault={motion ? 'full' : 'calm'} />
+      <script dangerouslySetInnerHTML={{ __html: BG_BOOT_SCRIPT }} />
       <ThemeBoot serverTheme={profile!.ui_theme} />
       <ErrorReporter />
       <FormFeedback />

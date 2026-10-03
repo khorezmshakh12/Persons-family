@@ -373,3 +373,14 @@ html:not([data-motion-level='off']) img.m-blur-up {
   isolation: isolate;
   overflow: hidden;
 }
+
+/* With a moving background on, the sticky header turns to frosted glass so
+   the motion reads behind it too (Settings › Orqa fon). */
+html[data-bg]:not([data-bg='off']) .app-header {
+  background-color: color-mix(in srgb, var(--au-bg) 72%, transparent);
+  backdrop-filter: blur(12px);
+}
+html[data-bg]:not([data-bg='off']) aside.bg-au-sidebar {
+  background-color: color-mix(in srgb, var(--au-sidebar) 78%, transparent);
+  backdrop-filter: blur(12px);
+}
