@@ -1,5 +1,6 @@
 'use client';
 
+import { signalTyping } from '@/components/presence/presence-context';
 import { useActionState, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
@@ -92,6 +93,7 @@ export function ChatComposer({
     } else {
       if (state.message) onConfirmedSend(state.message);
       setText('');
+      signalTyping(null);
       formRef.current?.reset();
       onClearReply();
     }
@@ -256,7 +258,11 @@ export function ChatComposer({
         <Textarea
           name="messageText"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            // "yozmoqda…" for the other side (#25); throttled in presence.
+            signalTyping(e.target.value ? receiverId : null);
+          }}
           onKeyDown={handleKeyDown}
           placeholder={t('placeholder')}
           rows={1}

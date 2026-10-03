@@ -12,6 +12,7 @@ import { MotionRoot } from '@/components/motion/motion-root';
 import { ThemeBoot } from '@/components/theme/theme-boot';
 import { motionBootScript } from '@/lib/motion-level';
 import { ErrorReporter } from '@/components/app-shell/error-reporter';
+import { FormFeedback } from '@/components/motion/form-feedback';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
@@ -149,6 +150,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <script dangerouslySetInnerHTML={{ __html: motionBootScript(motion ? 'full' : 'calm') }} />
       <ThemeBoot serverTheme={profile!.ui_theme} />
       <ErrorReporter />
+      <FormFeedback />
       <IntroSplash motion={motion} />
       <MotionRoot />
       <AppShell

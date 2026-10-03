@@ -41,6 +41,25 @@ function DialogOverlay({
   )
 }
 
+// #8: dialogs grow out of whatever was just clicked. The last pointer-down
+// position becomes the popup's transform-origin, so the existing zoom-in
+// (a transform) starts from the trigger instead of the screen centre.
+let lastPointer: { x: number; y: number } | null = null
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointerdown",
+    (e) => {
+      lastPointer = { x: e.clientX, y: e.clientY }
+    },
+    { capture: true, passive: true }
+  )
+}
+function originFromPointer(el: HTMLElement | null) {
+  if (!el || !lastPointer) return
+  const r = el.getBoundingClientRect()
+  el.style.transformOrigin = `${lastPointer.x - r.left}px ${lastPointer.y - r.top}px`
+}
+
 function DialogContent({
   className,
   children,
@@ -53,6 +72,7 @@ function DialogContent({
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
+        ref={originFromPointer}
         data-slot="dialog-content"
         className={cn(
           // Open/close motion stays on @base-ui's own `data-open:` /

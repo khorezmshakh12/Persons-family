@@ -207,3 +207,42 @@
     transition: none !important;
   }
 }
+
+/* "yozmoqda…" — three dots bouncing in turn (#25). Transform-only. */
+.ch-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--au-card-2);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+.ch-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--au-muted);
+  animation: ch-typing 1.2s ease-in-out infinite;
+}
+.ch-typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.ch-typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes ch-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-typing i {
+    animation: none;
+  }
+}

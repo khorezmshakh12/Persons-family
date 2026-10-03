@@ -353,7 +353,8 @@
       "waitingForApproval": "{name}ga so'rov yuborildi — javobini kuting.",
       "incomingPrompt": "{name} siz bilan suhbat boshlamoqchi."
     },
-    "newMessage": "Yangi xabar"
+    "newMessage": "Yangi xabar",
+    "typing": "yozmoqda…"
   },
   "issues": {
     "title": "Muammolar",

@@ -4,6 +4,26 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Timestamp } from 'firebase/firestore';
 
 const PresenceContext = createContext<Set<string>>(new Set());
+/** People currently typing to *me* (presence doc typingTo === me, fresh). */
+const TypingContext = createContext<Set<string>>(new Set());
+
+const TYPING_FRESH_MS = 6_000;
+const TYPING_THROTTLE_MS = 2_500;
+let sendTyping: ((to: string | null) => void) | undefined;
+let lastTypingSent = 0;
+let lastTypingTo: string | null = null;
+
+/** Tell `to` that I'm typing (null = stopped). Throttled; a no-op until the
+ * presence connection is up. Rides on my own presence doc, which I already
+ * write every 20 s, so it needs no new Firestore permission. */
+export function signalTyping(to: string | null) {
+  const now = Date.now();
+  if (to && to === lastTypingTo && now - lastTypingSent < TYPING_THROTTLE_MS) return;
+  if (!to && !lastTypingTo) return;
+  lastTypingSent = now;
+  lastTypingTo = to;
+  sendTyping?.(to);
+}
 
 // A doc's lastSeenAt older than this is treated as offline — there's no
 // onDisconnect() here (that needs Realtime Database, not Firestore; see
@@ -13,7 +33,12 @@ const PresenceContext = createContext<Set<string>>(new Set());
 const HEARTBEAT_INTERVAL_MS = 20_000;
 const STALE_AFTER_MS = 30_000;
 
-type PresenceDoc = { state: 'online' | 'offline'; lastSeenAt: Timestamp | null };
+type PresenceDoc = {
+  state: 'online' | 'offline';
+  lastSeenAt: Timestamp | null;
+  typingTo?: string | null;
+  typingAt?: Timestamp | null;
+};
 
 /** One shared Firestore presence collection for the whole app — every
  * signed-in tab writes its own heartbeat doc, and every tab's context
@@ -23,6 +48,7 @@ type PresenceDoc = { state: 'online' | 'offline'; lastSeenAt: Timestamp | null }
  * user is doing. */
 export function PresenceProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +71,23 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
       setOnlineUserIds(next);
     };
 
+    let typingTimer: ReturnType<typeof setInterval> | undefined;
+    const recomputeTyping = () => {
+      const now = Date.now();
+      const next = new Set<string>();
+      for (const [uid, data] of latestDocs) {
+        const at = data.typingAt?.toMillis?.() ?? 0;
+        if (uid !== userId && data.typingTo === userId && now - at < TYPING_FRESH_MS) next.add(uid);
+      }
+      setTypingUserIds((prev) => (prev.size === next.size && [...next].every((x) => prev.has(x)) ? prev : next));
+      // Only tick while someone is typing, so idle tabs stay quiet.
+      if (next.size && !typingTimer) typingTimer = setInterval(recomputeTyping, 1000);
+      if (!next.size && typingTimer) {
+        clearInterval(typingTimer);
+        typingTimer = undefined;
+      }
+    };
+
     // Firebase (client SDK) is dynamically imported here rather than at
     // module scope: this provider wraps every authenticated page (see
     // app-shell.tsx), so a static import put the whole Firestore/Auth SDK
@@ -64,6 +107,11 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
           );
         };
         writeHeartbeat = heartbeat;
+        sendTyping = (to) => {
+          setDoc(doc(getRealtimeDb(), 'presence', userId), { typingTo: to, typingAt: serverTimestamp() }, { merge: true }).catch(
+            () => {},
+          );
+        };
 
         await ensureRealtimeSignedIn();
         if (cancelled) return;
@@ -75,6 +123,7 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
             else latestDocs.set(change.doc.id, change.doc.data() as PresenceDoc);
           });
           recomputeOnline();
+          recomputeTyping();
         });
 
         heartbeat('online');
@@ -103,13 +152,23 @@ export function PresenceProvider({ userId, children }: { userId: string; childre
       unsubscribe?.();
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       if (staleCheckInterval) clearInterval(staleCheckInterval);
+      if (typingTimer) clearInterval(typingTimer);
+      sendTyping = undefined;
       writeHeartbeat?.('offline');
     };
   }, [userId]);
 
-  return <PresenceContext.Provider value={onlineUserIds}>{children}</PresenceContext.Provider>;
+  return (
+    <PresenceContext.Provider value={onlineUserIds}>
+      <TypingContext.Provider value={typingUserIds}>{children}</TypingContext.Provider>
+    </PresenceContext.Provider>
+  );
 }
 
 export function useOnlineUserIds() {
   return useContext(PresenceContext);
+}
+
+export function useTypingUserIds() {
+  return useContext(TypingContext);
 }
