@@ -295,7 +295,7 @@ export default async function DashboardPage() {
         <MonthTop3Section viewerId={user!.id} />
       </Suspense>
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
-      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
+      <div data-stagger className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
         <Suspense fallback={<HeroAndKpiSkeleton />}>
           <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
         </Suspense>

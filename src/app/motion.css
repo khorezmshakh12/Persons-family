@@ -178,10 +178,10 @@ html[data-theme='midnight'] .au-theme-toggle .au-moon {
 }
 
 /* ---------- Hero: moving mesh + grain ---------------------------------- */
-[data-motion='on'] .bg-au-hero {
+html:not([data-motion-level='off']) .bg-au-hero {
   isolation: isolate;
 }
-[data-motion='on'] .bg-au-hero::before {
+html:not([data-motion-level='off']) .bg-au-hero::before {
   content: '';
   position: absolute;
   inset: -35%;
@@ -196,11 +196,11 @@ html[data-theme='midnight'] .au-theme-toggle .au-moon {
   opacity: 0.7;
   animation: au-mesh-drift 16s ease-in-out infinite alternate;
 }
-html[data-theme='midnight'] [data-motion='on'] .bg-au-hero::before {
+html[data-theme='midnight']:not([data-motion-level='off']) .bg-au-hero::before {
   mix-blend-mode: screen;
   opacity: 0.35;
 }
-[data-motion='on'] .bg-au-hero::after {
+html:not([data-motion-level='off']) .bg-au-hero::after {
   content: '';
   position: absolute;
   inset: 0;

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from '@/i18n/navigation';
 import { NAV_ITEMS } from '@/lib/nav';
-import { getTelegramWebApp, isTelegramApp } from '@/lib/telegram-webapp';
+import { getTelegramWebApp, haptic, isTelegramApp } from '@/lib/telegram-webapp';
+import { CELEBRATE_EVENT, LIVE_EVENT } from '@/components/motion/events';
 import { subscribeTheme } from '@/lib/themes';
 
 const ROOT_PATHS = new Set(['/', '/login', '/tg', '/set-password', ...NAV_ITEMS.map((i) => i.href)]);
@@ -19,6 +20,24 @@ function goBack() {
  * section. Renders nothing; a no-op outside Telegram.
  */
 export function TelegramBridge() {
+  // #21: the phone answers app moments — a buzz on a celebration (task
+  // done / approved), a sharper one on a warning. No-op outside Telegram.
+  useEffect(() => {
+    if (!isTelegramApp()) return;
+    const onCelebrate = () => haptic('success');
+    const onLive = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind === 'warning') haptic('error');
+      else if (kind === 'task' || kind === 'chat') haptic('select');
+    };
+    window.addEventListener(CELEBRATE_EVENT, onCelebrate);
+    window.addEventListener(LIVE_EVENT, onLive);
+    return () => {
+      window.removeEventListener(CELEBRATE_EVENT, onCelebrate);
+      window.removeEventListener(LIVE_EVENT, onLive);
+    };
+  }, []);
+
   const pathname = usePathname();
   const [sdkReady, setSdkReady] = useState(false);
 

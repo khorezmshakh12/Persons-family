@@ -14,6 +14,7 @@ import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap
 import { can } from '@/lib/permissions';
 import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
 import { formatUZS } from '@/lib/format-currency';
+import { CountUp } from '@/components/motion/count-up';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,7 +107,9 @@ export async function FinanceDetailContent({
             className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-4', k.key === 'total' && 'bg-au-card-2')}
           >
             <span className="text-xs font-medium text-au-muted">{tSum(k.key)}</span>
-            <span className={cn('text-xl font-bold tabular-nums sm:text-2xl', k.tone)}>{k.value}</span>
+            <span className={cn('text-xl font-bold tabular-nums sm:text-2xl', k.tone)}>
+              <CountUp value={k.value} />
+            </span>
           </div>
         ))}
       </div>

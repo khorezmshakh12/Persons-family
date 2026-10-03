@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, ViewTransition } from 'react';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -135,7 +135,10 @@ export async function ProfileDetailContent({
         style={{ animationDelay: '0ms' }}
         className={cn(SURFACE_HERO, 'enter-rise flex items-center gap-4 px-6 py-6 sm:px-[30px] sm:py-7')}
       >
-        <Avatar className="size-16 border border-au-line">
+        <Avatar
+          className="size-16 border border-au-line"
+          style={{ viewTransitionName: `avatar-${target.id}`, viewTransitionClass: 'morph' }}
+        >
           <AvatarImage src={avatarSignedUrl ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
             {target.first_name[0]}
@@ -155,104 +158,109 @@ export async function ProfileDetailContent({
 
       <ProfileTabs current={tab} tabs={tabs} hrefBase={hrefBase ?? `/profile/${id}`} labels={tabLabels} />
 
-      {tab === 'overview' && (
-        <>
-        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <ContactInfoCard profile={target} isSelf={isSelf} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-          {canViewCeoScoped && (
+      {/* Switching tabs crossfades the content (#4, motion-v4.css). */}
+      <ViewTransition key={tab} enter="page-in" exit="page-out" default="none">
+        <div className="flex flex-col gap-6">
+          {tab === 'overview' && (
             <>
-        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <DutiesCard staffId={id} canManage={canManage} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-        <div className="enter-rise" style={{ animationDelay: '170ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
+            <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <ContactInfoCard profile={target} isSelf={isSelf} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+              {canViewCeoScoped && (
+                <>
+            <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <DutiesCard staffId={id} canManage={canManage} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+            <div className="enter-rise" style={{ animationDelay: '170ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <ContractsCard staffId={id} isSelf={isSelf} canManage={canManage} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+                </>
+              )}
             </>
           )}
-        </>
-      )}
 
-      {tab === 'stars' && canViewCeoScoped && (
-        <>
-        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <StarBalanceCard staffId={id} canManage={canManage} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={null}>
-              <StarsArchiveSection staffId={id} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-        </>
-      )}
-
-      {tab === 'finance' && (
-        <>
-          {canViewCeoScoped && (
-        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <SalaryCard staffId={id} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
+          {tab === 'stars' && canViewCeoScoped && (
+            <>
+            <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <StarBalanceCard staffId={id} canManage={canManage} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+            <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={null}>
+                  <StarsArchiveSection staffId={id} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+            </>
           )}
-        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <BonusesPunishmentsCard staffId={id} canManage={canManage} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-        </>
-      )}
 
-      {tab === 'discipline' && (
-        <>
-        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <WarningsCard staffId={id} canManage={canManageWarnings} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-        <div className="enter-rise" style={{ animationDelay: '120ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={null}>
-              <WarningsArchiveSection staffId={id} />
-            </Suspense>
-          </SectionErrorBoundary>
-        </div>
-        </>
-      )}
+          {tab === 'finance' && (
+            <>
+              {canViewCeoScoped && (
+            <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <SalaryCard staffId={id} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+              )}
+            <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <BonusesPunishmentsCard staffId={id} canManage={canManage} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+            </>
+          )}
 
-      {tab === 'growth' && canViewCeoScoped && (
-        <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-          <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-            <Suspense fallback={<GlassCardSkeleton />}>
-              <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
-            </Suspense>
-          </SectionErrorBoundary>
+          {tab === 'discipline' && (
+            <>
+            <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <WarningsCard staffId={id} canManage={canManageWarnings} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+            <div className="enter-rise" style={{ animationDelay: '120ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={null}>
+                  <WarningsArchiveSection staffId={id} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+            </>
+          )}
+
+          {tab === 'growth' && canViewCeoScoped && (
+            <div className="enter-rise" style={{ animationDelay: '70ms' }}>
+              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
+                <Suspense fallback={<GlassCardSkeleton />}>
+                  <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
+                </Suspense>
+              </SectionErrorBoundary>
+            </div>
+          )}
         </div>
-      )}
+      </ViewTransition>
     </div>
   );
 }

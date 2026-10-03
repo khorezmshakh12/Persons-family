@@ -112,7 +112,71 @@ html[data-theme] {
 /* Children of [data-stagger] rise in one after another. Transform-only. */
 html:not([data-motion-level='off']) [data-stagger] > * {
   animation: m-rise var(--m-slow) var(--m-ease-out) both;
-  animation-delay: calc(var(--i, 0) * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(2) {
+  animation-delay: calc(1 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(3) {
+  animation-delay: calc(2 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(4) {
+  animation-delay: calc(3 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(5) {
+  animation-delay: calc(4 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(6) {
+  animation-delay: calc(5 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(7) {
+  animation-delay: calc(6 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(8) {
+  animation-delay: calc(7 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(9) {
+  animation-delay: calc(8 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(10) {
+  animation-delay: calc(9 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(11) {
+  animation-delay: calc(10 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(12) {
+  animation-delay: calc(11 * var(--m-stagger));
+}
+
+/* ---------- KPI mini bars grow from the baseline (#12) ------------------ */
+html:not([data-motion-level='off']) .au-spark > i {
+  transform-origin: bottom;
+  animation: m-grow var(--m-slow) var(--m-ease-out) both;
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(1) {
+  animation-delay: calc(1 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(2) {
+  animation-delay: calc(2 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(3) {
+  animation-delay: calc(3 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(4) {
+  animation-delay: calc(4 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(5) {
+  animation-delay: calc(5 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(6) {
+  animation-delay: calc(6 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(7) {
+  animation-delay: calc(7 * 35ms + 120ms);
+}
+@keyframes m-grow {
+  from {
+    transform: scaleY(0.15);
+  }
 }
 @keyframes m-rise {
   from {
@@ -139,5 +203,94 @@ html[data-motion-level='off']::view-transition-new(*) {
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+}
+
+/* ---------- Sidebar active pill glides between items (#5) ---------------- */
+::view-transition-group(nav-active) {
+  animation-duration: var(--m-base);
+  animation-timing-function: var(--m-ease-out);
+}
+/* Leaderboard rows slide to their new rank on a live refresh (#16). */
+::view-transition-group(*.lb) {
+  animation-duration: var(--m-slow);
+}
+
+/* ---------- Living indicators (#14) ------------------------------------- */
+html:not([data-motion-level='off']) .m-live {
+  position: relative;
+}
+html:not([data-motion-level='off']) .m-live::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  pointer-events: none;
+  animation: m-ping 1.8s var(--m-ease-out) infinite;
+}
+@keyframes m-ping {
+  from {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* ---------- Undo toasts show their 5-second window (#9) ------------------ */
+html:not([data-motion-level='off']) [data-sonner-toast]:has([data-button]) {
+  overflow: hidden;
+}
+html:not([data-motion-level='off']) [data-sonner-toast]:has([data-button])::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--au-accent);
+  transform-origin: left;
+  animation: m-drain 5s linear forwards;
+}
+@keyframes m-drain {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- Hero parallax on scroll (#26) -------------------------------- */
+@supports (animation-timeline: scroll()) {
+  html:not([data-motion-level='off']) .bg-au-hero > * {
+    animation: m-parallax linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 320px;
+  }
+}
+@keyframes m-parallax {
+  to {
+    transform: translateY(18px);
+  }
+}
+
+/* ---------- Empty states breathe (#27) ----------------------------------- */
+html:not([data-motion-level='off']) [data-empty-icon] {
+  animation: m-float 4s ease-in-out infinite;
+}
+@keyframes m-float {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- Progress rings fill in (#13) --------------------------------- */
+html:not([data-motion-level='off']) .m-ring-fill {
+  animation: m-ring 1.1s var(--m-ease-out) 0.2s backwards;
+}
+@keyframes m-ring {
+  from {
+    stroke-dashoffset: var(--m-ring-len, 300);
   }
 }

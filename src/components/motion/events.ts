@@ -1,9 +1,9 @@
 /**
  * Tiny window-event bus between the app and the MOTION v3 layer.
  *
- * Call sites (task board, notification bell…) fire these unconditionally —
- * they are no-ops unless the motion layer is mounted and listening, which
- * only happens for MOTION_ROLES. Nothing here touches data or state.
+ * Call sites (task board, notification bell…) fire these unconditionally.
+ * Listeners (confetti, island, Telegram haptics) each check the person's
+ * motion level themselves. Nothing here touches data or state.
  */
 
 export const CELEBRATE_EVENT = 'persons:celebrate';

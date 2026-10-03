@@ -156,6 +156,11 @@ export function SidebarNav({
                     : [order.indexOf(item) > currentIndex ? 'nav-forward' : 'nav-back']
                 }
                 className={itemClassName}
+                // The active pill glides to the new item during the page
+                // transition (#5). Desktop sidebar only: the mobile drawer
+                // (which passes onNavigate) must not reuse the name — a
+                // duplicate view-transition-name aborts the whole transition.
+                style={active && !onNavigate ? { viewTransitionName: 'nav-active' } : undefined}
               >
                 {content}
               </Link>

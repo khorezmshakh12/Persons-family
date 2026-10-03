@@ -86,7 +86,8 @@ function LiveCountdown({ deadlineMs }: { deadlineMs: number }) {
     <span
       role="timer"
       aria-label={cd.overdue ? t('overdueBy', { time: cd.text.slice(1) }) : t('left', { time: cd.text })}
-      className={cn(CHIP, TONE[cd.tone])}
+      // Under an hour left (or overdue) the chip pings — it's urgent now.
+      className={cn(CHIP, TONE[cd.tone], (cd.overdue || (cd.days === 0 && cd.clock.startsWith('00:'))) && 'm-live')}
     >
       <span aria-hidden className="inline-flex items-center">
         <Digits text={shown} />
