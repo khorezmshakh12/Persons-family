@@ -14,6 +14,7 @@ import type {
 import { StrategyWorkspace } from '@/components/strategy/strategy-workspace';
 import { loadBooks } from '@/lib/accounting-data';
 import { loadFinInputs } from '@/lib/strategy-finance-data';
+import { loadOkr } from '@/lib/strategy-okr-data';
 import { canFor, canSeeFor } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
   const wanted = (await searchParams)?.space;
   const space = spaces.find((s) => s.id === wanted) ?? spaces[0] ?? null;
 
-  const [tasks, milestones] = space
+  const [tasks, milestones, okr] = space
     ? await Promise.all([
         sql<StrategyTask[]>`
           select id, space_id, title, description, workstream, assignee_id, start_date, end_date,
@@ -49,8 +50,9 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
           from strategy_tasks where space_id = ${space.id} order by start_date, created_at`,
         sql<StrategyMilestone[]>`
           select id, title, date from strategy_milestones where space_id = ${space.id} order by date`,
+        loadOkr(space.id, finance),
       ])
-    : [[], []];
+    : [[], [], []];
 
   return (
     <StrategyWorkspace
@@ -68,6 +70,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
           : null
       }
       fin={fin}
+      okr={okr}
       finance={finance}
     />
   );

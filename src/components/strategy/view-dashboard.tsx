@@ -16,6 +16,7 @@ import {
   type TaskStatus,
 } from '@/lib/strategy';
 import { Donut } from './bits';
+import { HEALTH_LABEL, objectiveProgress, okrHealth, type Objective } from '@/lib/strategy-okr';
 import type { WorkspaceApi } from './strategy-workspace';
 
 /** Counts up from 0 once on mount (skipped for reduced motion). After that
@@ -58,6 +59,8 @@ export function DashboardView({
   all,
   onGantt,
   onEditSpace,
+  okr,
+  onOkr,
   finance = false,
 }: {
   api: WorkspaceApi;
@@ -68,6 +71,8 @@ export function DashboardView({
   all: StrategyTask[];
   onGantt: () => void;
   onEditSpace: () => void;
+  okr: Objective[];
+  onOkr: () => void;
 }) {
   const { today } = api;
   const pct = all.length ? Math.round(all.reduce((a, t) => a + t.progress, 0) / all.length) : 0;
@@ -166,6 +171,40 @@ export function DashboardView({
           <div className="d">{k.d}</div>
         </div>
       ))}
+
+      {okr.length > 0 && (
+        <div className="sx-card mg sx-rise" style={{ '--i': 5 } as React.CSSProperties}>
+          <div className="ct">
+            <h3>Maqsadlar (OKR)</h3>
+            <button className="sx-btn sm" onClick={onOkr}>
+              Barchasi →
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {okr.slice(0, 6).map((o) => {
+              const p = objectiveProgress(o);
+              const elapsed = Math.max(0, Math.min(100, Math.round((daysBetween(r0, today) / Math.max(1, span - 1)) * 100)));
+              const h = okrHealth(p, elapsed);
+              return (
+                <div key={o.id} className="grid gap-1.5">
+                  <div className="flex items-baseline justify-between gap-2 text-[13px]">
+                    <span className="min-w-0 truncate font-semibold text-au-ink">{o.title}</span>
+                    <span className={h === 'off' ? 'text-au-bad' : h === 'risk' ? 'text-au-accent-text' : 'text-au-muted'}>
+                      {p === null ? HEALTH_LABEL.none : `${p}% · ${HEALTH_LABEL[h]}`}
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-au-line/60">
+                    <div
+                      className={h === 'off' ? 'h-full bg-au-bad' : h === 'risk' ? 'h-full bg-au-accent' : 'h-full bg-au-ok'}
+                      style={{ width: `${p ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="sx-card mg sx-rise" style={{ '--i': 5 } as React.CSSProperties}>
         <div className="ct">
