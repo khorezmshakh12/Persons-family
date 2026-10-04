@@ -51,7 +51,8 @@
     "report": "Oylik hisobot",
     "platform": "Platforma sozlamalari",
     "coreBoard": "Platforma ko'rinishi",
-    "butterfly": "Kapalak"
+    "butterfly": "Kapalak",
+    "kpi": "Mening KPI"
   },
   "auth": {
     "phone": "Telefon raqami",

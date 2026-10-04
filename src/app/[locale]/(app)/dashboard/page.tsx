@@ -38,6 +38,9 @@ import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { MonthTop3 } from '@/components/aurora/month-top3';
 import { SelfDevReminder } from '@/components/aurora/self-dev-reminder';
+import { KpiReminder } from '@/components/aurora/kpi-reminder';
+import { monthName, shiftMonth } from '@/lib/kpi-plan';
+import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { firstOfCurrentMonth } from '@/lib/self-development';
 import { can } from '@/lib/permissions';
 
@@ -228,6 +231,38 @@ async function SelfDevReminderSection({ userId, reviewer }: { userId: string; re
   return row && row.n > 0 ? null : <SelfDevReminder />;
 }
 
+async function KpiReminderSection({ userId, reviewer }: { userId: string; reviewer: boolean }) {
+  const thisMonth = `${tashkentMonthKey()}-01`;
+  const next = shiftMonth(thisMonth, 1);
+  if (reviewer) {
+    const [r] = await sql<{ n: number }[]>`
+      select count(*)::int as n from kpi_plans where status = 'submitted' and month in (${thisMonth}, ${next})`.catch(() => [{ n: 0 }]);
+    return r?.n ? (
+      <KpiReminder title={`${r.n} ta KPI rejasi tasdiq kutmoqda`} body="Ko‘rib chiqing: tasdiqlang yoki izoh bilan qaytaring." cta="Ko‘rib chiqish" />
+    ) : null;
+  }
+  // The employee: this month's plan if it's missing, otherwise next month's
+  // from 7 days before the deadline (the last day, 23:59).
+  const { year, month, day } = tashkentYmd();
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const rows = await sql<{ month: string }[]>`
+    select month::text as month from kpi_plans
+    where user_id = ${userId} and month in (${thisMonth}, ${next}) and status in ('submitted', 'approved')`.catch(() => null);
+  if (!rows) return null;
+  const has = (m: string) => rows.some((r) => r.month === m);
+  if (!has(thisMonth))
+    return <KpiReminder title={`${monthName(thisMonth)} KPI rejangiz yo‘q`} body="Joriy oy rejasini uch ssenariyda kiriting va CEO’ga topshiring." cta="Rejani kiritish" />;
+  if (day >= lastDay - 7 && !has(next))
+    return (
+      <KpiReminder
+        title={`${monthName(next)} KPI rejasini topshiring`}
+        body={`Muddat: ${lastDay}-sana, 23:59. Uch ssenariy — yomon, yaxshi, juda yaxshi.`}
+        cta="Rejani kiritish"
+      />
+    );
+  return null;
+}
+
 async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   const top = await loadLastMonthTop3();
   return top ? <MonthTop3 month={top.month} people={top.people} viewerId={viewerId} /> : null;
@@ -277,6 +312,9 @@ export default async function DashboardPage() {
       {/* Monthly self-development is mandatory for everyone but the CEO. */}
       <Reveal fallback={null}>
         <SelfDevReminderSection userId={user!.id} reviewer={can(profile!.role, 'selfDev.review')} />
+      </Reveal>
+      <Reveal fallback={null}>
+        <KpiReminderSection userId={user!.id} reviewer={can(profile!.role, 'kpi.review')} />
       </Reveal>
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div data-stagger className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">

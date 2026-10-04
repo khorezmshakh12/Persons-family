@@ -51,7 +51,8 @@
     "report": "Monthly report",
     "platform": "Platform settings",
     "coreBoard": "Platform view",
-    "butterfly": "Butterfly"
+    "butterfly": "Butterfly",
+    "kpi": "My KPI"
   },
   "auth": {
     "phone": "Phone number",
