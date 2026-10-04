@@ -47,7 +47,7 @@ import {
   type TestResult,
 } from '@/lib/perforce';
 import { tashkentDayKey } from '@/lib/time';
-import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
+import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
 import { RiskRegister, type RiskRow } from './risk-register';
 import { PersonAvatar, PriorityChip, StatusChip } from './bits';
@@ -1160,7 +1160,7 @@ function TestCases({ data, stasks }: { data: PfData; stasks: STask[] }) {
                           className="sx-btn sm text-au-bad"
                           disabled={pending}
                           aria-label="O‘chirish"
-                          onClick={() => window.confirm(`«${t.title}» o‘chirilsinmi?`) && act(() => deleteTestCaseAction(t.id), 'Test o‘chirildi')}
+                          onClick={async () => (await ask(`«${t.title}» o‘chirilsinmi?`)) && act(() => deleteTestCaseAction(t.id), 'Test o‘chirildi')}
                         >
                           ×
                         </button>

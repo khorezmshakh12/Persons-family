@@ -1006,6 +1006,8 @@ export type VisibleTaskRow = {
   /** The CEO ticked "the employee must upload a file": approval routes the
    * task through `awaiting_upload` instead of straight to `done`. */
   requires_proof: boolean;
+  /** Mirrored from a Strategy task (lib/strategy-sync.ts). */
+  from_strategy: boolean;
   submitted_at: string | null;
   reviewed_at: string | null;
   /** The CEO's mandatory explanation, shown to the assignee on the card
@@ -1058,7 +1060,7 @@ export async function getVisibleTasksAction(): Promise<VisibleTaskRow[]> {
            (select count(*) from task_comments c where c.task_id = tasks.id)::int as comment_count,
            (select count(*) from task_attachments a where a.task_id = tasks.id)::int as attachment_count,
            requires_proof, submitted_at, reviewed_at, rejection_reason,
-           star_reward, star_penalty, sort_order
+           star_reward, star_penalty, sort_order, strategy_task_id is not null as from_strategy
     from tasks
     where (assigned_by = ${user.id} or assigned_to = ${user.id})
       and (status <> 'done' or completed_at >= ${currentMonthStart()})

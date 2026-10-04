@@ -15,6 +15,9 @@ import {
   Wallet,
   LineChart,
   Settings2,
+  Target,
+  Map as MapIcon,
+  Hammer,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -51,30 +54,54 @@ import { BoardView } from './view-board';
 import { ListView } from './view-list';
 import { GanttView } from './view-gantt';
 import { TaskDrawer, NodeDrawer, SpaceDrawer, type SpaceInput } from './drawers';
+import { RoadmapEditor } from './roadmap-editor';
+import { deleteRoadmapAction, updateMilestoneAction } from '@/lib/actions/strategy-roadmap';
 import { FinanceView, AnalyticsView, type BooksLite } from './view-finance';
+import { OkrView } from './view-okr';
+import type { Objective } from '@/lib/strategy-okr';
 import type { FinInputs } from '@/lib/strategy-finance';
 import { SuiteShell, playSound, toast, type PaletteItem } from './suite-shell';
 import './strategy.css';
 import './suite.css';
 
-export type ViewKey = 'dash' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'fin' | 'analytics';
+export type ViewKey = 'dash' | 'okr' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'fin' | 'analytics';
+type Icon = React.ComponentType<{ className?: string }>;
 
-const TABS: { v: ViewKey; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { v: 'dash', n: 'Dashboard', Icon: LayoutDashboard },
-  { v: 'roadmap', n: 'Roadmap', Icon: Route },
-  { v: 'mind', n: 'Mind map', Icon: GitBranch },
-  { v: 'board', n: 'Board', Icon: Columns3 },
-  { v: 'list', n: 'List', Icon: List },
-  { v: 'gantt', n: 'Gantt', Icon: CalendarRange },
-  { v: 'fin', n: 'Moliya', Icon: Wallet },
-  { v: 'analytics', n: 'Tahlil', Icon: LineChart },
+/** Five sections (Linear / Asana style) — each holds one or more views. */
+type GroupKey = 'dash' | 'okr' | 'plan' | 'exec' | 'money';
+const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: string; Icon: Icon }[] }[] = [
+  { g: 'dash', n: 'Umumiy', Icon: LayoutDashboard, views: [{ v: 'dash', n: 'Dashboard', Icon: LayoutDashboard }] },
+  { g: 'okr', n: 'Maqsadlar', Icon: Target, views: [{ v: 'okr', n: 'OKR', Icon: Target }] },
+  {
+    g: 'plan',
+    n: 'Reja',
+    Icon: MapIcon,
+    views: [
+      { v: 'roadmap', n: 'Roadmap', Icon: Route },
+      { v: 'mind', n: 'Mind map', Icon: GitBranch },
+    ],
+  },
+  {
+    g: 'exec',
+    n: 'Ijro',
+    Icon: Hammer,
+    views: [
+      { v: 'board', n: 'Board', Icon: Columns3 },
+      { v: 'list', n: 'List', Icon: List },
+      { v: 'gantt', n: 'Gantt', Icon: CalendarRange },
+    ],
+  },
+  {
+    g: 'money',
+    n: 'Moliya',
+    Icon: Wallet,
+    views: [
+      { v: 'fin', n: 'Moliya', Icon: Wallet },
+      { v: 'analytics', n: 'Tahlil', Icon: LineChart },
+    ],
+  },
 ];
-const FLOW: { go: ViewKey; n: string; steps: ViewKey[] }[] = [
-  { go: 'mind', n: "G'oya · Mind map", steps: ['mind'] },
-  { go: 'roadmap', n: 'Reja · Roadmap / Moliya', steps: ['roadmap', 'fin'] },
-  { go: 'board', n: 'Ijro · Board / List / Gantt', steps: ['board', 'list', 'gantt'] },
-  { go: 'dash', n: 'Natija · Dashboard / Tahlil', steps: ['dash', 'analytics'] },
-];
+const groupOf = (v: ViewKey) => GROUPS.find((x) => x.views.some((w) => w.v === v))!;
 const VIEW_KEY = 'persons-strategy-view';
 
 export type Draft = Partial<StrategyTask> & { title: string };
@@ -82,6 +109,7 @@ export type DrawerState =
   | { kind: 'task'; id: string | null; preset?: Partial<StrategyTask> }
   | { kind: 'node'; roadmapId: string; nodeId: string }
   | { kind: 'space'; edit?: boolean }
+  | { kind: 'roadmap'; id: string | null }
   | null;
 
 export type WorkspaceApi = {
@@ -111,6 +139,7 @@ export function StrategyWorkspace({
   today,
   books,
   fin,
+  okr,
   finance = false,
 }: {
   spaces: { id: string; name: string; color: string }[];
@@ -122,7 +151,8 @@ export function StrategyWorkspace({
   today: string;
   books: BooksLite | null;
   fin: FinInputs | null;
-  /** Financial views (Moliya, Tahlil, budget) — CEO only (finance.viewAll). */
+  okr: Objective[];
+  /** Financial views (Moliya, Tahlil, budget) — CEO and COO (strategy.finance). */
   finance?: boolean;
 }) {
   const router = useRouter();
@@ -136,33 +166,45 @@ export function StrategyWorkspace({
   const [lateOnly, setLateOnly] = useState(false);
   const [who, setWho] = useState<string[]>([]);
   const [drawer, setDrawer] = useState<DrawerState>(null);
+  const [rmId, setRmId] = useState<string | null>(initialRoadmaps[0]?.id ?? null);
   const [inkStyle, setInkStyle] = useState<React.CSSProperties>({});
   const tabsRef = useRef<HTMLDivElement>(null);
-  const tabs = finance ? TABS : TABS.filter((t) => t.v !== 'fin' && t.v !== 'analytics');
+  const groups = finance ? GROUPS : GROUPS.filter((x) => x.g !== 'money');
+  const group = groupOf(view);
+  // Last view used inside each section, so "Ijro" reopens on Gantt if that's where you were.
+  const lastIn = useRef<Partial<Record<GroupKey, ViewKey>>>({});
   const restored = useRef(false);
 
-  // Remember the last tab (per browser). Mount-only.
+  // Remember the last view (per browser). Mount-only.
   useEffect(() => {
     if (restored.current) return;
     restored.current = true;
     try {
       const v = localStorage.getItem(VIEW_KEY) as ViewKey | null;
-      if (v && tabs.some((t) => t.v === v)) setView(v);
+      if (v && groups.some((x) => x.views.some((w) => w.v === v))) setView(v);
     } catch {}
   }, []);
 
   const go = useCallback((v: ViewKey) => {
     setView(v);
+    lastIn.current[groupOf(v).g] = v;
     try {
       localStorage.setItem(VIEW_KEY, v);
     } catch {}
   }, []);
+  const goGroup = useCallback(
+    (g: GroupKey) => {
+      const def = GROUPS.find((x) => x.g === g)!;
+      go(lastIn.current[g] ?? def.views[0].v);
+    },
+    [go],
+  );
 
-  // Sliding ink under the active tab.
+  // Sliding ink under the active section.
   useEffect(() => {
-    const on = tabsRef.current?.querySelector<HTMLButtonElement>(`button[data-v="${view}"]`);
+    const on = tabsRef.current?.querySelector<HTMLButtonElement>(`button[data-v="${group.g}"]`);
     if (on) setInkStyle({ transform: `translateX(${on.offsetLeft}px)`, width: on.offsetWidth });
-  }, [view]);
+  }, [group.g]);
 
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const involved = useMemo(() => {
@@ -197,6 +239,8 @@ export function StrategyWorkspace({
           status: next.status,
           priority: next.priority,
           progress: next.progress,
+          roadmapId: next.roadmap_id ?? null,
+          roadmapNode: next.roadmap_node ?? null,
         });
         if (res.error !== undefined) {
           if (prev) setTasks((list) => list.map((t) => (t.id === prev.id ? prev : t)));
@@ -269,7 +313,17 @@ export function StrategyWorkspace({
       // undo any edit that landed while the delete was in flight.
       if (removed) setTasks((list) => (list.some((t) => t.id === id) ? list : [...list, removed]));
       toast.error(errorText(res.error));
-    } else toast.success("Vazifa o'chirildi");
+    } else
+      toast.success(
+        "Vazifa o'chirildi",
+        removed
+          ? () =>
+              void createTask(
+                { ...removed, title: removed.title },
+                removed.roadmap_id && removed.roadmap_node ? { roadmapId: removed.roadmap_id, nodeId: removed.roadmap_node } : undefined,
+              )
+          : undefined,
+      );
   }
 
   function setNodeStatus(roadmapId: string, nodeId: string, status: NodeStatus) {
@@ -354,6 +408,17 @@ export function StrategyWorkspace({
     return true;
   }
 
+  async function updateMilestone(id: string, title: string, date: string) {
+    const res = await updateMilestoneAction({ id, title, date });
+    if (res.error !== undefined) {
+      toast.error(errorText(res.error));
+      return false;
+    }
+    setMs((list) => list.map((m) => (m.id === id ? res.milestone : m)).sort((a, b) => a.date.localeCompare(b.date)));
+    toast.success('Muhim sana saqlandi');
+    return true;
+  }
+
   async function removeMilestone(id: string) {
     const removed = ms.find((m) => m.id === id);
     setMs((list) => list.filter((m) => m.id !== id));
@@ -399,7 +464,7 @@ export function StrategyWorkspace({
   };
 
   return (
-    <SuiteShell section="str" tabs={space ? tabs : []} onTab={(v) => go(v as ViewKey)} items={items} onNew={space ? () => openTask(null) : undefined}>
+    <SuiteShell section="str" tabs={space ? groups.map((x) => ({ v: x.g, n: x.n })) : []} onTab={(g) => goGroup(g as GroupKey)} items={items} onNew={space ? () => openTask(null) : undefined}>
     <div className="sx-root flex min-h-0 flex-1 flex-col">
       <header className="sx-head px-4 pt-1 sm:px-7">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -454,30 +519,33 @@ export function StrategyWorkspace({
 
         {space && (
           <>
-            <div className="sx-flow" aria-label="Ish oqimi">
-              {FLOW.map((f, i) => (
-                <span key={f.go} className="contents">
-                  {i > 0 && <span className="ar">→</span>}
-                  <button
-                    className={cn(f.steps.includes(view) && 'on', FLOW.findIndex((x) => x.steps.includes(view)) > i && 'past')}
-                    onClick={() => go(f.go)}
-                  >
-                    <b>{i + 1}</b>
-                    {f.n}
-                  </button>
-                </span>
-              ))}
-            </div>
             <div className="flex flex-wrap items-center gap-3 pb-3">
-              <div className="sx-tabs" ref={tabsRef}>
+              <div className="sx-tabs" ref={tabsRef} role="tablist" aria-label="Bo‘limlar">
                 <span className="ink" style={inkStyle} aria-hidden />
-                {tabs.map(({ v, n, Icon }) => (
-                  <button key={v} data-v={v} className={cn(view === v && 'on')} onClick={() => go(v)}>
+                {groups.map(({ g, n, Icon }) => (
+                  <button
+                    key={g}
+                    data-v={g}
+                    role="tab"
+                    aria-selected={group.g === g}
+                    className={cn(group.g === g && 'on')}
+                    onClick={() => goGroup(g)}
+                  >
                     <Icon className="size-4" />
                     <span>{n}</span>
                   </button>
                 ))}
               </div>
+              {group.views.length > 1 && (
+                <div className="sx-seg sx-subviews" role="tablist" aria-label="Ko‘rinish">
+                  {group.views.map(({ v, n, Icon }) => (
+                    <button key={v} role="tab" aria-selected={view === v} className={cn(view === v && 'on')} onClick={() => go(v)}>
+                      <Icon className="size-3.5" />
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex-1" />
               <label className="sx-search">
                 <Search className="size-4" />
@@ -524,14 +592,19 @@ export function StrategyWorkspace({
         <section className={cn('sx-view', fullBleed ? 'canvas' : 'px-4 pb-8 sm:px-7')}>
           <div key={view} className="sx-fade h-full">
             {view === 'dash' && (
-              <DashboardView api={api} finance={finance} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} />
+              <DashboardView api={api} finance={finance} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} okr={okr} onOkr={() => go('okr')} />
             )}
+            {view === 'okr' && <OkrView api={api} space={space} objectives={okr} finance={finance} />}
             {view === 'roadmap' && (
               <RoadmapView
                 roadmaps={roadmaps}
                 tasks={tasks}
                 selected={drawer?.kind === 'node' ? drawer.nodeId : null}
+                rmId={rmId}
+                onPick={setRmId}
                 onNode={(roadmapId, nodeId) => setDrawer({ kind: 'node', roadmapId, nodeId })}
+                onNew={() => setDrawer({ kind: 'roadmap', id: null })}
+                onEdit={(id) => setDrawer({ kind: 'roadmap', id })}
               />
             )}
             {view === 'mind' && <MindView api={api} mind={mind} onChange={updateMind} />}
@@ -584,6 +657,37 @@ export function StrategyWorkspace({
             }}
           />
         )}
+        {drawer?.kind === 'roadmap' && (
+          <RoadmapEditor
+            key={drawer.id ?? 'new-roadmap'}
+            roadmap={drawer.id ? roadmaps.find((r) => r.id === drawer.id) : undefined}
+            linkedCount={drawer.id ? tasks.filter((t) => t.roadmap_id === drawer.id).length : 0}
+            onClose={closeDrawer}
+            onSaved={(r, remap) => {
+              setRoadmaps((list) => (list.some((x) => x.id === r.id) ? list.map((x) => (x.id === r.id ? r : x)) : [...list, r]));
+              // Linked tasks follow their topic, as the server just did.
+              setTasks((list) =>
+                list.map((t) => {
+                  if (t.roadmap_id !== r.id || !t.roadmap_node || !(t.roadmap_node in remap)) return t;
+                  const to = remap[t.roadmap_node];
+                  return { ...t, roadmap_node: to, roadmap_id: to ? r.id : null };
+                }),
+              );
+              setRmId(r.id);
+              setDrawer(null);
+            }}
+            onDelete={async () => {
+              const id = drawer.id!;
+              const res = await deleteRoadmapAction(id);
+              if (res.error !== undefined) return void toast.error(errorText(res.error));
+              setRoadmaps((list) => list.filter((x) => x.id !== id));
+              setTasks((list) => list.map((t) => (t.roadmap_id === id ? { ...t, roadmap_id: null, roadmap_node: null } : t)));
+              setRmId(null);
+              setDrawer(null);
+              toast.success("Roadmap o'chirildi");
+            }}
+          />
+        )}
         {drawer?.kind === 'space' && (
           <SpaceDrawer
             key={drawer.edit && space ? `edit-${space.id}` : 'new'}
@@ -595,6 +699,7 @@ export function StrategyWorkspace({
             onCreate={drawer.edit ? updateSpace : createSpace}
             onBudget={finance ? saveBudget : undefined}
             onAddMilestone={addMilestone}
+            onUpdateMilestone={updateMilestone}
             onDeleteMilestone={removeMilestone}
             onDeleteSpace={removeSpace}
           />

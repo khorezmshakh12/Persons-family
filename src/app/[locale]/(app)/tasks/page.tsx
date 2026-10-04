@@ -101,6 +101,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       // workflow's controls, same as the two fields below.
       attachment_count: row.attachment_count ?? 0,
       requires_proof: row.requires_proof,
+      from_strategy: row.from_strategy ?? false,
       rejection_reason: row.rejection_reason,
       completed_at: row.completed_at,
       submitted_at: row.submitted_at,

@@ -1826,3 +1826,11 @@ textarea.sx-inp {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Section sub-views (Reja: Roadmap · Mind map, Ijro: Board · List · Gantt …) */
+.sx-subviews button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+}

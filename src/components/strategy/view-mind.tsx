@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { toast } from './suite-shell';
+import { ask, toast } from './suite-shell';
 import { CheckSquare, Maximize, Minus, Pencil, Plus, X } from 'lucide-react';
 import { MIND_COLORS, guessWorkstream, type StrategyMind } from '@/lib/strategy';
 import type { WorkspaceApi } from './strategy-workspace';
@@ -165,10 +165,10 @@ export function MindView({
     toast.success(`«${v}» qo‘shildi`);
   }
 
-  function remove() {
+  async function remove() {
     if (!sel || 'root' in sel) return;
     const kids = sel.k == null ? (mind.ch[sel.b]?.ch.length ?? 0) : 0;
-    if (!window.confirm(kids ? `«${selName}» va undagi ${kids} ta g'oya o'chirilsinmi?` : `«${selName}» o'chirilsinmi?`)) return;
+    if (!(await ask(kids ? `«${selName}» va undagi ${kids} ta g'oya o'chirilsinmi?` : `«${selName}» o'chirilsinmi?`))) return;
     if (sel.k != null)
       onChange({ ...mind, ch: mind.ch.map((b, i) => (i === sel.b ? { ...b, ch: b.ch.filter((_, j) => j !== sel.k) } : b)) });
     else onChange({ ...mind, ch: mind.ch.filter((_, i) => i !== sel.b) });
@@ -233,8 +233,8 @@ export function MindView({
                       <g key={id} data-br="1" data-b={B.i} data-k={K.j} className="br">
                         <path d={taper(K.p0, K.c1, K.c2, K.p1, 9, 2.5)} fill={col} opacity={0.9} />
                         <path id={id} d={d} fill="none" />
-                        <path d={d} fill="none" stroke="transparent" strokeWidth={26} />
-                        <text fontSize={13} fill="var(--au-ink)" dy={-9} textAnchor="middle">
+                        <path d={d} fill="none" stroke="transparent" strokeWidth={34} />
+                        <text fontSize={13} fill="var(--au-ink)" dy={-9} textAnchor="middle" pointerEvents="bounding-box">
                           <textPath href={`#${id}`} startOffset={f2 ? '42%' : '58%'}>
                             {K.c.t}
                           </textPath>
@@ -247,8 +247,8 @@ export function MindView({
                   <g data-br="1" data-b={B.i} className="br">
                     <path d={taper(B.p0, B.c1, B.c2, B.p1, 30, 8)} fill={col} />
                     <path id={`m${B.i}`} d={centerline(B.p0, B.c1, B.c2, B.p1, flip)} fill="none" />
-                    <path d={centerline(B.p0, B.c1, B.c2, B.p1, flip)} fill="none" stroke="transparent" strokeWidth={40} />
-                    <text fontSize={16} fontWeight={600} fill="var(--au-ink)" dy={-18} textAnchor="middle">
+                    <path d={centerline(B.p0, B.c1, B.c2, B.p1, flip)} fill="none" stroke="transparent" strokeWidth={56} />
+                    <text fontSize={16} fontWeight={600} fill="var(--au-ink)" dy={-18} textAnchor="middle" pointerEvents="bounding-box">
                       <textPath href={`#m${B.i}`} startOffset={flip ? '40%' : '60%'}>
                         {B.b.t}
                       </textPath>

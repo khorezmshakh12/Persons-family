@@ -7,6 +7,7 @@ import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { normalizeBudget, type StrategyMind, type StrategySpace, type StrategyTask } from '@/lib/strategy';
 import { requireCap } from '@/lib/auth/require-admin';
+import { dropStrategyMirror, syncStrategyMirror } from '@/lib/strategy-sync';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
@@ -59,6 +60,7 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
             title = ${v.title}, description = ${v.description}, workstream = ${v.workstream},
             assignee_id = ${v.assigneeId}, start_date = ${v.startDate}, end_date = ${v.endDate},
             status = ${v.status}, priority = ${v.priority}, progress = ${progress}, updated_at = now(),
+            ${v.roadmapId !== undefined ? sql`roadmap_id = ${v.roadmapId}, roadmap_node = ${v.roadmapId ? (v.roadmapNode ?? null) : null},` : sql``}
             done_at = case when ${v.status} = 'done' then coalesce(done_at, now()) else null end
           where id = ${v.id} and space_id = ${v.spaceId}
           returning ${TASK_COLUMNS}`
@@ -71,7 +73,10 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
           returning ${TASK_COLUMNS}`;
     if (rows.length === 0) return { error: 'notFound' };
     if (!v.id) logSystemAction('strategy.task.create', `Strategy task "${v.title}"`);
+    // Mirror into the assignee's Tasks board (+ Telegram). Never fails the save.
+    await syncStrategyMirror(rows[0], profileId);
     revalidatePath('/[locale]/strategy', 'page');
+    revalidatePath('/[locale]/tasks', 'page');
     return { task: rows[0] };
   } catch {
     return { error: 'updateFailed' };
@@ -85,6 +90,7 @@ export async function deleteStrategyTaskAction(taskId: string): Promise<Result> 
     return { error: authErrorCode(error) };
   }
   if (!z.string().uuid().safeParse(taskId).success) return { error: 'invalidInput' };
+  await dropStrategyMirror(taskId);
   try {
     const res = await sql`delete from strategy_tasks where id = ${taskId}`;
     if (res.count === 0) return { error: 'notFound' };
@@ -294,7 +300,7 @@ export async function saveStrategyBudgetAction(
   budget: StrategySpace['budget'],
 ): Promise<Result> {
   try {
-    await requireCap('strategy.edit');
+    await requireCap('strategy.finance');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

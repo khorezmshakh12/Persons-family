@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   NODE_STATUSES,
@@ -13,6 +13,7 @@ import {
   guessWorkstream,
   normalizeBudget,
   roadmapNodeName,
+  roadmapNodes,
   type NodeStatus,
   type Priority,
   type StrategyMilestone,
@@ -24,7 +25,7 @@ import {
   type NodeLink,
 } from '@/lib/strategy';
 import { PersonAvatar, StatusChip } from './bits';
-import { toast } from './suite-shell';
+import { ask, toast } from './suite-shell';
 import { setRoadmapNodeLinksAction } from '@/lib/actions/strategy-finance';
 import type { Draft, WorkspaceApi } from './strategy-workspace';
 
@@ -200,10 +201,29 @@ export function TaskDrawer({
             <b className="w-10 tabular-nums">{d.progress}%</b>
           </div>
         </div>
-        {nodeName && (
+        {roadmaps.length > 0 && (
           <div className="fld">
             <label>Roadmap</label>
-            <span className="sx-node-chip justify-self-start">{nodeName}</span>
+            <select
+              className="sx-inp"
+              value={d.roadmap_id && d.roadmap_node ? `${d.roadmap_id}|${d.roadmap_node}` : ''}
+              title={nodeName ?? undefined}
+              onChange={(e) => {
+                const [rid, node] = e.target.value.split('|');
+                set({ roadmap_id: rid || null, roadmap_node: node || null });
+              }}
+            >
+              <option value="">— Bog‘lanmagan —</option>
+              {roadmaps.map((r) => (
+                <optgroup key={r.id} label={r.name}>
+                  {roadmapNodes(r).map((n) => (
+                    <option key={n.id} value={`${r.id}|${n.id}`}>
+                      {n.main ? n.t : `   ${n.t}`}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
         )}
         <div className="dr-sec">Tavsif</div>
@@ -374,6 +394,7 @@ export function SpaceDrawer({
   onCreate,
   onBudget,
   onAddMilestone,
+  onUpdateMilestone,
   onDeleteMilestone,
   onDeleteSpace,
 }: {
@@ -385,6 +406,7 @@ export function SpaceDrawer({
   onCreate: (v: SpaceInput) => Promise<boolean>;
   onBudget?: (b: StrategySpace['budget']) => Promise<boolean>;
   onAddMilestone?: (title: string, date: string) => Promise<boolean>;
+  onUpdateMilestone?: (id: string, title: string, date: string) => Promise<boolean>;
   onDeleteMilestone?: (id: string) => Promise<void>;
   onDeleteSpace?: () => Promise<void>;
 }) {
@@ -403,6 +425,7 @@ export function SpaceDrawer({
     }),
   );
   const [msT, setMsT] = useState('');
+  const [msEdit, setMsEdit] = useState<{ id: string; t: string; d: string } | null>(null);
   const [msD, setMsD] = useState(today);
   const [confirmDel, setConfirmDel] = useState(false);
   const budRows = normalizeBudget(bud.map((b) => ({ ws: b.ws, plan: Number(b.plan) || 0, act: Number(b.act) || 0 })));
@@ -522,19 +545,57 @@ export function SpaceDrawer({
               <p className="text-[13px] text-au-faint">Hali yo‘q — quyida nom va sana kiriting. Ular Gantt’da ko‘rinadi.</p>
             )}
             <div className="flex flex-col gap-1.5">
-              {milestones.map((m) => (
+              {milestones.map((m) =>
+                msEdit?.id === m.id ? (
+                  <div key={m.id} className="flex flex-wrap items-center gap-1.5 rounded-xl border border-au-accent px-2 py-1.5 text-[13px]">
+                    <input
+                      className="sx-inp h-8 min-w-[120px] flex-1"
+                      autoFocus
+                      maxLength={200}
+                      value={msEdit.t}
+                      onChange={(e) => setMsEdit({ ...msEdit, t: e.target.value })}
+                    />
+                    <input
+                      type="date"
+                      className="sx-inp h-8 !w-[140px]"
+                      value={msEdit.d}
+                      onChange={(e) => e.target.value && setMsEdit({ ...msEdit, d: e.target.value })}
+                    />
+                    <button
+                      className="sx-btn sm"
+                      disabled={busy || !msEdit.t.trim()}
+                      aria-label="Saqlash"
+                      onClick={async () => {
+                        setBusy(true);
+                        if (await onUpdateMilestone?.(m.id, msEdit.t.trim(), msEdit.d)) setMsEdit(null);
+                        setBusy(false);
+                      }}
+                    >
+                      <Check className="size-3.5" />
+                    </button>
+                    <button className="sx-btn sm" aria-label="Bekor qilish" onClick={() => setMsEdit(null)}>
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ) : (
                 <div key={m.id} className="flex items-center gap-2 rounded-xl border border-au-line px-2.5 py-1.5 text-[13px]">
                   <span className="tabular-nums text-au-muted">{m.date.split('-').reverse().join('.')}</span>
                   <span className="flex-1 font-semibold">{m.title}</span>
+                  {onUpdateMilestone && (
+                    <button className="sx-btn sm" aria-label={`«${m.title}» ni tahrirlash`} onClick={() => setMsEdit({ id: m.id, t: m.title, d: m.date })}>
+                      <Pencil className="size-3.5" />
+                    </button>
+                  )}
                   <button
                     className="sx-btn sm text-au-bad"
                     aria-label={`«${m.title}» ni o‘chirish`}
-                    onClick={() => window.confirm(`«${m.title}» muhim sanasi o‘chirilsinmi?`) && onDeleteMilestone?.(m.id)}
+                    onClick={async () => (await ask(`«${m.title}» muhim sanasi o‘chirilsinmi?`)) && onDeleteMilestone?.(m.id)}
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
-              ))}
+                ),
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <input

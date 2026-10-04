@@ -42,6 +42,8 @@ export type Task = {
   assigned_by?: string | null;
   /** Server-rendered comment count for the closed drawer trigger. */
   comment_count?: number;
+  /** Mirrored from a Strategy task — shown with a small badge. */
+  from_strategy?: boolean;
   /** Same idea for the attachments drawer. */
   attachment_count?: number;
   /** The CEO ticked "the employee must upload a file" — approval routes this
@@ -200,6 +202,11 @@ function TaskCardImpl({
         {/* Card Header: Title + Action Buttons */}
         <div className="flex items-start justify-between gap-2 min-w-0">
           <span className="min-w-0 flex-1 font-semibold text-au-ink leading-snug break-words [overflow-wrap:anywhere] text-sm sm:text-base">
+            {task.from_strategy && (
+              <span className="mr-1.5 inline-flex translate-y-[-1px] items-center rounded-full bg-au-accent-soft px-1.5 py-0.5 align-middle text-[10px] font-bold text-au-accent-text">
+                🎯 Strategiya
+              </span>
+            )}
             {task.title}
           </span>
           <div className="-mt-1 -mr-1 flex shrink-0 items-center gap-1">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Pencil, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { StrategyRoadmap, StrategyTask } from '@/lib/strategy';
 
@@ -14,14 +14,17 @@ const MH = 52;
 const TW = 196;
 const TH = 40;
 const GAP_Y = 180;
+const ROW = TH + 18;
 
 function layout(r: StrategyRoadmap) {
   const nodes: Node[] = [];
   const links: Link[] = [];
+  let y = 40;
+  let prevY = 0;
   r.sections.forEach((sec, i) => {
-    const y = 40 + i * GAP_Y;
+    // A stage is as tall as its longer topic column (3 fit in the classic gap).
+    if (i > 0) links.push({ x1: CX, y1: prevY + MH, x2: CX, y2: y, main: true });
     nodes.push({ id: sec.id, t: sec.t, q: sec.q, main: true, x: CX - MW / 2, y, w: MW, h: MH });
-    if (i > 0) links.push({ x1: CX, y1: y - GAP_Y + MH, x2: CX, y2: y, main: true });
     (['left', 'right'] as const).forEach((side) =>
       sec[side].forEach((t, j) => {
         const x = side === 'left' ? 16 : W - 16 - TW;
@@ -36,8 +39,10 @@ function layout(r: StrategyRoadmap) {
         });
       }),
     );
+    prevY = y;
+    y += Math.max(GAP_Y, Math.max(sec.left.length, sec.right.length) * ROW + 64);
   });
-  return { nodes, links, H: 40 + r.sections.length * GAP_Y };
+  return { nodes, links, H: y };
 }
 
 const path = (l: Link) =>
@@ -49,16 +54,32 @@ export function RoadmapView({
   roadmaps,
   tasks,
   selected,
+  rmId,
+  onPick,
   onNode,
+  onNew,
+  onEdit,
 }: {
   roadmaps: StrategyRoadmap[];
   tasks: StrategyTask[];
   selected: string | null;
+  rmId: string | null;
+  onPick: (id: string) => void;
   onNode: (roadmapId: string, nodeId: string) => void;
+  onNew: () => void;
+  onEdit: (id: string) => void;
 }) {
-  const [rmId, setRmId] = useState(roadmaps[0]?.id);
   const R = roadmaps.find((r) => r.id === rmId) ?? roadmaps[0];
-  if (!R) return <p className="text-au-muted">Roadmap yo‘q</p>;
+  if (!R)
+    return (
+      <div className="sx-card flex flex-col items-center gap-3 p-10 text-center">
+        <h3 className="text-base font-bold text-au-ink">Hali roadmap yo‘q</h3>
+        <p className="max-w-md text-sm text-au-muted">Bosqichlar (choraklar) va har biridagi tashabbuslar — strategiyaning yo‘l xaritasi.</p>
+        <button className="sx-btn primary" onClick={onNew}>
+          <Plus className="size-4" /> Roadmap yaratish
+        </button>
+      </div>
+    );
 
   const { nodes, links, H } = layout(R);
   const st = (id: string) => R.node_status[id] ?? 'todo';
@@ -106,7 +127,7 @@ export function RoadmapView({
       <div className="rm-side">
         <div className="sx-card rm-pick">
           {roadmaps.map((r) => (
-            <button key={r.id} className={cn(r.id === R.id && 'on')} onClick={() => setRmId(r.id)}>
+            <button key={r.id} className={cn(r.id === R.id && 'on')} onClick={() => onPick(r.id)}>
               <span className="ic">{r.icon}</span>
               <span>
                 {r.name}
@@ -114,6 +135,14 @@ export function RoadmapView({
               </span>
             </button>
           ))}
+          <div className="mt-1 flex gap-2 border-t border-au-line pt-2">
+            <button className="sx-btn sm flex-1 justify-center" onClick={() => onEdit(R.id)}>
+              <Pencil className="size-3.5" /> Tahrirlash
+            </button>
+            <button className="sx-btn sm flex-1 justify-center" onClick={onNew}>
+              <Plus className="size-3.5" /> Yangi
+            </button>
+          </div>
         </div>
         <div className="sx-card rm-prog">
           <div className="ct">
