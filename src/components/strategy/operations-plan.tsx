@@ -6,16 +6,13 @@ import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { addMonths, fmtGrowth, fmtMln, growthRate } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
-import { computeKpiScore } from '@/lib/kpi';
 import { MONF } from '@/lib/strategy';
 import { tashkentDayKey } from '@/lib/time';
 import {
   SC_KEYS,
   SC_NAMES,
-  forecast,
   lifetimeValue,
   logWidth,
-  monthTone,
   peakLoad,
   planMonths,
   planReady,
@@ -28,7 +25,6 @@ import {
 } from '@/lib/ops-plan';
 import { deleteRoomAction, deleteSlotHoldAction, savePlanAction, saveRoomAction, saveSlotHoldAction, setGroupEnrollmentAction } from '@/lib/actions/operations';
 import { ask, playSound, toast } from './suite-shell';
-import { Chart } from './charts';
 import type { OpsData } from './operations-workspace';
 
 const errMsg = (e: string) =>
@@ -628,241 +624,6 @@ export function PlanFunnel({ m, onPlan }: { m: OpsModel; onPlan: () => void }) {
           ))}
         </div>
       </div>
-    </>
-  );
-}
-
-/* ----------------------------------------------------------- trajectory */
-type Cv = 'base' | 'net' | 'flow' | 'sc';
-export function Trajectory({ m, data, onPlan }: { m: OpsModel; data: OpsData; onPlan: () => void }) {
-  const [cv, setCv] = useState<Cv>('base');
-  if (!m.ready) return <NeedPlan onPlan={onPlan} />;
-  const mo = m.months;
-  const labels = mo.map((x) => monLabel(x.ym));
-  const ref = { v: m.plan.target, t: `Marra · ${n0(m.plan.target)}` };
-  const f = (v: number) => `${Math.round(v)}`;
-  const enrolledIn = (ym: string) => data.leads.filter((l) => l.enrolled_at && tzDay(l.enrolled_at).slice(0, 7) === ym).length;
-  const scC: Record<ScKey, string> = { worst: 'var(--au-bad)', average: 'var(--au-ink)', best: 'var(--au-ok)' };
-  return (
-    <>
-      <div className="sx-card s12">
-        <div className="sx-h">
-          <h3>Oylik o&apos;sish traektoriyasi</h3>
-          <small>
-            {n0(m.baseline)} → {n0(m.plan.target)} talaba · reja dinamikasi
-          </small>
-          <span className="sp" />
-          <div className="sx-seg">
-            {(
-              [
-                ['base', 'Faol talabalar'],
-                ['net', "Sof o'sish"],
-                ['flow', 'Sotuv vs churn'],
-                ['sc', '3 stsenariy'],
-              ] as [Cv, string][]
-            ).map(([k, n]) => (
-              <button key={k} className={cn(cv === k && 'on')} onClick={() => setCv(k)}>
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-        {cv === 'base' && <Chart labels={labels} height={280} fmt={f} refLine={ref} series={[{ n: 'Faol talabalar (reja)', c: 'var(--au-ink)', v: mo.map((x) => x.end), kind: 'line' }]} />}
-        {cv === 'net' && <Chart labels={labels} height={280} fmt={f} series={[{ n: "Oylik sof o'sish", c: 'var(--au-accent)', v: mo.map((x) => x.end - x.start) }]} />}
-        {cv === 'flow' && (
-          <Chart
-            labels={labels}
-            height={280}
-            fmt={f}
-            series={[
-              { n: 'Yangi sotuvlar', c: 'var(--au-ok)', v: mo.map((x) => x.sales) },
-              { n: 'Churn', c: 'var(--au-bad)', v: mo.map((x) => -x.churn) },
-            ]}
-          />
-        )}
-        {cv === 'sc' && (
-          <>
-            <Chart
-              labels={labels}
-              height={280}
-              fmt={f}
-              refLine={ref}
-              series={SC_KEYS.map((k) => ({
-                n: `${SC_NAMES[k]} (joriy lid oqimi)`,
-                c: scC[k],
-                v: forecast(m.plan, m.plan.scenarios[k], m.baseline, mo, m.leadsPerMonth),
-                kind: 'line' as const,
-                dash: k !== 'average',
-              }))}
-            />
-            <p className="mt-1 text-xs text-au-muted">
-              Prognoz: oxirgi 3 oydagi o&apos;rtacha {m.leadsPerMonth.toFixed(1)} lid/oy saqlansa, har stsenariyning churn va konversiyasi bilan.
-            </p>
-          </>
-        )}
-      </div>
-      <div className="sx-card s12">
-        <div className="sx-h">
-          <h3>Oylar kesimida reja</h3>
-          <small>Stsenariy: {SC_NAMES[m.sc]}</small>
-        </div>
-        <div className="sx-tw">
-          <table className="sx-tbl">
-            <thead>
-              <tr>
-                <th className="l">Oy</th>
-                <th>Boshlang&apos;ich baza</th>
-                <th>Churn</th>
-                <th>Yangi shartnoma</th>
-                <th>Oy oxiri</th>
-                <th>Lidlar rejasi</th>
-                <th>Kunlik kvota</th>
-                <th>Marketing, so&apos;m</th>
-                <th>Nazorat</th>
-                <th style={{ width: '16%' }}>{n0(m.plan.target)} ga yo&apos;l</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mo.map((x, i) => {
-                const cur = x.ym === m.today.slice(0, 7);
-                const act = enrolledIn(x.ym);
-                const tone = monthTone(act, x.sales);
-                return (
-                  <tr key={x.ym} style={{ animationDelay: `${i * 30}ms` }}>
-                    <td className="l">
-                      <b>{monLabel(x.ym)}</b>
-                    </td>
-                    <td>{n0(x.start)}</td>
-                    <td style={{ color: 'var(--au-bad)' }}>{x.churn ? `−${x.churn}` : '0'}</td>
-                    <td style={{ color: 'var(--au-ok)' }}>{x.sales ? `+${x.sales}` : '0'}</td>
-                    <td>
-                      <b>{n0(x.end)}</b>
-                    </td>
-                    <td>{n0(x.leads)}</td>
-                    <td>{x.dailyLeads.toFixed(1)}</td>
-                    <td>{fmtMln(x.budget)}</td>
-                    <td>
-                      {cur ? (
-                        <span className={cn('sx-pl', tone)} title="Shu oy yozilganlar / reja">
-                          {act}/{x.sales} fakt
-                        </span>
-                      ) : (
-                        <span className="sx-pl mute">Reja</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="sx-hb">
-                        <i style={{ width: `${m.plan.target ? Math.min(100, (x.end / m.plan.target) * 100) : 0}%`, background: 'var(--au-accent)' }} />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ------------------------------------------------------------- dept KPI */
-export function DeptKpi({ data, ym, deptOf }: { data: OpsData; ym: string; deptOf: (role: string) => string }) {
-  const [q, setQ] = useState('');
-  const staff = new Map(data.staff.map((s) => [s.id, s]));
-  const cards = data.metrics
-    .map((mt) => {
-      const e = data.entries.find((x) => x.metric_id === mt.id && x.month === ym);
-      const p = staff.get(mt.staff_id);
-      if (!e || !p) return null;
-      const pctV = e.actual_value === null ? null : e.target_value > 0 ? (e.actual_value / e.target_value) * 100 : null;
-      return { ...mt, who: p.name, dept: deptOf(p.role), target: e.target_value, actual: e.actual_value, pct: pctV };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
-  const scoreOf = (d: string) => {
-    const ids = [...new Set(cards.filter((c) => c.dept === d).map((c) => c.staff_id))];
-    const sc = ids
-      .map((id) =>
-        computeKpiScore(
-          data.metrics.filter((x) => x.staff_id === id),
-          data.entries.filter((e) => e.month === ym && data.metrics.some((x) => x.id === e.metric_id && x.staff_id === id)),
-        ),
-      )
-      .filter((v): v is number => v !== null);
-    return sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : null;
-  };
-  const depts = [...new Set(cards.map((c) => c.dept))].map((d) => ({ d, v: scoreOf(d) }));
-  const [dept, setDept] = useState<string | null>(null);
-  const cur = dept && depts.some((x) => x.d === dept) ? dept : depts[0]?.d;
-  const all = depts.filter((x) => x.v !== null);
-  const avg = all.length ? all.reduce((a, x) => a + x.v!, 0) / all.length : null;
-  const curV = depts.find((x) => x.d === cur)?.v ?? null;
-  const ql = q.trim().toLowerCase();
-  const list = cards.filter((c) => c.dept === cur && (!ql || `${c.name} ${c.who}`.toLowerCase().includes(ql)));
-  const tone = (v: number | null) => (v === null ? 'mute' : v >= 100 ? 'ok' : v >= 80 ? 'warn' : 'bad');
-  const toneText = { ok: 'Bajarildi', warn: 'Yaqin', bad: 'Ortda', mute: 'Fakt yo‘q' } as const;
-  if (!depts.length) return null;
-  return (
-    <>
-      <div className="sx-card s12">
-        <div className="sx-dtabs">
-          {depts.map((x) => (
-            <button key={x.d} className={cn(x.d === cur && 'on')} onClick={() => setDept(x.d)}>
-              <span>{x.d}</span>
-              <b>{x.v === null ? '—' : `${x.v.toFixed(0)}%`}</b>
-            </button>
-          ))}
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-4">
-          <div className="min-w-[200px] flex-1">
-            <h3 className="text-lg font-bold">{cur}</h3>
-            <p className="text-xs text-au-muted">{list.length} ta KPI ko&apos;rsatkich · {monLabel(ym)}</p>
-          </div>
-          <div className="w-[240px]">
-            <div className="text-xs text-au-muted">Bo&apos;lim tayyorgarligi</div>
-            <b className="text-2xl">{curV === null ? '—' : `${curV.toFixed(1)}%`}</b>
-            <div className="sx-hb">
-              <i style={{ width: `${Math.min(100, curV ?? 0)}%`, background: 'var(--au-ok)' }} />
-            </div>
-            <div className="text-xs text-au-muted">Kompaniya o&apos;rtachasi {avg === null ? '—' : `${avg.toFixed(1)}%`}</div>
-          </div>
-          <input className="sx-inp !w-[220px]" placeholder="KPI qidirish…" value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-      </div>
-      {list.length === 0 && (
-        <div className="sx-card s12">
-          <div className="sx-empty">KPI topilmadi</div>
-        </div>
-      )}
-      {list.map((c, i) => {
-        const t = tone(c.pct);
-        return (
-          <div key={c.id} className="sx-card s4" style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
-            <div className="flex items-center justify-between gap-2">
-              <small className="text-xs text-au-muted">{c.who}</small>
-              <span className={cn('sx-pl', t)}>{toneText[t]}</span>
-            </div>
-            <h4 className="mt-1 font-bold">{c.name}</h4>
-            <div className="my-2 grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <div className="text-xs text-au-muted">Maqsad</div>
-                <b>{n0(c.target)}</b>
-              </div>
-              <div>
-                <div className="text-xs text-au-muted">Fakt</div>
-                <b>{c.actual === null ? '—' : n0(c.actual)}</b>
-              </div>
-            </div>
-            <div className="sx-hb">
-              <i style={{ width: `${Math.min(100, c.pct ?? 0)}%`, background: t === 'ok' ? 'var(--au-ok)' : t === 'warn' ? 'var(--au-accent)' : 'var(--au-info)' }} />
-            </div>
-            <div className="mt-1 flex justify-between text-xs text-au-muted">
-              <span>{c.pct === null ? '—' : `${c.pct.toFixed(0)}% bajarilish`}</span>
-              <span>vazn {c.weight_percentage}%</span>
-            </div>
-          </div>
-        );
-      })}
     </>
   );
 }
