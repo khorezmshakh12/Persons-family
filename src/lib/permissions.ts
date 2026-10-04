@@ -104,7 +104,8 @@ export type SectionKey =
   | 'telegramSetup'
   | 'profile'
   | 'settings'
-  | 'materials';
+  | 'materials'
+  | 'butterfly';
 
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   // Everyone — personal workspace.
@@ -122,6 +123,7 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   profile: ALL,
   settings: ALL,
   materials: ALL,
+  butterfly: ALL, // the particle-garden page — a calm corner for everyone
   hr: ALL, // own leave / vacation requests; other people's pay is redacted
   // Department sections.
   sales: [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],

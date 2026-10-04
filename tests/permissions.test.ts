@@ -28,7 +28,7 @@ const read = (p: string) => readFileSync(join(root, p), 'utf8');
 // Sections every role opens (personal workspace).
 const EVERYONE: SectionKey[] = [
   'dashboard', 'coreInbox', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment',
-  'finance', 'profile', 'settings', 'materials', 'hr',
+  'finance', 'profile', 'settings', 'materials', 'hr', 'butterfly',
 ];
 
 // The owner-facing matrix: department sections per role, on top of EVERYONE.

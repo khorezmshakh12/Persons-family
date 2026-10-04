@@ -50,7 +50,8 @@
     "hr": "HR",
     "report": "Oylik hisobot",
     "platform": "Platforma sozlamalari",
-    "coreBoard": "Platforma ko'rinishi"
+    "coreBoard": "Platforma ko'rinishi",
+    "butterfly": "Kapalak"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -1871,6 +1872,15 @@
     "aquarium": {
       "name": "Akvarium",
       "hint": "Haqiqiy baliqlar suzib yuradi."
+    },
+    "butterfly": {
+      "name": "Kapalak",
+      "hint": "Zarrachalardan yig‘ilib-tarqaladigan kapalak va gullar."
     }
+  },
+  "butterfly": {
+    "title": "Kapalak",
+    "subtitle": "Zarrachalar bog‘da kapalak va gullarga aylanib, yana tarqaladi.",
+    "hint": "Aylantirish uchun suring · yaqinlashtirish uchun g‘ildirak / ikki barmoq"
   }
 }

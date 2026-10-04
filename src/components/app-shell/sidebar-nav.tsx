@@ -17,6 +17,7 @@ import {
   Wallet,
   Milestone,
   BookOpen,
+  Sparkles,
   ShoppingBag,
   Map as MapIcon,
   Inbox,
@@ -58,6 +59,7 @@ export const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: str
   profile: User,
   settings: Settings,
   materials: BookOpen,
+  butterfly: Sparkles,
 };
 
 export function SidebarNav({

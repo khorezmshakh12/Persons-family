@@ -7,12 +7,12 @@ import { CHIP_NEUTRAL, CHIP_OK } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { AQUARIUM_READY, BG_MODES, currentBg, DEFAULT_BG, setBg, subscribeBg } from '@/lib/bg-mode';
 
-/** Settings › Orqa fon: off / flowing colour / aquarium, per device. */
+/** Settings › Orqa fon: off / flowing colour / aquarium / butterfly, per device. */
 export function BgSettingsCard() {
   const t = useTranslations('bgSettings');
   const mode = useSyncExternalStore(subscribeBg, currentBg, () => DEFAULT_BG);
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {BG_MODES.map((m) => {
         const on = m === mode;
         const soon = m === 'aquarium' && !AQUARIUM_READY;
