@@ -77,9 +77,14 @@
   animation: ch-line 0.6s var(--ch-out) both;
 }
 .ch-stream {
+  /* Telegram-like wallpaper: soft theme wash + a faint dot pattern. */
   background-color: var(--au-bg);
-  background-image: radial-gradient(var(--au-line) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-image:
+    radial-gradient(color-mix(in oklab, var(--au-line) 85%, transparent) 1px, transparent 1.2px),
+    radial-gradient(120% 80% at 0% 0%, color-mix(in oklab, var(--au-accent) 9%, transparent), transparent 60%),
+    radial-gradient(120% 80% at 100% 100%, color-mix(in oklab, var(--au-ok) 8%, transparent), transparent 60%);
+  background-size: 20px 20px, 100% 100%, 100% 100%;
+  background-attachment: local, scroll, scroll;
   scroll-behavior: smooth;
 }
 .ch-row {
@@ -89,31 +94,102 @@
   animation-name: ch-in-own;
 }
 
+/* Bubbles: big radius, the corner on the speaker's side tightens inside a
+   run and grows a tail on the last bubble. */
 .ch-bubble {
   position: relative;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  border-radius: 18px;
+  box-shadow: 0 1px 1.5px rgb(0 0 0 / 0.08);
   transition:
     transform 0.2s var(--ch-spring),
     box-shadow 0.2s var(--ch-out);
 }
 .ch-bubble:hover {
-  transform: translateY(-1px);
   box-shadow: var(--au-shadow-card);
 }
 .ch-bubble.ch-own {
-  background: linear-gradient(135deg, var(--au-accent) 0%, color-mix(in oklab, var(--au-accent) 78%, var(--au-primary)) 100%);
-  color: var(--au-accent-ink);
+  background: color-mix(in oklab, var(--au-accent) 22%, var(--au-card));
+  color: var(--au-ink);
+  border-top-right-radius: 18px;
   border-bottom-right-radius: 6px;
 }
 .ch-bubble.ch-other {
   background: var(--au-card);
   color: var(--au-ink);
-  border: 1px solid var(--au-line);
   border-bottom-left-radius: 6px;
 }
-.ch-bubble.ch-own a {
-  color: inherit;
+.ch-bubble.ch-tail.ch-own {
+  border-bottom-right-radius: 4px;
+}
+.ch-bubble.ch-tail.ch-other {
+  border-bottom-left-radius: 4px;
+}
+.ch-bubble.ch-tail::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 14px;
+  background: inherit;
+}
+.ch-bubble.ch-tail.ch-own::after {
+  right: -6px;
+  clip-path: path('M0 0 C0 8 3 12 10 14 L0 14 Z');
+}
+.ch-bubble.ch-tail.ch-other::after {
+  left: -6px;
+  clip-path: path('M10 0 C10 8 7 12 0 14 L10 14 Z');
+}
+.ch-bubble a {
+  color: var(--au-accent-text);
   text-decoration: underline;
+}
+.ch-name {
+  color: var(--au-accent-text);
+}
+.ch-meta {
+  color: var(--au-faint);
+  font-variant-numeric: tabular-nums;
+}
+.ch-own .ch-meta {
+  color: color-mix(in oklab, var(--au-accent-text) 70%, var(--au-muted));
+}
+.ch-read {
+  color: var(--au-ok);
+}
+
+/* Sticky day pill between dates. */
+.ch-day span {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--au-ink);
+  background: color-mix(in oklab, var(--au-card) 82%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+/* Jump to the latest message. */
+.ch-jump {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  color: var(--au-ink);
+  background: var(--au-card);
+  box-shadow: var(--au-shadow-card);
+  animation: ch-pop 0.3s var(--ch-spring) both;
+  transition: transform 0.2s var(--ch-spring);
+}
+.ch-jump:hover {
+  transform: translateY(-2px);
+}
+.ch-jump:active {
+  transform: scale(0.92);
 }
 
 /* ---- composer ---------------------------------------------------------- */

@@ -85,9 +85,18 @@ export function PayrollSection({ summary, locale }: { summary: PayrollSummary; l
       </div>
 
       <div className="flex flex-col divide-y divide-au-line">
+        <div className="hidden items-center gap-x-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-au-faint sm:flex">
+          <span className="min-w-[8rem] flex-1">{t('colName')}</span>
+          <span className="w-[210px]">{t('colSalary')}</span>
+          <span className="w-28 text-right">{t('totalPaid')}</span>
+          <span className="w-28 text-right">{t('totalRemaining')}</span>
+          <span className="w-[72px]" />
+        </div>
         {rows.map((r) => (
           <div key={r.staffId} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-            <span className="min-w-[8rem] flex-1 font-medium text-au-ink">{r.name}</span>
+            <Link href={`/finance/${r.staffId}`} className="min-w-[8rem] flex-1 font-medium text-au-ink hover:text-au-accent-text hover:underline">
+              {r.name}
+            </Link>
             <SetSalaryForm staffId={r.staffId} period={period} gross={r.gross} />
             <span className="w-28 text-right text-sm tabular-nums text-emerald-700">
               {formatUZS(r.paid)}
@@ -195,7 +204,7 @@ function RecordPaymentDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {t('recordFor', { name })} · {name}
+            {t('recordFor', { name })}
           </DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">

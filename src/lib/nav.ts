@@ -29,7 +29,8 @@ export type NavItem = {
     | 'profile'
     | 'settings'
     | 'materials'
-    | 'butterfly';
+    | 'butterfly'
+    | 'kpi';
   href: string;
   /** Points at a different app on the shared gateway (see
    * persons-staffs-gateway), not a route inside this Next.js app — must be
@@ -58,8 +59,9 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   staff: 'main',
   market: 'motivation',
   selfDevelopment: 'motivation',
-  chat: 'workflow',
-  issues: 'workflow',
+  // Owner, 2026-10-04: Chat and Issues are daily tools — top of the main group.
+  chat: 'main',
+  issues: 'main',
   lessonPlans: 'workflow',
   companyNews: 'workflow',
   materials: 'workflow',
@@ -72,11 +74,15 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   profile: 'management',
   settings: 'management',
   butterfly: 'motivation',
+  kpi: 'main',
 };
 
 // Order inside each sidebar section — mirrors the Aurora reference.
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
+  'chat',
+  'issues',
+  'kpi',
   'coreInbox',
   'accounting',
   'operations',
@@ -89,8 +95,6 @@ const NAV_SORT: NavItem['key'][] = [
   'market',
   'selfDevelopment',
   'butterfly',
-  'chat',
-  'issues',
   'lessonPlans',
   'companyNews',
   'materials',
@@ -153,6 +157,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'market', href: '/market' },
   // The particle-garden page — open to everyone.
   { key: 'butterfly', href: '/butterfly' },
+  // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.
+  { key: 'kpi', href: '/my-kpi' },
   { key: 'profile', href: '/profile' },
   { key: 'telegramSetup', href: '/telegram-setup' },
   { key: 'settings', href: '/settings' },

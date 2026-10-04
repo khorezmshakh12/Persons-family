@@ -210,6 +210,55 @@ export async function commentChangeRequestAction(input: z.input<typeof commentSc
   return done();
 }
 
+const crUpdateSchema = crSchema.extend({ id: uuid });
+
+/** Edit title / description / links — not once it has been applied. */
+export async function updateChangeRequestAction(input: z.input<typeof crUpdateSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = crUpdateSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const r = await sql`
+      update pf_change_requests set title = ${p.data.title}, description = ${p.data.description},
+        space_id = ${p.data.spaceId}, stask_id = ${p.data.staskId}
+      where id = ${p.data.id} and status <> 'submitted'`;
+    if (r.count === 0) return { error: 'conflict' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}
+
+/** Delete a change request (comments and votes cascade). */
+export async function deleteChangeRequestAction(id: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const r = await sql`delete from pf_change_requests where id = ${id}`;
+    if (r.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('pf.cr_delete', id);
+  return done();
+}
+
+/** Delete one's own review comment. */
+export async function deleteCrCommentAction(id: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const r = await sql`delete from pf_cr_comments where id = ${id} and author_id = ${g.id}`;
+    if (r.count === 0) return { error: 'forbidden' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}
+
 /* ------------------------------------------------ ISO 31000 risk register */
 
 const riskSchema = z.object({

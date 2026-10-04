@@ -1,18 +1,32 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { ArrowLeft, MessageSquarePlus, MessagesSquare } from 'lucide-react';
+import { ArrowDown, ArrowLeft, MessageSquarePlus, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { sendChatRequestAction, respondToDmRequestAction } from '@/lib/actions/staff-chats';
 import { MessageBubble, type ChatSender } from './message-bubble';
 import { ChatComposer } from './chat-composer';
-import { useTypingUserIds } from '@/components/presence/presence-context';
+import { useOnlineUserIds, useTypingUserIds } from '@/components/presence/presence-context';
 import type { ActiveConversation, ChatQuote, ConversationState, StaffChatMessage } from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
 import type { SentStaffChatMessage } from '@/lib/actions/staff-chats';
+import { tashkentDayKey } from '@/lib/time';
+
+const tashkentDay = (iso: string) => tashkentDayKey(new Date(iso));
+
+/** "Bugun" / "Kecha" / "3-oktabr" — the sticky pill between days. */
+function dayLabel(day: string) {
+  const today = tashkentDayKey();
+  const yesterday = tashkentDayKey(new Date(Date.now() - 86_400_000));
+  if (day === today) return 'Bugun';
+  if (day === yesterday) return 'Kecha';
+  const [y, m, d] = day.split('-').map(Number);
+  const months = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+  return `${d}-${months[m - 1]}${y !== Number(today.slice(0, 4)) ? ` ${y}` : ''}`;
+}
 
 function toQuote(message: StaffChatMessage, senderName: string): ChatQuote {
   return { id: message.id, senderName, text: message.message_text, mediaType: message.media_type };
@@ -51,6 +65,8 @@ export function ConversationView({
   // The other person is typing to me right now (presence, #25).
   const typingIds = useTypingUserIds();
   const typing = !!active && typingIds.has(active.userId);
+  const onlineIds = useOnlineUserIds();
+  const online = !!active && onlineIds.has(active.userId);
   const [replyTarget, setReplyTarget] = useState<ChatQuote | null>(null);
   const [isRequestPending, startRequestTransition] = useTransition();
   const messageMap = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
@@ -87,8 +103,10 @@ export function ConversationView({
   // container happens to start.
   const previousConversationKey = useRef<string | null>(null);
 
+  const [showJump, setShowJump] = useState(false);
   function handleScroll() {
     const el = scrollContainerRef.current;
+    if (el) setShowJump(el.scrollHeight - el.scrollTop - el.clientHeight > 400);
     if (!el) return;
     isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }
@@ -187,7 +205,13 @@ export function ConversationView({
           {headerAvatar && <AvatarImage src={headerAvatar} alt="" />}
           <AvatarFallback>{headerInitials}</AvatarFallback>
         </Avatar>
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-au-ink">{headerName}</h2>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h2 className="truncate text-base font-semibold text-au-ink">{headerName}</h2>
+          {/* Telegram-style status line under the name. */}
+          <span className={typing || online ? 'text-xs text-au-accent-text' : 'text-xs text-au-faint'}>
+            {typing ? `${t('typing')}…` : online ? t('online') : t('offline')}
+          </span>
+        </div>
       </div>
 
       {conversationState.kind === 'none' ? (
@@ -225,20 +249,36 @@ export function ConversationView({
         </div>
       ) : (
         <>
+          <div className="relative flex min-h-0 flex-1 flex-col">
           <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="ch-stream min-h-0 flex-1 overflow-y-auto p-4"
+            className="ch-stream min-h-0 flex-1 overflow-y-auto px-3 py-2 sm:px-6"
           >
             {messages.length === 0 ? (
               <p className="text-center text-sm text-au-muted">{t('empty')}</p>
             ) : (
-              <div className="flex flex-col gap-4">
-                {messages.map((m) => {
+              <div className="flex flex-col">
+                {messages.map((m, i) => {
                   const repliedMessage = m.reply_to_id ? messageMap.get(m.reply_to_id) : undefined;
+                  const prev = messages[i - 1];
+                  const next = messages[i + 1];
+                  const day = tashkentDay(m.created_at);
+                  const newDay = !prev || tashkentDay(prev.created_at) !== day;
+                  const joins = (a?: StaffChatMessage, b?: StaffChatMessage) =>
+                    !!a && !!b && a.sender_id === b.sender_id && tashkentDay(a.created_at) === tashkentDay(b.created_at) &&
+                    Math.abs(new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) < 5 * 60_000;
                   return (
+                    <Fragment key={m.id}>
+                    {newDay && (
+                      <div className="ch-day sticky top-1 z-10 my-3 flex justify-center">
+                        <span>{dayLabel(day)}</span>
+                      </div>
+                    )}
                     <MessageBubble
                       key={m.id}
+                      grouped={!newDay && joins(prev, m)}
+                      tail={!joins(m, next)}
                       message={m}
                       sender={staffMap[m.sender_id]}
                       isOwn={m.sender_id === currentUserId}
@@ -251,6 +291,7 @@ export function ConversationView({
                       }
                       onReply={handleReply}
                     />
+                    </Fragment>
                   );
                 })}
                 {typing && (
@@ -266,6 +307,17 @@ export function ConversationView({
                 <div ref={bottomRef} />
               </div>
             )}
+          </div>
+          {showJump && (
+            <button
+              type="button"
+              className="ch-jump"
+              aria-label="Oxirgi xabarga"
+              onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
+            >
+              <ArrowDown className="size-5" />
+            </button>
+          )}
           </div>
 
           <ChatComposer

@@ -59,7 +59,9 @@ import {
 import {
   addAssetAction,
   addJournalEntryAction,
+  deleteAccountAction,
   deleteAssetAction,
+  deleteBudgetAction,
   deleteCourseAction,
   deleteJournalEntryAction,
   disposeAssetAction,
@@ -67,6 +69,7 @@ import {
   postDepreciationAction,
   postPayrollAction,
   postTurnoverTaxAction,
+  saveAccountAction,
   saveCourseAction,
   saveTaxSettingsAction,
   setBudgetAction,
@@ -97,7 +100,15 @@ const TABS: ({ v: Tab; n: string; Icon: React.ComponentType<{ className?: string
 const FLAT = TABS.filter((t): t is { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> } => 'v' in t);
 const KEY = 'persons-acct-tab';
 const err = (c: string) =>
-  c === 'forbidden' ? "Ruxsat yo'q" : c === 'invalidInput' ? "Ma'lumot noto'g'ri" : c === 'notFound' ? 'Topilmadi' : 'Saqlab bo‘lmadi';
+  c === 'forbidden'
+    ? "Ruxsat yo'q"
+    : c === 'invalidInput'
+      ? "Ma'lumot noto'g'ri"
+      : c === 'notFound'
+        ? 'Topilmadi'
+        : c === 'inUse'
+          ? 'Bu hisob ishlatilgan (jurnal, qoldiq yoki byudjet) — o‘chirib bo‘lmaydi'
+          : 'Saqlab bo‘lmadi (kod band bo‘lishi mumkin)';
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
 /** Runs a server action, toasts the outcome and refreshes server data. */
@@ -740,6 +751,18 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
                         if (v !== l.plan) run(() => setBudgetAction({ month: ym, code: l.code, amount: v }));
                       }}
                     />
+                    {l.plan > 0 && (
+                      <button
+                        className="ml-1 text-au-faint hover:text-au-bad"
+                        aria-label="Reja qatorini o‘chirish"
+                        onClick={async () =>
+                          (await ask(`${l.code} «${l.name}» rejasi o‘chirilsinmi?`)) &&
+                          run(() => deleteBudgetAction({ period: `${ym}-01`, code: l.code }), 'Reja qatori o‘chirildi')
+                        }
+                      >
+                        ✕
+                      </button>
+                    )}
                   </td>
                   <td>{fmtNum(l.flexed)}</td>
                   <td>
@@ -1255,6 +1278,18 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             {list.length} ta yozuv · {fmtNum(total)} so‘m
           </small>
           <span className="sp" />
+          <button
+            className="sx-btn sm"
+            disabled={!list.length}
+            onClick={() =>
+              downloadCsv(`jurnal-${ym}.csv`, [
+                ['Sana', 'Hujjat', 'Tavsif', 'Debet', 'Kredit', 'Summa'],
+                ...list.map((e) => [e.entry_date, e.doc, e.description, e.debit, e.credit, e.amount]),
+              ])
+            }
+          >
+            CSV
+          </button>
           <input className="sx-inp !h-[32px] !w-[200px]" placeholder="Qidirish…" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="sx-inp !h-[32px] !w-[200px]" value={acc} onChange={(e) => setAcc(e.target.value)}>
             <option value="all">Barcha hisoblar</option>
@@ -1358,6 +1393,145 @@ function JournalCheck({ debit, credit, amount, name }: { debit: string; credit: 
 }
 
 /* ----------------------------------------------------------------- FA · ledger */
+/** UTF-8 (with BOM, so Excel reads Cyrillic/Uzbek) CSV download. */
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const esc = (v: string | number) => {
+    const t = String(v ?? '');
+    return /[",;\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const blob = new Blob(['\ufeff' + rows.map((r) => r.map(esc).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+const ACCT_TYPES: [string, string][] = [
+  ['A', 'Uzoq muddatli aktiv'],
+  ['CA', 'Joriy aktiv'],
+  ['L', 'Majburiyat'],
+  ['E', 'Kapital'],
+  ['R', 'Daromad'],
+  ['X', 'Xarajat'],
+];
+
+/** Chart of accounts: add / rename / retype / delete (unused only). */
+function AccountsManager({ books }: { books: Books }) {
+  const { run, pending } = useRun();
+  const [f, setF] = useState({ code: '', name: '', type: 'X', sort: '' });
+  const [edit, setEdit] = useState<{ code: string; name: string; type: string; sort: string } | null>(null);
+  return (
+    <div className="sx-card">
+      <div className="sx-h">
+        <h3>Hisoblar rejasi</h3>
+        <small>{books.accounts.length} ta hisob</small>
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-au-line bg-au-card-2 p-3">
+        <input className="sx-inp !w-[90px]" inputMode="numeric" maxLength={4} placeholder="Kod" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.replace(/\D/g, '') })} />
+        <input className="sx-inp min-w-[180px] flex-1" maxLength={200} placeholder="Hisob nomi" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <select className="sx-inp !w-[180px]" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
+          {ACCT_TYPES.map(([k, n]) => (
+            <option key={k} value={k}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <button
+          className="sx-btn primary sm"
+          disabled={pending || f.code.length !== 4 || !f.name.trim()}
+          onClick={() =>
+            run(
+              () => saveAccountAction({ code: f.code, name: f.name, type: f.type as 'A', sort: Number(f.sort) || Number(f.code), isNew: true }),
+              'Hisob qo‘shildi',
+              () => setF({ code: '', name: '', type: 'X', sort: '' }),
+            )
+          }
+        >
+          Hisob qo‘shish
+        </button>
+      </div>
+      <div className="sx-tw">
+        <table className="sx-tbl">
+          <thead>
+            <tr>
+              <th className="l">Kod</th>
+              <th className="l">Nomi</th>
+              <th className="l">Turi</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {books.accounts.map((a) =>
+              edit?.code === a.code ? (
+                <tr key={a.code}>
+                  <td className="l">
+                    <span className="code">{a.code}</span>
+                  </td>
+                  <td className="l">
+                    <input className="sx-inp !h-[30px]" maxLength={200} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+                  </td>
+                  <td className="l">
+                    <select className="sx-inp !h-[30px]" value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value })}>
+                      {ACCT_TYPES.map(([k, n]) => (
+                        <option key={k} value={k}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="whitespace-nowrap">
+                    <button
+                      className="sx-btn primary sm"
+                      disabled={pending || !edit.name.trim()}
+                      onClick={() =>
+                        run(
+                          () => saveAccountAction({ code: a.code, name: edit.name, type: edit.type as 'A', sort: Number(edit.sort) || 0, isNew: false }),
+                          'Hisob saqlandi',
+                          () => setEdit(null),
+                        )
+                      }
+                    >
+                      Saqlash
+                    </button>{' '}
+                    <button className="sx-btn sm" onClick={() => setEdit(null)}>
+                      Bekor
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={a.code}>
+                  <td className="l">
+                    <span className="code">{a.code}</span>
+                  </td>
+                  <td className="l">{a.name}</td>
+                  <td className="l text-au-muted">{ACCT_TYPES.find(([k]) => k === a.type)?.[1] ?? a.type}</td>
+                  <td className="whitespace-nowrap">
+                    <button className="sx-chipb" aria-label="Tahrirlash" onClick={() => setEdit({ code: a.code, name: a.name, type: a.type, sort: '' })}>
+                      <Pencil className="size-3.5" />
+                    </button>{' '}
+                    <button
+                      className="sx-chipb text-au-bad"
+                      aria-label="O‘chirish"
+                      disabled={pending}
+                      onClick={async () =>
+                        (await ask(`${a.code} «${a.name}» hisobi o‘chirilsinmi?`)) &&
+                        run(() => deleteAccountAction(a.code), 'Hisob o‘chirildi')
+                      }
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function FaLedger({ books, ym }: { books: Books; ym: string }) {
   const { run, pending } = useRun();
   const L = ledger(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
@@ -1476,6 +1650,7 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
         </div>
       </div>
       {open && L[open] && <TAccount line={L[open]} rows={rows} />}
+      <AccountsManager books={books} />
     </div>
   );
 }
