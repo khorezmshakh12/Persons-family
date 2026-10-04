@@ -500,17 +500,17 @@ export async function deleteAccountAction(code: string): Promise<Result> {
   try {
     // Check if account is used in acct_entries
     const [usedInEntries] = await sql<{ count: number }[]>`
-      select count(*) as count from acct_entries where debit = ${code} or credit = ${code}`;
+      select count(*)::int as count from acct_entries where debit = ${code} or credit = ${code}`;
     if (usedInEntries.count > 0) return { error: 'inUse' };
 
     // Check if account is used in acct_opening
     const [usedInOpening] = await sql<{ count: number }[]>`
-      select count(*) as count from acct_opening where code = ${code}`;
+      select count(*)::int as count from acct_opening where code = ${code}`;
     if (usedInOpening.count > 0) return { error: 'inUse' };
 
     // Check if account is used in acct_budget
     const [usedInBudget] = await sql<{ count: number }[]>`
-      select count(*) as count from acct_budget where code = ${code}`;
+      select count(*)::int as count from acct_budget where code = ${code}`;
     if (usedInBudget.count > 0) return { error: 'inUse' };
 
     const res = await sql`delete from acct_accounts where code = ${code}`;
