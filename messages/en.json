@@ -98,7 +98,8 @@
     },
     "companyNews": {
       "title": "Company News",
-      "noNews": "No announcements yet."
+      "noNews": "No announcements yet.",
+      "all": "All"
     },
     "weeklyProgress": {
       "title": "Weekly Progress",

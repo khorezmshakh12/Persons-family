@@ -58,8 +58,9 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   staff: 'main',
   market: 'motivation',
   selfDevelopment: 'motivation',
-  chat: 'workflow',
-  issues: 'workflow',
+  // Owner, 2026-10-04: Chat and Issues are daily tools — top of the main group.
+  chat: 'main',
+  issues: 'main',
   lessonPlans: 'workflow',
   companyNews: 'workflow',
   materials: 'workflow',
@@ -77,6 +78,8 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
 // Order inside each sidebar section — mirrors the Aurora reference.
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
+  'chat',
+  'issues',
   'coreInbox',
   'accounting',
   'operations',
@@ -89,8 +92,6 @@ const NAV_SORT: NavItem['key'][] = [
   'market',
   'selfDevelopment',
   'butterfly',
-  'chat',
-  'issues',
   'lessonPlans',
   'companyNews',
   'materials',

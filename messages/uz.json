@@ -98,7 +98,8 @@
     },
     "companyNews": {
       "title": "Kompaniya Yangiliklari",
-      "noNews": "Hozircha e'lonlar yo'q."
+      "noNews": "Hozircha e'lonlar yo'q.",
+      "all": "Barchasi"
     },
     "weeklyProgress": {
       "title": "Haftalik Progressingiz",
