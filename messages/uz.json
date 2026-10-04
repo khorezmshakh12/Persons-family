@@ -783,8 +783,13 @@
       "invalidInput": "Iltimos, sarlavha va matnni kiriting.",
       "createFailed": "E'lonni joylab bo'lmadi. Qayta urinib ko'ring.",
       "notFound": "Bu yangilik endi mavjud emas.",
-      "deleteFailed": "Yangilikni o'chirib bo'lmadi. Qayta urinib ko'ring."
-    }
+      "deleteFailed": "Yangilikni o'chirib bo'lmadi. Qayta urinib ko'ring.",
+      "updateFailed": "Saqlab bo‘lmadi"
+    },
+    "edit": "Tahrirlash",
+    "edited": "Yangilik saqlandi",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish"
   },
   "settings": {
     "title": "Platforma Ko'rinishi Sozlamalari",
@@ -1347,7 +1352,9 @@
         "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
         "invalidWarning": "Ushbu ogohlantirish topilmadi.",
         "deleteFailed": "Bu ogohlantirishni o'chirib bo'lmadi. Qayta urinib ko'ring."
-      }
+      },
+      "delete": "Ogohlantirishni o‘chirish",
+      "deleteConfirm": "Bu ogohlantirish o‘chirilsinmi?"
     },
     "bonusesPunishments": {
       "title": "Bonuslar va jazolar",

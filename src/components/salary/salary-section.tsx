@@ -23,6 +23,7 @@ export async function SalarySection({
   isAdmin,
   entries,
   net,
+  month,
 }: {
   staffId: string;
   isSelf: boolean;
@@ -30,6 +31,8 @@ export async function SalarySection({
   isAdmin: boolean;
   entries: FinanceEntry[];
   net: number;
+  /** YYYY-MM the page is showing. */
+  month: string;
 }) {
   const t = await getTranslations('salary');
 
@@ -56,7 +59,7 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-au-line pt-4">
-        <BonusesPunishmentsCard staffId={staffId} canManage={isAdmin} />
+        <BonusesPunishmentsCard staffId={staffId} canManage={isAdmin} month={month} />
       </div>
 
       <div className="border-t border-au-line pt-4">
@@ -64,7 +67,7 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-au-line pt-4">
-        <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} selectedMonth="all" />
+        <SelfDevelopmentSection staffId={staffId} isAdmin={isAdmin && !isSelf} selectedMonth={`${month}-01`} />
       </div>
 
       <div className="border-t border-au-line pt-4">

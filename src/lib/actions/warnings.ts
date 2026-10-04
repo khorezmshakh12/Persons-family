@@ -94,13 +94,15 @@ export async function deleteWarningAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   try {
-    await sql`delete from staff_warnings where id = ${parsed.data.warningId}`;
+    const res = await sql`delete from staff_warnings where id = ${parsed.data.warningId}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch (error) {
     console.error('deleteWarningAction failed', error instanceof Error ? error.message : error);
     return { error: 'deleteFailed' };
   }
 
   revalidatePath('/[locale]/staff', 'page');
+  revalidatePath('/[locale]/profile', 'layout');
   return {};
 }
 

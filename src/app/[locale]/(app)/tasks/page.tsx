@@ -8,56 +8,14 @@ import { AssignTaskDialog } from '@/components/tasks/assign-task-dialog';
 import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskStats } from '@/components/tasks/task-stats';
 import { MarkTasksSeen } from '@/components/tasks/mark-tasks-seen';
-import { CoreFrame } from '@/components/core/core-frame';
-import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
-import { Link } from '@/i18n/navigation';
-import { coreViews } from '@/lib/core-state';
 import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function TasksPage() {
   const t = await getTranslations('tasks');
-  const tNav = await getTranslations('nav');
   const { user, profile } = await getAuthState();
-  // Second tab: the same tasks in Core v2's own view (board / list / timeline).
-  const hasCore = (await coreViews(profile!).catch((): string[] => [])).includes('tasks');
-  const view = (await searchParams).view;
-  const coreTab = hasCore && view === 'core';
-  const calendarTab = view === 'calendar';
-  const tabs = (
-    <div className="flex gap-1 self-start rounded-au-ctl bg-au-card p-1 shadow-[var(--au-shadow-card)]">
-      {[
-        { href: '/tasks', on: !coreTab && !calendarTab, label: t('title') },
-        { href: '/tasks?view=calendar', on: calendarTab, label: t('calendarView') },
-        ...(hasCore ? [{ href: '/tasks?view=core', on: coreTab, label: tNav('coreBoard') }] : []),
-      ].map((x) => (
-        <Link
-          key={x.href}
-          href={x.href}
-          className={`rounded-au-ctl px-4 py-1.5 text-sm font-semibold ${x.on ? 'bg-au-accent-soft text-au-accent-text' : 'text-au-muted hover:text-au-ink'}`}
-        >
-          {x.label}
-        </Link>
-      ))}
-    </div>
-  );
-  if (calendarTab) {
-    return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-1 pb-8 sm:px-7">
-        {tabs}
-        <TasksCalendar userId={user!.id} />
-      </div>
-    );
-  }
-  if (coreTab) {
-    return (
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-4 pt-1 pb-8 sm:px-7">
-        {tabs}
-        <CoreFrame view="tasks" title={tNav('coreBoard')} />
-      </div>
-    );
-  }
+  // Calendar and Core platform views removed (owner, 2026-10-04): the board is the one view.
   // Assign/Edit/Delete controls for anyone who leads a team (same rule as
   // requireTaskAssigner() in tasks.ts); the dropdown lists only their people.
   const isAdmin = canAssignTasks(profile!.role);
@@ -124,7 +82,6 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         </h1>
         {isAdmin && <AssignTaskDialog assignees={assignees} />}
       </div>
-      {tabs}
       <TaskStats stats={taskStats.data ?? null} />
       <TaskBoard
         tasks={tasks}

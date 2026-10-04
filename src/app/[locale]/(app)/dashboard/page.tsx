@@ -3,7 +3,6 @@ import { getFormatter, getTranslations } from 'next-intl/server';
 import { CircleAlert, ListTodo, Star, SquareCheckBig } from 'lucide-react';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { companyNewsCutoff } from '@/lib/company-news';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
@@ -272,7 +271,6 @@ async function NewsSliderSection() {
   const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
   const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
     select id, title, content, created_at from company_news
-    where created_at >= ${companyNewsCutoff()}
     order by created_at desc limit 6
   `.catch(() => []);
   return (

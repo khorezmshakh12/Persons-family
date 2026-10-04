@@ -1,3 +1,5 @@
+import { Link } from '@/i18n/navigation';
+import { tashkentMonthKey } from '@/lib/time';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -18,6 +20,9 @@ import { CountUp } from '@/components/motion/count-up';
 
 export const dynamic = 'force-dynamic';
 
+const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+const monthLabel = (ym: string) => `${MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+
 function netTotal(entries: { amount: number }[]) {
   return entries.reduce((sum, e) => sum + e.amount, 0);
 }
@@ -31,7 +36,7 @@ export async function FinanceDetailContent({
   searchParams,
 }: {
   staffId: string;
-  searchParams?: Promise<{ incomeYear?: string }> | { incomeYear?: string };
+  searchParams?: Promise<{ incomeYear?: string; month?: string }> | { incomeYear?: string; month?: string };
 }) {
   const tStaff = await getTranslations('staff');
   const tSum = await getTranslations('finance.summary');
@@ -48,6 +53,15 @@ export async function FinanceDetailContent({
   const sp = searchParams instanceof Promise ? await searchParams : searchParams;
   const yearParam = sp?.incomeYear ? Number(sp.incomeYear) : undefined;
   const year = Number.isFinite(yearParam) ? yearParam : undefined;
+  // Finance is read one month at a time (owner, 2026-10-04): every number and
+  // list below is scoped to this Tashkent month; ‹ › moves between months.
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp?.month ?? '') ? sp!.month! : tashkentMonthKey();
+  const shift = (d: number) => {
+    const [y, m] = month.split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1 + d, 1));
+    return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}`;
+  };
+  const inMonth = (at: string | null) => !!at && tashkentMonthKey(new Date(at)) === month;
 
   const [target] = await sql<
     { id: string; first_name: string; last_name: string; avatar_url: string | null; role: string }[]
@@ -59,19 +73,22 @@ export async function FinanceDetailContent({
   const [entries, earnings, [pen]] = await Promise.all([
     sql<FinanceEntry[]>`
       select id, title, amount, note, created_at from finance_entries
-      where staff_id = ${staffId} order by created_at desc
+      where staff_id = ${staffId}
+        and coalesce(to_char(period, 'YYYY-MM'), to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM')) = ${month}
+      order by created_at desc
     `,
     getNetEarningEntries(staffId),
     sql<{ penalties: number }[]>`
       select coalesce(sum(amount) filter (where entry_type = 'penalty'), 0) as penalties
       from performance_entries where staff_id = ${staffId}
+        and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') = ${month}
     `,
   ]);
 
   const net = netTotal(entries);
   // The four numbers that answer "what did I get": same totals SalaryTotal
   // shows (finance-net.ts), split so bonuses and penalties are visible.
-  const total = netEarnings(earnings);
+  const total = netEarnings(earnings.filter((e) => inMonth(e.at)));
   const penalties = Math.round(Number(pen?.penalties) || 0);
   const bonuses = total - net + penalties;
   const summary = [
@@ -99,6 +116,23 @@ export async function FinanceDetailContent({
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href={`/finance/${staffId}?month=${shift(-1)}`}
+          className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
+          aria-label="Oldingi oy"
+        >
+          ‹
+        </Link>
+        <span className="text-base font-bold text-au-ink">{monthLabel(month)}</span>
+        <Link
+          href={`/finance/${staffId}?month=${shift(1)}`}
+          className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
+          aria-label="Keyingi oy"
+        >
+          ›
+        </Link>
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {summary.map((k, i) => (
           <div
@@ -122,6 +156,7 @@ export async function FinanceDetailContent({
           isAdmin={isAdmin}
           entries={(entries ?? []) as FinanceEntry[]}
           net={net}
+          month={month}
         />
       </div>
 
