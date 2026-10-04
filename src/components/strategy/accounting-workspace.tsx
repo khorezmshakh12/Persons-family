@@ -59,7 +59,9 @@ import {
 import {
   addAssetAction,
   addJournalEntryAction,
+  deleteAccountAction,
   deleteAssetAction,
+  deleteBudgetAction,
   deleteCourseAction,
   deleteJournalEntryAction,
   disposeAssetAction,
@@ -67,6 +69,7 @@ import {
   postDepreciationAction,
   postPayrollAction,
   postTurnoverTaxAction,
+  saveAccountAction,
   saveCourseAction,
   saveTaxSettingsAction,
   setBudgetAction,
