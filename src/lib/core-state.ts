@@ -1,4 +1,5 @@
 import 'server-only';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { sql } from '@/lib/db/client';
 import { askTypeSafe } from '@/lib/typesafe';
 import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
@@ -255,6 +256,28 @@ function writableKeys(me: Profile): Set<string> | 'all' {
   return keys;
 }
 
+type CoreNotif = { id: number | string; to: string; t: string; type?: string };
+/** Core notifications that also go to Telegram: HR flows (leave, hiring,
+ * KPI, bonus). Task ones are already sent by the task actions; sales ones
+ * would be noise. */
+const TG_NOTIF_TYPES = new Set(['leave', 'hr', 'kpi', 'bonus']);
+
+async function forwardNewNotifs(prev: unknown, next: unknown, byKey: Record<string, string>) {
+  if (!Array.isArray(next)) return;
+  const seen = new Set((Array.isArray(prev) ? (prev as CoreNotif[]) : []).map((n) => String(n.id)));
+  const fresh = (next as CoreNotif[]).filter((n) => n && !seen.has(String(n.id)) && TG_NOTIF_TYPES.has(String(n.type)) && byKey[n.to]);
+  if (!fresh.length) return;
+  const ids = [...new Set(fresh.map((n) => byKey[n.to]))];
+  const rows = await sql<{ id: string; telegram_id: number | null }[]>`
+    select id, telegram_id from profiles where id in ${sql(ids)} and is_active and telegram_id is not null`.catch(() => []);
+  const tg = new Map(rows.map((r) => [r.id, r.telegram_id!]));
+  // Awaited inline (Cloud Run throttles CPU after the response); capped.
+  for (const n of fresh.slice(0, 20)) {
+    const chat = tg.get(byKey[n.to]);
+    if (chat) await sendTelegramMessage(chat, `🔔 ${escapeTelegramText(String(n.t).slice(0, 500))}`).catch(() => {});
+  }
+}
+
 /**
  * Applies a patch of changed top-level keys from the Core page. Tasks go
  * through the real task Server Actions (same rules/stars as the Tasks page);
@@ -316,6 +339,8 @@ export async function applyCorePatch(me: Profile, patch: Json, prevTasks: CoreTa
     await sql`
       update core_state set data = data || ${sql.json(next as never)}, updated_at = now(), updated_by = ${me.id}
       where id = 1`;
+    // HR → Telegram: new leave / hiring / KPI / bonus notifications.
+    if ('notif' in next) await forwardNewNotifs(shared.notif, next.notif, byKey);
   }
   return errors;
 }
