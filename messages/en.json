@@ -783,8 +783,13 @@
       "invalidInput": "Please fill in a title and content.",
       "createFailed": "Could not publish the announcement. Please try again.",
       "notFound": "This news post no longer exists.",
-      "deleteFailed": "Could not delete the news post. Please try again."
-    }
+      "deleteFailed": "Could not delete the news post. Please try again.",
+      "updateFailed": "Could not save"
+    },
+    "edit": "Edit",
+    "edited": "News updated",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "settings": {
     "title": "Platform Appearance Settings",
@@ -1347,7 +1352,9 @@
         "createFailed": "Could not save this. Please try again.",
         "invalidWarning": "This warning could not be found.",
         "deleteFailed": "Could not delete this warning. Please try again."
-      }
+      },
+      "delete": "Delete warning",
+      "deleteConfirm": "Delete this warning?"
     },
     "bonusesPunishments": {
       "title": "Bonuses & Punishments",

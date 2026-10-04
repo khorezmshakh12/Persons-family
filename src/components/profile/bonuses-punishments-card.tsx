@@ -11,9 +11,12 @@ import { AddPerformanceEntryDialog } from './add-performance-entry-dialog';
 export async function BonusesPunishmentsCard({
   staffId,
   canManage,
+  month,
 }: {
   staffId: string;
   canManage: boolean;
+  /** YYYY-MM — only that Tashkent month (Finance is per month). */
+  month?: string;
 }) {
   const t = await getTranslations('profile.bonusesPunishments');
 
@@ -31,6 +34,7 @@ export async function BonusesPunishmentsCard({
     from performance_entries pe
     left join staff_warnings w on w.id = pe.warning_id
     where pe.staff_id = ${staffId}
+      ${month ? sql`and to_char(pe.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') = ${month}` : sql``}
     order by pe.created_at desc
   `;
 
