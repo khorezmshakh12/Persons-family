@@ -128,6 +128,14 @@ export function guessWorkstream(t: string): Workstream {
 }
 
 /** Node ids a roadmap produces: section ids plus `${sec}-l${i}` / `${sec}-r${i}`. */
+/** Every node of a roadmap in reading order — stage, then its topics. */
+export function roadmapNodes(r: StrategyRoadmap): { id: string; t: string; main: boolean }[] {
+  return r.sections.flatMap((sec) => [
+    { id: sec.id, t: `${sec.q} · ${sec.t}`, main: true },
+    ...(['left', 'right'] as const).flatMap((side) => sec[side].map((t, j) => ({ id: `${sec.id}-${side[0]}${j}`, t, main: false }))),
+  ]);
+}
+
 export function roadmapNodeName(r: StrategyRoadmap, nodeId: string): string | null {
   for (const sec of r.sections) {
     if (sec.id === nodeId) return sec.t;

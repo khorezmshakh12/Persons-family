@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { fmtDay, type StrategyPerson } from '@/lib/strategy';
 import { deleteRiskAction, saveRiskAction } from '@/lib/actions/perforce';
 import { riskLevel, riskScore, riskSummary, type Risk, type RiskStatus } from '@/lib/perforce';
-import { toast } from './suite-shell';
+import { ask, toast } from './suite-shell';
 import { PersonAvatar } from './bits';
 
 type RiskCat = 'strategic' | 'operational' | 'financial' | 'compliance' | 'people' | 'technology';
@@ -212,9 +212,9 @@ export function RiskRegister({
               <button
                 className="sx-btn sm text-au-bad"
                 disabled={pending}
-                onClick={() => {
+                onClick={async () => {
                   const id = f.id!;
-                  if (window.confirm("Risk o'chirilsinmi?")) act(() => deleteRiskAction(id), "Risk o'chirildi");
+                  if ((await ask("Risk o'chirilsinmi?"))) act(() => deleteRiskAction(id), "Risk o'chirildi");
                 }}
               >
                 O‘chirish

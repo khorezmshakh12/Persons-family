@@ -14,9 +14,9 @@ const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const ym = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const count = z.number().int().min(0).max(1_000_000);
 
-async function requireEditor(): Promise<{ id: string } | { error: string }> {
+async function requireEditor(cap: 'strategy.edit' | 'strategy.finance' = 'strategy.finance'): Promise<{ id: string } | { error: string }> {
   try {
-    const { profile } = await requireCap('strategy.edit');
+    const { profile } = await requireCap(cap);
     return { id: profile.id };
   } catch (error) {
     return { error: authErrorCode(error) };
@@ -158,7 +158,7 @@ const linksSchema = z.object({
 /** Roadmap node resources (DOC / SHEET / LINK). One key per call — editors
  * working on different nodes never overwrite each other. */
 export async function setRoadmapNodeLinksAction(input: z.input<typeof linksSchema>): Promise<Result> {
-  const g = await requireEditor();
+  const g = await requireEditor('strategy.edit');
   if ('error' in g) return g;
   const p = linksSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };

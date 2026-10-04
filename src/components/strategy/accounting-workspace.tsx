@@ -74,7 +74,7 @@ import {
   setPlanStudentsAction,
   type PayrollLine,
 } from '@/lib/actions/accounting';
-import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
+import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
 import { MonthPicker } from './view-finance';
 import './strategy.css';
@@ -278,7 +278,7 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
                 </tr>
               )}
               {rows.map(({ c, e }, i) => (
-                <CourseRow key={c.id + c.fee + c.students + c.teacher_cost + c.book_cost + c.name} c={c} e={e} i={i} onSave={(v) => save(c.id, v)} onDelete={() => window.confirm(`«${c.name}» kursi o'chirilsinmi?`) && run(() => deleteCourseAction(c.id), "Kurs o'chirildi")} />
+                <CourseRow key={c.id + c.fee + c.students + c.teacher_cost + c.book_cost + c.name} c={c} e={e} i={i} onSave={(v) => save(c.id, v)} onDelete={async () => (await ask(`«${c.name}» kursi o'chirilsinmi?`)) && run(() => deleteCourseAction(c.id), "Kurs o'chirildi")} />
               ))}
             </tbody>
             {rows.length > 0 && (
@@ -1312,8 +1312,8 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
                       >
                         <Pencil className="size-3.5" />
                       </button>
-                      <button className="sx-btn sm text-au-bad" onClick={() => window.confirm(`Yozuv o'chirilsinmi?
-${e.debit}/${e.credit} · ${fmtNum(e.amount)} · ${e.description}`) && run(() => deleteJournalEntryAction(e.id), "Yozuv o'chirildi")} aria-label="O'chirish">
+                      <button className="sx-btn sm text-au-bad" onClick={async () => (await ask(`Yozuv o'chirilsinmi?
+${e.debit}/${e.credit} · ${fmtNum(e.amount)} · ${e.description}`)) && run(() => deleteJournalEntryAction(e.id), "Yozuv o'chirildi")} aria-label="O'chirish">
                         <Trash2 className="size-4" />
                       </button>
                       </span>
@@ -1419,9 +1419,9 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
             <button
               className="sx-btn primary sm mt-3"
               disabled={pending}
-              onClick={() =>
+              onClick={async () =>
                 (Math.abs(obD - obK) < 0.01 ||
-                  window.confirm(`Qoldiqlar muvozanatda emas (Dt − Kt = ${fmtNum(obD - obK)}). Balans teng chiqmaydi. Baribir saqlansinmi?`)) &&
+                  (await ask(`Qoldiqlar muvozanatda emas (Dt − Kt = ${fmtNum(obD - obK)}). Balans teng chiqmaydi. Baribir saqlansinmi?`, { ok: 'Baribir saqlash', danger: false }))) &&
                 run(() => setOpeningBalancesAction(ob), 'Boshlang‘ich qoldiqlar saqlandi', () => setEdit(false))
               }
             >
@@ -2101,7 +2101,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
                       <button
                         className="sx-btn sm text-au-bad"
                         disabled={pending}
-                        onClick={() => window.confirm(`«${a.name}» butunlay o'chirilsinmi? Xarid va eskirish yozuvlari ham qayta hisoblanadi.`) && run(() => deleteAssetAction(a.id), "Vosita o'chirildi")}
+                        onClick={async () => (await ask(`«${a.name}» butunlay o'chirilsinmi? Xarid va eskirish yozuvlari ham qayta hisoblanadi.`)) && run(() => deleteAssetAction(a.id), "Vosita o'chirildi")}
                         aria-label="O'chirish"
                       >
                         <Trash2 className="size-4" />

@@ -27,7 +27,7 @@ import {
   type Scenario,
 } from '@/lib/ops-plan';
 import { deleteRoomAction, deleteSlotHoldAction, savePlanAction, saveRoomAction, saveSlotHoldAction, setGroupEnrollmentAction } from '@/lib/actions/operations';
-import { playSound, toast } from './suite-shell';
+import { ask, playSound, toast } from './suite-shell';
 import { Chart } from './charts';
 import type { OpsData } from './operations-workspace';
 
@@ -452,7 +452,7 @@ export function RoomRegister({ rooms, known, seats }: { rooms: OpsData['rooms'];
                         <button
                           className="sx-btn sm text-au-bad"
                           disabled={pending}
-                          onClick={() => window.confirm(`«${r.code}» reyestrdan o'chirilsinmi?`) && run(() => deleteRoomAction(r.code), "Xona o'chirildi")}
+                          onClick={async () => (await ask(`«${r.code}» reyestrdan o'chirilsinmi?`)) && run(() => deleteRoomAction(r.code), "Xona o'chirildi")}
                         >
                           <X className="size-4" />
                         </button>

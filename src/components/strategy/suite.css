@@ -223,6 +223,27 @@
   white-space: nowrap;
 }
 
+/* In-app confirm (ask) */
+.sx-ask {
+  width: min(420px, 92vw);
+  padding: 22px 22px 18px;
+}
+.sx-ask p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--au-ink);
+  margin: 0 0 18px;
+}
+.sx-ask .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sx-ck-bg:has(.sx-ask) {
+  align-items: center;
+  padding-top: 0;
+}
+
 /* ⌘K */
 .sx-ck-bg {
   position: fixed;
