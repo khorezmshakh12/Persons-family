@@ -1881,6 +1881,8 @@
   "butterfly": {
     "title": "Butterfly",
     "subtitle": "Scattered particles bloom into a butterfly among flowers, then dissolve again.",
-    "hint": "Drag to orbit · scroll or pinch to zoom"
+    "hint": "Drag to orbit · scroll or pinch to zoom",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen"
   }
 }
