@@ -14,14 +14,14 @@ import type {
 import { StrategyWorkspace } from '@/components/strategy/strategy-workspace';
 import { loadBooks } from '@/lib/accounting-data';
 import { loadFinInputs } from '@/lib/strategy-finance-data';
-import { can, canSeeFor } from '@/lib/permissions';
+import { canFor, canSeeFor } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StrategyPage({ searchParams }: { searchParams: Promise<{ space?: string }> }) {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'strategy')) notFound();
-  const finance = can(profile.role, 'finance.viewAll');
+  const finance = canFor(profile, 'strategy.finance');
 
   const [spaces, roadmaps, people, books, fin] = await Promise.all([
     sql<StrategySpace[]>`
@@ -33,7 +33,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
     sql<StrategyPerson[]>`
       select id, first_name, last_name, avatar_url, role::text as role
       from profiles where is_active = true order by first_name, last_name`,
-    // Financial figures are CEO-only — others never receive the books.
+    // Financial figures: strategy.finance (CEO, COO) — others never receive the books.
     finance ? loadBooks() : Promise.resolve(null),
     finance ? loadFinInputs() : Promise.resolve(null),
   ]);

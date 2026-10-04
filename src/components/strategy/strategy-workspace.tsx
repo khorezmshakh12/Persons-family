@@ -122,7 +122,7 @@ export function StrategyWorkspace({
   today: string;
   books: BooksLite | null;
   fin: FinInputs | null;
-  /** Financial views (Moliya, Tahlil, budget) — CEO only (finance.viewAll). */
+  /** Financial views (Moliya, Tahlil, budget) — CEO and COO (strategy.finance). */
   finance?: boolean;
 }) {
   const router = useRouter();
@@ -197,6 +197,8 @@ export function StrategyWorkspace({
           status: next.status,
           priority: next.priority,
           progress: next.progress,
+          roadmapId: next.roadmap_id ?? null,
+          roadmapNode: next.roadmap_node ?? null,
         });
         if (res.error !== undefined) {
           if (prev) setTasks((list) => list.map((t) => (t.id === prev.id ? prev : t)));

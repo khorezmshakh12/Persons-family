@@ -13,6 +13,7 @@ import {
   guessWorkstream,
   normalizeBudget,
   roadmapNodeName,
+  roadmapNodes,
   type NodeStatus,
   type Priority,
   type StrategyMilestone,
@@ -24,7 +25,7 @@ import {
   type NodeLink,
 } from '@/lib/strategy';
 import { PersonAvatar, StatusChip } from './bits';
-import { toast } from './suite-shell';
+import { ask, toast } from './suite-shell';
 import { setRoadmapNodeLinksAction } from '@/lib/actions/strategy-finance';
 import type { Draft, WorkspaceApi } from './strategy-workspace';
 
@@ -200,10 +201,29 @@ export function TaskDrawer({
             <b className="w-10 tabular-nums">{d.progress}%</b>
           </div>
         </div>
-        {nodeName && (
+        {roadmaps.length > 0 && (
           <div className="fld">
             <label>Roadmap</label>
-            <span className="sx-node-chip justify-self-start">{nodeName}</span>
+            <select
+              className="sx-inp"
+              value={d.roadmap_id && d.roadmap_node ? `${d.roadmap_id}|${d.roadmap_node}` : ''}
+              title={nodeName ?? undefined}
+              onChange={(e) => {
+                const [rid, node] = e.target.value.split('|');
+                set({ roadmap_id: rid || null, roadmap_node: node || null });
+              }}
+            >
+              <option value="">— Bog‘lanmagan —</option>
+              {roadmaps.map((r) => (
+                <optgroup key={r.id} label={r.name}>
+                  {roadmapNodes(r).map((n) => (
+                    <option key={n.id} value={`${r.id}|${n.id}`}>
+                      {n.main ? n.t : `   ${n.t}`}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
         )}
         <div className="dr-sec">Tavsif</div>
@@ -529,7 +549,7 @@ export function SpaceDrawer({
                   <button
                     className="sx-btn sm text-au-bad"
                     aria-label={`«${m.title}» ni o‘chirish`}
-                    onClick={() => window.confirm(`«${m.title}» muhim sanasi o‘chirilsinmi?`) && onDeleteMilestone?.(m.id)}
+                    onClick={async () => (await ask(`«${m.title}» muhim sanasi o‘chirilsinmi?`)) && onDeleteMilestone?.(m.id)}
                   >
                     <Trash2 className="size-3.5" />
                   </button>

@@ -85,6 +85,8 @@ test('unknown / stale roles fail closed', () => {
 test("pay: only the CEO reads everyone's and changes it (owner, 2026-09-30)", () => {
   assert.deepEqual([...CAP_ROLES['finance.viewAll']], ['ceo']);
   assert.deepEqual([...CAP_ROLES['finance.manage']], ['ceo']);
+  // Strategy › Moliya / Tahlil (company books, no per-person pay): CEO + COO (owner, 2026-10-04).
+  assert.deepEqual([...CAP_ROLES['strategy.finance']], ['ceo', 'coo']);
 });
 
 test('every leadership / pay-level role is protected (only the CEO grants it)', () => {
@@ -191,10 +193,11 @@ test('every restricted page guards with the matrix', () => {
 test('workspace Server Actions gate on their own capability', () => {
   const gates: [string, string][] = [
     ['strategy.ts', "requireCap('strategy.edit')"],
-    ['strategy-finance.ts', "requireCap('strategy.edit')"],
+    // Finance inputs default to strategy.finance (CEO, COO); node links stay on strategy.edit.
+    ['strategy-finance.ts', "cap: 'strategy.edit' | 'strategy.finance' = 'strategy.finance'"],
     ['operations.ts', "requireCap('operations.edit')"],
     ['perforce.ts', "requireCap('perforce.edit')"],
-    ['accounting.ts', "requireCap('accounting.edit')"],
+    ['accounting.ts', "cap: 'accounting.edit' | 'strategy.finance' = 'accounting.edit'"],
     ['finance.ts', "requireCap('finance.manage')"],
     ['contracts.ts', "requireCap('contracts.manage')"],
     ['market.ts', "requireCap('market.manage')"],

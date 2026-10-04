@@ -170,6 +170,7 @@ export type Capability =
   | 'chat.moderate' // DM anyone, mark DM importance
   | 'core.sales.edit' // Core leads / spend / targets
   | 'strategy.edit'
+  | 'strategy.finance' // Strategy › Moliya / Tahlil / budget (company books, no per-person pay)
   | 'accounting.edit'
   | 'operations.edit'
   | 'perforce.edit';
@@ -196,6 +197,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'chat.moderate': LEADERSHIP,
   'core.sales.edit': [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],
   'strategy.edit': SECTION_ROLES.strategy,
+  // Owner, 2026-10-04: the COO sees and edits the strategy finance views too.
+  'strategy.finance': ['ceo', 'coo'],
   'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
   'perforce.edit': SECTION_ROLES.perforce,

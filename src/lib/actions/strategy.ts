@@ -59,6 +59,7 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
             title = ${v.title}, description = ${v.description}, workstream = ${v.workstream},
             assignee_id = ${v.assigneeId}, start_date = ${v.startDate}, end_date = ${v.endDate},
             status = ${v.status}, priority = ${v.priority}, progress = ${progress}, updated_at = now(),
+            ${v.roadmapId !== undefined ? sql`roadmap_id = ${v.roadmapId}, roadmap_node = ${v.roadmapId ? (v.roadmapNode ?? null) : null},` : sql``}
             done_at = case when ${v.status} = 'done' then coalesce(done_at, now()) else null end
           where id = ${v.id} and space_id = ${v.spaceId}
           returning ${TASK_COLUMNS}`
@@ -294,7 +295,7 @@ export async function saveStrategyBudgetAction(
   budget: StrategySpace['budget'],
 ): Promise<Result> {
   try {
-    await requireCap('strategy.edit');
+    await requireCap('strategy.finance');
   } catch (error) {
     return { error: authErrorCode(error) };
   }

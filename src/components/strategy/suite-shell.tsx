@@ -68,6 +68,61 @@ export const toast = {
 };
 
 /* =====================================================================
+   In-app confirm — replaces window.confirm (which blocks the page and
+   looks foreign). `if (await ask('…')) …` anywhere inside the suite.
+   ===================================================================== */
+type AskReq = { msg: string; ok: string; danger: boolean; resolve: (v: boolean) => void };
+let askListener: ((r: AskReq) => void) | null = null;
+
+export function ask(msg: string, opts: { ok?: string; danger?: boolean } = {}): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!askListener) return resolve(window.confirm(msg));
+    askListener({ msg, ok: opts.ok ?? 'O‘chirish', danger: opts.danger ?? true, resolve });
+  });
+}
+
+function AskHost() {
+  const [req, setReq] = useState<AskReq | null>(null);
+  const okRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    askListener = (r) => setReq(r);
+    return () => {
+      askListener = null;
+    };
+  }, []);
+  const close = (v: boolean) => {
+    req?.resolve(v);
+    playSound(v ? 'tick' : 'close');
+    setReq(null);
+  };
+  useEffect(() => {
+    if (!req) return;
+    okRef.current?.focus();
+    const kd = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close(false);
+    };
+    document.addEventListener('keydown', kd);
+    return () => document.removeEventListener('keydown', kd);
+  });
+  if (!req) return null;
+  return (
+    <div className="sx-ck-bg open" onClick={() => close(false)}>
+      <div className="sx-ck sx-ask" role="alertdialog" aria-modal="true" aria-label={req.msg} onClick={(e) => e.stopPropagation()}>
+        <p>{req.msg}</p>
+        <div className="row">
+          <button className="sx-btn" onClick={() => close(false)}>
+            Bekor qilish
+          </button>
+          <button ref={okRef} className={cn('sx-btn', req.danger ? 'danger' : 'primary')} onClick={() => close(true)}>
+            {req.ok}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
    Suite context — sections, palette, shortcuts.
    ===================================================================== */
 export type PaletteItem = { g: string; t: string; sub?: string; k?: string; run: () => void };
@@ -267,6 +322,7 @@ export function SuiteShell({
         </nav>
         {children}
         {ck && <Palette items={all} onClose={() => setCk(false)} />}
+        <AskHost />
       </div>
     </SuiteCtx.Provider>
   );

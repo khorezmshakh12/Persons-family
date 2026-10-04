@@ -61,7 +61,7 @@ export function DashboardView({
   finance = false,
 }: {
   api: WorkspaceApi;
-  /** Budget figures are CEO-only (finance.viewAll). */
+  /** Budget figures are CEO and COO only (strategy.finance). */
   finance?: boolean;
   space: StrategySpace;
   tasks: StrategyTask[];
@@ -137,9 +137,11 @@ export function DashboardView({
             </b>
           </div>
           <div>
-            <div className="k">Bajarildi</div>
+            {/* The ring is the average task progress, not the done share —
+                labelled as such so "43%" next to "3 / 17" isn't a contradiction. */}
+            <div className="k">Umumiy progress</div>
             <div className="text-[13px] text-au-muted">
-              {all.filter((t) => t.status === 'done').length} / {all.length} vazifa
+              {all.filter((t) => t.status === 'done').length} / {all.length} vazifa bajarildi
             </div>
           </div>
         </div>

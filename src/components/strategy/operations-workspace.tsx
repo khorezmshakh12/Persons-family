@@ -10,7 +10,7 @@ import type { Books } from '@/lib/accounting-data';
 import { MONF } from '@/lib/strategy';
 import { tashkentDayKey } from '@/lib/time';
 import { deleteLeadAction, saveLeadAction } from '@/lib/actions/operations';
-import { SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
+import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
 import { MonthPicker } from './view-finance';
 import { SC_KEYS, type OpsPlan, type ScKey } from '@/lib/ops-plan';
@@ -625,8 +625,8 @@ function Funnel({ leads, m, onPlan }: { leads: OpsData['leads']; m: OpsModel; on
                       className="sx-btn sm text-au-bad"
                       aria-label="O'chirish"
                       disabled={pending}
-                      onClick={() =>
-                        window.confirm(`«${l.name}» lidi o'chirilsinmi?`) &&
+                      onClick={async () =>
+                        (await ask(`«${l.name}» lidi o'chirilsinmi?`)) &&
                         start(async () => {
                           const r = await deleteLeadAction(l.id);
                           if (r.error) toast.error("O'chirib bo'lmadi");

@@ -33,9 +33,9 @@ function done(path = '/[locale]/accounting') {
   return {};
 }
 
-async function requireEditor(): Promise<{ id: string } | { error: string }> {
+async function requireEditor(cap: 'accounting.edit' | 'strategy.finance' = 'accounting.edit'): Promise<{ id: string } | { error: string }> {
   try {
-    const { profile } = await requireCap('accounting.edit');
+    const { profile } = await requireCap(cap);
     return { id: profile.id };
   } catch (error) {
     return { error: authErrorCode(error) };
@@ -379,7 +379,9 @@ const courseSchema = z.object({
 });
 
 export async function saveCourseAction(input: z.input<typeof courseSchema>): Promise<Result> {
-  const g = await requireEditor();
+  // Course tariffs are also edited from Strategy › Moliya (strategy.finance).
+  let g = await requireEditor();
+  if ('error' in g) g = await requireEditor('strategy.finance');
   if ('error' in g) return g;
   const p = courseSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
