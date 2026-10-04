@@ -356,7 +356,10 @@
       "incomingPrompt": "{name} wants to start a chat with you."
     },
     "newMessage": "New message",
-    "typing": "typing…"
+    "typing": "typing…",
+    "search": "Search",
+    "online": "online",
+    "offline": "last seen recently"
   },
   "issues": {
     "title": "Issues",

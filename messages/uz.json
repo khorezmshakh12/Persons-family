@@ -356,7 +356,10 @@
       "incomingPrompt": "{name} siz bilan suhbat boshlamoqchi."
     },
     "newMessage": "Yangi xabar",
-    "typing": "yozmoqda…"
+    "typing": "yozmoqda…",
+    "search": "Qidirish",
+    "online": "onlayn",
+    "offline": "yaqinda bo‘lgan"
   },
   "issues": {
     "title": "Muammolar",

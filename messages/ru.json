@@ -356,7 +356,10 @@
       "incomingPrompt": "{name} хочет начать с вами чат."
     },
     "newMessage": "Новое сообщение",
-    "typing": "печатает…"
+    "typing": "печатает…",
+    "search": "Поиск",
+    "online": "в сети",
+    "offline": "был(а) недавно"
   },
   "issues": {
     "title": "Проблемы",
