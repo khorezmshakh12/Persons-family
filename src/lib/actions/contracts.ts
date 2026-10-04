@@ -69,14 +69,19 @@ export async function updateContractAction(
   const parsed = updateContractSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  await sql`
-    update staff_contracts set
-      title = ${parsed.data.title},
-      start_date = ${parsed.data.startDate},
-      end_date = ${parsed.data.endDate || null},
-      status = coalesce(${parsed.data.status ?? null}, status)
-    where id = ${parsed.data.id}
-  `;
+  try {
+    const res = await sql`
+      update staff_contracts set
+        title = ${parsed.data.title},
+        start_date = ${parsed.data.startDate},
+        end_date = ${parsed.data.endDate || null},
+        status = coalesce(${parsed.data.status ?? null}, status)
+      where id = ${parsed.data.id}
+    `;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
 
   revalidatePath('/[locale]/staff', 'page');
   return {};
@@ -234,17 +239,27 @@ export async function reviewContractRequestAction(
   if (!request) return { error: 'notFound' };
   if (request.status !== 'pending') return { error: 'alreadyReviewed' };
 
-  await sql`
-    update contract_requests set status = ${parsed.data.decision}, reviewed_by = ${ceoId}, reviewed_at = now()
-    where id = ${parsed.data.requestId}
-  `;
-
-  if (parsed.data.decision === 'approved') {
-    if (request.request_type === 'freeze') {
-      await sql`update staff_contracts set status = 'frozen' where id = ${request.contract_id}`;
-    } else if (request.request_type === 'extend' && parsed.data.newEndDate) {
-      await sql`update staff_contracts set end_date = ${parsed.data.newEndDate} where id = ${request.contract_id}`;
-    }
+  // Guarded transition + its effect in one transaction: two reviewers acting
+  // at once can't both apply it (the loser matches 0 rows and bails out).
+  try {
+    const applied = await sql.begin(async (tx) => {
+      const res = await tx`
+        update contract_requests set status = ${parsed.data.decision}, reviewed_by = ${ceoId}, reviewed_at = now()
+        where id = ${parsed.data.requestId} and status = 'pending'
+      `;
+      if (res.count === 0) return false;
+      if (parsed.data.decision === 'approved') {
+        if (request.request_type === 'freeze') {
+          await tx`update staff_contracts set status = 'frozen' where id = ${request.contract_id}`;
+        } else if (request.request_type === 'extend' && parsed.data.newEndDate) {
+          await tx`update staff_contracts set end_date = ${parsed.data.newEndDate} where id = ${request.contract_id}`;
+        }
+      }
+      return true;
+    });
+    if (!applied) return { error: 'alreadyReviewed' };
+  } catch {
+    return { error: 'updateFailed' };
   }
 
   revalidatePath('/[locale]/staff', 'page');
