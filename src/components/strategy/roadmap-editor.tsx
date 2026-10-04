@@ -112,14 +112,14 @@ export function RoadmapEditor({
       <div className="dr-b">
         <div className="flex gap-2">
           <input
-            className="sx-inp w-14 text-center font-bold"
+            className="sx-inp !w-14 shrink-0 text-center font-bold"
             maxLength={2}
             value={icon}
             onChange={(e) => setIcon(e.target.value)}
             aria-label="Belgi (1–2 harf)"
             title="Belgi (1–2 harf)"
           />
-          <input className="sx-inp flex-1" autoFocus={!roadmap} maxLength={80} placeholder="Nomi — masalan: Filial ochish" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="sx-inp min-w-0 flex-1" autoFocus={!roadmap} maxLength={80} placeholder="Nomi — masalan: Filial ochish" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <input className="sx-inp" maxLength={80} placeholder="Qisqa tavsif — masalan: 2026 → 2027" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
 
@@ -129,7 +129,7 @@ export function RoadmapEditor({
             <div key={s.id} className="grid gap-2 rounded-au-ctl border border-au-line bg-au-card-2 p-3">
               <div className="flex items-center gap-2">
                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-au-ink text-[11px] font-bold text-au-card">{i + 1}</span>
-                <input className="sx-inp w-28" maxLength={30} placeholder="2026 · Q1" value={s.q} onChange={(e) => patch(i, { q: e.target.value })} aria-label="Davr" />
+                <input className="sx-inp !w-24 shrink-0" maxLength={30} placeholder="2026 · Q1" value={s.q} onChange={(e) => patch(i, { q: e.target.value })} aria-label="Davr" />
                 <input className="sx-inp min-w-0 flex-1 font-semibold" maxLength={60} placeholder="Bosqich nomi" value={s.t} onChange={(e) => patch(i, { t: e.target.value })} />
                 <button className="sx-chipb" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Yuqoriga">
                   <ArrowUp className="size-3.5" />
@@ -149,7 +149,7 @@ export function RoadmapEditor({
                   <Trash2 className="size-3.5" />
                 </button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 pl-8">
                 {SIDES.map(([side, label]) => (
                   <div key={side} className="grid content-start gap-1.5">
                     <span className="text-[11px] font-semibold text-au-faint">{label} tomon</span>
