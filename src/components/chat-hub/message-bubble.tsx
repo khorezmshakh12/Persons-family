@@ -27,6 +27,8 @@ function MessageBubbleComponent({
   repliedQuote,
   onReply,
   isOptimistic = false,
+  grouped = false,
+  tail = true,
 }: {
   message: StaffChatMessage;
   sender: ChatSender | undefined;
@@ -41,6 +43,11 @@ function MessageBubbleComponent({
    * memoization isn't defeated by a fresh function identity every render. */
   onReply: (messageId: string) => void;
   isOptimistic?: boolean;
+  /** Same sender as the message above within a few minutes — Telegram
+   * style: no repeated avatar / name, tighter spacing. */
+  grouped?: boolean;
+  /** Last of its group — gets the bubble tail and the avatar. */
+  tail?: boolean;
 }) {
   const t = useTranslations('chatHub');
   const format = useFormatter();
@@ -82,37 +89,34 @@ function MessageBubbleComponent({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       data-own={isOwn}
-      className={cn('flex gap-3', !isOptimistic && 'ch-row', isOwn && 'flex-row-reverse', isOptimistic && 'opacity-60')}
+      className={cn(
+        'flex items-end gap-2',
+        grouped ? 'mt-0.5' : 'mt-3',
+        !isOptimistic && 'ch-row',
+        isOwn && 'flex-row-reverse',
+        isOptimistic && 'opacity-60',
+      )}
     >
-      <Avatar className="size-8 shrink-0">
-        <AvatarImage src={sender?.avatar_url ?? undefined} alt="" />
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
-      <div className={cn('group flex max-w-[75%] flex-col gap-1', isOwn && 'items-end')}>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-au-ink">
-            {name}
-          </span>
-          <span className="text-xs text-au-ink">
-            {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {isOwn && !isOptimistic && (
-            <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
-              {message.is_read ? (
-                <CheckCheck className="size-3.5 text-sky-700" />
-              ) : (
-                <Check className="size-3.5 text-au-muted" />
-              )}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
+      {/* Avatar only on the last bubble of a run (others keep the gutter). */}
+      {!isOwn &&
+        (tail ? (
+          <Avatar className="size-8 shrink-0">
+            <AvatarImage src={sender?.avatar_url ?? undefined} alt="" />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+        ) : (
+          <span className="w-8 shrink-0" aria-hidden />
+        ))}
+      <div className={cn('group flex max-w-[78%] flex-col gap-1', isOwn && 'items-end')}>
+        <div className={cn('flex items-center gap-1', isOwn && 'flex-row-reverse')}>
           <div
             className={cn(
-              'ch-bubble flex flex-col gap-2 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap',
+              'ch-bubble flex flex-col gap-1.5 px-3 pt-2 pb-1.5 text-sm break-words whitespace-pre-wrap',
               isOwn ? 'ch-own' : 'ch-other',
+              tail && 'ch-tail',
             )}
           >
+            {!isOwn && !grouped && <span className="ch-name text-xs font-semibold">{name}</span>}
             {message.reply_to_id && repliedQuote && (
               <div
                 className={cn(
@@ -148,6 +152,15 @@ function MessageBubbleComponent({
               <audio src={message.media_url} controls className="h-10 max-w-full" />
             )}
             {message.message_text && <span>{message.message_text}</span>}
+            {/* Time + read ticks inside the bubble, bottom-right (Telegram). */}
+            <span className="ch-meta -mb-0.5 flex items-center justify-end gap-1 self-end text-[11px] leading-none">
+              {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
+              {isOwn && !isOptimistic && (
+                <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
+                  {message.is_read ? <CheckCheck className="ch-read size-3.5" /> : <Check className="size-3.5" />}
+                </span>
+              )}
+            </span>
           </div>
           {!isOptimistic && (
             <div

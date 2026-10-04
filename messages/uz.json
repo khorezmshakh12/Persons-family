@@ -51,7 +51,8 @@
     "report": "Oylik hisobot",
     "platform": "Platforma sozlamalari",
     "coreBoard": "Platforma ko'rinishi",
-    "butterfly": "Kapalak"
+    "butterfly": "Kapalak",
+    "kpi": "Mening KPI"
   },
   "auth": {
     "phone": "Telefon raqami",
@@ -98,7 +99,8 @@
     },
     "companyNews": {
       "title": "Kompaniya Yangiliklari",
-      "noNews": "Hozircha e'lonlar yo'q."
+      "noNews": "Hozircha e'lonlar yo'q.",
+      "all": "Barchasi"
     },
     "weeklyProgress": {
       "title": "Haftalik Progressingiz",
@@ -355,7 +357,10 @@
       "incomingPrompt": "{name} siz bilan suhbat boshlamoqchi."
     },
     "newMessage": "Yangi xabar",
-    "typing": "yozmoqda…"
+    "typing": "yozmoqda…",
+    "search": "Qidirish",
+    "online": "onlayn",
+    "offline": "yaqinda bo‘lgan"
   },
   "issues": {
     "title": "Muammolar",
@@ -987,7 +992,20 @@
       "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
     },
     "starAward": "Yulduz mukofoti",
-    "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi."
+    "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi.",
+    "glance": {
+      "submitted": "Topshirdi",
+      "toGrade": "Baholanmagan",
+      "missing": "Topshirmagan",
+      "avgLast": "O‘tgan oy o‘rtacha ball",
+      "missingTitle": "Hali topshirmaganlar · {count}"
+    },
+    "tabs": {
+      "month": "Bu oy",
+      "insights": "Tahlil",
+      "history": "Tarix",
+      "performance": "Samaradorlik"
+    }
   },
   "performance": {
     "title": "Samaradorlik",
@@ -1080,7 +1098,9 @@
         "forbidden": "Ruxsat yo‘q.",
         "sessionExpired": "Sessiya tugadi — qayta kiring.",
         "nonzero": "Summa nol bo‘lishi mumkin emas."
-      }
+      },
+      "colName": "Xodim",
+      "colSalary": "Oylik (brutto)"
     },
     "summary": {
       "salary": "Maosh",

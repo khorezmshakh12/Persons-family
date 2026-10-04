@@ -1,15 +1,16 @@
 'use client';
 
-import { memo, useTransition } from 'react';
+import { memo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Check, Clock3, X } from 'lucide-react';
+import { Check, Clock3, Search, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { OnlineDot } from '@/components/presence/online-dot';
 import { respondToDmRequestAction } from '@/lib/actions/staff-chats';
 import { ImportantChatsPanel } from './important-chats-panel';
 import { cn } from '@/lib/utils';
+import { roleLabel } from '@/lib/roles';
 import type { ActiveConversation, ConversationState, StaffDirectoryEntry } from './types';
 
 // Memoized so switching the active conversation only re-renders the two
@@ -30,6 +31,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
   index: number;
 }) {
   const t = useTranslations('chatHub');
+  const tStaff = useTranslations('staff');
   const initials = `${person.first_name[0]}${person.last_name[0]}`;
   return (
     <button
@@ -39,22 +41,25 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
       data-active={isActive}
       aria-current={isActive ? 'true' : undefined}
       className={cn(
-        'ch-item tap-scale animate-fade-in-up flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors',
+        'ch-item tap-scale animate-fade-in-up flex items-center gap-3 rounded-xl px-2.5 py-2 text-left text-sm transition-colors',
         isActive ? 'text-au-ink' : 'text-au-muted hover:bg-au-card-2',
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="ch-avatar size-8">
+        <Avatar className="ch-avatar size-11">
           <AvatarImage src={person.avatar_url ?? undefined} alt="" />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
         <OnlineDot
           userId={person.id}
-          className="absolute right-0 bottom-0 size-2 border border-au-line"
+          className="absolute right-0 bottom-0 size-3 border-2 border-au-card"
         />
       </div>
-      <span className="min-w-0 flex-1 truncate">
-        {person.first_name} {person.last_name}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className={cn('truncate font-semibold', isActive || isUnread ? 'text-au-ink' : 'text-au-ink/90')}>
+          {person.first_name} {person.last_name}
+        </span>
+        <span className="truncate text-xs text-au-faint">{roleLabel(tStaff, person.role)}</span>
       </span>
       {state.kind === 'pendingOutgoing' && (
         <Clock3
@@ -159,7 +164,13 @@ export function ChatSidebar({
   );
   // Incoming requests get their own card above — no need to also list them
   // in the plain contact list below.
-  const visibleContacts = staff.filter((s) => conversationStates[s.id]?.kind !== 'pendingIncoming');
+  const [q, setQ] = useState('');
+  const needle = q.trim().toLowerCase();
+  const visibleContacts = staff
+    .filter((s) => conversationStates[s.id]?.kind !== 'pendingIncoming')
+    .filter((s) => !needle || `${s.first_name} ${s.last_name}`.toLowerCase().includes(needle))
+    // Unread conversations float to the top, like Telegram.
+    .sort((a, b) => Number(unreadDmUserIds.has(b.id)) - Number(unreadDmUserIds.has(a.id)));
 
   return (
     <nav className="ch-side flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-au-line">
@@ -187,6 +198,15 @@ export function ChatSidebar({
         </div>
       )}
 
+      <label className="ch-search sticky top-0 z-10 mb-2 flex items-center gap-2 rounded-full border border-au-line bg-au-card-2 px-3 py-2">
+        <Search className="size-4 shrink-0 text-au-faint" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t('search')}
+          className="min-w-0 flex-1 bg-transparent text-sm text-au-ink outline-none placeholder:text-au-faint"
+        />
+      </label>
       <p className="px-3 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
         {t('individualChats')}
       </p>

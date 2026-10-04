@@ -886,3 +886,17 @@ html[data-app='pwa'] .app-header {
     overflow-wrap: anywhere;
   }
 }
+
+/* Dashboard news slider: the active dot fills over the 3 s slide. */
+@keyframes news-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.news-progress {
+  width: 100%;
+  transform-origin: left;
+  animation: news-progress 3s linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .news-progress { animation: none; }
+}

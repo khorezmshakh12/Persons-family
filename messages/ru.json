@@ -51,7 +51,8 @@
     "report": "Месячный отчёт",
     "platform": "Настройки платформы",
     "coreBoard": "Вид платформы",
-    "butterfly": "Бабочка"
+    "butterfly": "Бабочка",
+    "kpi": "Мой KPI"
   },
   "auth": {
     "phone": "Номер телефона",
@@ -98,7 +99,8 @@
     },
     "companyNews": {
       "title": "Новости компании",
-      "noNews": "Объявлений пока нет."
+      "noNews": "Объявлений пока нет.",
+      "all": "Все"
     },
     "weeklyProgress": {
       "title": "Прогресс за неделю",
@@ -355,7 +357,10 @@
       "incomingPrompt": "{name} хочет начать с вами чат."
     },
     "newMessage": "Новое сообщение",
-    "typing": "печатает…"
+    "typing": "печатает…",
+    "search": "Поиск",
+    "online": "в сети",
+    "offline": "был(а) недавно"
   },
   "issues": {
     "title": "Проблемы",
@@ -987,7 +992,20 @@
       "submitFailed": "Что-то пошло не так. Попробуйте снова."
     },
     "starAward": "Награда звёздами",
-    "starAwardHint": "Отдельно от оценки. Сотрудник тратит звёзды в Persons Market."
+    "starAwardHint": "Отдельно от оценки. Сотрудник тратит звёзды в Persons Market.",
+    "glance": {
+      "submitted": "Сдали",
+      "toGrade": "Без оценки",
+      "missing": "Не сдали",
+      "avgLast": "Средний балл прошлого месяца",
+      "missingTitle": "Ещё не сдали · {count}"
+    },
+    "tabs": {
+      "month": "Этот месяц",
+      "insights": "Аналитика",
+      "history": "История",
+      "performance": "Эффективность"
+    }
   },
   "performance": {
     "title": "Эффективность",
@@ -1080,7 +1098,9 @@
         "forbidden": "Нет доступа.",
         "sessionExpired": "Сессия истекла — войдите снова.",
         "nonzero": "Сумма не может быть нулевой."
-      }
+      },
+      "colName": "Сотрудник",
+      "colSalary": "Оклад (брутто)"
     },
     "summary": {
       "salary": "Зарплата",

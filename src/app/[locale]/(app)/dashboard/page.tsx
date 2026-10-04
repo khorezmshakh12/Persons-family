@@ -1,23 +1,20 @@
 import { Reveal } from '@/components/motion/reveal';
-import { getTranslations } from 'next-intl/server';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { CircleAlert, ListTodo, Star, SquareCheckBig } from 'lucide-react';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { StatsRow } from '@/components/dashboard/stats-row';
-import { StatsPeriodProvider } from '@/components/dashboard/stats-period';
+import { companyNewsCutoff } from '@/lib/company-news';
+import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
-import { CompanyNewsCard } from '@/components/dashboard/company-news-card';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
-import { TasksCalendar } from '@/components/dashboard/tasks-calendar';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
-import { GlassCardSkeleton, GlassStatsRowSkeleton } from '@/components/skeletons/glass-skeletons';
+import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 import {
   canSeeLessonPlans,
   loadActivity,
   loadDashboardCore,
   loadEmployeeTaskStats,
-  loadFinanceSnapshot,
   loadLastMonthTop3,
   loadLeaderboard,
   loadLessonPlanMonths,
@@ -37,14 +34,14 @@ import { KpiCard } from '@/components/aurora/kpi-card';
 import { Leaderboard } from '@/components/aurora/leaderboard';
 import { WeekBarChart } from '@/components/aurora/week-bar-chart';
 import { ActivityFeed } from '@/components/aurora/activity-feed';
-import { FinanceCard } from '@/components/aurora/finance-card';
 import { TaskFeed } from '@/components/aurora/task-feed';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
-import { SalesCard } from '@/components/aurora/sales-card';
 import { MonthTop3 } from '@/components/aurora/month-top3';
 import { SelfDevReminder } from '@/components/aurora/self-dev-reminder';
+import { KpiReminder } from '@/components/aurora/kpi-reminder';
+import { monthName, shiftMonth } from '@/lib/kpi-plan';
+import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { firstOfCurrentMonth } from '@/lib/self-development';
-import { coreViews, loadSalesSnapshot } from '@/lib/core-state';
 import { can } from '@/lib/permissions';
 
 // User-specific and RLS-scoped — never attempt to prerender this route.
@@ -83,8 +80,8 @@ async function TeacherProgressChartSection({ delayMs }: { delayMs: number }) {
 const HERO_CELL = 'lg:col-span-12 xl:col-span-8';
 const LEAD_CELL = 'lg:col-span-6 xl:col-span-4 xl:col-start-9 xl:row-span-2 xl:row-start-1';
 const KPI_CELL = 'lg:col-span-6 xl:col-span-8';
-const FIN_CELL = 'lg:col-span-7 xl:col-span-8';
-const ACT_CELL = 'lg:col-span-5 xl:col-span-4';
+// Finance card is gone (owner, 2026-10-04) — activity takes the full row.
+const ACT_CELL = 'lg:col-span-12';
 const FEED_CELL = 'lg:col-span-7';
 const BARS_CELL = 'lg:col-span-5';
 const STATS_CELL = 'lg:col-span-12';
@@ -216,17 +213,6 @@ async function WeekChartSection({ viewer }: { viewer: Viewer }) {
   );
 }
 
-async function FinanceSection({ viewer }: { viewer: Viewer }) {
-  const data = await loadFinanceSnapshot(viewer);
-  return (
-    <FinanceCard
-      data={data}
-      href={can(viewer.role, 'finance.viewAll') ? '/finance' : `/finance/${viewer.userId}`}
-      className={FIN_CELL}
-    />
-  );
-}
-
 async function TaskFeedSection({ viewer }: { viewer: Viewer }) {
   const items = await loadTaskFeed(viewer);
   return <TaskFeed items={items} mode={can(viewer.role, 'company.overview') ? 'ceo' : 'self'} className={FEED_CELL} />;
@@ -245,14 +231,62 @@ async function SelfDevReminderSection({ userId, reviewer }: { userId: string; re
   return row && row.n > 0 ? null : <SelfDevReminder />;
 }
 
+async function KpiReminderSection({ userId, reviewer }: { userId: string; reviewer: boolean }) {
+  const thisMonth = `${tashkentMonthKey()}-01`;
+  const next = shiftMonth(thisMonth, 1);
+  if (reviewer) {
+    const [r] = await sql<{ n: number }[]>`
+      select count(*)::int as n from kpi_plans where status = 'submitted' and month in (${thisMonth}, ${next})`.catch(() => [{ n: 0 }]);
+    return r?.n ? (
+      <KpiReminder title={`${r.n} ta KPI rejasi tasdiq kutmoqda`} body="Ko‘rib chiqing: tasdiqlang yoki izoh bilan qaytaring." cta="Ko‘rib chiqish" />
+    ) : null;
+  }
+  // The employee: this month's plan if it's missing, otherwise next month's
+  // from 7 days before the deadline (the last day, 23:59).
+  const { year, month, day } = tashkentYmd();
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const rows = await sql<{ month: string }[]>`
+    select month::text as month from kpi_plans
+    where user_id = ${userId} and month in (${thisMonth}, ${next}) and status in ('submitted', 'approved')`.catch(() => null);
+  if (!rows) return null;
+  const has = (m: string) => rows.some((r) => r.month === m);
+  if (!has(thisMonth))
+    return <KpiReminder title={`${monthName(thisMonth)} KPI rejangiz yo‘q`} body="Joriy oy rejasini uch ssenariyda kiriting va CEO’ga topshiring." cta="Rejani kiritish" />;
+  if (day >= lastDay - 7 && !has(next))
+    return (
+      <KpiReminder
+        title={`${monthName(next)} KPI rejasini topshiring`}
+        body={`Muddat: ${lastDay}-sana, 23:59. Uch ssenariy — yomon, yaxshi, juda yaxshi.`}
+        cta="Rejani kiritish"
+      />
+    );
+  return null;
+}
+
 async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   const top = await loadLastMonthTop3();
   return top ? <MonthTop3 month={top.month} people={top.people} viewerId={viewerId} /> : null;
 }
 
-async function SalesSection({ money }: { money: boolean }) {
-  const data = await loadSalesSnapshot();
-  return <SalesCard data={data} money={money} className="lg:col-span-12" />;
+async function NewsSliderSection() {
+  const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
+  const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
+    select id, title, content, created_at from company_news
+    where created_at >= ${companyNewsCutoff()}
+    order by created_at desc limit 6
+  `.catch(() => []);
+  return (
+    <NewsSliderView
+      title={t('companyNews.title')}
+      allLabel={t('companyNews.all')}
+      items={news.map((n) => ({
+        id: n.id,
+        title: n.title,
+        content: n.content.replace(/\s+/g, ' ').slice(0, 220),
+        date: format.dateTime(new Date(n.created_at), { dateStyle: 'medium' }),
+      }))}
+    />
+  );
 }
 
 async function ActivitySection({ viewer }: { viewer: Viewer }) {
@@ -266,33 +300,21 @@ async function ActivitySection({ viewer }: { viewer: Viewer }) {
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
   const isCeo = can(profile!.role, 'company.overview');
-  const isHeadTeacher = profile!.role === 'head_teacher' || profile!.role === 'academic_director';
-  // Head Teacher gets a regular teacher's dashboard plus the Active
-  // Groups/Lesson Plans cards (RLS already scopes both platform-wide for
-  // it, same as CEO) — everyone else who isn't a teacher/assistant gets a
-  // personal Finance/Tasks view instead of company-wide totals
-  // that aren't relevant to their day-to-day (assistant keeps today's
-  // teacher-like treatment — it's still operationally lesson-plan-focused,
-  // unlike admin_manager/mmd/internship/it_developer). Teacher
-  // tier still gets its own Finance card alongside Active Groups/Lesson
-  // Plans — every non-CEO role sees their own earnings on the dashboard,
-  // just via a different card mix (see financeUserId on StatsRow).
-  const isTeacherTier = profile!.role === 'teacher' || profile!.role === 'assistant' || isHeadTeacher;
-  const isPersonalDashboard = !isCeo && !isTeacherTier;
 
   const viewer: Viewer = { userId: user!.id, role: profile!.role as StaffRole };
-  // Sales card for whoever has the Sales section (same access rule).
-  const showSales = (await coreViews(profile!).catch((): string[] => [])).includes('sales');
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
+      {/* Latest company news, rotating every 3 s — the first thing on the page. */}
+      <Reveal fallback={null}>
+        <NewsSliderSection />
+      </Reveal>
       {/* Monthly self-development is mandatory for everyone but the CEO. */}
       <Reveal fallback={null}>
         <SelfDevReminderSection userId={user!.id} reviewer={can(profile!.role, 'selfDev.review')} />
       </Reveal>
-      {/* Last month's top 3 — everyone sees it for the whole month. */}
       <Reveal fallback={null}>
-        <MonthTop3Section viewerId={user!.id} />
+        <KpiReminderSection userId={user!.id} reviewer={can(profile!.role, 'kpi.review')} />
       </Reveal>
       {/* Persons Aurora overview — hero, leaderboard, KPIs, charts, activity. */}
       <div data-stagger className="grid grid-cols-1 gap-[18px] lg:grid-cols-12">
@@ -302,17 +324,9 @@ export default async function DashboardPage() {
         <Reveal fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
           <LeaderboardSection userId={user!.id} compact={!isCeo} />
         </Reveal>
-        <Reveal fallback={<CardSkeleton className={FIN_CELL} />}>
-          <FinanceSection viewer={viewer} />
-        </Reveal>
         <Reveal fallback={<CardSkeleton className={ACT_CELL} />}>
           <ActivitySection viewer={viewer} />
         </Reveal>
-        {showSales && (
-          <Reveal fallback={<CardSkeleton className="lg:col-span-12" />}>
-            <SalesSection money={can(profile!.role, 'finance.viewAll')} />
-          </Reveal>
-        )}
         <Reveal fallback={<CardSkeleton className={FEED_CELL} />}>
           <TaskFeedSection viewer={viewer} />
         </Reveal>
@@ -326,33 +340,14 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* The period selector's state lives in this provider, above the
-          streamed server cards, so a realtime router.refresh() re-renders
-          them without resetting the viewer's kunlik/haftalik/oylik choice. */}
-      <StatsPeriodProvider>
-        <Reveal fallback={<GlassStatsRowSkeleton />}>
-          <StatsRow
-            showTotalStaff={isCeo}
-            showLessonPlanCards={!isPersonalDashboard}
-            showLessonPlanCount={isTeacherTier}
-            personalDashboardUserId={isPersonalDashboard ? user!.id : undefined}
-            financeUserId={isTeacherTier ? user!.id : undefined}
-          />
-        </Reveal>
-      </StatsPeriodProvider>
+      {/* Last month's top 3 — below this month's leaderboard, all month long. */}
+      <Reveal fallback={null}>
+        <MonthTop3Section viewerId={user!.id} />
+      </Reveal>
 
-      {isCeo ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Reveal fallback={<GlassCardSkeleton />}>
-            <ActiveIssuesOverview delayMs={0} />
-          </Reveal>
-          <Reveal fallback={<GlassCardSkeleton />}>
-            <CompanyNewsCard isAdmin delayMs={90} />
-          </Reveal>
-        </div>
-      ) : (
+      {isCeo && (
         <Reveal fallback={<GlassCardSkeleton />}>
-          <CompanyNewsCard isAdmin={false} delayMs={0} />
+          <ActiveIssuesOverview delayMs={0} />
         </Reveal>
       )}
 
@@ -365,13 +360,8 @@ export default async function DashboardPage() {
           </Reveal>
         )}
         <Reveal fallback={<GlassCardSkeleton />}>
-          {/* Company-wide chat activity is overview data; everyone else gets
-              their own task calendar. */}
-          {!isCeo ? (
-            <TasksCalendar userId={user!.id} />
-          ) : (
-            <ActivityHeatmap href="/calendar" delayMs={90} />
-          )}
+          {/* Company-wide chat activity is overview data (CEO only). */}
+          {isCeo ? <ActivityHeatmap href="/calendar" delayMs={90} /> : null}
         </Reveal>
         <Reveal fallback={<GlassCardSkeleton />}>
           <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />

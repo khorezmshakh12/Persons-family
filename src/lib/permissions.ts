@@ -105,7 +105,8 @@ export type SectionKey =
   | 'profile'
   | 'settings'
   | 'materials'
-  | 'butterfly';
+  | 'butterfly'
+  | 'kpi';
 
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   // Everyone — personal workspace.
@@ -124,6 +125,7 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   settings: ALL,
   materials: ALL,
   butterfly: ALL, // the particle-garden page — a calm corner for everyone
+  kpi: ALL, // My KPI — everyone files a monthly plan; the CEO reviews (kpi.review)
   hr: ALL, // own leave / vacation requests; other people's pay is redacted
   // Department sections.
   sales: [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],
@@ -170,6 +172,7 @@ export type Capability =
   | 'chat.moderate' // DM anyone, mark DM importance
   | 'core.sales.edit' // Core leads / spend / targets
   | 'strategy.edit'
+  | 'kpi.review' // approve / grade My KPI plans (salary impact)
   | 'strategy.finance' // Strategy › Moliya / Tahlil / budget (company books, no per-person pay)
   | 'accounting.edit'
   | 'operations.edit'
@@ -199,6 +202,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'strategy.edit': SECTION_ROLES.strategy,
   // Owner, 2026-10-04: the COO sees and edits the strategy finance views too.
   'strategy.finance': ['ceo', 'coo'],
+  // My KPI grades move salary — the CEO decides (owner, 2026-10-04).
+  'kpi.review': ['ceo'],
   'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
   'perforce.edit': SECTION_ROLES.perforce,
