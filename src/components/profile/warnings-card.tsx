@@ -4,6 +4,7 @@ import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { IssueWarningDialog } from './issue-warning-dialog';
 import { AssignPunishmentDialog } from './assign-punishment-dialog';
+import { DeleteWarningButton } from './delete-warning-button';
 
 export async function WarningsCard({
   staffId,
@@ -56,7 +57,12 @@ export async function WarningsCard({
                     </>
                   )}
                 </span>
-                {canManage && <AssignPunishmentDialog staffId={staffId} warningId={w.id} />}
+                {canManage && (
+                  <span className="flex items-center gap-1">
+                    <AssignPunishmentDialog staffId={staffId} warningId={w.id} />
+                    <DeleteWarningButton warningId={w.id} label={t('delete')} confirmText={t('deleteConfirm')} />
+                  </span>
+                )}
               </div>
               <p className="text-sm whitespace-pre-wrap text-au-ink">{w.reason}</p>
             </div>

@@ -1352,7 +1352,9 @@
         "createFailed": "Could not save this. Please try again.",
         "invalidWarning": "This warning could not be found.",
         "deleteFailed": "Could not delete this warning. Please try again."
-      }
+      },
+      "delete": "Delete warning",
+      "deleteConfirm": "Delete this warning?"
     },
     "bonusesPunishments": {
       "title": "Bonuses & Punishments",

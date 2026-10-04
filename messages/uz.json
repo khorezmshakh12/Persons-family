@@ -1352,7 +1352,9 @@
         "createFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
         "invalidWarning": "Ushbu ogohlantirish topilmadi.",
         "deleteFailed": "Bu ogohlantirishni o'chirib bo'lmadi. Qayta urinib ko'ring."
-      }
+      },
+      "delete": "Ogohlantirishni o‘chirish",
+      "deleteConfirm": "Bu ogohlantirish o‘chirilsinmi?"
     },
     "bonusesPunishments": {
       "title": "Bonuslar va jazolar",
