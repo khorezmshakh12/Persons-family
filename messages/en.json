@@ -50,7 +50,8 @@
     "hr": "HR",
     "report": "Monthly report",
     "platform": "Platform settings",
-    "coreBoard": "Platform view"
+    "coreBoard": "Platform view",
+    "butterfly": "Butterfly"
   },
   "auth": {
     "phone": "Phone number",
@@ -1871,6 +1872,15 @@
     "aquarium": {
       "name": "Aquarium",
       "hint": "Real fish swimming."
+    },
+    "butterfly": {
+      "name": "Butterfly",
+      "hint": "Particles that gather into a butterfly and flowers, then scatter."
     }
+  },
+  "butterfly": {
+    "title": "Butterfly",
+    "subtitle": "Scattered particles bloom into a butterfly among flowers, then dissolve again.",
+    "hint": "Drag to orbit · scroll or pinch to zoom"
   }
 }
