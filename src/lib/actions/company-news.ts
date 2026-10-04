@@ -107,3 +107,31 @@ export async function deleteNewsAction(formData: FormData): Promise<DeleteNewsRe
   revalidatePath('/[locale]/dashboard', 'page');
   return {};
 }
+
+const updateNewsSchema = createNewsSchema.extend({ id: z.string().uuid() });
+
+/** Edit a post's title / text — its author or a news publisher. No new
+ * Telegram broadcast (it's a correction, not new news). */
+export async function updateNewsAction(formData: FormData): Promise<DeleteNewsResult> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'forbidden' };
+  const isAdmin = can(profile.role, 'news.publish');
+
+  const parsed = updateNewsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  try {
+    const res = await sql`
+      update company_news set title = ${parsed.data.title}, content = ${parsed.data.content}
+      where id = ${parsed.data.id} and (${isAdmin} or created_by = ${user.id})`;
+    if (res.count === 0) return { error: 'forbidden' };
+  } catch (error) {
+    console.error('updateNewsAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  await bumpSignal('board_signals/company_news');
+  revalidatePath('/[locale]/company-news', 'page');
+  revalidatePath('/[locale]/dashboard', 'page');
+  return {};
+}
