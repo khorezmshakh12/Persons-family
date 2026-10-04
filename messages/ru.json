@@ -988,7 +988,20 @@
       "submitFailed": "Что-то пошло не так. Попробуйте снова."
     },
     "starAward": "Награда звёздами",
-    "starAwardHint": "Отдельно от оценки. Сотрудник тратит звёзды в Persons Market."
+    "starAwardHint": "Отдельно от оценки. Сотрудник тратит звёзды в Persons Market.",
+    "glance": {
+      "submitted": "Сдали",
+      "toGrade": "Без оценки",
+      "missing": "Не сдали",
+      "avgLast": "Средний балл прошлого месяца",
+      "missingTitle": "Ещё не сдали · {count}"
+    },
+    "tabs": {
+      "month": "Этот месяц",
+      "insights": "Аналитика",
+      "history": "История",
+      "performance": "Эффективность"
+    }
   },
   "performance": {
     "title": "Эффективность",
@@ -1081,7 +1094,9 @@
         "forbidden": "Нет доступа.",
         "sessionExpired": "Сессия истекла — войдите снова.",
         "nonzero": "Сумма не может быть нулевой."
-      }
+      },
+      "colName": "Сотрудник",
+      "colSalary": "Оклад (брутто)"
     },
     "summary": {
       "salary": "Зарплата",

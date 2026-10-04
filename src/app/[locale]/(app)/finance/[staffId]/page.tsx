@@ -15,7 +15,6 @@ import { can } from '@/lib/permissions';
 import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
 import { formatUZS } from '@/lib/format-currency';
 import { CountUp } from '@/components/motion/count-up';
-import { EarningsWaterfall } from '@/components/finance/earnings-waterfall';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,14 +113,6 @@ export async function FinanceDetailContent({
           </div>
         ))}
       </div>
-
-      <EarningsWaterfall
-        salary={net}
-        bonuses={bonuses}
-        penalties={penalties}
-        total={total}
-        labels={{ salary: tSum('salary'), bonuses: tSum('bonuses'), penalties: tSum('penalties'), total: tSum('total') }}
-      />
 
       <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
         <SalarySection

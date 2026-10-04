@@ -988,7 +988,20 @@
       "submitFailed": "Something went wrong. Please try again."
     },
     "starAward": "Star award",
-    "starAwardHint": "Separate from the score. The employee spends stars in Persons Market."
+    "starAwardHint": "Separate from the score. The employee spends stars in Persons Market.",
+    "glance": {
+      "submitted": "Submitted",
+      "toGrade": "To grade",
+      "missing": "Not submitted",
+      "avgLast": "Last month avg score",
+      "missingTitle": "Not submitted yet · {count}"
+    },
+    "tabs": {
+      "month": "This month",
+      "insights": "Insights",
+      "history": "History",
+      "performance": "Performance"
+    }
   },
   "performance": {
     "title": "Performance",
@@ -1081,7 +1094,9 @@
         "forbidden": "Not allowed.",
         "sessionExpired": "Session expired — sign in again.",
         "nonzero": "Amount cannot be zero."
-      }
+      },
+      "colName": "Employee",
+      "colSalary": "Salary (gross)"
     },
     "summary": {
       "salary": "Salary",

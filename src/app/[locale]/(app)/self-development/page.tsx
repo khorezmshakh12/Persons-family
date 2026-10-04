@@ -8,13 +8,20 @@ import { formatUZS } from '@/lib/format-currency';
 import { SubmitForm } from '@/components/self-development/submit-form';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
-import { LastMonthScoresChart, type StaffScorePoint } from '@/components/self-development/last-month-scores-chart';
+import {
+  LastMonthScoresChart,
+  type StaffScorePoint,
+} from '@/components/self-development/last-month-scores-chart';
 import { TeacherPicker } from '@/components/self-development/teacher-picker';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { loadEmployeeGrowth } from '@/lib/employee-growth';
 import { ManageStaffPerformanceDialog } from '@/components/performance/manage-staff-performance-dialog';
-import { PerformanceEntriesList, type PerformanceEntry } from '@/components/performance/performance-entries-list';
+import {
+  PerformanceEntriesList,
+  type PerformanceEntry,
+} from '@/components/performance/performance-entries-list';
 import { ExportButtons } from '@/components/export/export-buttons';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { can } from '@/lib/permissions';
 import { BgVideo } from '@/components/motion/bg-video';
@@ -50,7 +57,8 @@ export default async function SelfDevelopmentPage({
     order by sd.month desc
   `;
 
-  const hasSubmittedThisMonth = !isAdmin && submissions.some((s) => s.month === firstOfCurrentMonth());
+  const hasSubmittedThisMonth =
+    !isAdmin && submissions.some((s) => s.month === firstOfCurrentMonth());
 
   if (isAdmin) {
     const currentMonth = firstOfCurrentMonth();
@@ -119,6 +127,15 @@ export default async function SelfDevelopmentPage({
       entriesByStaffId.set(e.staff_id, list);
     }
 
+    // Everyone but the reviewer hands in a report; who still hasn't, who still needs a grade.
+    const submittedIds = new Set(thisMonthSubmissions.map((x) => x.user_id));
+    const expected = staff.filter((p) => p.role !== 'ceo');
+    const missing = expected.filter((p) => !submittedIds.has(p.id));
+    const toGrade = thisMonthSubmissions.filter((x) => x.ceo_score === null);
+    const avgLast = lastMonthPoints.length
+      ? Math.round(lastMonthPoints.reduce((a, x) => a + x.score, 0) / lastMonthPoints.length)
+      : null;
+
     const exportRows = staff.map((person) => {
       const perf = performanceByStaffId.get(person.id);
       const net = netTotal(entriesByStaffId.get(person.id) ?? []);
@@ -133,123 +150,173 @@ export default async function SelfDevelopmentPage({
 
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6 sm:p-8">
-        <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+        <div className="rounded-au-card bg-au-hero relative flex flex-col gap-1 overflow-hidden px-6 py-6 sm:px-[30px] sm:py-7">
           <BgVideo variant="hero" />
-          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
+          <h1 className="text-au-ink text-[28px] leading-[34px] font-bold tracking-tight">
             {t('title')}
           </h1>
           <p className="text-au-muted">{t('subtitle')}</p>
         </div>
 
-        <TeacherProgressChartCard teachers={growth.teachers} data={growth.data} />
-
-        <LastMonthScoresChart points={lastMonthPoints} />
-
-        {teacherList.length > 0 && (
-          <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-heading text-lg font-semibold text-au-ink">
-                {t('teacherProgress.title')}
-              </h2>
-              <TeacherPicker teachers={teacherList} selectedId={selectedTeacherId!} />
+        {/* At a glance: who has handed in this month, what still needs a grade. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { k: t('glance.submitted'), v: `${thisMonthSubmissions.length} / ${expected.length}` },
+            {
+              k: t('glance.toGrade'),
+              v: String(toGrade.length),
+              tone: toGrade.length ? 'text-au-accent-text' : undefined,
+            },
+            {
+              k: t('glance.missing'),
+              v: String(missing.length),
+              tone: missing.length ? 'text-au-bad' : undefined,
+            },
+            { k: t('glance.avgLast'), v: avgLast === null ? '—' : String(avgLast) },
+          ].map((x) => (
+            <div key={x.k} className={cn(GLASS_CARD, 'flex flex-col gap-1 p-4')}>
+              <span className="text-au-muted text-xs font-medium">{x.k}</span>
+              <span className={cn('text-au-ink text-2xl font-bold tabular-nums', x.tone)}>
+                {x.v}
+              </span>
             </div>
-            <SelfDevelopmentLineChart
-              points={(teacherPoints ?? []).map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
-              bare
-            />
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4">
-          <h2 className="font-heading text-lg font-semibold text-au-ink">
-            {t('thisMonth.title')}
-          </h2>
-          {thisMonthSubmissions.length === 0 ? (
-            <p className="text-sm text-au-muted">{t('thisMonth.noSubmissions')}</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {thisMonthSubmissions.map((s, index) => (
-                <SubmissionCard
-                  key={s.id}
-                  submission={s}
-                  isAdmin
-                  delayMs={Math.min(index, 10) * 60}
-                />
-              ))}
-            </div>
-          )}
+          ))}
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-au-line pt-8">
-          <h2 className="font-heading text-lg font-semibold text-au-ink">
-            {t('history.title')}
-          </h2>
-          {historySubmissions.length === 0 ? (
-            <p className="text-sm text-au-muted">{t('history.noSubmissions')}</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {historySubmissions.map((s, index) => (
-                <SubmissionCard
-                  key={s.id}
-                  submission={s}
-                  isAdmin
-                  delayMs={Math.min(index, 10) * 60}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <Tabs defaultValue="month">
+          <TabsList className="border-au-line bg-au-card-2 border">
+            <TabsTrigger value="month">
+              {t('tabs.month')}
+              {toGrade.length ? ` · ${toGrade.length}` : ''}
+            </TabsTrigger>
+            <TabsTrigger value="insights">{t('tabs.insights')}</TabsTrigger>
+            <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
+            <TabsTrigger value="performance">{t('tabs.performance')}</TabsTrigger>
+          </TabsList>
 
-        <div className="flex flex-col gap-4 border-t border-au-line pt-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-heading text-lg font-semibold text-au-ink">
-              {tp('title')}
-            </h2>
-            <ExportButtons
-              filename="staff-performance"
-              columns={[
-                { header: 'Name', key: 'name' },
-                { header: 'Role', key: 'role' },
-                { header: 'Tier', key: 'tier' },
-                { header: 'Weekly Progress %', key: 'weekly_progress_score' },
-                { header: 'Net Total', key: 'net_total' },
-              ]}
-              rows={exportRows}
-            />
-          </div>
-          {staff.map((person) => {
-            const perf = performanceByStaffId.get(person.id) ?? null;
-            const personEntries = entriesByStaffId.get(person.id) ?? [];
-            const net = netTotal(personEntries);
-            return (
-              <div key={person.id} className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-au-ink">
-                      {person.first_name} {person.last_name}
-                    </span>
-                    {perf && (
-                      <Badge variant="tint" tint="slate" className="text-xs font-semibold">
-                        {tp(`tierLabels.${perf.current_tier}`)} · {perf.weekly_progress_score}%
-                      </Badge>
-                    )}
-                  </div>
-                  <span
-                    className={cn(
-                      'text-lg font-bold tabular-nums',
-                      net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted',
-                    )}
-                  >
-                    {net >= 0 ? '+' : ''}
-                    {formatUZS(net)}
-                  </span>
+          <TabsContent value="month" className="mt-4 flex flex-col gap-4 outline-none">
+            {missing.length > 0 && (
+              <div className={cn(GLASS_CARD, 'flex flex-col gap-2 p-4')}>
+                <span className="text-au-ink text-sm font-semibold">
+                  {t('glance.missingTitle', { count: missing.length })}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {missing.map((m) => (
+                    <Badge key={m.id} variant="tint" tint="slate" className="text-xs">
+                      {m.first_name} {m.last_name}
+                    </Badge>
+                  ))}
                 </div>
-                <ManageStaffPerformanceDialog staffId={person.id} performance={perf} />
-                <PerformanceEntriesList entries={personEntries} isAdmin />
               </div>
-            );
-          })}
-        </div>
+            )}
+            {thisMonthSubmissions.length === 0 ? (
+              <p className="text-au-muted text-sm">{t('thisMonth.noSubmissions')}</p>
+            ) : (
+              // Ungraded first — that's the CEO's queue.
+              [...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)].map(
+                (s, index) => (
+                  <SubmissionCard
+                    key={s.id}
+                    submission={s}
+                    isAdmin
+                    delayMs={Math.min(index, 10) * 60}
+                  />
+                ),
+              )
+            )}
+          </TabsContent>
+
+          <TabsContent
+            value="insights"
+            className="mt-4 grid grid-cols-1 gap-4 outline-none lg:grid-cols-2"
+          >
+            <div className="lg:col-span-2">
+              <TeacherProgressChartCard teachers={growth.teachers} data={growth.data} />
+            </div>
+            <LastMonthScoresChart points={lastMonthPoints} />
+            {teacherList.length > 0 && (
+              <div className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-heading text-au-ink text-lg font-semibold">
+                    {t('teacherProgress.title')}
+                  </h2>
+                  <TeacherPicker teachers={teacherList} selectedId={selectedTeacherId!} />
+                </div>
+                <SelfDevelopmentLineChart
+                  points={(teacherPoints ?? []).map((s) => ({
+                    month: s.month,
+                    ceoScore: s.ceo_score,
+                  }))}
+                  bare
+                />
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-4 flex flex-col gap-4 outline-none">
+            {historySubmissions.length === 0 ? (
+              <p className="text-au-muted text-sm">{t('history.noSubmissions')}</p>
+            ) : (
+              historySubmissions.map((s, index) => (
+                <SubmissionCard
+                  key={s.id}
+                  submission={s}
+                  isAdmin
+                  delayMs={Math.min(index, 10) * 60}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="performance" className="mt-4 flex flex-col gap-4 outline-none">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-heading text-au-ink text-lg font-semibold">{tp('title')}</h2>
+              <ExportButtons
+                filename="staff-performance"
+                columns={[
+                  { header: 'Name', key: 'name' },
+                  { header: 'Role', key: 'role' },
+                  { header: 'Tier', key: 'tier' },
+                  { header: 'Weekly Progress %', key: 'weekly_progress_score' },
+                  { header: 'Net Total', key: 'net_total' },
+                ]}
+                rows={exportRows}
+              />
+            </div>
+            {staff.map((person) => {
+              const perf = performanceByStaffId.get(person.id) ?? null;
+              const personEntries = entriesByStaffId.get(person.id) ?? [];
+              const net = netTotal(personEntries);
+              return (
+                <div key={person.id} className={cn(GLASS_CARD, 'flex flex-col gap-4 p-6')}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-au-ink font-semibold">
+                        {person.first_name} {person.last_name}
+                      </span>
+                      {perf && (
+                        <Badge variant="tint" tint="slate" className="text-xs font-semibold">
+                          {tp(`tierLabels.${perf.current_tier}`)} · {perf.weekly_progress_score}%
+                        </Badge>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-lg font-bold tabular-nums',
+                        net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted',
+                      )}
+                    >
+                      {net >= 0 ? '+' : ''}
+                      {formatUZS(net)}
+                    </span>
+                  </div>
+                  <ManageStaffPerformanceDialog staffId={person.id} performance={perf} />
+                  <PerformanceEntriesList entries={personEntries} isAdmin />
+                </div>
+              );
+            })}
+          </TabsContent>
+        </Tabs>
       </div>
     );
   }
@@ -264,86 +331,111 @@ export default async function SelfDevelopmentPage({
     `,
   ]);
 
-  const totalBonus = entries.filter((e) => e.entry_type === 'bonus').reduce((sum, e) => sum + e.amount, 0);
-  const totalPenalty = entries.filter((e) => e.entry_type === 'penalty').reduce((sum, e) => sum + e.amount, 0);
+  const totalBonus = entries
+    .filter((e) => e.entry_type === 'bonus')
+    .reduce((sum, e) => sum + e.amount, 0);
+  const totalPenalty = entries
+    .filter((e) => e.entry_type === 'penalty')
+    .reduce((sum, e) => sum + e.amount, 0);
   const net = totalBonus - totalPenalty;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+      <div className="rounded-au-card bg-au-hero relative flex flex-col gap-1 overflow-hidden px-6 py-6 sm:px-[30px] sm:py-7">
         <BgVideo variant="hero" />
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
+        <h1 className="text-au-ink text-[28px] leading-[34px] font-bold tracking-tight">
           {t('title')}
         </h1>
         <p className="text-au-muted">{t('subtitle')}</p>
       </div>
 
-      {/* The month's report is the job on this page — it leads until it's in.
-          The trend chart only earns its space once there are two months to
-          compare (one dot on an empty axis says nothing). */}
-      <div className="rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
-        <h2 className="font-heading mb-4 text-lg font-semibold text-au-ink">{t('submitTitle')}</h2>
-        {hasSubmittedThisMonth ? <p className="text-sm text-au-muted">{t('submittedThisMonth')}</p> : <SubmitForm />}
-      </div>
-
-      {submissions.length >= 2 && (
-        <SelfDevelopmentLineChart
-          points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
-        />
-      )}
-
-      {performance && (
-        <div className={cn(GLASS_CARD, 'flex flex-wrap items-center gap-3 p-6')}>
-          <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-bold">
-            {tp('tier')}: {tp(`tierLabels.${performance.current_tier}`)}
-          </Badge>
-          <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-medium">
-            {tp('weeklyProgressScore')}: {performance.weekly_progress_score}%
-          </Badge>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <span className="text-sm text-au-muted">{tp('totalBonus')}</span>
-          <span className="text-2xl font-bold tabular-nums text-emerald-600">+{formatUZS(totalBonus)}</span>
-        </div>
-        <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <span className="text-sm text-au-muted">{tp('totalPenalty')}</span>
-          <span className="text-2xl font-bold tabular-nums text-red-600">-{formatUZS(totalPenalty)}</span>
-        </div>
-        <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-6')}>
-          <span className="text-sm text-au-muted">{tp('netTotal')}</span>
-          <span
-            className={cn(
-              'text-2xl font-bold tabular-nums',
-              net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted',
+      {/* Two columns: the work (this month's report, past reports) on the
+          left; where you stand (trend, tier, bonuses) on the right. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="rounded-au-card border-au-line bg-au-card text-au-ink shadow-au-card border p-6">
+            <h2 className="font-heading text-au-ink mb-4 text-lg font-semibold">
+              {t('submitTitle')}
+            </h2>
+            {hasSubmittedThisMonth ? (
+              <p className="text-au-muted text-sm">{t('submittedThisMonth')}</p>
+            ) : (
+              <SubmitForm />
             )}
-          >
-            {net >= 0 ? '+' : ''}
-            {formatUZS(net)}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <h2 className="font-heading text-lg font-semibold text-au-ink">{tp('history')}</h2>
-        <PerformanceEntriesList entries={entries} isAdmin={false} />
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <h2 className="font-heading text-lg font-semibold text-au-ink">
-          {t('yourSubmissions')}
-        </h2>
-        {submissions.length === 0 ? (
-          <p className="text-sm text-au-muted">{t('noSubmissions')}</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {submissions.map((s, index) => (
-              <SubmissionCard key={s.id} submission={s} isAdmin={false} delayMs={Math.min(index, 10) * 60} />
-            ))}
           </div>
-        )}
+
+          <div className="flex flex-col gap-4">
+            <h2 className="font-heading text-au-ink text-lg font-semibold">
+              {t('yourSubmissions')}
+            </h2>
+            {submissions.length === 0 ? (
+              <p className="text-au-muted text-sm">{t('noSubmissions')}</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {submissions.map((s, index) => (
+                  <SubmissionCard
+                    key={s.id}
+                    submission={s}
+                    isAdmin={false}
+                    delayMs={Math.min(index, 10) * 60}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <aside className="flex min-w-0 flex-col gap-4">
+          {submissions.length >= 2 && (
+            <SelfDevelopmentLineChart
+              points={[...submissions]
+                .reverse()
+                .map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+            />
+          )}
+
+          {performance && (
+            <div className={cn(GLASS_CARD, 'flex flex-wrap items-center gap-3 p-6')}>
+              <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-bold">
+                {tp('tier')}: {tp(`tierLabels.${performance.current_tier}`)}
+              </Badge>
+              <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-medium">
+                {tp('weeklyProgressScore')}: {performance.weekly_progress_score}%
+              </Badge>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+            <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-4')}>
+              <span className="text-au-muted text-sm">{tp('totalBonus')}</span>
+              <span className="text-lg font-bold text-emerald-600 tabular-nums sm:text-xl">
+                +{formatUZS(totalBonus)}
+              </span>
+            </div>
+            <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-4')}>
+              <span className="text-au-muted text-sm">{tp('totalPenalty')}</span>
+              <span className="text-lg font-bold text-red-600 tabular-nums sm:text-xl">
+                -{formatUZS(totalPenalty)}
+              </span>
+            </div>
+            <div className={cn(GLASS_CARD, 'flex flex-col gap-1 p-4')}>
+              <span className="text-au-muted text-sm">{tp('netTotal')}</span>
+              <span
+                className={cn(
+                  'text-lg font-bold tabular-nums sm:text-xl',
+                  net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted',
+                )}
+              >
+                {net >= 0 ? '+' : ''}
+                {formatUZS(net)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h2 className="font-heading text-au-ink text-lg font-semibold">{tp('history')}</h2>
+            <PerformanceEntriesList entries={entries} isAdmin={false} />
+          </div>
+        </aside>
       </div>
     </div>
   );

@@ -988,7 +988,20 @@
       "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
     },
     "starAward": "Yulduz mukofoti",
-    "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi."
+    "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi.",
+    "glance": {
+      "submitted": "Topshirdi",
+      "toGrade": "Baholanmagan",
+      "missing": "Topshirmagan",
+      "avgLast": "O‘tgan oy o‘rtacha ball",
+      "missingTitle": "Hali topshirmaganlar · {count}"
+    },
+    "tabs": {
+      "month": "Bu oy",
+      "insights": "Tahlil",
+      "history": "Tarix",
+      "performance": "Samaradorlik"
+    }
   },
   "performance": {
     "title": "Samaradorlik",
@@ -1081,7 +1094,9 @@
         "forbidden": "Ruxsat yo‘q.",
         "sessionExpired": "Sessiya tugadi — qayta kiring.",
         "nonzero": "Summa nol bo‘lishi mumkin emas."
-      }
+      },
+      "colName": "Xodim",
+      "colSalary": "Oylik (brutto)"
     },
     "summary": {
       "salary": "Maosh",
