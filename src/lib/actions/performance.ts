@@ -61,7 +61,9 @@ const addEntrySchema = z.object({
   staffId: z.string().uuid(),
   entryType: z.enum(['bonus', 'penalty']),
   amount: z.coerce.number().positive(),
-  reason: z.string().trim().max(500).optional().or(z.literal('')),
+  // Every bonus, penalty and manual star change must say why — the person
+  // it lands on reads it, and an unexplained deduction is a complaint.
+  reason: z.string().trim().min(3).max(500),
 });
 
 export async function addPerformanceEntryAction(

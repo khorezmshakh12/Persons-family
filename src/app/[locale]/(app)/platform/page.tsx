@@ -8,6 +8,7 @@ import { RolesManager, type RolePerson } from '@/components/roles/roles-manager'
 import { SectionAccess } from '@/components/platform/section-access';
 import { SalesTargets, type TargetRow } from '@/components/platform/sales-targets';
 import { PlatformTabs } from '@/components/platform/platform-tabs';
+import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pt-1 pb-8 sm:px-7">
       <div className="rounded-au-card bg-au-hero px-6 py-6">
+        <BgVideo variant="hero" />
         <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
         <p className="mt-1 text-sm text-au-muted">{t('subtitle')}</p>
       </div>

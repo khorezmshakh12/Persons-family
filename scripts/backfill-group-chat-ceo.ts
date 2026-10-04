@@ -16,7 +16,7 @@ import postgres from 'postgres';
 import { cert, initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-const sql = postgres('postgres://postgres:rnQTe2aILZonLj0NaWkV8XBb@127.0.0.1:5433/app', { ssl: false, max: 1 });
+const sql = postgres((process.env.DATABASE_URL ?? (() => { throw new Error('Set DATABASE_URL (password: Secret Manager db-password)'); })()), { ssl: false, max: 1 });
 
 const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 initializeApp({

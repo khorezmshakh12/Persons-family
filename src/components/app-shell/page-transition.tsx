@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, ViewTransition } from 'react';
 import { usePathname } from '@/i18n/navigation';
 import { clearChunkErrorGuard } from '@/lib/chunk-error';
 
@@ -20,7 +20,20 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   // initial/animate, or a `both`-fill CSS keyframe that starts hidden)
   // blanks the entire app. Per-component entrances still animate safely;
   // the app-wide wrapper stays a plain, always-visible element.
-  // Keyed by pathname so a route change gets a fresh subtree.
-  return <div key={pathname}>{children}</div>;
+  // Keyed by pathname so a route change gets a fresh subtree. The page
+  // enter/exit is a View Transition (motion-v4.css): it animates browser
+  // snapshots, never this element, so the safety rule above still holds.
+  // Navigations tagged nav-forward / nav-back (sidebar order) slide by
+  // direction; anything else gets the plain fade-and-rise.
+  return (
+    <ViewTransition
+      key={pathname}
+      enter={{ 'nav-forward': 'nav-forward', 'nav-back': 'nav-back', default: 'page-in' }}
+      exit={{ 'nav-forward': 'nav-forward', 'nav-back': 'nav-back', default: 'page-out' }}
+      default="none"
+    >
+      <div>{children}</div>
+    </ViewTransition>
+  );
 }
 

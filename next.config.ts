@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   // navigation helpers, next/image, and /_next/ asset URLs with /staff.
   basePath: '/staff',
   experimental: {
+    // React <ViewTransition> on route navigations (src/app/motion-v4.css).
+    viewTransition: true,
     serverActions: {
       // Actual file uploads bypass Server Actions entirely (direct to
       // Cloud Storage via a signed URL) to stay well under any serverless

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { sendChatRequestAction, respondToDmRequestAction } from '@/lib/actions/staff-chats';
 import { MessageBubble, type ChatSender } from './message-bubble';
 import { ChatComposer } from './chat-composer';
+import { useTypingUserIds } from '@/components/presence/presence-context';
 import type { ActiveConversation, ChatQuote, ConversationState, StaffChatMessage } from './types';
 import type { ChatMediaType } from '@/lib/chat-media';
 import type { SentStaffChatMessage } from '@/lib/actions/staff-chats';
@@ -47,6 +48,9 @@ export function ConversationView({
   onBack: () => void;
 }) {
   const t = useTranslations('chatHub');
+  // The other person is typing to me right now (presence, #25).
+  const typingIds = useTypingUserIds();
+  const typing = !!active && typingIds.has(active.userId);
   const [replyTarget, setReplyTarget] = useState<ChatQuote | null>(null);
   const [isRequestPending, startRequestTransition] = useTransition();
   const messageMap = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
@@ -249,6 +253,16 @@ export function ConversationView({
                     />
                   );
                 })}
+                {typing && (
+                  // Pinned to the bottom of the stream while the other side types.
+                  <div className="sticky bottom-0 mt-3 flex" aria-live="polite">
+                    <span className="ch-typing" role="status" aria-label={t('typing')}>
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  </div>
+                )}
                 <div ref={bottomRef} />
               </div>
             )}

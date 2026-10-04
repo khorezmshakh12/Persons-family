@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import type { HeroData } from '@/lib/aurora-dashboard';
 import { ProgressRing } from './progress-ring';
 import { LiveTashkentTime } from './live-time';
+import { BgVideo } from '@/components/motion/bg-video';
 
 const TZ = 'Asia/Tashkent';
 
@@ -61,6 +62,7 @@ export async function HeroBanner({
 
   return (
     <section className={cn(SURFACE_HERO, 'flex min-h-[252px] flex-col gap-6 px-6 py-6 sm:flex-row sm:px-[30px] sm:py-7', className)}>
+      <BgVideo variant="hero" />
       <HeroDeco />
       <div className="relative z-10 flex flex-1 flex-col">
         <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.02em] text-au-accent-text">

@@ -17,6 +17,7 @@ import { PerformanceEntriesList, type PerformanceEntry } from '@/components/perf
 import { ExportButtons } from '@/components/export/export-buttons';
 import { Badge } from '@/components/ui/badge';
 import { can } from '@/lib/permissions';
+import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +134,7 @@ export default async function SelfDevelopmentPage({
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6 sm:p-8">
         <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+          <BgVideo variant="hero" />
           <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
             {t('title')}
           </h1>
@@ -269,20 +271,26 @@ export default async function SelfDevelopmentPage({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+        <BgVideo variant="hero" />
         <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>
         <p className="text-au-muted">{t('subtitle')}</p>
       </div>
 
-      <SelfDevelopmentLineChart
-        points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
-      />
-
+      {/* The month's report is the job on this page — it leads until it's in.
+          The trend chart only earns its space once there are two months to
+          compare (one dot on an empty axis says nothing). */}
       <div className="rounded-au-card border border-au-line bg-au-card p-6 text-au-ink shadow-au-card">
         <h2 className="font-heading mb-4 text-lg font-semibold text-au-ink">{t('submitTitle')}</h2>
         {hasSubmittedThisMonth ? <p className="text-sm text-au-muted">{t('submittedThisMonth')}</p> : <SubmitForm />}
       </div>
+
+      {submissions.length >= 2 && (
+        <SelfDevelopmentLineChart
+          points={[...submissions].reverse().map((s) => ({ month: s.month, ceoScore: s.ceo_score }))}
+        />
+      )}
 
       {performance && (
         <div className={cn(GLASS_CARD, 'flex flex-wrap items-center gap-3 p-6')}>

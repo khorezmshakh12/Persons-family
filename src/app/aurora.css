@@ -15,7 +15,7 @@
   /* Text */
   --au-ink: #17161a;
   --au-muted: #6c6873;
-  --au-faint: #a39fa8; /* decoration/disabled only — never body text */
+  --au-faint: #77727e; /* hints & placeholders — darkened to pass WCAG AA (4.5:1 on white) */
 
   /* Brand accent — apricot */
   --au-accent: #ff9f1c;

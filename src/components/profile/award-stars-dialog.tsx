@@ -156,6 +156,8 @@ export function AwardStarsDialog({
             <Textarea
               id="reason"
               name="reason"
+              required
+              minLength={3}
               maxLength={500}
               rows={3}
               placeholder={t('reasonPlaceholder')}

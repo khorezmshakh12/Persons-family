@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { CARD_INTERACTIVE, CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, SURFACE_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { CountUp } from '@/components/motion/count-up';
 
 /**
  * Aurora KPI tile: label + icon square, big tabular number, delta chip +
@@ -47,7 +48,7 @@ export function KpiCard({
         </span>
       </div>
       <div className="mt-3 text-[30px] leading-[34px] font-bold tracking-[-0.02em] text-au-ink tabular-nums">
-        {value}
+        <CountUp value={value} />
       </div>
       <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-au-muted">
         {deltaText !== null && (

@@ -1,6 +1,8 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
+
+import { memo, useState, ViewTransition } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -99,11 +101,14 @@ function TaskKanbanColumnImpl({
             className="flex flex-col gap-3 min-w-0 w-full overflow-hidden"
           >
             {tasks.length === 0 ? (
-              <p className="text-sm text-au-muted px-2 py-2">{emptyLabel}</p>
+              <EmptyState compact title={emptyLabel} />
             ) : (
               tasks.map((task) => (
+                // Each card is its own view transition: when the board changes
+                // inside startTransition (delete / undo), removed cards shrink
+                // out and the rest glide into place (#7, motion-v4.css).
+                <ViewTransition key={task.id} enter="card-in" exit="card-out" update="card-move" default="none">
                 <TaskCard
-                  key={task.id}
                   task={task}
                   isAdmin={isAdmin}
                   assignees={assignees}
@@ -111,6 +116,7 @@ function TaskKanbanColumnImpl({
                   onRequestDelete={onRequestDelete}
                   variant={task.id === previewTaskId ? 'preview' : 'default'}
                 />
+                </ViewTransition>
               ))
             )}
           </motion.div>

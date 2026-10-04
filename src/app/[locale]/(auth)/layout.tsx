@@ -1,14 +1,12 @@
+import { BgVideo } from '@/components/motion/bg-video';
 import { LanguageSwitcher } from '@/components/language-switcher';
 
-// Persons Aurora: warm cream page with a soft apricot mesh glow behind the
-// card — no photo/video backdrop (AuthVideoBackground is no longer mounted).
+// Persons Aurora: the Aurora moving-gradient loop (public/bg/aurora.*)
+// behind the sign-in card, under a light scrim.
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-full flex-col overflow-hidden bg-au-bg">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed top-1/2 left-1/2 z-0 size-[900px] max-w-[160vw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-au-hero opacity-80 blur-3xl"
-      />
+      <BgVideo variant="login" theme="aurora" />
 
       <div className="relative z-10 flex justify-end gap-3 p-4">
         <LanguageSwitcher compact />

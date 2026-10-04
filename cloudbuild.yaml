@@ -9,10 +9,9 @@
 # The Cloud Build trigger's service account needs roles/cloudsql.client and
 # roles/run.admin.
 #
-# _DB_PASSWORD is defaulted below only because this same value is already
-# committed in scripts/backfill-lesson-slots.ts / apply-upgrade-migration.ts.
-# TODO: move it to Secret Manager, rotate the Cloud SQL password, and wire
-#       `availableSecrets` here + a `secretEnv` on the migrate step.
+# The DB password comes from Secret Manager (db-password) via
+# availableSecrets below; the build service account has
+# roles/secretmanager.secretAccessor on that secret.
 
 substitutions:
   _INSTANCE: 'persons-staff-b01a83bd:europe-west3:persons-staff-db'
@@ -20,7 +19,6 @@ substitutions:
   _SERVICE: 'persons-staff-app'
   _REGION: 'europe-west3'
   _BASE_URL: 'https://www.persons-staffs.uz'
-  _DB_PASSWORD: 'rnQTe2aILZonLj0NaWkV8XBb'
 
 steps:
   - id: verify
@@ -36,6 +34,7 @@ steps:
   - id: migrate
     name: 'node:24'
     entrypoint: bash
+    secretEnv: ['DB_PASSWORD']
     args:
       - -ceu
       - |
@@ -47,7 +46,7 @@ steps:
         # them as build substitutions and fail).
         /workspace/cloud-sql-proxy "${_INSTANCE}" --port 5432 &
         sleep 8
-        DATABASE_URL="postgres://postgres:${_DB_PASSWORD}@127.0.0.1:5432/${_DB_NAME}" npx tsx scripts/migrate.ts
+        DATABASE_URL="postgres://postgres:$$DB_PASSWORD@127.0.0.1:5432/${_DB_NAME}" npx tsx scripts/migrate.ts
 
   - id: deploy
     name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -76,3 +75,10 @@ steps:
 timeout: 1800s
 options:
   logging: CLOUD_LOGGING_ONLY
+
+# The Cloud SQL password comes from Secret Manager (the same secret the
+# Cloud Run services read), never from this file.
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/db-password/versions/latest
+      env: DB_PASSWORD

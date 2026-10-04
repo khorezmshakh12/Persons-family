@@ -4,6 +4,7 @@
 @import "./aurora.css";
 @import "./motion.css";
 @import "./themes.css";
+@import "./motion-v4.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -871,5 +872,17 @@ html[data-app='pwa'] .app-header {
   .nav-motion,
   .nav-motion svg {
     transition: none;
+  }
+}
+
+/* Phones: one too-wide element (a long word, a fixed-width chart) must not
+   make the whole page scroll sideways. Wide tables keep their own
+   overflow-x boxes, which still scroll inside this clip. */
+@media (max-width: 639px) {
+  .app-main {
+    overflow-x: clip;
+  }
+  .app-main :where(h1, h2, h3, p, li, td) {
+    overflow-wrap: anywhere;
   }
 }

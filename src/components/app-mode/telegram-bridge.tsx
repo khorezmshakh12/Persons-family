@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from '@/i18n/navigation';
 import { NAV_ITEMS } from '@/lib/nav';
-import { getTelegramWebApp, isTelegramApp } from '@/lib/telegram-webapp';
+import { getTelegramWebApp, haptic, isTelegramApp } from '@/lib/telegram-webapp';
+import { CELEBRATE_EVENT, LIVE_EVENT } from '@/components/motion/events';
+import { subscribeTheme } from '@/lib/themes';
 
 const ROOT_PATHS = new Set(['/', '/login', '/tg', '/set-password', ...NAV_ITEMS.map((i) => i.href)]);
 
@@ -18,6 +20,24 @@ function goBack() {
  * section. Renders nothing; a no-op outside Telegram.
  */
 export function TelegramBridge() {
+  // #21: the phone answers app moments — a buzz on a celebration (task
+  // done / approved), a sharper one on a warning. No-op outside Telegram.
+  useEffect(() => {
+    if (!isTelegramApp()) return;
+    const onCelebrate = () => haptic('success');
+    const onLive = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind === 'warning') haptic('error');
+      else if (kind === 'task' || kind === 'chat') haptic('select');
+    };
+    window.addEventListener(CELEBRATE_EVENT, onCelebrate);
+    window.addEventListener(LIVE_EVENT, onLive);
+    return () => {
+      window.removeEventListener(CELEBRATE_EVENT, onCelebrate);
+      window.removeEventListener(LIVE_EVENT, onLive);
+    };
+  }, []);
+
   const pathname = usePathname();
   const [sdkReady, setSdkReady] = useState(false);
 
@@ -25,6 +45,7 @@ export function TelegramBridge() {
   useEffect(() => {
     if (!isTelegramApp()) return;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
     void getTelegramWebApp().then((wa) => {
       if (!wa || cancelled) return;
       setSdkReady(true);
@@ -32,19 +53,31 @@ export function TelegramBridge() {
         wa.ready();
         wa.expand();
         if (wa.isVersionAtLeast('7.7')) wa.disableVerticalSwipes?.();
-        const bg = getComputedStyle(document.documentElement).getPropertyValue('--au-bg').trim();
-        const card = getComputedStyle(document.documentElement).getPropertyValue('--au-card').trim();
-        if (wa.isVersionAtLeast('6.1') && bg.startsWith('#')) {
-          wa.setHeaderColor(bg);
-          wa.setBackgroundColor(bg);
-        }
-        if (wa.isVersionAtLeast('7.10') && card.startsWith('#')) wa.setBottomBarColor?.(card);
       } catch {
         // an old Telegram client missing one of these — the page still works
       }
+      // Telegram's chrome follows the page colour — and again on every
+      // theme switch (lib/themes.ts flips data-theme on <html>).
+      const paint = () => {
+        try {
+          const css = getComputedStyle(document.documentElement);
+          const bg = css.getPropertyValue('--au-bg').trim();
+          const card = css.getPropertyValue('--au-card').trim();
+          if (wa.isVersionAtLeast('6.1') && bg.startsWith('#')) {
+            wa.setHeaderColor(bg);
+            wa.setBackgroundColor(bg);
+          }
+          if (wa.isVersionAtLeast('7.10') && card.startsWith('#')) wa.setBottomBarColor?.(card);
+        } catch {
+          // old client
+        }
+      };
+      paint();
+      if (!cancelled) unsubscribe = subscribeTheme(paint);
     });
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, []);
 

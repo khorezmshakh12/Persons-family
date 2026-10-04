@@ -42,6 +42,7 @@ import { CreateItemDialog } from './create-item-dialog';
 import { EditItemDialog } from './edit-item-dialog';
 import { DeleteItemDialog } from './delete-item-dialog';
 import { DecideOrderActions, type OrderDecision } from './decide-order-dialog';
+import { BgVideo } from '@/components/motion/bg-video';
 
 type MarketViewProps = {
   balance: number;
@@ -322,6 +323,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
     <div className="flex flex-col gap-6">
       {/* Header / Balance Card */}
       <div className={cn(SURFACE_HERO, 'flex flex-col gap-4 px-6 py-6 sm:px-[30px] sm:py-7')}>
+        <BgVideo variant="hero" />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
@@ -490,7 +492,15 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                           alt={item.name}
                           referrerPolicy="no-referrer"
                           loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-300"
+                          // Blur-up (#24): sharpens once loaded; a CSS fallback
+                          // unblurs after 2 s even if the load event was missed.
+                          ref={(img) => {
+                            if (img?.complete) img.dataset.loaded = '';
+                          }}
+                          onLoad={(e) => {
+                            e.currentTarget.dataset.loaded = '';
+                          }}
+                          className="m-blur-up h-full w-full object-cover transition-transform duration-300"
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-au-faint">

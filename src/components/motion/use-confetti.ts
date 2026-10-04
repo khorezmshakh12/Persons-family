@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { CELEBRATE_EVENT } from './events';
+import { motionAllowed } from '@/lib/motion-level';
 
 /** Palette comes from the Aurora tokens (no hex in components). */
 const COLOR_TOKENS = ['--au-chart-1', '--au-chart-2', '--au-accent-text', '--au-ok', '--au-info', '--au-bad'];
@@ -23,8 +24,46 @@ export function useConfetti() {
       lastY = e.clientY;
     }
 
+    // #18: the reward floats up from where they clicked — an ephemeral,
+    // pointer-events:none overlay that removes itself.
+    function floatLabel(text: string) {
+      const el = document.createElement('div');
+      el.textContent = text;
+      el.setAttribute('aria-hidden', 'true');
+      Object.assign(el.style, {
+        position: 'fixed',
+        left: `${lastX}px`,
+        top: `${lastY}px`,
+        zIndex: '9999',
+        pointerEvents: 'none',
+        font: '700 18px var(--au-font-sans)',
+        color: 'var(--au-accent-text)',
+        textShadow: '0 1px 0 var(--au-card)',
+        transform: 'translate(-50%, -50%)',
+      });
+      document.body.appendChild(el);
+      const anim = el.animate(
+        [
+          { transform: 'translate(-50%, -50%) scale(0.6)', opacity: 0 },
+          { transform: 'translate(-50%, -110%) scale(1.15)', opacity: 1, offset: 0.25 },
+          { transform: 'translate(-50%, -260%) scale(1)', opacity: 0 },
+        ],
+        { duration: 1100, easing: 'cubic-bezier(.16,1,.3,1)' },
+      );
+      anim.onfinish = () => el.remove();
+      setTimeout(() => el.remove(), 1500);
+    }
+
+    function onCelebrate(e: Event) {
+      const label = (e as CustomEvent<{ label?: string }>).detail?.label;
+      if (label && motionAllowed('calm')) floatLabel(label);
+      burst();
+    }
+
     function burst() {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      // Celebrations are for everyone above 'off' (the level already folds
+      // in prefers-reduced-motion).
+      if (!motionAllowed('calm')) return;
       if (live.size >= 2) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -95,10 +134,10 @@ export function useConfetti() {
     }
 
     document.addEventListener('pointerdown', onDown, { capture: true, passive: true });
-    window.addEventListener(CELEBRATE_EVENT, burst);
+    window.addEventListener(CELEBRATE_EVENT, onCelebrate);
     return () => {
       document.removeEventListener('pointerdown', onDown, { capture: true });
-      window.removeEventListener(CELEBRATE_EVENT, burst);
+      window.removeEventListener(CELEBRATE_EVENT, onCelebrate);
       for (const c of live) c.remove();
       live.clear();
     };

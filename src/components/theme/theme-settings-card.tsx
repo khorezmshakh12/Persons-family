@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 import { CHIP_OK } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { setUiThemeAction } from '@/lib/actions/profile';
 import {
   currentTheme,
   DEFAULT_THEME,
@@ -43,6 +44,9 @@ export function ThemeSettingsCard() {
   function pick(id: ThemeId, event: React.MouseEvent<HTMLButtonElement>) {
     if (id === currentTheme()) return;
     const apply = () => setTheme(id);
+    // Follow the person to their other devices; a failed save only means
+    // this device keeps the choice locally.
+    void setUiThemeAction(id).catch(() => {});
     const doc = document as ViewTransitionDoc;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!doc.startViewTransition || reduced) {

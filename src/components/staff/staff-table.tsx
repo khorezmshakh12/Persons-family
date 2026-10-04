@@ -92,7 +92,7 @@ export async function StaffTable({
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="relative shrink-0">
-                      <Avatar className="size-8">
+                      <Avatar className="size-8" style={{ viewTransitionName: `avatar-${person.id}`, viewTransitionClass: 'morph' }}>
                         <AvatarImage src={person.avatarUrl ?? undefined} alt="" />
                         <AvatarFallback>
                           {person.first_name[0]}

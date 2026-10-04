@@ -194,7 +194,7 @@ function TaskCardImpl({
           // overlay has to stay the exact size of the card it will land on,
           // otherwise the drop animation (which glides the overlay onto the
           // real card's rect) ends with a visible size pop.
-          isOverlay && 'cursor-grabbing bg-au-card-2 shadow-2xl shadow-black/50 ring-2 ring-au-faint',
+          isOverlay && 'm-lift cursor-grabbing bg-au-card-2 shadow-2xl shadow-black/50 ring-2 ring-au-faint',
         )}
       >
         {/* Card Header: Title + Action Buttons */}

@@ -1,9 +1,9 @@
 /**
  * Tiny window-event bus between the app and the MOTION v3 layer.
  *
- * Call sites (task board, notification bell…) fire these unconditionally —
- * they are no-ops unless the motion layer is mounted and listening, which
- * only happens for MOTION_ROLES. Nothing here touches data or state.
+ * Call sites (task board, notification bell…) fire these unconditionally.
+ * Listeners (confetti, island, Telegram haptics) each check the person's
+ * motion level themselves. Nothing here touches data or state.
  */
 
 export const CELEBRATE_EVENT = 'persons:celebrate';
@@ -18,10 +18,11 @@ export type LiveEventDetail = {
   href?: string;
 };
 
-/** Confetti burst for a genuine success moment (task approved / done). */
-export function celebrate() {
+/** Confetti burst for a genuine success moment (task approved / done).
+ * `label` (e.g. "+35 ★") floats up from the pointer. */
+export function celebrate(label?: string) {
   if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent(CELEBRATE_EVENT));
+  window.dispatchEvent(new CustomEvent<{ label?: string }>(CELEBRATE_EVENT, { detail: { label } }));
 }
 
 /** Surface a live app event in the Dynamic Island. */

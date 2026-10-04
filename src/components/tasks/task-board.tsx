@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -265,22 +265,26 @@ export function TaskBoard({
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
       } else if (nextStatus === 'done') {
-        // Handed in — a genuine success beat (MOTION_ROLES only; no-op otherwise).
-        celebrate();
+        // Handed in — a genuine success beat; the reward floats up (#18).
+        const reward = previousTasks.find((x) => x.id === taskId)?.star_reward ?? 0;
+        celebrate(reward > 0 ? `+${reward} ★` : undefined);
       }
     })();
   }
 
-  // Strict optimistic UI: the card is filtered out of local state instantly
-  // — before the delete Server Action is even awaited — which is what
-  // makes the click feel instant instead of freezing the board until the
-  // round trip resolves. Only a failure puts the card back and surfaces a
-  // toast; the common (successful) case never waits on the network at all.
+  // Optimistic, with a 5-second undo: the card leaves the board at once, but
+  // the delete Server Action only runs once the "Undo" window closes. Undo
+  // puts the card back and nothing reaches the server; a failed delete also
+  // puts it back with an error toast. Leaving the page inside the window
+  // simply cancels the delete (the safe direction).
   function handleRequestDelete(task: Task) {
     const previousTasks = tasks;
-    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    // In a transition so the card's <ViewTransition> exit plays (#7).
+    startTransition(() => setTasks((prev) => prev.filter((t) => t.id !== task.id)));
 
-    (async () => {
+    let undone = false;
+    const timer = setTimeout(async () => {
+      if (undone) return;
       const formData = new FormData();
       formData.set('id', task.id);
       const result = await deleteTaskAction(formData);
@@ -288,7 +292,18 @@ export function TaskBoard({
         setTasks(previousTasks);
         toast.error(t(`errors.${result.error}`));
       }
-    })();
+    }, 5000);
+    toast(t('deletedToast'), {
+      duration: 5000,
+      action: {
+        label: t('undo'),
+        onClick: () => {
+          undone = true;
+          clearTimeout(timer);
+          startTransition(() => setTasks(previousTasks));
+        },
+      },
+    });
   }
 
   return (

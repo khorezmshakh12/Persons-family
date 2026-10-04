@@ -6,6 +6,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { sql } from '@/lib/db/client';
 import { getFirebaseAdminApp } from '@/lib/gcp/credentials';
 import { getAuthState } from '@/lib/auth/session';
+import { isThemeId } from '@/lib/themes';
 import { createSignedWriteUrl } from '@/lib/gcp/storage';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { AVATAR_ALLOWED_TYPES } from '@/lib/avatar-constants';
@@ -146,4 +147,18 @@ export async function updateOwnAvatarAction(avatarPath: string): Promise<{ error
   // A freshly-minted signed read URL, purely so the caller's UI can update
   // immediately — the stored value is still just the private object path.
   return { avatarUrl: (await resolveAvatarUrl(avatarPath)) ?? undefined };
+}
+
+/** Saves the signed-in person's UI theme so it follows them across devices.
+ * Fire-and-forget from the picker — the theme is already applied locally. */
+export async function setUiThemeAction(theme: string): Promise<{ error?: string }> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  if (!isThemeId(theme)) return { error: 'invalidInput' };
+  try {
+    await sql`update profiles set ui_theme = ${theme === 'aurora' ? null : theme} where id = ${user.id}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return {};
 }

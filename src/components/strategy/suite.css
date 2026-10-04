@@ -10,7 +10,7 @@
   height: 2px;
   z-index: 70;
   pointer-events: none;
-  background: linear-gradient(90deg, #ff9f1c, #2effcc);
+  background: linear-gradient(90deg, var(--au-accent), #2effcc);
   transform: scaleX(0);
   transform-origin: left;
 }
@@ -673,8 +673,8 @@
   position: fixed;
   z-index: 80;
   pointer-events: none;
-  background: #17161a;
-  color: #fff;
+  background: var(--au-primary);
+  color: var(--au-primary-ink);
   font-size: 12px;
   line-height: 17px;
   padding: 8px 10px;
@@ -734,7 +734,7 @@
 }
 .sx-matrix .cell.busy {
   border: 0;
-  color: #17161a;
+  color: var(--au-ink);
 }
 .sx-matrix .cell.busy:hover {
   transform: translateY(-2px) scale(1.03);
@@ -884,7 +884,7 @@
 }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .sx-suite .sx-title em {
-    background: linear-gradient(90deg, var(--au-ink) 0%, var(--au-ink) 40%, #ff9f1c 50%, var(--au-ink) 60%, var(--au-ink) 100%);
+    background: linear-gradient(90deg, var(--au-ink) 0%, var(--au-ink) 40%, var(--au-accent) 50%, var(--au-ink) 60%, var(--au-ink) 100%);
     background-size: 250% 100%;
     background-position: 100% 0;
     -webkit-background-clip: text;
@@ -1073,7 +1073,7 @@
 
 /* toast 2.0: shrinking progress line + icon pop (while the suite is open) */
 body:has([data-motion='on'] .sx-suite) [data-sonner-toast] {
-  background-image: linear-gradient(90deg, #ff9f1c, #ff6b5b);
+  background-image: linear-gradient(90deg, var(--au-accent), #ff6b5b);
   background-repeat: no-repeat;
   background-position: left bottom;
   background-size: 0 2px;

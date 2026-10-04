@@ -10,6 +10,11 @@ import { AppShell } from '@/components/app-shell/app-shell';
 import { IntroSplash } from '@/components/brand/intro-splash';
 import { MotionRoot } from '@/components/motion/motion-root';
 import { ThemeBoot } from '@/components/theme/theme-boot';
+import { motionBootScript } from '@/lib/motion-level';
+import { BG_BOOT_SCRIPT } from '@/lib/bg-mode';
+import { MotionSync } from '@/components/motion/motion-sync';
+import { ErrorReporter } from '@/components/app-shell/error-reporter';
+import { FormFeedback } from '@/components/motion/form-feedback';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
@@ -139,13 +144,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const motion = MOTION_ROLES.includes(profile!.role);
 
-  // `display: contents` — no box of its own, so the shell's layout is
-  // untouched; it only scopes the [data-motion] CSS (globals.css).
+  // Motion level is per person now (lib/motion-level.ts): the boot script
+  // sets html[data-motion-level] (+ html[data-motion="on"] for 'full', which
+  // every Motion v3 rule keys on). Motion v3 roles still start on 'full'.
   return (
-    <div className="contents" data-motion={motion ? 'on' : undefined}>
-      <ThemeBoot />
+    <div className="contents">
+      <script dangerouslySetInnerHTML={{ __html: motionBootScript(motion ? 'full' : 'calm') }} />
+      <MotionSync roleDefault={motion ? 'full' : 'calm'} />
+      <script dangerouslySetInnerHTML={{ __html: BG_BOOT_SCRIPT }} />
+      <ThemeBoot serverTheme={profile!.ui_theme} />
+      <ErrorReporter />
+      <FormFeedback />
       <IntroSplash motion={motion} />
-      {motion && <MotionRoot />}
+      <MotionRoot />
       <AppShell
         profile={profile!}
         userId={user!.id}

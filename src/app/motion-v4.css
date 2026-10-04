@@ -1,0 +1,386 @@
+/* =========================================================================
+   MOTION v4 — tokens, page transitions, shared choreography.
+
+   SAFETY: page and shared-element motion uses the View Transitions API.
+   It animates *snapshots* of the old and new page; the real DOM underneath
+   is always fully visible, so a stalled or skipped animation can never
+   strand content at opacity 0 (the failure that once white-screened the
+   app — see globals.css fade-in-up). Every other keyframe here is
+   transform-only.
+   Levels: html[data-motion-level] = off | calm | full (lib/motion-level.ts).
+   ========================================================================= */
+
+/* ---------- Tokens (#28) — themes override via their --au-m-* profile ---- */
+:root {
+  --m-fast: 140ms;
+  --m-base: 240ms;
+  --m-slow: 420ms;
+  --m-stagger: 40ms;
+  --m-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --m-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --m-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+html[data-theme] {
+  --m-base: var(--au-m-dur, 240ms);
+  --m-fast: var(--au-m-fast, 140ms);
+  --m-ease-out: var(--au-m-ease, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+/* ---------- Page transitions (#1, #3) ----------------------------------- */
+/* The header/sidebar keep their own names so they stay put while the page
+   content swaps underneath them. */
+.app-header {
+  view-transition-name: app-header;
+}
+::view-transition-group(app-header) {
+  animation: none;
+}
+
+::view-transition-old(.page-out) {
+  animation: var(--m-fast) var(--m-ease-in) both vt-fade-out;
+}
+::view-transition-new(.page-in) {
+  animation:
+    var(--m-base) var(--m-ease-out) var(--m-fast) both vt-fade-in,
+    var(--m-slow) var(--m-ease-out) var(--m-fast) both vt-rise;
+}
+/* Directional: deeper in the menu slides up from below, back up slides down. */
+::view-transition-old(.nav-forward) {
+  animation:
+    var(--m-fast) var(--m-ease-in) both vt-fade-out,
+    var(--m-fast) var(--m-ease-in) both vt-sink-up;
+}
+::view-transition-new(.nav-forward) {
+  animation:
+    var(--m-base) var(--m-ease-out) var(--m-fast) both vt-fade-in,
+    var(--m-slow) var(--m-ease-out) var(--m-fast) both vt-rise;
+}
+::view-transition-old(.nav-back) {
+  animation:
+    var(--m-fast) var(--m-ease-in) both vt-fade-out,
+    var(--m-fast) var(--m-ease-in) both vt-sink-down;
+}
+::view-transition-new(.nav-back) {
+  animation:
+    var(--m-base) var(--m-ease-out) var(--m-fast) both vt-fade-in,
+    var(--m-slow) var(--m-ease-out) var(--m-fast) both vt-drop;
+}
+/* Same-route content swaps (tabs, filters): a quick crossfade (#4). */
+::view-transition-old(.swap),
+::view-transition-new(.swap) {
+  animation-duration: var(--m-base);
+  animation-timing-function: var(--m-ease-out);
+}
+/* Shared elements (#2): the browser morphs position/size; soften it. */
+::view-transition-group(.morph) {
+  animation-duration: var(--m-slow);
+  animation-timing-function: var(--m-ease-out);
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-rise {
+  from {
+    transform: translateY(14px);
+  }
+}
+@keyframes vt-drop {
+  from {
+    transform: translateY(-14px);
+  }
+}
+@keyframes vt-sink-up {
+  to {
+    transform: translateY(-8px);
+  }
+}
+@keyframes vt-sink-down {
+  to {
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- Staggered entrances for everyone (#6) ----------------------- */
+/* Children of [data-stagger] rise in one after another. Transform-only. */
+html:not([data-motion-level='off']) [data-stagger] > * {
+  animation: m-rise var(--m-slow) var(--m-ease-out) both;
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(2) {
+  animation-delay: calc(1 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(3) {
+  animation-delay: calc(2 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(4) {
+  animation-delay: calc(3 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(5) {
+  animation-delay: calc(4 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(6) {
+  animation-delay: calc(5 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(7) {
+  animation-delay: calc(6 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(8) {
+  animation-delay: calc(7 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(9) {
+  animation-delay: calc(8 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(10) {
+  animation-delay: calc(9 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(11) {
+  animation-delay: calc(10 * var(--m-stagger));
+}
+html:not([data-motion-level='off']) [data-stagger] > :nth-child(12) {
+  animation-delay: calc(11 * var(--m-stagger));
+}
+
+/* ---------- KPI mini bars grow from the baseline (#12) ------------------ */
+html:not([data-motion-level='off']) .au-spark i {
+  transform-origin: bottom;
+  animation: m-grow var(--m-slow) var(--m-ease-out) both;
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(1) {
+  animation-delay: calc(1 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(2) {
+  animation-delay: calc(2 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(3) {
+  animation-delay: calc(3 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(4) {
+  animation-delay: calc(4 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(5) {
+  animation-delay: calc(5 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(6) {
+  animation-delay: calc(6 * 35ms + 120ms);
+}
+html:not([data-motion-level='off']) .au-spark > i:nth-child(7) {
+  animation-delay: calc(7 * 35ms + 120ms);
+}
+@keyframes m-grow {
+  from {
+    transform: scaleY(0.15);
+  }
+}
+@keyframes m-rise {
+  from {
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+/* ---------- Level: off — nothing moves ---------------------------------- */
+html[data-motion-level='off'] *,
+html[data-motion-level='off'] *::before,
+html[data-motion-level='off'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html[data-motion-level='off']::view-transition-group(*),
+html[data-motion-level='off']::view-transition-old(*),
+html[data-motion-level='off']::view-transition-new(*) {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ---------- Sidebar active pill glides between items (#5) ---------------- */
+::view-transition-group(nav-active) {
+  animation-duration: var(--m-base);
+  animation-timing-function: var(--m-ease-out);
+}
+/* Leaderboard rows slide to their new rank on a live refresh (#16). */
+::view-transition-group(*.lb) {
+  animation-duration: var(--m-slow);
+}
+
+/* ---------- Living indicators (#14) ------------------------------------- */
+html:not([data-motion-level='off']) .m-live {
+  position: relative;
+}
+html:not([data-motion-level='off']) .m-live::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  pointer-events: none;
+  animation: m-ping 1.8s var(--m-ease-out) infinite;
+}
+@keyframes m-ping {
+  from {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* ---------- Undo toasts show their 5-second window (#9) ------------------ */
+html:not([data-motion-level='off']) [data-sonner-toast]:has([data-button]) {
+  overflow: hidden;
+}
+html:not([data-motion-level='off']) [data-sonner-toast]:has([data-button])::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--au-accent);
+  transform-origin: left;
+  animation: m-drain 5s linear forwards;
+}
+@keyframes m-drain {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- Hero parallax on scroll (#26) -------------------------------- */
+@supports (animation-timeline: scroll()) {
+  html:not([data-motion-level='off']) .bg-au-hero > * {
+    animation: m-parallax linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 320px;
+  }
+}
+@keyframes m-parallax {
+  to {
+    transform: translateY(18px);
+  }
+}
+
+/* ---------- Empty states breathe (#27) ----------------------------------- */
+html:not([data-motion-level='off']) [data-empty-icon] {
+  animation: m-float 4s ease-in-out infinite;
+}
+@keyframes m-float {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- Progress rings fill in (#13) --------------------------------- */
+html:not([data-motion-level='off']) .m-ring-fill {
+  animation: m-ring 1.1s var(--m-ease-out) 0.2s backwards;
+}
+@keyframes m-ring {
+  from {
+    stroke-dashoffset: var(--m-ring-len, 300);
+  }
+}
+
+/* ---------- List items enter / leave / move (#7) ------------------------ */
+::view-transition-old(.card-out) {
+  animation: var(--m-base) var(--m-ease-in) both m-card-out;
+}
+::view-transition-new(.card-in) {
+  animation: var(--m-slow) var(--m-ease-spring) both m-card-in;
+}
+::view-transition-group(.card-move) {
+  animation-duration: var(--m-slow);
+  animation-timing-function: var(--m-ease-out);
+}
+@keyframes m-card-out {
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+@keyframes m-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+/* ---------- Drag: the picked-up card lifts and tilts (#19) -------------- */
+html:not([data-motion-level='off']) .m-lift {
+  animation: m-lift var(--m-base) var(--m-ease-spring) forwards;
+}
+@keyframes m-lift {
+  to {
+    transform: scale(1.03) rotate(1.5deg);
+  }
+}
+
+/* ---------- Market images blur up (#24) --------------------------------- */
+html:not([data-motion-level='off']) img.m-blur-up:not([data-loaded]) {
+  filter: blur(12px);
+  transform: scale(1.04);
+  animation: m-unblur 0.4s ease-out 2s forwards;
+}
+html:not([data-motion-level='off']) img.m-blur-up {
+  transition:
+    filter 0.5s var(--m-ease-out),
+    transform 0.5s var(--m-ease-out);
+}
+@keyframes m-unblur {
+  to {
+    filter: none;
+    transform: none;
+  }
+}
+
+/* ---------- Invalid form: field + submit shake (#17) -------------------- */
+.m-shake {
+  animation: m-shake 0.42s var(--m-ease-out);
+}
+@keyframes m-shake {
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* ---------- Moving backgrounds (components/motion/bg-video.tsx) --------- */
+/* Every gradient hero hosts its own looping video under its content. */
+.bg-au-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* With a moving background on, the sticky header turns to frosted glass so
+   the motion reads behind it too (Settings › Orqa fon). */
+html[data-bg]:not([data-bg='off']) .app-header {
+  background-color: color-mix(in srgb, var(--au-bg) 72%, transparent);
+  backdrop-filter: blur(12px);
+}
+html[data-bg]:not([data-bg='off']) aside.bg-au-sidebar {
+  background-color: color-mix(in srgb, var(--au-sidebar) 78%, transparent);
+  backdrop-filter: blur(12px);
+}

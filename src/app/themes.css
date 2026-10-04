@@ -20,7 +20,7 @@ html[data-theme='shimol'] {
   --au-line: #e2e7ef;
   --au-ink: #0f172a;
   --au-muted: #5b6474;
-  --au-faint: #9aa3b2;
+  --au-faint: #6b7487;
   --au-accent: #2563eb;
   --au-accent-ink: #ffffff;
   --au-accent-text: #1d4ed8;
@@ -65,7 +65,7 @@ html[data-theme='zumrad'] {
   --au-line: #d9e7df;
   --au-ink: #0f2a20;
   --au-muted: #4f6b5f;
-  --au-faint: #93ab9f;
+  --au-faint: #607a6e;
   --au-accent: #0f9d6b;
   --au-accent-ink: #ffffff;
   --au-accent-text: #0b7a53;
@@ -110,7 +110,7 @@ html[data-theme='qum'] {
   --au-line: #e3d7c4;
   --au-ink: #231c15;
   --au-muted: #6e6253;
-  --au-faint: #a99c89;
+  --au-faint: #7c705f;
   --au-accent: #c2410c;
   --au-accent-ink: #ffffff;
   --au-accent-text: #9a3412;
@@ -159,7 +159,7 @@ html[data-theme='grafit'] {
   --au-line: #e4e4e7;
   --au-ink: #09090b;
   --au-muted: #5f5f67;
-  --au-faint: #a1a1aa;
+  --au-faint: #71717a;
   --au-accent: #5b4cf0;
   --au-accent-ink: #ffffff;
   --au-accent-text: #4636d6;
@@ -202,7 +202,7 @@ html[data-theme='lola'] {
   --au-line: #f0dde3;
   --au-ink: #2a1520;
   --au-muted: #6f5561;
-  --au-faint: #b39aa5;
+  --au-faint: #85697a;
   --au-accent: #d6336c;
   --au-accent-ink: #ffffff;
   --au-accent-text: #b0234f;

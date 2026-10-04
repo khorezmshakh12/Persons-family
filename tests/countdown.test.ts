@@ -10,7 +10,7 @@ const DEADLINE = Date.parse('2026-09-24T13:00:00.000Z'); // 18:00 Tashkent
 
 test('days + hh:mm:ss, neutral tone with more than a day left', () => {
   const now = DEADLINE - (2 * DAY_MS + 4 * HOUR_MS + 13 * MINUTE_MS + 9_000);
-  assert.deepEqual(formatCountdown(DEADLINE, now), { text: '2k 04:13:09', tone: 'ok', overdue: false });
+  assert.deepEqual(formatCountdown(DEADLINE, now), { text: '2k 04:13:09', tone: 'ok', overdue: false, days: 2, clock: '04:13:09' });
 });
 
 test('under 24h drops the day prefix and turns amber', () => {
@@ -25,7 +25,7 @@ test('remaining time rounds up — never a premature 00:00:00', () => {
 });
 
 test('exactly at the deadline is not overdue yet (deadline < now)', () => {
-  assert.deepEqual(formatCountdown(DEADLINE, DEADLINE), { text: '00:00:00', tone: 'warn', overdue: false });
+  assert.deepEqual(formatCountdown(DEADLINE, DEADLINE), { text: '00:00:00', tone: 'warn', overdue: false, days: 0, clock: '00:00:00' });
 });
 
 test('one millisecond past the deadline is overdue, red, with a minus sign', () => {
@@ -55,4 +55,10 @@ test('parseInstant reads Postgres wire timestamps as the same instant', () => {
   assert.equal(parseInstant('2026-09-24T13:00:00Z'), iso);
   assert.ok(Number.isNaN(parseInstant('nonsense')));
   assert.ok(Number.isNaN(parseInstant(null)));
+});
+
+test('countdown exposes whole days and the clock separately for localised display', () => {
+  const cd = formatCountdown(DEADLINE, DEADLINE - (27 * DAY_MS + 17 * HOUR_MS + 61_000));
+  assert.equal(cd.days, 27);
+  assert.equal(cd.clock, '17:01:01');
 });

@@ -50,7 +50,8 @@
     "hr": "HR",
     "report": "Monthly report",
     "platform": "Platform settings",
-    "coreBoard": "Platform view"
+    "coreBoard": "Platform view",
+    "butterfly": "Butterfly"
   },
   "auth": {
     "phone": "Phone number",
@@ -353,7 +354,8 @@
       "waitingForApproval": "Request sent to {name} — waiting for them to accept.",
       "incomingPrompt": "{name} wants to start a chat with you."
     },
-    "newMessage": "New message"
+    "newMessage": "New message",
+    "typing": "typing…"
   },
   "issues": {
     "title": "Issues",
@@ -452,7 +454,8 @@
         "author": "Reporter",
         "staff": "Staff"
       }
-    }
+    },
+    "noIssuesHint": "No open issues. If something breaks, report it with “New report”."
   },
   "lessonPlans": {
     "title": "Lesson Plan Board",
@@ -655,7 +658,9 @@
       "onTime": "✓ On time",
       "late": "✓ Completed late",
       "left": "{time} left",
-      "overdueBy": "{time} overdue"
+      "overdueBy": "{time} overdue",
+      "daysLeft": "{count} days left",
+      "dayShort": "d"
     },
     "comments": {
       "title": "Comments",
@@ -750,7 +755,10 @@
       "uploading": "Uploading…",
       "add": "Add file",
       "viewOnly": "You can only view this."
-    }
+    },
+    "deletedToast": "Task deleted",
+    "undo": "Undo",
+    "calendarView": "Calendar"
   },
   "companyNews": {
     "title": "Company News",
@@ -882,7 +890,8 @@
     "groups": {
       "staff": "Staff",
       "groups": "Groups",
-      "issues": "Issues"
+      "issues": "Issues",
+      "pages": "Pages"
     }
   },
   "export": {
@@ -1072,6 +1081,12 @@
         "sessionExpired": "Session expired — sign in again.",
         "nonzero": "Amount cannot be zero."
       }
+    },
+    "summary": {
+      "salary": "Salary",
+      "bonuses": "Bonuses",
+      "penalties": "Penalties",
+      "total": "Total received"
     }
   },
   "kpi": {
@@ -1426,6 +1441,13 @@
       "net": "Net {net}",
       "earned": "Earned: {count}",
       "spent": "Spent: {count}"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "stars": "Stars",
+      "finance": "Finance",
+      "discipline": "Discipline",
+      "growth": "Growth"
     }
   },
   "market": {
@@ -1816,5 +1838,49 @@
     "allSections": "All sections",
     "more": "Menu",
     "home": "Home"
+  },
+  "motionSettings": {
+    "title": "Motion",
+    "description": "How much the interface moves. Saved on this device.",
+    "active": "Active",
+    "off": {
+      "name": "Off",
+      "hint": "Nothing moves."
+    },
+    "calm": {
+      "name": "Calm",
+      "hint": "Page transitions, entrances, counting numbers."
+    },
+    "full": {
+      "name": "Full",
+      "hint": "Everything: island, 3D tilt, confetti, living background."
+    }
+  },
+  "bgSettings": {
+    "title": "Background",
+    "description": "A moving background behind every section. Saved on this device.",
+    "active": "Active",
+    "soon": "Coming soon",
+    "off": {
+      "name": "Off",
+      "hint": "A plain, calm background."
+    },
+    "flow": {
+      "name": "Colour flow",
+      "hint": "A slow gradient in the theme’s colours."
+    },
+    "aquarium": {
+      "name": "Aquarium",
+      "hint": "Real fish swimming."
+    },
+    "butterfly": {
+      "name": "Butterfly",
+      "hint": "Particles that gather into a butterfly and flowers, then scatter."
+    }
+  },
+  "butterfly": {
+    "title": "Butterfly",
+    "subtitle": "Scattered particles bloom into a butterfly among flowers, then dissolve again.",
+    "hint": "Drag to orbit · scroll or pinch to zoom"
   }
 }

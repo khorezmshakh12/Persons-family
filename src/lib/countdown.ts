@@ -26,6 +26,10 @@ export type CountdownTone = 'ok' | 'warn' | 'bad';
 export type Countdown = {
   /** e.g. "2k 04:13:09", "18:00:00", "−00:05:12" (U+2212 minus). */
   text: string;
+  /** Whole days in the span, and the "HH:MM:SS" remainder — the chip
+   * localises the day unit itself instead of the hard-coded "k". */
+  days: number;
+  clock: string;
   tone: CountdownTone;
   overdue: boolean;
 };
@@ -44,10 +48,10 @@ export function formatCountdown(deadlineMs: number, nowMs: number): Countdown {
   const hours = Math.floor((totalSec % 86400) / 3600);
   const minutes = Math.floor((totalSec % 3600) / 60);
   const seconds = totalSec % 60;
-  const text =
-    (overdue ? '−' : '') + (days ? `${days}k ` : '') + `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  const clock = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  const text = (overdue ? '−' : '') + (days ? `${days}k ` : '') + clock;
   const tone: CountdownTone = overdue ? 'bad' : diff < DAY_MS ? 'warn' : 'ok';
-  return { text, tone, overdue };
+  return { text, tone, overdue, days, clock };
 }
 
 /**

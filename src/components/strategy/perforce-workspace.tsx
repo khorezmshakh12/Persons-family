@@ -89,7 +89,7 @@ const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string 
   { v: 'back', n: 'Backlog', Icon: ListTodo },
   { v: 'sprint', n: 'Sprint', Icon: Zap },
   { v: 'sched', n: 'Reja (Gantt)', Icon: CalendarRange },
-  { v: 'alm', n: 'ALM · Sifat', Icon: ShieldCheck },
+  { v: 'alm', n: 'Sifat nazorati', Icon: ShieldCheck },
   { v: 'review', n: 'Review & tasdiq', Icon: CheckCheck },
   { v: 'rep', n: 'Hisobotlar', Icon: BarChart3 },
 ];
@@ -202,7 +202,7 @@ export function PerforceWorkspace({ data, today }: { data: PfData; today: string
   return (
     <SuiteShell section="pf" tabs={TABS} onTab={go} items={items}>
       <div className="px-4 sm:px-7">
-        <SectionHead crumb="Persons Perforce · Plan · ALM · Review" title="Persons" em="Perforce" pill={`Sprint ${sp.no} · ${fmtDay(sp.from)} – ${fmtDay(sp.to)}`} />
+        <SectionHead crumb="Persons Perforce · Reja · Sifat · Ko‘rib chiqish" title="Persons" em="Perforce" pill={`Sprint ${sp.no} · ${fmtDay(sp.from)} – ${fmtDay(sp.to)}`} />
         <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">

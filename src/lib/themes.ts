@@ -40,6 +40,15 @@ export function isThemeId(value: unknown): value is ThemeId {
   return typeof value === 'string' && (THEME_IDS as readonly string[]).includes(value);
 }
 
+/** Pre-paint script. A theme saved on the profile wins (and is mirrored into
+ * this device's storage); otherwise the device's own choice. */
+export function themeBootScript(serverTheme: string | null | undefined): string {
+  if (isThemeId(serverTheme)) {
+    return `try{localStorage.setItem('${THEME_KEY}','${serverTheme}')}catch(e){}${serverTheme === 'aurora' ? '' : `document.documentElement.setAttribute('${ATTR}','${serverTheme}')`}`;
+  }
+  return THEME_BOOT_SCRIPT;
+}
+
 /** Inline pre-paint script (no flash on reload). Storage blocked → Aurora. */
 export const THEME_BOOT_SCRIPT = `try{var t=localStorage.getItem('${THEME_KEY}');if(!t&&localStorage.getItem('${LEGACY_MIDNIGHT_KEY}')==='1')t='midnight';if(t&&t!=='aurora'&&${JSON.stringify(THEME_IDS)}.indexOf(t)>=0)document.documentElement.setAttribute('${ATTR}',t)}catch(e){}`;
 

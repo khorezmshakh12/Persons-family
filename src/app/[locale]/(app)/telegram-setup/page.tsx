@@ -4,6 +4,7 @@ import { isTelegramConfigured } from '@/lib/telegram';
 import { BroadcastForm } from '@/components/telegram/broadcast-form';
 import { WebhookRegisterButton } from '@/components/telegram/webhook-register-button';
 import { cn } from '@/lib/utils';
+import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,7 @@ export default async function TelegramSetupPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <div className="relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 text-au-ink sm:px-[30px] sm:py-7">
+        <BgVideo variant="hero" />
         <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
           {t('title')}
         </h1>

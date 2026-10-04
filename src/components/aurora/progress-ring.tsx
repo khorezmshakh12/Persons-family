@@ -32,7 +32,9 @@ export function ProgressRing({
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={`${(pct / 100) * c} ${c}`}
-            className="transition-[stroke-dasharray] duration-500 ease-out motion-reduce:transition-none"
+            // Draws itself in on first paint (motion-v4.css); resting state is the real arc.
+            style={{ ['--m-ring-len' as string]: (pct / 100) * c }}
+            className="m-ring-fill transition-[stroke-dasharray] duration-500 ease-out motion-reduce:transition-none"
           />
         )}
       </svg>

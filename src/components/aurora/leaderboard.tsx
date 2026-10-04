@@ -144,7 +144,7 @@ export function Leaderboard({
 
           <ul className="flex flex-col">
             {rows.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} style={{ viewTransitionName: `lb-${p.id}` }}>
                 <Link
                   href={`/profile/${p.id}`}
                   className={cn(

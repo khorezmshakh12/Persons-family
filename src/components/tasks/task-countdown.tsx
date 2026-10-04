@@ -40,10 +40,11 @@ function Digits({ text }: { text: string }) {
             </span>
           );
         }
-        if (c === 'k') {
+        if (/\p{L}/u.test(c)) {
+          // The localised day unit ("k" / "д" / "d").
           return (
             <span key={i} className="mr-1 font-sans font-extrabold">
-              k
+              {c}
             </span>
           );
         }
@@ -71,14 +72,25 @@ function LiveCountdown({ deadlineMs }: { deadlineMs: number }) {
     );
   }
   const cd = formatCountdown(deadlineMs, now);
+  // Two or more days out, a ticking HH:MM:SS is noise — "27 kun qoldi"
+  // reads at a glance. The live clock takes over inside the last 48h.
+  if (!cd.overdue && cd.days >= 2) {
+    return (
+      <span role="timer" className={cn(CHIP, TONE.ok, 'font-sans font-semibold')}>
+        {t('daysLeft', { count: cd.days })}
+      </span>
+    );
+  }
+  const shown = (cd.overdue ? '−' : '') + (cd.days ? `${cd.days}${t('dayShort')} ` : '') + cd.clock;
   return (
     <span
       role="timer"
       aria-label={cd.overdue ? t('overdueBy', { time: cd.text.slice(1) }) : t('left', { time: cd.text })}
-      className={cn(CHIP, TONE[cd.tone])}
+      // Under an hour left (or overdue) the chip pings — it's urgent now.
+      className={cn(CHIP, TONE[cd.tone], (cd.overdue || (cd.days === 0 && cd.clock.startsWith('00:'))) && 'm-live')}
     >
       <span aria-hidden className="inline-flex items-center">
-        <Digits text={cd.text} />
+        <Digits text={shown} />
       </span>
     </span>
   );
