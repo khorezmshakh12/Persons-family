@@ -54,6 +54,8 @@ import { BoardView } from './view-board';
 import { ListView } from './view-list';
 import { GanttView } from './view-gantt';
 import { TaskDrawer, NodeDrawer, SpaceDrawer, type SpaceInput } from './drawers';
+import { RoadmapEditor } from './roadmap-editor';
+import { deleteRoadmapAction, updateMilestoneAction } from '@/lib/actions/strategy-roadmap';
 import { FinanceView, AnalyticsView, type BooksLite } from './view-finance';
 import { OkrView } from './view-okr';
 import type { Objective } from '@/lib/strategy-okr';
@@ -107,6 +109,7 @@ export type DrawerState =
   | { kind: 'task'; id: string | null; preset?: Partial<StrategyTask> }
   | { kind: 'node'; roadmapId: string; nodeId: string }
   | { kind: 'space'; edit?: boolean }
+  | { kind: 'roadmap'; id: string | null }
   | null;
 
 export type WorkspaceApi = {
@@ -163,6 +166,7 @@ export function StrategyWorkspace({
   const [lateOnly, setLateOnly] = useState(false);
   const [who, setWho] = useState<string[]>([]);
   const [drawer, setDrawer] = useState<DrawerState>(null);
+  const [rmId, setRmId] = useState<string | null>(initialRoadmaps[0]?.id ?? null);
   const [inkStyle, setInkStyle] = useState<React.CSSProperties>({});
   const tabsRef = useRef<HTMLDivElement>(null);
   const groups = finance ? GROUPS : GROUPS.filter((x) => x.g !== 'money');
@@ -309,7 +313,17 @@ export function StrategyWorkspace({
       // undo any edit that landed while the delete was in flight.
       if (removed) setTasks((list) => (list.some((t) => t.id === id) ? list : [...list, removed]));
       toast.error(errorText(res.error));
-    } else toast.success("Vazifa o'chirildi");
+    } else
+      toast.success(
+        "Vazifa o'chirildi",
+        removed
+          ? () =>
+              void createTask(
+                { ...removed, title: removed.title },
+                removed.roadmap_id && removed.roadmap_node ? { roadmapId: removed.roadmap_id, nodeId: removed.roadmap_node } : undefined,
+              )
+          : undefined,
+      );
   }
 
   function setNodeStatus(roadmapId: string, nodeId: string, status: NodeStatus) {
@@ -391,6 +405,17 @@ export function StrategyWorkspace({
     }
     setMs((list) => [...list, res.milestone].sort((a, b) => a.date.localeCompare(b.date)));
     toast.success('Muhim sana qo‘shildi');
+    return true;
+  }
+
+  async function updateMilestone(id: string, title: string, date: string) {
+    const res = await updateMilestoneAction({ id, title, date });
+    if (res.error !== undefined) {
+      toast.error(errorText(res.error));
+      return false;
+    }
+    setMs((list) => list.map((m) => (m.id === id ? res.milestone : m)).sort((a, b) => a.date.localeCompare(b.date)));
+    toast.success('Muhim sana saqlandi');
     return true;
   }
 
@@ -575,7 +600,11 @@ export function StrategyWorkspace({
                 roadmaps={roadmaps}
                 tasks={tasks}
                 selected={drawer?.kind === 'node' ? drawer.nodeId : null}
+                rmId={rmId}
+                onPick={setRmId}
                 onNode={(roadmapId, nodeId) => setDrawer({ kind: 'node', roadmapId, nodeId })}
+                onNew={() => setDrawer({ kind: 'roadmap', id: null })}
+                onEdit={(id) => setDrawer({ kind: 'roadmap', id })}
               />
             )}
             {view === 'mind' && <MindView api={api} mind={mind} onChange={updateMind} />}
@@ -628,6 +657,37 @@ export function StrategyWorkspace({
             }}
           />
         )}
+        {drawer?.kind === 'roadmap' && (
+          <RoadmapEditor
+            key={drawer.id ?? 'new-roadmap'}
+            roadmap={drawer.id ? roadmaps.find((r) => r.id === drawer.id) : undefined}
+            linkedCount={drawer.id ? tasks.filter((t) => t.roadmap_id === drawer.id).length : 0}
+            onClose={closeDrawer}
+            onSaved={(r, remap) => {
+              setRoadmaps((list) => (list.some((x) => x.id === r.id) ? list.map((x) => (x.id === r.id ? r : x)) : [...list, r]));
+              // Linked tasks follow their topic, as the server just did.
+              setTasks((list) =>
+                list.map((t) => {
+                  if (t.roadmap_id !== r.id || !t.roadmap_node || !(t.roadmap_node in remap)) return t;
+                  const to = remap[t.roadmap_node];
+                  return { ...t, roadmap_node: to, roadmap_id: to ? r.id : null };
+                }),
+              );
+              setRmId(r.id);
+              setDrawer(null);
+            }}
+            onDelete={async () => {
+              const id = drawer.id!;
+              const res = await deleteRoadmapAction(id);
+              if (res.error !== undefined) return void toast.error(errorText(res.error));
+              setRoadmaps((list) => list.filter((x) => x.id !== id));
+              setTasks((list) => list.map((t) => (t.roadmap_id === id ? { ...t, roadmap_id: null, roadmap_node: null } : t)));
+              setRmId(null);
+              setDrawer(null);
+              toast.success("Roadmap o'chirildi");
+            }}
+          />
+        )}
         {drawer?.kind === 'space' && (
           <SpaceDrawer
             key={drawer.edit && space ? `edit-${space.id}` : 'new'}
@@ -639,6 +699,7 @@ export function StrategyWorkspace({
             onCreate={drawer.edit ? updateSpace : createSpace}
             onBudget={finance ? saveBudget : undefined}
             onAddMilestone={addMilestone}
+            onUpdateMilestone={updateMilestone}
             onDeleteMilestone={removeMilestone}
             onDeleteSpace={removeSpace}
           />

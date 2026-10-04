@@ -168,7 +168,7 @@ export function OkrView({
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
-  const [newObj, setNewObj] = useState<string | null>(null);
+  const [newObj, setNewObj] = useState<{ title: string; owner: string } | null>(null);
   const [editObj, setEditObj] = useState<{ id: string; title: string; owner: string } | null>(null);
   const [kr, setKr] = useState<{ objectiveId: string; id?: string; draft: KrDraft } | null>(null);
 
@@ -190,6 +190,15 @@ export function OkrView({
       after?.();
       router.refresh();
     });
+
+  const createObjective = () => {
+    if (!newObj?.title.trim()) return;
+    run(
+      () => saveObjectiveAction({ spaceId: space.id, title: newObj.title.trim(), ownerId: newObj.owner || null }),
+      'Maqsad yaratildi',
+      () => setNewObj(null),
+    );
+  };
 
   const saveKr = () => {
     if (!kr) return;
@@ -236,7 +245,7 @@ export function OkrView({
           ))}
         </div>
         <div className="flex-1" />
-        <button className="sx-btn primary" onClick={() => setNewObj('')}>
+        <button className="sx-btn primary" onClick={() => setNewObj({ title: '', owner: '' })}>
           <Plus className="size-4" />
           Yangi maqsad
         </button>
@@ -250,24 +259,22 @@ export function OkrView({
             autoFocus
             maxLength={200}
             placeholder="Maqsad (Objective) — masalan: Samarqandda yetakchi o‘quv markazi bo‘lish"
-            value={newObj}
-            onChange={(e) => setNewObj(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === 'Enter' &&
-              newObj.trim() &&
-              run(() => saveObjectiveAction({ spaceId: space.id, title: newObj.trim(), ownerId: null }), 'Maqsad yaratildi', () => setNewObj(null))
-            }
+            value={newObj.title}
+            onChange={(e) => setNewObj({ ...newObj, title: e.target.value })}
+            onKeyDown={(e) => e.key === 'Enter' && createObjective()}
           />
+          <select className="sx-inp" value={newObj.owner} onChange={(e) => setNewObj({ ...newObj, owner: e.target.value })} aria-label="Mas’ul">
+            <option value="">— Mas’ul —</option>
+            {api.people.map((pp) => (
+              <option key={pp.id} value={pp.id}>
+                {pp.first_name} {pp.last_name}
+              </option>
+            ))}
+          </select>
           <button className="sx-btn sm" onClick={() => setNewObj(null)}>
             Bekor
           </button>
-          <button
-            className="sx-btn sm primary"
-            disabled={busy || !newObj.trim()}
-            onClick={() =>
-              run(() => saveObjectiveAction({ spaceId: space.id, title: newObj.trim(), ownerId: null }), 'Maqsad yaratildi', () => setNewObj(null))
-            }
-          >
+          <button className="sx-btn sm primary" disabled={busy || !newObj.title.trim()} onClick={createObjective}>
             Yaratish
           </button>
         </div>
@@ -281,7 +288,7 @@ export function OkrView({
             Maqsad — erishmoqchi bo‘lgan natija. Key result’lar uni o‘lchaydi: lidlar, o‘quvchilar, daromad kabi ko‘rsatkichlar avtomatik
             yangilanadi.
           </p>
-          <button className="sx-btn primary" onClick={() => setNewObj('')}>
+          <button className="sx-btn primary" onClick={() => setNewObj({ title: '', owner: '' })}>
             <Plus className="size-4" />
             Birinchi maqsadni qo‘shish
           </button>

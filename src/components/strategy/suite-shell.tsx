@@ -53,9 +53,10 @@ export function playSound(kind: SoundKind) {
 
 /** sonner toasts that also chime. */
 export const toast = {
-  success: (m: string) => {
+  /** `undo` adds a "Qaytarish" button (8 s) to the toast. */
+  success: (m: string, undo?: () => void) => {
     playSound('ok');
-    return sonner.success(m);
+    return sonner.success(m, undo ? { action: { label: 'Qaytarish', onClick: undo }, duration: 8000 } : undefined);
   },
   error: (m: string) => {
     playSound('err');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   NODE_STATUSES,
@@ -394,6 +394,7 @@ export function SpaceDrawer({
   onCreate,
   onBudget,
   onAddMilestone,
+  onUpdateMilestone,
   onDeleteMilestone,
   onDeleteSpace,
 }: {
@@ -405,6 +406,7 @@ export function SpaceDrawer({
   onCreate: (v: SpaceInput) => Promise<boolean>;
   onBudget?: (b: StrategySpace['budget']) => Promise<boolean>;
   onAddMilestone?: (title: string, date: string) => Promise<boolean>;
+  onUpdateMilestone?: (id: string, title: string, date: string) => Promise<boolean>;
   onDeleteMilestone?: (id: string) => Promise<void>;
   onDeleteSpace?: () => Promise<void>;
 }) {
@@ -423,6 +425,7 @@ export function SpaceDrawer({
     }),
   );
   const [msT, setMsT] = useState('');
+  const [msEdit, setMsEdit] = useState<{ id: string; t: string; d: string } | null>(null);
   const [msD, setMsD] = useState(today);
   const [confirmDel, setConfirmDel] = useState(false);
   const budRows = normalizeBudget(bud.map((b) => ({ ws: b.ws, plan: Number(b.plan) || 0, act: Number(b.act) || 0 })));
@@ -542,10 +545,47 @@ export function SpaceDrawer({
               <p className="text-[13px] text-au-faint">Hali yo‘q — quyida nom va sana kiriting. Ular Gantt’da ko‘rinadi.</p>
             )}
             <div className="flex flex-col gap-1.5">
-              {milestones.map((m) => (
+              {milestones.map((m) =>
+                msEdit?.id === m.id ? (
+                  <div key={m.id} className="flex flex-wrap items-center gap-1.5 rounded-xl border border-au-accent px-2 py-1.5 text-[13px]">
+                    <input
+                      className="sx-inp h-8 min-w-[120px] flex-1"
+                      autoFocus
+                      maxLength={200}
+                      value={msEdit.t}
+                      onChange={(e) => setMsEdit({ ...msEdit, t: e.target.value })}
+                    />
+                    <input
+                      type="date"
+                      className="sx-inp h-8 !w-[140px]"
+                      value={msEdit.d}
+                      onChange={(e) => e.target.value && setMsEdit({ ...msEdit, d: e.target.value })}
+                    />
+                    <button
+                      className="sx-btn sm"
+                      disabled={busy || !msEdit.t.trim()}
+                      aria-label="Saqlash"
+                      onClick={async () => {
+                        setBusy(true);
+                        if (await onUpdateMilestone?.(m.id, msEdit.t.trim(), msEdit.d)) setMsEdit(null);
+                        setBusy(false);
+                      }}
+                    >
+                      <Check className="size-3.5" />
+                    </button>
+                    <button className="sx-btn sm" aria-label="Bekor qilish" onClick={() => setMsEdit(null)}>
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                ) : (
                 <div key={m.id} className="flex items-center gap-2 rounded-xl border border-au-line px-2.5 py-1.5 text-[13px]">
                   <span className="tabular-nums text-au-muted">{m.date.split('-').reverse().join('.')}</span>
                   <span className="flex-1 font-semibold">{m.title}</span>
+                  {onUpdateMilestone && (
+                    <button className="sx-btn sm" aria-label={`«${m.title}» ni tahrirlash`} onClick={() => setMsEdit({ id: m.id, t: m.title, d: m.date })}>
+                      <Pencil className="size-3.5" />
+                    </button>
+                  )}
                   <button
                     className="sx-btn sm text-au-bad"
                     aria-label={`«${m.title}» ni o‘chirish`}
@@ -554,7 +594,8 @@ export function SpaceDrawer({
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
-              ))}
+                ),
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <input
