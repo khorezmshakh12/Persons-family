@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { BarChart3, Briefcase, CalendarRange, CheckCheck, ListTodo, ShieldCheck, Zap } from 'lucide-react';
+import { BarChart3, Briefcase, CalendarRange, CheckCheck, ListTodo, Pencil, ShieldCheck, Trash2, Zap } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -25,6 +25,9 @@ import { saveStrategyTaskAction } from '@/lib/actions/strategy';
 import {
   commentChangeRequestAction,
   createChangeRequestAction,
+  updateChangeRequestAction,
+  deleteChangeRequestAction,
+  deleteCrCommentAction,
   decideChangeRequestAction,
   deleteTestCaseAction,
   runTestCaseAction,
@@ -139,7 +142,7 @@ function weeks(today: string, n: number) {
   });
 }
 
-export function PerforceWorkspace({ data, today }: { data: PfData; today: string }) {
+export function PerforceWorkspace({ data, today, viewerId }: { data: PfData; today: string; viewerId?: string }) {
   const [tab, setTab] = useState<Tab>('port');
   const [stasks, setStasks] = useState(data.stasks);
   const restored = useRef(false);
@@ -212,7 +215,7 @@ export function PerforceWorkspace({ data, today }: { data: PfData; today: string
           {tab === 'sprint' && <Sprint data={data} stasks={stasks} personById={personById} today={today} patch={patch} />}
           {tab === 'sched' && <Schedule data={data} stasks={stasks} today={today} />}
           {tab === 'alm' && <Alm data={data} stasks={stasks} personById={personById} today={today} />}
-          {tab === 'review' && <Review data={data} stasks={stasks} personById={personById} today={today} />}
+          {tab === 'review' && <Review data={data} stasks={stasks} personById={personById} today={today} viewerId={viewerId} />}
           {tab === 'rep' && <Reports data={data} stasks={stasks} personById={personById} today={today} />}
         </div>
       </section>
@@ -1179,7 +1182,7 @@ function TestCases({ data, stasks }: { data: PfData; stasks: STask[] }) {
 }
 
 /* ------------------------------------------------------------------- review */
-function Review({ data, stasks, personById, today }: { data: PfData; stasks: STask[]; personById: Map<string, StrategyPerson>; today: string }) {
+function Review({ data, stasks, personById, today, viewerId }: { data: PfData; stasks: STask[]; personById: Map<string, StrategyPerson>; today: string; viewerId?: string }) {
   const T = data.tasks;
   const waiting = T.filter((t) => t.status === 'submitted');
   const upload = T.filter((t) => t.status === 'awaiting_upload');
@@ -1253,7 +1256,7 @@ function Review({ data, stasks, personById, today }: { data: PfData; stasks: STa
           </div>
         )}
       </div>
-      <ChangeRequests data={data} stasks={stasks} personById={personById} />
+      <ChangeRequests data={data} stasks={stasks} personById={personById} viewerId={viewerId} />
     </div>
   );
 }
@@ -1268,8 +1271,9 @@ const CRS: Record<CRStatus, [string, string]> = {
 
 /** Internal change-request / review log (GitHub is not wired — reviews of
  * process, curriculum, app and site changes are recorded here). */
-function ChangeRequests({ data, stasks, personById }: { data: PfData; stasks: STask[]; personById: Map<string, StrategyPerson> }) {
+function ChangeRequests({ data, stasks, personById, viewerId }: { data: PfData; stasks: STask[]; personById: Map<string, StrategyPerson>; viewerId?: string }) {
   const { act, pending } = useAct();
+  const [edit, setEdit] = useState<{ title: string; description: string; spaceId: string; staskId: string } | null>(null);
   const [sel, setSel] = useState<string | null>(data.crs[0]?.id ?? null);
   const [f, setF] = useState({ title: '', description: '', spaceId: '', staskId: '' });
   const [cm, setCm] = useState('');
@@ -1351,7 +1355,76 @@ function ChangeRequests({ data, stasks, personById }: { data: PfData; stasks: ST
             <div className="sx-h">
               <h3 className="truncate">{cr.title}</h3>
               <span className={cn('sx-pl', CRS[cr.status][1])}>{CRS[cr.status][0]}</span>
+              {cr.status !== 'submitted' && (
+                <button
+                  className="sx-chipb"
+                  aria-label="So‘rovni tahrirlash"
+                  onClick={() => setEdit({ title: cr.title, description: cr.description ?? '', spaceId: cr.space_id ?? '', staskId: cr.stask_id ?? '' })}
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              )}
+              <button
+                className="sx-chipb text-au-bad"
+                aria-label="So‘rovni o‘chirish"
+                disabled={pending}
+                onClick={async () =>
+                  (await ask(`«${cr.title}» so‘rovi (izoh va ovozlari bilan) o‘chirilsinmi?`)) &&
+                  act(() => deleteChangeRequestAction(cr.id), 'So‘rov o‘chirildi', () => setSel(null))
+                }
+              >
+                <Trash2 className="size-3.5" />
+              </button>
             </div>
+            {edit && (
+              <div className="mb-3 flex flex-col gap-2 rounded-xl border border-au-accent bg-au-card-2 p-3">
+                <input className="sx-inp" maxLength={300} value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} />
+                <textarea className="sx-inp !h-[80px] py-2" maxLength={5000} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
+                <div className="flex flex-wrap gap-2">
+                  <select className="sx-inp !h-[32px] flex-1" value={edit.spaceId} onChange={(e) => setEdit({ ...edit, spaceId: e.target.value, staskId: '' })}>
+                    <option value="">Loyiha (ixtiyoriy)</option>
+                    {data.spaces.map((sp) => (
+                      <option key={sp.id} value={sp.id}>
+                        {sp.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select className="sx-inp !h-[32px] flex-1" value={edit.staskId} onChange={(e) => setEdit({ ...edit, staskId: e.target.value })} disabled={!edit.spaceId}>
+                    <option value="">Vazifa (ixtiyoriy)</option>
+                    {stasks
+                      .filter((t) => t.space_id === edit.spaceId)
+                      .map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title}
+                        </option>
+                      ))}
+                  </select>
+                  <button className="sx-btn sm" onClick={() => setEdit(null)}>
+                    Bekor
+                  </button>
+                  <button
+                    className="sx-btn primary sm"
+                    disabled={pending || !edit.title.trim()}
+                    onClick={() =>
+                      act(
+                        () =>
+                          updateChangeRequestAction({
+                            id: cr.id,
+                            title: edit.title,
+                            description: edit.description,
+                            spaceId: edit.spaceId || null,
+                            staskId: edit.staskId || null,
+                          }),
+                        'So‘rov saqlandi',
+                        () => setEdit(null),
+                      )
+                    }
+                  >
+                    Saqlash
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="mb-2 text-xs text-au-muted">
               {name(cr.author_id)} · {fmtDay(d10(cr.created_at)!)}
               {cr.space_id && ` · ${data.spaces.find((s) => s.id === cr.space_id)?.name ?? ''}`}
@@ -1371,8 +1444,19 @@ function ChangeRequests({ data, stasks, personById }: { data: PfData; stasks: ST
               {comments.map((c) => (
                 <div key={c.id} className="flex items-start gap-2 text-sm">
                   <PersonAvatar person={c.author_id ? personById.get(c.author_id) : undefined} size={22} />
-                  <div className="flex-1 rounded-lg bg-au-card-2 px-2.5 py-1.5">
-                    <b className="text-xs">{name(c.author_id)}</b>
+                  <div className="group flex-1 rounded-lg bg-au-card-2 px-2.5 py-1.5">
+                    <div className="flex items-center gap-2">
+                      <b className="flex-1 text-xs">{name(c.author_id)}</b>
+                      {viewerId && c.author_id === viewerId && (
+                        <button
+                          className="text-au-faint opacity-0 transition group-hover:opacity-100 hover:text-au-bad"
+                          aria-label="Izohni o‘chirish"
+                          onClick={async () => (await ask('Izoh o‘chirilsinmi?')) && act(() => deleteCrCommentAction(c.id), 'Izoh o‘chirildi')}
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      )}
+                    </div>
                     <div className="whitespace-pre-wrap">{c.body}</div>
                   </div>
                 </div>

@@ -52,6 +52,7 @@ export default async function PerforcePage() {
 
   return (
     <PerforceWorkspace
+      viewerId={profile.id}
       data={{
         spaces: [...spaces],
         stasks: [...stasks],
