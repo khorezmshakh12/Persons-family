@@ -54,7 +54,7 @@ create trigger tasks_sync_strategy
 insert into tasks (title, description, assigned_to, assigned_by, deadline, status, strategy_task_id)
 select st.title, nullif(st.description, ''), st.assignee_id, coalesce(st.created_by, st.assignee_id),
        (st.end_date + time '18:00') at time zone 'Asia/Tashkent',
-       case st.status when 'progress' then 'in_progress' when 'review' then 'submitted' else 'pending' end,
+       (case st.status when 'progress' then 'in_progress' when 'review' then 'submitted' else 'pending' end)::task_status,
        st.id
 from strategy_tasks st
 join profiles p on p.id = st.assignee_id and p.is_active
