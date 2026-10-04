@@ -1881,6 +1881,8 @@
   "butterfly": {
     "title": "Kapalak",
     "subtitle": "Zarrachalar bog‘da kapalak va gullarga aylanib, yana tarqaladi.",
-    "hint": "Aylantirish uchun suring · yaqinlashtirish uchun g‘ildirak / ikki barmoq"
+    "hint": "Aylantirish uchun suring · yaqinlashtirish uchun g‘ildirak / ikki barmoq",
+    "fullscreen": "To‘liq ekran",
+    "exitFullscreen": "To‘liq ekrandan chiqish"
   }
 }
