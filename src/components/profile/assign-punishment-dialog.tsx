@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MoneyInput } from '@/components/ui/money-input';
 import {
   Dialog,
   DialogContent,
@@ -27,13 +28,17 @@ export function AssignPunishmentDialog({
   const t = useTranslations('profile.warnings');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState<number | null>(null);
   const [state, formAction, isPending] = useActionState<WarningActionState, FormData>(
     assignPunishmentAction,
     undefined,
   );
 
   useEffect(() => {
-    if (state && !state.error) setOpen(false);
+    if (state && !state.error) {
+      setAmount(null);
+      setOpen(false);
+    }
   }, [state]);
 
   return (
@@ -60,14 +65,12 @@ export function AssignPunishmentDialog({
           <input type="hidden" name="warningId" value={warningId} />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`amount-${warningId}`}>{t('amount')}</Label>
-            <Input
+            <MoneyInput
               id={`amount-${warningId}`}
               name="amount"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={0}
-              required
+              value={amount}
+              onValue={setAmount}
+              placeholder="0"
             />
             <p className="text-xs text-au-muted">{t('amountHint')}</p>
           </div>

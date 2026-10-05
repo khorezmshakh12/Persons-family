@@ -7,7 +7,7 @@
 export function formatUZS(amount: number | string | null | undefined): string {
   const n = typeof amount === 'number' ? amount : Number(amount);
   if (!Number.isFinite(n)) return '0';
-  // Space-grouped, no fraction digits — the normal way a som figure is
-  // written in uz, not the en-US comma grouping this used before.
-  return new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
+  // Comma-grouped (1,000,000), no fraction digits — owner, 2026-10-05:
+  // every amount on the site is written with commas.
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n);
 }

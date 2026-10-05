@@ -1108,10 +1108,13 @@
       "colSalary": "Oylik (brutto)"
     },
     "summary": {
-      "salary": "Maosh",
+      "salary": "Maosh (oylik)",
       "bonuses": "Bonuslar",
       "penalties": "Jarimalar",
-      "total": "Jami olingan"
+      "total": "Jami olingan",
+      "toPay": "Jami beriladigan",
+      "paid": "Berilgan",
+      "remaining": "Qoldi"
     }
   },
   "kpi": {

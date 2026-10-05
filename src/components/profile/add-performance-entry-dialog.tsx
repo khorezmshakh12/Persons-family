@@ -6,9 +6,9 @@ import { toast } from 'sonner';
 import { CircleDollarSign } from 'lucide-react';
 import { addPerformanceEntryAction, type PerformanceActionState } from '@/lib/actions/performance';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MoneyInput } from '@/components/ui/money-input';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,7 @@ export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
   const t = useTranslations('performance');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState<number | null>(null);
   const [state, formAction, isPending] = useActionState<PerformanceActionState, FormData>(
     addPerformanceEntryAction,
     undefined,
@@ -42,6 +43,7 @@ export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
     if (state.error) toast.error(t(`errors.${state.error}`));
     else {
       toast.success(t('entryAdded'));
+      setAmount(null);
       setOpen(false);
     }
   }, [state, t]);
@@ -84,7 +86,13 @@ export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="amount">{t('amount')}</Label>
-              <Input id="amount" name="amount" type="number" min={1} step="0.01" required />
+              <MoneyInput
+                id="amount"
+                name="amount"
+                value={amount}
+                onValue={setAmount}
+                placeholder="0"
+              />
             </div>
           </div>
           <div className="flex flex-col gap-2">

@@ -27,6 +27,7 @@ import {
   type FinMetrics,
 } from '@/lib/strategy-finance';
 import { MONF } from '@/lib/strategy';
+import { formatUZS } from '@/lib/format-currency';
 import { Chart, HBars } from './charts';
 import { DebtorsModal, FinEditor } from './fin-parts';
 import './fin.css';
@@ -48,7 +49,7 @@ export const pc = (v: number | null | undefined, d = 1) =>
 export const ming = (v: number | null | undefined) =>
   v === null || v === undefined || !Number.isFinite(v)
     ? '—'
-    : `${v < 0 ? '−' : ''}${Math.round(Math.abs(v) / 1e3).toLocaleString('ru-RU').replace(/\s/g, ' ')} ming`;
+    : `${v < 0 ? '−' : ''}${formatUZS(Math.round(Math.abs(v) / 1e3))} ming`;
 const n0 = (v: number | null) => (v === null || !Number.isFinite(v) ? NaN : v);
 
 export function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {

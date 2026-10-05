@@ -118,7 +118,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
                 min={1}
                 step={1}
                 required
-                defaultValue={item.star_cost}
+                defaultValue={item.star_cost || ''}
                 className="border-au-line bg-au-card text-au-ink"
               />
             </div>
@@ -130,7 +130,7 @@ export function EditItemDialog({ item }: { item: MarketItemRow }) {
                 type="number"
                 min={0}
                 step={1}
-                defaultValue={item.stock !== null ? item.stock : ''}
+                defaultValue={item.stock !== null && item.stock !== 0 ? item.stock : ''}
                 placeholder={t('unlimitedStock')}
                 className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
               />

@@ -315,7 +315,7 @@ export function NotificationBell({
   }, [open, resync]);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center">
       <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
         <PopoverPrimitive.Trigger
           render={
@@ -330,7 +330,7 @@ export function NotificationBell({
           {totalCount > 0 && (
             <span
               key={totalCount}
-              className="animate-pop-in absolute -top-1.5 -right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-au-bad px-1 text-[10px] font-bold text-white ring-2 ring-au-bg tabular-nums"
+              className="animate-pop-in pointer-events-none absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-au-bad px-1 text-[10px] font-bold text-white ring-2 ring-au-bg tabular-nums"
             >
               {totalCount > 9 ? '9+' : totalCount}
             </span>
@@ -339,7 +339,22 @@ export function NotificationBell({
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="end" sideOffset={10} className="z-50 outline-none">
             <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-80 max-w-[90vw] flex-col gap-3 p-4')}>
-              <h3 className="text-sm font-semibold text-au-ink">{t('title')}</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-au-ink">{t('title')}</h3>
+                {/* Per-device chime switch — lives with the notifications it
+                    silences (owner, 2026-10-05: a loose speaker icon next to
+                    the bell read as a bug). */}
+                <button
+                  type="button"
+                  onClick={toggleMuted}
+                  aria-pressed={muted}
+                  aria-label={muted ? t('unmuteSound') : t('muteSound')}
+                  title={muted ? t('unmuteSound') : t('muteSound')}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
+                >
+                  {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                </button>
+              </div>
               {totalCount === 0 ? (
                 <p className="text-sm text-au-muted">{t('empty')}</p>
               ) : (
@@ -451,22 +466,6 @@ export function NotificationBell({
         </PopoverPrimitive.Portal>
       </PopoverPrimitive.Root>
 
-      {/* Per-device sound switch, sitting right next to the thing it
-          silences so it is findable the first time the chime surprises
-          someone. Sound is on by default, and the choice lives in
-          localStorage rather than on the profile row because it is about
-          *this* device's speakers - a shared front-desk machine, a laptop in
-          a quiet staff room - not about the person. */}
-      <button
-        type="button"
-        onClick={toggleMuted}
-        aria-pressed={muted}
-        aria-label={muted ? t('unmuteSound') : t('muteSound')}
-        title={muted ? t('unmuteSound') : t('muteSound')}
-        className="tap-scale flex size-8 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
-      >
-        {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-      </button>
     </div>
   );
 }

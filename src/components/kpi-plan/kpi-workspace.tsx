@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, Check, ChevronDown, Clock, Plus, RotateCcw, Send, Target, Trash2, Undo2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { formatUZS } from '@/lib/format-currency';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   KIND_LABEL,
@@ -65,7 +66,7 @@ const ERR: Record<string, string> = {
 const errText = (c: string) => ERR[c] ?? "Saqlab bo'lmadi, qayta urinib ko'ring";
 
 const som = (n: number | null | undefined) =>
-  n == null ? '—' : `${n < 0 ? '−' : n > 0 ? '+' : ''}${Math.abs(Math.round(n)).toLocaleString('ru-RU').replace(/,/g, ' ')} so‘m`;
+  n == null ? '—' : `${n < 0 ? '−' : n > 0 ? '+' : ''}${formatUZS(Math.abs(Math.round(n)))} so‘m`;
 
 function Chip({ className, children }: { className?: string; children: React.ReactNode }) {
   return <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold whitespace-nowrap', className)}>{children}</span>;

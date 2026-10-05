@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { getFormatter } from 'next-intl/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
@@ -268,6 +269,20 @@ export async function updateTaskAction(
     deadline: parsed.data.deadline,
     assigneeTelegramId: target.telegram_id,
   });
+
+  // Notify old assignee if reassigned
+  if (reassigned) {
+    after(async () => {
+      try {
+        await notifyTelegram(
+          await telegramIdFor(existing.assigned_to),
+          `🔄 <b>Vazifa boshqa xodimga berildi</b>\n<b>Vazifa:</b> ${escapeTelegramText(parsed.data.title)}\nEndi bu vazifa sizda emas.`,
+        );
+      } catch (error) {
+        console.error('reassign notification failed', error);
+      }
+    });
+  }
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};
@@ -1290,7 +1305,9 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   const parsed = idSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const [existing] = await sql<{ assigned_by: string }[]>`select assigned_by from tasks where id = ${parsed.data.id}`;
+  const [existing] = await sql<{ assigned_by: string; assigned_to: string; title: string }[]>`
+    select assigned_by, assigned_to, title from tasks where id = ${parsed.data.id}
+  `;
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
   try {
@@ -1301,6 +1318,20 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   }
 
   await bumpBoardSignal('tasks');
+
+  // Notify the assignee that their task has been deleted
+  if (existing.assigned_to !== actingUserId) {
+    after(async () => {
+      try {
+        await notifyTelegram(
+          await telegramIdFor(existing.assigned_to),
+          `🗑️ <b>Vazifa o'chirildi</b>\n<b>Vazifa:</b> ${escapeTelegramText(existing.title)}`,
+        );
+      } catch (error) {
+        console.error('delete notification failed', error);
+      }
+    });
+  }
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};

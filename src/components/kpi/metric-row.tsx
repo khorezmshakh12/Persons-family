@@ -85,11 +85,11 @@ export function MetricRow({
           <input type="hidden" name="month" value={month} />
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-au-muted">{t('target')}</label>
-            <input type="number" name="targetValue" step="0.01" defaultValue={entry?.target_value} className={FIELD} required />
+            <input type="number" name="targetValue" step="0.01" defaultValue={(entry?.target_value ?? 0) || ''} className={FIELD} required />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-au-muted">{t('actual')}</label>
-            <input type="number" name="actualValue" step="0.01" defaultValue={entry?.actual_value ?? undefined} className={FIELD} />
+            <input type="number" name="actualValue" step="0.01" defaultValue={(entry?.actual_value ?? 0) || ''} className={FIELD} />
           </div>
           <Button type="submit" size="sm" loading={isPending} className="self-end">
             {t('save')}

@@ -91,7 +91,7 @@ export function ManageMetricDialog({ staffId, metric }: { staffId: string; metri
               type="number"
               min={1}
               max={100}
-              defaultValue={metric?.weight_percentage}
+              defaultValue={metric?.weight_percentage || ''}
               required
             />
           </div>
