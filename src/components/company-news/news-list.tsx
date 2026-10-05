@@ -6,6 +6,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
 import { deleteNewsAction, updateNewsAction } from '@/lib/actions/company-news';
 import { DeleteNewsButton } from './delete-news-button';
+import { CardCarousel } from '@/components/ui/card-carousel';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -82,16 +83,18 @@ export function NewsList({
     return <p className="text-sm text-au-muted">{t('noNews')}</p>;
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      {news.map((item, index) => {
-        const canDelete = isAdmin || item.created_by === currentUserId;
-        return (
-          <div
-            key={item.id}
-            style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
-            className={cn(GLASS_CARD, 'enter-rise-sm flex flex-col gap-2 p-6')}
-          >
+  const cardItems = news.map((item, index) => {
+    const canDelete = isAdmin || item.created_by === currentUserId;
+    return (
+      <div
+        key={item.id}
+        data-carousel-item
+        style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
+        className={cn(
+          GLASS_CARD,
+          'enter-rise-sm flex flex-col gap-2 p-6 shrink-0 scroll-snap-start w-full sm:w-1/2 lg:w-1/3'
+        )}
+      >
             <div className="flex items-start justify-between gap-2">
               <h2 className="font-heading text-lg font-medium">{item.title}</h2>
               <div className="flex shrink-0 items-center gap-2">
@@ -147,9 +150,9 @@ export function NewsList({
                 {t('postedBy', { name: `${item.author.first_name} ${item.author.last_name}` })}
               </span>
             )}
-          </div>
-        );
-      })}
-    </div>
-  );
+      </div>
+    );
+  });
+
+  return <CardCarousel itemCount={news.length}>{cardItems}</CardCarousel>;
 }

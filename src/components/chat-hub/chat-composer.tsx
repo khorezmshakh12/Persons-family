@@ -199,6 +199,9 @@ export function ChatComposer({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       formRef.current?.requestSubmit();
+    } else if (e.key === 'Escape' && replyTarget) {
+      e.preventDefault();
+      onClearReply();
     }
   }
 

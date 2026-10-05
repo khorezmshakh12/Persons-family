@@ -49,6 +49,7 @@ export async function mirrorChatMessage(params: {
   mediaUrl: string | null;
   mediaType: string;
   createdAt: string;
+  replyToId?: string | null;
 }): Promise<void> {
   const id = conversationId(params.senderId, params.receiverId);
   const convoRef = db().doc(`chats/${id}`);
@@ -68,6 +69,7 @@ export async function mirrorChatMessage(params: {
       mediaType: params.mediaType,
       createdAt: params.createdAt,
       isRead: false,
+      replyToId: params.replyToId ?? null,
     });
   });
 }

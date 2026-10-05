@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { SubmitForm } from '@/components/self-development/submit-form';
 import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
+import { ExpandCollapseControls } from '@/components/self-development/expand-collapse-controls';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import {
   LastMonthScoresChart,
@@ -213,16 +214,25 @@ export default async function SelfDevelopmentPage({
               <p className="text-au-muted text-sm">{t('thisMonth.noSubmissions')}</p>
             ) : (
               // Ungraded first — that's the CEO's queue.
-              [...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)].map(
-                (s, index) => (
-                  <SubmissionCard
-                    key={s.id}
-                    submission={s}
-                    isAdmin
-                    delayMs={Math.min(index, 10) * 60}
-                  />
-                ),
-              )
+              <div className="flex flex-col gap-4">
+                <ExpandCollapseControls
+                  count={thisMonthSubmissions.length}
+                  storageKeyPrefix="month-submission"
+                  itemIds={[...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)].map((s) => s.id)}
+                />
+                {[...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)].map(
+                  (s, index) => (
+                    <SubmissionCard
+                      key={s.id}
+                      submission={s}
+                      isAdmin
+                      delayMs={Math.min(index, 10) * 60}
+                      defaultOpen={index === 0}
+                      storageKeyPrefix="month-submission"
+                    />
+                  ),
+                )}
+              </div>
             )}
           </TabsContent>
 
@@ -257,14 +267,23 @@ export default async function SelfDevelopmentPage({
             {historySubmissions.length === 0 ? (
               <p className="text-au-muted text-sm">{t('history.noSubmissions')}</p>
             ) : (
-              historySubmissions.map((s, index) => (
-                <SubmissionCard
-                  key={s.id}
-                  submission={s}
-                  isAdmin
-                  delayMs={Math.min(index, 10) * 60}
+              <div className="flex flex-col gap-4">
+                <ExpandCollapseControls
+                  count={historySubmissions.length}
+                  storageKeyPrefix="history-submission"
+                  itemIds={historySubmissions.map((s) => s.id)}
                 />
-              ))
+                {historySubmissions.map((s, index) => (
+                  <SubmissionCard
+                    key={s.id}
+                    submission={s}
+                    isAdmin
+                    delayMs={Math.min(index, 10) * 60}
+                    defaultOpen={index === 0}
+                    storageKeyPrefix="history-submission"
+                  />
+                ))}
+              </div>
             )}
           </TabsContent>
 
@@ -372,12 +391,19 @@ export default async function SelfDevelopmentPage({
               <p className="text-au-muted text-sm">{t('noSubmissions')}</p>
             ) : (
               <div className="flex flex-col gap-4">
+                <ExpandCollapseControls
+                  count={submissions.length}
+                  storageKeyPrefix="my-submission"
+                  itemIds={submissions.map((s) => s.id)}
+                />
                 {submissions.map((s, index) => (
                   <SubmissionCard
                     key={s.id}
                     submission={s}
                     isAdmin={false}
                     delayMs={Math.min(index, 10) * 60}
+                    defaultOpen={index === 0}
+                    storageKeyPrefix="my-submission"
                   />
                 ))}
               </div>

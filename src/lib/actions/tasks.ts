@@ -681,6 +681,69 @@ export async function submitTaskAction(formData: FormData): Promise<UpdateTaskSt
 }
 
 /**
+ * Assignee undoes a submission within 10 minutes. Only allowed for the task
+ * assignee, only while status is still 'submitted', and only if submitted_at
+ * is within the 10-minute window. Reverts the status to 'in_progress'.
+ */
+export async function undoSubmitTaskAction(formData: FormData): Promise<UpdateTaskStatusResult> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = taskIdSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const [existing] = await sql<{
+    assigned_to: string;
+    assigned_by: string;
+    title: string;
+    status: string;
+    submitted_at: string | null;
+  }[]>`
+    select assigned_to, assigned_by, title, status, submitted_at
+    from tasks where id = ${parsed.data.id}
+  `;
+
+  if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
+  if (existing.status !== 'submitted') return { error: 'invalidTransition' };
+  if (!existing.submitted_at) return { error: 'tooLate' };
+
+  // The 10-minute window is checked by the database clock inside the guarded
+  // update, so a CEO decision or a late click can never race past it.
+  try {
+    const res = await sql`
+      update tasks set
+        status = 'in_progress',
+        submitted_at = null,
+        updated_at = now()
+      where id = ${parsed.data.id} and assigned_to = ${user.id} and status = 'submitted'
+        and submitted_at > now() - interval '10 minutes'
+    `;
+    if (res.count === 0) return { error: 'tooLate' };
+  } catch (error) {
+    console.error('undoSubmitTaskAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  await bumpBoardSignal('tasks');
+  await bumpNavBadgeSignal(existing.assigned_by);
+
+  after(async () => {
+    try {
+      const [ceoTelegramId, actorName] = await Promise.all([telegramIdFor(existing.assigned_by), displayNameFor(user.id)]);
+      await notifyTelegram(
+        ceoTelegramId,
+        `↩️ <b>${escapeTelegramText(actorName)}</b> "${escapeTelegramText(existing.title)}" vazifasini topshirishni bekor qildi (qayta ishlayapti).`,
+      );
+    } catch (error) {
+      console.error('undo submit notification failed', error);
+    }
+  });
+
+  revalidatePath('/[locale]/tasks', 'page');
+  return {};
+}
+
+/**
  * Loads the task for a CEO review decision, re-checking the role and the
  * "you assigned it" ownership rule that updateTaskAction / deleteTaskAction
  * already use — a page guard is not enough for a Server Action.
