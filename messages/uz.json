@@ -542,7 +542,7 @@
       "deleteComment": "Izohni o'chirish",
       "viewOnly": "Siz bu yerda faqat ko'rishingiz mumkin, izoh qoldira olmaysiz.",
       "move": "Boshqa sanaga ko'chirish",
-      "moveDialogTitle": "Lesson planni ko'chirish",
+      "moveDialogTitle": "Dars rejasini ko'chirish",
       "moveTargetDate": "Qaysi sanaga ko'chirilsin",
       "moveReason": "Ko'chirish sababi",
       "moveReasonPlaceholder": "Nega dars reja bo'yicha o'tmadi...",
@@ -656,7 +656,8 @@
       "notUnderReview": "Bu vazifa hozir tekshiruvda emas.",
       "underReview": "Bu vazifa tekshiruvda — hozircha o'zgartirib bo'lmaydi.",
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
-      "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak)."
+      "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak).",
+      "tooLate": "Topshirishni bekor qilish muddati o'tib ketdi (10 daqiqa)."
     },
     "deadline": "Muddat",
     "overdue": "Muddati o'tgan",
@@ -747,6 +748,9 @@
     "uploadProof": "Faylni yuklash",
     "uploadProofHint": "Vazifa faqat fayl yuklangandan so'ng yakunlanadi.",
     "waitingForCeo": "CEO tekshiruvini kutmoqda",
+    "submittedToast": "Vazifa topshirildi",
+    "undoAction": "Bekor qilish",
+    "undoneToast": "Topshirish bekor qilindi",
     "rejectionReason": "Rad etish sababi",
     "attachments": {
       "title": "Ilova qilingan fayllar",
@@ -1280,7 +1284,7 @@
       "done": "Bajarildi",
       "failed": "Bajarilmadi"
     },
-    "progress": "Progress %",
+    "progress": "Bajarilish %",
     "solution": "Nima yordam berdi",
     "solutionPlaceholder": "Ixtiyoriy izohlar — bu qanday erishildi",
     "failureReason": "Nega bajarilmadi",
@@ -1568,7 +1572,17 @@
       "confirmDeleteItemTitle": "Sovg'a o'chirilsinmi?",
       "confirmDeleteItemDescription": "\"{name}\" katalogdan butunlay o'chiriladi. Bu amalni orqaga qaytarib bo'lmaydi.",
       "itemDeleted": "Sovg'a o'chirildi.",
-      "category": "Kategoriya"
+      "category": "Kategoriya",
+      "addOne": "Bittaga ko‘paytirish",
+      "removeOne": "Bittaga kamaytirish",
+      "stockUpdated": "Qoldiq yangilandi",
+      "orderHistory": "Buyurtmalar tarixi",
+      "noOrderHistory": "Hali buyurtmalar yo‘q",
+      "restockSoon": "Tez orada keladi",
+      "archived": "Arxivda",
+      "rejectPlaceholder": "Rad etish sababi (ixtiyoriy)",
+      "itemArchived": "Mahsulot arxivga o‘tkazildi",
+      "deleteArchiveHint": "Agar bu mahsulotga buyurtmalar bo‘lgan bo‘lsa, u o‘chirilmaydi — arxivga o‘tkaziladi va tarix saqlanadi."
     },
     "comingSoon": "Persons Market tez orada ochiladi — hozir yangi sovg'alar tayyorlanmoqda.",
     "starsNeeded": "Yana {count} yulduz kerak",
@@ -1589,7 +1603,9 @@
       "remove": "Istaklardan olib tashlash",
       "affordable": "Endi olishingiz mumkin!",
       "count": "Nechta xodim xohlaydi"
-    }
+    },
+    "lowStock": "Faqat {count} ta qoldi",
+    "orderPlaced": "Buyurtma qabul qilindi"
   },
   "shell": {
     "subtitle": "Ta’lim platformasi",
@@ -1884,7 +1900,7 @@
     },
     "full": {
       "name": "To‘liq",
-      "hint": "Hammasi: island, 3D egilish, konfetti, jonli fon."
+      "hint": "Hammasi: dinamik orol, 3D egilish, konfetti, jonli fon."
     }
   },
   "bgSettings": {

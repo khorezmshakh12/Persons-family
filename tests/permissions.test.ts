@@ -187,7 +187,7 @@ test('every restricted page guards with the matrix', () => {
     [`${app}market/page.tsx`, /canSeeFor\(profile, 'market'\)/],
     ['src/components/core/core-section.tsx', /coreViews\(profile!?\)\)\.includes\(view\)/],
     ['src/app/api/core/app/route.ts', /coreViews\(profile\)\)\.includes\(view\)/],
-    [`${app}task-tracker/page.tsx`, /canSeeFor\(profile, 'taskTracker'\)/],
+    ['src/app/[locale]/(full)/task-tracker/page.tsx', /canSeeFor\(profile, 'taskTracker'\)/],
     ['src/app/api/task-tracker/app/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
     ['src/app/api/task-tracker/state/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
   ];

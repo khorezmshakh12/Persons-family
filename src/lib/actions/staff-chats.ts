@@ -150,6 +150,24 @@ export async function sendStaffChatAction(
     if (!accepted) return { error: 'chatNotAccepted' };
   }
 
+  // A reply may only quote a message from this same conversation. If the
+  // original is gone (deleted) or belongs elsewhere, send the message
+  // without the quote rather than failing the send.
+  let replyToId = parsed.data.replyToId ?? null;
+  if (replyToId) {
+    try {
+      const [original] = await sql<{ id: string }[]>`
+        select id from staff_chats
+        where id = ${replyToId}
+          and ((sender_id = ${user.id} and receiver_id = ${parsed.data.receiverId})
+               or (sender_id = ${parsed.data.receiverId} and receiver_id = ${user.id}))
+      `;
+      if (!original) replyToId = null;
+    } catch {
+      replyToId = null;
+    }
+  }
+
   let data: SentStaffChatMessage | undefined;
   try {
     [data] = await sql<SentStaffChatMessage[]>`
@@ -160,7 +178,7 @@ export async function sendStaffChatAction(
         ${parsed.data.messageText || null},
         ${parsed.data.mediaUrl || null},
         ${parsed.data.mediaUrl ? (parsed.data.mediaType ?? 'none') : 'none'},
-        ${parsed.data.replyToId || null}
+        ${replyToId}
       )
       returning id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions
     `;
@@ -181,6 +199,7 @@ export async function sendStaffChatAction(
     mediaUrl: data.media_url,
     mediaType: data.media_type,
     createdAt: data.created_at,
+    replyToId: data.reply_to_id,
   });
   await bumpNavBadgeSignal(data.receiver_id);
 

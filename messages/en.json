@@ -656,7 +656,8 @@
       "notUnderReview": "This task isn't under review right now.",
       "underReview": "This task is under review — it can't be changed yet.",
       "uploadFailed": "Could not upload the file. Please try again.",
-      "fileTooLarge": "The file is too large (50MB max)."
+      "fileTooLarge": "The file is too large (50MB max).",
+      "tooLate": "The undo window has closed (10 minutes max)."
     },
     "deadline": "Deadline",
     "overdue": "Overdue",
@@ -747,6 +748,9 @@
     "uploadProof": "Upload file",
     "uploadProofHint": "The task finishes only once the file is uploaded.",
     "waitingForCeo": "Waiting for the CEO's review",
+    "submittedToast": "Task submitted",
+    "undoAction": "Undo",
+    "undoneToast": "Submission undone",
     "rejectionReason": "Reason for rejection",
     "attachments": {
       "title": "Attachments",
@@ -1568,7 +1572,17 @@
       "confirmDeleteItemTitle": "Delete this reward?",
       "confirmDeleteItemDescription": "\"{name}\" will be permanently removed from the catalog. This can't be undone.",
       "itemDeleted": "Reward deleted.",
-      "category": "Category"
+      "category": "Category",
+      "addOne": "Add one",
+      "removeOne": "Remove one",
+      "stockUpdated": "Stock updated",
+      "orderHistory": "Order history",
+      "noOrderHistory": "No orders yet",
+      "restockSoon": "Restocking soon",
+      "archived": "Archived",
+      "rejectPlaceholder": "Reason for rejecting (optional)",
+      "itemArchived": "Item archived",
+      "deleteArchiveHint": "If this item has orders it is archived instead of deleted, so the history is kept."
     },
     "comingSoon": "Persons Market opens soon — new rewards are being prepared.",
     "starsNeeded": "{count} more stars needed",
@@ -1589,7 +1603,9 @@
       "remove": "Remove from wishlist",
       "affordable": "You can get it now!",
       "count": "Employees who want it"
-    }
+    },
+    "lowStock": "Only {count} left",
+    "orderPlaced": "Order placed"
   },
   "shell": {
     "subtitle": "Education Platform",

@@ -1,7 +1,6 @@
-import { getFormatter, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { CeoEvaluationPanel } from './ceo-evaluation-panel';
-import { GLASS_CARD } from '@/lib/glass';
-import { cn } from '@/lib/utils';
+import { CollapsibleSubmissionCard } from './collapsible-submission-card';
 import type { TeacherLevel } from '@/lib/teacher-level';
 
 export type Submission = {
@@ -21,42 +20,26 @@ export async function SubmissionCard({
   submission,
   isAdmin,
   delayMs = 0,
+  defaultOpen = false,
+  storageKeyPrefix = 'submission',
 }: {
   submission: Submission;
   /** Whoever can rate/score a submission at all — CEO-only. */
   isAdmin: boolean;
   delayMs?: number;
+  defaultOpen?: boolean;
+  storageKeyPrefix?: string;
 }) {
   const t = await getTranslations('selfDevelopment');
-  const format = await getFormatter();
 
-  return (
-    <div
-      style={{ animationDelay: `${delayMs}ms` }}
-      className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-3 p-6')}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-col">
-          {isAdmin && submission.author && (
-            <span className="font-medium text-au-ink">
-              {submission.author.first_name} {submission.author.last_name}
-            </span>
-          )}
-          <span className="text-xs text-au-muted">
-            {format.dateTime(new Date(`${submission.month}T00:00:00Z`), {
-              month: 'long',
-              year: 'numeric',
-              timeZone: 'UTC',
-            })}
-          </span>
-        </div>
-        {submission.ceo_score !== null && (
-          <span className="shrink-0 rounded-full bg-au-card-2 px-3 py-1 text-xs font-bold text-au-ink">
-            {submission.ceo_score}
-          </span>
-        )}
-      </div>
+  const headerContent = isAdmin && submission.author ? (
+    <span>
+      {submission.author.first_name} {submission.author.last_name}
+    </span>
+  ) : null;
 
+  const cardContent = (
+    <>
       {submission.achievements && (
         <div className="flex flex-col gap-1">
           <span className="text-xs font-semibold text-au-muted">{t('achievements')}</span>
@@ -89,6 +72,24 @@ export async function SubmissionCard({
       ) : (
         <p className="text-xs text-au-muted italic">{t('notRatedYet')}</p>
       )}
+    </>
+  );
+
+  return (
+    <div
+      style={{ animationDelay: `${delayMs}ms` }}
+      className="animate-fade-in-up"
+    >
+      <CollapsibleSubmissionCard
+        id={submission.id}
+        month={submission.month}
+        ceoScore={submission.ceo_score}
+        header={headerContent}
+        defaultOpen={defaultOpen}
+        storageKeyPrefix={storageKeyPrefix}
+      >
+        {cardContent}
+      </CollapsibleSubmissionCard>
     </div>
   );
 }

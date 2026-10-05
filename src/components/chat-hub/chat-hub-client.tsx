@@ -41,6 +41,7 @@ type FirestoreChatMessage = {
   mediaUrl: string | null;
   mediaType: ChatMediaType;
   createdAt: string;
+  replyToId?: string | null;
 };
 
 export function ChatHubClient({
@@ -331,7 +332,7 @@ export function ChatHubClient({
                 created_at: data.createdAt,
                 is_read: previousLocal?.is_read ?? false,
                 pinned_at: previousLocal?.pinned_at ?? null,
-                reply_to_id: previousLocal?.reply_to_id ?? null,
+                reply_to_id: data.replyToId ?? previousLocal?.reply_to_id ?? null,
                 reactions: previousLocal?.reactions ?? {},
               });
             }

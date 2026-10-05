@@ -9,6 +9,7 @@ import {
   rejectTaskAction,
   requestTaskProofUploadUrlAction,
   submitTaskAction,
+  undoSubmitTaskAction,
   uploadTaskProofAction,
   type RejectTaskState,
 } from '@/lib/actions/tasks';
@@ -88,7 +89,28 @@ export function TaskStageActions({
   function handleSubmitForReview() {
     const formData = new FormData();
     formData.set('id', taskId);
-    run(() => submitTaskAction(formData));
+    run(() => submitTaskAction(formData), () => {
+      toast.success(t('submittedToast'), {
+        duration: 10000,
+        action: {
+          label: t('undoAction'),
+          onClick: handleUndoSubmit,
+        },
+      });
+    });
+  }
+
+  function handleUndoSubmit() {
+    const formData = new FormData();
+    formData.set('id', taskId);
+    startTransition(async () => {
+      const result = await undoSubmitTaskAction(formData);
+      if (result?.error) {
+        toast.error(t(`errors.${result.error}`));
+      } else {
+        toast.success(t('undoneToast'));
+      }
+    });
   }
 
   function handleApprove() {
