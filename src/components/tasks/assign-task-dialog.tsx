@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 import { assignTaskAction, type TaskActionState } from '@/lib/actions/tasks';
@@ -47,6 +47,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
   // The deadline input is the one controlled field in this form, because the
   // presets below have to write into it. Everything else stays uncontrolled.
   const [deadline, setDeadline] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, isPending] = useActionState<TaskActionState, FormData>(
     async (prev, formData) => {
       const value = formData.get('deadline');
@@ -56,6 +57,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
       const result = await assignTaskAction(prev, formData);
       if (!result?.error) {
         setDeadline('');
+        formRef.current?.reset();
         setOpen(false);
       }
       return result;
@@ -73,7 +75,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
         <DialogHeader>
           <DialogTitle>{t('assignTask')}</DialogTitle>
         </DialogHeader>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form ref={formRef} action={formAction} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">{t('titleLabel')}</Label>
             <Input id="title" name="title" required maxLength={200} />

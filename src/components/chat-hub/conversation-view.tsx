@@ -191,7 +191,7 @@ export function ConversationView({
   const headerInitials = contact ? `${contact.first_name[0]}${contact.last_name[0]}` : '?';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="ch-head flex items-center gap-3 border-b border-au-line px-4 py-3">
         <button
           type="button"

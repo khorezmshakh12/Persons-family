@@ -93,7 +93,7 @@ export function TaskStageProgress({
         aria-valuemin={1}
         aria-valuemax={STAGES.length}
         aria-valuenow={activeIndex + 1}
-        aria-valuetext={t(`stages.${STAGES[activeIndex] as Stage}`)}
+        aria-valuetext={(status === 'pending' ? t('stages.pending') : t(`stages.${STAGES[activeIndex] as Stage}`))}
       >
         {STAGES.map((stage, index) => {
           const reached = index <= activeIndex;
@@ -139,7 +139,7 @@ export function TaskStageProgress({
             isDone ? 'text-emerald-700' : 'text-au-muted',
           )}
         >
-          {t(`stages.${STAGES[activeIndex] as Stage}`)}
+          {(status === 'pending' ? t('stages.pending') : t(`stages.${STAGES[activeIndex] as Stage}`))}
         </motion.span>
 
         {celebrating && (

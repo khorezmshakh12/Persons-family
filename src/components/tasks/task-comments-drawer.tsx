@@ -166,7 +166,7 @@ export function TaskCommentsDrawer({
                         {format.relativeTime(new Date(c.created_at), now)}
                       </span>
                     </div>
-                    <p className="text-sm whitespace-pre-wrap text-au-ink">{c.body}</p>
+                    <p className="text-sm whitespace-pre-wrap text-au-ink [overflow-wrap:anywhere]">{c.body}</p>
                   </div>
                   {c.author_id === currentUserId && !isOptimistic && (
                     <button

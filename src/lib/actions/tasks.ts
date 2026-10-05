@@ -630,13 +630,14 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   // guard in the WHERE keeps a stale drag from overwriting a transition
   // (submit / approve) that landed in the meantime.
   try {
-    await sql`
+    const res = await sql`
       update tasks set
         status = ${parsed.data.status},
         completed_at = null,
         updated_at = now()
       where id = ${parsed.data.id} and status in ${sql([...TASK_OPEN_STATUSES])}
     `;
+    if (res.count === 0) return { error: 'invalidTransition' };
   } catch (error) {
     console.error('updateTaskStatusAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };

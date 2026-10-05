@@ -447,7 +447,7 @@ export function ChatHubClient({
           canModerateDmImportance={canModerateDmImportance}
         />
       </div>
-      <div className={cn('min-h-0 flex-1', active ? 'flex h-full' : 'hidden sm:flex sm:h-full')}>
+      <div className={cn('min-h-0 min-w-0 flex-1', active ? 'flex h-full' : 'hidden sm:flex sm:h-full')}>
         <ConversationView
           active={active}
           conversationState={activeConversationState}

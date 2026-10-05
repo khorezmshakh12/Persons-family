@@ -83,24 +83,21 @@ export function NewsList({
     return <p className="text-sm text-au-muted">{t('noNews')}</p>;
   }
 
-  const cardItems = news.map((item, index) => {
+  const cardItems = news.map((item) => {
     const canDelete = isAdmin || item.created_by === currentUserId;
     return (
       <div
         key={item.id}
-        data-carousel-item
-        style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
-        className={cn(
-          GLASS_CARD,
-          'enter-rise-sm flex flex-col gap-2 p-6 shrink-0 scroll-snap-start w-full sm:w-1/2 lg:w-1/3'
-        )}
+        className={cn(GLASS_CARD, 'flex min-h-[260px] flex-col gap-3 p-6 sm:p-8')}
       >
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="font-heading text-lg font-medium">{item.title}</h2>
-              <div className="flex shrink-0 items-center gap-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <h2 className="font-heading text-xl font-semibold text-au-ink sm:text-2xl">{item.title}</h2>
                 <span className="text-xs text-au-muted">
                   {format.dateTime(new Date(item.created_at), { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
                 {canDelete && (
                   <button
                     type="button"
@@ -143,7 +140,7 @@ export function NewsList({
                 </div>
               </div>
             ) : (
-              <p className="text-sm whitespace-pre-wrap text-au-ink">{item.content}</p>
+              <NewsBody text={item.content} />
             )}
             {item.author && (
               <span className="text-xs text-au-muted">
@@ -154,5 +151,22 @@ export function NewsList({
     );
   });
 
-  return <CardCarousel itemCount={news.length}>{cardItems}</CardCarousel>;
+  return <CardCarousel label={t('title')}>{cardItems}</CardCarousel>;
+}
+
+/** Long posts show ~6 lines with a «Batafsil» toggle so every slide keeps
+ * the same height. */
+function NewsBody({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 320 || text.split(/\n/).length > 6;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <p className={cn('text-[15px] leading-relaxed whitespace-pre-wrap text-au-ink [overflow-wrap:anywhere]', long && !open && 'line-clamp-6')}>{text}</p>
+      {long && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="text-sm font-semibold text-au-accent-text hover:underline">
+          {open ? 'Yig‘ish' : 'Batafsil'}
+        </button>
+      )}
+    </div>
+  );
 }

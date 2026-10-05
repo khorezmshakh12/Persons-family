@@ -19,9 +19,8 @@ export function CompanyNewsCarouselInner({
   const cardItems = news.map((item, i) => (
     <div
       key={item.id}
-      data-carousel-item
       style={{ animationDelay: `${delayMs + 120 + i * 60}ms` }}
-      className="animate-fade-in-up flex flex-col gap-1 shrink-0 scroll-snap-start w-full sm:w-1/2"
+      className="animate-fade-in-up flex flex-col gap-1 px-1"
     >
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium">{item.title}</span>
@@ -29,9 +28,9 @@ export function CompanyNewsCarouselInner({
           {item.formattedDate}
         </span>
       </div>
-      <p className="text-sm whitespace-pre-wrap text-au-muted">{item.content}</p>
+      <p className="line-clamp-4 text-sm whitespace-pre-wrap text-au-muted [overflow-wrap:anywhere]">{item.content}</p>
     </div>
   ));
 
-  return <CardCarousel itemCount={news.length}>{cardItems}</CardCarousel>;
+  return <CardCarousel>{cardItems}</CardCarousel>;
 }

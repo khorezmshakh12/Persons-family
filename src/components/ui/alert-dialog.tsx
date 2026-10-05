@@ -32,7 +32,7 @@ function AlertDialogOverlay({
       className={cn(
         // `ease-snappy` rather than `ease-bounce`: a backdrop fade has nothing
         // to overshoot into, and the bounce curve only delayed the settle.
-        "fixed inset-0 isolate z-50 bg-au-card-2 duration-200 ease-snappy data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/40 duration-200 ease-snappy data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
