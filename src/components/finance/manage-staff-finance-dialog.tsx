@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MoneyInput } from '@/components/ui/money-input';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
   const t = useTranslations('finance');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState<number | null>(null);
   const [state, formAction, isPending] = useActionState<FinanceActionState, FormData>(
     addFinanceEntryAction,
     undefined,
@@ -32,6 +34,7 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
       toast.error(t(`errors.${state.error}`));
     } else if (state && !state.error) {
       toast.success(t('entryAdded'));
+      setAmount(null);
       setOpen(false);
     }
   }, [state, t]);
@@ -66,7 +69,13 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`amount-${staffId}`}>{t('amount')}</Label>
-            <Input id={`amount-${staffId}`} name="amount" type="number" step="0.01" required />
+            <MoneyInput
+              id={`amount-${staffId}`}
+              name="amount"
+              value={amount}
+              onValue={setAmount}
+              placeholder="0"
+            />
             {state?.fieldErrors?.amount && (
               <p className="text-destructive text-xs">{t(`errors.${state.fieldErrors.amount}`)}</p>
             )}

@@ -77,8 +77,8 @@ export function CeoEvaluationPanel({
           name="ceoScore"
           min={0}
           step={1}
-          value={score}
-          onChange={(e) => setScore(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          value={score === 0 ? '' : score}
+          onChange={(e) => setScore(e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           aria-label={t('ceoScore')}
           className="w-full rounded-md border border-au-line bg-au-card px-3 py-2 text-sm tabular-nums text-au-ink"
         />
@@ -94,8 +94,8 @@ export function CeoEvaluationPanel({
           name="starAward"
           min={0}
           step={1}
-          value={starAward}
-          onChange={(e) => setStarAward(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          value={starAward === 0 ? '' : starAward}
+          onChange={(e) => setStarAward(e.target.value === '' ? 0 : Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           aria-label={t('starAward')}
           className="w-full rounded-md border border-au-line bg-au-card px-3 py-2 text-sm tabular-nums text-au-ink"
         />

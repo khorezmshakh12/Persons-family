@@ -33,6 +33,9 @@ import {
   payrollTaxes,
   statements,
   taxCompare,
+  CORE_ACCOUNTS,
+  nextAccountCode,
+  type AccType,
   type TaxSettings,
 } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
@@ -52,7 +55,6 @@ import {
   teacherCostFor,
   studentsForTarget,
   taxCalendar,
-  tornado,
   type BudgetLine,
   type Driver,
 } from '@/lib/accounting-ma';
@@ -80,22 +82,26 @@ import {
 import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
 import { Chart, HBars } from './charts';
 import { MonthPicker } from './view-finance';
+import { MoneyInput } from '@/components/ui/money-input';
 import './strategy.css';
 import './suite.css';
 
 type Tab = 'ma_cost' | 'ma_bud' | 'ma_sim' | 'ma_cash' | 'fa_jr' | 'fa_gl' | 'fa_rep' | 'fa_tax' | 'fa_fa';
 const TABS: ({ v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> } | { g: string })[] = [
-  { g: 'Boshqaruv hisobi' },
-  { v: 'ma_cost', n: 'Xarajat & marja', Icon: ChartColumn },
-  { v: 'ma_bud', n: 'Byudjet vs fakt', Icon: Rows3 },
-  { v: 'ma_sim', n: 'Ssenariy', Icon: SlidersHorizontal },
-  { v: 'ma_cash', n: 'Pul oqimi', Icon: Coins },
-  { g: 'Moliyaviy hisob' },
-  { v: 'fa_jr', n: 'Jurnal', Icon: BookOpen },
-  { v: 'fa_gl', n: 'Bosh daftar', Icon: Wallet },
+  // Owner, 2026-10-05: tailored to an education centre — the everyday
+  // money in/out and the reports first, analysis next, bookkeeping last.
+  { g: 'Kundalik' },
+  { v: 'ma_cash', n: 'Kirim-chiqim', Icon: Coins },
   { v: 'fa_rep', n: 'Hisobotlar', Icon: FileText },
+  { g: 'Tahlil' },
+  { v: 'ma_cost', n: 'Kurslar va marja', Icon: ChartColumn },
+  { v: 'ma_bud', n: 'Reja vs fakt', Icon: Rows3 },
+  { v: 'ma_sim', n: 'Ssenariy', Icon: SlidersHorizontal },
+  { g: 'Buxgalteriya' },
   { v: 'fa_tax', n: 'Soliq & ish haqi', Icon: Percent },
-  { v: 'fa_fa', n: 'Asosiy vositalar', Icon: Building2 },
+  { v: 'fa_fa', n: 'Jihozlar (asosiy vositalar)', Icon: Building2 },
+  { v: 'fa_jr', n: 'Jurnal', Icon: BookOpen },
+  { v: 'fa_gl', n: 'Hisoblar va qoldiqlar', Icon: Wallet },
 ];
 const FLAT = TABS.filter((t): t is { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> } => 'v' in t);
 const KEY = 'persons-acct-tab';
@@ -141,7 +147,7 @@ export function AccountingWorkspace({
   /** Timetable seat capacity (rooms × slots × cohorts), 0 = unknown. */
   seatCap?: number;
 }) {
-  const [tab, setTab] = useState<Tab>('fa_jr');
+  const [tab, setTab] = useState<Tab>('ma_cash');
   const [ym, setYm] = useState(today.slice(0, 7));
   const restored = useRef(false);
   useEffect(() => {
@@ -160,10 +166,11 @@ export function AccountingWorkspace({
   };
   const st = useMemo(() => statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym)), [books, ym]);
   const items: PaletteItem[] = [
+    { g: 'Amallar', t: 'Kirim / chiqim qo‘shish', run: () => go('ma_cash') },
     { g: 'Amallar', t: "Jurnalga yozuv qo'shish", run: () => go('fa_jr') },
     { g: 'Amallar', t: "Ish haqini jurnalga o'tkazish", run: () => go('fa_tax') },
     { g: 'Amallar', t: 'Eskirishni hisoblash', run: () => go('fa_fa') },
-    ...books.accounts.map((a) => ({ g: 'Hisoblar', t: `${a.code} ${a.name}`, run: () => go('fa_gl') })),
+    ...books.accounts.map((a) => ({ g: 'Hisoblar', t: a.name, run: () => go('fa_gl') })),
   ];
 
   return (
@@ -184,7 +191,7 @@ export function AccountingWorkspace({
           {tab === 'ma_cost' && <MaCost books={books} ym={ym} courseGroups={courseGroups} />}
           {tab === 'ma_bud' && <MaBudget books={books} ym={ym} />}
           {tab === 'ma_sim' && <MaSim books={books} ym={ym} seatCap={seatCap} />}
-          {tab === 'ma_cash' && <MaCash books={books} today={today} />}
+          {tab === 'ma_cash' && <MaCash books={books} today={today} ym={ym} />}
           {tab === 'fa_jr' && <FaJournal books={books} ym={ym} today={today} />}
           {tab === 'fa_gl' && <FaLedger books={books} ym={ym} />}
           {tab === 'fa_rep' && <FaReports books={books} ym={ym} />}
@@ -226,7 +233,7 @@ function MaCost({ books, ym, courseGroups }: { books: Books; ym: string; courseG
       <div className="sx-card sx-stat s3">
         <div className="l">Doimiy xarajatlar (jurnal)</div>
         <div className="v">{fmtMln(fixed)}</div>
-        <div className="d">9410 + 9420 + 9430 · shu oy</div>
+        <div className="d">marketing + ma’muriy + boshqa · shu oy</div>
       </div>
       <div className="sx-card sx-stat s3">
         <div className="l">Operatsion natija (model)</div>
@@ -351,9 +358,9 @@ function CostAnalysis({ books, st }: { books: Books; st: ReturnType<typeof state
   const parts = [
     { n: 'O‘qituvchilar', v: c.teacher, col: '#17161a', vr: true },
     { n: 'Darsliklar', v: c.books, col: '#5c5760', vr: true },
-    { n: 'Sotish / marketing (9410)', v: st.selling, col: '#ff9f1c', vr: false },
-    { n: "Ma'muriy (9420)", v: st.admin, col: '#ffc46b', vr: false },
-    { n: 'Boshqa (9430)', v: st.other, col: '#ffe0ad', vr: false },
+    { n: 'Sotish / marketing', v: st.selling, col: '#ff9f1c', vr: false },
+    { n: "Ma'muriy", v: st.admin, col: '#ffc46b', vr: false },
+    { n: 'Boshqa', v: st.other, col: '#ffe0ad', vr: false },
   ].filter((p) => p.v > 0);
   const T = parts.reduce((a, p) => a + p.v, 0) || 1;
   const maxCm = Math.max(1, ...seg.map((r) => Math.abs(r.contribution)));
@@ -372,7 +379,7 @@ function CostAnalysis({ books, st }: { books: Books; st: ReturnType<typeof state
       <div className="sx-card s8">
         <div className="sx-h">
           <h3>Xarajatlar tuzilishi</h3>
-          <small>Fixed vs variable · o‘zgaruvchan = kurslar modelidagi to‘g‘ridan-to‘g‘ri xarajat, doimiy = jurnal (9410/9420/9430)</small>
+          <small>Fixed vs variable · o‘zgaruvchan = kurslar modelidagi to‘g‘ridan-to‘g‘ri xarajat, doimiy = kiritilgan xarajatlar</small>
         </div>
         <div className="flex h-7 overflow-hidden rounded-lg">
           {parts.map((p) => (
@@ -563,14 +570,12 @@ function CourseRow({
   };
   const shared = v.teacherShare !== null;
   const num = (k: 'fee' | 'students' | 'teacherCost' | 'bookCost' | 'hoursMonth') => (
-    <input
+    <MoneyInput
       className="sx-plain-inp"
-      type="number"
-      min={0}
       disabled={k === 'teacherCost' && shared}
       title={k === 'teacherCost' && shared ? 'O‘qituvchi ulushidan hisoblanadi' : undefined}
       value={k === 'teacherCost' && shared ? teacherCostFor(v.fee, v.students, v.teacherShare, v.teacherCost) : v[k]}
-      onChange={(ev) => setV({ ...v, [k]: Math.max(0, Number(ev.target.value) || 0) })}
+      onValue={(n) => setV({ ...v, [k]: n ?? 0 })}
       onBlur={() => commit()}
       onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
     />
@@ -623,6 +628,20 @@ function CourseRow({
 }
 
 /* ---------------------------------------------------------------- MA · budget */
+/** Plan amount cell: comma-grouped, saved on blur / Enter. */
+function BudgetCell({ plan, onCommit }: { plan: number; onCommit: (v: number) => void }) {
+  const [v, setV] = useState<number | null>(plan || null);
+  return (
+    <MoneyInput
+      className="sx-plain-inp !w-[130px]"
+      value={v}
+      onValue={setV}
+      onBlur={() => (v ?? 0) !== plan && onCommit(v ?? 0)}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+    />
+  );
+}
+
 const BUDGET_LINES = ['9030', '9130', '9410', '9420', '9430', '9810'];
 function MaBudget({ books, ym }: { books: Books; ym: string }) {
   const { run } = useRun();
@@ -705,7 +724,8 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
               className="sx-plain-inp !w-[90px]"
               type="number"
               min={0}
-              defaultValue={plannedN}
+              placeholder="0"
+              defaultValue={plannedN || ''}
               onBlur={(e) => {
                 const v = Math.max(0, Math.round(Number(e.target.value) || 0));
                 if (v !== plannedN) run(() => setPlanStudentsAction({ month: ym, students: v }), 'Rejadagi o‘quvchi saqlandi');
@@ -713,7 +733,7 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
             />
             ta
           </label>
-          <span>Fakt o‘quvchi — «Tannarx va marja» kurslar jadvalidan ({actualN}).</span>
+          <span>Fakt o‘quvchi — «Kurslar va marja» jadvalidan ({actualN}).</span>
         </div>
         <div className="sx-tw">
           <table className="sx-tbl">
@@ -735,28 +755,21 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
               {fb.rows.map((l, i) => (
                 <tr key={l.code} style={{ animationDelay: `${i * 30}ms` }}>
                   <td className="l">
-                    <span className="code">{l.code}</span>
                     {l.name}
                     {l.variable && <small className="ml-1 text-au-faint">o‘zg.</small>}
                   </td>
                   <td>
-                    <input
+                    <BudgetCell
                       key={`${ym}${l.plan}`}
-                      className="sx-plain-inp !w-[130px]"
-                      type="number"
-                      min={0}
-                      defaultValue={l.plan}
-                      onBlur={(e) => {
-                        const v = Math.max(0, Number(e.target.value) || 0);
-                        if (v !== l.plan) run(() => setBudgetAction({ month: ym, code: l.code, amount: v }));
-                      }}
+                      plan={l.plan}
+                      onCommit={(v) => run(() => setBudgetAction({ month: ym, code: l.code, amount: v }))}
                     />
                     {l.plan > 0 && (
                       <button
                         className="ml-1 text-au-faint hover:text-au-bad"
                         aria-label="Reja qatorini o‘chirish"
                         onClick={async () =>
-                          (await ask(`${l.code} «${l.name}» rejasi o‘chirilsinmi?`)) &&
+                          (await ask(`«${l.name}» rejasi o‘chirilsinmi?`)) &&
                           run(() => deleteBudgetAction({ period: `${ym}-01`, code: l.code }), 'Reja qatori o‘chirildi')
                         }
                       >
@@ -804,7 +817,7 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
         </div>
         <div className="mt-4">
           <Chart
-            labels={fb.rows.map((l) => l.code)}
+            labels={fb.rows.map((l) => l.name)}
             fmt={fmtMln}
             height={180}
             series={[
@@ -813,41 +826,77 @@ function MaBudget({ books, ym }: { books: Books; ym: string }) {
             ]}
           />
         </div>
-        <p className="sx-note">O‘zgaruvchan moddalar (tushum 9030, tannarx 9130, soliq 9810) fakt/reja o‘quvchi nisbatida moslashtiriladi; qolganlari doimiy.</p>
+        <p className="sx-note">O‘zgaruvchan moddalar (tushum, tannarx, soliq) fakt/reja o‘quvchi nisbatida moslashtiriladi; qolganlari doimiy.</p>
       </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------- MA · sim */
+/** Scenario drivers are absolute changes, not percentages (owner,
+ * 2026-10-05): so'm per student for the price, head-count for students and
+ * monthly so'm for the cost lines. */
+const SIM_LABEL = {
+  price: 'Kurs narxi (1 o‘quvchi, oylik)',
+  students: 'O‘quvchilar soni',
+  teacher: 'O‘qituvchilar xarajati (oylik)',
+  admin: 'Ma’muriy xarajat (ijara va b.)',
+  mkt: 'Marketing (oylik)',
+} as const;
+const SIM_UNIT = { price: 'so‘m', students: 'ta', teacher: 'so‘m', admin: 'so‘m', mkt: 'so‘m' } as const;
+type SimK = keyof typeof SIM_LABEL;
+const SIM_ZERO: Record<SimK, number> = { price: 0, students: 0, teacher: 0, admin: 0, mkt: 0 };
+const signed = (v: number, unit: string) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtNum(Math.abs(v))}${unit ? ` ${unit}` : ''}`;
+
 function MaSim({ books, ym, seatCap }: { books: Books; ym: string; seatCap: number }) {
-  const [sm, setSm] = useState({ price: 0, students: 0, teacher: 0, admin: 0, mkt: 0 });
+  const [sm, setSm] = useState<Record<SimK, number>>(SIM_ZERO);
   const st = statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
-  const model = (k: typeof sm) => {
-    const hasCourses = books.courses.length > 0;
-    const revenue = hasCourses
-      ? books.courses.reduce((a, c) => a + c.fee * (1 + k.price / 100) * Math.round(c.students * (1 + k.students / 100)), 0)
-      : st.revenue * (1 + k.price / 100) * (1 + k.students / 100);
-    const direct = hasCourses
-      ? books.courses.reduce((a, c) => a + c.teacher_cost * (1 + k.teacher / 100) + c.book_cost * Math.round(c.students * (1 + k.students / 100)), 0)
-      : st.cogs * (1 + k.teacher / 100);
-    const fixed = st.admin * (1 + k.admin / 100) + st.selling * (1 + k.mkt / 100) + st.other;
+  const N = books.courses.reduce((a, c) => a + c.students, 0);
+  const avgFee = N ? books.courses.reduce((a, c) => a + c.fee * c.students, 0) / N : 0;
+  const avgBook = N ? books.courses.reduce((a, c) => a + c.book_cost * c.students, 0) / N : 0;
+  const hasCourses = books.courses.length > 0;
+  const base0 = {
+    revenue: hasCourses ? books.courses.reduce((a, c) => a + c.fee * c.students, 0) : st.revenue,
+    teacher: hasCourses
+      ? books.courses.reduce((a, c) => a + teacherCostFor(c.fee, c.students, c.teacher_share ?? null, c.teacher_cost), 0)
+      : st.cogs,
+    books: hasCourses ? books.courses.reduce((a, c) => a + c.book_cost * c.students, 0) : 0,
+  };
+  const model = (k: Record<SimK, number>) => {
+    const students = Math.max(0, N + k.students);
+    const revenue = Math.max(0, base0.revenue + k.price * N + (avgFee + k.price) * k.students);
+    const direct = Math.max(0, base0.teacher + k.teacher) + Math.max(0, base0.books + avgBook * k.students);
+    const fixed = Math.max(0, st.admin + k.admin) + Math.max(0, st.selling + k.mkt) + st.other;
     const tax = books.tax.regime === 'turn' ? (revenue * books.tax.turnover) / 100 : 0;
     const profit = revenue - direct - fixed - tax;
-    return { revenue, direct, fixed, tax, profit };
+    return { students, revenue, direct, fixed, tax, profit };
   };
-  const base = model({ price: 0, students: 0, teacher: 0, admin: 0, mkt: 0 });
+  const base = model(SIM_ZERO);
   const sc = model(sm);
-  const slider = (k: keyof typeof sm, n: string, min: number, max: number) => (
+  const field = (k: SimK) => (
     <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-      <span className="flex justify-between">
-        {n}
-        <b className="tabular-nums text-au-ink">
-          {sm[k] > 0 ? '+' : ''}
-          {sm[k]}%
-        </b>
+      <span className="flex justify-between gap-2">
+        {SIM_LABEL[k]}
+        <b className="tabular-nums text-au-ink">{sm[k] ? signed(sm[k], SIM_UNIT[k]) : '—'}</b>
       </span>
-      <input className="sx-range" type="range" min={min} max={max} step={1} value={sm[k]} onChange={(e) => setSm({ ...sm, [k]: Number(e.target.value) })} />
+      <span className="flex items-center gap-1.5">
+        <select
+          className="sx-inp !w-[64px]"
+          aria-label="Yo‘nalish"
+          value={sm[k] < 0 ? '-' : '+'}
+          onChange={(e) => setSm({ ...sm, [k]: e.target.value === '-' ? -Math.abs(sm[k]) : Math.abs(sm[k]) })}
+        >
+          <option value="+">+</option>
+          <option value="-">−</option>
+        </select>
+        <MoneyInput
+          className="sx-inp min-w-0 flex-1 text-right"
+          aria-label={SIM_LABEL[k]}
+          value={Math.abs(sm[k])}
+          onValue={(v) => setSm({ ...sm, [k]: (sm[k] < 0 ? -1 : 1) * (v ?? 0) })}
+        />
+        <span className="w-8 text-au-faint">{SIM_UNIT[k]}</span>
+      </span>
     </label>
   );
   return (
@@ -855,26 +904,25 @@ function MaSim({ books, ym, seatCap }: { books: Books; ym: string; seatCap: numb
       <div className="sx-card s5">
         <div className="sx-h">
           <h3>Ssenariy parametrlari</h3>
-          <button className="sx-chipb ml-auto" onClick={() => setSm({ price: 0, students: 0, teacher: 0, admin: 0, mkt: 0 })}>
+          <button className="sx-chipb ml-auto" onClick={() => setSm(SIM_ZERO)}>
             Nolga qaytarish
           </button>
         </div>
         <div className="flex flex-col gap-4">
-          {slider('price', 'Kurs narxi', -30, 50)}
-          {slider('students', "O'quvchilar soni", -50, 100)}
-          {slider('teacher', "O'qituvchi xarajati", -30, 60)}
-          {slider('admin', "Ma'muriy xarajat (ijara va b.)", -30, 60)}
-          {slider('mkt', 'Marketing', -100, 200)}
+          {(Object.keys(SIM_LABEL) as SimK[]).map((k) => (
+            <Fragment key={k}>{field(k)}</Fragment>
+          ))}
         </div>
         <p className="sx-note">
-          Asos: {books.courses.length ? 'kurslar jadvali (narx × o‘quvchi)' : 'shu oydagi jurnal'} va {ym} oyidagi haqiqiy doimiy xarajatlar.
-          Soliq: {books.tax.regime === 'turn' ? `aylanma ${books.tax.turnover}%` : 'umumiy rejim (foyda solig‘i hisobga olinmagan)'}.
+          Hozir: {N} o‘quvchi · o‘rtacha narx {fmtNum(avgFee)} so‘m. Raqamlar — oylik o‘zgarish (masalan, narx +50,000 so‘m, o‘quvchi +10 ta).
+          Asos: {hasCourses ? 'kurslar jadvali' : 'shu oydagi yozuvlar'} va {ym} oyidagi doimiy xarajatlar. Soliq:{' '}
+          {books.tax.regime === 'turn' ? `aylanma ${books.tax.turnover}%` : 'umumiy rejim (foyda solig‘i hisobga olinmagan)'}.
         </p>
       </div>
       <div className="sx-card s7">
         <div className="sx-h">
           <h3>Natija</h3>
-          <small>hozirgi holat vs ssenariy</small>
+          <small>hozirgi holat vs ssenariy · so‘mda</small>
         </div>
         <div className="sx-tw">
           <table className="sx-tbl">
@@ -887,10 +935,16 @@ function MaSim({ books, ym, seatCap }: { books: Books; ym: string; seatCap: numb
               </tr>
             </thead>
             <tbody>
+              <tr>
+                <td className="l">O‘quvchilar soni</td>
+                <td>{fmtNum(base.students)}</td>
+                <td>{fmtNum(sc.students)}</td>
+                <td>{signed(sc.students - base.students, 'ta')}</td>
+              </tr>
               {(
                 [
                   ['Tushum', 'revenue'],
-                  ["To'g'ridan-to'g'ri xarajat", 'direct'],
+                  ['To‘g‘ridan-to‘g‘ri xarajat', 'direct'],
                   ['Doimiy xarajat', 'fixed'],
                   ['Soliq', 'tax'],
                 ] as const
@@ -899,21 +953,21 @@ function MaSim({ books, ym, seatCap }: { books: Books; ym: string; seatCap: numb
                   <td className="l">{n}</td>
                   <td>{fmtNum(base[k])}</td>
                   <td>{fmtNum(sc[k])}</td>
-                  <td>{fmtNum(sc[k] - base[k])}</td>
+                  <td>{signed(sc[k] - base[k], '')}</td>
                 </tr>
               ))}
               <tr className="big">
                 <td className="l">Foyda</td>
                 <td>{fmtNum(base.profit)}</td>
                 <td style={{ color: sc.profit < 0 ? 'var(--au-bad)' : 'var(--au-ok)' }}>{fmtNum(sc.profit)}</td>
-                <td style={{ color: sc.profit >= base.profit ? 'var(--au-ok)' : 'var(--au-bad)' }}>{fmtNum(sc.profit - base.profit)}</td>
+                <td style={{ color: sc.profit >= base.profit ? 'var(--au-ok)' : 'var(--au-bad)' }}>{signed(sc.profit - base.profit, 'so‘m')}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="mt-4">
           <HBars
-            fmt={fmtMln}
+            fmt={fmtNum}
             rows={[
               { n: 'Hozirgi foyda', v: base.profit, c: '#c9c3b8' },
               { n: 'Ssenariy foydasi', v: sc.profit, c: sc.profit >= base.profit ? '#139a52' : '#c7322b' },
@@ -921,20 +975,26 @@ function MaSim({ books, ym, seatCap }: { books: Books; ym: string; seatCap: numb
           />
         </div>
       </div>
-      <SimExtra model={(k) => model(k).profit} sm={sm} setSm={setSm} books={books} st={st} seatCap={seatCap} />
+      <SimExtra
+        model={(k) => model(k).profit}
+        sm={sm}
+        setSm={setSm}
+        books={books}
+        st={st}
+        seatCap={seatCap}
+        steps={{
+          price: Math.max(1000, Math.round((avgFee * 0.1) / 1000) * 1000),
+          students: Math.max(1, Math.round(N * 0.1)),
+          teacher: Math.max(100000, Math.round((base0.teacher * 0.1) / 1000) * 1000),
+          admin: Math.max(100000, Math.round((st.admin * 0.1) / 1000) * 1000),
+          mkt: Math.max(100000, Math.round((st.selling * 0.1) / 1000) * 1000),
+        }}
+      />
     </div>
   );
 }
 
-const SIM_LABEL = { price: 'Kurs narxi', students: "O'quvchilar soni", teacher: "O'qituvchi xarajati", admin: "Ma'muriy xarajat", mkt: 'Marketing' } as const;
-type SimK = keyof typeof SIM_LABEL;
-const PRESETS: [string, Partial<Record<SimK, number>>][] = [
-  ['Narx +10%', { price: 10, students: -4 }],
-  ['Kengayish', { students: 25, mkt: 60, admin: 30 }],
-  ['Inqiroz', { students: -20, price: -5 }],
-];
-
-/** Presets, tornado sensitivity and the target-profit head-count. */
+/** Presets, sensitivity and the target-profit head-count — all in numbers. */
 function SimExtra({
   model,
   sm,
@@ -942,6 +1002,7 @@ function SimExtra({
   books,
   st,
   seatCap,
+  steps,
 }: {
   seatCap: number;
   model: (k: Record<SimK, number>) => number;
@@ -949,13 +1010,27 @@ function SimExtra({
   setSm: (v: Record<SimK, number>) => void;
   books: Books;
   st: ReturnType<typeof statements>;
+  /** One "typical" move per driver (≈10% of today's value, in its unit). */
+  steps: Record<SimK, number>;
 }) {
-  const [target, setTarget] = useState(0);
-  const tor = tornado(model, sm, 10);
+  const [target, setTarget] = useState<number | null>(null);
+  const p0 = model(sm);
+  const tor = (Object.keys(SIM_LABEL) as SimK[])
+    .map((k) => {
+      const up = model({ ...sm, [k]: sm[k] + steps[k] }) - p0;
+      const down = model({ ...sm, [k]: sm[k] - steps[k] }) - p0;
+      return { k, up, down, range: Math.max(Math.abs(up), Math.abs(down)) };
+    })
+    .sort((a, b) => b.range - a.range);
   const mx = Math.max(1, ...tor.map((t) => t.range));
   const c = cvp(books.courses, st.selling + st.admin + st.other);
-  const need = studentsForTarget(c.fixed, target, c.cm);
+  const need = studentsForTarget(c.fixed, target ?? 0, c.cm);
   const fit = capacityFit(need, seatCap);
+  const presets: [string, Partial<Record<SimK, number>>][] = [
+    [`Narx +${fmtNum(steps.price)} so‘m`, { price: steps.price, students: -Math.round(steps.students / 2) }],
+    [`Kengayish +${fmtNum(steps.students * 2)} o‘quvchi`, { students: steps.students * 2, mkt: steps.mkt * 5, admin: steps.admin * 3 }],
+    [`Inqiroz −${fmtNum(steps.students * 2)} o‘quvchi`, { students: -steps.students * 2, price: -Math.round(steps.price / 2) }],
+  ];
   return (
     <>
       <div className="sx-card s5">
@@ -963,8 +1038,15 @@ function SimExtra({
           <h3>Tayyor ssenariylar</h3>
         </div>
         <div className="flex flex-wrap gap-2">
-          {PRESETS.map(([n, p]) => (
-            <button key={n} className="sx-chipb" onClick={() => { setSm({ price: 0, students: 0, teacher: 0, admin: 0, mkt: 0, ...p }); toast.success(`Ssenariy qo‘llandi: ${n}`); }}>
+          {presets.map(([n, p]) => (
+            <button
+              key={n}
+              className="sx-chipb"
+              onClick={() => {
+                setSm({ ...SIM_ZERO, ...p });
+                toast.success(`Ssenariy qo‘llandi: ${n}`);
+              }}
+            >
               {n}
             </button>
           ))}
@@ -972,10 +1054,10 @@ function SimExtra({
         <div className="sx-h mt-5">
           <h3>Maqsadli foyda uchun kerakli o‘quvchilar</h3>
         </div>
-        <p className="mb-2 text-xs text-au-muted">N = (Doimiy xarajat + Maqsadli foyda) / (1 o‘quvchi marjasi)</p>
+        <p className="mb-2 text-xs text-au-muted">N = (Doimiy xarajat + Maqsadli foyda) / (1 o‘quvchidan qoladigan foyda)</p>
         <label className="flex items-center gap-2 text-xs font-semibold text-au-muted">
           Maqsadli oylik sof foyda
-          <input className="sx-inp !w-[160px] text-right" type="number" min={0} value={target} onChange={(e) => setTarget(Math.max(0, Number(e.target.value) || 0))} />
+          <MoneyInput className="sx-inp !w-[160px] text-right" value={target} onValue={setTarget} />
           so‘m
         </label>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
@@ -994,36 +1076,66 @@ function SimExtra({
           <div title={seatCap ? `Jadval sig‘imi: ${seatCap} o‘rin (xonalar × vaqtlar × toq/juft)` : 'Operatsiyalarda xona/vaqt kiritilmagan'}>
             Sig‘imga sig‘adimi{' '}
             <b className="block text-lg" style={{ color: fit.fits === null ? undefined : fit.fits ? 'var(--au-ok)' : 'var(--au-bad)' }}>
-              {fit.fits === null ? '—' : fit.fits ? `ha (${pct(fit.util ?? 0)})` : 'yo‘q'}
+              {fit.fits === null ? '—' : fit.fits ? `ha (${fmtNum(need ?? 0)} / ${fmtNum(seatCap)})` : 'yo‘q'}
             </b>
           </div>
         </div>
       </div>
       <div className="sx-card s7">
         <div className="sx-h">
-          <h3>Sezuvchanlik (tornado)</h3>
-          <small>har bir drayver ±10 p.p. o‘zgarishining foydaga ta’siri</small>
+          <h3>Sezuvchanlik</h3>
+          <small>har bir ko‘rsatkich bir qadam o‘zgarsa foyda qancha o‘zgaradi</small>
         </div>
         <div className="flex flex-col gap-2">
           {tor.map((t) => (
             <div key={t.k} className="flex items-center gap-2 text-sm">
-              <span className="w-[140px] truncate">{SIM_LABEL[t.k]}</span>
+              <span className="w-[210px] truncate" title={SIM_LABEL[t.k]}>
+                {SIM_LABEL[t.k].split(' (')[0]}{' '}
+                <small className="text-au-faint">
+                  ±{fmtNum(steps[t.k])} {SIM_UNIT[t.k]}
+                </small>
+              </span>
               <div className="relative h-3 flex-1 rounded bg-au-card-2">
                 <i className="absolute inset-y-0 rounded-l" style={{ right: '50%', width: `${(Math.abs(Math.min(t.up, t.down, 0)) / mx) * 50}%`, background: 'var(--au-bad)' }} />
                 <i className="absolute inset-y-0 rounded-r" style={{ left: '50%', width: `${(Math.max(t.up, t.down, 0) / mx) * 50}%`, background: 'var(--au-ok)' }} />
               </div>
-              <b className="w-[80px] text-right tabular-nums">±{fmtMln(t.range)}</b>
+              <b className="w-[110px] text-right tabular-nums">±{fmtNum(t.range)}</b>
             </div>
           ))}
         </div>
-        <p className="sx-note">Qizil — foydani kamaytiradi, yashil — oshiradi.</p>
+        <p className="sx-note">Qizil — foydani kamaytiradi, yashil — oshiradi. Summalar so‘mda.</p>
       </div>
     </>
   );
 }
 
 /* ------------------------------------------------------------------ MA · cash */
-function MaCash({ books, today }: { books: Books; today: string }) {
+/** Plain-language income / expense categories of an education centre. Each
+ * maps to the account on the other side of the cash line, so a cash entry
+ * lands in the journal — and therefore in every report — without the user
+ * ever seeing an account code (owner, 2026-10-05). */
+const CASH_CATS: { k: string; n: string; dir: 'in' | 'out'; acc: string }[] = [
+  { k: 'tuition', n: 'O‘quvchi to‘lovi (o‘qish haqi)', dir: 'in', acc: '9030' },
+  { k: 'prepay', n: 'Oldindan to‘lov (keyingi oylar uchun)', dir: 'in', acc: '6310' },
+  { k: 'debt', n: 'O‘quvchi qarzini to‘ladi', dir: 'in', acc: '4010' },
+  { k: 'material', n: 'Darslik / material sotuvi', dir: 'in', acc: '9030' },
+  { k: 'capital', n: 'Ta’sischi mablag‘i', dir: 'in', acc: '8300' },
+  { k: 'tsalary', n: 'O‘qituvchilar maoshi', dir: 'out', acc: '9130' },
+  { k: 'asalary', n: 'Ma’muriyat maoshi', dir: 'out', acc: '9420' },
+  { k: 'rent', n: 'Ijara', dir: 'out', acc: '9420' },
+  { k: 'util', n: 'Kommunal (svet, gaz, internet)', dir: 'out', acc: '9430' },
+  { k: 'mkt', n: 'Marketing / reklama', dir: 'out', acc: '9410' },
+  { k: 'books', n: 'Darslik va o‘quv materiallari', dir: 'out', acc: '9130' },
+  { k: 'tax', n: 'Soliq to‘lovi', dir: 'out', acc: '6410' },
+  { k: 'social', n: 'Ijtimoiy soliq to‘lovi', dir: 'out', acc: '6520' },
+  { k: 'equip', n: 'Jihoz / mebel xaridi', dir: 'out', acc: '0100' },
+  { k: 'supplier', n: 'Yetkazib beruvchiga to‘lov', dir: 'out', acc: '6010' },
+  { k: 'other', n: 'Boshqa xarajat', dir: 'out', acc: '9430' },
+];
+const CASH_ACC = ['5010', '5110'] as const;
+const METHOD = { '5010': 'Naqd (kassa)', '5110': 'Bank / karta' } as const;
+
+function MaCash({ books, today, ym }: { books: Books; today: string; ym: string }) {
   const W = cashWeeks(books.accounts, books.opening, books.entries, today, 13);
   const min = books.tax.minCash;
   const low = W.filter((w) => w.closing < min).length;
@@ -1032,10 +1144,11 @@ function MaCash({ books, today }: { books: Books; today: string }) {
   const lbl = (s: string) => `${+s.slice(8, 10)}.${s.slice(5, 7)}`;
   return (
     <div className="sx-grid">
+      <CashBook books={books} today={today} ym={ym} />
       <div className="sx-card sx-stat dark s4">
         <div className="l">Hozirgi pul qoldig‘i</div>
         <div className="v">{fmtMln(W.at(-1)?.closing ?? 0)}</div>
-        <div className="d">Kassa + bank (5010 + 5110)</div>
+        <div className="d">Kassa + bank</div>
       </div>
       <div className="sx-card sx-stat s4">
         <div className="l">13 haftalik kirim / chiqim</div>
@@ -1052,7 +1165,7 @@ function MaCash({ books, today }: { books: Books; today: string }) {
       <div className="sx-card s12">
         <div className="sx-h">
           <h3>13 haftalik pul oqimi</h3>
-          <small>haftalar dushanbadan · jurnaldagi kassa/bank harakati</small>
+          <small>haftalar dushanbadan · kassa va bank harakati</small>
         </div>
         <Chart
           labels={W.map((w) => lbl(w.from))}
@@ -1093,6 +1206,234 @@ function MaCash({ books, today }: { books: Books; today: string }) {
       </div>
       <CashForecast books={books} today={today} min={min} />
     </div>
+  );
+}
+
+/** Kirim / chiqim daftari: add, edit and delete cash movements for the month
+ * by category — no debit/credit, no account codes. */
+function CashBook({ books, today, ym }: { books: Books; today: string; ym: string }) {
+  const { run, pending } = useRun();
+  const has = (c: string) => books.accounts.some((a) => a.code === c);
+  const cats = CASH_CATS.filter((c) => has(c.acc));
+  const methods = CASH_ACC.filter(has);
+  const defDate = today.slice(0, 7) === ym ? today : monthStart(ym);
+  const blank = { dir: 'in' as 'in' | 'out', cat: cats.find((c) => c.dir === 'in')?.k ?? '', method: (methods[0] ?? '5010') as string, date: defDate, amount: null as number | null, note: '' };
+  const [f, setF] = useState(blank);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [fYm, setFYm] = useState(ym);
+  if (fYm !== ym) {
+    setFYm(ym);
+    setF((x) => ({ ...x, date: defDate }));
+  }
+  const [q, setQ] = useState('');
+  const [dirF, setDirF] = useState<'all' | 'in' | 'out'>('all');
+  const isCash = (c: string) => (CASH_ACC as readonly string[]).includes(c);
+  const catOf = (e: Books['entries'][number]) => {
+    const dir = isCash(e.debit) ? 'in' : 'out';
+    const other = dir === 'in' ? e.credit : e.debit;
+    const list = CASH_CATS.filter((c) => c.dir === dir && c.acc === other);
+    return list.find((c) => e.description.startsWith(c.n)) ?? list[0];
+  };
+  const accName = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? '—';
+  const rows = books.entries
+    .filter((e) => e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym))
+    .filter((e) => isCash(e.debit) !== isCash(e.credit))
+    .map((e) => {
+      const dir: 'in' | 'out' = isCash(e.debit) ? 'in' : 'out';
+      const cat = catOf(e);
+      return { e, dir, cat, label: cat?.n ?? accName(dir === 'in' ? e.credit : e.debit), method: dir === 'in' ? e.debit : e.credit };
+    })
+    .filter((r) => dirF === 'all' || r.dir === dirF)
+    .filter((r) => !q || `${r.e.description} ${r.label}`.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => b.e.entry_date.localeCompare(a.e.entry_date));
+  const tin = rows.filter((r) => r.dir === 'in').reduce((a, r) => a + r.e.amount, 0);
+  const tout = rows.filter((r) => r.dir === 'out').reduce((a, r) => a + r.e.amount, 0);
+  const curCats = cats.filter((c) => c.dir === f.dir);
+  const submit = () => {
+    const cat = cats.find((c) => c.k === f.cat);
+    if (!cat || !f.amount || f.amount <= 0) return toast.error('Toifa va summani kiriting');
+    const description = f.note.trim() ? `${cat.n} — ${f.note.trim()}` : cat.n;
+    const [debit, credit] = cat.dir === 'in' ? [f.method, cat.acc] : [cat.acc, f.method];
+    run(
+      () => addJournalEntryAction({ id: editId ?? undefined, date: f.date, doc: '', description, debit, credit, amount: f.amount ?? 0 }),
+      editId ? 'Yozuv saqlandi' : cat.dir === 'in' ? 'Kirim qo‘shildi' : 'Chiqim qo‘shildi',
+      () => {
+        setF({ ...blank, dir: f.dir, cat: f.cat, method: f.method, date: f.date });
+        setEditId(null);
+      },
+    );
+  };
+  const startEdit = (r: (typeof rows)[number]) => {
+    const cat = r.cat;
+    const note = cat && r.e.description.startsWith(`${cat.n} — `) ? r.e.description.slice(cat.n.length + 3) : cat && r.e.description === cat.n ? '' : r.e.description;
+    setEditId(r.e.id);
+    setF({ dir: r.dir, cat: cat?.k ?? '', method: r.method, date: r.e.entry_date, amount: r.e.amount, note });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  return (
+    <>
+      <div className="sx-card s12">
+        <div className="sx-h">
+          <h3>{editId ? 'Yozuvni tahrirlash' : 'Kirim / chiqim qo‘shish'}</h3>
+          <small>pul kelganda yoki ketganda shu yerga yozing — hisobotlar avtomatik yangilanadi</small>
+        </div>
+        <div className="mb-3 inline-flex rounded-xl border border-au-line bg-au-card-2 p-1">
+          {(
+            [
+              ['in', 'Kirim'],
+              ['out', 'Chiqim'],
+            ] as const
+          ).map(([d, n]) => (
+            <button
+              key={d}
+              className={cn('sx-chipb !border-0', f.dir === d && 'on')}
+              onClick={() => setF({ ...f, dir: d, cat: cats.find((c) => c.dir === d)?.k ?? '' })}
+            >
+              {d === 'in' ? '↓' : '↑'} {n}
+            </button>
+          ))}
+        </div>
+        <div className="sx-form">
+          <label className="min-w-[220px] flex-1">
+            Toifa
+            <select className="sx-inp" value={f.cat} onChange={(e) => setF({ ...f, cat: e.target.value })}>
+              {curCats.map((c) => (
+                <option key={c.k} value={c.k}>
+                  {c.n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Summa, so‘m
+            <MoneyInput
+              className="sx-inp !w-[170px] text-right"
+              value={f.amount}
+              onValue={(v) => setF({ ...f, amount: v })}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+            />
+          </label>
+          <label>
+            Qanday
+            <select className="sx-inp !w-[150px]" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}>
+              {methods.map((m) => (
+                <option key={m} value={m}>
+                  {METHOD[m]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Sana
+            <input type="date" className="sx-inp" value={f.date} onChange={(e) => e.target.value && setF({ ...f, date: e.target.value })} />
+          </label>
+          <label className="min-w-[200px] flex-1">
+            Izoh
+            <input className="sx-inp" maxLength={200} placeholder="Masalan: Ali Valiyev, oktyabr" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+          </label>
+          <button className="sx-btn primary" disabled={pending} onClick={submit}>
+            {editId ? 'Saqlash' : (
+              <>
+                <Plus className="size-4" /> Qo‘shish
+              </>
+            )}
+          </button>
+          {editId && (
+            <button
+              className="sx-btn"
+              onClick={() => {
+                setEditId(null);
+                setF(blank);
+              }}
+            >
+              Bekor qilish
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="sx-card s12">
+        <div className="sx-h">
+          <h3>Kirim-chiqim daftari</h3>
+          <small>
+            {ym} · kirim <b className="text-au-ok">{fmtNum(tin)}</b> · chiqim <b className="text-au-bad">{fmtNum(tout)}</b> · sof{' '}
+            <b>{fmtNum(tin - tout)}</b> so‘m
+          </small>
+          <span className="sp" />
+          {(
+            [
+              ['all', 'Hammasi'],
+              ['in', 'Kirim'],
+              ['out', 'Chiqim'],
+            ] as const
+          ).map(([k, n]) => (
+            <button key={k} className={cn('sx-chipb', dirF === k && 'on')} onClick={() => setDirF(k)}>
+              {n}
+            </button>
+          ))}
+          <input className="sx-inp !h-[32px] !w-[180px]" placeholder="Qidirish…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <div className="sx-tw">
+          <table className="sx-tbl">
+            <thead>
+              <tr>
+                <th className="l">Sana</th>
+                <th className="l">Toifa</th>
+                <th className="l">Izoh</th>
+                <th className="l">Qanday</th>
+                <th>Kirim</th>
+                <th>Chiqim</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="l">
+                    <div className="sx-empty">Bu oy uchun kirim yoki chiqim yozilmagan — yuqoridagi formadan qo‘shing.</div>
+                  </td>
+                </tr>
+              )}
+              {rows.map((r, i) => (
+                <tr key={r.e.id} style={{ animationDelay: `${Math.min(i, 20) * 20}ms` }} className={cn(editId === r.e.id && 'bg-au-accent-soft')}>
+                  <td className="l tabular-nums">{r.e.entry_date.split('-').reverse().join('.')}</td>
+                  <td className="l">
+                    <b>{r.label}</b>
+                  </td>
+                  <td className="l text-au-muted">{r.cat && r.e.description.startsWith(r.cat.n) ? r.e.description.slice(r.cat.n.length).replace(/^ — /, '') : r.e.description}</td>
+                  <td className="l text-au-muted">{METHOD[r.method as keyof typeof METHOD] ?? '—'}</td>
+                  <td className="text-au-ok">{r.dir === 'in' ? fmtNum(r.e.amount) : ''}</td>
+                  <td className="text-au-bad">{r.dir === 'out' ? fmtNum(r.e.amount) : ''}</td>
+                  <td>
+                    {r.e.source ? (
+                      <span className="sx-pl info" title="Ish haqi / soliq / eskirish bo‘limidan avtomatik">
+                        AUTO
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <button className="sx-btn sm" aria-label="Tahrirlash" onClick={() => startEdit(r)}>
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          className="sx-btn sm text-au-bad"
+                          aria-label="O'chirish"
+                          disabled={pending}
+                          onClick={async () =>
+                            (await ask(`O‘chirilsinmi?\n${r.label} · ${fmtNum(r.e.amount)} so‘m`)) &&
+                            run(() => deleteJournalEntryAction(r.e.id), 'Yozuv o‘chirildi', () => editId === r.e.id && (setEditId(null), setF(blank)))
+                          }
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1179,7 +1520,7 @@ function CashForecast({ books, today, min }: { books: Books; today: string; min:
 /* ---------------------------------------------------------------- FA · journal */
 function FaJournal({ books, ym, today }: { books: Books; ym: string; today: string }) {
   const { run, pending } = useRun();
-  const [f, setF] = useState({ date: today.slice(0, 7) === ym ? today : monthStart(ym), doc: '', description: '', debit: '5110', credit: '4010', amount: '' });
+  const [f, setF] = useState({ date: today.slice(0, 7) === ym ? today : monthStart(ym), doc: '', description: '', debit: '5110', credit: '4010', amount: null as number | null });
   // Keep the default entry date inside the month picked above.
   const [fYm, setFYm] = useState(ym);
   if (fYm !== ym) {
@@ -1189,7 +1530,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
   const [q, setQ] = useState('');
   const [acc, setAcc] = useState('all');
   const [editId, setEditId] = useState<string | null>(null);
-  const blank = { doc: '', description: '', amount: '' };
+  const blank = { doc: '', description: '', amount: null as number | null };
   const name = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? c;
   const list = books.entries
     .filter((e) => e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym))
@@ -1198,7 +1539,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
     .sort((a, b) => b.entry_date.localeCompare(a.entry_date));
   const total = list.reduce((a, e) => a + e.amount, 0);
   const submit = () => {
-    const amount = Number(f.amount);
+    const amount = f.amount ?? 0;
     if (!f.description.trim() || !(amount > 0) || f.debit === f.credit) return toast.error("Yozuv to'liq emas: tavsif, summa va turli hisoblar kerak");
     run(() => addJournalEntryAction({ ...f, amount, id: editId ?? undefined }), editId ? 'Yozuv saqlandi' : 'Yozuv jurnalga qo‘shildi', () => {
       setF({ ...f, ...blank });
@@ -1209,7 +1550,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
     <select className="sx-inp !w-[220px]" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}>
       {books.accounts.map((a) => (
         <option key={a.code} value={a.code}>
-          {a.code} · {a.name}
+          {a.name}
         </option>
       ))}
     </select>
@@ -1251,12 +1592,10 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
           </label>
           <label>
             Summa, so‘m
-            <input
+            <MoneyInput
               className="sx-inp !w-[150px] text-right"
-              type="number"
-              min={0}
               value={f.amount}
-              onChange={(e) => setF({ ...f, amount: e.target.value })}
+              onValue={(v) => setF({ ...f, amount: v })}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
             />
           </label>
@@ -1269,7 +1608,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             </button>
           )}
         </div>
-        <JournalCheck debit={f.debit} credit={f.credit} amount={Number(f.amount) || 0} name={name} />
+        <JournalCheck debit={f.debit} credit={f.credit} amount={f.amount ?? 0} name={name} />
       </div>
       <div className="sx-card s12">
         <div className="sx-h">
@@ -1284,7 +1623,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             onClick={() =>
               downloadCsv(`jurnal-${ym}.csv`, [
                 ['Sana', 'Hujjat', 'Tavsif', 'Debet', 'Kredit', 'Summa'],
-                ...list.map((e) => [e.entry_date, e.doc, e.description, e.debit, e.credit, e.amount]),
+                ...list.map((e) => [e.entry_date, e.doc, e.description, name(e.debit), name(e.credit), e.amount]),
               ])
             }
           >
@@ -1295,7 +1634,7 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
             <option value="all">Barcha hisoblar</option>
             {books.accounts.map((a) => (
               <option key={a.code} value={a.code}>
-                {a.code} · {a.name}
+                {a.name}
               </option>
             ))}
           </select>
@@ -1326,12 +1665,8 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
                   <td className="l tabular-nums">{e.entry_date.split('-').reverse().join('.')}</td>
                   <td className="l">{e.source ? <span className="sx-pl info">AUTO</span> : e.doc}</td>
                   <td className="l">{e.description}</td>
-                  <td className="l" title={name(e.debit)}>
-                    <span className="code">{e.debit}</span>
-                  </td>
-                  <td className="l" title={name(e.credit)}>
-                    <span className="code">{e.credit}</span>
-                  </td>
+                  <td className="l">{name(e.debit)}</td>
+                  <td className="l">{name(e.credit)}</td>
                   <td>{fmtNum(e.amount)}</td>
                   <td>
                     {!e.source && (
@@ -1341,14 +1676,14 @@ function FaJournal({ books, ym, today }: { books: Books; ym: string; today: stri
                         aria-label="Tahrirlash"
                         onClick={() => {
                           setEditId(e.id);
-                          setF({ date: e.entry_date, doc: e.doc ?? '', description: e.description, debit: e.debit, credit: e.credit, amount: String(e.amount) });
+                          setF({ date: e.entry_date, doc: e.doc ?? '', description: e.description, debit: e.debit, credit: e.credit, amount: e.amount });
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
                       >
                         <Pencil className="size-3.5" />
                       </button>
                       <button className="sx-btn sm text-au-bad" onClick={async () => (await ask(`Yozuv o'chirilsinmi?
-${e.debit}/${e.credit} · ${fmtNum(e.amount)} · ${e.description}`)) && run(() => deleteJournalEntryAction(e.id), "Yozuv o'chirildi")} aria-label="O'chirish">
+${name(e.debit)} → ${name(e.credit)} · ${fmtNum(e.amount)} · ${e.description}`)) && run(() => deleteJournalEntryAction(e.id), "Yozuv o'chirildi")} aria-label="O'chirish">
                         <Trash2 className="size-4" />
                       </button>
                       </span>
@@ -1373,7 +1708,7 @@ function JournalCheck({ debit, credit, amount, name }: { debit: string; credit: 
       <div className="min-w-[180px] flex-1">
         <div className="text-[11px] font-bold text-au-muted uppercase" title="Debet (Dt) — hisobning chap tomoni: aktiv va xarajat ko‘payadi, majburiyat va daromad kamayadi">Debet</div>
         <b>
-          {debit} · {name(debit)}
+          {name(debit)}
         </b>
         <div className="tabular-nums text-au-ok">+ {fmtNum(amount)}</div>
       </div>
@@ -1381,7 +1716,7 @@ function JournalCheck({ debit, credit, amount, name }: { debit: string; credit: 
       <div className="min-w-[180px] flex-1">
         <div className="text-[11px] font-bold text-au-muted uppercase" title="Kredit (Kt) — hisobning o‘ng tomoni: majburiyat va daromad ko‘payadi, aktiv kamayadi">Kredit</div>
         <b>
-          {credit} · {name(credit)}
+          {name(credit)}
         </b>
         <div className="tabular-nums text-au-ok">+ {fmtNum(amount)}</div>
       </div>
@@ -1416,20 +1751,43 @@ const ACCT_TYPES: [string, string][] = [
   ['X', 'Xarajat'],
 ];
 
-/** Chart of accounts: add / rename / retype / delete (unused only). */
+/** Chart of accounts: add / rename / retype / delete (unused only). Codes are
+ * internal — a new account gets the next free code in its type's range
+ * (owner, 2026-10-05: no account codes in the UI). The accounts the
+ * statements are built from can be renamed but not retyped or deleted. */
 function AccountsManager({ books }: { books: Books }) {
   const { run, pending } = useRun();
-  const [f, setF] = useState({ code: '', name: '', type: 'X', sort: '' });
-  const [edit, setEdit] = useState<{ code: string; name: string; type: string; sort: string } | null>(null);
+  const [f, setF] = useState({ name: '', type: 'X' });
+  const [edit, setEdit] = useState<{ code: string; name: string; type: string } | null>(null);
+  const [q, setQ] = useState('');
+  const list = books.accounts.filter((a) => !q || a.name.toLowerCase().includes(q.toLowerCase()));
+  const add = () => {
+    const code = nextAccountCode(f.type as AccType, books.accounts.map((a) => a.code));
+    if (!code) return toast.error('Bu turda bo‘sh joy qolmadi');
+    if (books.accounts.some((a) => a.name.trim().toLowerCase() === f.name.trim().toLowerCase())) return toast.error('Bunday nomli hisob bor');
+    run(
+      () => saveAccountAction({ code, name: f.name, type: f.type as AccType, sort: Number(code), isNew: true }),
+      'Hisob qo‘shildi',
+      () => setF({ name: '', type: f.type }),
+    );
+  };
   return (
-    <div className="sx-card">
+    <div className="sx-card s12">
       <div className="sx-h">
         <h3>Hisoblar rejasi</h3>
-        <small>{books.accounts.length} ta hisob</small>
+        <small>{books.accounts.length} ta hisob · daromad, xarajat, mol-mulk va qarzlar ro‘yxati</small>
+        <span className="sp" />
+        <input className="sx-inp !h-[32px] !w-[180px]" placeholder="Qidirish…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-au-line bg-au-card-2 p-3">
-        <input className="sx-inp !w-[90px]" inputMode="numeric" maxLength={4} placeholder="Kod" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.replace(/\D/g, '') })} />
-        <input className="sx-inp min-w-[180px] flex-1" maxLength={200} placeholder="Hisob nomi" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <input
+          className="sx-inp min-w-[200px] flex-1"
+          maxLength={200}
+          placeholder="Yangi hisob nomi (masalan: IELTS kurslari tushumi)"
+          value={f.name}
+          onChange={(e) => setF({ ...f, name: e.target.value })}
+          onKeyDown={(e) => e.key === 'Enter' && f.name.trim() && add()}
+        />
         <select className="sx-inp !w-[180px]" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
           {ACCT_TYPES.map(([k, n]) => (
             <option key={k} value={k}>
@@ -1437,42 +1795,42 @@ function AccountsManager({ books }: { books: Books }) {
             </option>
           ))}
         </select>
-        <button
-          className="sx-btn primary sm"
-          disabled={pending || f.code.length !== 4 || !f.name.trim()}
-          onClick={() =>
-            run(
-              () => saveAccountAction({ code: f.code, name: f.name, type: f.type as 'A', sort: Number(f.sort) || Number(f.code), isNew: true }),
-              'Hisob qo‘shildi',
-              () => setF({ code: '', name: '', type: 'X', sort: '' }),
-            )
-          }
-        >
-          Hisob qo‘shish
+        <button className="sx-btn primary sm" disabled={pending || !f.name.trim()} onClick={add}>
+          <Plus className="size-3.5" /> Hisob qo‘shish
         </button>
       </div>
       <div className="sx-tw">
         <table className="sx-tbl">
           <thead>
             <tr>
-              <th className="l">Kod</th>
               <th className="l">Nomi</th>
               <th className="l">Turi</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {books.accounts.map((a) =>
-              edit?.code === a.code ? (
+            {list.map((a) => {
+              const core = CORE_ACCOUNTS.has(a.code);
+              return edit?.code === a.code ? (
                 <tr key={a.code}>
                   <td className="l">
-                    <span className="code">{a.code}</span>
+                    <input
+                      className="sx-inp !h-[30px]"
+                      maxLength={200}
+                      autoFocus
+                      value={edit.name}
+                      onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+                      onKeyDown={(e) => e.key === 'Escape' && setEdit(null)}
+                    />
                   </td>
                   <td className="l">
-                    <input className="sx-inp !h-[30px]" maxLength={200} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
-                  </td>
-                  <td className="l">
-                    <select className="sx-inp !h-[30px]" value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value })}>
+                    <select
+                      className="sx-inp !h-[30px]"
+                      value={edit.type}
+                      disabled={core}
+                      title={core ? 'Asosiy hisob — turi hisobotlar uchun o‘zgarmaydi' : undefined}
+                      onChange={(e) => setEdit({ ...edit, type: e.target.value })}
+                    >
                       {ACCT_TYPES.map(([k, n]) => (
                         <option key={k} value={k}>
                           {n}
@@ -1485,11 +1843,7 @@ function AccountsManager({ books }: { books: Books }) {
                       className="sx-btn primary sm"
                       disabled={pending || !edit.name.trim()}
                       onClick={() =>
-                        run(
-                          () => saveAccountAction({ code: a.code, name: edit.name, type: edit.type as 'A', sort: Number(edit.sort) || 0, isNew: false }),
-                          'Hisob saqlandi',
-                          () => setEdit(null),
-                        )
+                        run(() => saveAccountAction({ code: a.code, name: edit.name, type: edit.type as AccType, isNew: false }), 'Hisob saqlandi', () => setEdit(null))
                       }
                     >
                       Saqlash
@@ -1502,32 +1856,39 @@ function AccountsManager({ books }: { books: Books }) {
               ) : (
                 <tr key={a.code}>
                   <td className="l">
-                    <span className="code">{a.code}</span>
+                    {a.name}
+                    {core && <small className="ml-1.5 text-au-faint">asosiy</small>}
                   </td>
-                  <td className="l">{a.name}</td>
                   <td className="l text-au-muted">{ACCT_TYPES.find(([k]) => k === a.type)?.[1] ?? a.type}</td>
                   <td className="whitespace-nowrap">
-                    <button className="sx-chipb" aria-label="Tahrirlash" onClick={() => setEdit({ code: a.code, name: a.name, type: a.type, sort: '' })}>
+                    <button className="sx-chipb" aria-label="Tahrirlash" onClick={() => setEdit({ code: a.code, name: a.name, type: a.type })}>
                       <Pencil className="size-3.5" />
                     </button>{' '}
-                    <button
-                      className="sx-chipb text-au-bad"
-                      aria-label="O‘chirish"
-                      disabled={pending}
-                      onClick={async () =>
-                        (await ask(`${a.code} «${a.name}» hisobi o‘chirilsinmi?`)) &&
-                        run(() => deleteAccountAction(a.code), 'Hisob o‘chirildi')
-                      }
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    {!core && (
+                      <button
+                        className="sx-chipb text-au-bad"
+                        aria-label="O‘chirish"
+                        disabled={pending}
+                        onClick={async () => (await ask(`«${a.name}» hisobi o‘chirilsinmi?`)) && run(() => deleteAccountAction(a.code), 'Hisob o‘chirildi')}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
                   </td>
                 </tr>
-              ),
+              );
+            })}
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={3} className="l">
+                  <div className="sx-empty">Topilmadi</div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
+      <p className="sx-note">«Asosiy» hisoblar hisobotlar shu hisoblardan tuziladi — nomini o‘zgartirish mumkin, o‘chirib bo‘lmaydi. Ishlatilgan hisobni ham o‘chirib bo‘lmaydi.</p>
     </div>
   );
 }
@@ -1578,14 +1939,12 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
                 .map((a) => (
                   <label key={a.code} className="flex items-center justify-between gap-2 text-xs">
                     <span>
-                      <span className="code font-bold text-au-accent-text">{a.code}</span> {a.name}
+                      {a.name}
                     </span>
-                    <input
+                    <MoneyInput
                       className="sx-plain-inp !w-[130px]"
-                      type="number"
-                      min={0}
                       value={ob[a.code] ?? 0}
-                      onChange={(e) => setOb({ ...ob, [a.code]: Math.max(0, Number(e.target.value) || 0) })}
+                      onValue={(v) => setOb({ ...ob, [a.code]: v ?? 0 })}
                     />
                   </label>
                 ))}
@@ -1621,10 +1980,7 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
                 const dn = debitNormal(l.type);
                 return (
                   <tr key={l.code} style={{ animationDelay: `${i * 15}ms`, cursor: 'pointer' }} onClick={() => setOpen(open === l.code ? null : l.code)}>
-                    <td className="l">
-                      <span className="code">{l.code}</span>
-                      {l.name}
-                    </td>
+                    <td className="l">{l.name}</td>
                     <td>{sideAmt(l.openingPeriod, dn, 'd')}</td>
                     <td>{sideAmt(l.openingPeriod, dn, 'k')}</td>
                     <td>{l.debit ? fmtNum(l.debit) : ''}</td>
@@ -1649,14 +2005,14 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
           </table>
         </div>
       </div>
-      {open && L[open] && <TAccount line={L[open]} rows={rows} />}
+      {open && L[open] && <TAccount line={L[open]} rows={rows} name={(c) => books.accounts.find((a) => a.code === c)?.name ?? '—'} />}
       <AccountsManager books={books} />
     </div>
   );
 }
 
 /** Account card as a T-account (debit | credit) with the running balance. */
-function TAccount({ line, rows }: { line: ReturnType<typeof ledger>[string]; rows: Books['entries'] }) {
+function TAccount({ line, rows, name }: { line: ReturnType<typeof ledger>[string]; rows: Books['entries']; name: (c: string) => string }) {
   const dn = debitNormal(line.type);
   const code = line.code;
   const sorted = [...rows].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
@@ -1674,7 +2030,7 @@ function TAccount({ line, rows }: { line: ReturnType<typeof ledger>[string]; row
       {side(d).map((e) => (
         <div key={e.id} className="flex justify-between gap-2 text-xs">
           <span className="truncate">
-            {e.entry_date.slice(8)}.{e.entry_date.slice(5, 7)} · {e.description} <em className="text-au-faint">({d ? e.credit : e.debit})</em>
+            {e.entry_date.slice(8)}.{e.entry_date.slice(5, 7)} · {e.description} <em className="text-au-faint">({name(d ? e.credit : e.debit)})</em>
           </span>
           <b className="tabular-nums">{fmtNum(e.amount)}</b>
         </div>
@@ -1685,7 +2041,7 @@ function TAccount({ line, rows }: { line: ReturnType<typeof ledger>[string]; row
     <div className="sx-card s12">
       <div className="sx-h">
         <h3>
-          Hisob kartochkasi (T-hisob) · {code} {line.name}
+          Hisob kartochkasi · {line.name}
         </h3>
         <small>shu oydagi harakatlar</small>
       </div>
@@ -1754,8 +2110,17 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
     ['Kapital rentabelligi', 'ROE (oylik)', q.roe === null ? null : q.roe * 100, '%', 1, 3],
     ['Qarz / kapital', 'D/E', q.de, '×', 2, null],
   ];
+  const empty = !books.entries.some((e) => e.entry_date <= monthEnd(ym)) && !Object.values(books.opening).some(Boolean);
   return (
     <div className="sx-grid">
+      {empty && (
+        <div className="sx-card s12">
+          <div className="sx-empty">
+            Hisobotlar kiritilgan raqamlardan tuziladi. «Kirim-chiqim» bo‘limida kirim va chiqimlarni yozing (yoki «Hisoblar va qoldiqlar»da boshlang‘ich
+            qoldiqlarni kiriting) — balans, foyda va pul oqimi shu yerda darhol paydo bo‘ladi.
+          </div>
+        </div>
+      )}
       <div className="sx-card s6">
         <div className="sx-h">
           <h3>Buxgalteriya balansi</h3>
@@ -1768,33 +2133,33 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
         <table className="sx-tbl">
           <tbody>
             {grp('Aktivlar · I. Uzoq muddatli aktivlar')}
-            {row('Asosiy vositalar (boshlang‘ich qiymat, 0100)', L['0100']?.closing ?? 0)}
-            {row('Eskirish (0200)', -(L['0200']?.closing ?? 0))}
+            {row('Asosiy vositalar (boshlang‘ich qiymat)', L['0100']?.closing ?? 0)}
+            {row('Eskirish', -(L['0200']?.closing ?? 0))}
             {row('Asosiy vositalar (qoldiq qiymat)', s.fixedNet, 'sub')}
             {grp('II. Joriy aktivlar')}
-            {row('Tovar-moddiy zaxiralar (2910)', s.inventory)}
-            {row('Debitorlik qarzlari (4010)', s.receivables)}
-            {row('Pul mablag‘lari (5010 + 5110)', s.cash)}
+            {row('Tovar-moddiy zaxiralar', s.inventory)}
+            {row('Debitorlik qarzlari', s.receivables)}
+            {row('Pul mablag‘lari', s.cash)}
             {row('Jami joriy aktivlar', s.currentAssets, 'sub')}
             {row('BALANS AKTIVI', s.assets, 'big')}
             {grp('Passivlar · I. O‘z mablag‘lari manbalari')}
-            {row('Ustav kapitali (8300)', s.capital)}
+            {row('Ustav kapitali', s.capital)}
             {row('Taqsimlanmagan foyda (o‘tgan davrlar)', s.retained - s.net)}
             {row('Hisobot davri sof foydasi (zarari)', s.net)}
             {row('Jami o‘z mablag‘lari', s.equity, 'sub')}
             {grp('II. Majburiyatlar')}
-            {row('Yetkazib beruvchilarga qarz (6010)', s.payables)}
-            {row('Olingan bo‘naklar (6310)', s.advances)}
-            {row('Budjetga qarz (6410)', s.taxPayable)}
-            {row('Ijtimoiy soliq bo‘yicha qarz (6520)', s.socialPayable)}
-            {row('Mehnat haqi bo‘yicha qarz (6710)', s.wagesPayable)}
+            {row('Yetkazib beruvchilarga qarz', s.payables)}
+            {row('Olingan bo‘naklar', s.advances)}
+            {row('Budjetga qarz', s.taxPayable)}
+            {row('Ijtimoiy soliq bo‘yicha qarz', s.socialPayable)}
+            {row('Mehnat haqi bo‘yicha qarz', s.wagesPayable)}
             {row('Jami majburiyatlar', s.liabilities, 'sub')}
             {row('BALANS PASSIVI', s.liabilities + s.equity, 'big')}
           </tbody>
         </table>
         {s.imbalance !== 0 && (
           <p className="sx-note">
-            Farq odatda boshlang‘ich qoldiqlar muvozanatsizligidan kelib chiqadi — Bosh daftar → «Boshlang‘ich qoldiqlar»da Aktiv = Passiv bo‘lishini
+            Farq odatda boshlang‘ich qoldiqlar muvozanatsizligidan kelib chiqadi — «Hisoblar va qoldiqlar» → «Boshlang‘ich qoldiqlar»da Aktiv = Passiv bo‘lishini
             tekshiring.
           </p>
         )}
@@ -1807,14 +2172,14 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
           </div>
           <table className="sx-tbl">
             <tbody>
-              {row("Sof tushum — ta'lim xizmatlari (9030)", s.revenue)}
-              {row('Sotilgan xizmatlar tannarxi (9130)', -s.cogs)}
+              {row("Sof tushum — ta'lim xizmatlari", s.revenue)}
+              {row('Sotilgan xizmatlar tannarxi', -s.cogs)}
               {row('Yalpi foyda', s.gross, 'sub')}
-              {row('Sotish xarajatlari (9410)', -s.selling)}
-              {row("Ma'muriy xarajatlar (9420)", -s.admin)}
-              {row('Boshqa operatsion xarajatlar (9430)', -s.other)}
+              {row('Sotish xarajatlari', -s.selling)}
+              {row("Ma'muriy xarajatlar", -s.admin)}
+              {row('Boshqa operatsion xarajatlar', -s.other)}
               {row('Operatsion foyda', s.operating, 'sub')}
-              {row('Soliq xarajatlari (9810)', -s.tax)}
+              {row('Soliq xarajatlari', -s.tax)}
               {row('SOF FOYDA (ZARAR)', s.net, 'big')}
             </tbody>
           </table>
@@ -1843,7 +2208,7 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
                   {cf.lines
                     .filter((l) => l.cat === k)
                     .map((l) => (
-                      <Fragment key={`${l.code}${l.amount > 0}`}>{row(`${l.amount >= 0 ? 'Kirim' : 'Chiqim'}: ${l.code} ${accName(l.code)}`, l.amount)}</Fragment>
+                      <Fragment key={`${l.code}${l.amount > 0}`}>{row(`${l.amount >= 0 ? 'Kirim' : 'Chiqim'}: ${accName(l.code)}`, l.amount)}</Fragment>
                     ))}
                   {row('Sof oqim', cf[k], 'sub')}
                 </Fragment>
@@ -1887,7 +2252,7 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
           </tbody>
         </table>
         <p className="sx-note">
-          Boshqaruv foydasi = kurslar modeli qoplamasi (Tannarx va marja) − jurnaldagi doimiy xarajatlar (9410 + 9420 + 9430). Qolgan farq — model
+          Boshqaruv foydasi = kurslar modeli qoplamasi (Kurslar va marja) − kiritilgan doimiy xarajatlar (marketing, ma’muriy, boshqa). Qolgan farq — model
           bilan jurnal o‘rtasidagi tushum/tannarx tafovuti va soliq.
         </p>
       </div>
@@ -1924,7 +2289,7 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
   const rate = (k: 'turnover' | 'pit' | 'social' | 'profit' | 'vat', n: string) => (
     <label>
       {n}
-      <input className="sx-inp !w-[80px] text-right" type="number" min={0} max={100} step={0.5} value={t[k]} onChange={(e) => setT({ ...t, [k]: Number(e.target.value) })} />
+      <input className="sx-inp !w-[80px] text-right" type="number" min={0} max={100} step={0.5} placeholder="0" value={t[k] || ''} onChange={(e) => setT({ ...t, [k]: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} />
     </label>
   );
   return (
@@ -1953,7 +2318,7 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
         >
           Aylanma soliqni jurnalga o‘tkazish
         </button>
-        <p className="sx-note">Shu oy tushumidan hisoblanadi: Dt 9810 / Kt 6410. Qayta bossangiz yangilanadi.</p>
+        <p className="sx-note">Shu oy tushumidan hisoblanadi va soliq qarzi sifatida yoziladi. Qayta bossangiz yangilanadi.</p>
       </div>
 
       <div className="sx-card s12">
@@ -1976,7 +2341,7 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
           </label>
           <label>
             Minimal pul zaxirasi
-            <input className="sx-inp !w-[150px] text-right" type="number" min={0} value={t.minCash} onChange={(e) => setT({ ...t, minCash: Math.max(0, Number(e.target.value) || 0) })} />
+            <MoneyInput className="sx-inp !w-[150px] text-right" value={t.minCash} onValue={(v) => setT({ ...t, minCash: v ?? 0 })} />
           </label>
           <label className="!flex-row items-center gap-2 pb-2">
             <input type="checkbox" checked={t.vatExempt} onChange={(e) => setT({ ...t, vatExempt: e.target.checked })} />
@@ -2012,7 +2377,7 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
               <thead>
                 <tr>
                   <th className="l">Xodim</th>
-                  <th className="l">Hisob</th>
+                  <th className="l">Xarajat turi</th>
                   <th>Hisoblangan</th>
                   <th>JShDS {t.pit}%</th>
                   <th>Qo‘lga</th>
@@ -2028,15 +2393,13 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
                       <b>{r.name}</b>
                     </td>
                     <td className="l">
-                      <span className="code">{r.teaching ? '9130' : '9420'}</span>
+                      {r.teaching ? 'Tannarx (dars)' : 'Ma’muriy'}
                     </td>
                     <td>
-                      <input
+                      <MoneyInput
                         className={cn('sx-plain-inp !w-[120px]', r.staffId in ov && 'font-bold text-au-accent-text')}
-                        type="number"
-                        min={0}
                         value={r.gross}
-                        onChange={(e) => setOvs({ ...ovs, [ym]: { ...ov, [r.staffId]: Math.max(0, Number(e.target.value) || 0) } })}
+                        onValue={(v) => setOvs({ ...ovs, [ym]: { ...ov, [r.staffId]: v ?? 0 } })}
                       />
                     </td>
                     <td>{fmtNum(r.pit)}</td>
@@ -2065,8 +2428,8 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
           </div>
         )}
         <p className="sx-note">
-          Jurnalga: hisoblash (Dt 9130/9420 — Kt 6710), JShDS (Dt 6710 — Kt 6410), ijtimoiy soliq (Dt 9130/9420 — Kt 6520), to‘lov (Dt 6710 — Kt
-          5110). O‘qituvchi, bosh o‘qituvchi va assistent — tannarx (9130), qolganlar — ma’muriy (9420). Tahrirlangan summalar faqat jurnalga
+          Jurnalga avtomatik yoziladi: hisoblangan maosh, ushlangan JShDS, ijtimoiy soliq va to‘langan summa. O‘qituvchi, bosh
+          o‘qituvchi va assistent maoshi — dars tannarxi, qolganlar — ma’muriy xarajat. Tahrirlangan summalar faqat jurnalga
           o‘tkazishda ishlatiladi (Moliya bo‘limidagi ish haqi o‘zgarmaydi).
         </p>
       </div>
@@ -2111,7 +2474,7 @@ function FaTax({ books, ym }: { books: Books; ym: string }) {
 /* ----------------------------------------------------------------- FA · assets */
 function FaAssets({ books, ym, today }: { books: Books; ym: string; today: string }) {
   const { run, pending } = useRun();
-  const [f, setF] = useState({ name: '', category: '', cost: '', acquired: today, lifeYears: '3', journal: true });
+  const [f, setF] = useState({ name: '', category: '', cost: null as number | null, acquired: today, lifeYears: '3', journal: true });
   const rows = books.assets.map((a) => ({ a, d: depreciation(a, ym) }));
   // Balance-sheet totals only for assets still on the books at month end; the
   // month's charge also counts an asset disposed during that month.
@@ -2121,11 +2484,11 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
   };
   const posted = books.entries.find((e) => e.source === `depr:${ym}`);
   const submit = () => {
-    const cost = Number(f.cost);
+    const cost = f.cost ?? 0;
     const life = Number(f.lifeYears);
     if (!f.name.trim() || !(cost > 0) || !(life >= 1)) return toast.error("Nomi, qiymati va muddatini kiriting");
     run(() => addAssetAction({ name: f.name, category: f.category, cost, acquired: f.acquired, lifeYears: life, journal: f.journal }), "Asosiy vosita qo'shildi", () =>
-      setF({ ...f, name: '', category: '', cost: '' }),
+      setF({ ...f, name: '', category: '', cost: null }),
     );
   };
   return (
@@ -2174,7 +2537,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
           </label>
           <label>
             Qiymat, so‘m
-            <input className="sx-inp !w-[150px] text-right" type="number" min={0} value={f.cost} onChange={(e) => setF({ ...f, cost: e.target.value })} />
+            <MoneyInput className="sx-inp !w-[150px] text-right" value={f.cost} onValue={(v) => setF({ ...f, cost: v })} />
           </label>
           <label>
             Sana
@@ -2186,7 +2549,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
           </label>
           <label className="!flex-row items-center gap-2 pb-2">
             <input type="checkbox" checked={f.journal} onChange={(e) => setF({ ...f, journal: e.target.checked })} />
-            Xaridni jurnalga yozish (Dt 0100 / Kt 5110)
+            Xaridni pul chiqimi sifatida yozish (bankdan)
           </label>
           <button className="sx-btn primary" disabled={pending} onClick={submit}>
             <Plus className="size-4" /> Qo‘shish
@@ -2262,7 +2625,7 @@ function FaAssets({ books, ym, today }: { books: Books; ym: string; today: strin
                         <button
                           className="sx-btn sm whitespace-nowrap"
                           disabled={pending}
-                          title="Sotilgan / yaroqsiz — eskirish to‘xtaydi, qoldiq 9430 ga hisobdan chiqariladi"
+                          title="Sotilgan / yaroqsiz — eskirish to‘xtaydi, qoldiq qiymati boshqa xarajatga yoziladi"
                           onClick={() => {
                             const d = window.prompt(`«${a.name}» qaysi sanada hisobdan chiqarilsin? (YYYY-MM-DD)`, today);
                             if (d == null) return;

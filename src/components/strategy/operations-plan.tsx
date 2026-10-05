@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { ArrowDown, Settings2, X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
+import { formatUZS } from '@/lib/format-currency';
 import { cn } from '@/lib/utils';
 import { addMonths, fmtGrowth, fmtMln, growthRate } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
@@ -30,7 +31,7 @@ import type { OpsData } from './operations-workspace';
 const errMsg = (e: string) =>
   e === 'forbidden' ? "Ruxsat yo'q" : e === 'invalidInput' ? "Ma'lumot noto'g'ri" : e === 'notFound' ? 'Topilmadi — sahifani yangilang' : "Saqlab bo'lmadi";
 const dmy = (k: string) => k.split('-').reverse().join('.');
-const n0 = (v: number) => Math.round(v).toLocaleString('ru-RU').replace(/,/g, ' ');
+const n0 = (v: number) => formatUZS(Math.round(v));
 const tzDay = (s: string) => tashkentDayKey(new Date(s));
 export const monLabel = (ym: string) => `${MONF[+ym.slice(5, 7) - 1]} ${ym.slice(2, 4)}`;
 
@@ -221,7 +222,7 @@ export function PlanModal({ plan, leads, onClose }: { plan: OpsPlan; leads: OpsD
       <div className="sx-form mt-4">
         <label>
           Maqsad (talaba)
-          <input className="sx-inp !w-[120px]" type="number" min={0} value={p.target} onChange={(e) => setP({ ...p, target: Math.max(0, Math.round(+e.target.value)) })} />
+          <input className="sx-inp !w-[120px]" type="number" min={0} value={p.target === 0 ? '' : p.target} onChange={(e) => setP({ ...p, target: e.target.value === '' ? 0 : Math.max(0, Math.round(+e.target.value)) })} />
         </label>
         <label>
           Muddat
@@ -229,11 +230,11 @@ export function PlanModal({ plan, leads, onClose }: { plan: OpsPlan; leads: OpsD
         </label>
         <label>
           Guruh o&apos;rni (standart)
-          <input className="sx-inp !w-[110px]" type="number" min={1} max={200} value={p.seats} onChange={(e) => setP({ ...p, seats: Math.min(200, Math.max(1, Math.round(+e.target.value))) })} />
+          <input className="sx-inp !w-[110px]" type="number" min={1} max={200} value={p.seats === 0 ? '' : p.seats} onChange={(e) => setP({ ...p, seats: e.target.value === '' ? 1 : Math.min(200, Math.max(1, Math.round(+e.target.value))) })} />
         </label>
         <label>
           Ish kunlari / hafta
-          <input className="sx-inp !w-[100px]" type="number" min={1} max={7} value={p.workDays} onChange={(e) => setP({ ...p, workDays: Math.min(7, Math.max(1, Math.round(+e.target.value))) })} />
+          <input className="sx-inp !w-[100px]" type="number" min={1} max={7} value={p.workDays === 0 ? '' : p.workDays} onChange={(e) => setP({ ...p, workDays: e.target.value === '' ? 1 : Math.min(7, Math.max(1, Math.round(+e.target.value))) })} />
         </label>
       </div>
       <div className="sx-tw mt-3">
@@ -260,8 +261,8 @@ export function PlanModal({ plan, leads, onClose }: { plan: OpsPlan; leads: OpsD
                       min={0}
                       max={f.max}
                       step={f.step}
-                      value={p.scenarios[k][f.k]}
-                      onChange={(e) => setSc(k, f.k, Math.min(f.max, Math.max(0, +e.target.value || 0)))}
+                      value={p.scenarios[k][f.k] === 0 ? '' : p.scenarios[k][f.k]}
+                      onChange={(e) => setSc(k, f.k, e.target.value === '' ? 0 : Math.min(f.max, Math.max(0, +e.target.value || 0)))}
                     />
                   </td>
                 ))}
@@ -512,8 +513,8 @@ export function PlanFunnel({ m, onPlan }: { m: OpsModel; onPlan: () => void }) {
   const s = m.sum;
   const t2p = base.trial > 0 ? (base.conv / base.trial) * 100 : 0;
   const st: [string, string, number, string, string, string][] = [
-    ['Marketing qamrovi', "Reklama ko'rishlar (reach)", s.reach, `CTR ${pctS(base.ctr, 2)}`, `${n0(s.reach - s.leads)} lidga aylanmadi`, 'var(--au-card-2)'],
-    ['Saralangan lidlar', 'Telefon va maqsadi aniq arizalar', s.leads, `Lid → sinov ${pctS(base.trial)}`, `Filtr ${pctS(100 - base.ctr)}`, 'var(--au-chart-4)'],
+    ['Marketing qamrovi', "Reklama ko'rishlar (reach)", s.reach, base.ctr > 0 ? `CTR ${pctS(base.ctr, 2)}` : 'CTR kiritilmagan', base.ctr > 0 ? `${n0(Math.max(0, s.reach - s.leads))} lidga aylanmadi` : 'Reja sozlamalarida CTR ni kiriting', 'var(--au-card-2)'],
+    ['Saralangan lidlar', 'Telefon va maqsadi aniq arizalar', s.leads, `Lid → sinov ${pctS(base.trial)}`, `${n0(Math.max(0, s.leads - s.trials))} sinovga kelmadi`, 'var(--au-chart-4)'],
     ['Sinov darsiga kelganlar', "Filialga kelib darsda o'tirganlar", s.trials, `Sinov → to'lov ${pctS(t2p)}`, `Kelmadi ${pctS(100 - base.trial)}`, 'var(--au-accent-soft)'],
     ['Yangi shartnomalar', "Birinchi oylik to'lovni qilganlar", s.sales, `Churn ${pctS(base.churn)}/oy`, `Rad etdi ${pctS(Math.max(0, 100 - t2p))}`, 'var(--au-accent)'],
     ['Faol talabalar', `${dmy(m.plan.deadline)} holatiga`, m.plan.target, `Baza ${n0(m.baseline)} + ${n0(s.netGrowth)}`, `−${n0(s.churnTotal)} churn`, 'var(--au-primary)'],

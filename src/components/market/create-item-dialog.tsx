@@ -110,7 +110,7 @@ export function CreateItemDialog() {
                 min={1}
                 step={1}
                 required
-                defaultValue={10}
+                defaultValue="10"
                 className="border-au-line bg-au-card text-au-ink"
               />
             </div>
@@ -122,6 +122,7 @@ export function CreateItemDialog() {
                 type="number"
                 min={0}
                 step={1}
+                defaultValue=""
                 placeholder={t('unlimitedStock')}
                 className="border-au-line bg-au-card text-au-ink placeholder:text-au-faint"
               />

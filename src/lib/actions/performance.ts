@@ -2,9 +2,12 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { formatUZS } from '@/lib/format-currency';
 
 export type PerformanceActionState = { error?: string } | undefined;
 
@@ -95,6 +98,24 @@ export async function addPerformanceEntryAction(
     `performance.${parsed.data.entryType}`,
     `Added a ${parsed.data.entryType} of ${parsed.data.amount} for staff ${parsed.data.staffId}`,
   );
+
+  // Notify the staff member after the response is sent.
+  after(async () => {
+  try {
+    const [staff] = await sql<{ telegram_id: number | null; first_name: string | null; last_name: string | null }[]>`
+      select telegram_id, first_name, last_name from profiles where id = ${parsed.data.staffId}
+    `;
+    if (staff?.telegram_id) {
+      const emoji = parsed.data.entryType === 'bonus' ? '⭐ Bonus' : '⚠️ Jarima';
+      const text =
+        `<b>${emoji}</b>\n<b>Miqdori:</b> ${formatUZS(parsed.data.amount)}\n` +
+        `<b>Sabab:</b> ${escapeTelegramText(parsed.data.reason)}`;
+      await sendTelegramMessage(staff.telegram_id, text);
+    }
+  } catch (error) {
+    console.error('Performance notification failed:', error instanceof Error ? error.message : error);
+  }
+  });
 
   revalidatePath('/[locale]/performance', 'page');
   return {};

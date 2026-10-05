@@ -302,13 +302,8 @@ export function SuiteShell({
           <i />
         </div>
         <span key={bar} className={cn('sx-topbar', bar > 0 && 'go')} aria-hidden />
-        <nav className="sx-secbar mx-4 sm:mx-7" aria-label="Strategiya bo'limlari">
+        <nav className="sx-secbar lite mx-4 sm:mx-7" aria-label="Strategiya bo'limlari">
           <span className="flex-1" />
-          <button className="kbtn" onClick={() => setCk(true)}>
-            <Search className="size-4" />
-            <span>Qidirish yoki buyruq…</span>
-            <kbd>Ctrl K</kbd>
-          </button>
           <button className="ibtn" onClick={() => window.print()} title="Joriy hisobotni PDF sifatida saqlash (chop etish → PDF)" aria-label="PDF eksport">
             <FileDown className="size-4" />
           </button>

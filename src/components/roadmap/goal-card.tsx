@@ -126,7 +126,7 @@ export function GoalCard({ goal, index = 0 }: { goal: RoadmapGoal; /** List posi
             name="progressPercentage"
             min={0}
             max={100}
-            defaultValue={goal.progress_percentage}
+            defaultValue={(goal.progress_percentage ?? 0) || ''}
             className={FIELD}
           />
         </div>

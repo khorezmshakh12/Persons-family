@@ -19,6 +19,7 @@ export type NavItem = {
     | 'companyNews'
     | 'telegramSetup'
     | 'selfDevelopment'
+    | 'taskTracker'
     | 'finance'
     | 'roadmap'
     | 'market'
@@ -39,6 +40,8 @@ export type NavItem = {
   external?: boolean;
   /** Core v2 page this section shows; hidden unless it's in `coreViews`. */
   core?: string;
+  /** Reached through another section's tabs, not listed in the sidebar. */
+  folded?: boolean;
 };
 
 /** Sidebar section an item is listed under (Persons Aurora layout). Purely
@@ -59,6 +62,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   staff: 'main',
   market: 'motivation',
   selfDevelopment: 'motivation',
+  taskTracker: 'main',
   // Owner, 2026-10-04: Chat and Issues are daily tools — top of the main group.
   chat: 'main',
   issues: 'main',
@@ -88,6 +92,7 @@ const NAV_SORT: NavItem['key'][] = [
   'operations',
   'perforce',
   'tasks',
+  'taskTracker',
   'finance',
   'staff',
   'sales',
@@ -146,11 +151,15 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'issues', href: '/issues' },
   { key: 'lessonPlans', href: '/lesson-plans' },
   { key: 'tasks', href: '/tasks' },
+  // Task Tracker: each employee's private weekly task/habit sheet (src/tracker).
+  { key: 'taskTracker', href: '/task-tracker' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },
   { key: 'strategy', href: '/strategy' },
-  { key: 'accounting', href: '/accounting' },
+  // Folded into Finance (owner, 2026-10-05: one place for money) — opened
+  // from the Finance page's «Hisob-kitob» tab, not the sidebar.
+  { key: 'accounting', href: '/accounting', folded: true },
   { key: 'operations', href: '/operations' },
   { key: 'perforce', href: '/perforce' },
   // Persons Market — curation is the 'market.manage' capability.
@@ -189,7 +198,7 @@ export function groupedNavItemsForRole(
   role: StaffRole,
   opts: { materialsLinked?: boolean; coreViews?: string[] } = {},
 ): { group: NavGroup; items: NavItem[] }[] {
-  const items = [...navItemsForRole(role, opts)].sort((a, b) => NAV_SORT.indexOf(a.key) - NAV_SORT.indexOf(b.key));
+  const items = [...navItemsForRole(role, opts)].filter((i) => !i.folded).sort((a, b) => NAV_SORT.indexOf(a.key) - NAV_SORT.indexOf(b.key));
   return NAV_GROUP_ORDER.map((group) => ({ group, items: items.filter((i) => NAV_GROUP[i.key] === group) })).filter(
     (g) => g.items.length > 0,
   );

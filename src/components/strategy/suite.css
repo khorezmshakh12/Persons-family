@@ -43,6 +43,12 @@
   background: var(--au-card-2);
   animation: sx-rise-sm 0.45s var(--sx-ease);
 }
+.sx-secbar.lite {
+  /* The global header already has search; this row only keeps PDF + sound. */
+  background: transparent;
+  padding: 0;
+  margin-top: 0;
+}
 .sx-secbar a {
   position: relative;
   overflow: hidden;
@@ -415,7 +421,10 @@
     grid-column: span 12 !important;
   }
 }
-.sx-grid > .sx-card {
+.sx-grid > .sx-card,
+.sx-grid > * > .sx-card {
+  /* Cards stacked in a column wrapper (s4/s6 flex-col) need the same inner
+     padding — without it their text sat flush against the border. */
   padding: 18px 20px;
   animation: sx-rise 0.55s both var(--sx-spring, ease);
 }

@@ -13,6 +13,7 @@ import {
 } from '@/lib/actions/strategy-finance';
 import { AGE, ageOf, capacityOf, debtSummary, type AgeKey, type FinInputs, type FinShift, type monthInputs } from '@/lib/strategy-finance';
 import { MONF } from '@/lib/strategy';
+import { formatUZS } from '@/lib/format-currency';
 import { toast } from './suite-shell';
 import type { BooksLite } from './view-finance';
 
@@ -24,14 +25,15 @@ function errText(code: string) {
   return 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
 }
 const num = (v: string) => Math.max(0, Number(v) || 0);
-const ming = (v: number) => `${Math.round(v / 1e3).toLocaleString('ru-RU').replace(/\s/g, ' ')} ming`;
+const ming = (v: number) => `${formatUZS(Math.round(v / 1e3))} ming`;
 
 function Field({ label, unit, value, onChange }: { label: string; unit: string; value: string | number; onChange: (v: string) => void }) {
+  const displayValue = (value === 0 || value === '0') ? '' : value;
   return (
     <label className="fn-fi">
       <span>{label}</span>
       <span className="u">
-        <input type="number" min={0} className="sx-inp" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input type="number" min={0} className="sx-inp" value={displayValue} onChange={(e) => onChange(e.target.value)} />
         <em>{unit}</em>
       </span>
     </label>
@@ -140,9 +142,9 @@ export function FinEditor({
                           <input
                             type="number"
                             min={0}
-                            value={c[k]}
+                            value={(c[k] === 0 || c[k] === undefined) ? '' : c[k]}
                             aria-label={`${c.name} · ${k}`}
-                            onChange={(e) => setCourses((list) => list.map((x, j) => (j === i ? { ...x, [k]: num(e.target.value) } : x)))}
+                            onChange={(e) => setCourses((list) => list.map((x, j) => (j === i ? { ...x, [k]: e.target.value === '' ? 0 : num(e.target.value) } : x)))}
                             onBlur={() => saveCourse(courses[i])}
                           />
                         </td>

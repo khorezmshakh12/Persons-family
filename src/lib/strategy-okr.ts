@@ -1,5 +1,7 @@
 /** Strategy OKRs — shared (client + server) types and maths. */
 
+import { formatUZS } from './format-currency';
+
 export const OKR_METRICS = {
   manual: { n: 'Qo‘lda kiritiladi', unit: '', hint: 'Qiymatni o‘zingiz yangilab borasiz' },
   leads_month: { n: 'Yangi lidlar (shu oy)', unit: 'ta', hint: 'Operatsiya HQ › Lidlar' },
@@ -71,5 +73,5 @@ export const HEALTH_LABEL: Record<OkrHealth, string> = {
 export function fmtKr(v: number | null, unit: string): string {
   if (v === null) return '—';
   const n = Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10;
-  return `${n.toLocaleString('ru-RU').replace(/,/g, '.')}${unit ? (unit === '%' ? '%' : ` ${unit}`) : ''}`;
+  return `${formatUZS(n)}${unit ? (unit === '%' ? '%' : ` ${unit}`) : ''}`;
 }

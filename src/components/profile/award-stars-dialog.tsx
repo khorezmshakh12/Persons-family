@@ -143,7 +143,7 @@ export function AwardStarsDialog({
               type="number"
               min={1}
               step={1}
-              value={amount}
+              value={amount === '' ? '' : amount}
               onChange={(e) => setAmount(e.target.value === '' ? '' : Math.max(1, Math.floor(Number(e.target.value) || 1)))}
               required
               className="border-au-line bg-au-card text-au-ink"

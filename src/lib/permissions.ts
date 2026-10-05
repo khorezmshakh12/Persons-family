@@ -95,6 +95,7 @@ export type SectionKey =
   | 'tasks'
   | 'companyNews'
   | 'selfDevelopment'
+  | 'taskTracker'
   | 'finance'
   | 'market'
   | 'strategy'
@@ -111,12 +112,14 @@ export type SectionKey =
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   // Everyone — personal workspace.
   dashboard: ALL,
-  coreInbox: ALL,
+  // Inbox (approvals) removed for everyone (owner, 2026-10-05).
+  coreInbox: [],
   tasks: ALL,
   chat: ALL,
   issues: ALL,
   companyNews: ALL,
   selfDevelopment: ALL,
+  taskTracker: ALL, // personal weekly task/habit sheet — each person sees only their own
   finance: ALL, // everyone sees their own pay; the all-staff table is a capability
   // Closed while the catalogue is prepared (owner, 2026-09-30); market
   // editors (market_editors table) get it as a per-person grant.
@@ -294,7 +297,7 @@ export function canFor(
  * person. Personal basics (dashboard, profile, settings) and Platform itself
  * are not switchable (no lock-outs); financial ones only by the CEO. */
 export const OVERRIDABLE_SECTIONS: SectionKey[] = [
-  'coreInbox', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'finance', 'hr', 'sales',
+  'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker', 'finance', 'hr', 'sales',
   'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'market', 'telegramSetup', 'materials',
 ];
 export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];

@@ -14,7 +14,8 @@ export async function TeamResultsTable() {
   const [staffProfiles, performanceRows] = await Promise.all([
     sql<{ id: string; first_name: string; last_name: string; avatar_url: string | null }[]>`
       select id, first_name, last_name, avatar_url from profiles
-      where role in ('teacher', 'assistant') and is_active = true
+      where is_active = true
+        and (role in ('teacher', 'assistant') or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role in ('teacher', 'assistant')))
       order by first_name asc
     `,
     sql<{ staff_id: string; current_tier: 'A' | 'B' | 'C'; months_in_tier: number }[]>`
