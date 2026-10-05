@@ -63,7 +63,7 @@ function StaffMessageItemComponent({
         <div className="flex items-center gap-1">
           <div
             className={cn(
-              'rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap',
+              'rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap [overflow-wrap:anywhere]',
               isOwn ? 'bg-white text-black' : 'bg-au-card',
             )}
           >

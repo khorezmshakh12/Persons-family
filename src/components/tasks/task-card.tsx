@@ -73,13 +73,13 @@ export type Task = {
 
 /** Render text with auto-detected URLs as clickable, breakable external links. */
 function FormattedDescription({ text }: { text: string }) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
+  const urlPattern = /(https?:\/\/[^\s]+)/;
+  const parts = text.split(new RegExp(urlPattern.source, 'g'));
 
   return (
     <>
       {parts.map((part, i) => {
-        if (urlRegex.test(part)) {
+        if (urlPattern.test(part)) {
           return (
             <a
               key={i}

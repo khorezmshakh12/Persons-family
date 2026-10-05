@@ -3,7 +3,7 @@
 import { useActionState, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { CheckCheck, CheckCircle2, Loader2, SendHorizontal, Upload, XCircle } from 'lucide-react';
+import { CheckCheck, CheckCircle2, Loader2, SendHorizontal, Upload, XCircle, Undo2 } from 'lucide-react';
 import {
   approveTaskAction,
   rejectTaskAction,
@@ -182,6 +182,24 @@ export function TaskStageActions({
         {pending ? <Loader2 className="size-3.5 animate-spin" /> : <SendHorizontal className="size-3.5" />}
         {t('submitForReview')}
         {requiresProof && <span className="text-[10px] opacity-70">· {t('proofRequiredShort')}</span>}
+      </Button>
+    );
+  }
+
+  // Accidental submit: the assignee can take it back while the CEO hasn't
+  // decided yet (the server allows it for 10 minutes after submitting).
+  if (isAssignee && !isReviewer && status === 'submitted') {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={handleUndoSubmit}
+        className="h-8 w-full gap-1.5 text-xs text-au-muted hover:text-au-ink"
+      >
+        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
+        {t('undoSubmit')}
       </Button>
     );
   }

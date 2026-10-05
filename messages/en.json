@@ -733,7 +733,8 @@
       "in_progress": "In progress",
       "submitted": "Submitted for review",
       "approved": "Approved",
-      "done": "Done"
+      "done": "Done",
+      "pending": "Waiting"
     },
     "submitForReview": "Submit for review",
     "proofRequiredShort": "file required",
@@ -768,7 +769,8 @@
     },
     "deletedToast": "Task deleted",
     "undo": "Undo",
-    "calendarView": "Calendar"
+    "calendarView": "Calendar",
+    "undoSubmit": "Undo submission"
   },
   "companyNews": {
     "title": "Company News",

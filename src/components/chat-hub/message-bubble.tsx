@@ -89,8 +89,9 @@ function MessageBubbleComponent({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       data-own={isOwn}
+      id={`msg-${message.id}`}
       className={cn(
-        'flex items-end gap-2',
+        'flex scroll-mt-24 items-end gap-2 rounded-xl transition-colors duration-700',
         grouped ? 'mt-0.5' : 'mt-3',
         !isOptimistic && 'ch-row',
         isOwn && 'flex-row-reverse',
@@ -107,30 +108,36 @@ function MessageBubbleComponent({
         ) : (
           <span className="w-8 shrink-0" aria-hidden />
         ))}
-      <div className={cn('group flex max-w-[78%] flex-col gap-1', isOwn && 'items-end')}>
+      <div className={cn('group flex min-w-0 max-w-[78%] flex-col gap-1', isOwn && 'items-end')}>
         <div className={cn('flex items-center gap-1', isOwn && 'flex-row-reverse')}>
           <div
             className={cn(
-              'ch-bubble flex flex-col gap-1.5 px-3 pt-2 pb-1.5 text-sm break-words whitespace-pre-wrap',
+              'ch-bubble flex min-w-0 flex-col gap-1.5 px-3 pt-2 pb-1.5 text-sm break-words whitespace-pre-wrap [overflow-wrap:anywhere]',
               isOwn ? 'ch-own' : 'ch-other',
               tail && 'ch-tail',
             )}
           >
             {!isOwn && !grouped && <span className="ch-name text-xs font-semibold">{name}</span>}
             {message.reply_to_id && repliedQuote && (
-              <div
-                className={cn(
-                  'flex flex-col gap-0.5 rounded-lg border-l-2 px-2 py-1 text-xs',
-                  isOwn ? 'border-au-faint bg-au-card-2' : 'border-au-faint bg-au-card-2',
-                )}
+              <button
+                type="button"
+                onClick={() => {
+                  // Jump to the quoted message and flash it briefly.
+                  const el = document.getElementById(`msg-${message.reply_to_id}`);
+                  if (!el) return;
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('bg-au-accent-soft');
+                  setTimeout(() => el.classList.remove('bg-au-accent-soft'), 1400);
+                }}
+                className="flex min-w-0 flex-col gap-0.5 rounded-lg border-l-2 border-au-faint bg-au-card-2 px-2 py-1 text-left text-xs hover:brightness-95"
               >
                 <span className={cn('font-medium', isOwn ? 'text-au-ink' : 'text-au-muted')}>
                   {repliedQuote.senderName}
                 </span>
-                <span className={cn('truncate', isOwn ? 'text-au-muted' : 'text-au-muted')}>
+                <span className="line-clamp-2 text-au-muted">
                   {repliedQuote.text ?? t(`mediaLabel.${repliedQuote.mediaType}`)}
                 </span>
-              </div>
+              </button>
             )}
             {message.reply_to_id && !repliedQuote && (
               <span className="text-xs italic opacity-60">{t('originalMessageUnavailable')}</span>

@@ -236,6 +236,7 @@ function RecordPaymentDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="pay-title">{t('note')}</Label>
             <input
+              key={kind}
               id="pay-title"
               name="title"
               defaultValue={t(`kind_${kind}`)}

@@ -1,222 +1,133 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Children, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * One-card-at-a-time slider (owner, 2026-10-05: news as a carousel).
+ * - Native horizontal scroll-snap track → touch swipe works out of the box.
+ * - ‹ › buttons and one dot per slide; ArrowLeft / ArrowRight on the track.
+ * - Auto-advances every `interval` ms and loops; pauses on hover, focus,
+ *   touch, a hidden tab and prefers-reduced-motion.
+ * Each child is one slide and takes the full width of the track.
+ */
 export function CardCarousel({
   children,
-  itemCount,
+  interval = 6000,
+  label = 'Yangiliklar',
+  className,
 }: {
   children: React.ReactNode;
-  itemCount: number;
+  interval?: number;
+  label?: string;
+  className?: string;
 }) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const slides = Children.toArray(children);
+  const count = slides.length;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const cardWidthRef = useRef<number>(0);
 
-  // Update scroll state
-  const updateScrollState = () => {
-    if (!scrollContainerRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-    setCanScrollLeft(scrollLeft > 0);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+  const goTo = useCallback(
+    (i: number) => {
+      const track = trackRef.current;
+      if (!track || count === 0) return;
+      const next = (i + count) % count;
+      track.scrollTo({ left: next * track.clientWidth, behavior: 'smooth' });
+    },
+    [count],
+  );
 
-    // Update active index based on scroll position
-    if (cardWidthRef.current > 0) {
-      const index = Math.round(scrollLeft / cardWidthRef.current);
-      setActiveIndex(index);
-    }
-  };
-
-  // Handle scroll
-  const scroll = (direction: 'left' | 'right') => {
-    if (!scrollContainerRef.current) return;
-    const container = scrollContainerRef.current;
-    const scrollAmount = container.clientWidth * 0.85; // Scroll by 85% width (approx one card on mobile)
-
-    container.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth',
-    });
-  };
-
-  // IntersectionObserver to track card visibility
+  // The active slide follows the scroll position (buttons, swipe, keys).
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const cards = container.querySelectorAll('[data-carousel-item]');
-    if (cards.length === 0) return;
-
-    // Get the width of first card to calculate scroll amounts
-    const firstCard = cards[0] as HTMLElement;
-    cardWidthRef.current = firstCard.offsetWidth;
-
-    const observer = new IntersectionObserver(
-      () => {
-        updateScrollState();
-      },
-      { root: container, threshold: 0.1 }
-    );
-
-    cards.forEach((card) => observer.observe(card));
-    updateScrollState();
-
-    return () => {
-      observer.disconnect();
+    const track = trackRef.current;
+    if (!track) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (track.clientWidth) setIndex(Math.round(track.scrollLeft / track.clientWidth));
+      });
     };
-  }, [itemCount]);
-
-  // Auto-advance every 5s
-  useEffect(() => {
-    if (itemCount < 2 || paused) return;
-
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
-
-    const interval = setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-
-      const container = scrollContainerRef.current;
-      if (!container) return;
-
-      const { scrollLeft, scrollWidth, clientWidth } = container;
-      const isAtEnd = scrollLeft + clientWidth >= scrollWidth - 10;
-
-      if (isAtEnd) {
-        // Loop back to start
-        container.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        scroll('right');
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [itemCount, paused]);
-
-  // Update scroll state on scroll event
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      updateScrollState();
-    };
-
-    container.addEventListener('scroll', handleScroll);
+    track.addEventListener('scroll', onScroll, { passive: true });
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      cancelAnimationFrame(raf);
+      track.removeEventListener('scroll', onScroll);
     };
   }, []);
 
-  // Show no controls for 0-1 items
-  if (itemCount < 2) {
-    return (
-      <div className="flex flex-col gap-4">
-        {children}
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (count < 2 || paused) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') goTo(index + 1);
+    }, interval);
+    return () => clearInterval(id);
+  }, [count, paused, index, interval, goTo]);
 
+  if (count === 0) return null;
+  if (count === 1) return <div className={className}>{slides[0]}</div>;
+
+  const arrow = 'absolute top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-full border border-au-line bg-au-card text-au-ink shadow-au-card transition hover:scale-105 hover:bg-au-card-2 max-sm:hidden';
   return (
-    <div
-      className="flex flex-col gap-4"
+    <section
+      className={cn('flex min-w-0 flex-col gap-3', className)}
+      aria-roledescription="carousel"
+      aria-label={label}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
-      role="region"
-      aria-roledescription="carousel"
-      aria-label="Cards carousel"
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+      onTouchStart={() => setPaused(true)}
     >
-      {/* Scroll container with snap points */}
-      <div className="relative overflow-hidden">
+      <div className="relative">
         <div
-          ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto scroll-smooth [scroll-snap-type:x_mandatory] [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-          role="group"
-          aria-label="Carousel content"
+          ref={trackRef}
+          tabIndex={0}
+          className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-au-card outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onKeyDown={(e) => {
             if (e.key === 'ArrowLeft') {
               e.preventDefault();
-              scroll('left');
+              goTo(index - 1);
             } else if (e.key === 'ArrowRight') {
               e.preventDefault();
-              scroll('right');
+              goTo(index + 1);
             }
           }}
-          tabIndex={0}
         >
-          {/* Cards are rendered by children and must have data-carousel-item attribute */}
-          {children}
-        </div>
-
-        {/* Gradient fade on right (desktop) */}
-        <div className="pointer-events-none absolute right-0 top-0 h-full w-12 bg-gradient-to-l from-au-bg from-100% to-transparent" />
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between gap-3">
-        {/* Prev/Next buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => scroll('left')}
-            disabled={!canScrollLeft}
-            className={cn(
-              'grid size-9 shrink-0 place-items-center rounded-full border border-au-line transition-colors',
-              canScrollLeft
-                ? 'bg-au-card text-au-ink hover:bg-au-card-2 cursor-pointer'
-                : 'bg-au-card text-au-muted cursor-not-allowed opacity-50'
-            )}
-            aria-label="Previous"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <button
-            onClick={() => scroll('right')}
-            disabled={!canScrollRight}
-            className={cn(
-              'grid size-9 shrink-0 place-items-center rounded-full border border-au-line transition-colors',
-              canScrollRight
-                ? 'bg-au-card text-au-ink hover:bg-au-card-2 cursor-pointer'
-                : 'bg-au-card text-au-muted cursor-not-allowed opacity-50'
-            )}
-            aria-label="Next"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-
-        {/* Dots showing position */}
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from({ length: Math.max(0, itemCount - 2) }).map((_, i) => (
-            <button
+          {slides.map((s, i) => (
+            <div
               key={i}
-              onClick={() => {
-                if (scrollContainerRef.current && cardWidthRef.current) {
-                  scrollContainerRef.current.scrollTo({
-                    left: i * cardWidthRef.current,
-                    behavior: 'smooth',
-                  });
-                }
-              }}
-              className={cn(
-                'h-1.5 w-1.5 rounded-full border transition-all',
-                Math.abs(i - activeIndex) < 2
-                  ? 'border-au-accent bg-au-accent'
-                  : 'border-au-line bg-au-line/50'
-              )}
-              aria-label={`Go to item ${i + 1}`}
-            />
+              className="w-full shrink-0 snap-start snap-always"
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} / ${count}`}
+              aria-hidden={i !== index}
+            >
+              {s}
+            </div>
           ))}
         </div>
-
-        <div className="w-24" /> {/* Spacer for alignment */}
+        <button type="button" className={cn(arrow, '-left-3')} onClick={() => goTo(index - 1)} aria-label="Oldingi">
+          <ChevronLeft className="size-5" />
+        </button>
+        <button type="button" className={cn(arrow, '-right-3')} onClick={() => goTo(index + 1)} aria-label="Keyingi">
+          <ChevronRight className="size-5" />
+        </button>
       </div>
-    </div>
+      <div className="flex items-center justify-center gap-1.5">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => goTo(i)}
+            aria-label={`${i + 1}-yangilik`}
+            aria-current={i === index}
+            className={cn('h-2 rounded-full transition-all', i === index ? 'w-6 bg-au-accent' : 'w-2 bg-au-line hover:bg-au-faint')}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

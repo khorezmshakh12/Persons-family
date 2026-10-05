@@ -733,7 +733,8 @@
       "in_progress": "Bajarilmoqda",
       "submitted": "Tekshiruvga yuborildi",
       "approved": "Tasdiqlandi",
-      "done": "Yakunlandi"
+      "done": "Yakunlandi",
+      "pending": "Kutilmoqda"
     },
     "submitForReview": "Tekshiruvga yuborish",
     "proofRequiredShort": "fayl kerak",
@@ -768,7 +769,8 @@
     },
     "deletedToast": "Vazifa o‘chirildi",
     "undo": "Bekor qilish",
-    "calendarView": "Kalendar"
+    "calendarView": "Kalendar",
+    "undoSubmit": "Topshirishni bekor qilish"
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",

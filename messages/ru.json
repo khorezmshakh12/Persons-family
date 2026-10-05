@@ -733,7 +733,8 @@
       "in_progress": "В работе",
       "submitted": "Отправлено на проверку",
       "approved": "Одобрено",
-      "done": "Готово"
+      "done": "Готово",
+      "pending": "Ожидает"
     },
     "submitForReview": "Отправить на проверку",
     "proofRequiredShort": "нужен файл",
@@ -768,7 +769,8 @@
     },
     "deletedToast": "Задача удалена",
     "undo": "Отменить",
-    "calendarView": "Календарь"
+    "calendarView": "Календарь",
+    "undoSubmit": "Отменить отправку"
   },
   "companyNews": {
     "title": "Новости компании",
