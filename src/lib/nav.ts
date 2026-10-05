@@ -19,6 +19,7 @@ export type NavItem = {
     | 'companyNews'
     | 'telegramSetup'
     | 'selfDevelopment'
+    | 'taskTracker'
     | 'finance'
     | 'roadmap'
     | 'market'
@@ -61,6 +62,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   staff: 'main',
   market: 'motivation',
   selfDevelopment: 'motivation',
+  taskTracker: 'main',
   // Owner, 2026-10-04: Chat and Issues are daily tools — top of the main group.
   chat: 'main',
   issues: 'main',
@@ -90,6 +92,7 @@ const NAV_SORT: NavItem['key'][] = [
   'operations',
   'perforce',
   'tasks',
+  'taskTracker',
   'finance',
   'staff',
   'sales',
@@ -148,6 +151,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'issues', href: '/issues' },
   { key: 'lessonPlans', href: '/lesson-plans' },
   { key: 'tasks', href: '/tasks' },
+  // Task Tracker: each employee's private weekly task/habit sheet (src/tracker).
+  { key: 'taskTracker', href: '/task-tracker' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },

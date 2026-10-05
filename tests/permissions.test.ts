@@ -28,7 +28,7 @@ const read = (p: string) => readFileSync(join(root, p), 'utf8');
 // Sections every role opens (personal workspace).
 const EVERYONE: SectionKey[] = [
   // Inbox (approvals) removed for everyone — owner, 2026-10-05.
-  'dashboard', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment',
+  'dashboard', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker',
   'finance', 'profile', 'settings', 'materials', 'hr', 'butterfly', 'kpi',
 ];
 
@@ -187,6 +187,9 @@ test('every restricted page guards with the matrix', () => {
     [`${app}market/page.tsx`, /canSeeFor\(profile, 'market'\)/],
     ['src/components/core/core-section.tsx', /coreViews\(profile!?\)\)\.includes\(view\)/],
     ['src/app/api/core/app/route.ts', /coreViews\(profile\)\)\.includes\(view\)/],
+    [`${app}task-tracker/page.tsx`, /canSeeFor\(profile, 'taskTracker'\)/],
+    ['src/app/api/task-tracker/app/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
+    ['src/app/api/task-tracker/state/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
   ];
   for (const [file, re] of guards) assert.match(read(file), re, file);
 });
