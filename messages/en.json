@@ -1108,10 +1108,13 @@
       "colSalary": "Salary (gross)"
     },
     "summary": {
-      "salary": "Salary",
+      "salary": "Salary (planned)",
       "bonuses": "Bonuses",
       "penalties": "Penalties",
-      "total": "Total received"
+      "total": "Total received",
+      "toPay": "Total to pay",
+      "paid": "Paid",
+      "remaining": "Remaining"
     }
   },
   "kpi": {

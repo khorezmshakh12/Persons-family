@@ -132,7 +132,8 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   if (canEditGroup) {
     assistants = await sql<{ id: string; first_name: string; last_name: string }[]>`
       select id, first_name, last_name from profiles
-      where role = 'assistant' and is_active = true
+      where is_active = true
+        and (role = 'assistant' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'assistant'))
       order by first_name asc
     `;
   }

@@ -2,11 +2,13 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { bumpBoardSignal } from '@/lib/gcp/firestoreAdmin';
 import { can } from '@/lib/permissions';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 
 export type TaskCommentActionState = { error?: string } | undefined;
 
@@ -41,6 +43,50 @@ const createCommentSchema = z.object({
   body: z.string().trim().min(1).max(2000),
 });
 
+/** Notify task creator and assignee about a new comment, skipping the commenter. */
+async function notifyTaskComment(
+  taskId: string,
+  commentAuthorId: string,
+  commentBody: string,
+  taskTitle: string,
+) {
+  try {
+    const [task] = await sql<{ assigned_to: string; assigned_by: string }[]>`
+      select assigned_to, assigned_by from tasks where id = ${taskId}
+    `;
+    if (!task) return;
+
+    const [author] = await sql<{ first_name: string | null; last_name: string | null }[]>`
+      select first_name, last_name from profiles where id = ${commentAuthorId}
+    `;
+    const authorName = `${author?.first_name ?? ''} ${author?.last_name ?? ''}`.trim() || 'Xodim';
+
+    // Notify creator and assignee, except the commenter
+    const notifyIds = new Set<string>();
+    if (task.assigned_by !== commentAuthorId) notifyIds.add(task.assigned_by);
+    if (task.assigned_to !== commentAuthorId) notifyIds.add(task.assigned_to);
+
+    for (const userId of notifyIds) {
+      const [profile] = await sql<{ telegram_id: number | null }[]>`
+        select telegram_id from profiles where id = ${userId}
+      `;
+      if (!profile?.telegram_id) continue;
+
+      try {
+        const text =
+          `💬 <b>${escapeTelegramText(authorName)}</b> "` +
+          `${escapeTelegramText(taskTitle)}" vazifasiga izoh qo‘shdi:\n\n` +
+          `${escapeTelegramText(commentBody.slice(0, 200))}${commentBody.length > 200 ? '...' : ''}`;
+        await sendTelegramMessage(profile.telegram_id, text);
+      } catch (error) {
+        console.error('Telegram comment notification failed:', error instanceof Error ? error.message : error);
+      }
+    }
+  } catch (error) {
+    console.error('notifyTaskComment failed:', error instanceof Error ? error.message : error);
+  }
+}
+
 export async function createTaskCommentAction(
   _prevState: TaskCommentActionState,
   formData: FormData,
@@ -69,6 +115,16 @@ export async function createTaskCommentAction(
   // pick the new comment up without a manual refresh (see TaskBoard's
   // onSnapshot subscription).
   await bumpBoardSignal('tasks');
+
+  // Notify participants about the new comment, after the response is sent.
+  after(async () => {
+    try {
+      const [taskRow] = await sql<{ title: string }[]>`select title from tasks where id = ${parsed.data.taskId}`;
+      if (taskRow) await notifyTaskComment(parsed.data.taskId, user.id, parsed.data.body, taskRow.title);
+    } catch (error) {
+      console.error('task comment notification failed', error);
+    }
+  });
 
   revalidatePath('/[locale]/tasks', 'page');
   return {};

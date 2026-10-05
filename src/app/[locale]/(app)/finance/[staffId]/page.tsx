@@ -15,6 +15,7 @@ import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
 import { can } from '@/lib/permissions';
 import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
+import { getStaffPayroll } from '@/lib/payroll';
 import { formatUZS } from '@/lib/format-currency';
 import { CountUp } from '@/components/motion/count-up';
 
@@ -70,7 +71,7 @@ export async function FinanceDetailContent({
 
   const avatarSrc = await resolveAvatarUrl(target.avatar_url);
 
-  const [entries, earnings, [pen]] = await Promise.all([
+  const [entries, earnings, [pen], payroll] = await Promise.all([
     sql<FinanceEntry[]>`
       select id, title, amount, note, created_at from finance_entries
       where staff_id = ${staffId}
@@ -83,19 +84,31 @@ export async function FinanceDetailContent({
       from performance_entries where staff_id = ${staffId}
         and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') = ${month}
     `,
+    getStaffPayroll(staffId, `${month}-01`),
   ]);
 
   const net = netTotal(entries);
-  // The four numbers that answer "what did I get": same totals SalaryTotal
-  // shows (finance-net.ts), split so bonuses and penalties are visible.
+  // Owner, 2026-10-05: the planned salary and what was actually handed over
+  // are two different numbers — never show the paid sum under "Maosh".
+  //   Maosh        = the CEO's monthly plan (salary_months.gross_amount)
+  //   Jami beriladigan = Maosh + bonuses − penalties
+  //   Berilgan     = salary + advance payments recorded this month
+  //   Qoldi        = Jami beriladigan − Berilgan
   const total = netEarnings(earnings.filter((e) => inMonth(e.at)));
-  const penalties = Math.round(Number(pen?.penalties) || 0);
-  const bonuses = total - net + penalties;
+  const ledgerPenalties = Math.round(
+    Math.abs(payroll.entries.filter((e) => e.kind === 'penalty').reduce((s, e) => s + e.amount, 0)),
+  );
+  const penalties = Math.round(Number(pen?.penalties) || 0) + ledgerPenalties;
+  const bonuses = total - net + (Math.round(Number(pen?.penalties) || 0));
+  const toPay = payroll.gross + bonuses - penalties;
+  const remaining = toPay - payroll.paid;
   const summary = [
-    { key: 'salary', value: formatUZS(net), tone: 'text-au-ink' },
+    { key: 'salary', value: formatUZS(payroll.gross), tone: 'text-au-ink' },
     { key: 'bonuses', value: `+${formatUZS(bonuses)}`, tone: 'text-au-ok' },
     { key: 'penalties', value: `−${formatUZS(penalties)}`, tone: 'text-au-bad' },
-    { key: 'total', value: formatUZS(total), tone: 'text-au-ink' },
+    { key: 'toPay', value: formatUZS(toPay), tone: 'text-au-ink' },
+    { key: 'paid', value: formatUZS(payroll.paid), tone: 'text-au-ok' },
+    { key: 'remaining', value: formatUZS(remaining), tone: remaining > 0 ? 'text-amber-600' : 'text-au-muted' },
   ] as const;
 
   return (
@@ -133,12 +146,12 @@ export async function FinanceDetailContent({
           ›
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {summary.map((k, i) => (
           <div
             key={k.key}
             style={{ animationDelay: `${i * 50}ms` }}
-            className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-4', k.key === 'total' && 'bg-au-card-2')}
+            className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-4', k.key === 'toPay' && 'bg-au-card-2')}
           >
             <span className="text-xs font-medium text-au-muted">{tSum(k.key)}</span>
             <span className={cn('text-xl font-bold tabular-nums sm:text-2xl', k.tone)}>

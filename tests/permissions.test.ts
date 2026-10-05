@@ -27,7 +27,8 @@ const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 // Sections every role opens (personal workspace).
 const EVERYONE: SectionKey[] = [
-  'dashboard', 'coreInbox', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment',
+  // Inbox (approvals) removed for everyone — owner, 2026-10-05.
+  'dashboard', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment',
   'finance', 'profile', 'settings', 'materials', 'hr', 'butterfly', 'kpi',
 ];
 

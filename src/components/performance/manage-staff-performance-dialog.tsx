@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MoneyInput } from '@/components/ui/money-input';
 type StaffPerformance = {
   id: string;
   staff_id: string;
@@ -41,6 +42,7 @@ export function ManageStaffPerformanceDialog({
   const t = useTranslations('performance');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState<number | null>(null);
   const [tierState, tierFormAction, isTierPending] = useActionState<PerformanceActionState, FormData>(
     updateStaffTierAction,
     undefined,
@@ -56,7 +58,10 @@ export function ManageStaffPerformanceDialog({
 
   useEffect(() => {
     if (entryState?.error) toast.error(t(`errors.${entryState.error}`));
-    else if (entryState && !entryState.error) toast.success(t('entryAdded'));
+    else if (entryState && !entryState.error) {
+      toast.success(t('entryAdded'));
+      setAmount(null);
+    }
   }, [entryState, t]);
 
   return (
@@ -145,7 +150,13 @@ export function ManageStaffPerformanceDialog({
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor={`amount-${staffId}`}>{t('amount')}</Label>
-              <Input id={`amount-${staffId}`} name="amount" type="number" min={1} step="0.01" required />
+              <MoneyInput
+                id={`amount-${staffId}`}
+                name="amount"
+                value={amount}
+                onValue={setAmount}
+                placeholder="0"
+              />
             </div>
           </div>
           <div className="flex flex-col gap-2">

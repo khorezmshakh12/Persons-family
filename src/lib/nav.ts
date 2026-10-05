@@ -39,6 +39,8 @@ export type NavItem = {
   external?: boolean;
   /** Core v2 page this section shows; hidden unless it's in `coreViews`. */
   core?: string;
+  /** Reached through another section's tabs, not listed in the sidebar. */
+  folded?: boolean;
 };
 
 /** Sidebar section an item is listed under (Persons Aurora layout). Purely
@@ -150,7 +152,9 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'selfDevelopment', href: '/self-development' },
   { key: 'finance', href: '/finance' },
   { key: 'strategy', href: '/strategy' },
-  { key: 'accounting', href: '/accounting' },
+  // Folded into Finance (owner, 2026-10-05: one place for money) — opened
+  // from the Finance page's «Hisob-kitob» tab, not the sidebar.
+  { key: 'accounting', href: '/accounting', folded: true },
   { key: 'operations', href: '/operations' },
   { key: 'perforce', href: '/perforce' },
   // Persons Market — curation is the 'market.manage' capability.
@@ -189,7 +193,7 @@ export function groupedNavItemsForRole(
   role: StaffRole,
   opts: { materialsLinked?: boolean; coreViews?: string[] } = {},
 ): { group: NavGroup; items: NavItem[] }[] {
-  const items = [...navItemsForRole(role, opts)].sort((a, b) => NAV_SORT.indexOf(a.key) - NAV_SORT.indexOf(b.key));
+  const items = [...navItemsForRole(role, opts)].filter((i) => !i.folded).sort((a, b) => NAV_SORT.indexOf(a.key) - NAV_SORT.indexOf(b.key));
   return NAV_GROUP_ORDER.map((group) => ({ group, items: items.filter((i) => NAV_GROUP[i.key] === group) })).filter(
     (g) => g.items.length > 0,
   );

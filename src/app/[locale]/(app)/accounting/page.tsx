@@ -8,6 +8,7 @@ import { loadBooks } from '@/lib/accounting-data';
 import { seatCapacity } from '@/lib/accounting-ma';
 import { parsePlan } from '@/lib/ops-plan';
 import { AccountingWorkspace } from '@/components/strategy/accounting-workspace';
+import { FinanceTabs } from '@/components/finance/finance-tabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,5 +39,12 @@ export default async function AccountingPage() {
     new Set(slots.map((s) => s.time)).size,
   );
 
-  return <AccountingWorkspace books={books} today={tashkentDayKey()} courseGroups={[...courseGroups]} seatCap={seatCap} />;
+  return (
+    <>
+      <div className="px-4 pt-1 sm:px-7">
+        <FinanceTabs />
+      </div>
+      <AccountingWorkspace books={books} today={tashkentDayKey()} courseGroups={[...courseGroups]} seatCap={seatCap} />
+    </>
+  );
 }

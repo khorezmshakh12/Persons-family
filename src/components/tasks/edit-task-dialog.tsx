@@ -133,7 +133,7 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
               type="number"
               min={0}
               step={1}
-              defaultValue={task.star_reward ?? 0}
+              defaultValue={(task.star_reward ?? 0) || ''}
               placeholder="0"
             />
             <p className="text-xs text-au-muted">{t('starRewardHint')}</p>
@@ -146,7 +146,7 @@ export function EditTaskDialog({ task, assignees }: { task: EditableTask; assign
               type="number"
               min={0}
               step={1}
-              defaultValue={task.star_penalty ?? 0}
+              defaultValue={(task.star_penalty ?? 0) || ''}
               placeholder="0"
             />
             <p className="text-xs text-au-muted">{t('starPenaltyHint')}</p>

@@ -3,7 +3,8 @@ import { getAuthState } from '@/lib/auth/session';
 import { PayrollSection } from '@/components/finance/payroll-section';
 import { getPayrollSummary, resolvePeriod } from '@/lib/payroll';
 import { FinanceDetailContent } from './[staffId]/page';
-import { can } from '@/lib/permissions';
+import { can, canSeeFor } from '@/lib/permissions';
+import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { BgVideo } from '@/components/motion/bg-video';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,8 @@ export default async function FinancePage({
           </h1>
           <p className="text-au-muted">{t('adminSubtitle')}</p>
         </div>
+
+        {canSeeFor(profile!, 'accounting') && <FinanceTabs className="self-start" />}
 
         <PayrollSection summary={payroll} locale={locale} />
 

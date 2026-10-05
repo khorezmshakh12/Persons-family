@@ -192,6 +192,12 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
   const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
+  // Fetch issue details before updating so we can notify the reporter
+  const [existing] = await sql<{ created_by: string; title: string }[]>`
+    select created_by, title from issues where id = ${parsed.data.id}
+  `;
+  if (!existing) return { error: 'invalidInput' };
+
   try {
     await sql`
       update issues set
@@ -207,6 +213,25 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
 
   await bumpBoardSignal('issues');
   logSystemAction('issue.status_change', `Moved issue ${parsed.data.id} to "${parsed.data.status}"`);
+
+  // Notify the reporter about the status change (after the response).
+  after(async () => {
+    try {
+      const [reporter] = await sql<{ telegram_id: number | null }[]>`
+        select telegram_id from profiles where id = ${existing.created_by}
+      `;
+      if (!reporter?.telegram_id) return;
+      const statusLabel = {
+        open: 'Ochilgan',
+        in_progress: 'Jarayonda',
+        done: 'Bajarildi',
+      }[parsed.data.status] || parsed.data.status;
+      const text = `<b>Murojaat yangilandi</b>\n<b>Murojaat:</b> ${escapeTelegramText(existing.title)}\n<b>Holati:</b> ${statusLabel}`;
+      await sendTelegramMessage(reporter.telegram_id, text);
+    } catch (error) {
+      console.error('Telegram notification failed:', error instanceof Error ? error.message : error);
+    }
+  });
 
   revalidatePath('/[locale]/issues', 'page');
   return {};

@@ -77,7 +77,7 @@ export function SalesTargets({ rows }: { rows: TargetRow[] }) {
                       inputMode="numeric"
                       min={0}
                       step={1}
-                      value={v[k]}
+                      value={v[k] === '0' ? '' : v[k]}
                       onChange={(e) => setVals((s) => ({ ...s, [r.month]: { ...s[r.month], [k]: e.target.value } }))}
                       className="h-10 rounded-au-ctl border border-au-line bg-au-card px-3 text-base font-bold text-au-ink tabular-nums"
                     />

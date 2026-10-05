@@ -9,6 +9,7 @@ import { logSystemAction } from '@/lib/audit-log';
 import { getPayrollSummary } from '@/lib/payroll';
 import { teacherCostFor } from '@/lib/accounting-ma';
 import {
+  CORE_ACCOUNTS,
   DEFAULT_TAX,
   depreciation,
   disposalPostings,
@@ -465,7 +466,8 @@ const accountSchema = z.object({
   code: code,
   name: z.string().trim().min(1).max(200),
   type: z.enum(['A', 'CA', 'L', 'E', 'R', 'X']),
-  sort: z.number().int().min(0).max(10000),
+  /** Omitted on an edit — the account keeps its place in the list. */
+  sort: z.number().int().min(0).max(10000).optional(),
   isNew: z.boolean().default(false),
 });
 
@@ -479,10 +481,13 @@ export async function saveAccountAction(input: z.input<typeof accountSchema>): P
     if (isNew) {
       await sql`
         insert into acct_accounts (code, name, type, sort)
-        values (${code}, ${name}, ${type}, ${sort})`;
+        values (${code}, ${name}, ${type}, ${sort ?? Number(code)})`;
     } else {
+      // Core accounts feed the statements by type — only their name changes.
       const res = await sql`
-        update acct_accounts set name = ${name}, type = ${type}, sort = ${sort}
+        update acct_accounts set name = ${name},
+          type = ${CORE_ACCOUNTS.has(code) ? sql`type` : type},
+          sort = coalesce(${sort ?? null}::int, sort)
         where code = ${code}`;
       if (res.count === 0) return { error: 'notFound' };
     }
@@ -497,6 +502,7 @@ export async function deleteAccountAction(code: string): Promise<Result> {
   const g = await requireEditor();
   if ('error' in g) return g;
   if (!z.string().regex(/^\d{4}$/).safeParse(code).success) return { error: 'invalidInput' };
+  if (CORE_ACCOUNTS.has(code)) return { error: 'inUse' };
   try {
     // Check if account is used in acct_entries
     const [usedInEntries] = await sql<{ count: number }[]>`

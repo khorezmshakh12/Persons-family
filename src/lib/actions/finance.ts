@@ -2,10 +2,13 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
+import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { formatUZS } from '@/lib/format-currency';
 
 export type FinanceActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
@@ -58,6 +61,32 @@ export async function addFinanceEntryAction(
     'finance.entry_add',
     `Added ${kind} entry "${parsed.data.title}" (${parsed.data.amount}) for staff ${parsed.data.staffId}${period ? ` [${period}]` : ''}`,
   );
+
+  // Notify the staff member (salary / advance / penalty) once the response
+  // is sent — a Telegram hiccup can never fail or slow the save.
+  if (kind !== 'adjustment') after(async () => {
+    try {
+      const [staff] = await sql<{ telegram_id: number | null; first_name: string | null; last_name: string | null }[]>`
+        select telegram_id, first_name, last_name from profiles where id = ${parsed.data.staffId}
+      `;
+      if (staff?.telegram_id) {
+        const kindLabels: Record<string, string> = {
+          salary: '💰 Oylik maosh',
+          advance: '📊 Avans',
+          penalty: '⚠️ Jarima',
+        };
+        const label = kindLabels[kind] || kind;
+        const amountStr = formatUZS(Math.abs(parsed.data.amount));
+        const text =
+          `<b>${label}</b>\n<b>Miqdori:</b> ${escapeTelegramText(amountStr)} so‘m\n` +
+          `<b>Sabab:</b> ${escapeTelegramText(parsed.data.title)}` +
+          (parsed.data.note ? `\n<b>Izoh:</b> ${escapeTelegramText(parsed.data.note)}` : '');
+        await sendTelegramMessage(staff.telegram_id, text);
+      }
+    } catch (error) {
+      console.error('Finance notification failed:', error instanceof Error ? error.message : error);
+    }
+  });
 
   revalidatePath('/[locale]/finance', 'page');
   revalidatePath('/[locale]/profile/[id]', 'page');

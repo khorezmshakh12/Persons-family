@@ -111,7 +111,8 @@ export type SectionKey =
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   // Everyone — personal workspace.
   dashboard: ALL,
-  coreInbox: ALL,
+  // Inbox (approvals) removed for everyone (owner, 2026-10-05).
+  coreInbox: [],
   tasks: ALL,
   chat: ALL,
   issues: ALL,
@@ -294,7 +295,7 @@ export function canFor(
  * person. Personal basics (dashboard, profile, settings) and Platform itself
  * are not switchable (no lock-outs); financial ones only by the CEO. */
 export const OVERRIDABLE_SECTIONS: SectionKey[] = [
-  'coreInbox', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'finance', 'hr', 'sales',
+  'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'finance', 'hr', 'sales',
   'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'market', 'telegramSetup', 'materials',
 ];
 export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];
