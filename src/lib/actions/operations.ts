@@ -174,6 +174,7 @@ export async function setGroupEnrollmentAction(groupId: string, enrolled: number
 }
 
 const holdSchema = z.object({
+  id: z.string().uuid().optional(),
   room: z.string().trim().min(1).max(60),
   time: z.string().trim().min(1).max(20),
   cohort: z.enum(['odd', 'even']),
@@ -191,10 +192,20 @@ export async function saveSlotHoldAction(input: z.input<typeof holdSchema>): Pro
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
   try {
-    await sql`
-      insert into ops_slot_holds (room, slot_time, cohort, kind, title, created_by)
-      values (${v.room}, ${v.time}, ${v.cohort}, ${v.kind}, ${v.title}, ${by})
-      on conflict (room, slot_time, cohort) do update set kind = excluded.kind, title = excluded.title`;
+    if (v.id) {
+      // Update existing hold with guarded check
+      const res = await sql`
+        update ops_slot_holds
+        set kind = ${v.kind}, title = ${v.title}, updated_at = now()
+        where id = ${v.id}`;
+      if (res.count === 0) return { error: 'notFound' };
+    } else {
+      // Create new hold or update via conflict on natural key
+      await sql`
+        insert into ops_slot_holds (room, slot_time, cohort, kind, title, created_by)
+        values (${v.room}, ${v.time}, ${v.cohort}, ${v.kind}, ${v.title}, ${by})
+        on conflict (room, slot_time, cohort) do update set kind = excluded.kind, title = excluded.title`;
+    }
   } catch {
     return { error: 'updateFailed' };
   }

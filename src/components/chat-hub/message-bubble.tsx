@@ -4,10 +4,11 @@ import { memo, useState, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Trash2, Check, CheckCheck, Reply, SmilePlus } from 'lucide-react';
+import { Trash2, Check, CheckCheck, Reply, SmilePlus, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { deleteStaffChatAction, toggleStaffChatReactionAction } from '@/lib/actions/staff-chats';
+import { deleteStaffChatAction, toggleStaffChatReactionAction, updateStaffChatAction } from '@/lib/actions/staff-chats';
 import { cn } from '@/lib/utils';
 import type { ChatQuote, StaffChatMessage } from './types';
 
@@ -54,6 +55,32 @@ function MessageBubbleComponent({
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isReactionPending, startReactionTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Inline edit of one's own text (owner, 2026-10-06). shownText/editedAt
+  // show the saved edit immediately; the realtime mirror then confirms it.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [shownText, setShownText] = useState<string | null>(null);
+  const [editedAt, setEditedAt] = useState<string | null>(null);
+  const [isEditPending, startEditTransition] = useTransition();
+  function startEdit() {
+    setDraft(shownText ?? message.message_text ?? '');
+    setEditing(true);
+  }
+  function saveEdit() {
+    const text = draft.trim();
+    if (!text) return;
+    if (text === (shownText ?? message.message_text)) return setEditing(false);
+    startEditTransition(async () => {
+      const res = await updateStaffChatAction({ id: message.id, messageText: text });
+      if (res.error) {
+        toast.error('Xabarni tahrirlab bo‘lmadi');
+        return;
+      }
+      setShownText(text);
+      setEditedAt(res.editedAt ?? new Date().toISOString());
+      setEditing(false);
+    });
+  }
   const name = sender ? `${sender.first_name} ${sender.last_name}` : '—';
   const initials = sender ? `${sender.first_name[0]}${sender.last_name[0]}` : '?';
   const reactionEntries = Object.entries(message.reactions ?? {}).filter(
@@ -158,9 +185,42 @@ function MessageBubbleComponent({
             {message.media_type === 'voice' && message.media_url && (
               <audio src={message.media_url} controls className="h-10 max-w-full" />
             )}
-            {message.message_text && <span>{message.message_text}</span>}
+            {editing ? (
+              <span className="flex min-w-[220px] flex-col gap-1.5 whitespace-normal">
+                <textarea
+                  autoFocus
+                  value={draft}
+                  maxLength={2000}
+                  rows={Math.min(6, Math.max(2, draft.split(/\n/).length))}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      saveEdit();
+                    } else if (e.key === 'Escape') setEditing(false);
+                  }}
+                  className="w-full resize-none rounded-lg border border-au-line bg-au-card px-2 py-1.5 text-sm text-au-ink outline-none focus:border-au-accent"
+                />
+                <span className="flex justify-end gap-1.5">
+                  <button type="button" onClick={() => setEditing(false)} className="rounded-md px-2 py-0.5 text-xs font-semibold text-au-muted hover:text-au-ink">
+                    Bekor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveEdit}
+                    disabled={isEditPending || !draft.trim()}
+                    className="rounded-md bg-au-ink px-2.5 py-0.5 text-xs font-semibold text-au-card disabled:opacity-50"
+                  >
+                    Saqlash
+                  </button>
+                </span>
+              </span>
+            ) : (
+              (shownText ?? message.message_text) && <span>{shownText ?? message.message_text}</span>
+            )}
             {/* Time + read ticks inside the bubble, bottom-right (Telegram). */}
             <span className="ch-meta -mb-0.5 flex items-center justify-end gap-1 self-end text-[11px] leading-none">
+              {(editedAt ?? message.edited_at) && <span className="italic opacity-80">tahrirlangan ·</span>}
               {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
               {isOwn && !isOptimistic && (
                 <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
@@ -220,6 +280,11 @@ function MessageBubbleComponent({
               >
                 <Reply className="size-3.5" />
               </Button>
+              {isOwn && message.message_text && (
+                <Button type="button" variant="ghost" size="icon-sm" onClick={startEdit} aria-label="Tahrirlash">
+                  <Pencil className="size-3.5" />
+                </Button>
+              )}
               {isOwn && (
                 <Button
                   type="button"

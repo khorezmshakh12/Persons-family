@@ -123,6 +123,43 @@ export async function addPerformanceEntryAction(
 
 const deleteEntrySchema = z.object({ entryId: z.string().uuid() });
 
+const updateEntrySchema = z.object({
+  entryId: z.string().uuid(),
+  entryType: z.enum(['bonus', 'penalty']),
+  amount: z.coerce.number().positive(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+export async function updatePerformanceEntryAction(
+  _prevState: PerformanceActionState,
+  formData: FormData,
+): Promise<PerformanceActionState> {
+  try {
+    await requireCap('kpi.manage');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = updateEntrySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  try {
+    const res = await sql`
+      update performance_entries set
+        entry_type = ${parsed.data.entryType},
+        amount = ${parsed.data.amount},
+        reason = ${parsed.data.reason}
+      where id = ${parsed.data.entryId}
+    `;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+
+  revalidatePath('/[locale]/performance', 'page');
+  return {};
+}
+
 export async function deletePerformanceEntryAction(
   _prevState: PerformanceActionState,
   formData: FormData,

@@ -124,6 +124,63 @@ export async function deleteRoadmapAction(id: string): Promise<Result> {
   return {};
 }
 
+const nodeUpdateSchema = z.object({
+  roadmapId: z.string().uuid(),
+  nodeId: nodeId,
+  title: z.string().trim().min(1).max(80),
+});
+
+export async function updateStrategyRoadmapNodeAction(
+  input: z.input<typeof nodeUpdateSchema>,
+): Promise<Result> {
+  const g = await requireRoadmapEditor();
+  if ('error' in g) return g;
+  const p = nodeUpdateSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const { roadmapId, nodeId, title } = p.data;
+
+  // Parse the nodeId to determine if it's a stage or topic
+  // Stage: just the sectionId (e.g., "q1")
+  // Topic: sectionId-l/r + index (e.g., "q1-l0")
+  const isTopic = /-[lr]\d+$/.test(nodeId);
+
+  try {
+    const updated = await sql.begin(async (tx) => {
+      const [row] = await tx<{ sections: Array<{ id: string; t: string; left: string[]; right: string[] }> }[]>`
+        select sections from strategy_roadmaps where id = ${roadmapId} for update`;
+      if (!row) return null;
+
+      const sections = row.sections;
+      if (isTopic) {
+        // Parse topic node: "q1-l0" or "q1-r2"
+        const match = nodeId.match(/^(.+)-([lr])(\d+)$/);
+        if (!match) return null;
+        const [, sectionId, side, indexStr] = match;
+        const index = parseInt(indexStr, 10);
+        const section = sections.find((s) => s.id === sectionId);
+        if (!section || index >= section[side as 'left' | 'right'].length) return null;
+        section[side as 'left' | 'right'][index] = title;
+      } else {
+        // Stage node: just update the section title
+        const section = sections.find((s) => s.id === nodeId);
+        if (!section) return null;
+        section.t = title;
+      }
+
+      await tx`
+        update strategy_roadmaps set sections = ${sql.json(sections)}, updated_at = now()
+        where id = ${roadmapId}`;
+      return true;
+    });
+
+    if (!updated) return { error: 'notFound' };
+    revalidatePath('/[locale]/strategy', 'page');
+    return {};
+  } catch {
+    return { error: 'updateFailed' };
+  }
+}
+
 const milestoneUpdate = z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(200), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
 
 export async function updateMilestoneAction(

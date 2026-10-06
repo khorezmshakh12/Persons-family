@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { deleteLessonSlotAction } from '@/lib/actions/course-lessons';
 import { LessonDateCell } from './lesson-date-cell';
 import { LessonTopicCell } from './lesson-topic-cell';
 import { LessonGameLinkCell } from './lesson-game-link-cell';
@@ -51,6 +53,30 @@ export function LessonPlanRow({
 }) {
   const t = useTranslations('lessonPlans');
   const [expanded, setExpanded] = useState(false);
+  const [isDeletePending, startDeleteTransition] = useTransition();
+
+  // Check if lesson is empty (no content at all).
+  const isEmpty =
+    !lesson.topic?.trim() &&
+    !lesson.aim?.trim() &&
+    !lesson.language_focus?.trim() &&
+    !lesson.anticipated_problems?.trim() &&
+    !lesson.materials?.trim() &&
+    !lesson.homework?.trim() &&
+    (!lesson.attachments || lesson.attachments.length === 0) &&
+    (!lesson.procedure || lesson.procedure.length === 0);
+
+  function handleDeleteSlot() {
+    if (!confirm(t('courseLessons.confirmDeleteSlot'))) return;
+    const formData = new FormData();
+    formData.set('id', lesson.id);
+    startDeleteTransition(async () => {
+      const res = await deleteLessonSlotAction(undefined, formData);
+      if (res?.error) {
+        toast.error(t(`errors.${res.error}`));
+      }
+    });
+  }
 
   return (
     <>
@@ -102,15 +128,28 @@ export function LessonPlanRow({
           )}
         </td>
         <td className="px-4 py-3.5 align-top">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            className="tap-scale flex items-center gap-1.5 rounded-full border border-au-faint bg-au-card-2 px-3 py-1.5 text-[11px] font-medium text-au-ink transition-colors hover:bg-au-card-2"
-          >
-            {t('courseLessons.planButton')}
-            <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              className="tap-scale flex items-center gap-1.5 rounded-full border border-au-faint bg-au-card-2 px-3 py-1.5 text-[11px] font-medium text-au-ink transition-colors hover:bg-au-card-2"
+            >
+              {t('courseLessons.planButton')}
+              <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} />
+            </button>
+            {isEmpty && canEditContent && !locked && (
+              <button
+                type="button"
+                onClick={handleDeleteSlot}
+                disabled={isDeletePending}
+                aria-label={t('courseLessons.deleteSlot')}
+                className="tap-scale rounded-full p-1.5 text-au-muted transition-colors hover:text-au-ink disabled:opacity-50"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            )}
+          </div>
         </td>
         <td className="px-4 py-3.5 align-top">
           <LessonGameLinkCell lessonId={lesson.id} gameLink={lesson.game_link} canEdit={canEditContent} />

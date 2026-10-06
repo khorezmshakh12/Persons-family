@@ -6,7 +6,7 @@ import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
-import { mirrorChatMessage, bumpNavBadgeSignal, deleteChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
+import { mirrorChatMessage, bumpNavBadgeSignal, deleteChatMessageMirror, updateChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
 import { startDmConversation, respondToDmRequest, toggleStaffChatReaction } from '@/lib/db/queries/dm-conversations';
 import { can, CAP_ROLES } from '@/lib/permissions';
 
@@ -24,6 +24,7 @@ export type SentStaffChatMessage = {
   is_read: boolean;
   reply_to_id: string | null;
   reactions: Record<string, string[]>;
+  edited_at?: string | null;
 };
 
 export type StaffChatsActionState = { error?: string; message?: SentStaffChatMessage } | undefined;
@@ -108,7 +109,7 @@ export async function getDmHistoryAction(otherUserId: string): Promise<SentStaff
   // the history on reload.
   const rows = await sql<SentStaffChatMessage[]>`
     select * from (
-      select id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions
+      select id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions, edited_at
       from staff_chats
       where (sender_id = ${user.id} and receiver_id = ${otherUserId})
          or (sender_id = ${otherUserId} and receiver_id = ${user.id})
@@ -180,7 +181,7 @@ export async function sendStaffChatAction(
         ${parsed.data.mediaUrl ? (parsed.data.mediaType ?? 'none') : 'none'},
         ${replyToId}
       )
-      returning id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions
+      returning id, sender_id, receiver_id, message_text, media_url, media_type, pinned_at, created_at, is_read, reply_to_id, reactions, edited_at
     `;
   } catch (error) {
     // A silent failure here is exactly what used to make the optimistic
@@ -295,6 +296,36 @@ export async function deleteStaffChatAction(formData: FormData): Promise<void> {
     returning receiver_id
   `;
   if (deleted) await deleteChatMessageMirror(user.id, deleted.receiver_id, parsed.data.id);
+}
+
+const editSchema = z.object({ id: z.string().uuid(), messageText: z.string().trim().min(1).max(2000) });
+
+/** The author edits the text of their own message (media messages keep
+ * their media; only the caption/text changes). Owner, 2026-10-06. */
+export async function updateStaffChatAction(input: { id: string; messageText: string }): Promise<{ error?: string; editedAt?: string }> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  const parsed = editSchema.safeParse(input);
+  if (!parsed.success) return { error: 'invalidMessage' };
+  let row: { receiver_id: string; edited_at: string } | undefined;
+  try {
+    [row] = await sql<{ receiver_id: string; edited_at: string }[]>`
+      update staff_chats set message_text = ${parsed.data.messageText}, edited_at = now()
+      where id = ${parsed.data.id} and sender_id = ${user.id}
+      returning receiver_id, edited_at
+    `;
+  } catch (error) {
+    console.error('updateStaffChatAction failed', error);
+    return { error: 'sendFailed' };
+  }
+  if (!row) return { error: 'forbidden' };
+  try {
+    await updateChatMessageMirror(user.id, row.receiver_id, parsed.data.id, parsed.data.messageText, row.edited_at);
+  } catch (error) {
+    // The edit is saved; a mirror hiccup only delays the other side's view.
+    console.error('chat edit mirror failed', error);
+  }
+  return { editedAt: row.edited_at };
 }
 
 const reactionSchema = z.object({ id: z.string().uuid(), emoji: z.string().trim().min(1).max(8) });

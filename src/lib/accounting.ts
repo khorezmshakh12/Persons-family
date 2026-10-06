@@ -57,35 +57,6 @@ export const DEFAULT_TAX: TaxSettings = {
   minCash: 30_000_000,
 };
 
-/** Accounts the statements are computed from — renameable, but never
- * retyped or deleted. */
-export const CORE_ACCOUNTS = new Set([
-  '0100', '0200', '2910', '4010', '5010', '5110', '6010', '6310', '6410', '6520', '6710', '8300', '8710',
-  '9030', '9130', '9410', '9420', '9430', '9810',
-]);
-
-/** Code ranges per account type (national chart of accounts layout). */
-const CODE_RANGE: Record<AccType, [number, number]> = {
-  A: [100, 1999],
-  CA: [2000, 5999],
-  L: [6000, 7999],
-  E: [8000, 8999],
-  R: [9000, 9099],
-  X: [9100, 9999],
-};
-
-/** The next free 4-digit code for a new account of `type` — steps of 10
- * after the highest code in use in that range, then any free code. */
-export function nextAccountCode(type: AccType, used: string[]): string | null {
-  const [lo, hi] = CODE_RANGE[type];
-  const taken = new Set(used.map(Number));
-  const inRange = [...taken].filter((n) => n >= lo && n <= hi);
-  const pad = (n: number) => String(n).padStart(4, '0');
-  for (let n = (inRange.length ? Math.max(...inRange) : lo - 10) + 10; n <= hi; n += 10) if (!taken.has(n)) return pad(n);
-  for (let n = lo; n <= hi; n++) if (!taken.has(n)) return pad(n);
-  return null;
-}
-
 /** Debit-normal accounts (balance grows with debits). */
 export const debitNormal = (t: AccType) => t === 'A' || t === 'X';
 

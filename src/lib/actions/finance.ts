@@ -141,6 +141,50 @@ export async function setSalaryMonthAction(
 
 const deleteEntrySchema = z.object({ entryId: z.string().uuid() });
 
+const updateEntrySchema = z.object({
+  entryId: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
+  amount: z.coerce.number().refine((n) => n !== 0, 'nonzero'),
+  note: z.string().trim().max(1000).optional().or(z.literal('')),
+});
+
+/** Edits a ledger row's title, amount and note. The kind (salary / advance /
+ * penalty) and the payroll period are left untouched — changing them here
+ * would silently move a payment out of "Berilgan". The amount keeps the
+ * row's sign: the edit form takes a plain number, and penalties are stored
+ * negative. */
+export async function updateFinanceEntryAction(
+  _prevState: FinanceActionState,
+  formData: FormData,
+): Promise<FinanceActionState> {
+  try {
+    await requireCap('finance.manage');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = updateEntrySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
+  const magnitude = Math.abs(parsed.data.amount);
+
+  try {
+    const res = await sql`
+      update finance_entries set
+        title = ${parsed.data.title},
+        amount = case when amount < 0 then ${-magnitude} else ${magnitude} end,
+        note = ${parsed.data.note || null}
+      where id = ${parsed.data.entryId}
+    `;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+
+  revalidatePath('/[locale]/finance', 'page');
+  revalidatePath('/[locale]/profile/[id]', 'page');
+  return {};
+}
+
 export async function deleteFinanceEntryAction(
   _prevState: FinanceActionState,
   formData: FormData,

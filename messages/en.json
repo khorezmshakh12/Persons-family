@@ -52,7 +52,6 @@
     "report": "Monthly report",
     "platform": "Platform settings",
     "coreBoard": "Platform view",
-    "butterfly": "Butterfly",
     "kpi": "My KPI"
   },
   "auth": {
@@ -1582,6 +1581,8 @@
       "noOrderHistory": "No orders yet",
       "restockSoon": "Restocking soon",
       "archived": "Archived",
+      "restore": "Restore",
+      "itemRestored": "Item restored from archive.",
       "rejectPlaceholder": "Reason for rejecting (optional)",
       "itemArchived": "Item archived",
       "deleteArchiveHint": "If this item has orders it is archived instead of deleted, so the history is kept."
@@ -1921,17 +1922,6 @@
     "aquarium": {
       "name": "Aquarium",
       "hint": "Real fish swimming."
-    },
-    "butterfly": {
-      "name": "Butterfly",
-      "hint": "Particles that gather into a butterfly and flowers, then scatter."
     }
-  },
-  "butterfly": {
-    "title": "Butterfly",
-    "subtitle": "Scattered particles bloom into a butterfly among flowers, then dissolve again.",
-    "hint": "Drag to orbit · scroll or pinch to zoom",
-    "fullscreen": "Full screen",
-    "exitFullscreen": "Exit full screen"
   }
 }

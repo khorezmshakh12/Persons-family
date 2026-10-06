@@ -30,7 +30,6 @@ export type NavItem = {
     | 'profile'
     | 'settings'
     | 'materials'
-    | 'butterfly'
     | 'kpi';
   href: string;
   /** Points at a different app on the shared gateway (see
@@ -77,7 +76,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   telegramSetup: 'management',
   profile: 'management',
   settings: 'management',
-  butterfly: 'motivation',
   kpi: 'main',
 };
 
@@ -99,7 +97,6 @@ const NAV_SORT: NavItem['key'][] = [
   'hr',
   'market',
   'selfDevelopment',
-  'butterfly',
   'lessonPlans',
   'companyNews',
   'materials',
@@ -164,8 +161,6 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'perforce', href: '/perforce' },
   // Persons Market — curation is the 'market.manage' capability.
   { key: 'market', href: '/market' },
-  // The particle-garden page — open to everyone.
-  { key: 'butterfly', href: '/butterfly' },
   // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.
   { key: 'kpi', href: '/my-kpi' },
   { key: 'profile', href: '/profile' },

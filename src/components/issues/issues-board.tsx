@@ -1,6 +1,7 @@
 'use client';
 
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/ui/empty-state';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -49,12 +50,36 @@ export function IssuesBoard({
   // Split once per `issues` change so a drag-over below only has to rebuild
   // the two columns it actually affects — the other column keeps its array
   // identity and stays skipped by KanbanColumn's memo.
+  // Board filters (redesign 2026-10-06): free text, assignee, and two quick
+  // views the CEO asks for most — nobody assigned, and older than a week.
+  const [q, setQ] = useState('');
+  const [who, setWho] = useState('all');
+  const [quick, setQuick] = useState<'none' | 'unassigned' | 'stale'>('none');
+  const [weekAgo] = useState(() => Date.now() - 7 * 864e5);
+  const assigneeNames = useMemo(
+    () =>
+      [...new Set(issues.map((i) => (i.assignee ? `${i.assignee.first_name} ${i.assignee.last_name}` : '')).filter(Boolean))].sort(),
+    [issues],
+  );
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return issues.filter((i) => {
+      const assignee = i.assignee ? `${i.assignee.first_name} ${i.assignee.last_name}` : '';
+      if (who !== 'all' && assignee !== who) return false;
+      if (quick === 'unassigned' && (i.assignee || i.status === 'done')) return false;
+      if (quick === 'stale' && (i.status === 'done' || Date.parse(i.created_at) >= weekAgo)) return false;
+      if (!needle) return true;
+      const reporter = i.reporter ? `${i.reporter.first_name} ${i.reporter.last_name}` : '';
+      return `${i.title} ${i.description ?? ''} ${reporter} ${assignee}`.toLowerCase().includes(needle);
+    });
+  }, [issues, q, who, quick, weekAgo]);
+
   const baseColumns = useMemo(() => {
     const map = new Map<Issue['status'], Issue[]>();
     for (const status of COLUMNS) map.set(status, []);
-    for (const issue of issues) map.get(issue.status)?.push(issue);
+    for (const issue of visible) map.get(issue.status)?.push(issue);
     return map;
-  }, [issues]);
+  }, [visible]);
 
   // Provisional placement: while the pointer is over a column the card
   // doesn't belong to yet, render it there (and out of its home column).
@@ -179,7 +204,67 @@ export function IssuesBoard({
     return <EmptyState icon={CircleCheck} title={t('noIssues')} hint={t('noIssuesHint')} />;
   }
 
+  const filtered = q.trim() !== '' || who !== 'all' || quick !== 'none';
   return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-au-card border border-au-line bg-au-card p-2.5 shadow-au-card">
+        <label className="flex h-9 min-w-[200px] flex-1 items-center gap-2 rounded-au-ctl border border-au-line bg-au-card-2 px-3">
+          <Search className="size-4 shrink-0 text-au-faint" />
+          <input
+            className="min-w-0 flex-1 bg-transparent text-sm text-au-ink outline-none placeholder:text-au-faint"
+            placeholder="Murojaat, xodim yoki matn bo‘yicha qidirish…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </label>
+        {!readOnly && assigneeNames.length > 0 && (
+          <select
+            className="h-9 rounded-au-ctl border border-au-line bg-au-card-2 px-3 text-sm text-au-ink"
+            value={who}
+            onChange={(e) => setWho(e.target.value)}
+            aria-label="Mas’ul bo‘yicha"
+          >
+            <option value="all">Barcha mas’ullar</option>
+            {assigneeNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        )}
+        {!readOnly &&
+          (
+            [
+              ['unassigned', 'Mas’ulsiz'],
+              ['stale', '7 kundan eski'],
+            ] as const
+          ).map(([k, n]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setQuick(quick === k ? 'none' : k)}
+              className={cn(
+                'h-9 rounded-au-ctl border px-3 text-sm font-semibold transition-colors',
+                quick === k ? 'border-au-ink bg-au-ink text-au-card' : 'border-au-line bg-au-card-2 text-au-muted hover:text-au-ink',
+              )}
+            >
+              {n}
+            </button>
+          ))}
+        {filtered && (
+          <button
+            type="button"
+            onClick={() => {
+              setQ('');
+              setWho('all');
+              setQuick('none');
+            }}
+            className="h-9 px-2 text-sm font-semibold text-au-accent-text hover:underline"
+          >
+            Tozalash · {visible.length} ta
+          </button>
+        )}
+      </div>
     <DndContext
       sensors={sensors}
       // The provisional placement reflows both columns mid-drag, so the
@@ -220,5 +305,6 @@ export function IssuesBoard({
         ) : null}
       </KanbanDragOverlay>
     </DndContext>
+    </div>
   );
 }
