@@ -166,3 +166,14 @@ export async function mirrorGroupChatMessage(params: {
 export async function deleteGroupChatMessageMirror(groupId: string, messageId: string): Promise<void> {
   await db().doc(`group_chats/${groupId}`).collection('messages').doc(messageId).delete();
 }
+
+/** Updates a group chat message's mirrored content after its author edits it,
+ * so the other side sees the change live (additive helper, 2026-10-06). */
+export async function updateGroupChatMessageMirror(
+  groupId: string,
+  messageId: string,
+  content: string,
+  editedAt: string,
+): Promise<void> {
+  await db().doc(`group_chats/${groupId}`).collection('messages').doc(messageId).set({ content, editedAt }, { merge: true });
+}

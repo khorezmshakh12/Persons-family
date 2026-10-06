@@ -335,6 +335,43 @@ export async function adjustMarketItemStockAction(
   return {};
 }
 
+const restoreItemSchema = z.object({ itemId: z.string().uuid() });
+
+/**
+ * Restores an archived market item: sets is_active = true and clears archived_at.
+ * Only archived items can be restored.
+ */
+export async function restoreMarketItemAction(
+  _prevState: MarketActionState,
+  formData: FormData,
+): Promise<MarketActionState> {
+  try {
+    await requireMarketEditor();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = restoreItemSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+  const { itemId } = parsed.data;
+
+  try {
+    const rows = await sql<{ id: string }[]>`
+      update market_items
+         set is_active = true, archived_at = null, updated_at = now()
+       where id = ${itemId} and archived_at is not null
+      returning id
+    `;
+    if (rows.length === 0) return { error: 'itemNotFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+
+  logSystemAction('market.item.restore', `Restored market item ${itemId}`);
+  revalidateMarket();
+  return {};
+}
+
 const deleteItemSchema = z.object({ itemId: z.string().uuid() });
 
 /**

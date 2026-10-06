@@ -1581,9 +1581,11 @@
       "noOrderHistory": "Hali buyurtmalar yo‘q",
       "restockSoon": "Tez orada keladi",
       "archived": "Arxivda",
+      "restore": "Qaytarish",
+      "itemRestored": "Mahsulot arxivdan qaytarildi.",
       "rejectPlaceholder": "Rad etish sababi (ixtiyoriy)",
-      "itemArchived": "Mahsulot arxivga o‘tkazildi",
-      "deleteArchiveHint": "Agar bu mahsulotga buyurtmalar bo‘lgan bo‘lsa, u o‘chirilmaydi — arxivga o‘tkaziladi va tarix saqlanadi."
+      "itemArchived": "Mahsulot arxivga o’tkazildi",
+      "deleteArchiveHint": "Agar bu mahsulotga buyurtmalar bo’lgan bo’lsa, u o’chirilmaydi — arxivga o’tkaziladi va tarix saqlanadi."
     },
     "comingSoon": "Persons Market tez orada ochiladi — hozir yangi sovg'alar tayyorlanmoqda.",
     "starsNeeded": "Yana {count} yulduz kerak",

@@ -1581,6 +1581,8 @@
       "noOrderHistory": "No orders yet",
       "restockSoon": "Restocking soon",
       "archived": "Archived",
+      "restore": "Restore",
+      "itemRestored": "Item restored from archive.",
       "rejectPlaceholder": "Reason for rejecting (optional)",
       "itemArchived": "Item archived",
       "deleteArchiveHint": "If this item has orders it is archived instead of deleted, so the history is kept."

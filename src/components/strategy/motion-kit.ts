@@ -15,7 +15,8 @@ import { useEffect, type RefObject } from 'react';
 type Snd = (k: 'open' | 'close') => void;
 
 const COUNT_SEL = '.v,.big,.cnum,.num,.val,.ctr b,.legend b,.kv b,.mini b,.vbars b,b,strong';
-const NUM = /\d{1,3}(?:[   ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?/g;
+// Thousands may be grouped with spaces or (since 2026-10-05) commas.
+const NUM = /\d{1,3}(?:[,   ]\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?/g;
 const SKIP = /\d{1,2}[./]\d{1,2}[./]\d{2,4}|\b(19|20)\d{2}\b|\d-[a-z]|\d{1,2}:\d{2}/i;
 const GX = '.tr i,.hb i,.bar span,.bar i,.fill,.mg-bar,.bgt-track > *,.sx-hbar i,.sx-hbar span,.track > i,.track > span';
 const GY = 'svg rect.b,.vbars span,.cac-hb i';
@@ -23,9 +24,12 @@ const expo = (x: number) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
 const anim = (el: Element) => getComputedStyle(el).animationName !== 'none';
 
 function fmt(tok: string, k: number) {
-  const sep = /[   ]/.exec(tok)?.[0];
-  const d = /([.,])(\d+)$/.exec(sep ? tok.replace(/[   ]/g, '') : tok);
-  const v = parseFloat(tok.replace(/[   ]/g, '').replace(',', '.')) * k;
+  // A group separator is a space-like char, or a comma followed by exactly
+  // three digits ("4,000,000"); otherwise a comma is a decimal point.
+  const sep = /[   ]/.exec(tok)?.[0] ?? (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(tok) ? ',' : undefined);
+  const plain = sep ? tok.split(sep).join('') : tok;
+  const d = /([.,])(\d+)$/.exec(plain);
+  const v = parseFloat(plain.replace(',', '.')) * k;
   const [i, f] = v.toFixed(d ? d[2].length : 0).split('.');
   const int = sep ? i.replace(/\B(?=(\d{3})+(?!\d))/g, sep) : i;
   return f ? int + d![1] + f : int;
@@ -59,6 +63,10 @@ function countUp(el: HTMLElement, delay: number) {
     if (p < 1 && alive) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
+  // Frames pause in hidden tabs; the real text always lands anyway.
+  setTimeout(() => {
+    for (const o of nodes) if (o.n.nodeValue === o.last) o.n.nodeValue = o.src;
+  }, delay + 1300);
 }
 
 /** Add a one-shot animation class, cleaned up on end (or after 2.6s). */

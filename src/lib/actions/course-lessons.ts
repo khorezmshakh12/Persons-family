@@ -564,3 +564,96 @@ export async function deleteLessonCommentAction(formData: FormData): Promise<voi
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
 }
+
+const updateCommentSchema = z.object({
+  id: z.string().uuid(),
+  body: z.string().trim().min(1).max(1000),
+});
+
+/** Edit own comment. Same permissions and month-lock rule as delete. */
+export async function updateLessonCommentAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = updateCommentSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  // Author only, same closed-month rule.
+  let row: { id: string } | undefined;
+  try {
+    [row] = await sql<{ id: string }[]>`
+    update lesson_comments c
+    set comment_text = ${parsed.data.body}
+    from course_lessons cl
+    where c.lesson_id = cl.id and c.id = ${parsed.data.id}
+      and c.user_id = ${user.id}
+      and (cl.lesson_date is null or cl.lesson_date >= ${`${currentMonthKey()}-01`})
+    returning c.id
+  `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  if (!row) return { error: 'forbidden' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}
+
+/** Delete an empty lesson slot. Only allowed if no content is filled:
+ * no topic, no aim, language_focus, anticipated_problems, materials, homework,
+ * no attachments, empty procedure. Same permissions and month-lock as edits. */
+export async function deleteLessonSlotAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user, profile } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = idSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const denial = await lessonWriteDenial(parsed.data.id, user.id, profile?.role);
+  if (denial) return { error: denial };
+
+  // Fetch the lesson to check if it's empty before deleting.
+  const [lesson] = await sql<{
+    topic: string | null;
+    aim: string | null;
+    language_focus: string | null;
+    anticipated_problems: string | null;
+    materials: string | null;
+    homework: string | null;
+    procedure: unknown;
+    attachments: LessonAttachment[] | null;
+  }[]>`
+    select topic, aim, language_focus, anticipated_problems, materials, homework, procedure, attachments
+    from course_lessons where id = ${parsed.data.id}
+  `;
+  if (!lesson) return { error: 'forbidden' };
+
+  // Check if all content fields are empty.
+  const hasContent =
+    lesson.topic?.trim() ||
+    lesson.aim?.trim() ||
+    lesson.language_focus?.trim() ||
+    lesson.anticipated_problems?.trim() ||
+    lesson.materials?.trim() ||
+    lesson.homework?.trim() ||
+    (lesson.attachments && lesson.attachments.length > 0) ||
+    (lesson.procedure && typeof lesson.procedure === 'string' && lesson.procedure !== '[]');
+
+  if (hasContent) return { error: 'notEmpty' };
+
+  // Delete the row.
+  const [deleted] = await sql<{ id: string }[]>`
+    delete from course_lessons where id = ${parsed.data.id}
+    returning id
+  `;
+  if (!deleted) return { error: 'forbidden' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
+}

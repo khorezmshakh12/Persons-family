@@ -3,10 +3,11 @@
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
-import { Loader2, MessageCircle, Send, Trash2 } from 'lucide-react';
+import { Loader2, MessageCircle, Send, Trash2, Pencil } from 'lucide-react';
 import {
   createLessonCommentAction,
   deleteLessonCommentAction,
+  updateLessonCommentAction,
   type LessonActionState,
 } from '@/lib/actions/course-lessons';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,9 @@ export function LessonCommentsDrawer({
   const format = useFormatter();
   const [open, setOpen] = useState(false);
   const [deletePending, startDeleteTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [isEditPending, startEditTransition] = useTransition();
 
   const [optimisticComments, addOptimisticComment] = useOptimistic(
     comments,
@@ -90,6 +94,32 @@ export function LessonCommentsDrawer({
     });
   }
 
+  function startEdit(commentId: string, currentText: string) {
+    setEditingId(commentId);
+    setEditDraft(currentText);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft('');
+  }
+
+  function saveEdit(commentId: string) {
+    const text = editDraft.trim();
+    if (!text) return;
+    const formData = new FormData();
+    formData.set('id', commentId);
+    formData.set('body', text);
+    startEditTransition(async () => {
+      const res = await updateLessonCommentAction(undefined, formData);
+      if (res?.error) {
+        toast.error(t(`errors.${res.error}`));
+      } else {
+        cancelEdit();
+      }
+    });
+  }
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
@@ -116,6 +146,7 @@ export function LessonCommentsDrawer({
           ) : (
             optimisticComments.map((c) => {
               const isOptimistic = c.id.startsWith('optimistic-');
+              const isEditing = editingId === c.id;
               return (
                 <div key={c.id} className={`group flex items-start gap-2 ${isOptimistic ? 'opacity-60' : ''}`}>
                   <Avatar className="size-7 shrink-0">
@@ -128,18 +159,59 @@ export function LessonCommentsDrawer({
                         {format.dateTime(new Date(c.created_at), { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-sm text-au-ink">{c.comment_text}</p>
+                    {isEditing ? (
+                      <div className="flex flex-col gap-1.5">
+                        <textarea
+                          autoFocus
+                          value={editDraft}
+                          maxLength={1000}
+                          rows={Math.min(4, Math.max(2, editDraft.split(/\n/).length))}
+                          onChange={(e) => setEditDraft(e.target.value)}
+                          className="min-h-8 w-full resize-none rounded-lg border border-au-line bg-au-card px-2 py-1.5 text-sm text-au-ink outline-none focus:border-au-accent"
+                        />
+                        <span className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="rounded-md px-2 py-0.5 text-xs font-semibold text-au-muted hover:text-au-ink"
+                          >
+                            Bekor
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveEdit(c.id)}
+                            disabled={isEditPending || !editDraft.trim()}
+                            className="rounded-md bg-au-ink px-2.5 py-0.5 text-xs font-semibold text-au-card disabled:opacity-50"
+                          >
+                            Saqlash
+                          </button>
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-au-ink">{c.comment_text}</p>
+                    )}
                   </div>
-                  {c.user_id === currentUserId && !isOptimistic && !locked && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(c.id)}
-                      disabled={deletePending}
-                      aria-label={t('courseLessons.deleteComment')}
-                      className="tap-scale shrink-0 text-au-muted opacity-100 transition-opacity hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                  {c.user_id === currentUserId && !isOptimistic && !locked && !isEditing && (
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(c.id, c.comment_text)}
+                        disabled={isEditPending}
+                        aria-label={t('courseLessons.editComment')}
+                        className="tap-scale shrink-0 text-au-muted opacity-100 transition-opacity hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(c.id)}
+                        disabled={deletePending}
+                        aria-label={t('courseLessons.deleteComment')}
+                        className="tap-scale shrink-0 text-au-muted opacity-100 transition-opacity hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
               );
