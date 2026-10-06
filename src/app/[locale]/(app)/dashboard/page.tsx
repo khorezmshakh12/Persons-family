@@ -85,7 +85,7 @@ const FEED_CELL = 'lg:col-span-7';
 const BARS_CELL = 'lg:col-span-5';
 const STATS_CELL = 'lg:col-span-12';
 
-const formatCount = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
+const formatCount = (n: number) => new Intl.NumberFormat('en-US').format(n);
 
 function Bar({ className }: { className?: string }) {
   return <div className={cn(SKELETON, className)} />;

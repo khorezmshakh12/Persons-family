@@ -267,7 +267,7 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
     if (!out) return { error: 'notFound' };
     if (out === 'future') return { error: 'notYet' };
     logSystemAction('kpi.grade', `KPI graded ${out.month}: ${v.grade}`);
-    const fmt = (n: number) => Math.abs(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+    const fmt = (n: number) => Math.abs(n).toLocaleString('en-US');
     await notify(
       out.userId,
       `📊 ${monthName(out.month)} KPI natijangiz: <b>${SCENARIO_LABEL[v.grade as Scenario]}</b> (${out.percent > 0 ? '+' : ''}${out.percent}%)\n` +

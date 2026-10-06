@@ -1520,7 +1520,7 @@ function CashForecast({ books, today, min }: { books: Books; today: string; min:
 /* ---------------------------------------------------------------- FA · journal */
 function FaJournal({ books, ym, today }: { books: Books; ym: string; today: string }) {
   const { run, pending } = useRun();
-  const [f, setF] = useState({ date: today.slice(0, 7) === ym ? today : monthStart(ym), doc: '', description: '', debit: '5110', credit: '4010', amount: null as number | null });
+  const [f, setF] = useState({ date: today.slice(0, 7) === ym ? today : monthStart(ym), doc: '', description: '', debit: '5110', credit: '9030', amount: null as number | null });
   // Keep the default entry date inside the month picked above.
   const [fYm, setFYm] = useState(ym);
   if (fYm !== ym) {

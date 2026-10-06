@@ -110,7 +110,7 @@ export function StatCard({
     // Round toward the final value so the last frame is exact, never
     // "1 999 999" for a 2 000 000 total.
     const rounded = progress >= 1 ? value : Math.round(n);
-    return format === 'uzs' ? formatUZS(rounded) : new Intl.NumberFormat('uz-UZ').format(rounded);
+    return format === 'uzs' ? formatUZS(rounded) : new Intl.NumberFormat('en-US').format(rounded);
   }, [value, progress, format]);
 
   // Scale the bars across the series' own min..max rather than 0..max.

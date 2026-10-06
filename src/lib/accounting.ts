@@ -409,9 +409,13 @@ export function cashWeeks(
 
 /** Journal templates (debit, credit) from the prototype. */
 export const JOURNAL_TEMPLATES: [string, string, string][] = [
-  ["O'quvchi to'lovi (bank)", '5110', '4010'],
-  ["O'quvchi to'lovi (kassa)", '5010', '4010'],
-  ["O'qish to'lovi hisoblandi", '4010', '9030'],
+  // An education centre is paid as it teaches: a student payment is the
+  // month's revenue (9030), not a debt being repaid — crediting 4010 left
+  // receivables negative and the P&L empty (owner, 2026-10-06).
+  ["O'quvchi to'lovi (bank)", '5110', '9030'],
+  ["O'quvchi to'lovi (kassa)", '5010', '9030'],
+  ["O'qish to'lovi hisoblandi (qarzga)", '4010', '9030'],
+  ["O'quvchi qarzini to'ladi", '5010', '4010'],
   ["Oldindan to'lov", '5110', '6310'],
   ['Ish haqi hisoblash', '9130', '6710'],
   ['Ijara hisob-fakturasi', '9420', '6010'],
@@ -439,4 +443,4 @@ export const fmtMln = (v: number) => {
   const s = a >= 1e9 ? `${(a / 1e9).toFixed(2)} mlrd` : a >= 1e6 ? `${(a / 1e6).toFixed(1)} mln` : a >= 1e3 ? `${Math.round(a / 1e3)} ming` : `${Math.round(a)}`;
   return (v < 0 ? '−' : '') + s;
 };
-export const fmtNum = (v: number) => (Math.round(v) || 0).toLocaleString('ru-RU').replace(/ /g, ' ');
+export const fmtNum = (v: number) => (Math.round(v) || 0).toLocaleString('en-US');
