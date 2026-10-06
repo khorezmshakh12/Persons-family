@@ -9,7 +9,6 @@ import { logSystemAction } from '@/lib/audit-log';
 import { getPayrollSummary } from '@/lib/payroll';
 import { teacherCostFor } from '@/lib/accounting-ma';
 import {
-  CORE_ACCOUNTS,
   DEFAULT_TAX,
   depreciation,
   disposalPostings,
@@ -459,73 +458,6 @@ export async function setPlanStudentsAction(input: z.input<typeof planSchema>): 
     return { error: 'updateFailed' };
   }
   logSystemAction('acct.plan_students', `${p.data.month}: ${p.data.students}`);
-  return done();
-}
-
-const accountSchema = z.object({
-  code: code,
-  name: z.string().trim().min(1).max(200),
-  type: z.enum(['A', 'CA', 'L', 'E', 'R', 'X']),
-  /** Omitted on an edit — the account keeps its place in the list. */
-  sort: z.number().int().min(0).max(10000).optional(),
-  isNew: z.boolean().default(false),
-});
-
-export async function saveAccountAction(input: z.input<typeof accountSchema>): Promise<Result> {
-  const g = await requireEditor();
-  if ('error' in g) return g;
-  const p = accountSchema.safeParse(input);
-  if (!p.success) return { error: 'invalidInput' };
-  const { code, name, type, sort, isNew } = p.data;
-  try {
-    if (isNew) {
-      await sql`
-        insert into acct_accounts (code, name, type, sort)
-        values (${code}, ${name}, ${type}, ${sort ?? Number(code)})`;
-    } else {
-      // Core accounts feed the statements by type — only their name changes.
-      const res = await sql`
-        update acct_accounts set name = ${name},
-          type = ${CORE_ACCOUNTS.has(code) ? sql`type` : type},
-          sort = coalesce(${sort ?? null}::int, sort)
-        where code = ${code}`;
-      if (res.count === 0) return { error: 'notFound' };
-    }
-  } catch {
-    return { error: 'updateFailed' };
-  }
-  logSystemAction('acct.account_save', `${code} "${name}" (${type})`);
-  return done();
-}
-
-export async function deleteAccountAction(code: string): Promise<Result> {
-  const g = await requireEditor();
-  if ('error' in g) return g;
-  if (!z.string().regex(/^\d{4}$/).safeParse(code).success) return { error: 'invalidInput' };
-  if (CORE_ACCOUNTS.has(code)) return { error: 'inUse' };
-  try {
-    // Check if account is used in acct_entries
-    const [usedInEntries] = await sql<{ count: number }[]>`
-      select count(*)::int as count from acct_entries where debit = ${code} or credit = ${code}`;
-    if (usedInEntries.count > 0) return { error: 'inUse' };
-
-    // Check if account is used in acct_opening
-    const [usedInOpening] = await sql<{ count: number }[]>`
-      select count(*)::int as count from acct_opening where code = ${code}`;
-    if (usedInOpening.count > 0) return { error: 'inUse' };
-
-    // Check if account is used in acct_budget
-    const [usedInBudget] = await sql<{ count: number }[]>`
-      select count(*)::int as count from acct_budget where code = ${code}`;
-    if (usedInBudget.count > 0) return { error: 'inUse' };
-
-    const res = await sql`delete from acct_accounts where code = ${code}`;
-    if (res.count === 0) return { error: 'notFound' };
-  } catch (e) {
-    if (e instanceof Error && (e as Error & { code: string }).code === '23503') return { error: 'inUse' }; // Foreign key violation
-    return { error: 'updateFailed' };
-  }
-  logSystemAction('acct.account_delete', `Deleted account ${code}`);
   return done();
 }
 

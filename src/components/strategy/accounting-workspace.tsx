@@ -33,9 +33,6 @@ import {
   payrollTaxes,
   statements,
   taxCompare,
-  CORE_ACCOUNTS,
-  nextAccountCode,
-  type AccType,
   type TaxSettings,
 } from '@/lib/accounting';
 import type { Books } from '@/lib/accounting-data';
@@ -61,7 +58,6 @@ import {
 import {
   addAssetAction,
   addJournalEntryAction,
-  deleteAccountAction,
   deleteAssetAction,
   deleteBudgetAction,
   deleteCourseAction,
@@ -71,7 +67,6 @@ import {
   postDepreciationAction,
   postPayrollAction,
   postTurnoverTaxAction,
-  saveAccountAction,
   saveCourseAction,
   saveTaxSettingsAction,
   setBudgetAction,
@@ -101,7 +96,7 @@ const TABS: ({ v: Tab; n: string; Icon: React.ComponentType<{ className?: string
   { v: 'fa_tax', n: 'Soliq & ish haqi', Icon: Percent },
   { v: 'fa_fa', n: 'Jihozlar (asosiy vositalar)', Icon: Building2 },
   { v: 'fa_jr', n: 'Jurnal', Icon: BookOpen },
-  { v: 'fa_gl', n: 'Hisoblar va qoldiqlar', Icon: Wallet },
+  { v: 'fa_gl', n: 'Aylanma va qoldiqlar', Icon: Wallet },
 ];
 const FLAT = TABS.filter((t): t is { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> } => 'v' in t);
 const KEY = 'persons-acct-tab';
@@ -1742,157 +1737,6 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-const ACCT_TYPES: [string, string][] = [
-  ['A', 'Uzoq muddatli aktiv'],
-  ['CA', 'Joriy aktiv'],
-  ['L', 'Majburiyat'],
-  ['E', 'Kapital'],
-  ['R', 'Daromad'],
-  ['X', 'Xarajat'],
-];
-
-/** Chart of accounts: add / rename / retype / delete (unused only). Codes are
- * internal — a new account gets the next free code in its type's range
- * (owner, 2026-10-05: no account codes in the UI). The accounts the
- * statements are built from can be renamed but not retyped or deleted. */
-function AccountsManager({ books }: { books: Books }) {
-  const { run, pending } = useRun();
-  const [f, setF] = useState({ name: '', type: 'X' });
-  const [edit, setEdit] = useState<{ code: string; name: string; type: string } | null>(null);
-  const [q, setQ] = useState('');
-  const list = books.accounts.filter((a) => !q || a.name.toLowerCase().includes(q.toLowerCase()));
-  const add = () => {
-    const code = nextAccountCode(f.type as AccType, books.accounts.map((a) => a.code));
-    if (!code) return toast.error('Bu turda bo‘sh joy qolmadi');
-    if (books.accounts.some((a) => a.name.trim().toLowerCase() === f.name.trim().toLowerCase())) return toast.error('Bunday nomli hisob bor');
-    run(
-      () => saveAccountAction({ code, name: f.name, type: f.type as AccType, sort: Number(code), isNew: true }),
-      'Hisob qo‘shildi',
-      () => setF({ name: '', type: f.type }),
-    );
-  };
-  return (
-    <div className="sx-card s12">
-      <div className="sx-h">
-        <h3>Hisoblar rejasi</h3>
-        <small>{books.accounts.length} ta hisob · daromad, xarajat, mol-mulk va qarzlar ro‘yxati</small>
-        <span className="sp" />
-        <input className="sx-inp !h-[32px] !w-[180px]" placeholder="Qidirish…" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-au-line bg-au-card-2 p-3">
-        <input
-          className="sx-inp min-w-[200px] flex-1"
-          maxLength={200}
-          placeholder="Yangi hisob nomi (masalan: IELTS kurslari tushumi)"
-          value={f.name}
-          onChange={(e) => setF({ ...f, name: e.target.value })}
-          onKeyDown={(e) => e.key === 'Enter' && f.name.trim() && add()}
-        />
-        <select className="sx-inp !w-[180px]" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
-          {ACCT_TYPES.map(([k, n]) => (
-            <option key={k} value={k}>
-              {n}
-            </option>
-          ))}
-        </select>
-        <button className="sx-btn primary sm" disabled={pending || !f.name.trim()} onClick={add}>
-          <Plus className="size-3.5" /> Hisob qo‘shish
-        </button>
-      </div>
-      <div className="sx-tw">
-        <table className="sx-tbl">
-          <thead>
-            <tr>
-              <th className="l">Nomi</th>
-              <th className="l">Turi</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((a) => {
-              const core = CORE_ACCOUNTS.has(a.code);
-              return edit?.code === a.code ? (
-                <tr key={a.code}>
-                  <td className="l">
-                    <input
-                      className="sx-inp !h-[30px]"
-                      maxLength={200}
-                      autoFocus
-                      value={edit.name}
-                      onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                      onKeyDown={(e) => e.key === 'Escape' && setEdit(null)}
-                    />
-                  </td>
-                  <td className="l">
-                    <select
-                      className="sx-inp !h-[30px]"
-                      value={edit.type}
-                      disabled={core}
-                      title={core ? 'Asosiy hisob — turi hisobotlar uchun o‘zgarmaydi' : undefined}
-                      onChange={(e) => setEdit({ ...edit, type: e.target.value })}
-                    >
-                      {ACCT_TYPES.map(([k, n]) => (
-                        <option key={k} value={k}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="whitespace-nowrap">
-                    <button
-                      className="sx-btn primary sm"
-                      disabled={pending || !edit.name.trim()}
-                      onClick={() =>
-                        run(() => saveAccountAction({ code: a.code, name: edit.name, type: edit.type as AccType, isNew: false }), 'Hisob saqlandi', () => setEdit(null))
-                      }
-                    >
-                      Saqlash
-                    </button>{' '}
-                    <button className="sx-btn sm" onClick={() => setEdit(null)}>
-                      Bekor
-                    </button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={a.code}>
-                  <td className="l">
-                    {a.name}
-                    {core && <small className="ml-1.5 text-au-faint">asosiy</small>}
-                  </td>
-                  <td className="l text-au-muted">{ACCT_TYPES.find(([k]) => k === a.type)?.[1] ?? a.type}</td>
-                  <td className="whitespace-nowrap">
-                    <button className="sx-chipb" aria-label="Tahrirlash" onClick={() => setEdit({ code: a.code, name: a.name, type: a.type })}>
-                      <Pencil className="size-3.5" />
-                    </button>{' '}
-                    {!core && (
-                      <button
-                        className="sx-chipb text-au-bad"
-                        aria-label="O‘chirish"
-                        disabled={pending}
-                        onClick={async () => (await ask(`«${a.name}» hisobi o‘chirilsinmi?`)) && run(() => deleteAccountAction(a.code), 'Hisob o‘chirildi')}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {list.length === 0 && (
-              <tr>
-                <td colSpan={3} className="l">
-                  <div className="sx-empty">Topilmadi</div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <p className="sx-note">«Asosiy» hisoblar hisobotlar shu hisoblardan tuziladi — nomini o‘zgartirish mumkin, o‘chirib bo‘lmaydi. Ishlatilgan hisobni ham o‘chirib bo‘lmaydi.</p>
-    </div>
-  );
-}
-
 function FaLedger({ books, ym }: { books: Books; ym: string }) {
   const { run, pending } = useRun();
   const L = ledger(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
@@ -2006,7 +1850,6 @@ function FaLedger({ books, ym }: { books: Books; ym: string }) {
         </div>
       </div>
       {open && L[open] && <TAccount line={L[open]} rows={rows} name={(c) => books.accounts.find((a) => a.code === c)?.name ?? '—'} />}
-      <AccountsManager books={books} />
     </div>
   );
 }
@@ -2116,7 +1959,7 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
       {empty && (
         <div className="sx-card s12">
           <div className="sx-empty">
-            Hisobotlar kiritilgan raqamlardan tuziladi. «Kirim-chiqim» bo‘limida kirim va chiqimlarni yozing (yoki «Hisoblar va qoldiqlar»da boshlang‘ich
+            Hisobotlar kiritilgan raqamlardan tuziladi. «Kirim-chiqim» bo‘limida kirim va chiqimlarni yozing (yoki «Aylanma va qoldiqlar»da boshlang‘ich
             qoldiqlarni kiriting) — balans, foyda va pul oqimi shu yerda darhol paydo bo‘ladi.
           </div>
         </div>
@@ -2159,7 +2002,7 @@ function FaReports({ books, ym }: { books: Books; ym: string }) {
         </table>
         {s.imbalance !== 0 && (
           <p className="sx-note">
-            Farq odatda boshlang‘ich qoldiqlar muvozanatsizligidan kelib chiqadi — «Hisoblar va qoldiqlar» → «Boshlang‘ich qoldiqlar»da Aktiv = Passiv bo‘lishini
+            Farq odatda boshlang‘ich qoldiqlar muvozanatsizligidan kelib chiqadi — «Aylanma va qoldiqlar» → «Boshlang‘ich qoldiqlar»da Aktiv = Passiv bo‘lishini
             tekshiring.
           </p>
         )}
