@@ -369,14 +369,26 @@ export function SlotModal({
           </>
         )}
         {cell.kind === 'hold' && (
-          <div className="flex gap-2">
-            <button className="sx-btn primary" disabled={pending} onClick={() => run(() => saveSlotHoldAction({ id: cell.h.id, room, time, cohort, kind, title }), 'Saqlash', onClose)}>
+          <>
+            {/* Editable booking (owner, 2026-10-06): change its type / note. */}
+            <label>
+              Tur
+              <select className="sx-inp !w-[150px]" value={kind} onChange={(e) => setKind(e.target.value as 'trial' | 'buffer')}>
+                <option value="trial">Sinov darsi</option>
+                <option value="buffer">Lean bufer</option>
+              </select>
+            </label>
+            <label className="min-w-[180px] flex-1">
+              Izoh
+              <input className="sx-inp" maxLength={120} value={title} placeholder="Masalan: Speaking Club" onChange={(e) => setTitle(e.target.value)} />
+            </label>
+            <button className="sx-btn primary" disabled={pending} onClick={() => run(() => saveSlotHoldAction({ id: cell.h.id, room, time, cohort, kind, title }), 'Saqlandi', onClose)}>
               Saqlash
             </button>
             <button className="sx-btn text-au-bad" disabled={pending} onClick={() => run(() => deleteSlotHoldAction(cell.h.id), "Band qilish bekor qilindi", onClose)}>
               O&apos;chirish
             </button>
-          </div>
+          </>
         )}
         {cell.kind === 'free' && (
           <>
