@@ -6,14 +6,12 @@ import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
-import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 import {
   canSeeLessonPlans,
   loadActivity,
   loadDashboardCore,
-  loadEmployeeTaskStats,
   loadLastMonthTop3,
   loadLeaderboard,
   loadLessonPlanMonths,
@@ -34,7 +32,6 @@ import { Leaderboard } from '@/components/aurora/leaderboard';
 import { WeekBarChart } from '@/components/aurora/week-bar-chart';
 import { ActivityFeed } from '@/components/aurora/activity-feed';
 import { TaskFeed } from '@/components/aurora/task-feed';
-import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { MonthTop3 } from '@/components/aurora/month-top3';
 import { SelfDevReminder } from '@/components/aurora/self-dev-reminder';
 import { KpiReminder } from '@/components/aurora/kpi-reminder';
@@ -83,7 +80,6 @@ const KPI_CELL = 'lg:col-span-6 xl:col-span-8';
 const ACT_CELL = 'lg:col-span-12';
 const FEED_CELL = 'lg:col-span-7';
 const BARS_CELL = 'lg:col-span-5';
-const STATS_CELL = 'lg:col-span-12';
 
 const formatCount = (n: number) => new Intl.NumberFormat('en-US').format(n);
 
@@ -217,10 +213,6 @@ async function TaskFeedSection({ viewer }: { viewer: Viewer }) {
   return <TaskFeed items={items} mode={can(viewer.role, 'company.overview') ? 'ceo' : 'self'} className={FEED_CELL} />;
 }
 
-async function EmployeeStatsSection() {
-  const rows = await loadEmployeeTaskStats();
-  return <EmployeeStatsTable rows={rows} className={STATS_CELL} />;
-}
 
 async function SelfDevReminderSection({ userId, reviewer }: { userId: string; reviewer: boolean }) {
   if (reviewer) return null;
@@ -275,6 +267,8 @@ async function NewsSliderSection() {
   `.catch(() => []);
   return (
     <NewsSliderView
+      flat
+      className="lg:col-span-12"
       title={t('companyNews.title')}
       allLabel={t('companyNews.all')}
       items={news.map((n) => ({
@@ -303,10 +297,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-[18px] px-4 pt-1 pb-7 sm:px-7">
-      {/* Latest company news, rotating every 3 s — the first thing on the page. */}
-      <Reveal fallback={null}>
-        <NewsSliderSection />
-      </Reveal>
       {/* Monthly self-development is mandatory for everyone but the CEO. */}
       <Reveal fallback={null}>
         <SelfDevReminderSection userId={user!.id} reviewer={can(profile!.role, 'selfDev.review')} />
@@ -322,18 +312,25 @@ export default async function DashboardPage() {
         <Reveal fallback={<CardSkeleton className={cn(LEAD_CELL, 'min-h-[520px]')} />}>
           <LeaderboardSection userId={user!.id} compact={!isCeo} />
         </Reveal>
+        {/* Company news — a flat card carousel right under the star rating
+            (owner, 2026-10-06). */}
+        <Reveal fallback={null}>
+          <NewsSliderSection />
+        </Reveal>
         <Reveal fallback={<CardSkeleton className={ACT_CELL} />}>
           <ActivitySection viewer={viewer} />
         </Reveal>
-        <Reveal fallback={<CardSkeleton className={FEED_CELL} />}>
-          <TaskFeedSection viewer={viewer} />
-        </Reveal>
-        <Reveal fallback={<CardSkeleton className={BARS_CELL} />}>
-          <WeekChartSection viewer={viewer} />
-        </Reveal>
-        {isCeo && (
-          <Reveal fallback={<CardSkeleton className={STATS_CELL} />}>
-            <EmployeeStatsSection />
+        {/* CEO dashboard trimmed (owner, 2026-10-06): no "completed tasks"
+            chart / "tasks completed by staff" feed; employee statistics live
+            in HR. Everyone else keeps their own task feed and chart. */}
+        {!isCeo && (
+          <Reveal fallback={<CardSkeleton className={FEED_CELL} />}>
+            <TaskFeedSection viewer={viewer} />
+          </Reveal>
+        )}
+        {!isCeo && (
+          <Reveal fallback={<CardSkeleton className={BARS_CELL} />}>
+            <WeekChartSection viewer={viewer} />
           </Reveal>
         )}
       </div>
@@ -357,13 +354,13 @@ export default async function DashboardPage() {
             <TeacherProgressChartSection delayMs={0} />
           </Reveal>
         )}
-        <Reveal fallback={<GlassCardSkeleton />}>
-          {/* Company-wide chat activity is overview data (CEO only). */}
-          {isCeo ? <ActivityHeatmap href="/calendar" delayMs={90} /> : null}
-        </Reveal>
-        <Reveal fallback={<GlassCardSkeleton />}>
-          <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />
-        </Reveal>
+        {/* Monthly activity and "Your progress" removed from the CEO
+            dashboard (owner, 2026-10-06): the CEO has no own task stream. */}
+        {!isCeo && (
+          <Reveal fallback={<GlassCardSkeleton />}>
+            <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />
+          </Reveal>
+        )}
       </div>
     </div>
   );

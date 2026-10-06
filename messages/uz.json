@@ -52,7 +52,6 @@
     "report": "Oylik hisobot",
     "platform": "Platforma sozlamalari",
     "coreBoard": "Platforma ko'rinishi",
-    "butterfly": "Kapalak",
     "kpi": "Mening KPI"
   },
   "auth": {
@@ -1921,17 +1920,6 @@
     "aquarium": {
       "name": "Akvarium",
       "hint": "Haqiqiy baliqlar suzib yuradi."
-    },
-    "butterfly": {
-      "name": "Kapalak",
-      "hint": "Zarrachalardan yig‘ilib-tarqaladigan kapalak va gullar."
     }
-  },
-  "butterfly": {
-    "title": "Kapalak",
-    "subtitle": "Zarrachalar bog‘da kapalak va gullarga aylanib, yana tarqaladi.",
-    "hint": "Aylantirish uchun suring · yaqinlashtirish uchun g‘ildirak / ikki barmoq",
-    "fullscreen": "To‘liq ekran",
-    "exitFullscreen": "To‘liq ekrandan chiqish"
   }
 }

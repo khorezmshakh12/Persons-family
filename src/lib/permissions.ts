@@ -106,7 +106,6 @@ export type SectionKey =
   | 'profile'
   | 'settings'
   | 'materials'
-  | 'butterfly'
   | 'kpi';
 
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
@@ -127,7 +126,6 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   profile: ALL,
   settings: ALL,
   materials: ALL,
-  butterfly: ALL, // the particle-garden page — a calm corner for everyone
   kpi: ALL, // My KPI — everyone files a monthly plan; the CEO reviews (kpi.review)
   hr: ALL, // own leave / vacation requests; other people's pay is redacted
   // Department sections.

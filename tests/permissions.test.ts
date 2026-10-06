@@ -29,7 +29,7 @@ const read = (p: string) => readFileSync(join(root, p), 'utf8');
 const EVERYONE: SectionKey[] = [
   // Inbox (approvals) removed for everyone — owner, 2026-10-05.
   'dashboard', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker',
-  'finance', 'profile', 'settings', 'materials', 'hr', 'butterfly', 'kpi',
+  'finance', 'profile', 'settings', 'materials', 'hr', 'kpi',
 ];
 
 // The owner-facing matrix: department sections per role, on top of EVERYONE.

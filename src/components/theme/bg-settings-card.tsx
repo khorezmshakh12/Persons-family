@@ -7,7 +7,7 @@ import { CHIP_NEUTRAL, CHIP_OK } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { AQUARIUM_READY, BG_MODES, currentBg, DEFAULT_BG, setBg, subscribeBg } from '@/lib/bg-mode';
 
-/** Settings › Orqa fon: off / flowing colour / aquarium / butterfly, per device. */
+/** Settings › Orqa fon: off / flowing colour / aquarium, per device. */
 export function BgSettingsCard() {
   const t = useTranslations('bgSettings');
   const mode = useSyncExternalStore(subscribeBg, currentBg, () => DEFAULT_BG);

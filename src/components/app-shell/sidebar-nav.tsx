@@ -18,7 +18,6 @@ import {
   Wallet,
   Milestone,
   BookOpen,
-  Sparkles,
   Target,
   ShoppingBag,
   Map as MapIcon,
@@ -62,7 +61,6 @@ export const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: str
   profile: User,
   settings: Settings,
   materials: BookOpen,
-  butterfly: Sparkles,
   kpi: Target,
 };
 
