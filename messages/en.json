@@ -551,7 +551,10 @@
       "pastMonths": "Past months",
       "upcomingMonths": "Upcoming months",
       "readOnly": "Read-only",
-      "noLessonsThisMonth": "No lessons scheduled for this month yet."
+      "noLessonsThisMonth": "No lessons scheduled for this month yet.",
+      "confirmDeleteSlot": "Delete this empty lesson slot?",
+      "deleteSlot": "Delete empty slot",
+      "editComment": "Edit comment"
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -611,7 +614,8 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidMessage": "Message can't be empty.",
       "sendFailed": "Could not send your message. Please try again."
-    }
+    },
+    "edit": "Edit"
   },
   "tasks": {
     "title": "Tasks",
@@ -1054,7 +1058,10 @@
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
     },
-    "fromWarning": "From warning"
+    "fromWarning": "From warning",
+    "edit": "Edit",
+    "editEntry": "Edit entry",
+    "entryUpdated": "Entry updated"
   },
   "finance": {
     "title": "Finance",
@@ -1121,7 +1128,10 @@
       "toPay": "Total to pay",
       "paid": "Paid",
       "remaining": "Remaining"
-    }
+    },
+    "edit": "Edit",
+    "editEntry": "Edit entry",
+    "entryUpdated": "Entry updated"
   },
   "kpi": {
     "title": "KPI",
@@ -1385,7 +1395,10 @@
         "invalidInput": "Please fill in all required fields.",
         "createFailed": "Could not add this duty. Please try again.",
         "deleteFailed": "Could not delete this duty. Please try again."
-      }
+      },
+      "dutyUpdated": "Duty updated",
+      "edit": "Edit",
+      "editDuty": "Edit duty"
     },
     "contracts": {
       "title": "Contracts & Duties",

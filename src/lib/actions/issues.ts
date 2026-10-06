@@ -808,8 +808,8 @@ export async function addIssueCommentAction(
   };
 }
 
-/** CEO: run TypeSafe triage for open issues that have none yet (backfill /
- * retry after the key was added). Bounded so one click can't run long. */
+/** CEO: run TypeSafe triage for issues that have none yet — open ones
+ * first, then history (backfill / retry). Bounded so one click can't run long. */
 export async function triageOpenIssuesAction(): Promise<{ error?: string; done?: number }> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
@@ -818,13 +818,18 @@ export async function triageOpenIssuesAction(): Promise<{ error?: string; done?:
   try {
     ids = await sql<{ id: string }[]>`
       select i.id from issues i left join issue_ai a on a.issue_id = i.id
-      where i.status <> 'done' and a.issue_id is null
-      order by i.created_at desc limit 25`;
+      where a.issue_id is null
+      order by (i.status <> 'done') desc, i.created_at desc limit 30`;
   } catch {
     return { error: 'loadFailed' };
   }
+  // Open issues first, then the resolved history (owner, 2026-10-06: the
+  // category breakdown was mostly "aniqlanmagan"). Five Jev calls at a time.
   let done = 0;
-  for (const { id } of ids) if (await triageIssue(id)) done++;
+  for (let k = 0; k < ids.length; k += 5) {
+    const ok = await Promise.all(ids.slice(k, k + 5).map(({ id }) => triageIssue(id)));
+    done += ok.filter(Boolean).length;
+  }
   if (done) {
     await bumpBoardSignal('issues');
     revalidatePath('/[locale]/issues', 'page');

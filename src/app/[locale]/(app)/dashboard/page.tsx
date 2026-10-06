@@ -130,7 +130,7 @@ async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: s
         showLessonPlans={canSeeLessonPlans(viewer.role)}
         className={HERO_CELL}
       />
-      <div className={cn(KPI_CELL, 'grid grid-cols-1 gap-[18px] min-[420px]:grid-cols-2 xl:grid-cols-4')}>
+      <div className={cn(KPI_CELL, 'grid grid-cols-1 gap-[18px] min-[420px]:grid-cols-2', isCeo ? 'xl:grid-cols-3' : 'xl:grid-cols-4')}>
         {kpis ? (
           <>
             <KpiCard
@@ -166,6 +166,8 @@ async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: s
               caption={t('thisMonth')}
               bars={kpis.stars.bars}
             />
+            {/* "Completed tasks" left the CEO dashboard (owner, 2026-10-06). */}
+            {!isCeo && (
             <KpiCard
               index={3}
               href="/tasks"
@@ -176,6 +178,7 @@ async function HeroAndKpis({ viewer, firstName }: { viewer: Viewer; firstName: s
               caption={t('doneLast7', { count: kpis.doneTasks.extra ?? 0 })}
               bars={kpis.doneTasks.bars}
             />
+            )}
           </>
         ) : (
           <div className={cn(SURFACE_CARD, 'col-span-full p-6 text-center text-sm text-au-muted')}>{t('noData')}</div>

@@ -152,10 +152,13 @@ export async function updatePerformanceEntryAction(
       where id = ${parsed.data.entryId}
     `;
     if (res.count === 0) return { error: 'notFound' };
-  } catch {
+  } catch (error) {
+    console.error('updatePerformanceEntryAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
   }
 
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
+  revalidatePath('/[locale]/profile/[id]', 'page');
   revalidatePath('/[locale]/performance', 'page');
   return {};
 }

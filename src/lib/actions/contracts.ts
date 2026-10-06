@@ -174,6 +174,7 @@ export async function updateDutyAction(
     return { error: 'updateFailed' };
   }
 
+  revalidatePath('/[locale]/profile/[id]', 'page');
   revalidatePath('/[locale]/staff', 'page');
   return {};
 }

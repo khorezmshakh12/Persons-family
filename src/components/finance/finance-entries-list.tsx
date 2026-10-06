@@ -55,6 +55,9 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
   }
 
   function handleDelete(entryId: string) {
+    // A ledger row is money — never delete it on a single stray click.
+    const entry = entries.find((e) => e.id === entryId);
+    if (!window.confirm(`«${entry?.title ?? ''}» yozuvi o‘chirilsinmi? (${formatUZS(entry?.amount ?? 0)} so‘m)`)) return;
     const formData = new FormData();
     formData.set('entryId', entryId);
     startTransition(async () => {

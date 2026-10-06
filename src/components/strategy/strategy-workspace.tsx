@@ -96,7 +96,7 @@ const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: stri
     n: 'Moliya',
     Icon: Wallet,
     views: [
-      { v: 'fin', n: 'Moliya', Icon: Wallet },
+      { v: 'fin', n: 'Ko‘rsatkichlar', Icon: Wallet },
       { v: 'analytics', n: 'Tahlil', Icon: LineChart },
     ],
   },

@@ -171,14 +171,16 @@ export async function updateFinanceEntryAction(
     const res = await sql`
       update finance_entries set
         title = ${parsed.data.title},
-        amount = case when amount < 0 then ${-magnitude} else ${magnitude} end,
+        amount = case when amount < 0 then ${-magnitude}::numeric else ${magnitude}::numeric end,
         note = ${parsed.data.note || null}
       where id = ${parsed.data.entryId}
     `;
     if (res.count === 0) return { error: 'notFound' };
-  } catch {
+  } catch (error) {
+    console.error('updateFinanceEntryAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
   }
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
 
   revalidatePath('/[locale]/finance', 'page');
   revalidatePath('/[locale]/profile/[id]', 'page');
