@@ -24,6 +24,7 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState<number | null>(null);
+  const [sign, setSign] = useState<'+' | '-'>('+');
   const [state, formAction, isPending] = useActionState<FinanceActionState, FormData>(
     addFinanceEntryAction,
     undefined,
@@ -35,6 +36,7 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
     } else if (state && !state.error) {
       toast.success(t('entryAdded'));
       setAmount(null);
+      setSign('+');
       setOpen(false);
     }
   }, [state, t]);
@@ -69,13 +71,21 @@ export function ManageStaffFinanceDialog({ staffId }: { staffId: string }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor={`amount-${staffId}`}>{t('amount')}</Label>
-            <MoneyInput
-              id={`amount-${staffId}`}
-              name="amount"
-              value={amount}
-              onValue={setAmount}
-              placeholder="0"
-            />
+            {/* MoneyInput only takes digits; the sign is its own control so a
+                deduction can still be entered (owner, 2026-10-06). */}
+            <div className="flex gap-2">
+              <select
+                aria-label="Qo‘shish yoki ayirish"
+                value={sign}
+                onChange={(e) => setSign(e.target.value === '-' ? '-' : '+')}
+                className="h-8 rounded-lg border border-au-line bg-au-card px-2 text-sm text-au-ink"
+              >
+                <option value="+">+ qo‘shish</option>
+                <option value="-">− ayirish</option>
+              </select>
+              <MoneyInput id={`amount-${staffId}`} value={amount} onValue={setAmount} placeholder="0" />
+            </div>
+            <input type="hidden" name="amount" value={amount ? (sign === '-' ? -amount : amount) : ''} />
             {state?.fieldErrors?.amount && (
               <p className="text-destructive text-xs">{t(`errors.${state.fieldErrors.amount}`)}</p>
             )}

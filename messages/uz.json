@@ -551,7 +551,10 @@
       "pastMonths": "O'tgan oylar",
       "upcomingMonths": "Keyingi oylar",
       "readOnly": "Faqat o'qish",
-      "noLessonsThisMonth": "Bu oy uchun hali darslar rejalashtirilmagan."
+      "noLessonsThisMonth": "Bu oy uchun hali darslar rejalashtirilmagan.",
+      "confirmDeleteSlot": "Bo‘sh dars qatori o‘chirilsinmi?",
+      "deleteSlot": "Bo‘sh qatorni o‘chirish",
+      "editComment": "Izohni tahrirlash"
     },
     "staffChat": {
       "title": "Xodimlar chati: {name}"
@@ -611,7 +614,8 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
       "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
-    }
+    },
+    "edit": "Tahrirlash"
   },
   "tasks": {
     "title": "Vazifalar",
@@ -1054,7 +1058,10 @@
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
     },
-    "fromWarning": "Ogohlantirishdan"
+    "fromWarning": "Ogohlantirishdan",
+    "edit": "Tahrirlash",
+    "editEntry": "Yozuvni tahrirlash",
+    "entryUpdated": "Yozuv saqlandi"
   },
   "finance": {
     "title": "Moliya",
@@ -1121,7 +1128,10 @@
       "toPay": "Jami beriladigan",
       "paid": "Berilgan",
       "remaining": "Qoldi"
-    }
+    },
+    "edit": "Tahrirlash",
+    "editEntry": "Yozuvni tahrirlash",
+    "entryUpdated": "Yozuv saqlandi"
   },
   "kpi": {
     "title": "KPI",
@@ -1385,7 +1395,10 @@
         "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
         "createFailed": "Vazifani qo'shib bo'lmadi. Qayta urinib ko'ring.",
         "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
-      }
+      },
+      "dutyUpdated": "Vazifa saqlandi",
+      "edit": "Tahrirlash",
+      "editDuty": "Majburiyatni tahrirlash"
     },
     "contracts": {
       "title": "Shartnoma va vazifalar",
