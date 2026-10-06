@@ -42,6 +42,7 @@ type FirestoreChatMessage = {
   mediaType: ChatMediaType;
   createdAt: string;
   replyToId?: string | null;
+  editedAt?: string | null;
 };
 
 export function ChatHubClient({
@@ -334,6 +335,7 @@ export function ChatHubClient({
                 pinned_at: previousLocal?.pinned_at ?? null,
                 reply_to_id: data.replyToId ?? previousLocal?.reply_to_id ?? null,
                 reactions: previousLocal?.reactions ?? {},
+                edited_at: data.editedAt ?? previousLocal?.edited_at ?? null,
               });
             }
             const next = Array.from(byId.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));

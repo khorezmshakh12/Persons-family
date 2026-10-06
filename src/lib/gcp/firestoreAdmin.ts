@@ -82,6 +82,19 @@ export async function deleteChatMessageMirror(senderId: string, receiverId: stri
   await db().doc(`chats/${id}`).collection('messages').doc(messageId).delete();
 }
 
+/** Updates a DM message's mirrored text after its author edits it, so the
+ * other side sees the change live (additive helper, 2026-10-06). */
+export async function updateChatMessageMirror(
+  senderId: string,
+  receiverId: string,
+  messageId: string,
+  messageText: string,
+  editedAt: string,
+): Promise<void> {
+  const id = conversationId(senderId, receiverId);
+  await db().doc(`chats/${id}`).collection('messages').doc(messageId).set({ messageText, editedAt }, { merge: true });
+}
+
 /** Flips isRead on every mirrored message from otherUserId to userId, so
  * the sender's tab sees the read-receipt tick live — called from
  * markConversationRead() right after the same flip lands in Cloud SQL. */

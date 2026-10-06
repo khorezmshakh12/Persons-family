@@ -1375,7 +1375,9 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
   try {
-    await sql`delete from tasks where id = ${parsed.data.id}`;
+    const res = await sql`delete from tasks where id = ${parsed.data.id}`;
+    // Already gone (another tab/admin deleted it): no second notification.
+    if (res.count === 0) return { error: 'deleteFailed' };
   } catch (error) {
     console.error('deleteTaskAction failed', error instanceof Error ? error.message : error);
     return { error: 'deleteFailed' };
