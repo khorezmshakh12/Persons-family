@@ -1729,7 +1729,93 @@
     "colOnTime": "O‘z vaqtida",
     "colOverdue": "Kechikkan",
     "colStars": "Yulduzlar",
-    "empStatsEmpty": "Hozircha xodimlar yo‘q."
+    "empStatsEmpty": "Hozircha xodimlar yo‘q.",
+    "pulse": "Puls",
+    "kpiPlans": "KPI rejalari",
+    "kpiSelfDev": "Self-dev hisobotlari",
+    "kpiStrategy": "Strategiya",
+    "waitingApproval": "tasdiq kutmoqda",
+    "unrated": "baholanmagan",
+    "strategyCaption": "{done}/{total} vazifa bajarildi",
+    "attention": {
+      "title": "Diqqat talab",
+      "count": "{count} ta",
+      "error": "Ma’lumotni yuklab bo‘lmadi",
+      "allClear": "Hammasi joyida",
+      "allClearHint": "Hozircha shoshilinch ish yo‘q",
+      "items": {
+        "taskReview": {
+          "title": "{count, plural, other {# ta vazifa tasdiq kutmoqda}}",
+          "hint": "Bajarilgan ishni tekshiring va qabul qiling",
+          "cta": "Tekshirish"
+        },
+        "kpiReview": {
+          "title": "{count, plural, other {# ta KPI rejasi tasdiq kutmoqda}}",
+          "hint": "Tasdiqlang yoki izoh bilan qaytaring",
+          "cta": "Ko‘rib chiqish"
+        },
+        "overdue": {
+          "title": "{count, plural, other {# ta vazifa muddati o‘tgan}}",
+          "hint": "Mas’ullar bilan muddatni aniqlashtiring",
+          "cta": "Ochish"
+        },
+        "staleIssues": {
+          "title": "{count, plural, other {# ta murojaat 7 kundan beri ochiq}}",
+          "hint": "Uzoq kutayotgan muammolarni hal qiling",
+          "cta": "Ochish"
+        },
+        "selfDevRate": {
+          "title": "{count, plural, other {# ta self-dev hisoboti baholanmagan}}",
+          "hint": "Bu oygi hisobotlarga ball qo‘ying",
+          "cta": "Baholash"
+        },
+        "selfDevMissing": {
+          "title": "{count, plural, other {# kishi self-dev topshirmagan}}",
+          "hint": "Bu oygi o‘z-o‘zini rivojlantirish hisoboti yo‘q",
+          "cta": "Ko‘rish"
+        },
+        "kpiMissing": {
+          "title": "{count, plural, other {# kishida bu oy KPI rejasi yo‘q}}",
+          "hint": "Reja topshirilmagan yoki tasdiqlanmagan",
+          "cta": "Ko‘rish"
+        },
+        "myOverdue": {
+          "title": "{count, plural, other {# ta vazifangiz muddati o‘tgan}}",
+          "hint": "Avval shularni yoping",
+          "cta": "Ochish"
+        },
+        "kpiReturned": {
+          "title": "KPI rejangiz qaytarildi",
+          "hint": "CEO izohini o‘qing va qayta topshiring",
+          "cta": "Tuzatish"
+        },
+        "kpiThis": {
+          "title": "Bu oy KPI rejangiz yo‘q",
+          "hint": "Uch ssenariyda kiriting va CEO’ga topshiring",
+          "cta": "Rejani kiritish"
+        },
+        "kpiNext": {
+          "title": "Keyingi oy KPI rejasini topshiring",
+          "hint": "Muddat: oyning oxirgi kuni, 23:59",
+          "cta": "Rejani kiritish"
+        },
+        "selfDev": {
+          "title": "Bu oygi self-dev hisobotingiz yo‘q",
+          "hint": "O‘z-o‘zini rivojlantirish har oy majburiy",
+          "cta": "Topshirish"
+        },
+        "myDueToday": {
+          "title": "{count, plural, other {# ta vazifa bugun tugaydi}}",
+          "hint": "Kun oxirigacha yakunlang",
+          "cta": "Ochish"
+        },
+        "myIssues": {
+          "title": "{count, plural, other {Sizga # ta murojaat biriktirilgan}}",
+          "hint": "Ochiq murojaatlarni hal qiling",
+          "cta": "Ochish"
+        }
+      }
+    }
   },
   "themeSettings": {
     "title": "Mavzu",
