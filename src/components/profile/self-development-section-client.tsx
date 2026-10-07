@@ -34,7 +34,7 @@ export function SelfDevelopmentSectionClient({
       <ChevronDown
         className={cn(
           'size-4 text-au-muted transition-transform duration-300 ease-in-out',
-          '[[aria-expanded=true]_&]:rotate-180',
+          '[.group/collapsible[aria-expanded=true]_&]:rotate-180',
         )}
       />
     </div>

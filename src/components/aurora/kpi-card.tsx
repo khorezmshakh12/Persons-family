@@ -18,7 +18,6 @@ export function KpiCard({
   higherIsBetter = true,
   caption,
   bars,
-  meter,
   href,
   index = 0,
 }: {
@@ -29,13 +28,11 @@ export function KpiCard({
   deltaUnit?: 'percent' | 'absolute';
   higherIsBetter?: boolean;
   caption?: string;
-  bars?: number[];
-  /** 0–100; replaces the mini bars with a progress meter. */
-  meter?: number;
+  bars: number[];
   href?: string;
   index?: number;
 }) {
-  const max = Math.max(1, ...(bars ?? []));
+  const max = Math.max(1, ...bars);
   const good = delta === null || delta === 0 ? null : delta > 0 === higherIsBetter;
   const chipClass = good === null ? CHIP_NEUTRAL : good ? CHIP_OK : CHIP_BAD;
   const Arrow = delta !== null && delta < 0 ? ArrowDown : ArrowUp;
@@ -62,40 +59,15 @@ export function KpiCard({
         )}
         {caption && <span className="truncate">{caption}</span>}
       </div>
-      {meter !== undefined ? (
-        <div className="mt-auto pt-4">
-          <div className="mb-1.5 flex justify-between text-[11px] font-semibold text-au-faint tabular-nums">
-            <span>{Math.round(meter)}%</span>
-            <span>100%</span>
-          </div>
-          <div
-            role="meter"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(meter)}
-            aria-label={label}
-            className="h-2 overflow-hidden rounded-full bg-au-card-2"
-          >
-            <i
-              className={cn(
-                'au-meter block h-full rounded-full transition-[width] duration-700 ease-out',
-                meter >= 80 ? 'bg-au-ok' : meter >= 50 ? 'bg-au-accent' : 'bg-au-bad',
-              )}
-              style={{ width: `${Math.max(2, Math.min(100, meter))}%` }}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="au-spark mt-4 flex min-h-10 flex-1 items-end gap-1" aria-hidden>
-          {(bars ?? []).map((v, i) => (
-            <i
-              key={i}
-              className={cn('flex-1 rounded-[2px]', i === (bars ?? []).length - 1 ? 'bg-au-accent' : 'bg-au-chart-4')}
-              style={{ height: `${Math.max(6, (v / max) * 100)}%` }}
-            />
-          ))}
-        </div>
-      )}
+      <div className="au-spark mt-4 flex min-h-10 flex-1 items-end gap-1" aria-hidden>
+        {bars.map((v, i) => (
+          <i
+            key={i}
+            className={cn('flex-1 rounded-[2px]', i === bars.length - 1 ? 'bg-au-accent' : 'bg-au-chart-4')}
+            style={{ height: `${Math.max(6, (v / max) * 100)}%` }}
+          />
+        ))}
+      </div>
     </>
   );
 

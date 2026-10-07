@@ -16,18 +16,7 @@ const initials = (name: string) =>
 
 /** "Last month's top 3 at Persons" — on every dashboard for the whole
  * following month (see loadLastMonthTop3). Podium order 2 · 1 · 3. */
-export async function MonthTop3({
-  month,
-  people,
-  viewerId,
-  stacked = false,
-}: {
-  month: string;
-  people: MonthTopPerson[];
-  viewerId: string;
-  /** Narrow side column: title above the podium at every width. */
-  stacked?: boolean;
-}) {
+export async function MonthTop3({ month, people, viewerId }: { month: string; people: MonthTopPerson[]; viewerId: string }) {
   if (people.length === 0) return null;
   const t = await getTranslations('monthTop3');
   const locale = await getLocale();
@@ -38,12 +27,12 @@ export async function MonthTop3({
   return (
     <section className={cn(SURFACE_CARD, 'au-highlight relative overflow-hidden p-5 sm:p-6')} aria-label={t('title', { month: monthName })}>
       <span aria-hidden className="pointer-events-none absolute -top-16 -right-10 size-56 rounded-full bg-[radial-gradient(circle,var(--au-accent-soft),transparent_70%)]" />
-      <div className={cn('relative flex flex-col gap-5', !stacked && 'md:flex-row md:items-center')}>
-        <div className={cn(!stacked && 'md:w-[42%]')}>
+      <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
+        <div className="md:w-[42%]">
           <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-au-accent-text uppercase">
             <Trophy className="size-4" strokeWidth={1.75} aria-hidden /> {t('eyebrow')}
           </div>
-          <h2 className={cn('mt-1.5 font-display text-[26px] leading-tight font-bold text-au-ink', !stacked && 'sm:text-[30px]')}>
+          <h2 className="mt-1.5 font-display text-[26px] leading-tight font-bold text-au-ink sm:text-[30px]">
             {t('title', { month: monthName })}
           </h2>
           <p className="mt-1.5 text-sm text-au-muted">{mine ? t('youAreIn', { rank: mine.rank }) : t('subtitle', { month: monthName })}</p>
