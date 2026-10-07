@@ -47,7 +47,7 @@ export function CollapsibleSubmissionCard({
         <ChevronDown
           className={cn(
             'size-4 text-au-muted transition-transform duration-300 ease-in-out',
-            '[.group/collapsible[aria-expanded=true]_&]:rotate-180',
+            '[[aria-expanded=true]_&]:rotate-180',
           )}
         />
       </div>
