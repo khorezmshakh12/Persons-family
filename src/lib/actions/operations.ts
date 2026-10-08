@@ -15,7 +15,8 @@ const STAGES = ['new', 'contacted', 'trial', 'enrolled', 'lost'] as const;
 
 const leadSchema = z.object({
   id: z.string().uuid().optional(),
-  name: z.string().trim().min(1).max(120),
+  // Optional: leads are intake statistics, a name is a convenience.
+  name: z.string().trim().max(120).default(''),
   phone: z.string().trim().max(40).default(''),
   source: z.enum(SOURCES),
   course: z.string().trim().max(120).default(''),
@@ -37,7 +38,7 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
   try {
     if (v.id) {
       const res = await sql`
-        update ops_leads set name = ${v.name}, phone = ${v.phone}, source = ${v.source}, course = ${v.course},
+        update ops_leads set name = ${v.name || '—'}, phone = ${v.phone}, source = ${v.source}, course = ${v.course},
           stage = ${v.stage}, note = ${v.note}, updated_at = now(),
           enrolled_at = case when ${v.stage} = 'enrolled' then coalesce(enrolled_at, now()) else null end
         where id = ${v.id}`;
@@ -45,7 +46,7 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
     } else {
       const [row] = await sql<{ id: string }[]>`
         insert into ops_leads (name, phone, source, course, stage, note, owner_id, enrolled_at)
-        values (${v.name}, ${v.phone}, ${v.source}, ${v.course}, ${v.stage}, ${v.note}, ${by},
+        values (${v.name || '—'}, ${v.phone}, ${v.source}, ${v.course}, ${v.stage}, ${v.note}, ${by},
           ${v.stage === 'enrolled' ? sql`now()` : null})
         returning id`;
       leadId = row.id;
@@ -226,4 +227,78 @@ export async function deleteSlotHoldAction(id: string): Promise<Result> {
     return { error: 'updateFailed' };
   }
   return done();
+}
+
+const intakeSchema = z.object({
+  source: z.enum(SOURCES),
+  course: z.string().trim().max(120).default(''),
+  count: z.number().int().min(1).max(30),
+});
+
+/** "+1" intake logging: N anonymous arrivals from one source, for the
+ * statistics only (no names, no follow-up — this is not a student CRM). */
+export async function quickIntakeAction(input: z.input<typeof intakeSchema>): Promise<Result> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = intakeSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const rows = Array.from({ length: p.data.count }, () => ({
+      name: '—',
+      phone: '',
+      source: p.data.source,
+      course: p.data.course,
+      stage: 'new',
+      note: '',
+      owner_id: by,
+    }));
+    await sql`insert into ops_leads ${sql(rows)}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+const placeSchema = z.object({
+  groupId: z.string().uuid(),
+  room: z.string().trim().min(1).max(40),
+  time: z.string().trim().regex(/^\d{1,2}:\d{2}$/),
+  cohort: z.enum(['odd', 'even']),
+});
+
+/** Put an unscheduled group into a free room/time/cohort slot. Refuses a
+ * slot another group already holds, and a time its teacher already teaches. */
+export async function placeGroupAction(input: z.input<typeof placeSchema>): Promise<Result> {
+  try {
+    await requireCap('operations.edit');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = placeSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const { groupId, room, time, cohort } = p.data;
+  try {
+    const [clash] = await sql<{ kind: string }[]>`
+      select case when trim(g.configuration->>'room') = ${room} then 'slotTaken' else 'teacherBusy' end as kind
+      from groups g, (select teacher_id from groups where id = ${groupId}) me
+      where g.id <> ${groupId} and g.schedule_type = ${cohort} and g.configuration->>'time' = ${time}
+        and (trim(g.configuration->>'room') = ${room} or g.teacher_id = me.teacher_id)
+      limit 1`;
+    if (clash) return { error: clash.kind };
+    const res = await sql`
+      update groups set schedule_type = ${cohort},
+        configuration = coalesce(configuration, '{}'::jsonb) || ${sql.json({ room, time })}
+      where id = ${groupId}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
+  return {};
 }
