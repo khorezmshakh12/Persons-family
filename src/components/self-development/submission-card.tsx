@@ -5,6 +5,7 @@ import type { TeacherLevel } from '@/lib/teacher-level';
 import { ExternalLink, Target } from 'lucide-react';
 import { parseRubric, type Rubric } from '@/lib/self-dev-rubric';
 import { RubricBars } from './self-dev-visuals';
+import { FeatureReportButton } from './feature-report-button';
 
 export type Submission = {
   id: string;
@@ -83,6 +84,7 @@ export async function SubmissionCard({
         </div>
       )}
 
+      {isAdmin && <FeatureReportButton submissionId={submission.id} />}
       {isAdmin ? (
         <CeoEvaluationPanel
           submissionId={submission.id}

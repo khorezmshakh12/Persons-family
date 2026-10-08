@@ -178,6 +178,20 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <Label htmlFor="repeat">{t('repeat.label')}</Label>
+            <select
+              id="repeat"
+              name="repeat"
+              defaultValue=""
+              className="h-9 w-full rounded-md border border-au-line bg-au-card px-3 text-sm text-au-ink"
+            >
+              <option value="">{t('repeat.none')}</option>
+              <option value="weekly">{t('repeat.weekly')}</option>
+              <option value="monthly">{t('repeat.monthly')}</option>
+            </select>
+            <p className="text-xs text-au-muted">{t('repeat.hint')}</p>
+          </div>
+          <div className="flex flex-col gap-2">
             <Label htmlFor="starReward">{t('starReward')}</Label>
             <Input
               id="starReward"

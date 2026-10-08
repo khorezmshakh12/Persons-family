@@ -818,6 +818,18 @@
       "label": "Tezkor yozish",
       "placeholder": "Oylik hisobot @Ali ertaga 15:00 +10",
       "hint": "@ism — mas’ul · bugun/ertaga/25.10 — kun · 15:00 — vaqt · +10 — yulduz"
+    },
+    "repeat": {
+      "label": "Takrorlash",
+      "none": "Takrorlanmaydi",
+      "weekly": "Har hafta",
+      "monthly": "Har oy",
+      "hint": "Keyingi vazifa muddatidan oldin avtomatik yaratiladi (hafta — 2 kun, oy — 5 kun oldin)",
+      "listTitle": "Takrorlanuvchi vazifalar",
+      "next": "keyingisi {date} {time}",
+      "stop": "To‘xtatish",
+      "stopped": "Takrorlash to‘xtatildi",
+      "stopFailed": "To‘xtatib bo‘lmadi"
     }
   },
   "companyNews": {
@@ -1118,7 +1130,12 @@
         "hours": "Sarflangan soat",
         "evidence": "Isbot (havola)"
       },
-      "hoursValue": "{hours} soat"
+      "hoursValue": "{hours} soat",
+      "feature": {
+        "cta": "Oyning eng yaxshi hisoboti sifatida yangiliklarga chiqarish",
+        "done": "Yangiliklarga chiqarildi",
+        "failed": "Chiqarib bo‘lmadi"
+      }
     }
   },
   "performance": {

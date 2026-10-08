@@ -190,3 +190,32 @@ export async function saveEvaluationAction(
   revalidatePath(`/[locale]/finance/${parsed.data.userId}`, 'page');
   return { success: true };
 }
+
+/** "Oyning eng yaxshi hisoboti": the CEO publishes one report to company
+ * news so the learning reaches the whole team. */
+export async function featureSelfDevReportAction(submissionId: string): Promise<SelfDevActionState> {
+  let ceoId: string;
+  try {
+    ({
+      user: { id: ceoId },
+    } = await requireCap('selfDev.review'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(submissionId).success) return { error: 'invalidInput' };
+  try {
+    const [row] = await sql<{ first_name: string; last_name: string; achievements: string | null; value_added: string | null; month: string }[]>`
+      select p.first_name, p.last_name, sd.achievements, sd.value_added, sd.month::text as month
+      from self_development sd join profiles p on p.id = sd.user_id where sd.id = ${submissionId}`;
+    if (!row) return { error: 'submitFailed' };
+    const content = [row.achievements, row.value_added && `Qo‘shgan qiymati: ${row.value_added}`].filter(Boolean).join('\n\n').slice(0, 4000);
+    await sql`
+      insert into company_news (title, content, created_by)
+      values (${`🏆 Oyning eng yaxshi hisoboti — ${row.first_name} ${row.last_name}`.slice(0, 200)}, ${content || '—'}, ${ceoId})`;
+  } catch {
+    return { error: 'submitFailed' };
+  }
+  revalidatePath('/[locale]/company-news', 'page');
+  revalidatePath('/[locale]/dashboard', 'page');
+  return { success: true };
+}

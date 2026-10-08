@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import type { KpiItem, KpiPlan } from '@/lib/kpi-plan';
+import type { KpiAuditEntry, KpiItem, KpiPlan } from '@/lib/kpi-plan';
 
 const PLAN_COLS = sql`
   id, user_id, month::text as month, status, scenarios, submitted_at, review_note, reviewed_at,
@@ -40,11 +40,18 @@ export async function loadTeam(): Promise<TeamMember[]> {
     order by p.first_name, p.last_name`;
 }
 
-/** Every plan for the given months (reviewer view). */
+/** Every plan for the given months (reviewer view), with its audit trail. */
 export async function loadPlansFor(months: string[]): Promise<KpiPlan[]> {
-  const plans = await sql<Omit<KpiPlan, 'items'>[]>`
-    select ${PLAN_COLS} from kpi_plans where month in ${sql(months)} order by month desc`;
-  return withItems(plans);
+  const plans = await withItems(
+    await sql<Omit<KpiPlan, 'items'>[]>`
+      select ${PLAN_COLS} from kpi_plans where month in ${sql(months)} order by month desc`,
+  );
+  if (!plans.length) return plans;
+  const audit = await sql<(KpiAuditEntry & { plan_id: string })[]>`
+    select a.plan_id, a.action, a.detail, a.created_at::text as at, concat(p.first_name, ' ', p.last_name) as actor
+    from kpi_audit a left join profiles p on p.id = a.actor
+    where a.plan_id in ${sql(plans.map((p) => p.id))} order by a.created_at`.catch(() => []);
+  return plans.map((p) => ({ ...p, audit: audit.filter((a) => a.plan_id === p.id).map((a) => ({ action: a.action, detail: a.detail, actor: a.actor, at: a.at })) }));
 }
 
 /** The viewer's own latest gross salary — shows what each scenario means in so'm. */

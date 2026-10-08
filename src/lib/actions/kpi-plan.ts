@@ -197,6 +197,9 @@ export async function reviewKpiPlanAction(input: z.input<typeof reviewSchema>): 
       returning user_id, month::text as month`;
     if (!row) return { error: 'notFound' };
     logSystemAction('kpi.review', `KPI ${v.decision} ${row.month}`);
+    await sql`
+      insert into kpi_audit (plan_id, actor, action, detail)
+      values (${v.planId}, ${reviewerId}, 'review', ${sql.json({ decision: v.decision, pct: [v.pctBad, v.pctGood, v.pctGreat], note: v.note || null })})`.catch(() => {});
     await notify(
       row.user_id,
       v.decision === 'approve'
@@ -262,6 +265,9 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
         update kpi_plans set grade = ${v.grade}, grade_pct = ${percent}, grade_amount = ${amount}, grade_note = ${v.note || null},
           graded_by = ${reviewerId}, graded_at = now(), finance_entry_id = ${entryId}, updated_at = now()
         where id = ${plan.id}`;
+      await tx`
+        insert into kpi_audit (plan_id, actor, action, detail)
+        values (${plan.id}, ${reviewerId}, 'grade', ${tx.json({ grade: v.grade, percent, amount, override: v.amount ?? null })})`;
       return { amount, userId: plan.user_id, month: plan.month, percent };
     });
     if (!out) return { error: 'notFound' };

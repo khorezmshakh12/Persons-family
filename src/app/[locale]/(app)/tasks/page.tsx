@@ -9,6 +9,7 @@ import { TaskBoard } from '@/components/tasks/task-board';
 import { TaskStats } from '@/components/tasks/task-stats';
 import { MarkTasksSeen } from '@/components/tasks/mark-tasks-seen';
 import { BgVideo } from '@/components/motion/bg-video';
+import { RecurringTasks, type Recurrence } from '@/components/tasks/recurring-tasks';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +73,16 @@ export default async function TasksPage() {
     };
   });
 
+  // The assigner's active recurring tasks (the CEO sees all of them).
+  const recurrences = isAdmin
+    ? await sql<Recurrence[]>`
+        select r.id, r.title, r.every, r.due_time, r.last_due::text as last_due,
+          concat(p.first_name, ' ', p.last_name) as assignee
+        from task_recurrences r join profiles p on p.id = r.assigned_to
+        where r.active and (${profile!.role === 'ceo'} or r.assigned_by = ${user!.id})
+        order by r.created_at desc`.catch(() => [])
+    : [];
+
   return (
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 pt-1 pb-8 sm:px-7">
       <MarkTasksSeen />
@@ -87,6 +98,7 @@ export default async function TasksPage() {
           </div>
         )}
       </header>
+      <RecurringTasks items={recurrences} />
       {/* Statistics moved into the board's "Hisobot" view so the work itself
           sits above the fold. */}
       <TaskBoard

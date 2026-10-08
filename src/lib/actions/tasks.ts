@@ -23,6 +23,7 @@ import {
   type TaskStatus,
 } from '@/lib/task-status';
 import { createSignedWriteUrl } from '@/lib/gcp/storage';
+import { tashkentDayKey } from '@/lib/time';
 
 export type TaskActionState = { error?: string } | undefined;
 
@@ -132,6 +133,8 @@ const taskSchema = z.object({
     .union([z.literal('on'), z.literal('true'), z.literal('false'), z.literal('')])
     .optional()
     .transform((value) => value === 'on' || value === 'true'),
+  // Repeat this task every week / month (same weekday or day, same time).
+  repeat: z.enum(['', 'weekly', 'monthly']).optional(),
 });
 
 export async function assignTaskAction(
@@ -169,6 +172,17 @@ export async function assignTaskAction(
   } catch (error) {
     console.error('assignTaskAction failed', error instanceof Error ? error.message : error);
     return { error: 'createFailed' };
+  }
+
+  // The template the deadline cron turns into the next instances.
+  if (parsed.data.repeat) {
+    const due = new Date(parsed.data.deadline);
+    const dueTime = new Date(due.getTime() + 5 * 3600_000).toISOString().slice(11, 16);
+    await sql`
+      insert into task_recurrences (title, description, assigned_to, assigned_by, every, due_time, last_due, star_reward, star_penalty, requires_proof)
+      values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.repeat},
+        ${dueTime}, ${tashkentDayKey(due)}, ${parsed.data.starReward ?? 0}, ${parsed.data.starPenalty ?? 0}, ${parsed.data.requiresProof})
+    `.catch((error) => console.error('task recurrence insert failed', error instanceof Error ? error.message : error));
   }
 
   await bumpBoardSignal('tasks');
@@ -1399,6 +1413,31 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
     });
   }
 
+  revalidatePath('/[locale]/tasks', 'page');
+  return {};
+}
+
+
+/** Stop a recurring task (the already-created instances stay). */
+export async function stopTaskRecurrenceAction(id: string): Promise<TaskActionState> {
+  let actingUserId: string;
+  let actingRole: StaffRole;
+  try {
+    const { user, profile } = await requireTaskAssigner();
+    actingUserId = user.id;
+    actingRole = profile.role;
+  } catch {
+    return { error: 'forbidden' };
+  }
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`
+      update task_recurrences set active = false
+      where id = ${id} and active and (${actingRole === 'ceo'} or assigned_by = ${actingUserId})`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
   revalidatePath('/[locale]/tasks', 'page');
   return {};
 }

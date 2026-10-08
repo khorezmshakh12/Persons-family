@@ -516,6 +516,32 @@ export function MyKpi({ plans, role, thisMonth, nextMonth, salary }: { plans: Kp
 
 /* ------------------------------------------------------------ CEO */
 
+/** Who decided what, when — percentages, grades and manual overrides. */
+function AuditTrail({ plan }: { plan: KpiPlan }) {
+  if (!plan.audit?.length) return null;
+  return (
+    <details className="group rounded-au-ctl border border-au-line px-3 py-2">
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-au-muted">
+        <Clock className="size-3.5" /> O‘zgarishlar tarixi · {plan.audit.length}
+        <ChevronDown className="ml-auto size-3.5 transition group-open:rotate-180" />
+      </summary>
+      <ol className="mt-2 grid gap-1.5 border-l-2 border-au-line pl-3">
+        {plan.audit.map((a, i) => (
+          <li key={i} className="text-xs text-au-muted">
+            <b className="text-au-ink">{new Date(a.at).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b>
+            {' · '}
+            {a.actor ?? '—'}:{' '}
+            {a.action === 'review'
+              ? `${a.detail.decision === 'approve' ? 'tasdiqladi' : 'qaytardi'}${a.detail.pct ? ` (${a.detail.pct.map((x) => `${x}%`).join(' / ')})` : ''}`
+              : `baholadi — ${a.detail.grade ? SCENARIO_LABEL[a.detail.grade] : ''}, ${som(a.detail.amount)}${a.detail.override != null ? ' (qo‘lda)' : ''}`}
+            {a.detail.note ? ` — “${a.detail.note}”` : ''}
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
 function ReviewCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember; onDone?: () => void }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -556,7 +582,8 @@ function ReviewCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMembe
       </button>
       {open && (
         <div className="grid gap-4 border-t border-au-line p-4">
-          <PlanView plan={plan} />
+          <PlanView plan={plan} salary={member.salary} />
+          <AuditTrail plan={plan} />
           {plan.status !== 'approved' || !plan.grade ? (
             <div className="grid gap-3 rounded-au-ctl bg-au-card-2 p-3">
               <div className="grid gap-2 sm:grid-cols-3">
@@ -626,6 +653,7 @@ function GradeCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember
               <ForecastGauge value={live} />
             </div>
           </div>
+          <AuditTrail plan={plan} />
           {plan.self_note && (
             <p className="rounded-au-ctl bg-au-card-2 p-3 text-[13px] whitespace-pre-wrap text-au-muted">
               <b className="text-au-ink">Xodim izohi:</b> {plan.self_note}

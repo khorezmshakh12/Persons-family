@@ -818,6 +818,18 @@
       "label": "Quick entry",
       "placeholder": "Monthly report @Ali tomorrow 15:00 +10",
       "hint": "@name — assignee · today/tomorrow/25.10 — day · 15:00 — time · +10 — stars"
+    },
+    "repeat": {
+      "label": "Repeat",
+      "none": "Does not repeat",
+      "weekly": "Every week",
+      "monthly": "Every month",
+      "hint": "The next one is created automatically before its deadline (weekly 2 days, monthly 5 days ahead)",
+      "listTitle": "Recurring tasks",
+      "next": "next {date} {time}",
+      "stop": "Stop",
+      "stopped": "Recurrence stopped",
+      "stopFailed": "Could not stop"
     }
   },
   "companyNews": {
@@ -1118,7 +1130,12 @@
         "hours": "Hours spent",
         "evidence": "Evidence (link)"
       },
-      "hoursValue": "{hours} h"
+      "hoursValue": "{hours} h",
+      "feature": {
+        "cta": "Feature as the month’s best report in news",
+        "done": "Published to news",
+        "failed": "Could not publish"
+      }
     }
   },
   "performance": {
