@@ -601,6 +601,67 @@
         "noSchedule": "Set an odd/even schedule for the group first.",
         "updateFailed": "Could not resync. Please try again."
       }
+    },
+    "v2": {
+      "subtitle": "Weekly desk: tomorrow’s lessons, completeness and review",
+      "tabsLabel": "Sections",
+      "tabs": {
+        "week": "My week",
+        "groups": "Groups",
+        "review": "Review",
+        "discipline": "Discipline"
+      }
+    },
+    "week": {
+      "until": "until 23:59",
+      "saved": "Saved",
+      "copyFrom": "Copy from a ready plan",
+      "copied": "Plan copied",
+      "openGroup": "Open the group page",
+      "optional": "optional",
+      "tomorrow": "Tomorrow’s lessons",
+      "lessons": "lessons",
+      "allReady": "Tomorrow’s plans are ready",
+      "prev": "Previous week",
+      "next": "Next week",
+      "thisWeek": "This week",
+      "weekdays": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+      ],
+      "noLessons": "No lessons",
+      "noTopic": "no topic",
+      "reviewedOk": "Reviewed"
+    },
+    "review": {
+      "errors": {
+        "noteRequired": "Write a note to send it back",
+        "failed": "Could not save"
+      },
+      "okDone": "Approved",
+      "sentBack": "Note sent to the teacher",
+      "aiUnavailable": "Jev did not respond",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "empty": "No lesson plans for this day",
+      "progress": "Reviewed",
+      "ok": "Good",
+      "needsWork": "Needs work",
+      "askAi": "Jev score",
+      "notePlaceholder": "Note (required to send back)"
+    },
+    "discipline": {
+      "empty": "No data yet — the nightly check records it every day",
+      "teacher": "Teacher",
+      "onTime": "On time",
+      "complete": "Complete",
+      "incomplete": "Partial",
+      "missing": "Missing",
+      "noClass": "no class"
     }
   },
   "staffChat": {
