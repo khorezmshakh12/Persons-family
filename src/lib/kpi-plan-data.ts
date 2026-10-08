@@ -46,3 +46,10 @@ export async function loadPlansFor(months: string[]): Promise<KpiPlan[]> {
     select ${PLAN_COLS} from kpi_plans where month in ${sql(months)} order by month desc`;
   return withItems(plans);
 }
+
+/** The viewer's own latest gross salary — shows what each scenario means in so'm. */
+export async function loadMySalary(userId: string): Promise<number | null> {
+  const [row] = await sql<{ gross: number | null }[]>`
+    select gross_amount as gross from salary_months where staff_id = ${userId} order by period desc limit 1`.catch(() => []);
+  return row?.gross ?? null;
+}
