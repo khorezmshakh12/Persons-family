@@ -83,6 +83,16 @@
   }
 }
 
+/* A ring arc grows to its share (inline stroke-dasharray, pathLength=1). */
+.ms-arc {
+  animation: ms-arc 0.9s var(--m-ease-out) both;
+}
+@keyframes ms-arc {
+  from {
+    stroke-dasharray: 0 1;
+  }
+}
+
 /* The current step / focus ring pulses. */
 .ms-pulse {
   animation: ms-pulse 2.2s var(--m-ease-out) infinite;
@@ -137,13 +147,13 @@
   transition: transform 0.9s var(--m-ease-spring);
 }
 
-html[data-motion-level='off'] :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right),
+html[data-motion-level='off'] :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc),
 html[data-motion-level='off'] .ms-needle {
   animation: none !important;
   transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right),
+  :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc),
   .ms-needle {
     animation: none !important;
     transition: none !important;

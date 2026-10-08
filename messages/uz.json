@@ -1065,6 +1065,60 @@
       "insights": "Tahlil",
       "history": "Tarix",
       "performance": "Samaradorlik"
+    },
+    "rubric": {
+      "title": "Rubrika (1–5)",
+      "applyAi": "Jev taklifi: {values}"
+    },
+    "v2": {
+      "thisMonth": "Shu oy",
+      "status": {
+        "missing": "Topshirilmagan",
+        "submitted": "Topshirildi · baho kutilmoqda",
+        "scored": "Baholandi"
+      },
+      "tabs": {
+        "compliance": "Topshirish holati"
+      },
+      "ring": {
+        "days": "kun qoldi",
+        "done": "topshirildi"
+      },
+      "streak": {
+        "value": "{count} oy ketma-ket",
+        "label": "Hisobot seriyasi — uzmang!"
+      },
+      "rubricTitle": "Oxirgi baho rubrikasi",
+      "grid": {
+        "staff": "Xodim",
+        "scored": "Baholangan",
+        "unrated": "Baholanmagan",
+        "missing": "Topshirilmagan"
+      },
+      "queue": {
+        "progress": "Baholandi"
+      },
+      "goal": {
+        "label": "Oy maqsadi",
+        "none": "Maqsad qo‘yilmagan",
+        "edit": "Maqsadni tahrirlash",
+        "prompt": "Bu oy nimani o‘rganmoqchisiz?",
+        "placeholder": "Masalan: IELTS Writing bo‘yicha 2 ta kurs, 7.0 darajadagi esse yozish",
+        "save": "Maqsadni saqlash"
+      },
+      "form": {
+        "kind": "Nima orqali o‘rgandingiz?",
+        "kinds": {
+          "course": "Kurs",
+          "book": "Kitob",
+          "skill": "Ko‘nikma",
+          "practice": "Amaliyot",
+          "other": "Boshqa"
+        },
+        "hours": "Sarflangan soat",
+        "evidence": "Isbot (havola)"
+      },
+      "hoursValue": "{hours} soat"
     }
   },
   "performance": {

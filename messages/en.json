@@ -1065,6 +1065,60 @@
       "insights": "Insights",
       "history": "History",
       "performance": "Performance"
+    },
+    "rubric": {
+      "title": "Rubric (1–5)",
+      "applyAi": "Jev suggests: {values}"
+    },
+    "v2": {
+      "thisMonth": "This month",
+      "status": {
+        "missing": "Not submitted",
+        "submitted": "Submitted · awaiting score",
+        "scored": "Scored"
+      },
+      "tabs": {
+        "compliance": "Submission status"
+      },
+      "ring": {
+        "days": "days left",
+        "done": "submitted"
+      },
+      "streak": {
+        "value": "{count} months in a row",
+        "label": "Report streak — keep it going!"
+      },
+      "rubricTitle": "Latest rubric",
+      "grid": {
+        "staff": "Staff",
+        "scored": "Scored",
+        "unrated": "Not scored",
+        "missing": "Not submitted"
+      },
+      "queue": {
+        "progress": "Scored"
+      },
+      "goal": {
+        "label": "Month goal",
+        "none": "No goal set",
+        "edit": "Edit goal",
+        "prompt": "What do you want to learn this month?",
+        "placeholder": "e.g. two IELTS Writing courses, write a band-7 essay",
+        "save": "Save goal"
+      },
+      "form": {
+        "kind": "How did you learn?",
+        "kinds": {
+          "course": "Course",
+          "book": "Book",
+          "skill": "Skill",
+          "practice": "Practice",
+          "other": "Other"
+        },
+        "hours": "Hours spent",
+        "evidence": "Evidence (link)"
+      },
+      "hoursValue": "{hours} h"
     }
   },
   "performance": {

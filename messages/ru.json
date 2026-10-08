@@ -1065,6 +1065,60 @@
       "insights": "Аналитика",
       "history": "История",
       "performance": "Эффективность"
+    },
+    "rubric": {
+      "title": "Рубрика (1–5)",
+      "applyAi": "Предложение Jev: {values}"
+    },
+    "v2": {
+      "thisMonth": "Этот месяц",
+      "status": {
+        "missing": "Не сдан",
+        "submitted": "Сдан · ждёт оценки",
+        "scored": "Оценён"
+      },
+      "tabs": {
+        "compliance": "Статус сдачи"
+      },
+      "ring": {
+        "days": "дн. осталось",
+        "done": "сдан"
+      },
+      "streak": {
+        "value": "{count} мес. подряд",
+        "label": "Серия отчётов — не прерывайте!"
+      },
+      "rubricTitle": "Последняя рубрика",
+      "grid": {
+        "staff": "Сотрудник",
+        "scored": "Оценён",
+        "unrated": "Без оценки",
+        "missing": "Не сдан"
+      },
+      "queue": {
+        "progress": "Оценено"
+      },
+      "goal": {
+        "label": "Цель месяца",
+        "none": "Цель не задана",
+        "edit": "Изменить цель",
+        "prompt": "Что вы хотите изучить в этом месяце?",
+        "placeholder": "Например: 2 курса IELTS Writing, эссе на 7.0",
+        "save": "Сохранить цель"
+      },
+      "form": {
+        "kind": "Как вы учились?",
+        "kinds": {
+          "course": "Курс",
+          "book": "Книга",
+          "skill": "Навык",
+          "practice": "Практика",
+          "other": "Другое"
+        },
+        "hours": "Потрачено часов",
+        "evidence": "Доказательство (ссылка)"
+      },
+      "hoursValue": "{hours} ч"
     }
   },
   "performance": {
