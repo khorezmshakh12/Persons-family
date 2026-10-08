@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { canSeeFor } from '@/lib/permissions';
+import { canFor, canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 
@@ -15,11 +15,12 @@ export default async function OperationsPage() {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'operations')) notFound();
 
-  const [groups, leads, staff, metrics, entries, books, planRows, rooms, holds] = await Promise.all([
+  const [groups, leads, staff, metrics, entries, books, planRows, rooms, holds, availability, log] = await Promise.all([
     sql<OpsData['groups']>`
       select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type,
              coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
-             coalesce(p.first_name || ' ' || p.last_name, '') as teacher, e.enrolled
+             coalesce(p.first_name || ' ' || p.last_name, '') as teacher, e.enrolled,
+             g.teacher_id, coalesce((g.configuration->>'duration')::int, 90) as duration
       from groups g left join profiles p on p.id = g.teacher_id
       left join ops_group_enrollment e on e.group_id = g.id
       order by g.name`,
@@ -35,8 +36,14 @@ export default async function OperationsPage() {
       from kpi_entries where left(month::text, 7) >= ${addMonths(tashkentDayKey().slice(0, 7), -13)}`,
     loadBooks(),
     sql<{ value: unknown }[]>`select value from ops_settings where key = 'plan'`,
-    sql<OpsData['rooms']>`select code, title, capacity, note from ops_rooms order by sort, code`,
+    sql<OpsData['rooms']>`select code, title, capacity, note, coalesce(features, '{}') as features from ops_rooms order by sort, code`,
     sql<OpsData['holds']>`select id, room, slot_time as time, cohort, kind, title from ops_slot_holds`,
+    sql<OpsData['availability']>`select teacher_id, cohort, start_time as start, end_time as end from ops_teacher_availability`.catch(() => []),
+    sql<OpsData['log']>`
+      select l.id, l.group_id, g.name as group_name, l.before, l.after, l.created_at::text as at,
+        coalesce(p.first_name || ' ' || p.last_name, '') as actor
+      from ops_schedule_log l join groups g on g.id = l.group_id left join profiles p on p.id = l.actor
+      order by l.created_at desc limit 40`.catch(() => []),
   ]);
 
   const data: OpsData = {
@@ -48,6 +55,10 @@ export default async function OperationsPage() {
     rooms: [...rooms],
     holds: [...holds],
     plan: parsePlan(planRows[0]?.value),
+    availability: [...availability],
+    log: [...log],
+    meId: profile.id,
+    canEdit: canFor(profile, 'operations.edit'),
   };
   return <OperationsWorkspace data={data} books={books} today={tashkentDayKey()} />;
 }
