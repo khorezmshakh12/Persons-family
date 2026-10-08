@@ -601,6 +601,67 @@
         "noSchedule": "Avval guruhga juft/toq kunlar jadvalini belgilang.",
         "updateFailed": "Sinxronlab bo‘lmadi. Qayta urinib ko‘ring."
       }
+    },
+    "v2": {
+      "subtitle": "Haftalik ish stoli: ertangi darslar, to‘liqlik va tekshiruv",
+      "tabsLabel": "Bo‘limlar",
+      "tabs": {
+        "week": "Mening haftam",
+        "groups": "Guruhlar",
+        "review": "Tekshiruv",
+        "discipline": "Intizom"
+      }
+    },
+    "week": {
+      "until": "23:59 gacha",
+      "saved": "Saqlandi",
+      "copyFrom": "Tayyor rejadan nusxa olish",
+      "copied": "Reja nusxalandi",
+      "openGroup": "Guruh sahifasini ochish",
+      "optional": "ixtiyoriy",
+      "tomorrow": "Ertangi darslar",
+      "lessons": "ta dars",
+      "allReady": "Ertangi rejalar tayyor",
+      "prev": "Oldingi hafta",
+      "next": "Keyingi hafta",
+      "thisWeek": "Shu hafta",
+      "weekdays": [
+        "Dushanba",
+        "Seshanba",
+        "Chorshanba",
+        "Payshanba",
+        "Juma",
+        "Shanba"
+      ],
+      "noLessons": "Dars yo‘q",
+      "noTopic": "mavzu yo‘q",
+      "reviewedOk": "Tekshirildi"
+    },
+    "review": {
+      "errors": {
+        "noteRequired": "Qaytarish uchun izoh yozing",
+        "failed": "Saqlab bo‘lmadi"
+      },
+      "okDone": "Tasdiqlandi",
+      "sentBack": "Izoh o‘qituvchiga yuborildi",
+      "aiUnavailable": "Jev hozir javob bermadi",
+      "today": "Bugun",
+      "tomorrow": "Ertaga",
+      "empty": "Bu kunga dars rejalari yo‘q",
+      "progress": "Ko‘rib chiqildi",
+      "ok": "Yaxshi",
+      "needsWork": "Qayta ishlash kerak",
+      "askAi": "Jev bahosi",
+      "notePlaceholder": "Izoh (qaytarishda majburiy)"
+    },
+    "discipline": {
+      "empty": "Hali ma’lumot yo‘q — tungi tekshiruv har kuni yozib boradi",
+      "teacher": "O‘qituvchi",
+      "onTime": "O‘z vaqtida",
+      "complete": "To‘liq",
+      "incomplete": "Yarim",
+      "missing": "Yozilmagan",
+      "noClass": "dars yo‘q"
     }
   },
   "staffChat": {

@@ -8,6 +8,7 @@ import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 import { currentMonthKey, isPastMonth } from '@/lib/lesson-months';
 import { can } from '@/lib/permissions';
+import { filledFields } from '@/lib/lesson-plan-status';
 
 export type LessonActionState = { error?: string; errorParams?: Record<string, string> } | undefined;
 export type UploadUrlResult = { path?: string; url?: string; error?: string; detail?: string };
@@ -103,6 +104,7 @@ export async function updateLessonDateAction(
   }
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -137,6 +139,7 @@ export async function updateLessonTopicAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -169,6 +172,7 @@ export async function updateLessonGameLinkAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -209,6 +213,7 @@ export async function updateLessonPlanFieldAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -246,6 +251,7 @@ export async function updateLessonProcedureAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -345,6 +351,7 @@ export async function attachLessonMaterialAction(
   await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -391,6 +398,7 @@ export async function removeLessonMaterialAction(
   await deleteObject('lesson_materials', target.path);
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -491,6 +499,7 @@ export async function moveLessonPlanAction(_prevState: LessonActionState, formDa
   });
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -534,6 +543,7 @@ export async function createLessonCommentAction(
   `;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -563,6 +573,7 @@ export async function deleteLessonCommentAction(formData: FormData): Promise<voi
   `;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
 }
 
 const updateCommentSchema = z.object({
@@ -599,6 +610,7 @@ export async function updateLessonCommentAction(
   if (!row) return { error: 'forbidden' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -654,6 +666,65 @@ export async function deleteLessonSlotAction(
   `;
   if (!deleted) return { error: 'forbidden' };
 
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
+  return {};
+}
+
+/* ------------------------------------------------------------ copy a plan */
+
+export type CopySource = { id: string; label: string; filled: number };
+
+/** Lessons whose plan could seed `lessonId`: the same course and lesson
+ * number in the teacher's other groups, and the previous lesson of this
+ * group — newest content first. */
+export async function lessonCopySourcesAction(lessonId: string): Promise<CopySource[]> {
+  const { user } = await getAuthState();
+  if (!user || !z.string().uuid().safeParse(lessonId).success) return [];
+  const rows = await sql<{ id: string; label: string; topic: string | null; aim: string | null; language_focus: string | null; anticipated_problems: string | null; homework: string | null }[]>`
+    with t as (
+      select cl.group_id, cl.lesson_number, g.course_name, g.teacher_id
+      from course_lessons cl join groups g on g.id = cl.group_id where cl.id = ${lessonId}
+    )
+    select s.id, concat(sg.name, ' · #', s.lesson_number, coalesce(' · ' || s.lesson_date::text, '')) as label,
+      s.topic, s.aim, s.language_focus, s.anticipated_problems, s.homework
+    from course_lessons s
+    join groups sg on sg.id = s.group_id, t
+    where s.id <> ${lessonId}
+      and sg.teacher_id = ${user.id}
+      and coalesce(s.topic, '') <> ''
+      and (
+        (sg.course_name is not distinct from t.course_name and s.lesson_number = t.lesson_number and s.group_id <> t.group_id)
+        or (s.group_id = t.group_id and s.lesson_number = t.lesson_number - 1)
+      )
+    order by s.lesson_date desc nulls last
+    limit 6`;
+  return rows.map((r) => ({ id: r.id, label: r.label, filled: filledFields(r) }));
+}
+
+/** Copy topic, plan fields and procedure from `sourceId` into `targetId`
+ * (date, files and comments stay). The target must be writable by the
+ * caller; the source must be one of the caller's own lessons. */
+export async function copyLessonPlanAction(targetId: string, sourceId: string): Promise<LessonActionState> {
+  const { user, profile } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  if (!z.string().uuid().safeParse(targetId).success || !z.string().uuid().safeParse(sourceId).success) return { error: 'invalidInput' };
+  const denial = await lessonWriteDenial(targetId, user.id, profile?.role);
+  if (denial) return { error: denial };
+  try {
+    const res = await sql`
+      update course_lessons t set
+        topic = s.topic, aim = s.aim, language_focus = s.language_focus,
+        anticipated_problems = s.anticipated_problems, materials = s.materials,
+        homework = s.homework, procedure = s.procedure, game_link = coalesce(t.game_link, s.game_link)
+      from course_lessons s join groups sg on sg.id = s.group_id
+      where t.id = ${targetId} and s.id = ${sourceId} and t.lesson_date is not null
+        and (sg.teacher_id = ${user.id} or ${can(profile?.role, 'academic.manage')})`;
+    if (res.count === 0) return { error: 'dateRequired' };
+  } catch {
+    return { error: 'invalidInput' };
+  }
+  revalidatePath('/[locale]/lesson-plans', 'page');
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
 }

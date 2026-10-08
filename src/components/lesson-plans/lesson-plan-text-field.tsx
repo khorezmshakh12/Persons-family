@@ -18,12 +18,18 @@ export function LessonPlanTextField({
   value: initialValue,
   canEdit,
   placeholder,
+  onValueChange,
+  onSaved,
 }: {
   lessonId: string;
   field: LessonPlanField;
   value: string | null;
   canEdit: boolean;
   placeholder: string;
+  /** Live value while typing (the week panel's completeness ring). */
+  onValueChange?: (value: string) => void;
+  /** Fired after a successful save (the panel's "Saqlandi ✓"). */
+  onSaved?: () => void;
 }) {
   const t = useTranslations('lessonPlans');
   const [value, setValue] = useState(initialValue ?? '');
@@ -38,6 +44,7 @@ export function LessonPlanTextField({
     startTransition(async () => {
       const result = await updateLessonPlanFieldAction(undefined, formData);
       if (result?.error) toast.error(t(`errors.${result.error}`));
+      else onSaved?.();
     });
   }
 
@@ -52,7 +59,10 @@ export function LessonPlanTextField({
   return (
     <Textarea
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        setValue(e.target.value);
+        onValueChange?.(e.target.value);
+      }}
       onBlur={handleBlur}
       disabled={isPending}
       maxLength={4000}
