@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Filter, Grid3x3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarRange, Filter, Gauge, LayoutDashboard, Pencil, Plus, Trash2, UsersRound } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { Books } from '@/lib/accounting-data';
@@ -12,37 +12,45 @@ import { HBars } from './charts';
 import { SC_KEYS, type OpsPlan, type ScKey } from '@/lib/ops-plan';
 import { OpsTop, PlanFunnel, PlanModal, RoomRegister, SlotModal, buildModel, type Cell, type Cohort, type OpsModel } from './operations-plan';
 import {
-  ConflictsCard,
   IntakeHeat,
   IntakeTrend,
   QuickIntake,
   SlotFinderBar,
-  TeacherLoadCard,
   UnscheduledGroups,
-  findConflicts,
   usePlaceGroup,
   type Finder,
 } from './operations-extras';
+import { ScheduleTimeline, type TimelineMode } from './ops-schedule-timeline';
+import { CapacityDemand, IntakeAnalytics, OpsOverview, TeachersOps } from './ops-hq';
 import './strategy.css';
 import './suite.css';
 
 export type Stage = 'new' | 'contacted' | 'trial' | 'enrolled' | 'lost';
 export type Source = 'instagram' | 'telegram' | 'referral' | 'walkin' | 'website' | 'other';
 export type OpsData = {
-  groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null }[];
+  groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null; teacher_id: string | null; duration: number }[];
   leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null; ai_intent?: number | null; ai_hot?: number | null }[];
   staff: { id: string; name: string; role: string }[];
   metrics: { id: string; staff_id: string; name: string; weight_percentage: number }[];
   entries: { metric_id: string; month: string; target_value: number; actual_value: number | null }[];
-  rooms: { code: string; title: string; capacity: number; note: string }[];
+  rooms: { code: string; title: string; capacity: number; note: string; features?: string[] }[];
   holds: { id: string; room: string; time: string; cohort: 'odd' | 'even'; kind: 'trial' | 'buffer'; title: string }[];
   plan: OpsPlan;
+  availability: { teacher_id: string; cohort: 'odd' | 'even'; start: string; end: string }[];
+  log: { id: string; group_id: string; group_name: string; before: LogPlace; after: LogPlace; at: string; actor: string }[];
+  meId: string;
+  canEdit: boolean;
 };
+export type LogPlace = { room: string | null; time: string | null; cohort: 'odd' | 'even' | null; duration: number };
 
-// Simplified (owner, 2026-10-04): rooms + leads; growth/KPI live in Strategy OKR and My KPI.
-type Tab = 'cap' | 'fun';
+// Operation HQ v2 (2026-10-08): overview, schedule timeline, capacity &
+// demand, teachers, intake analytics. Growth/KPI still live in Strategy OKR.
+type Tab = 'ov' | 'sched' | 'cap' | 'tch' | 'fun';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { v: 'cap', n: 'Xonalar matritsasi', Icon: Grid3x3 },
+  { v: 'ov', n: 'Boshqaruv', Icon: LayoutDashboard },
+  { v: 'sched', n: 'Jadval', Icon: CalendarRange },
+  { v: 'cap', n: 'Quvvat va talab', Icon: Gauge },
+  { v: 'tch', n: 'O‘qituvchilar', Icon: UsersRound },
   { v: 'fun', n: 'Kelganlar', Icon: Filter },
 ];
 const STAGES: { k: Stage; n: string; c: string }[] = [
@@ -68,7 +76,10 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const tzDay = (s: string) => tashkentDayKey(new Date(s));
 
 export function OperationsWorkspace({ data, books, today }: { data: OpsData; books: Books; today: string }) {
-  const [tab, setTab] = useState<Tab>('cap');
+  const [tab, setTab] = useState<Tab>('ov');
+  const [cohort, setCohort] = useState<Cohort>('odd');
+  const [mode, setMode] = useState<TimelineMode>('room');
+  const [focus, setFocus] = useState<string | null>(null);
   const [sc, setSc] = useState<ScKey>('average');
   const [planOpen, setPlanOpen] = useState(false);
   const m = useMemo(() => buildModel(data, books, today, sc), [data, books, today, sc]);
@@ -97,6 +108,28 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
       localStorage.setItem(KEY, v);
     } catch {}
   };
+  // From the overview: open the schedule on the right cohort, focused on a group.
+  const goGroup = (v: string, groupId?: string) => {
+    const g = groupId ? data.groups.find((x) => x.id === groupId) : null;
+    if (g?.schedule_type) setCohort(g.schedule_type);
+    setFocus(groupId ?? null);
+    setMode('room');
+    go(v);
+  };
+  // 1–5 switch tabs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const i = Number(e.key) - 1;
+      if (i >= 0 && i < TABS.length) {
+        playSound('nav');
+        go(TABS[i].v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const scheduled = data.groups.filter((g) => g.room && g.time && g.schedule_type);
   const items: PaletteItem[] = [
     { g: 'Amallar', t: "Yangi lid qo'shish", run: () => go('fun') },
@@ -116,12 +149,57 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
         <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">
-        <div className="sx-grid">
-          <OpsTop m={m} onSc={pickSc} onPlan={openPlan} />
-        </div>
         <div key={tab} className="sx-fade">
-          {tab === 'cap' && <Rooms data={data} m={m} />}
-          {tab === 'fun' && <Funnel leads={data.leads} m={m} onPlan={openPlan} />}
+          {tab === 'ov' && <OpsOverview data={data} capOf={m.cap} rooms={m.rooms} onGo={goGroup} />}
+          {(tab === 'sched' || tab === 'tch') && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="sx-seg">
+                {(['odd', 'even'] as Cohort[]).map((c) => (
+                  <button key={c} className={cn(cohort === c && 'on')} onClick={() => setCohort(c)}>
+                    {c === 'odd' ? 'Toq kunlar · Du-Chor-Ju' : 'Juft kunlar · Se-Pay-Sha'}
+                  </button>
+                ))}
+              </div>
+              {tab === 'sched' && (
+                <div className="sx-seg">
+                  {(
+                    [
+                      ['room', 'Xonalar'],
+                      ['teacher', 'O‘qituvchilar'],
+                      ['course', 'Kurslar'],
+                    ] as [TimelineMode, string][]
+                  ).map(([k, n]) => (
+                    <button key={k} className={cn(mode === k && 'on')} onClick={() => setMode(k)}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <small className="text-xs text-au-faint">Sudrang · 15 daqiqaga yopishadi · D — qoralama · Ctrl+Z — bekor qilish</small>
+            </div>
+          )}
+          {tab === 'sched' && <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode={mode} focusId={focus} readOnlyRows={mode !== 'room'} />}
+          {tab === 'cap' && (
+            <div className="flex flex-col gap-[18px]">
+              <CapacityDemand data={data} capOf={m.cap} rooms={m.rooms} />
+              <Rooms data={data} m={m} />
+            </div>
+          )}
+          {tab === 'tch' && (
+            <div className="flex flex-col gap-[18px]">
+              <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode="teacher" readOnlyRows />
+              <TeachersOps data={data} cohort={cohort} />
+            </div>
+          )}
+          {tab === 'fun' && (
+            <div className="flex flex-col gap-[18px]">
+              <IntakeAnalytics data={data} />
+              <div className="sx-grid">
+                <OpsTop m={m} onSc={pickSc} onPlan={openPlan} />
+              </div>
+              <Funnel leads={data.leads} m={m} onPlan={openPlan} />
+            </div>
+          )}
         </div>
         {planOpen && <PlanModal plan={data.plan} leads={data.leads} onClose={() => setPlanOpen(false)} />}
       </section>
@@ -139,7 +217,6 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
   const [finder, setFinder] = useState<Finder | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const { place, busy: placing } = usePlaceGroup();
-  const conflicts = useMemo(() => findConflicts(groups), [groups]);
   const ok = groups.filter((g) => g.room && g.time && g.schedule_type);
   const { rooms, times } = m;
   const shown = roomF === 'all' ? rooms : rooms.filter((r) => r === roomF);
@@ -373,8 +450,6 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
         )}
       </div>
       <RoomRegister rooms={data.rooms} known={rooms} seats={data.plan.seats} />
-      <ConflictsCard conflicts={conflicts} />
-      <TeacherLoadCard groups={groups} />
       <UnscheduledGroups groups={missing} picked={picked} onPick={setPicked} />
       {open && sel && (
         <SlotModal

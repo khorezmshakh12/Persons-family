@@ -7,6 +7,9 @@ import { scoreLead } from '@/lib/ai-triage';
 import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { requireCap } from '@/lib/auth/require-admin';
+import { getAuthState } from '@/lib/auth/session';
+import { can } from '@/lib/permissions';
+import { DEFAULT_DURATION, isBlocking, issuesFor, scheduleIssues, type Availability, type SchedGroup } from '@/lib/ops-schedule';
 
 type Result = { error?: string };
 
@@ -264,41 +267,212 @@ export async function quickIntakeAction(input: z.input<typeof intakeSchema>): Pr
   return {};
 }
 
-const placeSchema = z.object({
-  groupId: z.string().uuid(),
-  room: z.string().trim().min(1).max(40),
-  time: z.string().trim().regex(/^\d{1,2}:\d{2}$/),
-  cohort: z.enum(['odd', 'even']),
-});
+/* ------------------------------------------------------------ schedule moves */
 
-/** Put an unscheduled group into a free room/time/cohort slot. Refuses a
- * slot another group already holds, and a time its teacher already teaches. */
-export async function placeGroupAction(input: z.input<typeof placeSchema>): Promise<Result> {
+const placementSchema = z.object({
+  groupId: z.string().uuid(),
+  room: z.string().trim().min(1).max(60),
+  time: z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  cohort: z.enum(['odd', 'even']),
+  duration: z.number().int().min(30).max(240).optional(),
+});
+type PlacementInput = z.infer<typeof placementSchema>;
+
+export type MoveResult = Result & { issues?: string[]; warnings?: string[]; logId?: string };
+
+/** Current schedule as the scheduling lib sees it (inside `tx` when given). */
+async function loadSchedule(db: typeof sql = sql): Promise<{ groups: SchedGroup[]; cap: (room: string) => number; availability: Availability[] }> {
+  const [groups, rooms, availability] = await Promise.all([
+    db<SchedGroup[]>`
+      select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type as cohort,
+        coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
+        g.teacher_id, coalesce(p.first_name || ' ' || p.last_name, '') as teacher,
+        coalesce((g.configuration->>'duration')::int, ${DEFAULT_DURATION}) as duration, e.enrolled
+      from groups g left join profiles p on p.id = g.teacher_id
+      left join ops_group_enrollment e on e.group_id = g.id`,
+    db<{ code: string; capacity: number }[]>`select code, capacity from ops_rooms`,
+    db<Availability[]>`select teacher_id, cohort, start_time as start, end_time as end from ops_teacher_availability`.catch(() => []),
+  ]);
+  const caps = new Map(rooms.map((r) => [r.code, r.capacity]));
+  return { groups, cap: (room) => caps.get(room) ?? 0, availability };
+}
+
+/** Apply one validated placement + its audit row (inside a transaction). */
+async function writePlacement(tx: typeof sql, by: string, g: SchedGroup, p: PlacementInput): Promise<string> {
+  const duration = p.duration ?? g.duration;
+  await tx`
+    update groups set schedule_type = ${p.cohort},
+      configuration = coalesce(configuration, '{}'::jsonb) || ${tx.json({ room: p.room, time: p.time, duration })}
+    where id = ${g.id}`;
+  const [log] = await tx<{ id: string }[]>`
+    insert into ops_schedule_log (group_id, actor, before, after)
+    values (${g.id}, ${by},
+      ${tx.json({ room: g.room || null, time: g.time || null, cohort: g.cohort, duration: g.duration })},
+      ${tx.json({ room: p.room, time: p.time, cohort: p.cohort, duration })})
+    returning id`;
+  return log.id;
+}
+
+/**
+ * Move (or first place) a group. Room and teacher clashes are refused;
+ * over-capacity and outside-availability come back as warnings and are
+ * applied only with `force`. Every move is logged (and undoable).
+ */
+export async function moveGroupAction(input: z.input<typeof placementSchema> & { force?: boolean }): Promise<MoveResult> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = placementSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const out = await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext('ops_schedule'))`;
+      const { groups, cap, availability } = await loadSchedule(tx as unknown as typeof sql);
+      const g = groups.find((x) => x.id === p.data.groupId);
+      if (!g) return { error: 'notFound' } as MoveResult;
+      const issues = issuesFor(g, { ...p.data, duration: p.data.duration ?? g.duration }, groups, cap, availability);
+      const blocking = issues.filter(isBlocking).map((i) => i.text);
+      if (blocking.length) return { error: 'conflict', issues: blocking } as MoveResult;
+      const warnings = issues.filter((i) => !isBlocking(i)).map((i) => i.text);
+      if (warnings.length && !input.force) return { error: 'warning', warnings } as MoveResult;
+      const logId = await writePlacement(tx as unknown as typeof sql, by, g, p.data);
+      return { logId, warnings } as MoveResult;
+    });
+    if (out.error) return out;
+    revalidatePath('/[locale]/operations', 'page');
+    revalidatePath('/[locale]/lesson-plans', 'page');
+    return out;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+}
+
+/** Kept for the chip-drop flow: first placement of an unscheduled group. */
+export async function placeGroupAction(input: z.input<typeof placementSchema>): Promise<Result> {
   try {
     await requireCap('operations.edit');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
-  const p = placeSchema.safeParse(input);
-  if (!p.success) return { error: 'invalidInput' };
-  const { groupId, room, time, cohort } = p.data;
+  const r = await moveGroupAction({ ...input, force: true });
+  return r.error ? { error: r.error === 'conflict' ? 'slotTaken' : r.error } : {};
+}
+
+/** Undo one logged move: put the group back where it was. */
+export async function undoMoveAction(logId: string): Promise<Result> {
+  let by: string;
   try {
-    const [clash] = await sql<{ kind: string }[]>`
-      select case when trim(g.configuration->>'room') = ${room} then 'slotTaken' else 'teacherBusy' end as kind
-      from groups g, (select teacher_id from groups where id = ${groupId}) me
-      where g.id <> ${groupId} and g.schedule_type = ${cohort} and g.configuration->>'time' = ${time}
-        and (trim(g.configuration->>'room') = ${room} or g.teacher_id = me.teacher_id)
-      limit 1`;
-    if (clash) return { error: clash.kind };
-    const res = await sql`
-      update groups set schedule_type = ${cohort},
-        configuration = coalesce(configuration, '{}'::jsonb) || ${sql.json({ room, time })}
-      where id = ${groupId}`;
-    if (res.count === 0) return { error: 'notFound' };
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(logId).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql.begin(async (tx) => {
+      const [log] = await tx<{ group_id: string; before: { room: string | null; time: string | null; cohort: 'odd' | 'even' | null; duration: number } }[]>`
+        select group_id, before from ops_schedule_log where id = ${logId}`;
+      if (!log) return false;
+      const b = log.before;
+      await tx`
+        update groups set schedule_type = ${b.cohort},
+          configuration = coalesce(configuration, '{}'::jsonb) || ${tx.json({ room: b.room, time: b.time, duration: b.duration })}
+        where id = ${log.group_id}`;
+      await tx`insert into ops_schedule_log (group_id, actor, before, after) select group_id, ${by}, after, before from ops_schedule_log where id = ${logId}`;
+      return true;
+    });
+    if (!res) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+/**
+ * Draft mode: apply every move at once. The final schedule is validated as
+ * a whole (so swaps work); any room/teacher clash rejects the lot.
+ */
+export async function applyScheduleDraftAction(moves: z.input<typeof placementSchema>[]): Promise<MoveResult> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const parsed = z.array(placementSchema).min(1).max(200).safeParse(moves);
+  if (!parsed.success) return { error: 'invalidInput' };
+  try {
+    const out = await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext('ops_schedule'))`;
+      const { groups, cap, availability } = await loadSchedule(tx as unknown as typeof sql);
+      const byId = new Map(groups.map((g) => [g.id, g]));
+      const after: SchedGroup[] = groups.map((g) => {
+        const m = parsed.data.find((x) => x.groupId === g.id);
+        return m ? { ...g, room: m.room, time: m.time, cohort: m.cohort, duration: m.duration ?? g.duration } : g;
+      });
+      const blocking = scheduleIssues(after, cap, availability).filter(isBlocking);
+      if (blocking.length) return { error: 'conflict', issues: blocking.map((i) => i.text) } as MoveResult;
+      for (const m of parsed.data) {
+        const g = byId.get(m.groupId);
+        if (g) await writePlacement(tx as unknown as typeof sql, by, g, m);
+      }
+      return {} as MoveResult;
+    });
+    if (out.error) return out;
   } catch {
     return { error: 'updateFailed' };
   }
   revalidatePath('/[locale]/operations', 'page');
   revalidatePath('/[locale]/lesson-plans', 'page');
+  return {};
+}
+
+/* ------------------------------------------------------------ rooms & teachers */
+
+export async function setRoomFeaturesAction(code: string, features: string[]): Promise<Result> {
+  try {
+    await requireCap('operations.edit');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = z.array(z.string().trim().min(1).max(40)).max(12).safeParse(features);
+  if (!p.success || !code) return { error: 'invalidInput' };
+  try {
+    const res = await sql`update ops_rooms set features = ${p.data} where code = ${code}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+const windowSchema = z.object({
+  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+});
+
+/** A teacher's working windows on one cohort (replaces the old set). The
+ * teacher edits their own; operations can edit anyone's. */
+export async function setTeacherAvailabilityAction(teacherId: string, cohort: 'odd' | 'even', windows: z.input<typeof windowSchema>[]): Promise<Result> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  if (teacherId !== user.id && !can(profile.role, 'operations.edit')) return { error: 'forbidden' };
+  const p = z.array(windowSchema).max(8).safeParse(windows);
+  if (!p.success || !z.string().uuid().safeParse(teacherId).success || !['odd', 'even'].includes(cohort)) return { error: 'invalidInput' };
+  if (p.data.some((w) => w.start >= w.end)) return { error: 'invalidInput' };
+  try {
+    await sql.begin(async (tx) => {
+      await tx`delete from ops_teacher_availability where teacher_id = ${teacherId} and cohort = ${cohort}`;
+      if (p.data.length)
+        await tx`insert into ops_teacher_availability ${tx(p.data.map((w) => ({ teacher_id: teacherId, cohort, start_time: w.start, end_time: w.end })))}`;
+    });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
   return {};
 }
