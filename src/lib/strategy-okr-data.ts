@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import { FINANCE_METRICS, type KeyResult, type Objective, type OkrMetric } from '@/lib/strategy-okr';
+import { FINANCE_METRICS, type Checkin, type KeyResult, type Objective, type OkrMetric } from '@/lib/strategy-okr';
 
 // Calendar month in Tashkent, as timestamptz bounds and as a date range.
 const MONTH_START = sql`(date_trunc('month', now() at time zone 'Asia/Tashkent') at time zone 'Asia/Tashkent')`;
@@ -53,18 +53,32 @@ async function liveMetrics(spaceId: string, finance: boolean): Promise<Partial<R
 
 /** A space's objectives with their key results, live values filled in. */
 export async function loadOkr(spaceId: string, finance: boolean): Promise<Objective[]> {
-  const [objs, krs, live] = await Promise.all([
+  const [objs, krs, live, links, checkins] = await Promise.all([
     sql<Omit<Objective, 'krs'>[]>`
-      select id, space_id, title, owner_id from strategy_objectives
-      where space_id = ${spaceId} order by sort_order, created_at`,
-    sql<(Omit<KeyResult, 'current'> & { current_value: number })[]>`
-      select k.id, k.objective_id, k.title, k.metric, k.start_value::float8 as start_value,
-             k.target_value::float8 as target_value, k.current_value::float8 as current_value, k.unit
+      select id, space_id, title, owner_id, quarter, status, final_score, retro from strategy_objectives
+      where space_id = ${spaceId} order by status = 'closed', sort_order, created_at`,
+    sql<(Omit<KeyResult, 'current' | 'task_ids' | 'checkins'> & { current_value: number })[]>`
+      select k.id, k.objective_id, k.title, k.metric, k.start_value as start_value,
+             k.target_value as target_value, k.current_value as current_value, k.unit,
+             k.owner_id, k.jev_verdict, k.jev_at
       from strategy_key_results k
       join strategy_objectives o on o.id = k.objective_id
       where o.space_id = ${spaceId}
       order by k.sort_order, k.updated_at`,
     liveMetrics(spaceId, finance),
+    sql<{ kr_id: string; task_id: string; status: string }[]>`
+      select l.kr_id, l.task_id, t.status from strategy_kr_tasks l
+      join strategy_tasks t on t.id = l.task_id where t.space_id = ${spaceId}`.catch(() => []),
+    // The last 13 weeks per KR, oldest first.
+    sql<Checkin[]>`
+      select * from (
+        select c.id, c.kr_id, c.week::text as week, c.value, c.confidence, c.note, c.author_id, c.created_at,
+          row_number() over (partition by c.kr_id order by c.week desc) as rn
+        from strategy_checkins c
+        join strategy_key_results k on k.id = c.kr_id
+        join strategy_objectives o on o.id = k.objective_id
+        where o.space_id = ${spaceId}
+      ) x where rn <= 13 order by week`.catch(() => []),
   ]);
   return objs.map((o) => ({
     ...o,
@@ -72,12 +86,21 @@ export async function loadOkr(spaceId: string, finance: boolean): Promise<Object
       .filter((k) => k.objective_id === o.id)
       .map(({ current_value, ...k }) => ({
         ...k,
+        task_ids: links.filter((l) => l.kr_id === k.id).map((l) => l.task_id),
+        checkins: checkins.filter((c) => c.kr_id === k.id).map((c): Checkin => ({ id: c.id, kr_id: c.kr_id, week: c.week, value: c.value, confidence: c.confidence, note: c.note, author_id: c.author_id, created_at: c.created_at })),
         current:
-          k.metric === 'manual'
+          k.metric === 'linked_tasks'
+            ? linkedPct(links.filter((l) => l.kr_id === k.id))
+            : k.metric === 'manual'
             ? current_value
             : FINANCE_METRICS.includes(k.metric) && !finance
               ? null
               : (live[k.metric] ?? 0),
       })),
   }));
+}
+
+/** % of linked strategy tasks that are done (0 when nothing is linked). */
+function linkedPct(rows: { status: string }[]): number {
+  return rows.length ? Math.round((rows.filter((r) => r.status === 'done').length / rows.length) * 100) : 0;
 }
