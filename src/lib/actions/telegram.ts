@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
+import { logSystemAction } from '@/lib/audit-log';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap, requireSection } from '@/lib/auth/require-admin';
 import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText, TELEGRAM_WEBAPP_URL } from '@/lib/telegram';
@@ -52,6 +53,7 @@ export async function adminDisconnectTelegramAction(
   } catch {
     return { error: 'updateFailed' };
   }
+  logSystemAction('staff.telegram_disconnect', `Disconnected Telegram of ${parsed.data.id}`);
 
   revalidatePath('/[locale]/staff', 'page');
   return { success: true };

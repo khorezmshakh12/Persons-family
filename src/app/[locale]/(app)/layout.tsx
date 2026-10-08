@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
@@ -38,6 +39,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     });
   }
   if (profile!.must_change_password) redirect({ href: '/set-password', locale });
+
+  // Staff console "last active": at most one write per person per 10 minutes.
+  const seenId = user!.id;
+  after(() =>
+    sql`update profiles set last_seen_at = now()
+        where id = ${seenId} and (last_seen_at is null or last_seen_at < now() - interval '10 minutes')`.catch(() => {}),
+  );
 
   const [
     activeProfiles,
