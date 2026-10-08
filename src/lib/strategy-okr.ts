@@ -4,6 +4,7 @@ import { formatUZS } from './format-currency';
 
 export const OKR_METRICS = {
   manual: { n: 'Qo‘lda kiritiladi', unit: '', hint: 'Qiymatni o‘zingiz yangilab borasiz' },
+  linked_tasks: { n: 'Bog‘langan vazifalar bajarilishi', unit: '%', hint: 'Shu KR’ga bog‘langan strategiya vazifalaridan bajarilgani' },
   leads_month: { n: 'Yangi lidlar (shu oy)', unit: 'ta', hint: 'Operatsiya HQ › Lidlar' },
   enrolled_month: { n: 'Yozilgan o‘quvchilar (shu oy)', unit: 'ta', hint: 'Lid «yozildi» bosqichiga o‘tgan' },
   conversion_month: { n: 'Lid → o‘quvchi konversiyasi (shu oy)', unit: '%', hint: 'Yozilganlar ÷ yangi lidlar' },
@@ -30,6 +31,24 @@ export type KeyResult = {
   /** Live value for auto metrics, the typed value for manual ones; null = hidden (finance). */
   current: number | null;
   unit: string;
+  owner_id: string | null;
+  /** Strategy tasks driving this KR (always listed; the metric decides if they count). */
+  task_ids: string[];
+  /** Weekly check-ins, oldest first (last 13). */
+  checkins: Checkin[];
+  jev_verdict: 'likely' | 'risk' | 'unlikely' | null;
+  jev_at: string | null;
+};
+
+export type Checkin = {
+  id: string;
+  kr_id: string;
+  week: string;
+  value: number | null;
+  confidence: 'on' | 'risk' | 'off';
+  note: string | null;
+  author_id: string | null;
+  created_at: string;
 };
 
 export type Objective = {
@@ -37,6 +56,10 @@ export type Objective = {
   space_id: string;
   title: string;
   owner_id: string | null;
+  quarter: string | null;
+  status: 'active' | 'closed';
+  final_score: number | null;
+  retro: string | null;
   krs: KeyResult[];
 };
 

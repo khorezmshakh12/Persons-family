@@ -377,6 +377,11 @@ export async function updateStaffAction(
   // next full login — so re-stamp it and revoke live sessions so the change
   // takes effect now. Best-effort: the DB row is already the source of
   // truth, a claim hiccup must not fail the edit.
+  logSystemAction(
+    'staff.update',
+    `Updated ${parsed.data.id}${parsed.data.role !== target.role ? ` role ${target.role} → ${parsed.data.role}` : ''}`,
+  );
+
   if (parsed.data.role !== target.role) {
     try {
       await setUserClaims(parsed.data.id, {
@@ -553,7 +558,57 @@ export async function resetStaffPasswordAction(
   // naturally expire, up to 14 days, letting them skip the password change
   // this reset was meant to force.
   await revokeUserSessions(parsed.data.id);
+  logSystemAction('staff.password_reset', `Reset password of ${parsed.data.id}`);
 
   revalidatePath('/[locale]/staff', 'page');
   return { tempPassword };
+}
+
+const bulkSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(200), active: z.boolean() });
+
+/** Staff console bulk freeze / reactivate. Same rules as the single toggle:
+ * never yourself, protected accounts only by the CEO; skipped rows are
+ * counted, not silently dropped. */
+export async function bulkSetStaffActiveAction(
+  ids: string[],
+  active: boolean,
+): Promise<{ error?: string; changed?: number; skipped?: number }> {
+  let actingProfile;
+  try {
+    ({ profile: actingProfile } = await requireStaffManager());
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const parsed = bulkSchema.safeParse({ ids, active });
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const rows = await sql<{ id: string; role: string; is_active: boolean }[]>`
+    select id, role, is_active from profiles where id in ${sql(parsed.data.ids)}
+  `;
+  const allowed = rows.filter(
+    (r) =>
+      r.id !== actingProfile.id &&
+      r.is_active !== parsed.data.active &&
+      !(isProtectedRole(r.role) && actingProfile.role !== 'ceo'),
+  );
+  if (allowed.length) {
+    const targetIds = allowed.map((r) => r.id);
+    try {
+      if (parsed.data.active) {
+        await sql`update profiles set is_active = true, frozen_reason = null where id in ${sql(targetIds)}`;
+      } else {
+        await sql`update profiles set is_active = false where id in ${sql(targetIds)}`;
+        await Promise.allSettled(targetIds.map((id) => revokeUserSessions(id)));
+      }
+    } catch (error) {
+      console.error('bulkSetStaffActiveAction failed', error instanceof Error ? error.message : error);
+      return { error: 'updateFailed' };
+    }
+    for (const id of targetIds) {
+      logSystemAction(parsed.data.active ? 'staff.activate' : 'staff.deactivate', `${parsed.data.active ? 'Reactivated' : 'Deactivated'} staff member ${id} (bulk)`);
+    }
+  }
+
+  revalidatePath('/[locale]/staff', 'page');
+  return { changed: allowed.length, skipped: parsed.data.ids.length - allowed.length };
 }

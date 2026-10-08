@@ -16,6 +16,8 @@ import { loadBooks } from '@/lib/accounting-data';
 import { loadFinInputs } from '@/lib/strategy-finance-data';
 import { loadOkr } from '@/lib/strategy-okr-data';
 import { canFor, canSeeFor } from '@/lib/permissions';
+import { loadPortfolio } from '@/lib/strategy-portfolio';
+import { weekOf, type Dep } from '@/lib/strategy-plan';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +44,8 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
   const wanted = (await searchParams)?.space;
   const space = spaces.find((s) => s.id === wanted) ?? spaces[0] ?? null;
 
-  const [tasks, milestones, okr] = space
+  const today = tashkentDayKey();
+  const [tasks, milestones, okr, deps, portfolio] = space
     ? await Promise.all([
         sql<StrategyTask[]>`
           select id, space_id, title, description, workstream, assignee_id, start_date, end_date,
@@ -51,8 +54,13 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
         sql<StrategyMilestone[]>`
           select id, title, date from strategy_milestones where space_id = ${space.id} order by date`,
         loadOkr(space.id, finance),
+        // Strategy v2 tables arrive with this round's migration.
+        sql<Dep[]>`
+          select d.task_id, d.depends_on from strategy_task_deps d
+          join strategy_tasks t on t.id = d.task_id where t.space_id = ${space.id}`.catch(() => [] as Dep[]),
+        loadPortfolio(finance, today, weekOf(today)).catch(() => []),
       ])
-    : [[], [], []];
+    : [[], [], [], [], []];
 
   return (
     <StrategyWorkspace
@@ -63,7 +71,9 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
       milestones={milestones}
       roadmaps={roadmaps}
       people={await withSignedAvatars([...people])}
-      today={tashkentDayKey()}
+      today={today}
+      deps={deps}
+      portfolio={portfolio}
       books={
         books
           ? { accounts: books.accounts, opening: books.opening, entries: books.entries, courses: books.courses, tax: books.tax }

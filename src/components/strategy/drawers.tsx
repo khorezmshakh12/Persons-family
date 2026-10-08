@@ -28,6 +28,7 @@ import { PersonAvatar, StatusChip } from './bits';
 import { ask, toast } from './suite-shell';
 import { setRoadmapNodeLinksAction } from '@/lib/actions/strategy-finance';
 import type { Draft, WorkspaceApi } from './strategy-workspace';
+import { DepsField } from './view-strategy-v2';
 
 function Seg<K extends string>({ value, options, onChange }: { value: K; options: [K, string][]; onChange: (k: K) => void }) {
   return (
@@ -226,6 +227,7 @@ export function TaskDrawer({
             </select>
           </div>
         )}
+        {!isNew && <DepsField api={api} taskId={task!.id} />}
         <div className="dr-sec">Tavsif</div>
         <textarea
           className="sx-inp min-h-[110px]"

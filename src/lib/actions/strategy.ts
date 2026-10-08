@@ -8,6 +8,7 @@ import { logSystemAction } from '@/lib/audit-log';
 import { normalizeBudget, type StrategyMind, type StrategySpace, type StrategyTask } from '@/lib/strategy';
 import { requireCap } from '@/lib/auth/require-admin';
 import { dropStrategyMirror, syncStrategyMirror } from '@/lib/strategy-sync';
+import { createsCycle, type Dep } from '@/lib/strategy-plan';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
@@ -315,4 +316,72 @@ export async function saveStrategyBudgetAction(
   }
   revalidatePath('/[locale]/strategy', 'page');
   return {};
+}
+
+/* ------------------------------------------------------------ dependencies (v2) */
+
+/** A task's prerequisites (replaces the set). Loops are refused. */
+export async function setTaskDepsAction(taskId: string, dependsOn: string[]): Promise<Result> {
+  try {
+    await requireCap('strategy.edit');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = z.object({ taskId: z.string().uuid(), dependsOn: z.array(z.string().uuid()).max(30) }).safeParse({ taskId, dependsOn });
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const out = await sql.begin(async (tx) => {
+      const [t] = await tx<{ space_id: string }[]>`select space_id from strategy_tasks where id = ${p.data.taskId}`;
+      if (!t) return 'notFound';
+      const others = await tx<Dep[]>`
+        select d.task_id, d.depends_on from strategy_task_deps d
+        join strategy_tasks s on s.id = d.task_id
+        where s.space_id = ${t.space_id} and d.task_id <> ${p.data.taskId}`;
+      const wanted = [...new Set(p.data.dependsOn)].filter((id) => id !== p.data.taskId);
+      if (wanted.some((d) => createsCycle(others, p.data.taskId, d))) return 'cycle';
+      await tx`delete from strategy_task_deps where task_id = ${p.data.taskId}`;
+      if (wanted.length) {
+        const ok = await tx<{ id: string }[]>`select id from strategy_tasks where space_id = ${t.space_id} and id in ${tx(wanted)}`;
+        if (ok.length) await tx`insert into strategy_task_deps ${tx(ok.map((o) => ({ task_id: p.data.taskId, depends_on: o.id })))}`;
+      }
+      return null;
+    });
+    if (out) return { error: out };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/strategy', 'page');
+  return {};
+}
+
+const shiftSchema = z.array(z.object({ id: z.string().uuid(), startDate: ymd, endDate: ymd }).refine((v) => v.endDate >= v.startDate)).min(1).max(200);
+
+/** Apply a cascade of date moves (Gantt: "shift what depends on it"). */
+export async function shiftStrategyTasksAction(moves: z.input<typeof shiftSchema>): Promise<Result<{ tasks: StrategyTask[] }>> {
+  let actor: string;
+  try {
+    ({ profile: { id: actor } } = await requireCap('strategy.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = shiftSchema.safeParse(moves);
+  if (!p.success) return { error: 'invalidInput' };
+  let rows: StrategyTask[];
+  try {
+    rows = await sql.begin(async (tx) => {
+      const out: StrategyTask[] = [];
+      for (const m of p.data) {
+        const [r] = await tx<StrategyTask[]>`
+          update strategy_tasks set start_date = ${m.startDate}, end_date = ${m.endDate}, updated_at = now()
+          where id = ${m.id} returning ${TASK_COLUMNS}`;
+        if (r) out.push(r);
+      }
+      return out;
+    });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  for (const r of rows) await syncStrategyMirror(r, actor);
+  revalidatePath('/[locale]/strategy', 'page');
+  return { tasks: rows };
 }

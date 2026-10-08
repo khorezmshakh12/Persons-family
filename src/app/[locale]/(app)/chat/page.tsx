@@ -6,6 +6,8 @@ import { ChatHubClient } from '@/components/chat-hub/chat-hub-client';
 import type { ConversationState } from '@/components/chat-hub/types';
 import type { StaffRole } from '@/lib/nav';
 import { can } from '@/lib/permissions';
+import { loadChannelSummaries, loadViewer } from '@/lib/chat-channels';
+import { getChatStatusesAction } from '@/lib/actions/chat-channels';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +69,13 @@ export default async function ChatPage() {
   }
 
   const canModerateDmImportance = can(profile!.role, 'chat.moderate');
+  // Channels arrive with this round's migration — until then the hub is DMs only.
+  const [channels, statuses] = await Promise.all([
+    loadViewer(user!.id, profile!.role)
+      .then(loadChannelSummaries)
+      .catch(() => []),
+    getChatStatusesAction(),
+  ]);
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-var(--app-chrome))] w-full max-w-6xl flex-col overflow-hidden p-4 sm:p-6">
@@ -79,6 +88,8 @@ export default async function ChatPage() {
           staff={staff}
           conversationStates={conversationStates}
           initialUnreadSenderIds={initialUnreadSenderIds}
+          initialChannels={channels}
+          initialStatuses={statuses}
         />
       </Suspense>
     </div>

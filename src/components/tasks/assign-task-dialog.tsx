@@ -41,17 +41,18 @@ function presetDeadlineValue(hours: number): string {
   return toDatetimeLocalValue(new Date(Date.now() + hours * 3600_000).toISOString());
 }
 
-export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
+export function AssignTaskDialog({ assignees, prefill }: { assignees: Assignee[]; prefill?: { title: string; description: string } | null }) {
   const t = useTranslations('tasks');
   const tCommon = useTranslations('common');
-  const [open, setOpen] = useState(false);
+  // Opened pre-filled from a chat message ("Vazifaga aylantirish").
+  const [open, setOpen] = useState(!!prefill);
   // The deadline input is the one controlled field in this form, because the
   // presets below have to write into it. Everything else stays uncontrolled.
   const [deadline, setDeadline] = useState('');
   // Quick entry ("Hisobot @Ali ertaga 15:00 +10") fills the fields below;
   // every field stays editable afterwards.
   const [quick, setQuick] = useState('');
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(prefill?.title ?? '');
   const [assignee, setAssignee] = useState<string | null>(null);
   const [stars, setStars] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
@@ -75,6 +76,15 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
     },
     undefined,
   );
+
+  // Drop the one-shot ?new=… so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (!prefill) return;
+    const url = new URL(window.location.href);
+    ['new', 'title', 'desc'].forEach((k) => url.searchParams.delete(k));
+    window.history.replaceState(null, '', url.pathname + (url.search || ''));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
 
   // `C` on the board (see TaskBoard's shortcuts) opens this dialog.
   useEffect(() => {
@@ -123,7 +133,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">{t('descriptionLabel')}</Label>
-            <Textarea id="description" name="description" maxLength={2000} rows={3} />
+            <Textarea id="description" name="description" maxLength={2000} rows={3} defaultValue={prefill?.description} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="assignedTo">{t('assignee')}</Label>

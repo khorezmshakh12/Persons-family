@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
-import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
+import { tashkentDayKey, tashkentDayOfWeek, tashkentMonthKey, tashkentYmd } from '@/lib/time';
+import { weekOf } from '@/lib/strategy-plan';
 import { monthName, shiftMonth } from '@/lib/kpi-plan';
 
 // My KPI reminders. Cloud Scheduler hits this once a day (Bearer CRON_SECRET):
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
   const sent: string[] = [];
 
   /** Claims a reminder slot; false if it already went out. */
-  const claim = async (m: string, kind: 'early' | 'last' | 'digest' | 'midmonth') =>
+  const claim = async (m: string, kind: 'early' | 'last' | 'digest' | 'midmonth' | 'okr_checkin') =>
     (await sql`insert into kpi_reminders (month, kind) values (${m}, ${kind}) on conflict do nothing`).count === 1;
 
   /** Active staff (not the CEO) with no submitted / approved plan for `m`. */
@@ -87,6 +88,28 @@ export async function GET(req: NextRequest) {
       await sendTelegramMessage(r.telegram_id, text).catch(() => {});
     }
     sent.push('midmonth');
+  }
+
+  // Strategy OKRs: on Friday, owners of active key results with no check-in
+  // this week get one nudge listing them.
+  const week = weekOf(tashkentDayKey());
+  if (tashkentDayOfWeek() === 5 && (await claim(week, 'okr_checkin').catch(() => false))) {
+    const rows = await sql<{ telegram_id: number; titles: string[] }[]>`
+      select p.telegram_id, array_agg(k.title order by k.title) as titles
+      from strategy_key_results k
+      join strategy_objectives o on o.id = k.objective_id and o.status = 'active'
+      join profiles p on p.id = coalesce(k.owner_id, o.owner_id)
+      where p.is_active and p.telegram_id is not null
+        and not exists (select 1 from strategy_checkins c where c.kr_id = k.id and c.week = ${week})
+      group by p.telegram_id`.catch(() => []);
+    for (const r of rows) {
+      const list = r.titles.slice(0, 8).map((t) => `• ${escapeTelegramText(t)}`).join('\n');
+      await sendTelegramMessage(
+        r.telegram_id,
+        `🎯 Haftalik OKR check-in: quyidagi key result’lar bo‘yicha bu hafta holat kiritilmagan:\n${list}\nPlatforma › Strategiya › OKR`,
+      ).catch(() => {});
+    }
+    sent.push('okr_checkin');
   }
 
   return NextResponse.json({ ok: true, sent });
