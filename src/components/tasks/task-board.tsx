@@ -16,6 +16,7 @@ import {
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
   updateTaskStatusAction,
+  undoSubmitTaskAction,
   deleteTaskAction,
   getVisibleTasksAction,
   type MonthlyTaskArchiveEntry,
@@ -266,6 +267,9 @@ export function TaskBoard({
     if (!lane || !current || boardLaneFor(current.status) === lane) return;
     // The review and done lanes both mean "hand it in".
     const nextStatus = laneDropStatus(lane);
+    // Already handed in: only a drop back onto an open lane (= take it back)
+    // means anything.
+    if (current.status === 'submitted' && nextStatus === 'done') return;
 
     // A little salute at the card's landing spot. `translated` is the
     // dragged node's final rect in viewport coords; fall back to the
@@ -275,7 +279,6 @@ export function TaskBoard({
       setBurst({ id: Date.now(), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
     }
 
-    const previousTasks = tasks;
     setTasks((prev) =>
       // A drop on done is a hand-in: the server parks it at `submitted`, so
       // show that optimistically rather than a `done` it never becomes.
@@ -290,14 +293,37 @@ export function TaskBoard({
       const formData = new FormData();
       formData.set('id', taskId);
       formData.set('status', nextStatus);
-      const result = await updateTaskStatusAction(formData);
+      let result: Awaited<ReturnType<typeof updateTaskStatusAction>>;
+      try {
+        result = await updateTaskStatusAction(formData);
+      } catch {
+        result = { error: 'updateFailed' };
+      }
       if (result?.error) {
-        setTasks(previousTasks);
+        setTasks((prev) => prev.map((x) => (x.id === taskId ? current : x)));
         toast.error(t(`errors.${result.error}`));
       } else if (nextStatus === 'done') {
         // Handed in — a genuine success beat; the reward floats up (#18).
-        const reward = previousTasks.find((x) => x.id === taskId)?.star_reward ?? 0;
+        const reward = current.star_reward ?? 0;
         celebrate(reward > 0 ? `+${reward} ★` : undefined);
+        // Same undo the "Topshirish" button offers.
+        toast.success(t('submittedToast'), {
+          duration: 10000,
+          action: {
+            label: t('undoAction'),
+            onClick: () => {
+              const fd = new FormData();
+              fd.set('id', taskId);
+              void undoSubmitTaskAction(fd).then((r) => {
+                if (r?.error) toast.error(t(`errors.${r.error}`));
+                else {
+                  setTasks((prev) => prev.map((x) => (x.id === taskId ? { ...x, status: 'in_progress', submitted_at: null } : x)));
+                  toast.success(t('undoneToast'));
+                }
+              });
+            },
+          },
+        });
       }
     })();
   }

@@ -591,9 +591,16 @@ export function ChannelView({ channel, me, people, onBack, onRead, infoOpen, onT
   useEffect(() => {
     threadRef.current = threadId;
   }, [threadId]);
+  const channelRef = useRef(channel.id);
+  useEffect(() => {
+    channelRef.current = channel.id;
+  }, [channel.id]);
 
   const load = useCallback(async () => {
-    const r = await getChannelPageAction(channel.id);
+    const id = channel.id;
+    const r = await getChannelPageAction(id);
+    // Switched channels while this was in flight — drop the stale page.
+    if (channelRef.current !== id) return;
     if ('error' in r) {
       toast.error('Kanalni ochib bo‘lmadi');
       return;
@@ -604,7 +611,12 @@ export function ChannelView({ channel, me, people, onBack, onRead, infoOpen, onT
     const t = threadRef.current;
     if (t) {
       const th = await getThreadAction(t);
-      if (!('error' in th)) setThread(th);
+      if (channelRef.current !== id) return;
+      // The root was deleted (or access lost): close the panel.
+      if ('error' in th) {
+        setThread(null);
+        setThreadId(null);
+      } else setThread(th);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onRead is a fresh closure per render; channel.id is the key
   }, [channel.id]);
@@ -674,6 +686,8 @@ export function ChannelView({ channel, me, people, onBack, onRead, infoOpen, onT
     if ('error' in th) {
       toast.error('Mavzuni ochib bo‘lmadi');
       setThreadId(null);
+      // A search jump into a gone thread must stop here, not retry forever.
+      if (jump?.thread === id) onJumped();
     } else setThread(th);
   }
 

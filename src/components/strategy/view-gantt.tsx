@@ -255,7 +255,7 @@ export function GanttView({
               const t = r.t;
               const d = drag?.id === t.id ? drag : null;
               const l = daysBetween(R0, t.start_date) * DW + (d && !d.resize ? d.dd * DW : 0);
-              const w = Math.max(DW, (daysBetween(t.start_date, t.end_date) + 1) * DW + (d ? d.dd * DW : 0));
+              const w = Math.max(DW, (daysBetween(t.start_date, t.end_date) + 1) * DW + (d?.resize ? d.dd * DW : 0));
               const col = isLate(t, today) ? 'var(--au-bad)' : t.status === 'todo' ? '#a8a093' : STATUSES[t.status].c;
               return (
                 <div

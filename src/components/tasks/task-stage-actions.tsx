@@ -186,8 +186,8 @@ export function TaskStageActions({
     );
   }
 
-  // Accidental submit: the assignee can take it back while the CEO hasn't
-  // decided yet (the server allows it for 10 minutes after submitting).
+  // Accidental submit: the assignee can take it back for as long as the CEO
+  // hasn't decided yet.
   if (isAssignee && !isReviewer && status === 'submitted') {
     return (
       <Button

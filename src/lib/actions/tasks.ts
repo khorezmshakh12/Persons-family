@@ -617,8 +617,15 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   const [existing] = await selectLifecycleRow(parsed.data.id);
   if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
 
-  // Handed in and parked on the CEO's desk — the assignee cannot pull it
-  // back, and nothing about it may change until approve/reject decides. This
+  // Handed in but not yet decided: dragging it back to an open lane takes
+  // the submission back (same path as the "Bekor qilish" button); dropping
+  // it on review/done again changes nothing.
+  if (existing.status === 'submitted') {
+    return parsed.data.status === 'done' ? {} : undoSubmitTaskAction(formData);
+  }
+
+  // Waiting on the proof upload — nothing about it may change until the
+  // upload (or the CEO) decides. This
   // is also the half of "no penalty while under review" that lives on the
   // request path; the cron half is in task-overdue-penalties/route.ts.
   if (isTaskUnderReview(existing.status)) return { error: 'underReview' };
@@ -696,9 +703,10 @@ export async function submitTaskAction(formData: FormData): Promise<UpdateTaskSt
 }
 
 /**
- * Assignee undoes a submission within 10 minutes. Only allowed for the task
- * assignee, only while status is still 'submitted', and only if submitted_at
- * is within the 10-minute window. Reverts the status to 'in_progress'.
+ * Assignee takes a submission back. Allowed for the task assignee for as
+ * long as the CEO hasn't decided (status is still 'submitted'); reverts the
+ * status to 'in_progress'. (Owner, 2026-10-08: the old 10-minute window left
+ * people stuck with an accidental submit.)
  */
 export async function undoSubmitTaskAction(formData: FormData): Promise<UpdateTaskStatusResult> {
   const { user } = await getAuthState();
@@ -719,11 +727,9 @@ export async function undoSubmitTaskAction(formData: FormData): Promise<UpdateTa
   `;
 
   if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
-  if (existing.status !== 'submitted') return { error: 'invalidTransition' };
-  if (!existing.submitted_at) return { error: 'tooLate' };
+  if (existing.status !== 'submitted') return { error: 'tooLate' };
 
-  // The 10-minute window is checked by the database clock inside the guarded
-  // update, so a CEO decision or a late click can never race past it.
+  // The status guard in the WHERE means a CEO decision that lands first wins.
   try {
     const res = await sql`
       update tasks set
@@ -731,7 +737,6 @@ export async function undoSubmitTaskAction(formData: FormData): Promise<UpdateTa
         submitted_at = null,
         updated_at = now()
       where id = ${parsed.data.id} and assigned_to = ${user.id} and status = 'submitted'
-        and submitted_at > now() - interval '10 minutes'
     `;
     if (res.count === 0) return { error: 'tooLate' };
   } catch (error) {

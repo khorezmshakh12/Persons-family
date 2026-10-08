@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { sql } from '@/lib/db/client';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
-import { type Submission } from '@/components/self-development/submission-card';
+import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
 import { SelfDevelopmentSectionClient } from './self-development-section-client';
 import { MonthPicker } from './month-picker';
 
@@ -51,8 +51,16 @@ export async function SelfDevelopmentSection({
             <MonthPicker months={all.map((s) => s.month)} selected={selectedMonth} />
           )
         }
-        submissions={filtered.map((s) => ({ ...s, author: null } as Submission))}
-        isAdmin={isAdmin}
+        submissionIds={filtered.map((s) => s.id)}
+        cards={filtered.map((s) => (
+          <SubmissionCard
+            key={s.id}
+            submission={{ ...s, author: null } as Submission}
+            isAdmin={isAdmin}
+            defaultOpen={false}
+            storageKeyPrefix="profile-submission"
+          />
+        ))}
       />
     </div>
   );

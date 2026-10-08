@@ -223,7 +223,8 @@ export async function reopenObjectiveAction(id: string): Promise<Result> {
   if ('error' in g) return g;
   if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
   try {
-    await sql`update strategy_objectives set status = 'active', closed_at = null where id = ${id}`;
+    const res = await sql`update strategy_objectives set status = 'active', closed_at = null where id = ${id}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch {
     return { error: 'updateFailed' };
   }
@@ -279,8 +280,10 @@ export async function forecastKrsAction(spaceId: string): Promise<Result<{ judge
   for (const [i, { k }] of krs.entries()) {
     const a = res.answers[`kr${i}`];
     if (a?.type !== 'choice' || !['likely', 'risk', 'unlikely'].includes(a.choice)) continue;
-    await sql`update strategy_key_results set jev_verdict = ${a.choice}, jev_at = now() where id = ${k.id}`.catch(() => {});
-    judged++;
+    const ok = await sql`update strategy_key_results set jev_verdict = ${a.choice}, jev_at = now() where id = ${k.id}`
+      .then((r) => r.count > 0)
+      .catch(() => false);
+    if (ok) judged++;
   }
   done();
   return { judged };

@@ -26,6 +26,7 @@ import {
 } from '@/lib/kpi-plan';
 import {
   deleteKpiPlanAction,
+  withdrawKpiPlanAction,
   gradeKpiPlanAction,
   reviewKpiPlanAction,
   saveKpiPlanAction,
@@ -184,7 +185,20 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
         items: clean.map(({ title, kind, unit, target_bad, target_good, target_great }) => ({ title, kind, unit, target_bad, target_good, target_great })),
       });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(submit ? 'KPI rejasi CEO’ga topshirildi' : 'Qoralama saqlandi');
+      if (submit)
+        toast.success('KPI rejasi CEO’ga topshirildi', {
+          duration: 10000,
+          action: { label: 'Bekor qilish', onClick: () => withdraw(res.id) },
+        });
+      else toast.success('Qoralama saqlandi');
+      router.refresh();
+    });
+
+  const withdraw = (planId: string) =>
+    start(async () => {
+      const res = await withdrawKpiPlanAction(planId);
+      if (res.error !== undefined) return void toast.error(res.error === 'locked' ? 'Qaytarib bo‘lmaydi — CEO allaqachon qaror qildi' : errText(res.error));
+      toast.success('Topshirish bekor qilindi — reja qoralamaga qaytdi');
       router.refresh();
     });
 
@@ -208,6 +222,9 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
       {plan?.status === 'submitted' && (
         <Banner tone="accent" icon={<Clock className="size-4" />}>
           Reja CEO tasdig‘ini kutmoqda. Kerak bo‘lsa tahrirlab, qayta topshirishingiz mumkin.
+          <button className={cn(BTN_GHOST, 'ml-2 h-7 px-2.5 text-xs')} disabled={busy} onClick={() => withdraw(plan.id)}>
+            <Undo2 className="size-3.5" /> Topshirishni bekor qilish
+          </button>
         </Banner>
       )}
 

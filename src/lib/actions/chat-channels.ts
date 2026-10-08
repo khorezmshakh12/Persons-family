@@ -132,7 +132,8 @@ const sendSchema = z
   .object({
     channelId: uuid,
     body: z.string().trim().max(4000).optional().default(''),
-    mediaUrl: z.string().max(1000).optional().default(''),
+    // Only our own https upload links — never a javascript:/data: href.
+    mediaUrl: z.string().max(1000).refine((u) => !u || u.startsWith('https://'), 'url').optional().default(''),
     mediaType: z.enum(MEDIA).optional().default('none'),
     threadId: uuid.optional(),
     mentions: z.array(uuid).max(50).optional().default([]),

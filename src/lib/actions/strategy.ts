@@ -333,6 +333,9 @@ export async function setTaskDepsAction(taskId: string, dependsOn: string[]): Pr
     const out = await sql.begin(async (tx) => {
       const [t] = await tx<{ space_id: string }[]>`select space_id from strategy_tasks where id = ${p.data.taskId}`;
       if (!t) return 'notFound';
+      // One dependency edit per space at a time, so two editors can't each
+      // pass the cycle check and together store a loop.
+      await tx`select pg_advisory_xact_lock(hashtext(${'strategy-deps:' + t.space_id}))`;
       const others = await tx<Dep[]>`
         select d.task_id, d.depends_on from strategy_task_deps d
         join strategy_tasks s on s.id = d.task_id
@@ -374,7 +377,8 @@ export async function shiftStrategyTasksAction(moves: z.input<typeof shiftSchema
         const [r] = await tx<StrategyTask[]>`
           update strategy_tasks set start_date = ${m.startDate}, end_date = ${m.endDate}, updated_at = now()
           where id = ${m.id} returning ${TASK_COLUMNS}`;
-        if (r) out.push(r);
+        if (!r) throw new Error('notFound');
+        out.push(r);
       }
       return out;
     });

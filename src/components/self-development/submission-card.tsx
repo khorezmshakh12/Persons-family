@@ -6,6 +6,8 @@ import { ExternalLink, Target } from 'lucide-react';
 import { parseRubric, type Rubric } from '@/lib/self-dev-rubric';
 import { RubricBars } from './self-dev-visuals';
 import { FeatureReportButton } from './feature-report-button';
+import { WithdrawReportButton } from './withdraw-report-button';
+import { firstOfCurrentMonth } from '@/lib/self-development';
 
 export type Submission = {
   id: string;
@@ -32,6 +34,7 @@ export async function SubmissionCard({
   delayMs = 0,
   defaultOpen = false,
   storageKeyPrefix = 'submission',
+  canWithdraw = false,
 }: {
   submission: Submission;
   /** Whoever can rate/score a submission at all — CEO-only. */
@@ -39,6 +42,8 @@ export async function SubmissionCard({
   delayMs?: number;
   defaultOpen?: boolean;
   storageKeyPrefix?: string;
+  /** The author's own view: offer "take it back" while unevaluated. */
+  canWithdraw?: boolean;
 }) {
   const t = await getTranslations('selfDevelopment');
 
@@ -111,6 +116,12 @@ export async function SubmissionCard({
       ) : (
         <p className="text-xs text-au-muted italic">{t('notRatedYet')}</p>
       )}
+      {canWithdraw &&
+        !isAdmin &&
+        submission.month === firstOfCurrentMonth() &&
+        submission.ceo_score === null &&
+        !submission.ceo_rating &&
+        !submission.star_award && <WithdrawReportButton submissionId={submission.id} />}
     </>
   );
 

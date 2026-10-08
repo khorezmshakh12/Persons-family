@@ -722,7 +722,7 @@
       "underReview": "This task is under review — it can't be changed yet.",
       "uploadFailed": "Could not upload the file. Please try again.",
       "fileTooLarge": "The file is too large (50MB max).",
-      "tooLate": "The undo window has closed (10 minutes max)."
+      "tooLate": "Can’t take it back — the CEO has already decided."
     },
     "deadline": "Deadline",
     "overdue": "Overdue",
