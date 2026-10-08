@@ -22,6 +22,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
   isUnread,
   onSelect,
   index,
+  statusTag,
 }: {
   person: StaffDirectoryEntry;
   state: ConversationState;
@@ -29,6 +30,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
   isUnread: boolean;
   onSelect: (userId: string) => void;
   index: number;
+  statusTag?: React.ReactNode;
 }) {
   const t = useTranslations('chatHub');
   const tStaff = useTranslations('staff');
@@ -57,7 +59,7 @@ const ChatSidebarItem = memo(function ChatSidebarItem({
       </div>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className={cn('truncate font-semibold', isActive || isUnread ? 'text-au-ink' : 'text-au-ink/90')}>
-          {person.first_name} {person.last_name}
+          {person.first_name} {person.last_name} {statusTag}
         </span>
         <span className="truncate text-xs text-au-faint">{roleLabel(tStaff, person.role)}</span>
       </span>
@@ -144,7 +146,15 @@ export function ChatSidebar({
   onRequestResolved,
   unreadDmUserIds,
   canModerateDmImportance,
+  header,
+  renderChannels,
+  statusTagFor,
 }: {
+  /** Above everything: the viewer's status + global search. */
+  header?: React.ReactNode;
+  /** Channels block under the search box (gets the same filter text). */
+  renderChannels?: (needle: string) => React.ReactNode;
+  statusTagFor?: (userId: string) => React.ReactNode;
   staff: StaffDirectoryEntry[];
   conversationStates: Record<string, ConversationState>;
   active: ActiveConversation;
@@ -174,6 +184,7 @@ export function ChatSidebar({
 
   return (
     <nav className="ch-side flex h-full w-full flex-col gap-1 overflow-y-auto p-3 sm:w-72 sm:shrink-0 sm:border-r sm:border-au-line">
+      {header}
       {canModerateDmImportance && (
         <div className="mb-2">
           <ImportantChatsPanel />
@@ -207,6 +218,7 @@ export function ChatSidebar({
           className="min-w-0 flex-1 bg-transparent text-sm text-au-ink outline-none placeholder:text-au-faint"
         />
       </label>
+      {renderChannels?.(needle)}
       <p className="px-3 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
         {t('individualChats')}
       </p>
@@ -223,6 +235,7 @@ export function ChatSidebar({
             isUnread={unreadDmUserIds.has(person.id)}
             onSelect={onSelect}
             index={index}
+            statusTag={statusTagFor?.(person.id)}
           />
         ))
       )}

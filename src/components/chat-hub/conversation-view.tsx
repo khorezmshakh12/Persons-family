@@ -42,7 +42,13 @@ export function ConversationView({
   onOptimisticSend,
   onConfirmedSend,
   onBack,
+  headerActions,
+  statusLine,
 }: {
+  /** Right side of the header (info panel toggle…). */
+  headerActions?: React.ReactNode;
+  /** "📚 Darsda · 15:30 gacha" — shown instead of online/offline when set. */
+  statusLine?: string | null;
   active: ActiveConversation;
   conversationState: ConversationState;
   messages: StaffChatMessage[];
@@ -209,9 +215,10 @@ export function ConversationView({
           <h2 className="truncate text-base font-semibold text-au-ink">{headerName}</h2>
           {/* Telegram-style status line under the name. */}
           <span className={typing || online ? 'text-xs text-au-accent-text' : 'text-xs text-au-faint'}>
-            {typing ? `${t('typing')}…` : online ? t('online') : t('offline')}
+            {typing ? `${t('typing')}…` : statusLine ? statusLine : online ? t('online') : t('offline')}
           </span>
         </div>
+        {headerActions}
       </div>
 
       {conversationState.kind === 'none' ? (

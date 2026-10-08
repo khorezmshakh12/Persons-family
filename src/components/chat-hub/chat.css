@@ -322,3 +322,23 @@
     animation: none;
   }
 }
+
+/* Chat v2: a message reached from search / a pin flashes once. */
+.ch-flash {
+  animation: ch-flash 1.6s var(--m-ease-out, ease-out);
+}
+@keyframes ch-flash {
+  0%,
+  30% {
+    background: color-mix(in oklab, var(--au-accent) 22%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-flash {
+    animation: none;
+    outline: 2px solid var(--au-accent);
+  }
+}
+html[data-motion-level='off'] .ch-flash {
+  animation: none;
+}

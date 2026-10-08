@@ -27,7 +27,15 @@ export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'
       where cn.created_at >= now() - interval '7 days'
         and not exists (select 1 from company_news_reads r where r.news_id = cn.id and r.user_id = ${userId})
     `,
-    sql<{ count: number }[]>`select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false`,
+    // Unread DMs, plus unread @mentions in chat channels (Chat v2).
+    sql<{ count: number }[]>`
+      select (select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false)
+        + coalesce((select count(*)::int from chat_channel_messages x
+            left join chat_channel_members m on m.channel_id = x.channel_id and m.user_id = ${userId}
+            where ${userId} = any(x.mentions) and x.send_at <= now()
+              and x.send_at > coalesce(m.last_read_at, now() - interval '3 days')), 0) as count`.catch(() =>
+      sql<{ count: number }[]>`select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false`,
+    ),
     sql<{ count: number }[]>`select count(*)::int from staff_warnings where staff_id = ${userId} and is_seen = false`,
   ]);
 

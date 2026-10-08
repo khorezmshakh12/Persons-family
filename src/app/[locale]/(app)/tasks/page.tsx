@@ -13,7 +13,9 @@ import { RecurringTasks, type Recurrence } from '@/components/tasks/recurring-ta
 
 export const dynamic = 'force-dynamic';
 
-export default async function TasksPage() {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ new?: string; title?: string; desc?: string }> }) {
+  const sp = await searchParams;
+  const prefill = sp.new ? { title: (sp.title ?? '').slice(0, 200), description: (sp.desc ?? '').slice(0, 2000) } : null;
   const t = await getTranslations('tasks');
   const { user, profile } = await getAuthState();
   // Calendar and Core platform views removed (owner, 2026-10-04): the board is the one view.
@@ -94,7 +96,7 @@ export default async function TasksPage() {
         </div>
         {isAdmin && (
           <div className="relative z-10">
-            <AssignTaskDialog assignees={assignees} />
+            <AssignTaskDialog assignees={assignees} prefill={prefill} />
           </div>
         )}
       </header>

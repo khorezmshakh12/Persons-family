@@ -4,13 +4,15 @@ import { memo, useState, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Trash2, Check, CheckCheck, Reply, SmilePlus, Pencil } from 'lucide-react';
+import { Trash2, Check, CheckCheck, Reply, SmilePlus, Pencil, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { deleteStaffChatAction, toggleStaffChatReactionAction, updateStaffChatAction } from '@/lib/actions/staff-chats';
 import { cn } from '@/lib/utils';
+import { Link } from '@/i18n/navigation';
 import type { ChatQuote, StaffChatMessage } from './types';
+import { taskHref } from './chat-kit';
 
 export type ChatSender = { first_name: string; last_name: string; avatar_url: string | null };
 
@@ -280,6 +282,16 @@ function MessageBubbleComponent({
               >
                 <Reply className="size-3.5" />
               </Button>
+              {message.message_text && (
+                <Link
+                  href={taskHref(message.message_text, `${name}, shaxsiy chat`)}
+                  aria-label="Vazifaga aylantirish"
+                  title="Vazifaga aylantirish"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-au-muted hover:bg-au-card-2 hover:text-au-ink"
+                >
+                  <ClipboardList className="size-3.5" />
+                </Link>
+              )}
               {isOwn && message.message_text && (
                 <Button type="button" variant="ghost" size="icon-sm" onClick={startEdit} aria-label="Tahrirlash">
                   <Pencil className="size-3.5" />
