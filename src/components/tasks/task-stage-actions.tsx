@@ -212,7 +212,8 @@ export function TaskStageActions({
           size="sm"
           disabled={busy || rejectPending}
           onClick={handleApprove}
-          className="h-8 flex-1 gap-1.5 bg-emerald-500/85 text-xs text-white hover:bg-emerald-500"
+          data-task-action="approve"
+          className="h-8 flex-1 gap-1.5 bg-au-ok text-xs text-white hover:opacity-90"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
           {t('approve')}
@@ -226,7 +227,8 @@ export function TaskStageActions({
                 size="sm"
                 variant="outline"
                 disabled={busy || rejectPending}
-                className="h-8 flex-1 gap-1.5 border-red-400/40 bg-red-500/15 text-xs text-red-700 hover:bg-red-500/25"
+                data-task-action="reject"
+                className="h-8 flex-1 gap-1.5 border-au-bad/40 bg-au-bad-soft text-xs text-au-bad hover:opacity-90"
               />
             }
           >

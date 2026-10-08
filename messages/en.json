@@ -642,7 +642,8 @@
     "columns": {
       "pending": "Pending",
       "in_progress": "In Progress",
-      "done": "Done"
+      "done": "Done",
+      "review": "In review"
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
@@ -773,7 +774,51 @@
     "deletedToast": "Task deleted",
     "undo": "Undo",
     "calendarView": "Calendar",
-    "undoSubmit": "Undo submission"
+    "undoSubmit": "Undo submission",
+    "subtitle": "From plan to approval — all work in one place",
+    "waiting": "waiting {hours}h",
+    "shortcuts": "C — new · / — search · J/K — cards · Enter — comments · A/R — approve/return",
+    "showOlderDone": "Earlier finished ({count})",
+    "views": {
+      "label": "View",
+      "board": "Board",
+      "list": "List",
+      "calendar": "Calendar",
+      "report": "Report"
+    },
+    "strip": {
+      "active": "Active",
+      "today": "Due today",
+      "overdue": "Overdue",
+      "review": "In review"
+    },
+    "workload": {
+      "title": "Team workload",
+      "hint": "Click to show only that person"
+    },
+    "list": {
+      "title": "Task",
+      "status": "Status"
+    },
+    "calendar": {
+      "weekdays": [
+        "Mo",
+        "Tu",
+        "We",
+        "Th",
+        "Fr",
+        "Sa",
+        "Su"
+      ],
+      "prev": "Previous month",
+      "next": "Next month",
+      "today": "Today"
+    },
+    "quick": {
+      "label": "Quick entry",
+      "placeholder": "Monthly report @Ali tomorrow 15:00 +10",
+      "hint": "@name — assignee · today/tomorrow/25.10 — day · 15:00 — time · +10 — stars"
+    }
   },
   "companyNews": {
     "title": "Company News",

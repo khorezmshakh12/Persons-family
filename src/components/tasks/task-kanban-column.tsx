@@ -4,12 +4,20 @@ import { EmptyState } from '@/components/ui/empty-state';
 
 import { memo, useState, ViewTransition } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { ChevronDown } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleDashed, Hourglass, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
-import type { TaskStatus } from './task-status-control';
+import type { BoardLane } from '@/lib/task-status';
+
+/** Lane identity: icon + accent, so the four lanes read apart at a glance. */
+const LANE_STYLE: Record<BoardLane, { icon: typeof CircleDashed; tone: string; bar: string }> = {
+  pending: { icon: CircleDashed, tone: 'text-au-muted', bar: 'bg-au-chart-4' },
+  in_progress: { icon: Loader, tone: 'text-au-info', bar: 'bg-au-info' },
+  review: { icon: Hourglass, tone: 'text-au-accent-text', bar: 'bg-au-accent' },
+  done: { icon: CheckCircle2, tone: 'text-au-ok', bar: 'bg-au-ok' },
+};
 
 function TaskKanbanColumnImpl({
   status,
@@ -23,9 +31,15 @@ function TaskKanbanColumnImpl({
   previewTaskId = null,
   collapsible = true,
   defaultExpanded = true,
+  onTimePct = null,
+  footer,
 }: {
-  status: TaskStatus;
+  status: BoardLane;
   label: string;
+  /** Share of this lane's open cards that are still on time (0–100); null hides the bar. */
+  onTimePct?: number | null;
+  /** Extra control under the cards (e.g. the done lane's "show all"). */
+  footer?: React.ReactNode;
   tasks: Task[];
   isAdmin: boolean;
   assignees: Assignee[];
@@ -54,13 +68,15 @@ function TaskKanbanColumnImpl({
   if (isOver && !expanded) setExpanded(true);
 
   const showCards = !collapsible || expanded;
+  const style = LANE_STYLE[status];
+  const Icon = style.icon;
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
         'flex flex-col gap-3 rounded-2xl p-1.5 sm:p-2 transition-colors min-w-0 w-full overflow-hidden',
-        isOver && 'bg-au-card ring-2 ring-au-faint',
+        isOver && 'bg-au-accent-soft/50 ring-2 ring-au-accent/60',
       )}
     >
       {collapsible ? (
@@ -69,14 +85,32 @@ function TaskKanbanColumnImpl({
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
             aria-expanded={expanded}
-            className="flex w-full items-center justify-between gap-2 rounded-xl border border-au-line bg-au-card px-3 py-2.5 text-sm font-medium text-au-ink transition-all hover:bg-au-card-2 hover:border-au-faint min-w-0"
+            className={cn(
+              'group flex w-full min-w-0 flex-col gap-2 rounded-au-ctl border border-au-line bg-au-card px-3 pt-2.5 pb-2 text-sm text-au-ink transition-colors hover:border-au-faint hover:bg-au-card-2',
+              status === 'review' && tasks.length > 0 && 'border-au-accent/40 bg-au-accent-soft/40',
+            )}
           >
-            <span className="font-semibold truncate">
-              {label} · {tasks.length}
+            <span className="flex w-full items-center gap-2">
+              <Icon className={cn('size-4 shrink-0', style.tone)} strokeWidth={2} aria-hidden />
+              <span className="truncate font-semibold">{label}</span>
+              <span
+                key={tasks.length}
+                className={cn('lane-count ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold tabular-nums', status === 'review' && tasks.length > 0 ? 'bg-au-accent text-au-accent-ink' : 'bg-au-card-2 text-au-muted')}
+              >
+                {tasks.length}
+              </span>
+              <ChevronDown
+                className={cn('size-4 shrink-0 text-au-muted transition-transform duration-200', expanded && 'rotate-180')}
+              />
             </span>
-            <ChevronDown
-              className={cn('size-4 shrink-0 text-au-muted transition-transform duration-200', expanded && 'rotate-180')}
-            />
+            {onTimePct !== null && (
+              <span className="block h-1 w-full overflow-hidden rounded-full bg-au-card-2" aria-hidden>
+                <span
+                  className={cn('block h-full origin-left rounded-full transition-transform duration-700 ease-out', style.bar)}
+                  style={{ transform: `scaleX(${Math.max(0, Math.min(100, onTimePct)) / 100})` }}
+                />
+              </span>
+            )}
           </button>
         </h2>
       ) : (
@@ -119,6 +153,7 @@ function TaskKanbanColumnImpl({
                 </ViewTransition>
               ))
             )}
+            {footer}
           </motion.div>
         )}
       </AnimatePresence>

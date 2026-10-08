@@ -73,22 +73,29 @@ export default async function TasksPage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 pt-1 pb-8 sm:px-7">
       <MarkTasksSeen />
-      <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+      <header className="relative flex flex-wrap items-end justify-between gap-4 overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px]">
         <BgVideo variant="hero" />
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
-          {t('title')}
-        </h1>
-        {isAdmin && <AssignTaskDialog assignees={assignees} />}
-      </div>
-      <TaskStats stats={taskStats.data ?? null} />
+        <div className="relative z-10 min-w-0">
+          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
+          <p className="mt-1 text-sm text-au-muted">{t('subtitle')}</p>
+        </div>
+        {isAdmin && (
+          <div className="relative z-10">
+            <AssignTaskDialog assignees={assignees} />
+          </div>
+        )}
+      </header>
+      {/* Statistics moved into the board's "Hisobot" view so the work itself
+          sits above the fold. */}
       <TaskBoard
         tasks={tasks}
         isAdmin={isAdmin}
         assignees={assignees}
         currentUserId={user!.id}
         archive={archive}
+        report={<TaskStats stats={taskStats.data ?? null} />}
       />
     </div>
   );

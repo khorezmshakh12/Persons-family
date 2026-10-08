@@ -642,7 +642,8 @@
     "columns": {
       "pending": "Kutilmoqda",
       "in_progress": "Jarayonda",
-      "done": "Bajarildi"
+      "done": "Bajarildi",
+      "review": "Tekshiruvda"
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
@@ -773,7 +774,51 @@
     "deletedToast": "Vazifa o‘chirildi",
     "undo": "Bekor qilish",
     "calendarView": "Kalendar",
-    "undoSubmit": "Topshirishni bekor qilish"
+    "undoSubmit": "Topshirishni bekor qilish",
+    "subtitle": "Rejadan tasdiqgacha — barcha ish bir joyda",
+    "waiting": "{hours} soat kutmoqda",
+    "shortcuts": "C — yangi · / — qidirish · J/K — kartalar · Enter — izohlar · A/R — tasdiqlash/qaytarish",
+    "showOlderDone": "Oldingi bajarilganlar ({count})",
+    "views": {
+      "label": "Ko‘rinish",
+      "board": "Doska",
+      "list": "Ro‘yxat",
+      "calendar": "Kalendar",
+      "report": "Hisobot"
+    },
+    "strip": {
+      "active": "Faol",
+      "today": "Bugun tugaydi",
+      "overdue": "Muddati o‘tgan",
+      "review": "Tekshiruvda"
+    },
+    "workload": {
+      "title": "Jamoa yuklamasi",
+      "hint": "Bosing — faqat o‘sha xodim"
+    },
+    "list": {
+      "title": "Vazifa",
+      "status": "Holat"
+    },
+    "calendar": {
+      "weekdays": [
+        "Du",
+        "Se",
+        "Ch",
+        "Pa",
+        "Ju",
+        "Sh",
+        "Ya"
+      ],
+      "prev": "Oldingi oy",
+      "next": "Keyingi oy",
+      "today": "Bugun"
+    },
+    "quick": {
+      "label": "Tezkor yozish",
+      "placeholder": "Oylik hisobot @Ali ertaga 15:00 +10",
+      "hint": "@ism — mas’ul · bugun/ertaga/25.10 — kun · 15:00 — vaqt · +10 — yulduz"
+    }
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",

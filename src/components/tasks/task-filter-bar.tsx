@@ -161,6 +161,7 @@ export function TaskFilterBar({
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-au-muted" />
         <Input
           type="search"
+          data-task-search
           value={filters.search}
           onChange={(event) => onChange({ ...filters, search: event.target.value })}
           placeholder={t('filters.searchPlaceholder')}
