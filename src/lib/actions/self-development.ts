@@ -219,3 +219,35 @@ export async function featureSelfDevReportAction(submissionId: string): Promise<
   revalidatePath('/[locale]/dashboard', 'page');
   return { success: true };
 }
+
+/**
+ * Take this month's report back to fix it (owner, 2026-10-08: a submit could
+ * not be undone). Only the author, only for the current month, and only
+ * while the CEO hasn't touched it — no score, no comment, no stars. The row
+ * is removed, so the submit form comes back with the month still open.
+ */
+export async function withdrawSelfDevelopmentAction(submissionId: string): Promise<SelfDevActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  if (!z.string().uuid().safeParse(submissionId).success) return { error: 'invalidInput' };
+
+  try {
+    const res = await sql`
+      delete from self_development sd
+      where sd.id = ${submissionId} and sd.user_id = ${user.id}
+        and sd.month = ${firstOfCurrentMonth()}
+        and sd.ceo_score is null and sd.ceo_rating is null
+        and not exists (
+          select 1 from star_transactions st
+          where st.source_type = 'self_development' and st.source_id = sd.id
+        )
+    `;
+    if (res.count === 0) return { error: 'alreadyEvaluated' };
+  } catch (error) {
+    console.error('withdrawSelfDevelopmentAction failed', error instanceof Error ? error.message : error);
+    return { error: 'submitFailed' };
+  }
+
+  revalidatePath('/[locale]/self-development', 'page');
+  return { success: true };
+}

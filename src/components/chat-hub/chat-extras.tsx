@@ -474,8 +474,20 @@ export function ChatSearch({ open, onClose, people, onPick }: {
       setHits(null);
       return;
     }
-    const t = setTimeout(() => start(async () => setHits(await searchChatAction(needle))), 250);
-    return () => clearTimeout(t);
+    let stale = false;
+    const t = setTimeout(
+      () =>
+        start(async () => {
+          const r = await searchChatAction(needle);
+          // A newer query (or a cleared box) wins over a slow older answer.
+          if (!stale) setHits(r);
+        }),
+      250,
+    );
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
   }, [q]);
 
   if (!open) return null;

@@ -78,6 +78,7 @@ const krDraftOf = (k?: KeyResult): KrDraft => ({
   owner: k?.owner_id ?? '',
 });
 const toNum = (s: string) => {
+  if (!s.trim()) return NaN;
   const n = Number(s.replace(/\s/g, '').replace(',', '.'));
   return Number.isFinite(n) ? n : NaN;
 };
@@ -415,7 +416,7 @@ export function OkrView({
   const saveKr = () => {
     if (!kr) return;
     const d = kr.draft;
-    const [s, t, c] = [toNum(d.start), toNum(d.target), toNum(d.current || '0')];
+    const [s, t, c] = [toNum(d.start || '0'), toNum(d.target), toNum(d.current || '0')];
     if (!d.title.trim() || [s, t, c].some(Number.isNaN)) return void toast.error('Raqamlarni to‘g‘ri kiriting');
     run(
       () =>

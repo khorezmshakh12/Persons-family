@@ -722,7 +722,7 @@
       "underReview": "Bu vazifa tekshiruvda — hozircha o'zgartirib bo'lmaydi.",
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
       "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak).",
-      "tooLate": "Topshirishni bekor qilish muddati o'tib ketdi (10 daqiqa)."
+      "tooLate": "Bekor qilib bo'lmaydi — CEO allaqachon qaror qildi."
     },
     "deadline": "Muddat",
     "overdue": "Muddati o'tgan",

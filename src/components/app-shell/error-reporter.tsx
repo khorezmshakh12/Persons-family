@@ -7,7 +7,24 @@ const MAX_PER_PAGE = 5;
 
 /** Sends uncaught browser errors to /api/client-error (system_logs). At most
  * five per page load, each distinct message once. Renders nothing. */
+/** After a deploy, a tab opened on the old build calls Server Actions the
+ * new server no longer has — every button then fails. Reload once (at most
+ * every 2 minutes, so a real bug can't loop) to pick up the new build. */
+function reloadIfStaleBuild(message: string): boolean {
+  if (!/Server Action .* was not found|Failed to find Server Action/.test(message)) return false;
+  try {
+    const last = Number(sessionStorage.getItem('stale-build-reload') ?? 0);
+    if (Date.now() - last < 120_000) return false;
+    sessionStorage.setItem('stale-build-reload', String(Date.now()));
+  } catch {
+    return false;
+  }
+  location.reload();
+  return true;
+}
+
 export function reportClientError(message: string, stack?: string) {
+  if (reloadIfStaleBuild(message)) return;
   try {
     const body = JSON.stringify({ message, stack, path: location.pathname });
     if (!navigator.sendBeacon?.(ENDPOINT, new Blob([body], { type: 'application/json' }))) {

@@ -153,7 +153,9 @@ function TaskCardImpl({
   // `done` is frozen too: only the CEO's approval puts a card there, and the
   // assignee must not be able to drag it back out (updateTaskStatusAction
   // rejects that with `invalidTransition`).
-  const canDrag = task.assigned_to === currentUserId && !underReview && task.status !== 'done';
+  // A submitted card can be dragged back to an open lane by its assignee —
+  // that takes the submission back (undoSubmitTaskAction).
+  const canDrag = task.assigned_to === currentUserId && (!underReview || task.status === 'submitted') && task.status !== 'done';
   const isAssignee = task.assigned_to === currentUserId;
   // The CEO who assigned it. `assigned_by` is optional on this type (the
   // board's older snapshot mapping predates it), so a missing value falls

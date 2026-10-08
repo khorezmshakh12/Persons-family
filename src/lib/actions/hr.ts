@@ -57,10 +57,13 @@ export async function startOnboardingAction(userId: string): Promise<Result> {
   }
   if (!z.string().uuid().safeParse(userId).success) return { error: 'invalidInput' };
   try {
-    const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from onboarding_items where user_id = ${userId}`;
-    if (n === 0) {
-      await sql`insert into onboarding_items ${sql(ONBOARDING_TEMPLATE.map((title, sort) => ({ user_id: userId, title, sort, created_by: by })))}`;
-    }
+    await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext(${'onboarding:' + userId}))`;
+      const [{ n }] = await tx<{ n: number }[]>`select count(*)::int as n from onboarding_items where user_id = ${userId}`;
+      if (n === 0) {
+        await tx`insert into onboarding_items ${tx(ONBOARDING_TEMPLATE.map((title, sort) => ({ user_id: userId, title, sort, created_by: by })))}`;
+      }
+    });
   } catch {
     return { error: 'updateFailed' };
   }

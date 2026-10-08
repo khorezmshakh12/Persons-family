@@ -3,7 +3,6 @@
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CollapsibleCard } from '@/components/ui/collapsible-card';
-import { SubmissionCard, type Submission } from '@/components/self-development/submission-card';
 import { ExpandCollapseControls } from '@/components/self-development/expand-collapse-controls';
 
 interface SelfDevelopmentSectionClientProps {
@@ -11,8 +10,11 @@ interface SelfDevelopmentSectionClientProps {
   filteredCount: number;
   noEntriesText: string;
   monthPickerContent: React.ReactNode;
-  submissions: Submission[];
-  isAdmin: boolean;
+  /** Ids of the visible submissions (for expand/collapse all). */
+  submissionIds: string[];
+  /** SubmissionCard is an async server component, so the server renders
+   * the cards and hands them in — a client component can't render it. */
+  cards: React.ReactNode;
 }
 
 export function SelfDevelopmentSectionClient({
@@ -20,10 +22,10 @@ export function SelfDevelopmentSectionClient({
   filteredCount,
   noEntriesText,
   monthPickerContent,
-  submissions,
-  isAdmin,
+  submissionIds,
+  cards,
 }: SelfDevelopmentSectionClientProps) {
-  const summaryLine = submissions.length > 0 ? `${submissions.length} entry(ies)` : 'No entries';
+  const summaryLine = submissionIds.length > 0 ? `${submissionIds.length} entry(ies)` : 'No entries';
 
   const headerContent = (
     <div className="flex flex-wrap items-center justify-between gap-2 w-full">
@@ -59,19 +61,11 @@ export function SelfDevelopmentSectionClient({
         ) : (
           <div className="flex flex-col gap-4">
             <ExpandCollapseControls
-              count={submissions.length}
+              count={submissionIds.length}
               storageKeyPrefix="profile-submission"
-              itemIds={submissions.map((s) => s.id)}
+              itemIds={submissionIds}
             />
-            {submissions.map((s) => (
-              <SubmissionCard
-                key={s.id}
-                submission={s}
-                isAdmin={isAdmin}
-                defaultOpen={false}
-                storageKeyPrefix="profile-submission"
-              />
-            ))}
+            {cards}
           </div>
         )}
       </div>

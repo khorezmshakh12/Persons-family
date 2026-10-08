@@ -466,6 +466,7 @@ export default async function SelfDevelopmentPage({
                     key={s.id}
                     submission={s}
                     isAdmin={false}
+                    canWithdraw
                     delayMs={Math.min(index, 10) * 60}
                     defaultOpen={index === 0}
                     storageKeyPrefix="my-submission"

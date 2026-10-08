@@ -108,6 +108,28 @@ export async function saveKpiPlanAction(input: z.input<typeof planSchema>): Prom
   }
 }
 
+/** Take a submitted plan back to draft before the CEO decides (owner,
+ * 2026-10-08: a submit could not be undone). */
+export async function withdrawKpiPlanAction(planId: string): Promise<Result> {
+  let userId: string;
+  try {
+    ({ profile: { id: userId } } = await requireSection('kpi'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(planId).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`
+      update kpi_plans set status = 'draft', submitted_at = null, updated_at = now()
+      where id = ${planId} and user_id = ${userId} and status = 'submitted'`;
+    if (res.count === 0) return { error: 'locked' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('kpi.withdraw', 'KPI plan withdrawn');
+  return done();
+}
+
 /** Remove the viewer's own plan while it is still a draft or returned. */
 export async function deleteKpiPlanAction(planId: string): Promise<Result> {
   let userId: string;

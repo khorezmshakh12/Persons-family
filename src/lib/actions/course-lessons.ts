@@ -337,18 +337,22 @@ export async function attachLessonMaterialAction(
   // lesson's signed-read URLs.
   if (!parsed.data.path.includes(`/${parsed.data.lessonId}/`)) return { error: 'forbidden' };
 
-  const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
-    select attachments from course_lessons where id = ${parsed.data.lessonId}
-  `;
-  if (!lesson) return { error: 'forbidden' };
+  const missing = await sql.begin(async (tx) => {
+    const [lesson] = await tx<{ attachments: LessonAttachment[] | null }[]>`
+      select attachments from course_lessons where id = ${parsed.data.lessonId} for update
+    `;
+    if (!lesson) return true;
 
-  const attachments = lesson.attachments ?? [];
-  const nextAttachments: LessonAttachment[] = [
-    ...attachments,
-    { path: parsed.data.path, name: parsed.data.name, type: parsed.data.type, size: parsed.data.size },
-  ];
+    const attachments = lesson.attachments ?? [];
+    const nextAttachments: LessonAttachment[] = [
+      ...attachments,
+      { path: parsed.data.path, name: parsed.data.name, type: parsed.data.type, size: parsed.data.size },
+    ];
 
-  await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    await tx`update course_lessons set attachments = ${tx.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    return false;
+  });
+  if (missing) return { error: 'forbidden' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   revalidatePath('/[locale]/lesson-plans', 'page');
@@ -379,21 +383,25 @@ export async function removeLessonMaterialAction(
   const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
   if (denial) return { error: denial };
 
-  const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
-    select attachments from course_lessons where id = ${parsed.data.lessonId}
-  `;
-  if (!lesson) return { error: 'forbidden' };
-
-  const attachments = lesson.attachments ?? [];
   // Only ever delete an object this lesson actually references — `path`
   // arrives from the client, and the storage layer mints delete calls with
   // no ownership check of its own (the old lesson_materials storage policy
   // did that), so an unmatched path must not reach deleteObject().
-  const target = attachments.find((a) => a.path === parsed.data.path);
-  if (!target) return { error: 'forbidden' };
-  const nextAttachments = attachments.filter((a) => a.path !== parsed.data.path);
+  const target = await sql.begin(async (tx) => {
+    const [lesson] = await tx<{ attachments: LessonAttachment[] | null }[]>`
+      select attachments from course_lessons where id = ${parsed.data.lessonId} for update
+    `;
+    if (!lesson) return null;
 
-  await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    const attachments = lesson.attachments ?? [];
+    const found = attachments.find((a) => a.path === parsed.data.path);
+    if (!found) return null;
+    const nextAttachments = attachments.filter((a) => a.path !== parsed.data.path);
+
+    await tx`update course_lessons set attachments = ${tx.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    return found;
+  });
+  if (!target) return { error: 'forbidden' };
 
   await deleteObject('lesson_materials', target.path);
 
