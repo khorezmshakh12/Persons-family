@@ -10,6 +10,46 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { CurrencyInput } from '@/components/staff/currency-input';
+import { Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { RUBRIC_HINT, RUBRIC_KEYS, RUBRIC_LABEL, type Rubric, type RubricKey } from '@/lib/self-dev-rubric';
+
+/** Fired after a save so the review queue can move to the next report. */
+export const SELF_DEV_SAVED_EVENT = 'selfdev:saved';
+
+function RubricRow({ k, value, ai, onChange }: { k: RubricKey; value?: number; ai?: number; onChange: (v: number) => void }) {
+  return (
+    <div className="grid gap-1 sm:grid-cols-[150px_1fr] sm:items-center">
+      <span className="text-[13px] font-semibold text-au-ink" title={RUBRIC_HINT[k]}>
+        {RUBRIC_LABEL[k]}
+      </span>
+      <div className="flex items-center gap-1" role="radiogroup" aria-label={RUBRIC_LABEL[k]}>
+        <input type="hidden" name={k} value={value ?? ''} />
+        {[1, 2, 3, 4, 5].map((n) => {
+          const on = !!value && n <= value;
+          return (
+            <button
+              key={n + (value === n ? '-on' : '')}
+              type="button"
+              role="radio"
+              aria-checked={value === n}
+              onClick={() => onChange(n)}
+              className={cn(
+                'relative h-7 flex-1 rounded-[7px] text-xs font-bold tabular-nums transition-colors',
+                on ? 'bg-au-accent text-au-accent-ink' : 'bg-au-card text-au-muted hover:bg-au-line',
+                value === n && 'ms-pop-in',
+                value === 5 && n === 5 && 'ms-glow',
+              )}
+            >
+              {n}
+              {ai === n && <span aria-hidden className="absolute -top-1 -right-1 size-2 rounded-full bg-au-info ring-2 ring-au-card-2" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function CeoEvaluationPanel({
   submissionId,
@@ -25,9 +65,14 @@ export function CeoEvaluationPanel({
   canSetLevel = false,
   currentBonusAmount,
   currentStarAward,
+  currentRubric = null,
+  aiRubric = null,
 }: {
   submissionId: string;
   userId: string;
+  currentRubric?: Partial<Rubric> | null;
+  /** Jev's suggestion (advisory) — one click copies it into the rubric. */
+  aiRubric?: (Partial<Rubric> & { confidence?: number | null }) | null;
   currentRating: string | null;
   currentScore: number | null;
   currentLevel: TeacherLevel | null;
@@ -38,10 +83,15 @@ export function CeoEvaluationPanel({
   const t = useTranslations('selfDevelopment');
   const [score, setScore] = useState(currentScore ?? 0);
   const [starAward, setStarAward] = useState(currentStarAward ?? 0);
+  const [rubric, setRubric] = useState<Partial<Rubric>>(currentRubric ?? {});
+  const aiReady = !!aiRubric && RUBRIC_KEYS.some((k) => aiRubric[k]);
   const [, formAction, isPending] = useActionState<SelfDevActionState, FormData>(
     async (prev, formData) => {
       const result = await saveEvaluationAction(prev, formData);
-      if (result?.success) toast.success(t('evaluationSaved'));
+      if (result?.success) {
+        toast.success(t('evaluationSaved'));
+        window.dispatchEvent(new CustomEvent(SELF_DEV_SAVED_EVENT, { detail: { id: submissionId } }));
+      }
       else if (result?.error) toast.error(t(`errors.${result.error}`));
       return result;
     },
@@ -52,6 +102,27 @@ export function CeoEvaluationPanel({
     <form action={formAction} className="flex flex-col gap-3 border-t border-au-line pt-3">
       <input type="hidden" name="id" value={submissionId} />
       <input type="hidden" name="userId" value={userId} />
+      {/* Rubric — three criteria, 1–5 each; advisory next to the free score. */}
+      <div className="flex flex-col gap-2 rounded-au-ctl bg-au-card-2 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-au-muted">{t('rubric.title')}</span>
+          {aiReady && (
+            <button
+              type="button"
+              onClick={() => setRubric(Object.fromEntries(RUBRIC_KEYS.flatMap((k) => (aiRubric![k] ? [[k, aiRubric![k]]] : []))))}
+              className="inline-flex items-center gap-1 rounded-full bg-au-accent-soft px-2.5 py-1 text-[11px] font-semibold text-au-accent-text transition-transform hover:scale-[1.03]"
+            >
+              <Sparkles className="size-3" aria-hidden />
+              {t('rubric.applyAi', {
+                values: RUBRIC_KEYS.map((k) => aiRubric![k] ?? '–').join(' · '),
+              })}
+            </button>
+          )}
+        </div>
+        {RUBRIC_KEYS.map((k) => (
+          <RubricRow key={k} k={k} value={rubric[k]} ai={aiRubric?.[k]} onChange={(v) => setRubric((r) => ({ ...r, [k]: v }))} />
+        ))}
+      </div>
 
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-au-muted">{t('ceoRating')}</label>

@@ -1,0 +1,161 @@
+/* ==========================================================================
+   Section motion — Tasks, My KPI, Self-development (2026-10 redesign).
+   Built on the motion-v4 tokens (--m-fast/base/slow, --m-ease-*), so every
+   theme's own tempo applies. Same rule as motion-v4: an animation may only
+   *under-reveal* — no resting state starts hidden — and reduced motion or
+   Settings › Motion "off" drops everything to the final frame.
+   ========================================================================== */
+
+/* A count badge pops when its number changes (the span is re-keyed). */
+.lane-count {
+  animation: ms-pop var(--m-base) var(--m-ease-spring);
+}
+@keyframes ms-pop {
+  from {
+    transform: scale(0.6);
+  }
+}
+
+/* Deadline inside 24h: the chip breathes. */
+.ms-breathe {
+  animation: ms-breathe 2s ease-in-out infinite;
+}
+@keyframes ms-breathe {
+  50% {
+    opacity: 0.62;
+  }
+}
+
+/* Under-review wait chip past 48h: a soft attention ring. */
+.ms-alarm {
+  animation: ms-alarm 1.8s var(--m-ease-out) infinite;
+}
+@keyframes ms-alarm {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--au-bad) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+/* Cards / rows / cells rise in, staggered by --i (capped by the caller). */
+.ms-rise {
+  animation: ms-rise var(--m-slow) var(--m-ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--m-stagger));
+}
+@keyframes ms-rise {
+  from {
+    transform: translateY(8px);
+  }
+}
+
+/* Heat-map cells: a diagonal wave (--i = row + column). */
+.ms-wave {
+  animation: ms-wave var(--m-slow) var(--m-ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 15ms);
+}
+@keyframes ms-wave {
+  from {
+    transform: scale(0.55);
+  }
+}
+
+/* Bars / steppers fill from the left. */
+.ms-fill {
+  transform-origin: left center;
+  animation: ms-fill 0.7s var(--m-ease-out) both;
+}
+@keyframes ms-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* SVG strokes draw themselves: give the path pathLength="1". */
+.ms-draw {
+  stroke-dasharray: 1;
+  animation: ms-draw 0.8s var(--m-ease-out) both;
+}
+@keyframes ms-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* A ring arc grows to its share (inline stroke-dasharray, pathLength=1). */
+.ms-arc {
+  animation: ms-arc 0.9s var(--m-ease-out) both;
+}
+@keyframes ms-arc {
+  from {
+    stroke-dasharray: 0 1;
+  }
+}
+
+/* The current step / focus ring pulses. */
+.ms-pulse {
+  animation: ms-pulse 2.2s var(--m-ease-out) infinite;
+}
+@keyframes ms-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--au-accent) 50%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+/* A choice that was just picked steps forward. */
+.ms-pop-in {
+  animation: ms-pop var(--m-base) var(--m-ease-spring);
+}
+
+/* Max score: a brief glow. */
+.ms-glow {
+  animation: ms-glow 1.2s var(--m-ease-out);
+}
+@keyframes ms-glow {
+  30% {
+    box-shadow: 0 0 0 4px var(--au-accent-soft), 0 0 24px color-mix(in oklab, var(--au-accent) 40%, transparent);
+  }
+}
+
+/* A row leaving a review queue slides out (exit only — safe). */
+.ms-leave {
+  animation: ms-leave var(--m-base) var(--m-ease-in) forwards;
+}
+@keyframes ms-leave {
+  to {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+
+/* The next item enters from the right. */
+.ms-enter-right {
+  animation: ms-enter-right var(--m-base) var(--m-ease-out);
+}
+@keyframes ms-enter-right {
+  from {
+    transform: translateX(24px);
+  }
+}
+
+/* Gauge needle settles with a small overshoot. */
+.ms-needle {
+  transition: transform 0.9s var(--m-ease-spring);
+}
+
+html[data-motion-level='off'] :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc),
+html[data-motion-level='off'] .ms-needle {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc),
+  .ms-needle {
+    animation: none !important;
+    transition: none !important;
+  }
+}

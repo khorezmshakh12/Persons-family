@@ -89,3 +89,21 @@ export type TaskAttachmentKind = 'file' | 'audio';
 export function taskAttachmentKindForMime(mime: string): TaskAttachmentKind {
   return mime.startsWith('audio/') ? 'audio' : 'file';
 }
+
+/**
+ * The board's lanes, left to right. `review` is a display lane, not a status:
+ * it holds the two under-review states (`submitted` / `awaiting_upload`) so
+ * work waiting on the CEO no longer hides among finished cards.
+ */
+export const BOARD_LANES = ['pending', 'in_progress', 'review', 'done'] as const;
+export type BoardLane = (typeof BOARD_LANES)[number];
+
+export function boardLaneFor(status: TaskStatus): BoardLane {
+  return isTaskUnderReview(status) ? 'review' : (status as BoardLane);
+}
+
+/** The status a drop onto a lane sends to updateTaskStatusAction. Both the
+ * review and done lanes mean "hand it in" (`done`, parked at `submitted`). */
+export function laneDropStatus(lane: BoardLane): (typeof TASK_DRAG_TARGETS)[number] {
+  return lane === 'review' ? 'done' : lane;
+}

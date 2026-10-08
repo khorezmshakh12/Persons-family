@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
+import { parseQuickTask } from '@/lib/task-quick-parse';
 import { assignTaskAction, type TaskActionState } from '@/lib/actions/tasks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,12 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
   // The deadline input is the one controlled field in this form, because the
   // presets below have to write into it. Everything else stays uncontrolled.
   const [deadline, setDeadline] = useState('');
+  // Quick entry ("Hisobot @Ali ertaga 15:00 +10") fills the fields below;
+  // every field stays editable afterwards.
+  const [quick, setQuick] = useState('');
+  const [title, setTitle] = useState('');
+  const [assignee, setAssignee] = useState<string | null>(null);
+  const [stars, setStars] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, isPending] = useActionState<TaskActionState, FormData>(
     async (prev, formData) => {
@@ -57,6 +64,10 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
       const result = await assignTaskAction(prev, formData);
       if (!result?.error) {
         setDeadline('');
+        setQuick('');
+        setTitle('');
+        setAssignee(null);
+        setStars('');
         formRef.current?.reset();
         setOpen(false);
       }
@@ -64,6 +75,22 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
     },
     undefined,
   );
+
+  // `C` on the board (see TaskBoard's shortcuts) opens this dialog.
+  useEffect(() => {
+    const onNew = () => setOpen(true);
+    window.addEventListener('tasks:new', onNew);
+    return () => window.removeEventListener('tasks:new', onNew);
+  }, []);
+
+  function applyQuick(value: string) {
+    setQuick(value);
+    const parsed = parseQuickTask(value, assignees);
+    setTitle(parsed.title);
+    if (parsed.assigneeId) setAssignee(parsed.assigneeId);
+    if (parsed.deadline) setDeadline(toDatetimeLocalValue(parsed.deadline));
+    if (parsed.starReward !== null) setStars(String(parsed.starReward));
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -76,9 +103,23 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
           <DialogTitle>{t('assignTask')}</DialogTitle>
         </DialogHeader>
         <form ref={formRef} action={formAction} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5 rounded-au-ctl border border-dashed border-au-accent/50 bg-au-accent-soft/40 p-3">
+            <Label htmlFor="quick" className="flex items-center gap-1.5 text-au-accent-text">
+              <Sparkles className="size-3.5" aria-hidden />
+              {t('quick.label')}
+            </Label>
+            <Input
+              id="quick"
+              value={quick}
+              onChange={(event) => applyQuick(event.target.value)}
+              placeholder={t('quick.placeholder')}
+              autoComplete="off"
+            />
+            <p className="text-[11px] text-au-muted">{t('quick.hint')}</p>
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="title">{t('titleLabel')}</Label>
-            <Input id="title" name="title" required maxLength={200} />
+            <Input id="title" name="title" required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">{t('descriptionLabel')}</Label>
@@ -94,7 +135,7 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
              * assignTaskAction's zod validation with a generic error and no
              * task created. `required` makes the browser block submission
              * with a clear prompt instead. */}
-            <Select name="assignedTo" required>
+            <Select name="assignedTo" required value={assignee} onValueChange={(v) => setAssignee(v as string | null)}>
               <SelectTrigger id="assignedTo" className="w-full">
                 <SelectValue>
                   {(value: string) => {
@@ -137,6 +178,20 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <Label htmlFor="repeat">{t('repeat.label')}</Label>
+            <select
+              id="repeat"
+              name="repeat"
+              defaultValue=""
+              className="h-9 w-full rounded-md border border-au-line bg-au-card px-3 text-sm text-au-ink"
+            >
+              <option value="">{t('repeat.none')}</option>
+              <option value="weekly">{t('repeat.weekly')}</option>
+              <option value="monthly">{t('repeat.monthly')}</option>
+            </select>
+            <p className="text-xs text-au-muted">{t('repeat.hint')}</p>
+          </div>
+          <div className="flex flex-col gap-2">
             <Label htmlFor="starReward">{t('starReward')}</Label>
             <Input
               id="starReward"
@@ -144,7 +199,8 @@ export function AssignTaskDialog({ assignees }: { assignees: Assignee[] }) {
               type="number"
               min={0}
               step={1}
-              defaultValue=""
+              value={stars}
+              onChange={(event) => setStars(event.target.value)}
               placeholder="0"
             />
             <p className="text-xs text-au-muted">{t('starRewardHint')}</p>

@@ -4,8 +4,11 @@ import {
   TASK_DRAG_TARGETS,
   TASK_OPEN_STATUSES,
   TASK_STATUSES,
+  BOARD_LANES,
   boardColumnFor,
+  boardLaneFor,
   isTaskUnderReview,
+  laneDropStatus,
 } from '../src/lib/task-status';
 
 // Regression: dropping a card onto a `submitted` card sent the raw status to
@@ -28,4 +31,18 @@ test('review states render in the done column', () => {
 test('open and under-review statuses never overlap', () => {
   for (const status of TASK_OPEN_STATUSES) assert.equal(isTaskUnderReview(status), false);
   assert.equal(isTaskUnderReview('done'), false);
+});
+
+test('under-review statuses get their own board lane', () => {
+  assert.equal(boardLaneFor('submitted'), 'review');
+  assert.equal(boardLaneFor('awaiting_upload'), 'review');
+  assert.equal(boardLaneFor('done'), 'done');
+  assert.equal(boardLaneFor('pending'), 'pending');
+});
+
+test('every lane drops to a valid drag target', () => {
+  for (const lane of BOARD_LANES) {
+    assert.ok((TASK_DRAG_TARGETS as readonly string[]).includes(laneDropStatus(lane)), lane);
+  }
+  assert.equal(laneDropStatus('review'), 'done');
 });

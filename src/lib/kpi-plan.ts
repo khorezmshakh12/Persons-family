@@ -58,6 +58,15 @@ export type KpiPlan = {
   grade_note: string | null;
   graded_at: string | null;
   items: KpiItem[];
+  /** Reviewer decisions, oldest first (reviewer view only). */
+  audit?: KpiAuditEntry[];
+};
+
+export type KpiAuditEntry = {
+  action: 'review' | 'grade';
+  detail: { decision?: string; pct?: number[]; note?: string | null; grade?: Scenario; percent?: number; amount?: number; override?: number | null };
+  actor: string | null;
+  at: string;
 };
 
 /** Template rows a role starts from — the employee edits, adds or removes. */

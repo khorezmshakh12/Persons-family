@@ -642,7 +642,8 @@
     "columns": {
       "pending": "Kutilmoqda",
       "in_progress": "Jarayonda",
-      "done": "Bajarildi"
+      "done": "Bajarildi",
+      "review": "Tekshiruvda"
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
@@ -773,7 +774,63 @@
     "deletedToast": "Vazifa o‘chirildi",
     "undo": "Bekor qilish",
     "calendarView": "Kalendar",
-    "undoSubmit": "Topshirishni bekor qilish"
+    "undoSubmit": "Topshirishni bekor qilish",
+    "subtitle": "Rejadan tasdiqgacha — barcha ish bir joyda",
+    "waiting": "{hours} soat kutmoqda",
+    "shortcuts": "C — yangi · / — qidirish · J/K — kartalar · Enter — izohlar · A/R — tasdiqlash/qaytarish",
+    "showOlderDone": "Oldingi bajarilganlar ({count})",
+    "views": {
+      "label": "Ko‘rinish",
+      "board": "Doska",
+      "list": "Ro‘yxat",
+      "calendar": "Kalendar",
+      "report": "Hisobot"
+    },
+    "strip": {
+      "active": "Faol",
+      "today": "Bugun tugaydi",
+      "overdue": "Muddati o‘tgan",
+      "review": "Tekshiruvda"
+    },
+    "workload": {
+      "title": "Jamoa yuklamasi",
+      "hint": "Bosing — faqat o‘sha xodim"
+    },
+    "list": {
+      "title": "Vazifa",
+      "status": "Holat"
+    },
+    "calendar": {
+      "weekdays": [
+        "Du",
+        "Se",
+        "Ch",
+        "Pa",
+        "Ju",
+        "Sh",
+        "Ya"
+      ],
+      "prev": "Oldingi oy",
+      "next": "Keyingi oy",
+      "today": "Bugun"
+    },
+    "quick": {
+      "label": "Tezkor yozish",
+      "placeholder": "Oylik hisobot @Ali ertaga 15:00 +10",
+      "hint": "@ism — mas’ul · bugun/ertaga/25.10 — kun · 15:00 — vaqt · +10 — yulduz"
+    },
+    "repeat": {
+      "label": "Takrorlash",
+      "none": "Takrorlanmaydi",
+      "weekly": "Har hafta",
+      "monthly": "Har oy",
+      "hint": "Keyingi vazifa muddatidan oldin avtomatik yaratiladi (hafta — 2 kun, oy — 5 kun oldin)",
+      "listTitle": "Takrorlanuvchi vazifalar",
+      "next": "keyingisi {date} {time}",
+      "stop": "To‘xtatish",
+      "stopped": "Takrorlash to‘xtatildi",
+      "stopFailed": "To‘xtatib bo‘lmadi"
+    }
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -1020,6 +1077,65 @@
       "insights": "Tahlil",
       "history": "Tarix",
       "performance": "Samaradorlik"
+    },
+    "rubric": {
+      "title": "Rubrika (1–5)",
+      "applyAi": "Jev taklifi: {values}"
+    },
+    "v2": {
+      "thisMonth": "Shu oy",
+      "status": {
+        "missing": "Topshirilmagan",
+        "submitted": "Topshirildi · baho kutilmoqda",
+        "scored": "Baholandi"
+      },
+      "tabs": {
+        "compliance": "Topshirish holati"
+      },
+      "ring": {
+        "days": "kun qoldi",
+        "done": "topshirildi"
+      },
+      "streak": {
+        "value": "{count} oy ketma-ket",
+        "label": "Hisobot seriyasi — uzmang!"
+      },
+      "rubricTitle": "Oxirgi baho rubrikasi",
+      "grid": {
+        "staff": "Xodim",
+        "scored": "Baholangan",
+        "unrated": "Baholanmagan",
+        "missing": "Topshirilmagan"
+      },
+      "queue": {
+        "progress": "Baholandi"
+      },
+      "goal": {
+        "label": "Oy maqsadi",
+        "none": "Maqsad qo‘yilmagan",
+        "edit": "Maqsadni tahrirlash",
+        "prompt": "Bu oy nimani o‘rganmoqchisiz?",
+        "placeholder": "Masalan: IELTS Writing bo‘yicha 2 ta kurs, 7.0 darajadagi esse yozish",
+        "save": "Maqsadni saqlash"
+      },
+      "form": {
+        "kind": "Nima orqali o‘rgandingiz?",
+        "kinds": {
+          "course": "Kurs",
+          "book": "Kitob",
+          "skill": "Ko‘nikma",
+          "practice": "Amaliyot",
+          "other": "Boshqa"
+        },
+        "hours": "Sarflangan soat",
+        "evidence": "Isbot (havola)"
+      },
+      "hoursValue": "{hours} soat",
+      "feature": {
+        "cta": "Oyning eng yaxshi hisoboti sifatida yangiliklarga chiqarish",
+        "done": "Yangiliklarga chiqarildi",
+        "failed": "Chiqarib bo‘lmadi"
+      }
     }
   },
   "performance": {

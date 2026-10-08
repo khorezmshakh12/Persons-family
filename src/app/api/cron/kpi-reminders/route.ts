@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const sent: string[] = [];
 
   /** Claims a reminder slot; false if it already went out. */
-  const claim = async (m: string, kind: 'early' | 'last' | 'digest') =>
+  const claim = async (m: string, kind: 'early' | 'last' | 'digest' | 'midmonth') =>
     (await sql`insert into kpi_reminders (month, kind) values (${m}, ${kind}) on conflict do nothing`).count === 1;
 
   /** Active staff (not the CEO) with no submitted / approved plan for `m`. */
@@ -64,6 +64,29 @@ export async function GET(req: NextRequest) {
       : `✅ ${monthName(thisMonth)}: hamma KPI rejasini topshirdi.`;
     for (const c of ceos) await sendTelegramMessage(c.telegram_id!, text).catch(() => {});
     sent.push('digest');
+  }
+
+  // Mid-month check-in: everyone with an approved plan is reminded of their
+  // "Yaxshi" targets while there is still half a month to act.
+  if (day === 15 && (await claim(thisMonth, 'midmonth'))) {
+    const rows = await sql<{ telegram_id: number; items: { title: string; target_good: string; unit: string }[] }[]>`
+      select p.telegram_id,
+        coalesce((select json_agg(json_build_object('title', i.title, 'target_good', i.target_good, 'unit', i.unit) order by i.sort_order)
+                  from kpi_items i where i.plan_id = k.id), '[]'::json) as items
+      from kpi_plans k join profiles p on p.id = k.user_id
+      where k.month = ${thisMonth} and k.status = 'approved' and p.is_active and p.telegram_id is not null`;
+    for (const r of rows) {
+      const lines = r.items
+        .filter((i) => i.target_good)
+        .slice(0, 6)
+        .map((i) => `• ${escapeTelegramText(i.title)}: <b>${escapeTelegramText(i.target_good)}</b> ${escapeTelegramText(i.unit)}`);
+      const text =
+        `🧭 Oy yarmi — <b>${monthName(thisMonth)}</b> KPI'ingiz qayerda?\n` +
+        (lines.length ? `“Yaxshi” maqsadlaringiz:\n${lines.join('\n')}\n` : '') +
+        `Oy oxirigacha 2 hafta bor. Platforma › Mening KPI`;
+      await sendTelegramMessage(r.telegram_id, text).catch(() => {});
+    }
+    sent.push('midmonth');
   }
 
   return NextResponse.json({ ok: true, sent });

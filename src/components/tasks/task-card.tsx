@@ -6,8 +6,10 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { useDraggable } from '@dnd-kit/core';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
+  CalendarClock,
   ChevronDown,
   GripVertical,
+  Hourglass,
   Minus,
   ExternalLink,
   Undo2,
@@ -22,7 +24,8 @@ import { TaskStageProgress } from './task-stage-progress';
 import { TaskCountdown } from './task-countdown';
 import type { Assignee } from './assign-task-dialog';
 import { Badge } from '@/components/ui/badge';
-import { GLASS_CARD } from '@/lib/glass';
+import { SURFACE_CARD } from '@/lib/glass';
+import { useNowTicker } from '@/lib/use-now-ticker';
 import { isTaskUnderReview, type TaskStatus } from '@/lib/task-status';
 import { cn } from '@/lib/utils';
 
@@ -87,7 +90,7 @@ function FormattedDescription({ text }: { text: string }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-0.5 font-medium text-sky-700 underline underline-offset-2 transition-colors hover:text-sky-700 break-all"
+              className="inline-flex items-center gap-0.5 font-medium text-au-info underline underline-offset-2 break-all"
             >
               <span>{part}</span>
               <ExternalLink className="size-3 shrink-0 inline opacity-70" />
@@ -174,6 +177,27 @@ function TaskCardImpl({
     disabled: !canDrag || isOverlay,
   });
 
+  // Urgency drives the left stripe and the deadline chip: overdue (red),
+  // due within 24h (apricot, breathing), under review (blue), done (green).
+  const now = useNowTicker();
+  const open = task.status === 'pending' || task.status === 'in_progress';
+  // null until mounted (SSR has no clock) — urgency then falls back to the server's is_overdue.
+  const msLeft = now === null ? Infinity : new Date(task.deadline).getTime() - now;
+  const overdue = open && (task.is_overdue || msLeft < 0);
+  const dueSoon = open && !overdue && msLeft < 24 * 3600_000;
+  const stripe = overdue
+    ? 'bg-au-bad'
+    : dueSoon
+      ? 'bg-au-accent'
+      : underReview
+        ? 'bg-au-info'
+        : task.status === 'done'
+          ? 'bg-au-ok'
+          : 'bg-transparent';
+  // How long the CEO has had it: amber after a day, red (and ringing) after two.
+  const waitHours = underReview && task.submitted_at && now !== null ? Math.max(0, Math.floor((now - new Date(task.submitted_at).getTime()) / 3600_000)) : null;
+  const initials = task.assignee ? `${task.assignee.first_name[0] ?? ''}${task.assignee.last_name[0] ?? ''}` : '';
+
   const isLongDescription =
     !!task.description && (task.description.length > 90 || task.description.includes('\n'));
 
@@ -185,23 +209,27 @@ function TaskCardImpl({
         layout={!reduceMotion && !isDragging && !isOverlay}
         initial={false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        whileHover={reduceMotion || isDragging || isOverlay ? undefined : { scale: 1.01 }}
+        whileHover={reduceMotion || isDragging || isOverlay ? undefined : { y: -2 }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+        data-task-card={isOverlay ? undefined : task.id}
+        data-task-lane={underReview ? 'review' : task.status}
+        tabIndex={isOverlay ? -1 : 0}
         className={cn(
-          GLASS_CARD,
-          'flex flex-col gap-3 p-4 sm:p-5 w-full min-w-0 max-w-full overflow-hidden break-words rounded-2xl shadow-lg border border-au-line',
+          SURFACE_CARD,
+          'group/card relative flex w-full max-w-full min-w-0 flex-col gap-3 overflow-hidden break-words p-4 pl-5 transition-shadow hover:shadow-au-card-hover focus-visible:ring-2 focus-visible:ring-au-accent focus-visible:outline-none',
           isDragging && !isPreview && 'opacity-40',
-          isPreview && 'opacity-60 border-2 border-dashed border-au-faint',
+          isPreview && 'border-2 border-dashed border-au-accent/60 opacity-60',
           // The lift is elevation-only on purpose — no scale/rotate. The
           // overlay has to stay the exact size of the card it will land on,
           // otherwise the drop animation (which glides the overlay onto the
           // real card's rect) ends with a visible size pop.
-          isOverlay && 'm-lift cursor-grabbing bg-au-card-2 shadow-2xl shadow-black/50 ring-2 ring-au-faint',
+          isOverlay && 'm-lift cursor-grabbing bg-au-card-2 shadow-2xl ring-2 ring-au-accent/50',
         )}
       >
+        <span aria-hidden className={cn('absolute inset-y-0 left-0 w-[3px] transition-colors', stripe)} />
         {/* Card Header: Title + Action Buttons */}
         <div className="flex items-start justify-between gap-2 min-w-0">
-          <span className="min-w-0 flex-1 font-semibold text-au-ink leading-snug break-words [overflow-wrap:anywhere] text-sm sm:text-base">
+          <span className="min-w-0 flex-1 text-[14.5px] leading-snug font-semibold text-au-ink break-words [overflow-wrap:anywhere]">
             {task.from_strategy && (
               <span className="mr-1.5 inline-flex translate-y-[-1px] items-center rounded-full bg-au-accent-soft px-1.5 py-0.5 align-middle text-[10px] font-bold text-au-accent-text">
                 🎯 Strategiya
@@ -213,7 +241,7 @@ function TaskCardImpl({
             {/* Edit/delete only on tasks this person handed out — a team lead
                 also sees tasks their own boss gave them. */}
             {isAdmin && isReviewer && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/card:opacity-100 [@media(hover:hover)]:group-hover/card:opacity-100">
                 <EditTaskDialog
                   task={{
                     id: task.id,
@@ -261,7 +289,7 @@ function TaskCardImpl({
                   e.stopPropagation();
                   setIsExpanded(!isExpanded);
                 }}
-                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                className="mt-1.5 self-start inline-flex items-center gap-1 text-xs font-semibold text-au-accent-text hover:underline"
               >
                 <span>{isExpanded ? t('showLess') : t('showMore')}</span>
                 <ChevronDown
@@ -272,48 +300,60 @@ function TaskCardImpl({
           </div>
         )}
 
-        {/* Assignee & Deadline */}
-        <div className="flex flex-col gap-1 text-xs text-au-muted min-w-0">
+        {/* Assignee & deadline */}
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-au-muted">
           {isAdmin && task.assignee && (
-            <span className="truncate font-medium text-au-muted">
-              {task.assignee.first_name} {task.assignee.last_name}
+            <span className="inline-flex min-w-0 items-center gap-1.5 font-medium text-au-ink">
+              <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full bg-au-card-2 text-[10px] font-bold text-au-muted uppercase">
+                {initials}
+              </span>
+              <span className="truncate">
+                {task.assignee.first_name} {task.assignee.last_name}
+              </span>
             </span>
           )}
           <span
             className={cn(
-              'flex items-center gap-1.5 flex-wrap',
-              task.is_overdue && 'font-semibold text-red-600',
+              'inline-flex h-6 items-center gap-1 rounded-md px-2 font-semibold tabular-nums',
+              overdue ? 'bg-au-bad-soft text-au-bad' : dueSoon ? 'ms-breathe bg-au-accent-soft text-au-accent-text' : 'bg-au-card-2 text-au-muted',
             )}
           >
-            <span>
-              {format.dateTime(new Date(task.deadline), {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-            </span>
-            {task.is_overdue && (
-              <Badge variant="tint" tint="red" className="text-[10px] tracking-wide uppercase px-1.5 py-0.5">
-                {t('overdue')}
-              </Badge>
-            )}
-            {/* Live time-to-deadline (one shared 1s ticker for the whole
-             * board — see lib/use-now-ticker). The drag overlay is a copy
-             * of this card, so it skips the chip rather than tick twice. */}
-            {!isOverlay && (
-              <TaskCountdown deadline={task.deadline} completedAt={task.completed_at} status={task.status} />
-            )}
+            <CalendarClock className="size-3.5" aria-hidden />
+            {format.dateTime(new Date(task.deadline), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
+          {overdue && (
+            <Badge variant="tint" tint="red" className="px-1.5 py-0.5 text-[10px] tracking-wide uppercase">
+              {t('overdue')}
+            </Badge>
+          )}
+          {/* Live time-to-deadline (one shared 1s ticker for the whole
+           * board — see lib/use-now-ticker). The drag overlay is a copy
+           * of this card, so it skips the chip rather than tick twice. */}
+          {!isOverlay && open && (
+            <TaskCountdown deadline={task.deadline} completedAt={task.completed_at} status={task.status} />
+          )}
+          {waitHours !== null && (
+            <span
+              className={cn(
+                'inline-flex h-6 items-center gap-1 rounded-md px-2 font-semibold',
+                waitHours >= 48 ? 'ms-alarm bg-au-bad-soft text-au-bad' : waitHours >= 24 ? 'bg-au-accent-soft text-au-accent-text' : 'bg-au-info-soft text-au-info',
+              )}
+            >
+              <Hourglass className="size-3.5" aria-hidden />
+              {t('waiting', { hours: waitHours })}
+            </span>
+          )}
         </div>
 
         {/* Rejection banner: the CEO's reason from the last rejection,
          * shown to the assignee until they resubmit (submitTaskAction
          * clears rejection_reason on resubmit, which is what retires this). */}
         {showRejection && (
-          <div className="flex items-start gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
+          <div className="flex items-start gap-2 rounded-au-ctl border border-au-bad/30 bg-au-bad-soft px-3 py-2 text-xs text-au-bad">
             <Undo2 className="mt-0.5 size-3.5 shrink-0" />
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="font-semibold">{t('rejectionReason')}</span>
-              <span className="whitespace-pre-wrap break-words text-red-700">
+              <span className="whitespace-pre-wrap break-words">
                 {task.rejection_reason}
               </span>
             </div>

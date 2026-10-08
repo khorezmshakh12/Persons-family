@@ -26,6 +26,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { can } from '@/lib/permissions';
 import { BgVideo } from '@/components/motion/bg-video';
+import { GoalForm } from '@/components/self-development/goal-form';
+import {
+  ComplianceGrid,
+  DeadlineRing,
+  ReviewQueue,
+  RubricBars,
+  StreakCard,
+  type ComplianceRow,
+} from '@/components/self-development/self-dev-visuals';
+import { parseRubric, streak } from '@/lib/self-dev-rubric';
+import { monthName, shiftMonth } from '@/lib/kpi-plan';
+import { tashkentYmd } from '@/lib/time';
+import { SURFACE_CARD } from '@/lib/glass';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,12 +61,14 @@ export default async function SelfDevelopmentPage({
   const submissions = await sql<Submission[]>`
     select
       sd.id, sd.month, sd.achievements, sd.value_added, sd.ceo_rating, sd.ceo_score, sd.bonus_amount, sd.user_id,
+      sd.kind, sd.hours, sd.evidence_url, sd.rubric, sd.ai_rubric, g.goal,
       (select coalesce(sum(delta), 0)::int from star_transactions where source_type = 'self_development' and source_id = sd.id) as star_award,
       case when p.id is null then null else
         json_build_object('first_name', p.first_name, 'last_name', p.last_name, 'role', p.role, 'teacher_level', p.teacher_level)
       end as author
     from self_development sd
     left join profiles p on p.id = sd.user_id
+    left join self_dev_goals g on g.user_id = sd.user_id and g.month = sd.month
     where ${isAdmin ? sql`true` : sql`sd.user_id = ${user!.id}`}
     order by sd.month desc
   `;
@@ -137,6 +152,19 @@ export default async function SelfDevelopmentPage({
       ? Math.round(lastMonthPoints.reduce((a, x) => a + x.score, 0) / lastMonthPoints.length)
       : null;
 
+    const queue = [...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)];
+    // Compliance grid: last six months, everyone who reports.
+    const gridMonths = [-5, -4, -3, -2, -1, 0].map((o) => shiftMonth(currentMonth, o));
+    const byKey = new Map(submissions.map((x) => [`${x.user_id}|${x.month}`, x]));
+    const complianceRows: ComplianceRow[] = expected.map((person) => ({
+      id: person.id,
+      name: `${person.first_name} ${person.last_name}`,
+      cells: gridMonths.map((m) => {
+        const sub = byKey.get(`${person.id}|${m}`);
+        return { month: m, filed: !!sub, score: sub?.ceo_score ?? null };
+      }),
+    }));
+
     const exportRows = staff.map((person) => {
       const perf = performanceByStaffId.get(person.id);
       const net = netTotal(entriesByStaffId.get(person.id) ?? []);
@@ -150,7 +178,7 @@ export default async function SelfDevelopmentPage({
     });
 
     return (
-      <div className="mx-auto flex max-w-5xl flex-col gap-8 p-6 sm:p-8">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
         <div className="rounded-au-card bg-au-hero relative flex flex-col gap-1 overflow-hidden px-6 py-6 sm:px-[30px] sm:py-7">
           <BgVideo variant="hero" />
           <h1 className="text-au-ink text-[28px] leading-[34px] font-bold tracking-tight">
@@ -175,7 +203,7 @@ export default async function SelfDevelopmentPage({
             },
             { k: t('glance.avgLast'), v: avgLast === null ? '—' : String(avgLast) },
           ].map((x) => (
-            <div key={x.k} className={cn(GLASS_CARD, 'flex flex-col gap-1 p-4')}>
+            <div key={x.k} className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-1 p-4')}>
               <span className="text-au-muted text-xs font-medium">{x.k}</span>
               <span className={cn('text-au-ink text-2xl font-bold tabular-nums', x.tone)}>
                 {x.v}
@@ -190,6 +218,7 @@ export default async function SelfDevelopmentPage({
               {t('tabs.month')}
               {toGrade.length ? ` · ${toGrade.length}` : ''}
             </TabsTrigger>
+            <TabsTrigger value="compliance">{t('v2.tabs.compliance')}</TabsTrigger>
             <TabsTrigger value="insights">{t('tabs.insights')}</TabsTrigger>
             <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
             <TabsTrigger value="performance">{t('tabs.performance')}</TabsTrigger>
@@ -213,27 +242,29 @@ export default async function SelfDevelopmentPage({
             {thisMonthSubmissions.length === 0 ? (
               <p className="text-au-muted text-sm">{t('thisMonth.noSubmissions')}</p>
             ) : (
-              // Ungraded first — that's the CEO's queue.
-              <div className="flex flex-col gap-4">
-                <ExpandCollapseControls
-                  count={thisMonthSubmissions.length}
-                  storageKeyPrefix="month-submission"
-                  itemIds={[...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)].map((s) => s.id)}
-                />
-                {[...toGrade, ...thisMonthSubmissions.filter((x) => x.ceo_score !== null)].map(
-                  (s, index) => (
-                    <SubmissionCard
-                      key={s.id}
-                      submission={s}
-                      isAdmin
-                      delayMs={Math.min(index, 10) * 60}
-                      defaultOpen={index === 0}
-                      storageKeyPrefix="month-submission"
-                    />
-                  ),
+              // Ungraded first — that's the CEO's queue; saving slides the next one in.
+              <ReviewQueue
+                items={queue.map((x) => ({
+                  id: x.id,
+                  name: x.author ? `${x.author.first_name} ${x.author.last_name}` : '—',
+                  meta: [x.kind ? t(`v2.form.kinds.${x.kind}`) : null, x.hours ? t('v2.hoursValue', { hours: x.hours }) : null, x.ceo_score !== null ? `${t('ceoScore')}: ${x.ceo_score}` : null]
+                    .filter(Boolean)
+                    .join(' · '),
+                  scored: x.ceo_score !== null,
+                  ai: !!x.ai_rubric,
+                }))}
+                details={Object.fromEntries(
+                  queue.map((x) => [
+                    x.id,
+                    <SubmissionCard key={x.id} submission={x} isAdmin defaultOpen storageKeyPrefix="month-queue" />,
+                  ]),
                 )}
-              </div>
+              />
             )}
+          </TabsContent>
+
+          <TabsContent value="compliance" className="mt-4 flex flex-col gap-4 outline-none">
+            <ComplianceGrid rows={complianceRows} months={gridMonths.map((m) => ({ key: m, label: monthName(m).slice(0, 3) }))} />
           </TabsContent>
 
           <TabsContent
@@ -350,6 +381,23 @@ export default async function SelfDevelopmentPage({
     `,
   ]);
 
+  // This month at a glance: goal, days left, streak, latest rubric.
+  const currentMonth = firstOfCurrentMonth();
+  const [goalRow] = await sql<{ goal: string }[]>`
+    select goal from self_dev_goals where user_id = ${user!.id} and month = ${currentMonth}`.catch(() => []);
+  const { year, month, day } = tashkentYmd();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const daysLeft = daysInMonth - day;
+  const filedMonths = submissions.map((x) => x.month);
+  const myStreak = streak(filedMonths, currentMonth);
+  const last12 = Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, i - 11)).map((m) => {
+    const sub = submissions.find((x) => x.month === m);
+    return { key: m, label: monthName(m), filed: !!sub, score: sub?.ceo_score ?? null };
+  });
+  const latestRubric = parseRubric(submissions.find((x) => parseRubric(x.rubric))?.rubric);
+  const thisSub = submissions.find((x) => x.month === currentMonth);
+  const status = !thisSub ? 'missing' : thisSub.ceo_score === null ? 'submitted' : 'scored';
+
   const totalBonus = entries
     .filter((e) => e.entry_type === 'bonus')
     .reduce((sum, e) => sum + e.amount, 0);
@@ -372,16 +420,33 @@ export default async function SelfDevelopmentPage({
           left; where you stand (trend, tier, bonuses) on the right. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <div className="rounded-au-card border-au-line bg-au-card text-au-ink shadow-au-card border p-6">
-            <h2 className="font-heading text-au-ink mb-4 text-lg font-semibold">
-              {t('submitTitle')}
-            </h2>
+          <section className={cn(SURFACE_CARD, 'flex flex-col gap-5 p-5 sm:p-6')}>
+            <div className="flex items-center gap-5">
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold tracking-[0.06em] text-au-accent-text uppercase">{t('v2.thisMonth')}</div>
+                <h2 className="font-display text-2xl font-bold text-au-ink">{monthName(currentMonth)}</h2>
+                <span
+                  className={cn(
+                    'mt-2 inline-flex h-6 items-center rounded-full px-2.5 text-xs font-bold',
+                    status === 'missing' ? 'bg-au-bad-soft text-au-bad' : status === 'submitted' ? 'bg-au-accent-soft text-au-accent-text' : 'bg-au-ok-soft text-au-ok',
+                  )}
+                >
+                  {t(`v2.status.${status}`)}
+                  {status === 'scored' && thisSub?.ceo_score !== null ? ` · ${thisSub?.ceo_score}` : ''}
+                </span>
+              </div>
+              <DeadlineRing daysLeft={daysLeft} daysInMonth={daysInMonth} done={!!thisSub} />
+            </div>
+            <GoalForm goal={goalRow?.goal ?? null} locked={!!thisSub} />
             {hasSubmittedThisMonth ? (
               <p className="text-au-muted text-sm">{t('submittedThisMonth')}</p>
             ) : (
-              <SubmitForm />
+              <div className="flex flex-col gap-3 border-t border-au-line pt-4">
+                <h3 className="text-base font-semibold text-au-ink">{t('submitTitle')}</h3>
+                <SubmitForm />
+              </div>
             )}
-          </div>
+          </section>
 
           <div className="flex flex-col gap-4">
             <h2 className="font-heading text-au-ink text-lg font-semibold">
@@ -411,6 +476,12 @@ export default async function SelfDevelopmentPage({
           </div>
         </div>
         <aside className="flex min-w-0 flex-col gap-4">
+          <StreakCard streak={myStreak} months={last12} />
+          {latestRubric && (
+            <div className={cn(SURFACE_CARD, 'p-5')}>
+              <RubricBars rubric={latestRubric} />
+            </div>
+          )}
           {submissions.length >= 2 && (
             <SelfDevelopmentLineChart
               points={[...submissions]

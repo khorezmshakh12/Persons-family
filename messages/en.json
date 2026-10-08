@@ -642,7 +642,8 @@
     "columns": {
       "pending": "Pending",
       "in_progress": "In Progress",
-      "done": "Done"
+      "done": "Done",
+      "review": "In review"
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
@@ -773,7 +774,63 @@
     "deletedToast": "Task deleted",
     "undo": "Undo",
     "calendarView": "Calendar",
-    "undoSubmit": "Undo submission"
+    "undoSubmit": "Undo submission",
+    "subtitle": "From plan to approval — all work in one place",
+    "waiting": "waiting {hours}h",
+    "shortcuts": "C — new · / — search · J/K — cards · Enter — comments · A/R — approve/return",
+    "showOlderDone": "Earlier finished ({count})",
+    "views": {
+      "label": "View",
+      "board": "Board",
+      "list": "List",
+      "calendar": "Calendar",
+      "report": "Report"
+    },
+    "strip": {
+      "active": "Active",
+      "today": "Due today",
+      "overdue": "Overdue",
+      "review": "In review"
+    },
+    "workload": {
+      "title": "Team workload",
+      "hint": "Click to show only that person"
+    },
+    "list": {
+      "title": "Task",
+      "status": "Status"
+    },
+    "calendar": {
+      "weekdays": [
+        "Mo",
+        "Tu",
+        "We",
+        "Th",
+        "Fr",
+        "Sa",
+        "Su"
+      ],
+      "prev": "Previous month",
+      "next": "Next month",
+      "today": "Today"
+    },
+    "quick": {
+      "label": "Quick entry",
+      "placeholder": "Monthly report @Ali tomorrow 15:00 +10",
+      "hint": "@name — assignee · today/tomorrow/25.10 — day · 15:00 — time · +10 — stars"
+    },
+    "repeat": {
+      "label": "Repeat",
+      "none": "Does not repeat",
+      "weekly": "Every week",
+      "monthly": "Every month",
+      "hint": "The next one is created automatically before its deadline (weekly 2 days, monthly 5 days ahead)",
+      "listTitle": "Recurring tasks",
+      "next": "next {date} {time}",
+      "stop": "Stop",
+      "stopped": "Recurrence stopped",
+      "stopFailed": "Could not stop"
+    }
   },
   "companyNews": {
     "title": "Company News",
@@ -1020,6 +1077,65 @@
       "insights": "Insights",
       "history": "History",
       "performance": "Performance"
+    },
+    "rubric": {
+      "title": "Rubric (1–5)",
+      "applyAi": "Jev suggests: {values}"
+    },
+    "v2": {
+      "thisMonth": "This month",
+      "status": {
+        "missing": "Not submitted",
+        "submitted": "Submitted · awaiting score",
+        "scored": "Scored"
+      },
+      "tabs": {
+        "compliance": "Submission status"
+      },
+      "ring": {
+        "days": "days left",
+        "done": "submitted"
+      },
+      "streak": {
+        "value": "{count} months in a row",
+        "label": "Report streak — keep it going!"
+      },
+      "rubricTitle": "Latest rubric",
+      "grid": {
+        "staff": "Staff",
+        "scored": "Scored",
+        "unrated": "Not scored",
+        "missing": "Not submitted"
+      },
+      "queue": {
+        "progress": "Scored"
+      },
+      "goal": {
+        "label": "Month goal",
+        "none": "No goal set",
+        "edit": "Edit goal",
+        "prompt": "What do you want to learn this month?",
+        "placeholder": "e.g. two IELTS Writing courses, write a band-7 essay",
+        "save": "Save goal"
+      },
+      "form": {
+        "kind": "How did you learn?",
+        "kinds": {
+          "course": "Course",
+          "book": "Book",
+          "skill": "Skill",
+          "practice": "Practice",
+          "other": "Other"
+        },
+        "hours": "Hours spent",
+        "evidence": "Evidence (link)"
+      },
+      "hoursValue": "{hours} h",
+      "feature": {
+        "cta": "Feature as the month’s best report in news",
+        "done": "Published to news",
+        "failed": "Could not publish"
+      }
     }
   },
   "performance": {
