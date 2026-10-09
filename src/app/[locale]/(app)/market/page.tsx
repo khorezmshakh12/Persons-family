@@ -1,4 +1,5 @@
-import { getMarketAction, getMarketAdminAction } from '@/lib/actions/market';
+import { MarketInsightsPanel } from '@/components/market/market-insights';
+import { getMarketAction, getMarketAdminAction, getMarketInsightsAction } from '@/lib/actions/market';
 import { canSeeFor } from '@/lib/permissions';
 import { getTranslations } from 'next-intl/server';
 import { ShoppingBag } from 'lucide-react';
@@ -25,13 +26,15 @@ export default async function MarketPage() {
     );
   }
 
-  const [marketData, adminData] = await Promise.all([
+  const [marketData, adminData, insights] = await Promise.all([
     getMarketAction(),
     getMarketAdminAction(),
+    getMarketInsightsAction(),
   ]);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      {insights && <MarketInsightsPanel data={insights} />}
       <MarketView
         balance={marketData.balance}
         items={marketData.items}

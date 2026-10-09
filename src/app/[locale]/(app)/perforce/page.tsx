@@ -13,7 +13,7 @@ export default async function PerforcePage() {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'perforce')) notFound();
 
-  const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals, risks] = await Promise.all([
+  const [spaces, stasks, tasks, issues, people, milestones, tests, crs, crComments, crVotes, goals, risks, statuses] = await Promise.all([
     // Project budgets are financial figures — CEO only; others get none (the
     // cards then show progress by tasks and '—' for budget / CPI).
     can(profile.role, 'finance.viewAll')
@@ -48,6 +48,9 @@ export default async function PerforcePage() {
       select id, space_id, title, category, likelihood, impact, treatment, mitigation, owner_id,
              to_char(review_date, 'YYYY-MM-DD') as review_date, status, postmortem, updated_at
       from pf_risks order by created_at desc limit 300`,
+    sql<PfData['statuses']>`
+      select id, space_id, rag, summary, next_steps, author_id, created_at::text as created_at
+      from pf_status_updates order by created_at desc limit 300`.catch(() => [] as PfData['statuses']),
   ]);
 
   return (
@@ -66,6 +69,7 @@ export default async function PerforcePage() {
         crVotes: [...crVotes],
         goals: [...goals],
         risks: [...risks],
+        statuses: [...statuses],
       }}
       today={tashkentDayKey()}
     />

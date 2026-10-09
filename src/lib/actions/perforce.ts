@@ -314,3 +314,42 @@ export async function deleteRiskAction(id: string): Promise<Result> {
   }
   return done();
 }
+
+/* ------------------------------------------------------------ status updates */
+const statusSchema = z.object({
+  spaceId: uuid,
+  rag: z.enum(['green', 'amber', 'red']),
+  summary: z.string().trim().min(1).max(2000),
+  nextSteps: z.string().trim().max(2000).default(''),
+});
+
+/** A project's weekly status (RAG + what happened + what's next). */
+export async function saveStatusUpdateAction(input: z.input<typeof statusSchema>): Promise<Result & { id?: string }> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = statusSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const [row] = await sql<{ id: string }[]>`
+      insert into pf_status_updates (space_id, rag, summary, next_steps, author_id)
+      values (${p.data.spaceId}, ${p.data.rag}, ${p.data.summary}, ${p.data.nextSteps}, ${g.id}) returning id`;
+    logSystemAction('perforce.status', `Status ${p.data.rag} for ${p.data.spaceId}`);
+    done();
+    return { id: row.id };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+}
+
+export async function deleteStatusUpdateAction(id: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`delete from pf_status_updates where id = ${id} and author_id = ${g.id}`;
+    if (res.count === 0) return { error: 'forbidden' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}

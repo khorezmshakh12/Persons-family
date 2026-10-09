@@ -19,8 +19,12 @@ import {
   type TaxSettings,
 } from '@/lib/accounting';
 import { requireCap } from '@/lib/auth/require-admin';
+import { loadClosePeriod, type ClosePeriod } from '@/lib/acct-close';
 
 type Result = { error?: string };
+
+/** A closed month's journal is frozen by a DB trigger ('period_closed'). */
+const closedOr = (error: unknown) => (error instanceof Error && /period_closed/.test(error.message) ? 'periodClosed' : 'updateFailed');
 
 const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const ym = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
@@ -95,8 +99,8 @@ export async function addJournalEntryAction(input: z.input<typeof entrySchema>):
         values (${p.data.date}, ${p.data.doc}, ${p.data.description}, ${p.data.debit}, ${p.data.credit},
           ${amount}, ${g.id})`;
     }
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   logSystemAction('acct.entry', `${p.data.debit}/${p.data.credit} ${p.data.amount} "${p.data.description}"`);
   return done();
@@ -110,8 +114,8 @@ export async function deleteJournalEntryAction(id: string): Promise<Result> {
     // Auto postings (payroll, depreciation, tax) are managed by re-posting.
     const res = await sql`delete from acct_entries where id = ${id} and source is null`;
     if (res.count === 0) return { error: 'notFound' };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   logSystemAction('acct.entry_delete', `Deleted journal entry ${id}`);
   return done();
@@ -130,8 +134,8 @@ export async function setOpeningBalancesAction(values: Record<string, number>): 
           on conflict (code) do update set amount = excluded.amount, updated_at = now()`;
       }
     });
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   logSystemAction('acct.opening', 'Updated opening balances');
   return done();
@@ -157,8 +161,8 @@ export async function postPayrollAction(month: string, overrides: Record<string,
     logSystemAction('acct.payroll_post', `Posted payroll ${month} (${rows.length} rows)`);
     done();
     return { count: rows.length };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
 }
 
@@ -179,8 +183,8 @@ export async function postDepreciationAction(month: string): Promise<Result & { 
     );
     done();
     return { amount };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
 }
 
@@ -205,8 +209,8 @@ export async function postTurnoverTaxAction(month: string): Promise<Result & { a
     );
     done();
     return { amount };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
 }
 
@@ -230,8 +234,8 @@ export async function saveTaxSettingsAction(input: TaxSettings): Promise<Result>
     await sql`
       insert into acct_settings (key, value) values ('tax', ${sql.json(p.data)})
       on conflict (key) do update set value = excluded.value`;
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   logSystemAction('acct.tax_settings', JSON.stringify(p.data));
   return done();
@@ -265,8 +269,8 @@ export async function addAssetAction(input: z.input<typeof assetSchema>): Promis
             ${`asset:${row.id}`}, ${g.id})`;
       }
     });
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   logSystemAction('acct.asset_add', `Asset "${v.name}" ${v.cost}`);
   return done();
@@ -361,8 +365,8 @@ export async function setBudgetAction(input: z.input<typeof budgetSchema>): Prom
     await sql`
       insert into acct_budget (period, code, amount) values (${monthStart(p.data.month)}, ${p.data.code}, ${p.data.amount})
       on conflict (period, code) do update set amount = excluded.amount`;
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   return done();
 }
@@ -404,8 +408,8 @@ export async function saveCourseAction(input: z.input<typeof courseSchema>): Pro
         values (${v.name}, ${v.fee}, ${v.students}, ${teacherCost}, ${v.bookCost}, ${share}, ${hours},
           (select coalesce(max(sort_order), 0) + 1 from acct_courses))`;
     }
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   return done();
 }
@@ -416,8 +420,8 @@ export async function deleteCourseAction(id: string): Promise<Result> {
   if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
   try {
     await sql`delete from acct_courses where id = ${id}`;
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   return done();
 }
@@ -454,8 +458,8 @@ export async function setPlanStudentsAction(input: z.input<typeof planSchema>): 
     await sql`
       insert into acct_settings (key, value) values ('plan_students', ${sql.json({ [p.data.month]: p.data.students })})
       on conflict (key) do update set value = acct_settings.value || excluded.value`;
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: closedOr(error) };
   }
   logSystemAction('acct.plan_students', `${p.data.month}: ${p.data.students}`);
   return done();
@@ -471,9 +475,76 @@ export async function deleteBudgetAction(input: z.input<typeof budgetLineSchema>
   try {
     const res = await sql`delete from acct_budget where period = ${p.data.period} and code = ${p.data.code}`;
     if (res.count === 0) return { error: 'notFound' };
+  } catch (error) {
+    return { error: closedOr(error) };
+  }
+  logSystemAction('acct.budget_delete', `${p.data.period} ${p.data.code}`);
+  return done();
+}
+
+/* ------------------------------------------------------------ month close */
+
+export async function getClosePeriodAction(month: string): Promise<{ error?: string; period?: ClosePeriod }> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!ym.safeParse(month).success) return { error: 'invalidInput' };
+  try {
+    return { period: await loadClosePeriod(month) };
+  } catch (error) {
+    console.error('getClosePeriodAction failed', error instanceof Error ? error.message : error);
+    return { error: 'loadFailed' };
+  }
+}
+
+/** Close a month: blocking checks must pass; the DB then freezes it. */
+export async function closePeriodAction(month: string, note = ''): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!ym.safeParse(month).success) return { error: 'invalidInput' };
+  try {
+    const p = await loadClosePeriod(month);
+    if (p.closed) return { error: 'alreadyClosed' };
+    if (p.checks.some((c) => c.blocking && !c.ok)) return { error: 'blocked' };
+    await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext(${`acct-close:${month}`}))`;
+      await tx`
+        insert into acct_periods (month, closed_at, closed_by, note) values (${`${month}-01`}, now(), ${g.id}, ${note || null})
+        on conflict (month) do update set closed_at = now(), closed_by = excluded.closed_by, note = excluded.note`;
+      await tx`insert into acct_period_log (month, actor, action, reason) values (${`${month}-01`}, ${g.id}, 'close', ${note || null})`;
+    });
   } catch {
     return { error: 'updateFailed' };
   }
-  logSystemAction('acct.budget_delete', `${p.data.period} ${p.data.code}`);
+  logSystemAction('acct.close', `Closed ${month}`);
+  return done();
+}
+
+export async function reopenPeriodAction(month: string, reason: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!ym.safeParse(month).success || reason.trim().length < 3) return { error: 'reasonRequired' };
+  try {
+    const res = await sql`update acct_periods set closed_at = null, closed_by = null where month = ${`${month}-01`} and closed_at is not null`;
+    if (res.count === 0) return { error: 'notClosed' };
+    await sql`insert into acct_period_log (month, actor, action, reason) values (${`${month}-01`}, ${g.id}, 'reopen', ${reason.trim()})`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('acct.reopen', `Reopened ${month}: ${reason.trim()}`);
+  return done();
+}
+
+export async function markBudgetReviewedAction(month: string, reviewed: boolean): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!ym.safeParse(month).success) return { error: 'invalidInput' };
+  try {
+    await sql`
+      insert into acct_periods (month, budget_review) values (${`${month}-01`}, ${reviewed})
+      on conflict (month) do update set budget_review = excluded.budget_review`;
+    if (reviewed) await sql`insert into acct_period_log (month, actor, action) values (${`${month}-01`}, ${g.id}, 'review')`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
   return done();
 }
