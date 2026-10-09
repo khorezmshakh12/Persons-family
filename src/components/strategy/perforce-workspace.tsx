@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Briefcase, CheckCheck, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { Activity, Briefcase, CheckCheck, Pencil, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -39,6 +39,7 @@ import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type Palette
 import { Chart } from './charts';
 import { RiskRegister, type RiskRow } from './risk-register';
 import { PersonAvatar } from './bits';
+import { ResourceLoad, StatusBoard, type StatusUpdate } from './perforce-v7';
 import './strategy.css';
 import './suite.css';
 
@@ -56,6 +57,7 @@ export type PfData = {
   crVotes: { cr_id: string; voter_id: string }[];
   goals: { sprint_no: number; goal: string }[];
   risks: RiskRow[];
+  statuses: StatusUpdate[];
 };
 type CRStatus = 'needs' | 'review' | 'approved' | 'rejected' | 'submitted';
 type CR = {
@@ -72,9 +74,11 @@ type CR = {
 };
 
 // Simplified (owner, 2026-10-04): planning lives in Strategy (Board / Gantt).
-type Tab = 'port' | 'alm' | 'review';
+type Tab = 'port' | 'status' | 'res' | 'alm' | 'review';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { v: 'port', n: 'Portfel', Icon: Briefcase },
+  { v: 'status', n: 'Holat', Icon: Activity },
+  { v: 'res', n: 'Resurslar', Icon: Users },
   { v: 'alm', n: 'Sifat nazorati', Icon: ShieldCheck },
   { v: 'review', n: 'Review & tasdiq', Icon: CheckCheck },
 ];
@@ -142,12 +146,14 @@ export function PerforceWorkspace({ data, today, viewerId }: { data: PfData; tod
   return (
     <SuiteShell section="pf" tabs={TABS} onTab={go} items={items}>
       <div className="px-4 sm:px-7">
-        <SectionHead crumb="Persons Perforce · Reja · Sifat · Ko‘rib chiqish" title="Persons" em="Perforce" pill={`Sprint ${sp.no} · ${fmtDay(sp.from)} – ${fmtDay(sp.to)}`} />
+        <SectionHead crumb="Persons Perforce · Portfel · Holat · Resurslar · Sifat · Ko‘rib chiqish" title="Persons" em="Perforce" pill={`Sprint ${sp.no} · ${fmtDay(sp.from)} – ${fmtDay(sp.to)}`} />
         <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">
         <div key={tab} className="sx-fade">
           {tab === 'port' && <Portfolio data={data} stasks={stasks} today={today} />}
+          {tab === 'status' && <StatusBoard data={data} today={today} viewerId={viewerId} updates={data.statuses} />}
+          {tab === 'res' && <ResourceLoad data={data} today={today} />}
           {tab === 'alm' && <Alm data={data} stasks={stasks} personById={personById} today={today} />}
           {tab === 'review' && <Review data={data} stasks={stasks} personById={personById} today={today} viewerId={viewerId} />}
         </div>
