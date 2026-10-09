@@ -4,16 +4,17 @@ import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import type {
   UnreadChatItem,
-  UnseenIssueItem,
   UnseenTaskItem,
   UnseenWarningItem,
   UnseenLessonPlanAlertItem,
 } from '@/components/app-shell/notification-bell';
 import { CAP_ROLES } from '@/lib/permissions';
+import { loadFeed, type FeedItem } from '@/lib/notifications';
 
 export type NotificationBellData = {
   unreadChats: UnreadChatItem[];
-  unseenIssues: UnseenIssueItem[];
+  /** Bildirishnomalar markazi (v8): the stored notifications, newest first. */
+  feed: FeedItem[];
   unseenTasks: UnseenTaskItem[];
   unseenWarnings: UnseenWarningItem[];
   unseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
@@ -21,7 +22,7 @@ export type NotificationBellData = {
 
 const EMPTY: NotificationBellData = {
   unreadChats: [],
-  unseenIssues: [],
+  feed: [],
   unseenTasks: [],
   unseenWarnings: [],
   unseenLessonPlanAlerts: [],
@@ -45,20 +46,13 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
   const { user } = await getAuthState();
   if (!user) return EMPTY;
 
-  const [unreadChats, unseenIssues, unseenTasks, unseenWarnings, unseenLessonPlanAlerts] = await Promise.all([
+  const [unreadChats, feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts] = await Promise.all([
     sql<UnreadChatItem[]>`
       select id, sender_id as "senderId", message_text as "messageText", created_at as "createdAt"
       from staff_chats where receiver_id = ${user.id} and is_read = false
       order by created_at desc limit 50
     `,
-    // Bell entries for assigned issues only reach the issue managers
-    // (issues.manage), even if a stale row points `assigned_to` elsewhere.
-    sql<UnseenIssueItem[]>`
-      select id, title, created_at as "createdAt" from issues
-      where assigned_to = ${user.id} and is_seen = false
-        and exists (select 1 from profiles where id = ${user.id} and role::text = any(${[...CAP_ROLES['issues.manage']]}))
-      order by created_at desc limit 50
-    `,
+    loadFeed(user.id),
     sql<UnseenTaskItem[]>`
       select id, title, created_at as "createdAt" from tasks
       where assigned_to = ${user.id} and is_seen = false
@@ -77,5 +71,20 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
     `,
   ]);
 
-  return { unreadChats, unseenIssues, unseenTasks, unseenWarnings, unseenLessonPlanAlerts };
+  return { unreadChats, feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts };
+}
+
+/** Marks the given notifications (or all of mine) read. An "action needed"
+ * item stays in "Harakat kerak" until the thing itself is done — reading it
+ * only clears the unread dot. */
+export async function markNotificationsReadAction(ids: string[] | 'all'): Promise<boolean> {
+  const { user } = await getAuthState();
+  if (!user) return false;
+  const list = ids === 'all' ? null : ids.filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 200);
+  if (list && !list.length) return false;
+  const res = await sql`
+    update notifications set read_at = now()
+    where user_id = ${user.id} and read_at is null
+      ${list ? sql`and id = any(${sql.array(list)}::uuid[])` : sql``}`;
+  return res.count > 0;
 }

@@ -1,7 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
 import type { NavItem } from '@/lib/nav';
-import { CAP_ROLES } from '@/lib/permissions';
 
 /**
  * Single source of truth for which sidebar "new" dots should be lit for a
@@ -15,12 +14,12 @@ import { CAP_ROLES } from '@/lib/permissions';
 export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'][]> {
   const [[tasks], [issues], [companyNews], [chat], [warnings]] = await Promise.all([
     sql<{ count: number }[]>`select count(*)::int from tasks where assigned_to = ${userId} and is_seen = false`,
-    // Issue dots only for the issue managers (issues.manage) — never for
-    // someone else still carrying a stale `assigned_to` row.
+    // Murojaatlar (v8): an issue given to me I haven't opened yet, or a fix
+    // of mine waiting for my confirmation.
     sql<{ count: number }[]>`
       select count(*)::int from issues
-      where assigned_to = ${userId} and is_seen = false
-        and exists (select 1 from profiles where id = ${userId} and role::text = any(${[...CAP_ROLES['issues.manage']]}))
+      where (assigned_to = ${userId} and is_seen = false and status <> 'done')
+         or (created_by = ${userId} and status = 'done' and closed_at is null)
     `,
     sql<{ count: number }[]>`
       select count(*)::int from company_news cn

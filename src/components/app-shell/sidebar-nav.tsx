@@ -97,7 +97,7 @@ export function SidebarNav({
     <nav className="flex flex-col">
       {groups.map(({ group, items }) => (
         <div key={group} className="flex flex-col gap-0.5">
-          {group !== 'main' && (
+          {group !== 'daily' && (
             <p className="px-2.5 pt-4 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-au-muted uppercase">
               {tShell(`groups.${group}`)}
             </p>

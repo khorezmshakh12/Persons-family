@@ -8,7 +8,8 @@ import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
+import { escapeTelegramText, notifyUsers } from '@/lib/telegram';
+import { resolveActionNotifications } from '@/lib/notifications';
 import { DECISION_FLOW, DECISION_KIND_LABEL, DECISION_KINDS, DECISION_STATUSES, type DecisionStatus } from '@/lib/perforce-load';
 
 type Result = { error?: string };
@@ -132,11 +133,9 @@ async function requireLead(): Promise<{ id: string } | { error: string }> {
   return { id: user.id };
 }
 
-async function notify(userIds: string[], text: string) {
-  if (!userIds.length) return;
-  const rows = await sql<{ telegram_id: number | null }[]>`
-    select telegram_id from profiles where id = any(${sql.array(userIds)}::uuid[]) and is_active and telegram_id is not null`;
-  await sendTelegramManyAs('task', rows.map((r) => r.telegram_id), text).catch(() => {});
+/** Bell + Telegram (people without Telegram still see it in the bell). */
+async function notify(userIds: string[], text: string, opts: { action?: boolean; ref?: string } = {}) {
+  await notifyUsers('task', userIds, text, { href: '/perforce?tab=decisions', ...opts });
 }
 
 async function leaders(): Promise<string[]> {
@@ -342,6 +341,7 @@ export async function moveDecisionAction(input: z.input<typeof moveSchema>): Pro
     return { error: 'updateFailed' };
   }
   logSystemAction('pf.decision', `${id}: ${cr.status} → ${to}`);
+  if (to !== 'review') await resolveActionNotifications(`pfcr:${id}`);
   if ((to === 'approved' || to === 'rejected') && cr.author_id && cr.author_id !== g.id) {
     const author = cr.author_id;
     after(() =>

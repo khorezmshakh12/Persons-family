@@ -39,7 +39,18 @@ export type IssueStats = {
     stale: number;
     /** Not done and nobody assigned. */
     unassigned: number;
+    /** v8: deadlines passed — open past their deadline now, or resolved late. */
+    slaBreached: number;
+    /** Share of resolved issues (with a deadline) resolved in time, 0-100. */
+    slaOnTimePct: number | null;
+    /** Average reporter rating (1-5), 1 decimal. */
+    avgRating: number | null;
+    ratedCount: number;
+    /** Resolved issues the reporter sent back at least once, %. */
+    reopenPct: number | null;
+    awaitingConfirm: number;
   };
+  byKind: { kind: string; total: number; open: number }[];
   /** Not-done issues by age. */
   aging: { lt1: number; d1to3: number; d3to7: number; gt7: number };
   /** Last 6 Tashkent months, oldest → newest. */
@@ -73,6 +84,13 @@ export async function getIssueStatsAction(): Promise<{ data?: IssueStats; error?
           resolved_month: number;
           stale: number;
           unassigned: number;
+          sla_breached: number;
+          sla_due_resolved: number;
+          sla_on_time: number;
+          avg_rating: number | null;
+          rated: number;
+          reopened: number;
+          awaiting: number;
         }[]
       >`
         with m as (select (date_trunc('month', now() at time zone 'Asia/Tashkent')) at time zone 'Asia/Tashkent' as start)
@@ -87,7 +105,15 @@ export async function getIssueStatsAction(): Promise<{ data?: IssueStats; error?
           count(*) filter (where created_at >= (select start from m))::int as created_month,
           count(*) filter (where status = 'done' and resolved_at >= (select start from m))::int as resolved_month,
           count(*) filter (where status <> 'done' and created_at < now() - interval '7 days')::int as stale,
-          count(*) filter (where status <> 'done' and assigned_to is null)::int as unassigned
+          count(*) filter (where status <> 'done' and assigned_to is null)::int as unassigned,
+          count(*) filter (where (status <> 'done' and ((accepted_at is null and status = 'open' and respond_by < now()) or resolve_by < now()))
+                              or (status = 'done' and resolve_by is not null and resolved_at > resolve_by))::int as sla_breached,
+          count(*) filter (where status = 'done' and resolve_by is not null and resolved_at is not null)::int as sla_due_resolved,
+          count(*) filter (where status = 'done' and resolve_by is not null and resolved_at <= resolve_by)::int as sla_on_time,
+          avg(rating) filter (where rating is not null) as avg_rating,
+          count(*) filter (where rating is not null)::int as rated,
+          count(*) filter (where status = 'done' and reopen_count > 0)::int as reopened,
+          count(*) filter (where status = 'done' and closed_at is null)::int as awaiting
         from issues
       `,
       sql<{ lt1: number; d1to3: number; d3to7: number; gt7: number }[]>`
@@ -135,10 +161,14 @@ export async function getIssueStatsAction(): Promise<{ data?: IssueStats; error?
       sql<{ role: string; raised: number; resolved: number }[]>`
         select p.role::text as role, count(*)::int as raised, count(*) filter (where i.status = 'done')::int as resolved
         from issues i join profiles p on p.id = i.created_by
+        where not i.anonymous
         group by p.role
         order by count(*) desc
       `,
     ]);
+    const kinds = await sql<{ kind: string; total: number; open: number }[]>`
+      select kind, count(*)::int as total, count(*) filter (where status <> 'done')::int as open
+      from issues group by kind order by 2 desc`;
 
     const format = await getFormatter();
     return {
@@ -155,7 +185,14 @@ export async function getIssueStatsAction(): Promise<{ data?: IssueStats; error?
           resolvedThisMonth: o.resolved_month,
           stale: o.stale,
           unassigned: o.unassigned,
+          slaBreached: o.sla_breached,
+          slaOnTimePct: o.sla_due_resolved ? Math.round((o.sla_on_time / o.sla_due_resolved) * 100) : null,
+          avgRating: o.avg_rating == null ? null : Math.round(o.avg_rating * 10) / 10,
+          ratedCount: o.rated,
+          reopenPct: o.resolved ? Math.round((o.reopened / o.resolved) * 100) : null,
+          awaitingConfirm: o.awaiting,
         },
+        byKind: [...kinds],
         aging,
         byMonth: months.map((r) => ({
           monthKey: r.month_key,

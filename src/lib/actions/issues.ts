@@ -12,247 +12,177 @@ import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
-import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
+import { escapeTelegramText, notifyUsers, sendTelegramAs } from '@/lib/telegram';
+import { resolveActionNotifications } from '@/lib/notifications';
 import { can } from '@/lib/permissions';
+import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
+import type { StaffRole } from '@/lib/nav';
+import {
+  AUTO_CLOSE_DAYS,
+  deadlines,
+  ISSUE_KINDS,
+  KIND_META,
+  PRIORITIES,
+  PRIORITY_META,
+  STAGE_MOVES,
+  STAGES,
+  stageOf,
+  type IssueKind,
+  type Priority,
+  type Stage,
+} from '@/lib/issues-flow';
 
-// Issues is a CEO-managed board, but reporting is open to everyone: any
-// signed-in staff member may create an issue (it's auto-assigned to the
-// CEO) and read back the ones they raised. Managing the board — status
-// changes, text edits, deletion, the resolution-stats panel — stays
-// CEO-only. Every action below re-checks its own gate; the page's guard
-// only shapes what renders, not the POST endpoints underneath it.
+// Murojaatlar markazi (v8-A, 2026-10-10). Anyone may raise an issue; the
+// issue managers (issues.manage) run the queue, and — new in v8 — the person
+// an issue is assigned to works it too (accept, start, resolve, comment,
+// turn it into a task). The reporter confirms the fix or reopens it.
+// Editing the text, priority, kind, assignee and deleting stay with the
+// managers. Every action re-checks its own gate against the row.
+//
+// Anonymous ideas: `created_by` is stored (the reporter must be able to
+// follow and confirm their idea), but no read path ever hands the name or
+// id to anyone else — not even a manager.
 
-export type IssueActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
+export type IssueActionState = { error?: string; fieldErrors?: FieldErrors; id?: string } | undefined;
 
-/** Non-CEO reporters have no assignee picker — their issue always routes to
- * the active CEO. Null (issue created unassigned) only if there somehow
- * isn't one. */
+const isManager = (role: string | null | undefined) => can(role, 'issues.manage');
+const fullName = (p: { first_name: string | null; last_name: string | null }) =>
+  `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+const link = (id: string) => `/issues?id=${id}`;
+
+/** Non-manager reports route to the oldest active CEO (a stable pick). */
 async function ceoUserId(): Promise<string | null> {
-  // Deliberately the oldest active CEO (a stable pick), not "latest N".
   // eslint-disable-next-line no-restricted-syntax
   const [row] = await sql<{ id: string }[]>`
-    select id from profiles where role = 'ceo' and is_active = true order by created_at asc limit 1
+    select p.id from profiles p
+    where p.is_active and (p.role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = p.id and r.role = 'ceo'))
+    order by (p.role = 'ceo') desc, p.created_at asc limit 1
   `;
   return row?.id ?? null;
 }
 
-/** Notification to whoever the new issue lands on — the CEO for a staff
- * report, or the person the CEO delegated it to. Swallows its own errors,
- * so a Telegram hiccup can never affect the response to the person who
- * just submitted the issue (mirrors notifyTaskAssigned in actions/tasks.ts,
- * including why it is awaited inline instead of dispatched via `after()`). */
-async function notifyIssueAssigned({
-  title,
-  reporterName,
-  assigneeTelegramId,
-}: {
+async function requireViewer() {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return null;
+  return { userId: user.id, profile, manager: isManager(profile.role) };
+}
+
+type IssueCore = {
+  id: string;
   title: string;
-  reporterName: string;
-  assigneeTelegramId: number | null;
-}) {
-  if (!assigneeTelegramId) return;
+  status: string;
+  kind: IssueKind;
+  priority: Priority;
+  anonymous: boolean;
+  created_by: string;
+  assigned_to: string | null;
+  accepted_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  task_id: string | null;
+};
+
+async function loadCore(id: string): Promise<IssueCore | undefined> {
+  const [row] = await sql<IssueCore[]>`
+    select id, title, status, kind, priority, anonymous, created_by, assigned_to, accepted_at::text as accepted_at,
+           closed_at::text as closed_at, created_at::text as created_at, task_id
+    from issues where id = ${id}`;
+  return row;
+}
+
+async function logEvent(issueId: string, actorId: string | null, kind: string, note: string | null = null) {
   try {
-    const text = `Sizga yangi murojaat biriktirildi: <b>${escapeTelegramText(title)}</b>\nKimdan: ${escapeTelegramText(reporterName)}`;
-    await sendTelegramAs('issue', assigneeTelegramId, text);
+    await sql`insert into issue_events (issue_id, actor_id, kind, note) values (${issueId}, ${actorId}, ${kind}, ${note})`;
   } catch (error) {
-    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
+    console.error('issue event failed', error instanceof Error ? error.message : error);
   }
 }
 
+async function changed(assignees: (string | null)[] = []) {
+  await bumpBoardSignal('issues');
+  await Promise.all(assignees.filter((x): x is string => Boolean(x)).map((id) => bumpNavBadgeSignal(id).catch(() => {})));
+  revalidatePath('/[locale]/issues', 'page');
+}
+
+/* ------------------------------------------------------------ create */
+
 const createIssueSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(3).max(200),
   description: z.string().trim().max(2000).optional().or(z.literal('')),
-  // 'none' is the Select's sentinel value for "no assignee" (Base UI's
-  // Select doesn't take a plain empty-string item value).
+  kind: z.enum(ISSUE_KINDS).default('problem'),
+  priority: z.enum(PRIORITIES).default('normal'),
+  anonymous: z.enum(['on', 'off', '']).optional(),
   assignedTo: z.union([z.string().uuid(), z.literal('none'), z.literal('')]).optional(),
-  // Storage object path from requestIssueVoiceUploadUrlAction, not a URL —
-  // see the comment on the migration for why we persist the path and
-  // re-sign it on read instead of storing a signed URL directly.
   voiceUrl: z.string().max(500).optional().or(z.literal('')),
 });
 
-export async function createIssueAction(
-  _prevState: IssueActionState,
-  formData: FormData,
-): Promise<IssueActionState> {
-  const { user, profile } = await getAuthState();
-  if (!user || !profile) return { error: 'sessionExpired' };
-  const userId = user.id;
-  const isCeo = can(profile.role, 'issues.manage');
-
+export async function createIssueAction(_prev: IssueActionState, formData: FormData): Promise<IssueActionState> {
+  const v = await requireViewer();
+  if (!v) return { error: 'sessionExpired' };
   const parsed = createIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
+  const d = parsed.data;
+  const anonymous = d.kind === 'idea' && d.anonymous === 'on';
 
-  // The CEO may delegate to any active staff member, so the only server-side
-  // re-validation left is that the target actually exists and is active —
-  // the client's dropdown options are not a security boundary. A non-CEO
-  // reporter has no picker at all: whatever the form posts is ignored and
-  // the issue routes straight to the CEO.
+  // A manager may delegate straight away; anyone else's report goes to the CEO.
   let assignedTo: string | null = null;
-  if (isCeo) {
-    if (parsed.data.assignedTo && parsed.data.assignedTo !== 'none') {
-      const [target] = await sql<{ id: string }[]>`
-        select id from profiles where id = ${parsed.data.assignedTo} and is_active = true
-      `;
-      if (!target) return { error: 'invalidAssignee' };
-      assignedTo = target.id;
-    }
-  } else {
+  if (v.manager && d.assignedTo && d.assignedTo !== 'none') {
+    const [target] = await sql<{ id: string }[]>`select id from profiles where id = ${d.assignedTo} and is_active = true`;
+    if (!target) return { error: 'invalidAssignee' };
+    assignedTo = target.id;
+  } else if (!v.manager) {
     assignedTo = await ceoUserId();
   }
 
-  // Defense in depth: uploads are scoped to the uploader's own folder at
-  // signed-URL creation time, but double-check here too rather than
-  // trusting a client-supplied path unconditionally.
-  const voiceUrl =
-    parsed.data.voiceUrl && parsed.data.voiceUrl.startsWith(`${userId}/`) ? parsed.data.voiceUrl : null;
+  const voiceUrl = d.voiceUrl && d.voiceUrl.startsWith(`${v.userId}/`) ? d.voiceUrl : null;
+  const { respondBy, resolveBy } = deadlines(d.priority, d.kind, Date.now());
 
-  let newIssueId: string;
+  let id: string;
   try {
     const [row] = await sql<{ id: string }[]>`
-      insert into issues (created_by, title, description, assigned_to, voice_url)
-      values (${userId}, ${parsed.data.title}, ${parsed.data.description || null}, ${assignedTo}, ${voiceUrl})
-      returning id
-    `;
-    newIssueId = row.id;
-  } catch {
+      insert into issues (created_by, title, description, assigned_to, voice_url, kind, priority, anonymous, respond_by, resolve_by)
+      values (${v.userId}, ${d.title}, ${d.description || null}, ${assignedTo}, ${voiceUrl}, ${d.kind}, ${d.priority},
+              ${anonymous}, ${respondBy}, ${resolveBy})
+      returning id`;
+    id = row.id;
+  } catch (error) {
+    console.error('createIssueAction failed', error instanceof Error ? error.message : error);
     return { error: 'createFailed' };
   }
-  // AI triage (TypeSafe) after the response — never delays or fails the save.
+  await logEvent(id, anonymous ? null : v.userId, 'created');
   after(async () => {
-    if (await triageIssue(newIssueId)) await bumpBoardSignal('issues');
+    if (await triageIssue(id)) await bumpBoardSignal('issues');
   });
 
-  await bumpBoardSignal('issues');
-  if (assignedTo) await bumpNavBadgeSignal(assignedTo);
-
-  // The assignee's own Telegram id isn't on either branch above (the CEO
-  // path selects only `id`, and ceoUserId() likewise), so look it up once
-  // here. Skipped when the reporter assigned the issue to themselves —
-  // nobody needs a Telegram ping about their own submission.
-  if (assignedTo && assignedTo !== userId) {
-    const [assignee] = await sql<{ telegram_id: number | null }[]>`
-      select telegram_id from profiles where id = ${assignedTo}
-    `;
-    await notifyIssueAssigned({
-      title: parsed.data.title,
-      reporterName: `${profile.first_name} ${profile.last_name}`,
-      assigneeTelegramId: assignee?.telegram_id ?? null,
-    });
+  if (assignedTo && assignedTo !== v.userId) {
+    const who = anonymous ? 'Anonim' : escapeTelegramText(fullName(v.profile));
+    await notifyUsers(
+      'issue',
+      [assignedTo],
+      `📥 <b>Yangi murojaat</b> · ${KIND_META[d.kind].n} · ${PRIORITY_META[d.priority].n}\n«${escapeTelegramText(d.title)}»\nKimdan: ${who}\nJavob muddati: ${PRIORITY_META[d.priority].respondH} soat`,
+      { href: link(id), action: true, ref: `issue:${id}` },
+    );
   }
-
-  revalidatePath('/[locale]/issues', 'page');
-
-  return {};
+  await changed([assignedTo]);
+  return { id };
 }
 
 const uploadUrlSchema = z.object({ fileName: z.string().trim().min(1) });
 export type UploadUrlResult = { path?: string; url?: string; error?: string };
 
-/** Mirrors requestChatMediaUploadUrlAction's signed-upload-url pattern
- * exactly, targeting the dedicated issue-voice-notes bucket instead. */
+/** Signed upload URL for a voice note, scoped to the uploader's folder. */
 export async function requestIssueVoiceUploadUrlAction(fileName: string): Promise<UploadUrlResult> {
   const { user } = await getAuthState();
   if (!user) return { error: 'sessionExpired' };
-  const userId = user.id;
-
   const parsed = uploadUrlSchema.safeParse({ fileName });
   if (!parsed.success) return { error: 'invalidInput' };
-
   const sanitized = parsed.data.fileName.replace(/[^\w.\-]+/g, '_');
-  const path = `${userId}/${crypto.randomUUID()}-${sanitized}`;
-
+  const path = `${user.id}/${crypto.randomUUID()}-${sanitized}`;
   const url = await createSignedWriteUrl('issue-voice-notes', path, 'audio/webm');
   return { path, url };
 }
 
-const STATUSES = ['open', 'in_progress', 'done'] as const;
-
-const updateStatusSchema = z.object({
-  id: z.string().uuid(),
-  status: z.enum(STATUSES),
-});
-
-export type UpdateIssueStatusResult = { error?: string };
-
-/** Only the CEO can change the status of an issue — the Administrative
- * Manager's old carve-out (issues assigned to them) is gone along with the
- * rest of their Issues access. This app-layer check is the only thing
- * enforcing it (previously RLS/trigger-backed too). */
-export async function updateIssueStatusAction(formData: FormData): Promise<UpdateIssueStatusResult> {
-  let userId;
-  try {
-    ({
-      user: { id: userId },
-    } = await requireCap('issues.manage'));
-  } catch (error) {
-    return { error: authErrorCode(error) };
-  }
-
-  const parsed = updateStatusSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
-
-  // Fetch issue details before updating so we can notify the reporter
-  const [existing] = await sql<{ created_by: string; title: string }[]>`
-    select created_by, title from issues where id = ${parsed.data.id}
-  `;
-  if (!existing) return { error: 'invalidInput' };
-
-  try {
-    await sql`
-      update issues set
-        status = ${parsed.data.status},
-        resolved_by = ${parsed.data.status === 'done' ? userId : null},
-        resolved_at = ${parsed.data.status === 'done' ? new Date().toISOString() : null}
-      where id = ${parsed.data.id}
-    `;
-  } catch (error) {
-    console.error('updateIssueStatusAction failed', error instanceof Error ? error.message : error);
-    return { error: 'updateFailed' };
-  }
-
-  await bumpBoardSignal('issues');
-  logSystemAction('issue.status_change', `Moved issue ${parsed.data.id} to "${parsed.data.status}"`);
-
-  // Notify the reporter about the status change (after the response).
-  after(async () => {
-    try {
-      const [reporter] = await sql<{ telegram_id: number | null }[]>`
-        select telegram_id from profiles where id = ${existing.created_by}
-      `;
-      if (!reporter?.telegram_id) return;
-      const statusLabel = {
-        open: 'Ochilgan',
-        in_progress: 'Jarayonda',
-        done: 'Bajarildi',
-      }[parsed.data.status] || parsed.data.status;
-      const text = `<b>Murojaat yangilandi</b>\n<b>Murojaat:</b> ${escapeTelegramText(existing.title)}\n<b>Holati:</b> ${statusLabel}`;
-      await sendTelegramAs('issue', reporter.telegram_id, text);
-    } catch (error) {
-      console.error('Telegram notification failed:', error instanceof Error ? error.message : error);
-    }
-  });
-
-  revalidatePath('/[locale]/issues', 'page');
-  return {};
-}
-
-export type VisibleIssueRow = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: (typeof STATUSES)[number];
-  created_at: string;
-  created_by: string;
-  assigned_to: string | null;
-  voiceSignedUrl: string | null;
-  reporter: { first_name: string; last_name: string } | null;
-  assignee: { first_name: string; last_name: string } | null;
-  /** The issue's comment thread, oldest first — see loadIssueComments. */
-  comments: IssueComment[];
-  /** TypeSafe triage (lib/ai-triage.ts); null until/unless it has run. */
-  ai: IssueAi | null;
-};
+/* ------------------------------------------------------------ read */
 
 export type IssueAi = {
   category: string | null;
@@ -261,117 +191,201 @@ export type IssueAi = {
   itBug: number | null;
 };
 
-/** How the author relates to the issue, for the thread's role badge. The
- * CEO wins over everything else; then the assignee (the one doing the
- * work), then the reporter. `staff` only for someone who has since been
- * unassigned — the thread keeps what they wrote. */
-export type IssueCommentRole = 'ceo' | 'assignee' | 'author' | 'staff';
-
+export type IssueCommentRole = 'manager' | 'assignee' | 'author' | 'staff';
 export type IssueComment = {
   id: string;
   body: string;
   created_at: string;
-  /** Null once the author's profile has been removed (on delete set null). */
   author_id: string | null;
   authorName: string;
   authorRole: IssueCommentRole;
 };
+export type IssueEvent = { id: string; kind: string; note: string | null; actorName: string | null; created_at: string };
 
-type IssueCommentQueryRow = {
-  id: string;
-  issue_id: string;
-  body: string;
-  created_at: string;
-  author_id: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  role: string | null;
-};
-
-function toIssueComment(
-  row: IssueCommentQueryRow,
-  issue: { created_by: string; assigned_to: string | null },
-): IssueComment {
-  const authorRole: IssueCommentRole =
-    row.role === 'ceo'
-      ? 'ceo'
-      : row.author_id && row.author_id === issue.assigned_to
-        ? 'assignee'
-        : row.author_id && row.author_id === issue.created_by
-          ? 'author'
-          : 'staff';
-  return {
-    id: row.id,
-    body: row.body,
-    created_at: row.created_at,
-    author_id: row.author_id,
-    authorName: [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || '—',
-    authorRole,
-  };
-}
-
-/** Every comment on the given (already access-checked) issues in one query,
- * grouped by issue, oldest first. A read-only helper: a DB failure is logged
- * and degrades to empty threads rather than taking the board down. */
-async function loadIssueComments(issueIds: string[]): Promise<Map<string, IssueCommentQueryRow[]>> {
-  const byIssue = new Map<string, IssueCommentQueryRow[]>();
-  if (issueIds.length === 0) return byIssue;
-  try {
-    const rows = await sql<IssueCommentQueryRow[]>`
-      select c.id, c.issue_id, c.body, c.created_at, c.author_id,
-             p.first_name, p.last_name, p.role
-      from issue_comments c
-      left join profiles p on p.id = c.author_id
-      where c.issue_id in ${sql(issueIds)}
-      order by c.created_at, c.id
-    `;
-    for (const row of rows) {
-      const list = byIssue.get(row.issue_id);
-      if (list) list.push(row);
-      else byIssue.set(row.issue_id, [row]);
-    }
-  } catch (error) {
-    console.error('loadIssueComments failed', error instanceof Error ? error.message : error);
-  }
-  return byIssue;
-}
-
-const VOICE_URL_EXPIRY_SECONDS = 60 * 60;
-
-type IssueQueryRow = {
+export type CenterIssue = {
   id: string;
   title: string;
   description: string | null;
-  status: (typeof STATUSES)[number];
+  kind: IssueKind;
+  priority: Priority;
+  status: 'open' | 'in_progress' | 'done';
+  anonymous: boolean;
   created_at: string;
+  accepted_at: string | null;
+  resolved_at: string | null;
+  closed_at: string | null;
+  respond_by: string | null;
+  resolve_by: string | null;
+  confirmed: boolean | null;
+  rating: number | null;
+  reopen_count: number;
+  root_cause: string | null;
+  /** Null for an anonymous idea unless the viewer raised it. */
+  reporterId: string | null;
+  reporterName: string;
+  isMine: boolean;
+  assigned_to: string | null;
+  assigneeName: string | null;
+  task: { id: string; title: string; status: string; assigneeName: string | null } | null;
+  voiceSignedUrl: string | null;
+  ai: IssueAi | null;
+  comments: IssueComment[];
+  events: IssueEvent[];
+};
+export type IssuesCenter = { issues: CenterIssue[]; viewerId: string; manager: boolean };
+
+type Row = {
+  id: string;
+  title: string;
+  description: string | null;
+  kind: IssueKind;
+  priority: Priority;
+  status: CenterIssue['status'];
+  anonymous: boolean;
+  created_at: string;
+  accepted_at: string | null;
+  resolved_at: string | null;
+  closed_at: string | null;
+  respond_by: string | null;
+  resolve_by: string | null;
+  confirmed: boolean | null;
+  rating: number | null;
+  reopen_count: number;
+  root_cause: string | null;
   created_by: string;
   assigned_to: string | null;
   voice_url: string | null;
-  reporter_first_name: string | null;
-  reporter_last_name: string | null;
-  assignee_first_name: string | null;
-  assignee_last_name: string | null;
+  rep_first: string | null;
+  rep_last: string | null;
+  asg_first: string | null;
+  asg_last: string | null;
+  task_id: string | null;
+  task_title: string | null;
+  task_status: string | null;
+  task_first: string | null;
+  task_last: string | null;
 };
 
-async function toVisibleIssueRow(
-  row: IssueQueryRow,
-  comments: IssueCommentQueryRow[] = [],
-  ai: IssueAi | null = null,
-): Promise<VisibleIssueRow> {
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    status: row.status,
-    created_at: row.created_at,
-    created_by: row.created_by,
-    assigned_to: row.assigned_to,
-    voiceSignedUrl: row.voice_url ? await createSignedReadUrl('issue-voice-notes', row.voice_url, VOICE_URL_EXPIRY_SECONDS) : null,
-    reporter: row.reporter_first_name ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! } : null,
-    assignee: row.assignee_first_name ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! } : null,
-    comments: comments.map((c) => toIssueComment(c, row)),
-    ai,
-  };
+/**
+ * The center's data. Managers see every issue; anyone else the ones they
+ * raised or were given. Closed issues stay on the board for 14 days, then
+ * live in the archive. Re-derived whole on every board_signals/issues bump.
+ */
+export async function getIssuesCenterAction(): Promise<IssuesCenter | null> {
+  const v = await requireViewer();
+  if (!v) return null;
+  const scope = v.manager ? sql`true` : sql`(i.created_by = ${v.userId} or i.assigned_to = ${v.userId})`;
+  const rows = await sql<Row[]>`
+    select i.id, i.title, i.description, i.kind, i.priority, i.status, i.anonymous,
+           i.created_at::text as created_at, i.accepted_at::text as accepted_at, i.resolved_at::text as resolved_at,
+           i.closed_at::text as closed_at, i.respond_by::text as respond_by, i.resolve_by::text as resolve_by,
+           i.confirmed, i.rating, i.reopen_count, i.root_cause, i.created_by, i.assigned_to, i.voice_url,
+           r.first_name as rep_first, r.last_name as rep_last, a.first_name as asg_first, a.last_name as asg_last,
+           i.task_id, t.title as task_title, t.status::text as task_status, tp.first_name as task_first, tp.last_name as task_last
+    from issues i
+    left join profiles r on r.id = i.created_by
+    left join profiles a on a.id = i.assigned_to
+    left join tasks t on t.id = i.task_id
+    left join profiles tp on tp.id = t.assigned_to
+    where ${scope} and (i.closed_at is null or i.closed_at >= now() - interval '14 days')
+    order by i.created_at desc
+    limit 400`;
+  const ids = rows.map((r) => r.id);
+  const anonReporter = new Map(rows.filter((r) => r.anonymous).map((r) => [r.id, r.created_by]));
+  const [comments, events, ai] = await Promise.all([loadComments(ids), loadEvents(ids), loadIssueAi(ids)]);
+
+  const issues = await Promise.all(
+    rows.map(async (r): Promise<CenterIssue> => {
+      const isMine = r.created_by === v.userId;
+      const hide = r.anonymous && !isMine;
+      return {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        kind: r.kind,
+        priority: r.priority,
+        status: r.status,
+        anonymous: r.anonymous,
+        created_at: r.created_at,
+        accepted_at: r.accepted_at,
+        resolved_at: r.resolved_at,
+        closed_at: r.closed_at,
+        respond_by: r.respond_by,
+        resolve_by: r.resolve_by,
+        confirmed: r.confirmed,
+        rating: r.rating,
+        reopen_count: r.reopen_count,
+        root_cause: r.root_cause,
+        reporterId: hide ? null : r.created_by,
+        reporterName: hide ? 'Anonim' : fullName({ first_name: r.rep_first, last_name: r.rep_last }) || '—',
+        isMine,
+        assigned_to: r.assigned_to,
+        assigneeName: r.asg_first ? fullName({ first_name: r.asg_first, last_name: r.asg_last }) : null,
+        task: r.task_id
+          ? {
+              id: r.task_id,
+              title: r.task_title ?? '',
+              status: r.task_status ?? '',
+              assigneeName: r.task_first ? fullName({ first_name: r.task_first, last_name: r.task_last }) : null,
+            }
+          : null,
+        voiceSignedUrl: r.voice_url && !hide ? await createSignedReadUrl('issue-voice-notes', r.voice_url, 3600) : null,
+        ai: ai.get(r.id) ?? null,
+        comments: (comments.get(r.id) ?? []).map((c) => {
+          const byReporter = c.author_id === r.created_by;
+          const masked = byReporter && anonReporter.has(r.id) && !isMine;
+          return {
+            id: c.id,
+            body: c.body,
+            created_at: c.created_at,
+            author_id: masked ? null : c.author_id,
+            authorName: masked ? 'Anonim muallif' : fullName(c) || '—',
+            authorRole: byReporter ? 'author' : c.author_id === r.assigned_to ? 'assignee' : isManager(c.role) ? 'manager' : 'staff',
+          };
+        }),
+        events: (events.get(r.id) ?? []).map((e) => ({
+          id: e.id,
+          kind: e.kind,
+          note: e.note,
+          actorName: e.actor_id && e.actor_id === r.created_by && hide ? 'Anonim muallif' : e.actor_id ? fullName(e) || null : null,
+          created_at: e.created_at,
+        })),
+      };
+    }),
+  );
+  return { issues, viewerId: v.userId, manager: v.manager };
+}
+
+type CommentRow = { id: string; issue_id: string; body: string; created_at: string; author_id: string | null; first_name: string | null; last_name: string | null; role: string | null };
+async function loadComments(ids: string[]) {
+  const by = new Map<string, CommentRow[]>();
+  if (!ids.length) return by;
+  try {
+    const rows = await sql<CommentRow[]>`
+      select c.id, c.issue_id, c.body, c.created_at::text as created_at, c.author_id, p.first_name, p.last_name, p.role::text as role
+      from issue_comments c left join profiles p on p.id = c.author_id
+      where c.issue_id = any(${sql.array(ids)}::uuid[]) order by c.created_at, c.id`;
+    for (const r of rows) by.set(r.issue_id, [...(by.get(r.issue_id) ?? []), r]);
+  } catch (error) {
+    console.error('loadComments failed', error instanceof Error ? error.message : error);
+  }
+  return by;
+}
+
+type EventRow = { id: string; issue_id: string; kind: string; note: string | null; actor_id: string | null; first_name: string | null; last_name: string | null; created_at: string };
+async function loadEvents(ids: string[]) {
+  const by = new Map<string, EventRow[]>();
+  if (!ids.length) return by;
+  try {
+    const rows = await sql<EventRow[]>`
+      select e.id, e.issue_id, e.kind, e.note, e.actor_id, p.first_name, p.last_name, e.created_at::text as created_at
+      from issue_events e left join profiles p on p.id = e.actor_id
+      where e.issue_id = any(${sql.array(ids)}::uuid[]) order by e.created_at`;
+    for (const r of rows) by.set(r.issue_id, [...(by.get(r.issue_id) ?? []), r]);
+  } catch (error) {
+    console.error('loadEvents failed', error instanceof Error ? error.message : error);
+  }
+  return by;
 }
 
 async function loadIssueAi(ids: string[]): Promise<Map<string, IssueAi>> {
@@ -379,441 +393,390 @@ async function loadIssueAi(ids: string[]): Promise<Map<string, IssueAi>> {
   try {
     const rows = await sql<
       { issue_id: string; category: string | null; category_confidence: number | null; urgency: number | null; it_bug: number | null }[]
-    >`select issue_id, category, category_confidence, urgency, it_bug from issue_ai where issue_id = any(${ids}::uuid[])`;
+    >`select issue_id, category, category_confidence, urgency, it_bug from issue_ai where issue_id = any(${sql.array(ids)}::uuid[])`;
     return new Map(
       rows.map((r) => [r.issue_id, { category: r.category, categoryConfidence: r.category_confidence, urgency: r.urgency, itBug: r.it_bug }]),
     );
   } catch {
-    // Table not migrated yet / transient DB error: the board still renders.
     return new Map();
   }
 }
 
-/**
- * Re-fetch for IssuesBoard's live refresh, triggered whenever
- * board_signals/issues changes in Firestore — see getVisibleTasksAction's
- * comment in tasks.ts for why this re-derives the whole list rather than
- * patching one row. The CEO sees the whole board, so the only filter left
- * is the recency rule — a "done" issue resolved over a week ago drops off.
- * A non-CEO caller sees the issues they raised (created_by = self) plus any
- * the CEO delegated to them (assigned_to = self) — otherwise a delegated
- * issue triggered a Telegram ping and a nav badge for something the
- * assignee could never open. Same recency rule; still read-only for them. Unlike the old browser-side Realtime handler, this can
- * properly sign a fresh voice-note URL server-side instead of leaving it
- * null.
- */
-export async function getVisibleIssuesAction(): Promise<VisibleIssueRow[]> {
-  const { user, profile } = await getAuthState();
-  if (!user || !profile) return [];
-  const isCeo = can(profile.role, 'issues.manage');
+/* ------------------------------------------------------------ workflow */
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+const moveSchema = z.object({
+  id: z.string().uuid(),
+  to: z.enum(STAGES),
+  note: z.string().trim().max(1000).optional(),
+});
 
-  const rows = isCeo
-    ? await sql<IssueQueryRow[]>`
-        select
-          i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
-          reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
-          assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
-        from issues i
-        left join profiles reporter on reporter.id = i.created_by
-        left join profiles assignee on assignee.id = i.assigned_to
-        where i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo}
-        order by i.created_at desc
-      `
-    : await sql<IssueQueryRow[]>`
-        select
-          i.id, i.title, i.description, i.status, i.created_at, i.created_by, i.assigned_to, i.voice_url,
-          reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
-          assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
-        from issues i
-        left join profiles reporter on reporter.id = i.created_by
-        left join profiles assignee on assignee.id = i.assigned_to
-        where (i.created_by = ${user.id} or i.assigned_to = ${user.id})
-          and (i.status <> 'done' or i.resolved_at is null or i.resolved_at >= ${sevenDaysAgo})
-        order by i.created_at desc
-      `;
-
-  // Threads ride along with the board so everyone who can see an issue sees
-  // its conversation, and the live refresh (board_signals/issues, bumped by
-  // addIssueCommentAction too) picks new comments up for the other party.
-  const [comments, ai] = await Promise.all([loadIssueComments(rows.map((r) => r.id)), loadIssueAi(rows.map((r) => r.id))]);
-  return Promise.all(rows.map((row) => toVisibleIssueRow(row, comments.get(row.id), ai.get(row.id) ?? null)));
-}
-
-/**
- * Start of the current Asia/Tashkent calendar month, as a timestamptz — the
- * same fragment tasks.ts uses for its archive. The staff is in Tashkent and
- * the server clock is UTC, so a bare `date_trunc('month', now())` would roll
- * the month over five hours late and briefly file a new month's issue under
- * the archive.
- */
-const currentMonthStart = () =>
-  sql`date_trunc('month', now() at time zone 'Asia/Tashkent') at time zone 'Asia/Tashkent'`;
-
-export type ArchivedIssueRow = {
-  id: string;
-  title: string;
-  status: (typeof STATUSES)[number];
-  created_at: string;
-  resolved_at: string | null;
-  reporter: { first_name: string; last_name: string } | null;
-  assignee: { first_name: string; last_name: string } | null;
+const STAGE_TEXT: Partial<Record<Stage, string>> = {
+  accepted: '👀 Murojaatingiz qabul qilindi',
+  in_progress: '🛠 Murojaatingiz bo‘yicha ish boshlandi',
 };
 
-export type MonthlyIssueArchiveEntry = {
-  /** 'YYYY-MM', Asia/Tashkent. */
-  monthKey: string;
-  /** Month name localized to the caller's locale, e.g. "August 2026". */
-  label: string;
-  counts: {
-    /** Issues resolved in this month — the length of `issues`. */
-    resolved: number;
-    /** Issues *raised* in this month, resolved or not. Deliberately a wider
-     * set than `issues`: an issue raised in March and resolved in April
-     * counts towards March's "raised" and April's "resolved". */
-    raisedInMonth: number;
-  };
-  issues: ArchivedIssueRow[];
-};
-
-type ArchiveIssueQueryRow = {
-  id: string;
-  title: string;
-  status: (typeof STATUSES)[number];
-  created_at: string;
-  resolved_at: string | null;
-  resolved_month: string;
-  reporter_first_name: string | null;
-  reporter_last_name: string | null;
-  assignee_first_name: string | null;
-  assignee_last_name: string | null;
-};
-
-type RaisedMonthRow = { month_key: string; raised: number };
-
 /**
- * The past-months archive rendered under the Issues board, mirroring the
- * Tasks one. One entry per past Tashkent month that resolved at least one
- * issue, newest month first; the board itself only keeps recently-resolved
- * issues (see getVisibleIssuesAction), so this is where older history lives.
- *
- * Scoping is deliberately identical to getVisibleIssuesAction: the CEO sees
- * every issue, anyone else sees only the ones they raised
- * (`created_by = self`). The two query branches are spelled out in full
- * rather than composed from a nested `sql` fragment.
- *
- * A read-only action: DB failures are logged and degrade to an empty archive
- * rather than taking the page down.
+ * A manager or the assignee moves an issue along. Resolving needs a short
+ * "what was done" note and asks the reporter to confirm (or closes at once
+ * when the reporter is the one resolving). Guarded on the status it was
+ * read with, so two people clicking at once can't both apply.
  */
-export async function getMonthlyIssueArchiveAction(): Promise<MonthlyIssueArchiveEntry[]> {
-  const { user, profile } = await getAuthState();
-  if (!user || !profile) return [];
-  const isCeo = can(profile.role, 'issues.manage');
+export async function moveIssueAction(input: z.input<typeof moveSchema>): Promise<{ error?: string }> {
+  const v = await requireViewer();
+  if (!v) return { error: 'sessionExpired' };
+  const p = moveSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const { id, to } = p.data;
+  const note = p.data.note || null;
+  const i = await loadCore(id);
+  if (!i) return { error: 'notFound' };
+  if (!v.manager && i.assigned_to !== v.userId) return { error: 'forbidden' };
+  const from = stageOf(i);
+  if (!STAGE_MOVES[from].includes(to)) return { error: 'invalidTransition' };
+  if (to === 'resolved' && (!note || note.length < 3)) return { error: 'resolutionNote' };
 
-  let rows: ArchiveIssueQueryRow[];
-  let raisedRows: RaisedMonthRow[];
+  const reporterResolves = to === 'resolved' && i.created_by === v.userId;
+  // `status` alone can't tell new/accepted or resolved/closed apart — guard
+  // on the exact stage that was read, so a racing click never applies twice.
+  const guard =
+    from === 'new'
+      ? sql`status = 'open' and accepted_at is null`
+      : from === 'accepted'
+        ? sql`status = 'open' and accepted_at is not null`
+        : from === 'in_progress'
+          ? sql`status = 'in_progress'`
+          : from === 'resolved'
+            ? sql`status = 'done' and closed_at is null`
+            : sql`status = 'done' and closed_at is not null`;
+  // A finished linked task can't carry a reopened issue — unlink it.
+  const unlinkDoneTask = sql`task_id = case when exists (select 1 from tasks t where t.id = issues.task_id and t.status = 'done') then null else task_id end`;
+  const reopening = from === 'resolved' || from === 'closed';
+  const resolveBy = i.kind === 'idea' ? null : new Date(Date.now() + PRIORITY_META[i.priority].resolveH * 3_600_000).toISOString();
   try {
-    [rows, raisedRows] = await Promise.all([
-      isCeo
-        ? sql<ArchiveIssueQueryRow[]>`
-            select
-              i.id, i.title, i.status, i.created_at, i.resolved_at,
-              to_char(i.resolved_at at time zone 'Asia/Tashkent', 'YYYY-MM') as resolved_month,
-              reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
-              assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
-            from issues i
-            left join profiles reporter on reporter.id = i.created_by
-            left join profiles assignee on assignee.id = i.assigned_to
-            where i.status = 'done'
-              and i.resolved_at is not null
-              and i.resolved_at < ${currentMonthStart()}
-            order by i.resolved_at desc
-          `
-        : sql<ArchiveIssueQueryRow[]>`
-            select
-              i.id, i.title, i.status, i.created_at, i.resolved_at,
-              to_char(i.resolved_at at time zone 'Asia/Tashkent', 'YYYY-MM') as resolved_month,
-              reporter.first_name as reporter_first_name, reporter.last_name as reporter_last_name,
-              assignee.first_name as assignee_first_name, assignee.last_name as assignee_last_name
-            from issues i
-            left join profiles reporter on reporter.id = i.created_by
-            left join profiles assignee on assignee.id = i.assigned_to
-            where (i.created_by = ${user.id} or i.assigned_to = ${user.id})
-              and i.status = 'done'
-              and i.resolved_at is not null
-              and i.resolved_at < ${currentMonthStart()}
-            order by i.resolved_at desc
-          `,
-      isCeo
-        ? sql<RaisedMonthRow[]>`
-            select
-              to_char(i.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month_key,
-              count(*)::int as raised
-            from issues i
-            where i.created_at < ${currentMonthStart()}
-            group by month_key
-          `
-        : sql<RaisedMonthRow[]>`
-            select
-              to_char(i.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month_key,
-              count(*)::int as raised
-            from issues i
-            where i.created_by = ${user.id}
-              and i.created_at < ${currentMonthStart()}
-            group by month_key
-          `,
-    ]);
+    const res =
+      to === 'accepted'
+        ? await sql`update issues set status = 'open', accepted_at = coalesce(accepted_at, now())
+                    where id = ${id} and ${guard}`
+        : to === 'in_progress'
+          ? await sql`update issues set status = 'in_progress', accepted_at = coalesce(accepted_at, now()),
+                      resolved_at = null, resolved_by = null, closed_at = null, confirmed = null, rating = null,
+                      reopen_count = reopen_count + ${reopening ? 1 : 0},
+                      resolve_by = ${reopening ? resolveBy : sql`resolve_by`}, sla_warned = ${reopening ? null : sql`sla_warned`},
+                      ${reopening ? unlinkDoneTask : sql`task_id = task_id`}
+                      where id = ${id} and ${guard}`
+          : await sql`update issues set status = 'done', accepted_at = coalesce(accepted_at, now()),
+                      resolved_at = now(), resolved_by = ${v.userId},
+                      closed_at = ${reporterResolves ? sql`now()` : null}, confirmed = ${reporterResolves ? true : null}
+                      where id = ${id} and ${guard}`;
+    if (res.count === 0) return { error: 'conflict' };
   } catch (error) {
-    console.error(
-      'getMonthlyIssueArchiveAction failed',
-      error instanceof Error ? error.message : error,
-    );
-    return [];
+    console.error('moveIssueAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
   }
+  await logEvent(id, v.userId, reopening ? 'reopened' : to, note);
+  // The "new issue" action item is dealt with once someone picks it up.
+  await resolveActionNotifications(`issue:${id}`);
+  logSystemAction('issue.status_change', `Issue ${id}: ${from} → ${to}`);
 
-  const raisedByMonth = new Map(raisedRows.map((row) => [row.month_key, row.raised]));
-  const monthKeys = [...new Set(rows.map((row) => row.resolved_month))].sort((a, b) =>
-    b.localeCompare(a),
-  );
-
-  const format = await getFormatter();
-
-  return monthKeys.map((monthKey) => {
-    const issues = rows.filter((row) => row.resolved_month === monthKey);
-    return {
-      monthKey,
-      // Parsed and formatted as UTC on purpose: the key is already a Tashkent
-      // month, so re-applying a zone here could name the neighbouring month.
-      label: format.dateTime(new Date(`${monthKey}-01T00:00:00Z`), {
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'UTC',
-      }),
-      counts: {
-        resolved: issues.length,
-        raisedInMonth: raisedByMonth.get(monthKey) ?? 0,
-      },
-      issues: issues.map((row) => ({
-        id: row.id,
-        title: row.title,
-        status: row.status,
-        created_at: row.created_at,
-        resolved_at: row.resolved_at,
-        reporter: row.reporter_first_name
-          ? { first_name: row.reporter_first_name, last_name: row.reporter_last_name! }
-          : null,
-        assignee: row.assignee_first_name
-          ? { first_name: row.assignee_first_name, last_name: row.assignee_last_name! }
-          : null,
-      })),
-    };
-  });
+  if (i.created_by !== v.userId) {
+    const title = escapeTelegramText(i.title);
+    if (to === 'resolved')
+      await notifyUsers(
+        'issue',
+        [i.created_by],
+        `✅ <b>Murojaatingiz hal qilindi</b>\n«${title}»\nNima qilindi: ${escapeTelegramText(note ?? '')}\nIltimos, tasdiqlang: hal bo‘ldimi? (${AUTO_CLOSE_DAYS} kun ichida javob bo‘lmasa, avtomatik yopiladi)`,
+        { href: link(id), action: true, ref: `issue:${id}:confirm` },
+      );
+    else if (STAGE_TEXT[to] && !reopening) await notifyUsers('issue', [i.created_by], `${STAGE_TEXT[to]}\n«${title}»`, { href: link(id) });
+  }
+  if (reopening) await resolveActionNotifications(`issue:${id}:confirm`);
+  await changed([i.assigned_to]);
+  return {};
 }
+
+const confirmSchema = z.object({
+  id: z.string().uuid(),
+  ok: z.boolean(),
+  rating: z.number().int().min(1).max(5).optional(),
+  note: z.string().trim().max(1000).optional(),
+});
+
+/** The reporter's verdict on a resolved issue: "yes, fixed" (with an
+ * optional 1–5 rating) closes it; "no" (with a reason) sends it back to
+ * work with a fresh resolve deadline and tells the assignee and the CEO. */
+export async function confirmIssueAction(input: z.input<typeof confirmSchema>): Promise<{ error?: string }> {
+  const v = await requireViewer();
+  if (!v) return { error: 'sessionExpired' };
+  const p = confirmSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const { id, ok, rating } = p.data;
+  const note = p.data.note || null;
+  const i = await loadCore(id);
+  if (!i) return { error: 'notFound' };
+  if (i.created_by !== v.userId) return { error: 'forbidden' };
+  if (stageOf(i) !== 'resolved') return { error: 'invalidTransition' };
+  if (!ok && (!note || note.length < 3)) return { error: 'reopenReason' };
+
+  const resolveBy = i.kind === 'idea' ? null : new Date(Date.now() + PRIORITY_META[i.priority].resolveH * 3_600_000).toISOString();
+  try {
+    const res = ok
+      ? await sql`update issues set closed_at = now(), confirmed = true, rating = ${rating ?? null}
+                  where id = ${id} and status = 'done' and closed_at is null`
+      : await sql`update issues set status = 'in_progress', resolved_at = null, resolved_by = null, confirmed = false,
+                  reopen_count = reopen_count + 1, resolve_by = ${resolveBy}, sla_warned = null,
+                  task_id = case when exists (select 1 from tasks t where t.id = issues.task_id and t.status = 'done') then null else task_id end
+                  where id = ${id} and status = 'done' and closed_at is null`;
+    if (res.count === 0) return { error: 'conflict' };
+  } catch (error) {
+    console.error('confirmIssueAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+  const actor = i.anonymous ? null : v.userId;
+  await logEvent(id, actor, ok ? 'confirmed' : 'rejected_fix', ok ? (rating ? `Baho: ${rating}/5` : null) : note);
+  await resolveActionNotifications(`issue:${id}:confirm`, [v.userId]);
+  if (!ok) {
+    const ceo = await ceoUserId().catch(() => null);
+    await notifyUsers(
+      'issue',
+      [i.assigned_to, ceo].filter((x) => x && x !== v.userId),
+      `↩️ <b>Murojaat qayta ochildi</b> — muallif hal bo‘lmadi dedi\n«${escapeTelegramText(i.title)}»\nSabab: ${escapeTelegramText(note ?? '')}`,
+      { href: link(id), action: true, ref: `issue:${id}` },
+    );
+  }
+  await changed([i.assigned_to]);
+  return {};
+}
+
+const metaSchema = z.object({
+  id: z.string().uuid(),
+  priority: z.enum(PRIORITIES).optional(),
+  kind: z.enum(ISSUE_KINDS).optional(),
+  assignedTo: z.string().uuid().nullable().optional(),
+  rootCause: z.string().trim().max(1000).optional(),
+});
+
+/** Manager-only triage edits: priority (deadlines recomputed from when the
+ * issue was raised), kind, assignee (the new one is told), root cause. */
+export async function setIssueMetaAction(input: z.input<typeof metaSchema>): Promise<{ error?: string }> {
+  let actorId: string;
+  try {
+    ({ user: { id: actorId } } = await requireCap('issues.manage'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = metaSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const d = p.data;
+  const i = await loadCore(d.id);
+  if (!i) return { error: 'notFound' };
+  const kind = d.kind ?? i.kind;
+  if (i.anonymous && kind !== 'idea') return { error: 'anonymousIdea' };
+  const priority = d.priority ?? i.priority;
+  if (d.assignedTo) {
+    const [t] = await sql<{ id: string }[]>`select id from profiles where id = ${d.assignedTo} and is_active`;
+    if (!t) return { error: 'invalidAssignee' };
+  }
+  const reDeadline = d.priority !== undefined || d.kind !== undefined;
+  const dl = deadlines(priority, kind, Date.parse(i.created_at));
+  try {
+    await sql`
+      update issues set
+        priority = ${priority}, kind = ${kind},
+        respond_by = ${reDeadline ? dl.respondBy : sql`respond_by`},
+        resolve_by = ${reDeadline ? dl.resolveBy : sql`resolve_by`},
+        sla_warned = ${reDeadline ? null : sql`sla_warned`},
+        assigned_to = ${d.assignedTo !== undefined ? d.assignedTo : sql`assigned_to`},
+        is_seen = ${d.assignedTo !== undefined && d.assignedTo !== i.assigned_to ? false : sql`is_seen`},
+        root_cause = ${d.rootCause !== undefined ? d.rootCause || null : sql`root_cause`}
+      where id = ${d.id}`;
+  } catch (error) {
+    console.error('setIssueMetaAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+  if (d.priority && d.priority !== i.priority) await logEvent(d.id, actorId, 'priority', PRIORITY_META[d.priority].n);
+  if (d.kind && d.kind !== i.kind) await logEvent(d.id, actorId, 'kind', KIND_META[d.kind].n);
+  if (d.rootCause !== undefined) await logEvent(d.id, actorId, 'root_cause', d.rootCause || null);
+  if (d.assignedTo !== undefined && d.assignedTo !== i.assigned_to) {
+    if (i.assigned_to) await resolveActionNotifications(`issue:${d.id}`, [i.assigned_to]);
+    const [who] = d.assignedTo ? await sql<{ first_name: string | null; last_name: string | null }[]>`select first_name, last_name from profiles where id = ${d.assignedTo}` : [];
+    await logEvent(d.id, actorId, 'assigned', who ? fullName(who) : 'Hech kim');
+    if (d.assignedTo && d.assignedTo !== actorId)
+      await notifyUsers(
+        'issue',
+        [d.assignedTo],
+        `📌 <b>Sizga murojaat topshirildi</b> · ${PRIORITY_META[priority].n}\n«${escapeTelegramText(i.title)}»\nQabul qiling va hal qilgach «Hal qilindi» deb belgilang.`,
+        { href: link(d.id), action: true, ref: `issue:${d.id}` },
+      );
+  }
+  await changed([i.assigned_to, d.assignedTo ?? null]);
+  return {};
+}
+
+const toTaskSchema = z.object({
+  id: z.string().uuid(),
+  assigneeId: z.string().uuid(),
+  deadline: z.string().datetime({ offset: true }),
+});
+
+/** Turns an issue into a Tasks task (manager or the assignee, and only if
+ * they may assign tasks to that person). The issue moves to "Jarayonda";
+ * when the task is completed the issue resolves itself and the reporter is
+ * asked to confirm (syncIssuesForTask in lib/issues-sync.ts). */
+export async function issueToTaskAction(input: z.input<typeof toTaskSchema>): Promise<{ error?: string; taskId?: string }> {
+  const v = await requireViewer();
+  if (!v) return { error: 'sessionExpired' };
+  const p = toTaskSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const i = await loadCore(p.data.id);
+  if (!i) return { error: 'notFound' };
+  if (!v.manager && i.assigned_to !== v.userId) return { error: 'forbidden' };
+  if (i.task_id) return { error: 'alreadyLinked' };
+  if (i.status === 'done') return { error: 'invalidTransition' };
+  const [target] = await sql<{ id: string; role: StaffRole; telegram_id: number | null }[]>`
+    select id, role, telegram_id from profiles where id = ${p.data.assigneeId} and is_active`;
+  if (!target) return { error: 'invalidAssignee' };
+  if (target.id !== v.userId && !allowedTaskAssigneeRoles(v.profile.role as StaffRole).includes(target.role)) return { error: 'cannotAssign' };
+  if (Date.parse(p.data.deadline) <= Date.now()) return { error: 'deadlinePast' };
+
+  const [full] = await sql<{ description: string | null }[]>`select description from issues where id = ${i.id}`;
+  let taskId: string;
+  try {
+    taskId = await sql.begin(async (tx) => {
+      const [t] = await tx<{ id: string }[]>`
+        insert into tasks (title, description, assigned_to, assigned_by, deadline, star_reward, star_penalty, requires_proof)
+        values (${`Murojaat: ${i.title}`.slice(0, 200)}, ${[full?.description, 'Murojaatlar bo‘limidan yaratilgan.'].filter(Boolean).join('\n\n')},
+                ${target.id}, ${v.userId}, ${p.data.deadline}, 0, 0, false)
+        returning id`;
+      const res = await tx`
+        update issues set task_id = ${t.id}, status = 'in_progress', accepted_at = coalesce(accepted_at, now())
+        where id = ${i.id} and task_id is null and status <> 'done'`;
+      if (res.count === 0) throw new Error('conflict');
+      return t.id;
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'conflict') return { error: 'conflict' };
+    console.error('issueToTaskAction failed', error instanceof Error ? error.message : error);
+    return { error: 'createFailed' };
+  }
+  await logEvent(i.id, v.userId, 'task_linked', `Vazifa: ${i.title}`);
+  await resolveActionNotifications(`issue:${i.id}`);
+  await bumpBoardSignal('tasks');
+  if (target.id !== v.userId && target.telegram_id)
+    await sendTelegramAs('task', target.telegram_id, `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(`Murojaat: ${i.title}`)}</b>`, {
+      record: false,
+    }).catch(() => {});
+  await changed([target.id, i.assigned_to]);
+  return { taskId };
+}
+
+/* ------------------------------------------------------------ manager edits */
 
 const deleteIssueSchema = z.object({ id: z.string().uuid() });
-
 export type DeleteIssueResult = { error?: string };
 
-/** CEO-only, at any status. */
+/** Managers only, at any stage. */
 export async function deleteIssueAction(formData: FormData): Promise<DeleteIssueResult> {
   try {
     await requireCap('issues.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
-
   const parsed = deleteIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-
-  const [issue] = await sql<{ id: string }[]>`select id from issues where id = ${parsed.data.id}`;
-  if (!issue) return { error: 'notFound' };
-
   try {
-    await sql`delete from issues where id = ${parsed.data.id}`;
+    const res = await sql`delete from issues where id = ${parsed.data.id}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch (error) {
     console.error('deleteIssueAction failed', error instanceof Error ? error.message : error);
     return { error: 'deleteFailed' };
   }
-
-  await bumpBoardSignal('issues');
+  await resolveActionNotifications(`issue:${parsed.data.id}`);
+  await resolveActionNotifications(`issue:${parsed.data.id}:confirm`);
   logSystemAction('issue.delete', `Deleted issue ${parsed.data.id}`);
-
-  revalidatePath('/[locale]/issues', 'page');
+  await changed();
   return {};
 }
 
 const updateIssueSchema = z.object({
   id: z.string().uuid(),
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(3).max(200),
   description: z.string().trim().max(2000).optional().or(z.literal('')),
 });
 
-/** Text-only edit, CEO-only like the rest of the module. Everything else
- * (status, assignee, voice note) goes through the other board actions —
- * this action only ever touches title/description. */
-export async function updateIssueAction(
-  _prevState: IssueActionState,
-  formData: FormData,
-): Promise<IssueActionState> {
+/** Text-only edit — managers only. */
+export async function updateIssueAction(_prev: IssueActionState, formData: FormData): Promise<IssueActionState> {
   try {
     await requireCap('issues.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
-
   const parsed = updateIssueSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
-
-  const [issue] = await sql<{ id: string }[]>`select id from issues where id = ${parsed.data.id}`;
-  if (!issue) return { error: 'notFound' };
-
   try {
-    await sql`
+    const res = await sql`
       update issues set title = ${parsed.data.title}, description = ${parsed.data.description || null}
-      where id = ${parsed.data.id}
-    `;
+      where id = ${parsed.data.id}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch (error) {
     console.error('updateIssueAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
   }
-
-  await bumpBoardSignal('issues');
-
-  // Title/description changed → refresh the AI triage after the response.
   const editedId = parsed.data.id;
   after(async () => {
     if (await triageIssue(editedId)) await bumpBoardSignal('issues');
   });
-  revalidatePath('/[locale]/issues', 'page');
+  await changed();
   return {};
 }
 
-/** Telegram ping to the other side of an issue thread. Swallows its own
- * errors — a Telegram hiccup must never fail the comment itself (same
- * reasoning as notifyIssueAssigned, including why it is awaited inline). */
-async function notifyIssueComment({
-  recipientIds,
-  title,
-  authorName,
-  body,
-}: {
-  recipientIds: string[];
-  title: string;
-  authorName: string;
-  body: string;
-}) {
-  if (recipientIds.length === 0) return;
-  try {
-    const recipients = await sql<{ telegram_id: number | null }[]>`
-      select telegram_id from profiles where id in ${sql(recipientIds)} and is_active = true
-    `;
-    const preview = body.length > 300 ? `${body.slice(0, 300)}…` : body;
-    const text = `Murojaatga yangi izoh: <b>${escapeTelegramText(title)}</b>\n${escapeTelegramText(authorName)}: ${escapeTelegramText(preview)}`;
-    await Promise.all(
-      recipients
-        .filter((r): r is { telegram_id: number } => Boolean(r.telegram_id))
-        .map((r) => sendTelegramAs('issue', r.telegram_id, text)),
-    );
-  } catch (error) {
-    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
-  }
-}
+/* ------------------------------------------------------------ comments */
 
 const addIssueCommentSchema = z.object({
   issueId: z.string().uuid(),
   body: z.string().trim().min(1).max(2000),
 });
 
-export type AddIssueCommentState = { error?: string; comment?: IssueComment } | undefined;
-
-/**
- * Adds a comment to an issue's thread. The CEO may comment on any issue
- * (an instruction or a question); otherwise only the person who raised the
- * issue or the one it is assigned to may reply — exactly the set of people
- * getVisibleIssuesAction shows the issue to. Re-checked here against the
- * row itself; the composer being visible on the card is not the boundary.
- */
-export async function addIssueCommentAction(
-  _prevState: AddIssueCommentState,
-  formData: FormData,
-): Promise<AddIssueCommentState> {
-  const { user, profile } = await getAuthState();
-  if (!user || !profile) return { error: 'sessionExpired' };
-  const isCeo = can(profile.role, 'issues.manage');
-
-  const parsed = addIssueCommentSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'commentInvalid' };
-
-  let issue: { id: string; title: string; created_by: string; assigned_to: string | null } | undefined;
+/** A comment from a manager, the reporter or the assignee. The other side
+ * is told; an anonymous reporter's name never leaves the server. */
+export async function addIssueCommentAction(input: z.input<typeof addIssueCommentSchema>): Promise<{ error?: string }> {
+  const v = await requireViewer();
+  if (!v) return { error: 'sessionExpired' };
+  const p = addIssueCommentSchema.safeParse(input);
+  if (!p.success) return { error: 'commentInvalid' };
+  const i = await loadCore(p.data.issueId);
+  if (!i) return { error: 'notFound' };
+  if (!v.manager && i.created_by !== v.userId && i.assigned_to !== v.userId) return { error: 'forbidden' };
   try {
-    [issue] = await sql<{ id: string; title: string; created_by: string; assigned_to: string | null }[]>`
-      select id, title, created_by, assigned_to from issues where id = ${parsed.data.issueId}
-    `;
-  } catch (error) {
-    console.error('addIssueCommentAction lookup failed', error instanceof Error ? error.message : error);
-    return { error: 'commentFailed' };
-  }
-  if (!issue) return { error: 'notFound' };
-  if (!isCeo && issue.created_by !== user.id && issue.assigned_to !== user.id) {
-    return { error: 'forbidden' };
-  }
-
-  let inserted: { id: string; created_at: string } | undefined;
-  try {
-    [inserted] = await sql<{ id: string; created_at: string }[]>`
-      insert into issue_comments (issue_id, author_id, body)
-      values (${issue.id}, ${user.id}, ${parsed.data.body})
-      returning id, created_at
-    `;
+    await sql`insert into issue_comments (issue_id, author_id, body) values (${i.id}, ${v.userId}, ${p.data.body})`;
   } catch (error) {
     console.error('addIssueCommentAction failed', error instanceof Error ? error.message : error);
     return { error: 'commentFailed' };
   }
-  if (!inserted) return { error: 'commentFailed' };
-
-  await bumpBoardSignal('issues');
-
-  // The CEO's comment goes to the reporter and the assignee; a reply from
-  // either of them goes to the other one and to the CEO.
-  const recipients = new Set<string>([issue.created_by]);
-  if (issue.assigned_to) recipients.add(issue.assigned_to);
-  if (!isCeo) {
-    const ceoId = await ceoUserId().catch(() => null);
-    if (ceoId) recipients.add(ceoId);
+  const recipients = new Set<string>([i.created_by]);
+  if (i.assigned_to) recipients.add(i.assigned_to);
+  if (!v.manager) {
+    const ceo = await ceoUserId().catch(() => null);
+    if (ceo) recipients.add(ceo);
   }
-  recipients.delete(user.id);
-  await notifyIssueComment({
-    recipientIds: [...recipients],
-    title: issue.title,
-    authorName: `${profile.first_name} ${profile.last_name}`.trim(),
-    body: parsed.data.body,
-  });
-
-  revalidatePath('/[locale]/issues', 'page');
-  return {
-    comment: toIssueComment(
-      {
-        id: inserted.id,
-        issue_id: issue.id,
-        body: parsed.data.body,
-        created_at: inserted.created_at,
-        author_id: user.id,
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        role: profile.role,
-      },
-      issue,
-    ),
-  };
+  recipients.delete(v.userId);
+  const author = i.anonymous && i.created_by === v.userId ? 'Anonim muallif' : fullName(v.profile);
+  const body = p.data.body.length > 300 ? `${p.data.body.slice(0, 300)}…` : p.data.body;
+  await notifyUsers(
+    'issue',
+    [...recipients],
+    `💬 <b>Murojaatga izoh</b>: «${escapeTelegramText(i.title)}»\n${escapeTelegramText(author)}: ${escapeTelegramText(body)}`,
+    { href: link(i.id) },
+  );
+  await changed();
+  return {};
 }
 
-/** CEO: run TypeSafe triage for issues that have none yet — open ones
- * first, then history (backfill / retry). Bounded so one click can't run long. */
+/** Manager: run TypeSafe triage for issues that have none yet — open ones
+ * first, then history. Bounded so one click can't run long. */
 export async function triageOpenIssuesAction(): Promise<{ error?: string; done?: number }> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
-  if (!can(profile.role, 'issues.manage')) return { error: 'forbidden' };
+  if (!isManager(profile.role)) return { error: 'forbidden' };
   let ids: { id: string }[];
   try {
     ids = await sql<{ id: string }[]>`
@@ -823,8 +786,6 @@ export async function triageOpenIssuesAction(): Promise<{ error?: string; done?:
   } catch {
     return { error: 'loadFailed' };
   }
-  // Open issues first, then the resolved history (owner, 2026-10-06: the
-  // category breakdown was mostly "aniqlanmagan"). Five Jev calls at a time.
   let done = 0;
   for (let k = 0; k < ids.length; k += 5) {
     const ok = await Promise.all(ids.slice(k, k + 5).map(({ id }) => triageIssue(id)));
@@ -835,4 +796,90 @@ export async function triageOpenIssuesAction(): Promise<{ error?: string; done?:
     revalidatePath('/[locale]/issues', 'page');
   }
   return { done };
+}
+
+/* ------------------------------------------------------------ archive */
+
+export type ArchivedIssueRow = {
+  id: string;
+  title: string;
+  kind: IssueKind;
+  created_at: string;
+  resolved_at: string | null;
+  rating: number | null;
+  reporterName: string;
+  assigneeName: string | null;
+};
+export type MonthlyIssueArchiveEntry = {
+  /** 'YYYY-MM', Asia/Tashkent. */
+  monthKey: string;
+  label: string;
+  counts: { resolved: number; raisedInMonth: number };
+  issues: ArchivedIssueRow[];
+};
+
+/** Closed issues by the Tashkent month they were resolved in (the board
+ * keeps 14 days). Scoped like the board. */
+export async function getMonthlyIssueArchiveAction(): Promise<MonthlyIssueArchiveEntry[]> {
+  const v = await requireViewer();
+  if (!v) return [];
+  const scope = v.manager ? sql`true` : sql`(i.created_by = ${v.userId} or i.assigned_to = ${v.userId})`;
+  try {
+    const [rows, raised] = await Promise.all([
+      sql<
+        {
+          id: string;
+          title: string;
+          kind: IssueKind;
+          anonymous: boolean;
+          created_by: string;
+          created_at: string;
+          resolved_at: string | null;
+          rating: number | null;
+          month: string;
+          rf: string | null;
+          rl: string | null;
+          af: string | null;
+          al: string | null;
+        }[]
+      >`
+        select i.id, i.title, i.kind, i.anonymous, i.created_by, i.created_at::text as created_at, i.resolved_at::text as resolved_at, i.rating,
+               to_char(i.resolved_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month,
+               r.first_name as rf, r.last_name as rl, a.first_name as af, a.last_name as al
+        from issues i
+        left join profiles r on r.id = i.created_by
+        left join profiles a on a.id = i.assigned_to
+        where ${scope} and i.status = 'done' and i.closed_at is not null and i.resolved_at is not null
+          and i.closed_at < now() - interval '14 days'
+        order by i.resolved_at desc
+        limit 1000`,
+      sql<{ month: string; n: number }[]>`
+        select to_char(i.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month, count(*)::int as n
+        from issues i where ${scope} group by 1`,
+    ]);
+    const raisedBy = new Map(raised.map((r) => [r.month, r.n]));
+    const months = [...new Set(rows.map((r) => r.month))].sort((a, b) => b.localeCompare(a));
+    const format = await getFormatter();
+    return months.map((m) => {
+      const list = rows.filter((r) => r.month === m);
+      return {
+        monthKey: m,
+        label: format.dateTime(new Date(`${m}-01T00:00:00Z`), { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+        counts: { resolved: list.length, raisedInMonth: raisedBy.get(m) ?? 0 },
+        issues: list.map((r) => ({
+          id: r.id,
+          title: r.title,
+          kind: r.kind,
+          created_at: r.created_at,
+          resolved_at: r.resolved_at,
+          rating: r.rating,
+          reporterName: r.anonymous && r.created_by !== v.userId ? 'Anonim' : fullName({ first_name: r.rf, last_name: r.rl }) || '—',
+          assigneeName: r.af ? fullName({ first_name: r.af, last_name: r.al }) : null,
+        })),
+      };
+    });
+  } catch (error) {
+    console.error('getMonthlyIssueArchiveAction failed', error instanceof Error ? error.message : error);
+    return [];
+  }
 }

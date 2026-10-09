@@ -32,6 +32,7 @@ export async function remindWeeklyStatus(now = new Date()): Promise<number> {
       'task',
       r.telegram_id!,
       `📝 <b>Haftalik holat</b>: «${escapeTelegramText(r.name)}»\nBugun juma — 3 savolga javob bering (2 daqiqa): nima qilindi, nima to‘sqinlik qilyapti, keyingi hafta nima.\nPerforce › Haftalik holat`,
+      { href: '/perforce?tab=status' },
     ).catch(() => {});
     sent++;
   }
@@ -55,6 +56,7 @@ export async function remindRiskReviews(now = new Date()): Promise<number> {
       'task',
       r.telegram_id!,
       `⚠️ <b>Xavfni qayta ko‘rish vaqti</b>: «${escapeTelegramText(r.title)}» (ball ${riskScore(r)})\nHolatini yangilang yoki yangi sana qo‘ying: Perforce › Xavflar`,
+      { href: '/perforce?tab=risks' },
     ).catch(() => {});
     sent++;
   }

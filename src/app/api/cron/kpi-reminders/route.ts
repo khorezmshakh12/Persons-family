@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { remindRiskReviews } from '@/lib/perforce-reminders';
+import { pruneNotifications } from '@/lib/notifications';
 import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
 import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
@@ -109,6 +110,7 @@ async function handle(req: NextRequest): Promise<Response> {
       await sendTelegramAs('kpi', 
         r.telegram_id,
         `🎯 Haftalik OKR check-in: quyidagi key result’lar bo‘yicha bu hafta holat kiritilmagan:\n${list}\nPlatforma › Strategiya › OKR`,
+        { href: '/strategy' },
       ).catch(() => {});
     }
     sent.push('okr_checkin');
@@ -119,7 +121,9 @@ async function handle(req: NextRequest): Promise<Response> {
     console.error('remindRiskReviews failed', error instanceof Error ? error.message : error);
     return 0;
   });
-  return NextResponse.json({ ok: true, sent, riskNudges });
+  // Bildirishnomalar: 90-day retention.
+  const pruned = await pruneNotifications().catch(() => 0);
+  return NextResponse.json({ ok: true, sent, riskNudges, pruned });
 }
 
 export const GET = withCronLog('kpi-reminders', handle);

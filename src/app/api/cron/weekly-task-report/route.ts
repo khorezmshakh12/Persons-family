@@ -106,7 +106,7 @@ async function handle(req: NextRequest): Promise<Response> {
       const chatId = Number(employee.telegram_id);
       if (Number.isFinite(chatId)) {
         try {
-          await sendTelegramAs('report', chatId, formatEmployeeWarning(name, stats, weekLabel));
+          await sendTelegramAs('report', chatId, formatEmployeeWarning(name, stats, weekLabel), { href: '/tasks' });
           warned = true;
           warnedCount += 1;
         } catch (error) {
@@ -176,7 +176,7 @@ async function handle(req: NextRequest): Promise<Response> {
       members.map((m) => m.line),
     );
     try {
-      await sendTelegramManyAs('report', ceoChatIds, text);
+      await sendTelegramManyAs('report', ceoChatIds, text, { record: false });
       groupsSent += 1;
     } catch (error) {
       // sendTelegramMessageToMany already swallows per-recipient failures;
@@ -209,7 +209,7 @@ async function handle(req: NextRequest): Promise<Response> {
     ]
       .filter(Boolean)
       .join('\n');
-    await sendTelegramManyAs('report', ceoChatIds, text);
+    await sendTelegramManyAs('report', ceoChatIds, text, { href: '/report' });
     summarySent = true;
   } catch (error) {
     console.error('Weekly team summary failed', error instanceof Error ? error.message : error);

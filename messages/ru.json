@@ -1805,9 +1805,11 @@
     "subtitle": "Education Platform",
     "root": "Persons",
     "groups": {
-      "motivation": "Мотивация",
-      "workflow": "Рабочий процесс",
-      "management": "Управление"
+      "daily": "Ежедневно",
+      "me": "Моё",
+      "team": "Команда",
+      "manage": "Управление",
+      "system": "Система"
     },
     "search": "Сотрудник, группа или обращение…",
     "starBalance": "Баланс звёзд",

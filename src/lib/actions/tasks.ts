@@ -24,6 +24,7 @@ import {
 } from '@/lib/task-status';
 import { createSignedWriteUrl } from '@/lib/gcp/storage';
 import { tashkentDayKey } from '@/lib/time';
+import { syncIssuesForTask } from '@/lib/issues-sync';
 
 export type TaskActionState = { error?: string } | undefined;
 
@@ -103,7 +104,8 @@ async function notifyTaskAssigned({
       timeZone: 'Asia/Tashkent',
     });
     const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}\nMuddati: ${escapeTelegramText(deadlineLabel)}`;
-    await sendTelegramAs('task', assigneeTelegramId, text);
+    // The bell already lists unseen new tasks (is_seen) — Telegram only.
+    await sendTelegramAs('task', assigneeTelegramId, text, { record: false });
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -575,6 +577,8 @@ async function finalizeTaskDone(
     deadline: existing.deadline,
     completedInstant,
   });
+  // A task made from a murojaat resolves it (the reporter then confirms).
+  await syncIssuesForTask(taskId, existing.assigned_to);
 
   return {};
 }

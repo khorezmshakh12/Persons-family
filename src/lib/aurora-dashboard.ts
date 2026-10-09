@@ -529,7 +529,9 @@ export async function loadActivity(v: Viewer, limit = 5): Promise<ActivityItem[]
         order by t.completed_at desc limit ${limit}
       `,
       sql<{ id: string; title: string; created_at: string; first_name: string; last_name: string }[]>`
-        select i.id, i.title, i.created_at, p.first_name, p.last_name
+        select i.id, i.title, i.created_at,
+               case when i.anonymous and i.created_by <> ${v.userId} then 'Anonim' else p.first_name end as first_name,
+               case when i.anonymous and i.created_by <> ${v.userId} then '' else p.last_name end as last_name
         from issues i join profiles p on p.id = i.created_by
         where ${all} or i.created_by = ${v.userId} or i.assigned_to = ${v.userId}
         order by i.created_at desc limit ${limit}
