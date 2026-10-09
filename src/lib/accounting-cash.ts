@@ -29,7 +29,17 @@ export const METHOD = { '5010': 'Naqd (kassa)', '5110': 'Bank / karta' } as cons
 export type CashCat = (typeof CASH_CATS)[number];
 
 /** A monthly recurring cash movement (rent, internet…). */
-export type CashTemplate = { id: string; cat: string; method: string; amount: number; note: string; day: number; active: boolean };
+export type CashTemplate = {
+  id: string;
+  cat: string;
+  method: string;
+  amount: number;
+  note: string;
+  day: number;
+  active: boolean;
+  /** 'YYYY-MM' (Tashkent) it was created — never applied to earlier months. */
+  from: string;
+};
 
 /** The doc tag that marks a journal entry as made from a template. */
 export const templateDoc = (id: string) => `TPL:${id}`;

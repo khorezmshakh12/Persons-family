@@ -21,7 +21,10 @@ export async function loadTelegramCenter(): Promise<TelegramCenter> {
     sql<{ at: string; first_name: string | null; last_name: string | null; error: string }[]>`
       select f.created_at::text as at, p.first_name, p.last_name, f.error
       from telegram_failures f left join profiles p on p.telegram_id = f.chat_id
-      order by f.created_at desc limit 40`.catch(() => []),
+      order by f.created_at desc limit 40`.catch((error) => {
+      console.error('telegram failures query failed', error instanceof Error ? error.message : error);
+      return [];
+    }),
     sql<{ n: number }[]>`select count(*)::int as n from telegram_failures where created_at > now() - interval '7 days'`.catch(() => [{ n: 0 }]),
     configured && telegramBot
       ? telegramBot.telegram

@@ -526,7 +526,7 @@ function Templates({ books, ym }: { books: Books; ym: string }) {
   const { run, pending } = useRun();
   if (!books.templates.length) return null;
   const inMonth = (id: string) => books.entries.some((e) => e.doc === templateDoc(id) && e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym));
-  const active = books.templates.filter((t) => t.active);
+  const active = books.templates.filter((t) => t.active && t.from <= ym);
   const missing = active.filter((t) => !inMonth(t.id));
   const catName = (k: string) => CASH_CATS.find((c) => c.k === k)?.n ?? k;
   const dirOf = (k: string) => CASH_CATS.find((c) => c.k === k)?.dir ?? 'out';

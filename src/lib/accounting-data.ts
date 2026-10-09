@@ -30,7 +30,7 @@ export async function loadBooks(): Promise<Books> {
     sql<{ value: Partial<TaxSettings> }[]>`select value from acct_settings where key = 'tax'`,
     sql<{ period: string; code: string; amount: number }[]>`select period, code, amount from acct_budget`,
     sql<{ value: Record<string, number> }[]>`select value from acct_settings where key = 'plan_students'`,
-    sql<CashTemplate[]>`select id, cat, method, amount, note, day, active from acct_templates order by day, created_at`,
+    sql<CashTemplate[]>`select id, cat, method, amount, note, day, active, to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as "from" from acct_templates order by day, created_at`,
   ]);
   return {
     accounts: [...accounts],

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Books } from '@/lib/accounting-data';
-import { addMonths, cashWeeks, fmtMln, fmtNum, ledger, monthEnd, monthlySeries, monthStart, statements } from '@/lib/accounting';
+import { addMonths, fmtMln, fmtNum, ledger, monthEnd, monthlySeries, monthStart, statements } from '@/lib/accounting';
 import { cashForecast } from '@/lib/accounting-ma';
 import { CASH_ACC, templateDoc } from '@/lib/accounting-cash';
 import { getClosePeriodAction } from '@/lib/actions/accounting';
@@ -37,22 +37,27 @@ export function AccountingOverview({ books, ym, today, go }: { books: Books; ym:
   const st = statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
   const pst = statements(books.accounts, books.opening, books.entries, monthStart(prevYm), monthEnd(prevYm));
   const expense = (s: typeof st) => s.cogs + s.selling + s.admin + s.other + s.tax;
-  const W = cashWeeks(books.accounts, books.opening, books.entries, today, 13);
-  const cashNow = W.at(-1)?.closing ?? 0;
+  // Cash as of today (the week buckets run to Sunday and would count
+  // entries dated later this week).
+  const cashNow = statements(books.accounts, books.opening, books.entries, today, today).cash;
   const min = books.tax.minCash;
   const fc = cashForecast(books.accounts, books.opening, books.entries, today, 13, 13);
   const lowWeek = fc.weeks.find((w) => w.closing < min);
   const series = monthlySeries(books.accounts, books.opening, books.entries, ym, 6);
 
   // Close status of last month (the one that should be closed by now).
-  const [close, setClose] = useState<ClosePeriod | null>(null);
+  const [loaded, setLoaded] = useState<{ ym: string; period: ClosePeriod | null } | null>(null);
   useEffect(() => {
     let live = true;
-    getClosePeriodAction(prevYm).then((r) => live && setClose(r.period ?? null)).catch(() => {});
+    getClosePeriodAction(prevYm)
+      .then((r) => live && setLoaded({ ym: prevYm, period: r.period ?? null }))
+      .catch(() => live && setLoaded({ ym: prevYm, period: null }));
     return () => {
       live = false;
     };
   }, [prevYm]);
+  // Only ever show the status of the month actually asked for.
+  const close = loaded?.ym === prevYm ? loaded.period : null;
 
   const isCash = (c: string) => (CASH_ACC as readonly string[]).includes(c);
   const inMonth = (d: string) => d >= monthStart(ym) && d <= monthEnd(ym);
@@ -64,7 +69,7 @@ export function AccountingOverview({ books, ym, today, go }: { books: Books; ym:
     return { code, plan, fact };
   }).filter((r) => r.plan > 0 && r.fact > r.plan * 1.05);
   const missingTpl = books.templates.filter(
-    (t) => t.active && !books.entries.some((e) => e.doc === templateDoc(t.id) && inMonth(e.entry_date)),
+    (t) => t.active && t.from <= ym && !books.entries.some((e) => e.doc === templateDoc(t.id) && inMonth(e.entry_date)),
   );
   const payrollPosted = books.entries.some((e) => e.source?.startsWith(`payroll:${prevYm}:`));
 

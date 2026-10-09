@@ -564,7 +564,8 @@ export async function requestReceiptUploadAction(entryId: string, fileName: stri
   if (!z.string().uuid().safeParse(entryId).success) return { error: 'invalidInput' };
   if (!RECEIPT_TYPES.includes(fileType)) return { error: 'fileType' };
   if (!(size > 0 && size <= 10 * 1024 * 1024)) return { error: 'fileSize' };
-  const [e] = await sql<{ id: string }[]>`select id from acct_entries where id = ${entryId}`;
+  // Only manual cash movements carry receipts (auto postings are re-posted).
+  const [e] = await sql<{ id: string }[]>`select id from acct_entries where id = ${entryId} and source is null`;
   if (!e) return { error: 'notFound' };
   const path = `receipts/${entryId}/${crypto.randomUUID()}-${fileName.replace(/[^\w.\-]+/g, '_').slice(-80)}`;
   try {
@@ -580,16 +581,19 @@ export async function setEntryReceiptAction(entryId: string, path: string | null
   const g = await requireEditor();
   if ('error' in g) return g;
   if (!z.string().uuid().safeParse(entryId).success) return { error: 'invalidInput' };
-  if (path !== null && !path.startsWith(`receipts/${entryId}/`)) return { error: 'invalidInput' };
+  if (path !== null && !new RegExp(`^receipts/${entryId}/[0-9a-f-]{36}-[\\w.\\-]{1,80}$`).test(path)) return { error: 'invalidInput' };
   let old: string | null = null;
   try {
-    const [row] = await sql<{ old: string | null }[]>`
-      update acct_entries e set receipt_path = ${path}
-      from (select receipt_path as old from acct_entries where id = ${entryId}) o
-      where e.id = ${entryId}
-      returning o.old`;
-    if (!row) return { error: 'notFound' };
-    old = row.old;
+    // Row lock: two attaches at once must not both see the same old file.
+    const found = await sql.begin(async (tx) => {
+      const [cur] = await tx<{ receipt_path: string | null }[]>`
+        select receipt_path from acct_entries where id = ${entryId} and source is null for update`;
+      if (!cur) return false;
+      await tx`update acct_entries set receipt_path = ${path} where id = ${entryId}`;
+      old = cur.receipt_path;
+      return true;
+    });
+    if (!found) return { error: 'notFound' };
   } catch (error) {
     return { error: closedOr(error) };
   }
@@ -657,7 +661,8 @@ export async function applyCashTemplatesAction(month: string): Promise<Result & 
   if ('error' in g) return g;
   if (!ym.safeParse(month).success) return { error: 'invalidInput' };
   const tpls = await sql<{ id: string; cat: string; method: string; amount: number; note: string; day: number }[]>`
-    select id, cat, method, amount, note, day from acct_templates where active`;
+    select id, cat, method, amount, note, day from acct_templates
+    where active and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') <= ${month}`;
   let count = 0;
   try {
     await sql.begin(async (tx) => {
