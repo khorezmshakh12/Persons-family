@@ -47,6 +47,9 @@ if (telegramBot) {
     const chatId = ctx.chat.id;
     await sql`update profiles set telegram_id = ${chatId} where id = ${linkRow.profile_id}`;
     await sql`delete from telegram_link_tokens where token = ${token}`;
+    // The bell's "Telegram'ni ulang" reminder is done.
+    await sql`update notifications set action = false, read_at = coalesce(read_at, now())
+              where ref = 'tg-link' and user_id = ${linkRow.profile_id}`.catch(() => {});
 
     const [profile] = await sql<{ first_name: string }[]>`
       select first_name from profiles where id = ${linkRow.profile_id}

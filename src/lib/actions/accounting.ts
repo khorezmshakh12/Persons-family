@@ -20,6 +20,8 @@ import {
 } from '@/lib/accounting';
 import { requireCap } from '@/lib/auth/require-admin';
 import { loadClosePeriod, type ClosePeriod } from '@/lib/acct-close';
+import { createSignedReadUrl, createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
+import { CASH_ACC, CASH_CATS, cashDescription, templateDoc } from '@/lib/accounting-cash';
 
 type Result = { error?: string };
 
@@ -547,4 +549,142 @@ export async function markBudgetReviewedAction(month: string, reviewed: boolean)
     return { error: 'updateFailed' };
   }
   return done();
+}
+
+/* ------------------------------------------------------------ receipts (v8-B) */
+
+const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
+
+/** Signed upload URL for a receipt photo / PDF of one journal entry. The
+ * path is pinned to the entry (receipts/<entry id>/…) and re-checked on
+ * attach, so a client can't point an entry at someone else's file. */
+export async function requestReceiptUploadAction(entryId: string, fileName: string, fileType: string, size: number): Promise<{ error?: string; path?: string; url?: string }> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!z.string().uuid().safeParse(entryId).success) return { error: 'invalidInput' };
+  if (!RECEIPT_TYPES.includes(fileType)) return { error: 'fileType' };
+  if (!(size > 0 && size <= 10 * 1024 * 1024)) return { error: 'fileSize' };
+  // Only manual cash movements carry receipts (auto postings are re-posted).
+  const [e] = await sql<{ id: string }[]>`select id from acct_entries where id = ${entryId} and source is null`;
+  if (!e) return { error: 'notFound' };
+  const path = `receipts/${entryId}/${crypto.randomUUID()}-${fileName.replace(/[^\w.\-]+/g, '_').slice(-80)}`;
+  try {
+    return { path, url: await createSignedWriteUrl('contract-files', path, fileType) };
+  } catch {
+    return { error: 'uploadFailed' };
+  }
+}
+
+/** Attaches (path) or removes (null) an entry's receipt. Allowed in a closed
+ * month too — the trigger lets a receipt-only change through. */
+export async function setEntryReceiptAction(entryId: string, path: string | null): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!z.string().uuid().safeParse(entryId).success) return { error: 'invalidInput' };
+  if (path !== null && !new RegExp(`^receipts/${entryId}/[0-9a-f-]{36}-[\\w.\\-]{1,80}$`).test(path)) return { error: 'invalidInput' };
+  let old: string | null = null;
+  try {
+    // Row lock: two attaches at once must not both see the same old file.
+    const found = await sql.begin(async (tx) => {
+      const [cur] = await tx<{ receipt_path: string | null }[]>`
+        select receipt_path from acct_entries where id = ${entryId} and source is null for update`;
+      if (!cur) return false;
+      await tx`update acct_entries set receipt_path = ${path} where id = ${entryId}`;
+      old = cur.receipt_path;
+      return true;
+    });
+    if (!found) return { error: 'notFound' };
+  } catch (error) {
+    return { error: closedOr(error) };
+  }
+  if (old && old !== path) await deleteObject('contract-files', old).catch(() => {});
+  logSystemAction('acct.receipt', `${path ? 'Attached' : 'Removed'} receipt on entry ${entryId}`);
+  return done();
+}
+
+export async function getReceiptUrlAction(entryId: string): Promise<{ error?: string; url?: string }> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!z.string().uuid().safeParse(entryId).success) return { error: 'invalidInput' };
+  const [e] = await sql<{ receipt_path: string | null }[]>`select receipt_path from acct_entries where id = ${entryId}`;
+  if (!e?.receipt_path) return { error: 'notFound' };
+  return { url: await createSignedReadUrl('contract-files', e.receipt_path, 600) };
+}
+
+/* ------------------------------------------------------------ templates (v8-B) */
+
+const templateSchema = z.object({
+  id: z.string().uuid().optional(),
+  cat: z.string().refine((k) => CASH_CATS.some((c) => c.k === k)),
+  method: z.enum(CASH_ACC),
+  amount: money,
+  note: z.string().trim().max(200).default(''),
+  day: z.number().int().min(1).max(28),
+  active: z.boolean().default(true),
+});
+
+export async function saveCashTemplateAction(input: z.input<typeof templateSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = templateSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    if (v.id) {
+      const res = await sql`
+        update acct_templates set cat = ${v.cat}, method = ${v.method}, amount = ${v.amount}, note = ${v.note}, day = ${v.day}, active = ${v.active}
+        where id = ${v.id}`;
+      if (res.count === 0) return { error: 'notFound' };
+    } else {
+      await sql`
+        insert into acct_templates (cat, method, amount, note, day, active, created_by)
+        values (${v.cat}, ${v.method}, ${v.amount}, ${v.note}, ${v.day}, ${v.active}, ${g.id})`;
+    }
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}
+
+export async function deleteCashTemplateAction(id: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  await sql`delete from acct_templates where id = ${id}`;
+  return done();
+}
+
+/** Writes this month's entry for every active template that doesn't have
+ * one yet (matched by the TPL:<id> doc tag). Safe to press twice. */
+export async function applyCashTemplatesAction(month: string): Promise<Result & { count?: number }> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!ym.safeParse(month).success) return { error: 'invalidInput' };
+  const tpls = await sql<{ id: string; cat: string; method: string; amount: number; note: string; day: number }[]>`
+    select id, cat, method, amount, note, day from acct_templates
+    where active and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') <= ${month}`;
+  let count = 0;
+  try {
+    await sql.begin(async (tx) => {
+      // One applier per month at a time — the doc-tag check below is then exact.
+      await tx`select pg_advisory_xact_lock(hashtext(${`acct-tpl:${month}`}))`;
+      for (const t of tpls) {
+        const cat = CASH_CATS.find((c) => c.k === t.cat);
+        if (!cat) continue;
+        const [exists] = await tx`
+          select 1 from acct_entries where doc = ${templateDoc(t.id)} and entry_date between ${monthStart(month)} and ${monthEnd(month)}`;
+        if (exists) continue;
+        const [debit, credit] = cat.dir === 'in' ? [t.method, cat.acc] : [cat.acc, t.method];
+        await tx`
+          insert into acct_entries (entry_date, doc, description, debit, credit, amount, created_by)
+          values (${`${month}-${String(t.day).padStart(2, '0')}`}, ${templateDoc(t.id)}, ${cashDescription(cat.n, t.note)},
+                  ${debit}, ${credit}, ${t.amount}, ${g.id})`;
+        count++;
+      }
+    });
+  } catch (error) {
+    return { error: closedOr(error) };
+  }
+  if (count) logSystemAction('acct.templates', `Applied ${count} recurring entries for ${month}`);
+  return { ...done(), count };
 }

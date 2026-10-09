@@ -97,6 +97,7 @@ export async function resolveActionNotifications(ref: string, userIds?: string[]
 /** Retention: 90 days. Returns rows removed. */
 export async function pruneNotifications(): Promise<number> {
   const res = await sql`delete from notifications where created_at < now() - interval '90 days'`;
+  await sql`delete from telegram_failures where created_at < now() - interval '30 days'`.catch(() => {});
   return res.count;
 }
 

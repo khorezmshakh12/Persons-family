@@ -46,16 +46,33 @@ export async function sendTelegramMessage(chatId: string | number, text: string)
     console.warn('Telegram bot not configured (TELEGRAM_BOT_TOKEN missing) — skipping notification.');
     return;
   }
-  console.log('Attempting to send to Chat ID:', chatId);
-  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-  });
-  const data = await res.json();
-  console.log('Telegram API Response:', data);
+  let res: Response;
+  let data: { description?: string };
+  try {
+    res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    });
+    data = await res.json();
+  } catch (error) {
+    await logTelegramFailure(chatId, error instanceof Error ? error.message : 'network error');
+    throw error;
+  }
   if (!res.ok) {
+    await logTelegramFailure(chatId, data.description || `HTTP ${res.status}`);
     throw new Error(data.description || 'Unknown Telegram Error');
+  }
+}
+
+/** Platform › Telegram lists recent failed sends (blocked bot, deleted
+ * account…). Best-effort: logging must never mask the original error. */
+async function logTelegramFailure(chatId: string | number, error: string): Promise<void> {
+  try {
+    const id = Number(chatId);
+    await sql`insert into telegram_failures (chat_id, error) values (${Number.isFinite(id) ? String(id) : null}, ${error.slice(0, 300)})`;
+  } catch {
+    // table missing / DB hiccup — the caller still sees the send error
   }
 }
 
