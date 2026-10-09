@@ -71,9 +71,11 @@ begin
   end if;
 end $$;
 
+-- FOR SHARE: a ledger write waits for an in-flight approval of the same
+-- month (which holds the row FOR UPDATE) instead of slipping past it.
 create or replace function payroll_period_locked(p date) returns boolean
-language sql stable as $$
-  select exists (select 1 from pay_runs where period = p and status in ('approved', 'paid'))
+language sql volatile as $$
+  select coalesce((select status in ('approved', 'paid') from pay_runs where period = p for share), false)
 $$;
 
 create or replace function finance_entries_lock_guard() returns trigger

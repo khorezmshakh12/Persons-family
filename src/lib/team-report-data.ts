@@ -31,7 +31,9 @@ export type TeamReport = {
 type Person = { id: string; first_name: string | null; last_name: string | null; role: Role };
 const nameOf = (p: Person) => `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || 'Xodim';
 
-export async function loadTeamReport(range: Range, dept: Department | null = null): Promise<TeamReport> {
+/** `kpiDetail`: per-person KPI grades are CEO-scoped; others get the
+ * attention list without them. */
+export async function loadTeamReport(range: Range, dept: Department | null = null, kpiDetail = true): Promise<TeamReport> {
   const today = tashkentDayKey();
   const bs = buckets(range, today);
   const starts = bs.map((b) => tashkentMidnight(b.start).toISOString());
@@ -43,6 +45,8 @@ export async function loadTeamReport(range: Range, dept: Department | null = nul
     (p) => !dept || ROLE_DEPT[p.role] === dept,
   );
   const ids = people.map((p) => p.id);
+  // The CEO files no self-development report — keep them out of both sides of the rate.
+  const sdIds = people.filter((p) => p.role !== 'ceo').map((p) => p.id);
   const staffCount = people.filter((p) => p.role !== 'ceo').length;
 
   const rows = await sql<
@@ -77,7 +81,7 @@ export async function loadTeamReport(range: Range, dept: Department | null = nul
       (select count(*)::int from issues i where i.status = 'done' and i.resolved_at >= b.s and i.resolved_at < b.e) as issues_resolved,
       (select count(*)::int from ops_leads l where l.created_at >= b.s and l.created_at < b.e) as leads,
       (select count(*)::int from ops_leads l where l.enrolled_at >= b.s and l.enrolled_at < b.e) as enrolled,
-      (select count(*)::int from self_development sd where sd.month = b.m and sd.user_id = any(${sql.array(ids)}::uuid[])) as self_dev,
+      (select count(*)::int from self_development sd where sd.month = b.m and sd.user_id = any(${sql.array(sdIds)}::uuid[])) as self_dev,
       (select avg(k.grade_pct)::float8 from kpi_plans k where k.grade is not null
         and k.month >= b.m and k.month ${range === 'week' ? sql`<=` : sql`<`} b.me
         and k.user_id = any(${sql.array(ids)}::uuid[])) as kpi_avg
@@ -145,7 +149,7 @@ export async function loadTeamReport(range: Range, dept: Department | null = nul
     if (r.stale_issues) reasons.push(`${r.stale_issues} ta 7 kundan ortiq ochiq muammo`);
     if (!r.self_dev && dom >= 20) reasons.push('o‘zini rivojlantirish hisoboti topshirilmagan');
     if (!r.kpi_next && dom >= 25) reasons.push('keyingi oy KPI rejasi topshirilmagan');
-    if (r.kpi_pct !== null && r.kpi_pct < 0) reasons.push(`oxirgi KPI: ${Math.round(r.kpi_pct)}%`);
+    if (kpiDetail && r.kpi_pct !== null && r.kpi_pct < 0) reasons.push(`oxirgi KPI: ${Math.round(r.kpi_pct)}%`);
     if (reasons.length) attention.push({ staffId: p.id, name: nameOf(p), dept: DEPT_NAME[d], reasons });
   }
   const depts: DeptRow[] = [...deptMap.values()].map(({ _on, _sd, _sdN, _kpi, ...d }) => ({

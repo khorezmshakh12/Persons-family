@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getAuthState } from '@/lib/auth/session';
-import { canSeeFor } from '@/lib/permissions';
+import { can, canSeeFor } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { loadTeamReport } from '@/lib/team-report-data';
 import { parseConfig } from '@/lib/team-report';
@@ -15,7 +15,7 @@ export default async function ReportPage() {
   if (!profile || !canSeeFor(profile, 'report')) notFound();
 
   const [report, rows] = await Promise.all([
-    loadTeamReport('week'),
+    loadTeamReport('week', null, can(profile.role, 'kpi.review')),
     sql<{ id: string; name: string; config: unknown; shared: boolean; owner_id: string }[]>`
       select id, name, config, shared, owner_id from saved_reports
       where owner_id = ${profile.id} or shared

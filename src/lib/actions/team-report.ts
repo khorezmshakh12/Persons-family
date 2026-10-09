@@ -7,7 +7,7 @@ import { authErrorCode, requireSection } from '@/lib/auth/require-admin';
 import { askTypeSafe, typesafeEnabled } from '@/lib/typesafe';
 import { loadTeamReport, type TeamReport } from '@/lib/team-report-data';
 import { METRICS, RANGES, parseConfig, type ReportConfig } from '@/lib/team-report';
-import type { Department } from '@/lib/permissions';
+import { can, type Department } from '@/lib/permissions';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
@@ -15,10 +15,10 @@ const DEPTS = ['top', 'acad', 'com', 'ops', 'fin', 'hr'] as const;
 const rangeSchema = z.enum(RANGES);
 const deptSchema = z.enum(DEPTS).nullable();
 
-async function requireReportViewer(): Promise<{ id: string } | { error: string }> {
+async function requireReportViewer(): Promise<{ id: string; kpiDetail: boolean } | { error: string }> {
   try {
     const { profile } = await requireSection('report');
-    return { id: profile.id };
+    return { id: profile.id, kpiDetail: can(profile.role, 'kpi.review') };
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -31,7 +31,7 @@ export async function getTeamReportAction(range: string, dept: string | null): P
   const d = deptSchema.safeParse(dept);
   if (!r.success || !d.success) return { error: 'invalidInput' };
   try {
-    return { report: await loadTeamReport(r.data, d.data as Department | null) };
+    return { report: await loadTeamReport(r.data, d.data as Department | null, g.kpiDetail) };
   } catch (error) {
     console.error('getTeamReportAction failed', error instanceof Error ? error.message : error);
     return { error: 'loadFailed' };
@@ -49,7 +49,7 @@ export async function rankInsightsWithJevAction(range: string, dept: string | nu
   const d = deptSchema.safeParse(dept);
   if (!r.success || !d.success) return { error: 'invalidInput' };
   if (!typesafeEnabled()) return { error: 'aiDisabled' };
-  const rep = await loadTeamReport(r.data, d.data as Department | null);
+  const rep = await loadTeamReport(r.data, d.data as Department | null, g.kpiDetail);
   const list = rep.insights.slice(0, 10);
   if (!list.length) return { ranked: [] };
   const questions = Object.fromEntries(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -75,9 +75,13 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
   const [ranked, setRanked] = useState<Record<string, RankedInsight> | null>(null);
   const [custom, setCustom] = useState<SavedReport | null>(null);
 
+  // Only the latest request may land (fast range/department switching).
+  const reqId = useRef(0);
   const load = (r: Range, d: string) =>
     startLoad(async () => {
+      const id = ++reqId.current;
       const res = await getTeamReportAction(r, d || null);
+      if (id !== reqId.current) return;
       if (res.error !== undefined) return void toast.error(errText(res.error));
       setRep(res.report);
       setRanked(null);
@@ -199,7 +203,7 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex min-w-0 flex-col gap-5">
-          <TrendCard rep={rep} metric={metric} labels={labels} me={me} onNotes={(notes) => setRep({ ...rep, notes })} />
+          <TrendCard rep={rep} metric={metric} labels={labels} me={me} onNotes={(f) => setRep((r) => ({ ...r, notes: f(r.notes) }))} />
 
           {/* Departments */}
           <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 3 }}>
@@ -369,7 +373,7 @@ function TrendCard({
   metric: Metric;
   labels: string[];
   me: string;
-  onNotes: (n: TeamReport['notes']) => void;
+  onNotes: (f: (n: TeamReport['notes']) => TeamReport['notes']) => void;
 }) {
   const meta = METRIC_META[metric];
   const vals = rep.series[metric];
@@ -385,14 +389,15 @@ function TrendCard({
     start(async () => {
       const res = await addReportNoteAction({ metric, week: rep.buckets[sel].start, body: note.trim() });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      onNotes([...rep.notes, { id: res.id, metric, week: rep.buckets[sel].start, body: note.trim(), author: 'Siz' }]);
+      const row = { id: res.id, metric, week: rep.buckets[sel].start, body: note.trim(), author: 'Siz' };
+      onNotes((n) => [...n, row]);
       setNote('');
     });
   const del = (id: string) =>
     start(async () => {
       const res = await deleteReportNoteAction(id);
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      onNotes(rep.notes.filter((n) => n.id !== id));
+      onNotes((n) => n.filter((x) => x.id !== id));
     });
 
   return (

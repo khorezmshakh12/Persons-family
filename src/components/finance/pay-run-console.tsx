@@ -72,6 +72,8 @@ const ERR: Record<string, string> = {
   invalidTransition: 'Bu bosqichga o‘tib bo‘lmaydi (sahifani yangilang)',
   reasonRequired: 'Sababini yozing (kamida 3 belgi)',
   periodLocked: 'Oy qulflangan — tuzatish yozuvi qo‘shing',
+  notLocked: 'Oy hali tasdiqlanmagan — yozuvni oddiy tartibda qo‘shing',
+  overLimit: 'Bu oy avanslar jami maoshdan oshib ketadi',
   alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
   aiDisabled: 'Jev ulanmagan',
   aiFailed: 'Jev javob bermadi — keyinroq urinib ko‘ring',
@@ -229,7 +231,7 @@ export function PayRunConsole({
             >
               {next === 'review' && <><ArrowRight className="size-4" /> Tekshirishga o‘tkazish</>}
               {next === 'approved' && <><BadgeCheck className="size-4" /> Tasdiqlash va oyni qulflash</>}
-              {next === 'paid' && <><Banknote className="size-4" /> To‘lovlarni qayd etish ({som(Math.max(0, sum.remaining))} so‘m)</>}
+              {next === 'paid' && <><Banknote className="size-4" /> To‘lovlarni qayd etish ({som(lines.reduce((t, l) => t + Math.max(0, l.remaining), 0))} so‘m)</>}
             </button>
           )}
           {prev && !back && (

@@ -61,9 +61,6 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
   const { to, reason } = p.data;
   const per = p.data.period;
 
-  const lines = (await loadPayLines(per)).filter(isRelevant);
-  if (to === 'approved' && blockers(lines).length) return { error: 'blocked' };
-
   let paidLines: { staffId: string; amount: number }[] = [];
   try {
     const out = await sql.begin(async (tx) => {
@@ -72,6 +69,10 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
       if (!canMove(run.status, to)) return 'invalidTransition' as const;
       const back = PAY_RUN_STATUSES.indexOf(to) < PAY_RUN_STATUSES.indexOf(run.status);
       if (back && reason.length < 3) return 'reasonRequired' as const;
+      // Read the lines under the run's row lock (corrections take it too),
+      // so the snapshot and the payments match what is committed.
+      const lines = (await loadPayLines(per, undefined, tx as unknown as typeof sql)).filter(isRelevant);
+      if (!back && to === 'approved' && blockers(lines).length) return 'blocked' as const;
 
       if (to === 'approved' && !back) {
         const snapshot = lines.map((l) => ({ staffId: l.staffId, payable: l.payable }));
@@ -148,14 +149,19 @@ export async function addPayCorrectionAction(input: z.input<typeof correctionSch
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
   try {
-    await sql.begin(async (tx) => {
+    const out = await sql.begin(async (tx) => {
+      const [run] = await tx<{ status: string }[]>`select status from pay_runs where period = ${v.period} for update`;
+      // Corrections are for closed months only; an open month is edited directly.
+      if (!run || (run.status !== 'approved' && run.status !== 'paid')) return 'notLocked' as const;
       await tx`
         insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source)
         values (${v.staffId}, ${v.title}, ${v.amount}, ${v.reason}, ${g.id}, ${v.amount < 0 ? 'penalty' : 'adjustment'}, ${v.period}, 'correction')`;
       await tx`
         insert into pay_run_log (period, actor, action, detail)
         values (${v.period}, ${g.id}, 'correction', ${tx.json({ staffId: v.staffId, amount: v.amount, title: v.title, reason: v.reason })})`;
+      return null;
     });
+    if (out) return { error: out };
   } catch (error) {
     console.error('addPayCorrectionAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
@@ -202,8 +208,12 @@ export async function requestAdvanceAction(input: z.input<typeof requestSchema>)
       await tx`select pg_advisory_xact_lock(hashtext(${'advance:' + user.id}))`;
       const [open] = await tx`select 1 from advance_requests where staff_id = ${user.id} and status = 'pending'`;
       if (open) return 'alreadyPending' as const;
-      const [sal] = await tx<{ gross: number }[]>`select gross_amount as gross from salary_months where staff_id = ${user.id} and period = ${per}`;
-      if (sal && sal.gross > 0 && p.data.amount > sal.gross) return 'overLimit' as const;
+      const [sal] = await tx<{ gross: number; taken: number }[]>`
+        select gross_amount as gross,
+          coalesce((select sum(amount) from finance_entries where staff_id = ${user.id} and period = ${per} and kind = 'advance'), 0) as taken
+        from salary_months where staff_id = ${user.id} and period = ${per}`;
+      // Advances already paid this month count against the salary too.
+      if (sal && sal.gross > 0 && p.data.amount + sal.taken > sal.gross) return 'overLimit' as const;
       await tx`
         insert into advance_requests (staff_id, amount, reason, period)
         values (${user.id}, ${p.data.amount}, ${p.data.reason}, ${per})`;
@@ -264,6 +274,13 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
         select staff_id, amount from advance_requests where id = ${v.id} and status = 'pending' for update`;
       if (!r) return 'alreadyDecided' as const;
       req = r;
+      if (v.approve) {
+        const [sal] = await tx<{ gross: number; taken: number }[]>`
+          select gross_amount as gross,
+            coalesce((select sum(amount) from finance_entries where staff_id = ${r.staff_id} and period = ${per} and kind = 'advance'), 0) as taken
+          from salary_months where staff_id = ${r.staff_id} and period = ${per}`;
+        if (sal && sal.gross > 0 && r.amount + sal.taken > sal.gross) return 'overLimit' as const;
+      }
       let entryId: string | null = null;
       if (v.approve) {
         const [e] = await tx<{ id: string }[]>`

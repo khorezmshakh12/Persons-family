@@ -42,37 +42,40 @@ export type MonthPoint = { period: string; planned: number; paid: number };
 const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.trim() || 'Xodim';
 
 /** Every input of one month's pay, for everyone (or one person). */
-async function loadInputs(period: string, staffId?: string): Promise<Omit<PayInput, 'prevPayable'>[]> {
+/** `sql` or a transaction handle (same tagged-template API). */
+type Db = typeof sql;
+
+async function loadInputs(period: string, staffId?: string, db: Db = sql): Promise<Omit<PayInput, 'prevPayable'>[]> {
   const from = tashkentMidnight(period).toISOString();
   const to = tashkentMidnight(shiftMonth(period, 1)).toISOString();
   const only = staffId ? sql`and p.id = ${staffId}` : sql``;
   const onlyCol = (col: string) => (staffId ? sql`and ${sql(col)} = ${staffId}` : sql``);
 
   const [people, salaries, entries, selfDev, perf, missions, kpi, advances] = await Promise.all([
-    sql<{ id: string; first_name: string | null; last_name: string | null; role: string }[]>`
+    db<{ id: string; first_name: string | null; last_name: string | null; role: string }[]>`
       select p.id, p.first_name, p.last_name, p.role from profiles p
       where (p.is_active
         or exists (select 1 from salary_months s where s.staff_id = p.id and s.period = ${period})
         or exists (select 1 from finance_entries f where f.staff_id = p.id and f.period = ${period}))
         ${only}
       order by p.first_name, p.last_name`,
-    sql<{ staff_id: string; gross: number }[]>`
+    db<{ staff_id: string; gross: number }[]>`
       select staff_id, gross_amount as gross from salary_months where period = ${period} ${onlyCol('staff_id')}`,
-    sql<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; created_at: string | null }[]>`
+    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; created_at: string | null }[]>`
       select id, staff_id, title, amount, kind, source, created_at from finance_entries
       where period = ${period} ${onlyCol('staff_id')} order by created_at`,
-    sql<{ user_id: string; bonus_amount: number | null; ceo_score: number | null; id: string }[]>`
+    db<{ user_id: string; bonus_amount: number | null; ceo_score: number | null; id: string }[]>`
       select id, user_id, bonus_amount, ceo_score from self_development where month = ${period} ${onlyCol('user_id')}`,
-    sql<{ staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
+    db<{ staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
       select staff_id, entry_type, amount, reason, created_at from performance_entries
       where created_at >= ${from} and created_at < ${to} ${onlyCol('staff_id')}`,
-    sql<{ staff_id: string; bonus_amount: number; at: string | null }[]>`
+    db<{ staff_id: string; bonus_amount: number; at: string | null }[]>`
       select staff_id, bonus_amount, coalesce(approved_at, created_at) as at from missions
       where status = 'approved' and bonus_amount is not null
         and coalesce(approved_at, created_at) >= ${from} and coalesce(approved_at, created_at) < ${to} ${onlyCol('staff_id')}`,
-    sql<{ user_id: string }[]>`
+    db<{ user_id: string }[]>`
       select user_id from kpi_plans where month = ${period} and status = 'approved' and grade is null ${onlyCol('user_id')}`,
-    sql<{ staff_id: string }[]>`
+    db<{ staff_id: string }[]>`
       select distinct staff_id from advance_requests where status = 'pending' ${onlyCol('staff_id')}`,
   ]);
 
@@ -127,8 +130,9 @@ async function loadInputs(period: string, staffId?: string): Promise<Omit<PayInp
 }
 
 /** The month's lines, each compared against the month before. */
-export async function loadPayLines(period: string, staffId?: string): Promise<PayLine[]> {
-  const [now, prev] = await Promise.all([loadInputs(period, staffId), loadInputs(shiftMonth(period, -1), staffId)]);
+export async function loadPayLines(period: string, staffId?: string, db: Db = sql): Promise<PayLine[]> {
+  const now = await loadInputs(period, staffId, db);
+  const prev = await loadInputs(shiftMonth(period, -1), staffId, db);
   const prevPay = new Map(prev.map((i) => [i.staffId, computeLine({ ...i, prevPayable: null }).payable]));
   return now.map((i) => computeLine({ ...i, prevPayable: prevPay.get(i.staffId) ?? null }));
 }
