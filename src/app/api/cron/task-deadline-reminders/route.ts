@@ -6,6 +6,7 @@ import { isDueForCreation, nextDue, type Every } from '@/lib/task-recurrence';
 import { tashkentDayKey, tashkentMidnight } from '@/lib/time';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { deliverScheduledChannelPosts } from '@/lib/chat-channels';
+import { deliverScheduledNews } from '@/lib/news-delivery';
 
 // Spec #4: nudge the assignee once, ~2 hours before a task's deadline.
 // Cloud Scheduler should hit this every ~15 minutes (Bearer CRON_SECRET):
@@ -72,7 +73,12 @@ export async function GET(req: NextRequest) {
     console.error('deliverScheduledChannelPosts failed', error instanceof Error ? error.message : error);
     return 0;
   });
-  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts });
+  // News: scheduled company posts whose publish time has passed.
+  const scheduledNews = await deliverScheduledNews().catch((error) => {
+    console.error('deliverScheduledNews failed', error instanceof Error ? error.message : error);
+    return 0;
+  });
+  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts, scheduledNews });
 }
 
 /**

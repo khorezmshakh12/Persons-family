@@ -22,7 +22,7 @@ export async function CompanyNewsCard({
   const [news, unseenCount] = await Promise.all([
     sql<{ id: string; title: string; content: string; created_at: string }[]>`
       select id, title, content, created_at from company_news
-      where created_at >= ${companyNewsCutoff()}
+      where created_at >= ${companyNewsCutoff()} and deleted_at is null and (publish_at is null or publish_at <= now())
       order by created_at desc limit 3
     `,
     user ? unseenCompanyNewsCount(user.id) : 0,

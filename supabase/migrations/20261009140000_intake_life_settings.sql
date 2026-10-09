@@ -108,6 +108,7 @@ alter table company_news add column if not exists deleted_at  timestamptz;
 alter table company_news add column if not exists image_url   text;
 alter table company_news add column if not exists audience    text not null default 'all';
 alter table company_news add column if not exists telegram_sent_at timestamptz;
+alter table company_news add column if not exists notify      boolean not null default true;
 
 create table if not exists company_news_acks (
   news_id  uuid not null references company_news(id) on delete cascade,

@@ -1,48 +1,61 @@
-import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { sql } from '@/lib/db/client';
-import { companyNewsCutoff } from '@/lib/company-news';
-import { CreateNewsDialog } from '@/components/company-news/create-news-dialog';
-import { NewsList } from '@/components/company-news/news-list';
-import { MarkCompanyNewsSeen } from '@/components/company-news/mark-company-news-seen';
 import { can } from '@/lib/permissions';
+import { tashkentDayKey, addDaysToKey } from '@/lib/time';
+import { loadCalendar, loadNewsFeed } from '@/lib/team-life-data';
+import { NewsFeed } from '@/components/team-life/news-feed';
+import { TeamCalendar } from '@/components/team-life/team-calendar';
+import { MarkCompanyNewsSeen } from '@/components/company-news/mark-company-news-seen';
 import { BgVideo } from '@/components/motion/bg-video';
+import { Link } from '@/i18n/navigation';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CompanyNewsPage() {
-  const t = await getTranslations('companyNews');
+/** Jamoa hayoti — company announcements and the team calendar (sections v6). */
+export default async function CompanyNewsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { user, profile } = await getAuthState();
-  const isAdmin = can(profile?.role, 'news.publish');
+  const tab = (await searchParams).tab === 'calendar' ? 'calendar' : 'news';
+  const isAdmin = can(profile!.role, 'news.publish');
+  const today = tashkentDayKey();
 
-  const rows = await sql<
-    { id: string; title: string; content: string; created_at: string; created_by: string; author_first_name: string | null; author_last_name: string | null }[]
-  >`
-    select n.id, n.title, n.content, n.created_at, n.created_by,
-      a.first_name as author_first_name, a.last_name as author_last_name
-    from company_news n
-    left join profiles a on a.id = n.created_by
-    where n.created_at >= ${companyNewsCutoff()}
-    order by n.created_at desc
-  `;
-  const news = rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    content: r.content,
-    created_at: r.created_at,
-    created_by: r.created_by,
-    author: r.author_first_name ? { first_name: r.author_first_name, last_name: r.author_last_name! } : null,
-  }));
+  let body: React.ReactNode;
+  if (tab === 'calendar') {
+    const first = `${today.slice(0, 7)}-01`;
+    const dow = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
+    const from = addDaysToKey(first, -dow);
+    const events = await loadCalendar(profile!, from, addDaysToKey(from, 41));
+    body = <TeamCalendar initial={events} today={today} canPublish={isAdmin} canAll={can(profile!.role, 'company.overview') || can(profile!.role, 'academic.viewAll')} />;
+  } else {
+    const { news, audience } = await loadNewsFeed(profile!, isAdmin);
+    body = <NewsFeed initial={news} audience={audience} isAdmin={isAdmin} me={user!.id} />;
+  }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <MarkCompanyNewsSeen />
-      <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+    <div className="mx-auto flex w-full max-w-[1300px] flex-col gap-5 px-4 pt-1 pb-8 sm:px-7">
+      {tab === 'news' && <MarkCompanyNewsSeen />}
+      <div className="relative flex flex-col gap-1 overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
         <BgVideo variant="hero" />
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
-        {isAdmin && <CreateNewsDialog />}
+        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">Jamoa hayoti</h1>
+        <p className="text-au-muted">E’lonlar, tadbirlar, muddatlar, ta’tillar va bayramlar — bir joyda.</p>
       </div>
-      <NewsList news={news} isAdmin={isAdmin} currentUserId={user?.id ?? ''} />
+      <nav className="inline-flex self-start rounded-au-ctl border border-au-line bg-au-card-2 p-1" aria-label="Jamoa hayoti">
+        {(
+          [
+            ['news', 'E’lonlar', '/company-news'],
+            ['calendar', 'Kalendar', '/company-news?tab=calendar'],
+          ] as const
+        ).map(([k, n, href]) => (
+          <Link
+            key={k}
+            href={href}
+            aria-current={tab === k ? 'page' : undefined}
+            className={cn('inline-flex h-8 items-center rounded-[10px] px-4 text-sm font-semibold transition-colors', tab === k ? 'bg-au-card text-au-ink shadow-au-card' : 'text-au-muted hover:text-au-ink')}
+          >
+            {n}
+          </Link>
+        ))}
+      </nav>
+      {body}
     </div>
   );
 }

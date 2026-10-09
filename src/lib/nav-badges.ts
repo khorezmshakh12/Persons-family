@@ -24,7 +24,7 @@ export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'
     `,
     sql<{ count: number }[]>`
       select count(*)::int from company_news cn
-      where cn.created_at >= now() - interval '7 days'
+      where cn.created_at >= now() - interval '7 days' and cn.deleted_at is null and (cn.publish_at is null or cn.publish_at <= now())
         and not exists (select 1 from company_news_reads r where r.news_id = cn.id and r.user_id = ${userId})
     `,
     // Unread DMs, plus unread @mentions in chat channels (Chat v2).
@@ -53,7 +53,7 @@ export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'
 export async function unseenCompanyNewsCount(userId: string): Promise<number> {
   const [row] = await sql<{ count: number }[]>`
     select count(*)::int from company_news cn
-    where cn.created_at >= now() - interval '7 days'
+    where cn.created_at >= now() - interval '7 days' and cn.deleted_at is null and (cn.publish_at is null or cn.publish_at <= now())
       and not exists (select 1 from company_news_reads r where r.news_id = cn.id and r.user_id = ${userId})
   `;
   return row.count;
