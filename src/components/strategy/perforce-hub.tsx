@@ -252,7 +252,7 @@ export function PerforceHub({ data, today, viewerId, isLead, seesBudget }: { dat
         {(intro || help) && <HowItWorks onClose={() => { setIntro(false); setHelp(false); try { localStorage.setItem(INTRO, '1'); } catch {} }} />}
         <div key={tab} className="sx-fade">
           {tab === 'overview' && <Overview data={data} projects={projects} today={today} personById={personById} seesBudget={seesBudget} go={go} />}
-          {tab === 'status' && <StatusTab data={data} projects={projects} today={today} viewerId={viewerId} isLead={isLead} personById={personById} focus={focus} />}
+          {tab === 'status' && <StatusTab key={focus ?? 'none'} data={data} projects={projects} today={today} viewerId={viewerId} isLead={isLead} personById={personById} focus={focus} />}
           {tab === 'load' && <LoadTab data={data} today={today} isLead={isLead} />}
           {tab === 'risks' && <RiskRegister risks={data.risks} spaces={data.spaces} people={data.people} personById={personById} today={today} />}
           {tab === 'decisions' && <DecisionsTab data={data} viewerId={viewerId} isLead={isLead} personById={personById} focus={focus} />}
@@ -342,7 +342,7 @@ function Overview({
   const att: Attention[] = buildAttention({
     today,
     projects: projects.map((p) => ({ id: p.s.id, name: p.s.name, rag: p.last?.rag ?? p.suggestion.rag, lastStatusDay: p.last ? d10(p.last.created_at) : null, active: p.active })),
-    decisions: data.decisions.map((d) => ({ id: d.id, title: d.title, status: d.status, created_at: d.created_at })),
+    decisions: data.decisions.map((d) => ({ id: d.id, title: d.title, status: d.status, created_at: d10(d.created_at) })),
     overloaded: overloaded(load, data.weights.capacity).map((o) => ({ name: fullName(personById.get(o.id)), days: o.days, week: o.week })),
     milestones: data.milestones.map((m) => ({ ...m, project: data.spaces.find((s) => s.id === m.space_id)?.name ?? '' })),
     risks: data.risks.map((r) => ({ id: r.id, title: r.title, score: riskScore(r), status: r.status, review_date: r.review_date })),
@@ -544,6 +544,8 @@ function StatusTab({
   const [space, setSpace] = useState(focus ?? projects[0]?.s.id ?? '');
   const [form, setForm] = useState<{ rag: Rag; done: string; blockers: string; next: string; note: string } | null>(null);
   const [edit, setEdit] = useState<{ id: string; summary: string; next: string } | null>(null);
+  // Captured once per mount (render must stay pure); the server enforces the 24 h window.
+  const [nowMs] = useState(() => Date.now());
   if (!projects.length) return <div className="sx-card s12 sx-empty">Strategiyada loyiha yo‘q</div>;
   const p = projects.find((x) => x.s.id === space) ?? projects[0];
   const canWrite = !p.s.owner_id || p.s.owner_id === viewerId || isLead;
@@ -670,7 +672,7 @@ function StatusTab({
         <ol className="mt-4 flex flex-col gap-3">
           {p.statuses.length === 0 && <li className="sx-empty">Hali holat yozilmagan — birinchisini yozing (2 daqiqa).</li>}
           {p.statuses.map((u) => {
-            const fresh = Date.parse(u.created_at) > Date.parse(`${today}T00:00:00+05:00`) - 86_400_000;
+            const fresh = nowMs - Date.parse(u.created_at) < 86_400_000;
             const mine = u.author_id === viewerId && fresh;
             return (
               <li key={u.id} className="flex gap-3 border-l-[3px] pl-3" style={{ borderColor: RAG_META[u.rag].c }}>

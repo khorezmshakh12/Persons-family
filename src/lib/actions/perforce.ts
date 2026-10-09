@@ -36,8 +36,13 @@ export async function deleteChangeRequestAction(id: string): Promise<Result> {
   if ('error' in g) return g;
   if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
   try {
-    const r = await sql`delete from pf_change_requests where id = ${id}`;
-    if (r.count === 0) return { error: 'notFound' };
+    // The author may delete their own unapproved request; leadership any
+    // unapproved one. Approved decisions stay in the log.
+    const lead = !('error' in (await requireLead()));
+    const r = await sql`
+      delete from pf_change_requests
+      where id = ${id} and status <> 'approved' and (author_id = ${g.id} or ${lead})`;
+    if (r.count === 0) return { error: 'forbidden' };
   } catch {
     return { error: 'updateFailed' };
   }
@@ -324,13 +329,14 @@ export async function moveDecisionAction(input: z.input<typeof moveSchema>): Pro
   const deciding = to === 'approved' || to === 'rejected' || cr.status === 'approved' || cr.status === 'rejected';
   if (deciding && 'error' in (await requireLead())) return { error: 'leadOnly' };
   if (to === 'draft' && cr.author_id !== g.id) return { error: 'forbidden' };
+  if (to === 'review' && cr.status === 'draft' && cr.author_id !== g.id) return { error: 'forbidden' };
   try {
     const res = await sql`
       update pf_change_requests set status = ${to},
         decided_by = case when ${to} in ('approved', 'rejected') then ${g.id}::uuid else null end,
         decided_at = case when ${to} in ('approved', 'rejected') then now() else null end,
         decision_note = case when ${to} in ('approved', 'rejected') then ${note || null} else decision_note end
-      where id = ${id} and status = ${cr.status}`;
+      where id = ${id} and status = ${cr.status} and applied_at is null`;
     if (res.count === 0) return { error: 'conflict' };
   } catch {
     return { error: 'updateFailed' };
@@ -389,10 +395,13 @@ export async function applyDeadlineDecisionAction(id: string): Promise<Result> {
   if (cr.applied_at) return { error: 'alreadyApplied' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(cr.proposed_value)) return { error: 'badDate' };
   try {
-    await sql.begin(async (tx) => {
+    const ok = await sql.begin(async (tx) => {
+      const claim = await tx`update pf_change_requests set applied_at = now() where id = ${id} and applied_at is null and status = 'approved'`;
+      if (claim.count === 0) return false;
       await tx`update strategy_spaces set end_date = ${cr.proposed_value} where id = ${cr.space_id}`;
-      await tx`update pf_change_requests set applied_at = now() where id = ${id}`;
+      return true;
     });
+    if (!ok) return { error: 'alreadyApplied' };
   } catch {
     return { error: 'updateFailed' };
   }
