@@ -1,3 +1,4 @@
+import { projectsAtRisk, ragLabel } from '@/lib/perforce-reminders';
 import { NextRequest, NextResponse } from 'next/server';
 import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
@@ -190,6 +191,7 @@ async function handle(req: NextRequest): Promise<Response> {
   let summarySent = false;
   try {
     const rep = await loadTeamReport('week');
+    const atRisk = await projectsAtRisk().catch(() => []);
     const i = rep.buckets.length - 2;
     const line = (m: Metric) => {
       const v = rep.series[m][i];
@@ -202,6 +204,7 @@ async function handle(req: NextRequest): Promise<Response> {
       `📈 <b>Jamoa hisoboti · ${rep.buckets[i].label} haftasi</b>`,
       ...(['tasksDone', 'onTime', 'missed', 'issuesNew', 'issuesResolved', 'leads', 'enrolled'] as Metric[]).map(line),
       rep.attention.length ? `\n⚠️ E’tibor kerak: ${rep.attention.slice(0, 5).map((a) => a.name).join(', ')}${rep.attention.length > 5 ? '…' : ''}` : '',
+      atRisk.length ? `\n🧭 Loyihalar (Perforce): ${atRisk.map((x) => `${x.name} — ${ragLabel(x.rag)} (${x.why})`).join('; ')}` : '',
       '\nBatafsil: Hisobotlar bo‘limi',
     ]
       .filter(Boolean)

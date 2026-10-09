@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { remindRiskReviews } from '@/lib/perforce-reminders';
 import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
 import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
@@ -113,7 +114,12 @@ async function handle(req: NextRequest): Promise<Response> {
     sent.push('okr_checkin');
   }
 
-  return NextResponse.json({ ok: true, sent });
+  // Perforce: risks whose review date has come (once a week per risk).
+  const riskNudges = await remindRiskReviews().catch((error) => {
+    console.error('remindRiskReviews failed', error instanceof Error ? error.message : error);
+    return 0;
+  });
+  return NextResponse.json({ ok: true, sent, riskNudges });
 }
 
 export const GET = withCronLog('kpi-reminders', handle);
