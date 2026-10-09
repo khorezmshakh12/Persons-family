@@ -2,7 +2,7 @@ import 'server-only';
 import { sql } from '@/lib/db/client';
 import { can, ROLE_DEPT, type Role } from '@/lib/permissions';
 import { bumpNavBadgeSignal, bumpSignal } from '@/lib/gcp/firestoreAdmin';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 
 export type ChannelKind = 'all' | 'dept' | 'group';
 
@@ -148,7 +148,7 @@ export async function notifyMentions({ channelName, senderName, body, mentions }
     rows.flatMap((r) => [
       bumpNavBadgeSignal(r.id),
       r.telegram_id
-        ? sendTelegramMessage(r.telegram_id, `🔔 <b>${escapeTelegramText(senderName)}</b> sizni <b>#${escapeTelegramText(channelName)}</b> kanalida eslatdi:\n${preview}`)
+        ? sendTelegramAs('chat', r.telegram_id, `🔔 <b>${escapeTelegramText(senderName)}</b> sizni <b>#${escapeTelegramText(channelName)}</b> kanalida eslatdi:\n${preview}`)
         : Promise.resolve(),
     ]),
   );

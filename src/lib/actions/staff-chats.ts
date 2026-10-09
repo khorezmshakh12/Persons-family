@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { after } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 import { mirrorChatMessage, bumpNavBadgeSignal, deleteChatMessageMirror, updateChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
 import { startDmConversation, respondToDmRequest, toggleStaffChatReaction } from '@/lib/db/queries/dm-conversations';
@@ -80,7 +80,7 @@ async function notifyNewChatMessage({
   try {
     const preview = messageText ? escapeTelegramText(messageText) : hasMedia ? '📎 Fayl' : '';
     const text = `<b>${escapeTelegramText(senderName)}</b> sizga xabar yubordi:\n${preview}`;
-    await sendTelegramMessage(receiverTelegramId, text);
+    await sendTelegramAs('chat', receiverTelegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

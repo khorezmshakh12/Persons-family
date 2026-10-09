@@ -7,7 +7,7 @@ import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { formatUZS } from '@/lib/format-currency';
 
 /** The DB trigger refuses writes to a month whose pay run is approved. */
@@ -85,7 +85,7 @@ export async function addFinanceEntryAction(
           `<b>${label}</b>\n<b>Miqdori:</b> ${escapeTelegramText(amountStr)} so‘m\n` +
           `<b>Sabab:</b> ${escapeTelegramText(parsed.data.title)}` +
           (parsed.data.note ? `\n<b>Izoh:</b> ${escapeTelegramText(parsed.data.note)}` : '');
-        await sendTelegramMessage(staff.telegram_id, text);
+        await sendTelegramAs('pay', staff.telegram_id, text);
       }
     } catch (error) {
       console.error('Finance notification failed:', error instanceof Error ? error.message : error);

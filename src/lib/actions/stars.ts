@@ -8,7 +8,7 @@ import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { insertStarTransaction, type StarSourceType } from '@/lib/stars-write';
 import { can } from '@/lib/permissions';
@@ -42,7 +42,7 @@ async function notifyStarsDeducted({
       `<b>Sizdan ${amount} yulduz yechildi</b>` +
       (reason ? `\nSabab: ${escapeTelegramText(reason)}` : '') +
       `\nShu bilan birga sizga ogohlantirish berildi.`;
-    await sendTelegramMessage(recipientTelegramId, text);
+    await sendTelegramAs('stars', recipientTelegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

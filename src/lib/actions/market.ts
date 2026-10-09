@@ -10,7 +10,7 @@ import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { getStarBalance } from '@/lib/stars';
 import { insertStarTransaction } from '@/lib/stars-write';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { createSignedReadUrl, createSignedWriteUrl } from '@/lib/gcp/storage';
 import { MARKET_CATEGORIES, type MarketCategory } from '@/lib/market';
 
@@ -149,7 +149,7 @@ async function notifyWishlistRestock(itemId: string) {
     `;
     for (const r of rows) {
       if (!r.telegram_id) continue;
-      await sendTelegramMessage(
+      await sendTelegramAs('stars', 
         r.telegram_id,
         `<b>Persons Market</b>\nIstaklaringizdagi "${escapeTelegramText(r.name)}" yana mavjud!`,
       );
@@ -474,7 +474,7 @@ async function notifyOrderDecided({
         : `<b>Buyurtmangiz rad etildi</b>\nSovg'a: ${escapeTelegramText(itemName)}` +
           `\n${starCost} yulduz balansingizga qaytarildi.` +
           (note ? `\nSabab: ${escapeTelegramText(note)}` : '');
-    await sendTelegramMessage(recipientTelegramId, text);
+    await sendTelegramAs('stars', recipientTelegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

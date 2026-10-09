@@ -1,4 +1,6 @@
 import { Telegraf } from 'telegraf';
+import { sql } from '@/lib/db/client';
+import { NOTIFY_META, type NotifyKind } from '@/lib/notify-kinds';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -89,4 +91,54 @@ export async function sendTelegramMessageToMany(
       }
     }),
   );
+}
+
+/* ------------------------------------------------------------ preferences */
+
+/** 'HH:MM' now in Tashkent. */
+function tashkentClock(): string {
+  return new Date(Date.now() + 5 * 3_600_000).toISOString().slice(11, 16);
+}
+
+function inQuiet(from: string | null, to: string | null, now: string): boolean {
+  if (!from || !to || from === to) return false;
+  const f = from.slice(0, 5);
+  const t = to.slice(0, 5);
+  return f < t ? now >= f && now < t : now >= f || now < t; // wraps midnight
+}
+
+/** Chat ids (as numbers) that have muted this kind, or are in their quiet
+ * hours for a quiet-able kind. One query per batch; on any error, nobody
+ * is filtered (a preference lookup must never swallow a notification). */
+async function blockedChats(chatIds: number[], kind: NotifyKind): Promise<Set<number>> {
+  if (!chatIds.length) return new Set();
+  try {
+    const rows = await sql<{ telegram_id: string | number; muted: string[]; quiet_from: string | null; quiet_to: string | null }[]>`
+      select p.telegram_id, n.muted, n.quiet_from::text as quiet_from, n.quiet_to::text as quiet_to
+      from notification_prefs n join profiles p on p.id = n.user_id
+      where p.telegram_id = any(${sql.array(chatIds.map(String))}::bigint[])`;
+    const now = tashkentClock();
+    return new Set(
+      rows
+        .filter((r) => r.muted.includes(kind) || (NOTIFY_META[kind].quiet && inQuiet(r.quiet_from, r.quiet_to, now)))
+        .map((r) => Number(r.telegram_id)),
+    );
+  } catch (error) {
+    console.error('notification prefs lookup failed', error instanceof Error ? error.message : error);
+    return new Set();
+  }
+}
+
+/** sendTelegramMessage, honouring the recipient's preferences for `kind`. */
+export async function sendTelegramAs(kind: NotifyKind, chatId: string | number, text: string): Promise<void> {
+  const id = Number(chatId);
+  if (Number.isFinite(id) && (await blockedChats([id], kind)).has(id)) return;
+  await sendTelegramMessage(chatId, text);
+}
+
+/** sendTelegramMessageToMany, honouring each recipient's preferences. */
+export async function sendTelegramManyAs(kind: NotifyKind, chatIds: (number | string | null | undefined)[], text: string): Promise<void> {
+  const ids = chatIds.map((c) => (typeof c === 'string' ? Number(c) : c)).filter((c): c is number => typeof c === 'number' && Number.isFinite(c));
+  const blocked = await blockedChats([...new Set(ids)], kind);
+  await sendTelegramMessageToMany(ids.filter((c) => !blocked.has(c)), text);
 }

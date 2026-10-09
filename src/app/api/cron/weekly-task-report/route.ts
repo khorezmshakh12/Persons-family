@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { sendTelegramMessage, sendTelegramMessageToMany } from '@/lib/telegram';
+import { sendTelegramAs, sendTelegramManyAs } from '@/lib/telegram';
 import {
   WEEKLY_EFFICIENCY_WARN_THRESHOLD,
   efficiencyForWeek,
@@ -50,7 +51,7 @@ type EmployeeRow = {
 
 type TaskRow = TaskLike & { assigned_to: string | null };
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -104,7 +105,7 @@ export async function GET(req: NextRequest) {
       const chatId = Number(employee.telegram_id);
       if (Number.isFinite(chatId)) {
         try {
-          await sendTelegramMessage(chatId, formatEmployeeWarning(name, stats, weekLabel));
+          await sendTelegramAs('report', chatId, formatEmployeeWarning(name, stats, weekLabel));
           warned = true;
           warnedCount += 1;
         } catch (error) {
@@ -174,7 +175,7 @@ export async function GET(req: NextRequest) {
       members.map((m) => m.line),
     );
     try {
-      await sendTelegramMessageToMany(ceoChatIds, text);
+      await sendTelegramManyAs('report', ceoChatIds, text);
       groupsSent += 1;
     } catch (error) {
       // sendTelegramMessageToMany already swallows per-recipient failures;
@@ -205,7 +206,7 @@ export async function GET(req: NextRequest) {
     ]
       .filter(Boolean)
       .join('\n');
-    await sendTelegramMessageToMany(ceoChatIds, text);
+    await sendTelegramManyAs('report', ceoChatIds, text);
     summarySent = true;
   } catch (error) {
     console.error('Weekly team summary failed', error instanceof Error ? error.message : error);
@@ -220,3 +221,5 @@ export async function GET(req: NextRequest) {
     groupsSent,
   });
 }
+
+export const GET = withCronLog('weekly-task-report', handle);

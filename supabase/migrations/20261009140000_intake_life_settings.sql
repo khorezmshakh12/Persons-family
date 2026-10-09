@@ -150,4 +150,19 @@ create table if not exists calendar_tokens (
   created_at timestamptz not null default now()
 );
 
+-- Platform change journal (section access) with one-click revert.
+create table if not exists platform_changes (
+  id          uuid primary key default gen_random_uuid(),
+  actor       uuid references profiles(id) on delete set null,
+  kind        text not null,
+  target      uuid references profiles(id) on delete cascade,
+  key         text not null,
+  before      text,
+  after       text,
+  created_at  timestamptz not null default now(),
+  reverted_at timestamptz,
+  reverted_by uuid references profiles(id) on delete set null
+);
+create index if not exists idx_platform_changes_created on platform_changes (created_at desc);
+
 commit;

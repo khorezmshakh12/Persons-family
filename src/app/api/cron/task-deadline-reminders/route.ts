@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { TASK_OPEN_STATUSES } from '@/lib/task-status';
 import { isDueForCreation, nextDue, type Every } from '@/lib/task-recurrence';
 import { tashkentDayKey, tashkentMidnight } from '@/lib/time';
@@ -21,7 +22,7 @@ import { deliverScheduledNews } from '@/lib/news-delivery';
 const REMINDER_TEXT =
   "Deadline tugashiga 2 soat qoldi, berilgan vazifani vaqtida bajarishingizni so'rayman hurmat bilan Persons Agenti 🤖";
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
   for (const task of due) {
     if (task.telegram_id) {
       try {
-        await sendTelegramMessage(task.telegram_id, REMINDER_TEXT);
+        await sendTelegramAs('task', task.telegram_id, REMINDER_TEXT);
         sent += 1;
       } catch (error) {
         // Leave deadline_reminder_sent_at null so the next run retries.
@@ -126,9 +127,11 @@ async function createRecurringTasks(): Promise<number> {
     created += 1;
     await bumpNavBadgeSignal(r.assigned_to).catch(() => {});
     if (r.telegram_id) {
-      await sendTelegramMessage(r.telegram_id, `🔁 Takrorlanuvchi vazifa: <b>${escapeTelegramText(r.title)}</b>\nMuddat: ${due} ${r.due_time}`).catch(() => {});
+      await sendTelegramAs('task', r.telegram_id, `🔁 Takrorlanuvchi vazifa: <b>${escapeTelegramText(r.title)}</b>\nMuddat: ${due} ${r.due_time}`).catch(() => {});
     }
   }
   if (created) await bumpBoardSignal('tasks').catch(() => {});
   return created;
 }
+
+export const GET = withCronLog('task-deadline-reminders', handle);

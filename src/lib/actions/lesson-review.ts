@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { askTypeSafe } from '@/lib/typesafe';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 
 export type ReviewResult = { error?: string; aiScore?: number | null };
 
@@ -38,7 +38,7 @@ export async function reviewLessonAction(input: z.input<typeof reviewSchema>): P
         from course_lessons cl join groups g on g.id = cl.group_id join profiles t on t.id = g.teacher_id
         where cl.id = ${p.data.lessonId}`;
       if (row?.telegram_id) {
-        await sendTelegramMessage(
+        await sendTelegramAs('lesson', 
           row.telegram_id,
           `✏️ <b>${escapeTelegramText(row.group_name)}</b> (${row.lesson_date ?? ''}) dars rejasiga izoh:\n${escapeTelegramText(p.data.note)}`,
         ).catch(() => {});

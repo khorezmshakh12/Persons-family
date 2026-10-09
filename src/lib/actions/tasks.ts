@@ -10,7 +10,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles, canAssignTasks } from '@/lib/task-roles';
 import { efficiencyForMonth, type EfficiencyStats } from '@/lib/task-efficiency';
 import type { StaffRole } from '@/lib/nav';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { insertStarTransaction } from '@/lib/stars-write';
 import {
@@ -54,7 +54,7 @@ const TASK_STATUS_LABELS: Record<string, string> = {
 async function notifyTelegram(telegramId: number | null, text: string) {
   if (!telegramId) return;
   try {
-    await sendTelegramMessage(telegramId, text);
+    await sendTelegramAs('task', telegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -103,7 +103,7 @@ async function notifyTaskAssigned({
       timeZone: 'Asia/Tashkent',
     });
     const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}\nMuddati: ${escapeTelegramText(deadlineLabel)}`;
-    await sendTelegramMessage(assigneeTelegramId, text);
+    await sendTelegramAs('task', assigneeTelegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

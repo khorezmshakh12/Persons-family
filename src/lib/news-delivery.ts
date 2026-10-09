@@ -1,7 +1,7 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
 import { ROLE_DEPT, type Role } from '@/lib/permissions';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs, sendTelegramMessageToMany } from '@/lib/telegram';
 
 /** Telegram broadcast for one published post (audience-aware, sent once). */
 export async function broadcastNews(id: string) {
@@ -13,7 +13,9 @@ export async function broadcastNews(id: string) {
   if (!n) return;
   const staff = await sql<{ telegram_id: number; role: Role }[]>`select telegram_id, role from profiles where is_active and telegram_id is not null`;
   const to = staff.filter((s) => n.audience === 'all' || ROLE_DEPT[s.role] === n.audience).map((s) => s.telegram_id);
-  await sendTelegramMessageToMany(
+  // A must-read post reaches everyone; ordinary news respects mutes / quiet hours.
+  const send = n.must_ack ? sendTelegramMessageToMany : (ids: number[], text: string) => sendTelegramManyAs('news', ids, text);
+  await send(
     to,
     `${n.must_ack ? '❗️ <b>Muhim e’lon</b> — tanishib, “Tanishdim”ni bosing\n' : '📰 '}<b>${escapeTelegramText(n.title)}</b>`,
   ).catch(() => {});

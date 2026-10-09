@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { after } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 import { mirrorGroupChatMessage, deleteGroupChatMessageMirror, updateGroupChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
 
 export type StaffChatActionState = { error?: string } | undefined;
@@ -43,7 +43,7 @@ async function notifyGroupChatMessage({
     `;
 
     const text = `<b>${escapeTelegramText(senderName)}</b> guruh chatiga yozdi:\n${escapeTelegramText(content)}`;
-    await sendTelegramMessageToMany(recipients.map((r) => r.telegram_id), text);
+    await sendTelegramManyAs('chat', recipients.map((r) => r.telegram_id), text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

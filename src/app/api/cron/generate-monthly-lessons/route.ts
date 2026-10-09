@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { generateLessonSlotsForMonth, getAllGroupIds } from '@/lib/lesson-generation';
 
 // Cloud Scheduler fires this a few days before each month starts (see the
@@ -6,7 +7,7 @@ import { generateLessonSlotsForMonth, getAllGroupIds } from '@/lib/lesson-genera
 // CRON_SECRET bearer-auth pattern and the /staff basePath gotcha) so every
 // group already has next month's dated slots ready before the 1st, the same
 // way createGroupAction seeds the current month for a brand-new group.
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -26,3 +27,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ ok: true, groups: groupIds.length, rowsCreated: totalCreated, month: `${nextYear}-${nextMonth}` });
 }
+
+export const GET = withCronLog('generate-monthly-lessons', handle);

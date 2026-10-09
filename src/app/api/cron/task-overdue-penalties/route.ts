@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
 import { insertStarTransaction } from '@/lib/stars-write';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { sendTelegramAs } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { TASK_OPEN_STATUSES } from '@/lib/task-status';
 
@@ -36,7 +37,7 @@ function penaltyText(stars: number): string {
   );
 }
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
 
     if (task.telegram_id) {
       try {
-        await sendTelegramMessage(task.telegram_id, penaltyText(magnitude));
+        await sendTelegramAs('task', task.telegram_id, penaltyText(magnitude));
         telegramSent += 1;
       } catch (error) {
         // The fine is already committed — the message is best-effort.
@@ -141,3 +142,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ ok: true, candidates: rows.length, charged, skipped, telegramSent });
 }
+
+export const GET = withCronLog('task-overdue-penalties', handle);

@@ -9,7 +9,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { can } from '@/lib/permissions';
 import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs, sendTelegramMessageToMany } from '@/lib/telegram';
 import { broadcastNews } from '@/lib/news-delivery';
 import { logSystemAction } from '@/lib/audit-log';
 import { loadCalendar, newsAudience } from '@/lib/team-life-data';
@@ -86,7 +86,7 @@ export async function saveEventAction(input: z.input<typeof eventSchema>): Promi
     if (v.notify && !v.id)
       after(async () => {
         const staff = await sql<{ telegram_id: number }[]>`select telegram_id from profiles where is_active and telegram_id is not null`;
-        await sendTelegramMessageToMany(
+        await sendTelegramManyAs('news', 
           staff.map((s) => s.telegram_id),
           `📅 <b>${escapeTelegramText(v.title)}</b>\n${v.day}${v.time ? ` ${v.time}` : ''}${v.location ? ` · ${escapeTelegramText(v.location)}` : ''}\nKalendar: Jamoa hayoti bo‘limida`,
         ).catch(() => {});
