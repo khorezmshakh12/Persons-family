@@ -135,7 +135,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'coreInbox', href: '/inbox', core: 'inbox' },
   { key: 'sales', href: '/sales', core: 'sales' },
   { key: 'hr', href: '/hr', core: 'hr' },
-  { key: 'report', href: '/report', core: 'report' },
+  { key: 'report', href: '/report' },
   { key: 'platform', href: '/platform', core: 'settings' },
   // Goes through the SSO handoff route, not straight to /materials, so
   // clicking it doesn't drop the employee on Materials' login screen — see

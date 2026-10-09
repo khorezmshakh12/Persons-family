@@ -130,8 +130,9 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   hr: ALL, // own leave / vacation requests; other people's pay is redacted
   // Department sections.
   sales: [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],
-  // Monthly report removed for now (owner, 2026-09-30).
-  report: [],
+  // Team reports (Hisobotlar) — leadership; re-opened 2026-10-09 as a
+  // native page (sections v5), replacing the old Core monthly report.
+  report: ['ceo', 'coo'],
   staff: [...LEADERSHIP, 'admin_manager', 'it_developer'],
   lessonPlans: ['ceo', 'academic_director', 'head_teacher', 'teacher', 'assistant'],
   // For now CEO, COO and PM only (owner, 2026-09-30).

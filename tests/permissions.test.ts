@@ -36,9 +36,10 @@ const EVERYONE: SectionKey[] = [
 const EXPECTED: Record<Role, SectionKey[]> = {
   // Owner, 2026-09-30: Market closed to all but CEO / COO / IT Developer;
   // monthly report removed; Strategy = CEO, COO, PM; Accounting = CEO only;
-  // Platform settings = CEO, COO.
-  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
-  coo: ['sales', 'staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
+  // Platform settings = CEO, COO. Reports (Hisobotlar) reopened for CEO + COO
+  // as a native page (owner, 2026-10-09).
+  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market', 'report'],
+  coo: ['sales', 'staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market', 'report'],
   commercial_director: ['sales', 'operations'],
   academic_director: ['lessonPlans', 'operations'],
   financist: ['sales'],

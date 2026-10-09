@@ -66,6 +66,7 @@ const ERR: Record<string, string> = {
   notYet: 'Bu oy hali boshlanmagan',
   forbidden: "Ruxsat yo'q",
   invalidInput: "Ma'lumot noto'g'ri",
+  periodLocked: 'Bu oyning oyligi tasdiqlangan — avval Moliya › Oylik jarayonida oyni qayta oching',
 };
 const errText = (c: string) => ERR[c] ?? "Saqlab bo'lmadi, qayta urinib ko'ring";
 

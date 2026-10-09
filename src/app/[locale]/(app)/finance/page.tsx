@@ -1,11 +1,13 @@
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { PayrollSection } from '@/components/finance/payroll-section';
-import { getPayrollSummary, resolvePeriod } from '@/lib/payroll';
+import { resolvePeriod } from '@/lib/payroll';
 import { FinanceDetailContent } from './[staffId]/page';
 import { can, canSeeFor } from '@/lib/permissions';
+import { roleLabel } from '@/lib/roles';
 import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { BgVideo } from '@/components/motion/bg-video';
+import { PayRunConsole } from '@/components/finance/pay-run-console';
+import { loadAdvances, loadPayHistory, loadPayLines, loadPayRun, loadPayRunLog } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +17,7 @@ export default async function FinancePage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const t = await getTranslations('finance');
-  const locale = await getLocale();
+  const tStaff = await getTranslations('staff');
   const { user, profile } = await getAuthState();
   const isAdmin = can(profile!.role, 'finance.viewAll');
 
@@ -23,32 +25,31 @@ export default async function FinancePage({
     // `?period=` is user-supplied — normalised (or replaced with the current
     // Tashkent month) before it reaches a query.
     const period = resolvePeriod((await searchParams)?.period);
-    // One table: every active employee's salary, paid and remaining for the
-    // month — each name opens that person's ledger. (The separate staff
-    // list that used to follow it repeated the same people.)
-    const payroll = await getPayrollSummary(period);
+    const [lines, run, log, advances, history] = await Promise.all([
+      loadPayLines(period),
+      loadPayRun(period),
+      loadPayRunLog(period),
+      loadAdvances(),
+      loadPayHistory(period),
+    ]);
+    const roleNames = Object.fromEntries([...new Set(lines.map((l) => l.role))].map((r) => [r, roleLabel(tStaff, r)]));
 
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-        <div className="flex flex-col gap-1 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-4 pt-1 pb-8 sm:px-7">
+        <div className="relative flex flex-col gap-1 overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
           <BgVideo variant="hero" />
-          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
-            {t('title')}
-          </h1>
-          <p className="text-au-muted">{t('adminSubtitle')}</p>
+          <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
+          <p className="text-au-muted">Oylik jarayoni: hisoblash → tekshirish → tasdiqlash → to‘lov. Har bir summaning manbasi ko‘rinadi.</p>
         </div>
 
         {canSeeFor(profile!, 'accounting') && <FinanceTabs className="self-start" />}
 
-        <PayrollSection summary={payroll} locale={locale} />
-
+        <PayRunConsole period={period} run={run} lines={lines} log={log} advances={advances} history={history} roleNames={roleNames} />
       </div>
     );
   }
 
-  // Non-admin: their own ledger + KPI + Income Roadmap all live together on
-  // the per-staff detail page now, so this list page renders it in place
-  // (used to redirect() to /finance/[own-id] — see the comment on
-  // ProfileDetailContent in profile/[id]/page.tsx for why that broke).
+  // Non-admin: their own pay statement, KPI and Income Roadmap live on the
+  // per-staff detail page, rendered here in place.
   return <FinanceDetailContent staffId={user!.id} />;
 }

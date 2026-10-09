@@ -15,7 +15,6 @@ import type { TeacherLevel } from '@/lib/teacher-level';
 import { ContactInfoCard } from '@/components/profile/contact-info-card';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { StarBalanceCard } from '@/components/profile/star-balance-card';
-import { SalaryCard } from '@/components/profile/salary-card';
 import { WarningsCard } from '@/components/profile/warnings-card';
 import { MonthlyWarningsArchive } from '@/components/profile/monthly-warnings-archive';
 import { MonthlyStarsArchive } from '@/components/profile/monthly-stars-archive';
@@ -29,6 +28,19 @@ import { SectionErrorBoundary } from '@/components/profile/section-error-boundar
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
 import { can } from '@/lib/permissions';
 import { BgVideo } from '@/components/motion/bg-video';
+import { tashkentDayKey, startOfTashkentMonthKey } from '@/lib/time';
+import {
+  loadOneOnOnes,
+  loadPrivateNotes,
+  loadProfileActivity,
+  loadProfileCard,
+  loadProfileMetrics,
+  loadSkills,
+  loadWork,
+} from '@/lib/profile-insights';
+import { AboutCard, AccountTab, ActivityCard, MetricsCard, PeopleTab, ProfileStrip, WorkTab } from '@/components/profile/profile-hub';
+import { PayStatement } from '@/components/finance/pay-statement';
+import { loadPayHistory, loadPayLines, loadPayRun } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,17 +132,41 @@ export async function ProfileDetailContent({
   `;
   if (!target) notFound();
 
-  // One long scroll of ten cards became five tabs; only the open tab's
-  // cards are rendered (and fetched).
-  const tabs = (['overview', 'stars', 'finance', 'discipline', 'growth'] as const).filter(
-    (k) => canViewCeoScoped || (k !== 'stars' && k !== 'growth'),
+  // Tabs; only the open tab's cards are rendered (and fetched).
+  // Work / 1:1 / account (sections v5) sit next to the original five.
+  const CEO_SCOPED = new Set(['stars', 'growth', 'work', 'people']);
+  const tabs = (['overview', 'work', 'stars', 'finance', 'discipline', 'growth', 'people', 'account'] as const).filter(
+    (k) => (canViewCeoScoped || !CEO_SCOPED.has(k)) && (k !== 'account' || isSelf || isAdmin),
   );
   const tab = (tabs as readonly string[]).includes(tabParam ?? '') ? (tabParam as (typeof tabs)[number]) : 'overview';
-  const tabLabels = Object.fromEntries(tabs.map((k) => [k, tProfile(`tabs.${k}`)]));
+  const NEW_LABELS: Record<string, string> = { work: 'Ish', people: '1:1', account: 'Hisob' };
+  const tabLabels = Object.fromEntries(tabs.map((k) => [k, NEW_LABELS[k] ?? tProfile(`tabs.${k}`)]));
   const avatarSignedUrl = await resolveAvatarUrl(target.avatar_url);
+  const today = tashkentDayKey();
+  const period = startOfTashkentMonthKey();
+
+  const [card, metrics, positions, people] = await Promise.all([
+    loadProfileCard(id),
+    canViewCeoScoped ? loadProfileMetrics(id) : Promise.resolve(null),
+    sql<{ role: string }[]>`select role::text as role from profile_roles where user_id = ${id}`,
+    isAdmin && !isSelf
+      ? sql<{ id: string; name: string }[]>`select id, trim(concat(first_name, ' ', last_name)) as name from profiles where is_active order by first_name`
+      : Promise.resolve([] as { id: string; name: string }[]),
+  ]);
+  const positionNames = [...new Set([target.role, ...positions.map((r) => r.role)])].map((r) => roleLabel(tStaff, r));
+  const [activity, skills, work, meetings, privateNotes, payLines, payRun, payHistory] = await Promise.all([
+    tab === 'overview' && canViewCeoScoped ? loadProfileActivity(id, true) : Promise.resolve([]),
+    tab === 'overview' ? loadSkills(id) : Promise.resolve([]),
+    tab === 'work' ? loadWork(id) : Promise.resolve(null),
+    tab === 'people' ? loadOneOnOnes(id) : Promise.resolve([]),
+    tab === 'people' && isAdmin && !isSelf ? loadPrivateNotes(id) : Promise.resolve(null),
+    tab === 'finance' && canViewCeoScoped ? loadPayLines(period, id) : Promise.resolve([]),
+    tab === 'finance' && canViewCeoScoped ? loadPayRun(period) : Promise.resolve(null),
+    tab === 'finance' && canViewCeoScoped ? loadPayHistory(period, id) : Promise.resolve([]),
+  ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       {isSelf && <MarkWarningsSeen />}
       <div
         style={{ animationDelay: '0ms' }}
@@ -143,8 +179,8 @@ export async function ProfileDetailContent({
         >
           <AvatarImage src={avatarSignedUrl ?? undefined} alt="" />
           <AvatarFallback className="text-lg">
-            {target.first_name[0]}
-            {target.last_name[0]}
+            {target.first_name?.[0] ?? ''}
+            {target.last_name?.[0] ?? ''}
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col gap-1">
@@ -158,6 +194,17 @@ export async function ProfileDetailContent({
         </div>
       </div>
 
+      <ProfileStrip
+        staffId={id}
+        card={card}
+        positions={positionNames}
+        today={today}
+        isSelf={isSelf}
+        isLead={isAdmin && !isSelf}
+        metrics={metrics ?? { months: [], series: { tasksDone: [], onTime: [], kpi: [], selfDev: [], stars: [], issues: [] } }}
+        name={`${target.first_name} ${target.last_name}`}
+      />
+
       <ProfileTabs current={tab} tabs={tabs} hrefBase={hrefBase ?? `/profile/${id}`} labels={tabLabels} />
 
       {/* Switching tabs crossfades the content (#4, motion-v4.css). */}
@@ -165,6 +212,13 @@ export async function ProfileDetailContent({
         <div className="flex flex-col gap-6">
           {tab === 'overview' && (
             <>
+            {metrics && (
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <MetricsCard metrics={metrics} people={people} staffId={id} isLead={isAdmin && !isSelf} />
+                <ActivityCard items={activity} />
+              </div>
+            )}
+            <AboutCard staffId={id} bio={card.bio} skills={skills} canEdit={isSelf || isAdmin} isLead={isAdmin} />
             <div className="enter-rise" style={{ animationDelay: '70ms' }}>
               <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
                 <Suspense fallback={<GlassCardSkeleton />}>
@@ -214,14 +268,8 @@ export async function ProfileDetailContent({
 
           {tab === 'finance' && (
             <>
-              {canViewCeoScoped && (
-            <div className="enter-rise" style={{ animationDelay: '70ms' }}>
-              <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
-                <Suspense fallback={<GlassCardSkeleton />}>
-                  <SalaryCard staffId={id} />
-                </Suspense>
-              </SectionErrorBoundary>
-            </div>
+              {canViewCeoScoped && payRun && (
+                <PayStatement line={payLines[0] ?? null} period={period} status={payRun.status} history={payHistory} advances={null} isSelf={false} />
               )}
             <div className="enter-rise" style={{ animationDelay: '120ms' }}>
               <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
@@ -251,6 +299,21 @@ export async function ProfileDetailContent({
             </div>
             </>
           )}
+
+          {tab === 'work' && work && <WorkTab work={work} today={today} />}
+
+          {tab === 'people' && canViewCeoScoped && (
+            <PeopleTab
+              staffId={id}
+              name={target.first_name}
+              meetings={meetings}
+              notes={privateNotes}
+              isLead={isAdmin && !isSelf}
+              today={today}
+            />
+          )}
+
+          {tab === 'account' && <AccountTab card={card} isSelf={isSelf} />}
 
           {tab === 'growth' && canViewCeoScoped && (
             <div className="enter-rise" style={{ animationDelay: '70ms' }}>

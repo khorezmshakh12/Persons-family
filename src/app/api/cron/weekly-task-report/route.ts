@@ -17,6 +17,8 @@ import {
   reportRoleGroup,
   type ReportRoleGroup,
 } from '@/lib/telegram-reports';
+import { loadTeamReport } from '@/lib/team-report-data';
+import { fmtMetric, METRIC_META, type Metric } from '@/lib/team-report';
 
 // Cloud Scheduler fires this every Monday at 06:00 Asia/Tashkent (see the
 // gcloud command in this feature's report, and the lesson-plan-check-daily
@@ -182,8 +184,36 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Team summary (Hisobotlar) for the week that just ended — the run fires
+  // on Monday, so the last bucket is the new, empty week; use the one before.
+  let summarySent = false;
+  try {
+    const rep = await loadTeamReport('week');
+    const i = rep.buckets.length - 2;
+    const line = (m: Metric) => {
+      const v = rep.series[m][i];
+      const p = rep.series[m][i - 1];
+      const unit = METRIC_META[m].unit;
+      const d = v !== null && p !== null ? (unit === '%' ? `${v - p >= 0 ? '+' : ''}${Math.round(v - p)} p.p.` : `${v - p >= 0 ? '+' : ''}${v - p}`) : '';
+      return `• ${METRIC_META[m].n}: <b>${fmtMetric(v, unit)}</b>${d ? ` (${d})` : ''}`;
+    };
+    const text = [
+      `📈 <b>Jamoa hisoboti · ${rep.buckets[i].label} haftasi</b>`,
+      ...(['tasksDone', 'onTime', 'missed', 'issuesNew', 'issuesResolved', 'leads', 'enrolled'] as Metric[]).map(line),
+      rep.attention.length ? `\n⚠️ E’tibor kerak: ${rep.attention.slice(0, 5).map((a) => a.name).join(', ')}${rep.attention.length > 5 ? '…' : ''}` : '',
+      '\nBatafsil: Hisobotlar bo‘limi',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    await sendTelegramMessageToMany(ceoChatIds, text);
+    summarySent = true;
+  } catch (error) {
+    console.error('Weekly team summary failed', error instanceof Error ? error.message : error);
+  }
+
   return NextResponse.json({
     ok: true,
+    summarySent,
     week: week.startKey,
     employees: employees.length,
     warned: warnedCount,
