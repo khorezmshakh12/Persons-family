@@ -36,7 +36,7 @@ export type CalEvent = {
   eventId?: string;
   editable?: boolean;
   /** Company events: the stored fields, for editing. */
-  raw?: { description: string; location: string; kind: EventKind; repeat: Repeat };
+  raw?: { description: string; location: string; kind: EventKind; repeat: Repeat; repeatUntil: string | null };
 };
 
 export const EVENT_KINDS = ['company', 'meeting', 'training', 'holiday', 'other'] as const;
@@ -70,10 +70,18 @@ export function occurrences(start: string, repeat: Repeat, until: string | null,
   const out: string[] = [];
   const stop = until && until < to ? until : to;
   if (repeat === 'none') return start >= from && start <= to ? [start] : [];
-  let k = start;
-  for (let i = 0; i < cap && k <= stop; i++) {
+  const at = (i: number) => (repeat === 'weekly' ? addDays(start, 7 * i) : repeat === 'monthly' ? addMonths(start, i) : addMonths(start, 12 * i));
+  // Jump close to the window first, so a long-running series is not cut by `cap`.
+  let skip = 0;
+  if (from > start) {
+    const days = (new Date(`${from}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) / 86_400_000;
+    const months = (Number(from.slice(0, 4)) - Number(start.slice(0, 4))) * 12 + Number(from.slice(5, 7)) - Number(start.slice(5, 7));
+    skip = Math.max(0, repeat === 'weekly' ? Math.floor(days / 7) - 1 : repeat === 'monthly' ? months - 1 : Math.floor(months / 12) - 1);
+  }
+  for (let i = skip; i < skip + cap; i++) {
+    const k = at(i);
+    if (k > stop) break;
     if (k >= from) out.push(k);
-    k = repeat === 'weekly' ? addDays(start, 7 * (i + 1)) : repeat === 'monthly' ? addMonths(start, i + 1) : addMonths(start, 12 * (i + 1));
   }
   return out;
 }

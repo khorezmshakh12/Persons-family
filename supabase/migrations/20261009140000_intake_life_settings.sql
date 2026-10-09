@@ -40,16 +40,16 @@ select
   to_timestamp((l->>'at')::numeric / 1000),
   now(),
   case when l->>'st' = 'won' then coalesce(
-    (select to_timestamp(max((h->>'at')::numeric) / 1000) from jsonb_array_elements(coalesce(l->'hist', '[]'::jsonb)) h
+    (select to_timestamp(max((h->>'at')::numeric) / 1000) from jsonb_array_elements(case when jsonb_typeof(l->'hist') = 'array' then l->'hist' else '[]'::jsonb end) h
       where h->>'st' = 'won' and (h->>'at') ~ '^[0-9]+$'),
     to_timestamp((l->>'at')::numeric / 1000)) end,
-  (select to_timestamp(min((h->>'at')::numeric) / 1000) from jsonb_array_elements(coalesce(l->'hist', '[]'::jsonb)) h
+  (select to_timestamp(min((h->>'at')::numeric) / 1000) from jsonb_array_elements(case when jsonb_typeof(l->'hist') = 'array' then l->'hist' else '[]'::jsonb end) h
     where h->>'st' = 'trial' and (h->>'at') ~ '^[0-9]+$'),
   nullif(l->>'camp', ''),
   nullif(l->>'lost', ''),
   'core:' || (l->>'id')
 from core_state cs, jsonb_array_elements(case when jsonb_typeof(cs.data->'leads') = 'array' then cs.data->'leads' else '[]'::jsonb end) l
-where cs.id = 1 and (l->>'at') ~ '^[0-9]+(\.[0-9]+)?$' and l ? 'id'
+where cs.id = 1 and (l->>'at') ~ '^[0-9]+(\.[0-9]+)?$' and coalesce(l->>'id', '') <> ''
 on conflict (core_id) where core_id is not null do nothing;
 
 create table if not exists lead_spend (
@@ -69,7 +69,7 @@ select (m.key || '-01')::date,
 from core_state cs,
   jsonb_each(case when jsonb_typeof(cs.data->'spend') = 'object' then cs.data->'spend' else '{}'::jsonb end) m,
   jsonb_each(case when jsonb_typeof(m.value) = 'object' then m.value else '{}'::jsonb end) c
-where cs.id = 1 and m.key ~ '^[0-9]{4}-[0-9]{2}$'
+where cs.id = 1 and m.key ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'
 group by 1, 2
 on conflict (month, source) do nothing;
 

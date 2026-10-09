@@ -9,6 +9,11 @@ test('one-off and weekly occurrences inside the window', () => {
   assert.deepEqual(occurrences('2026-10-06', 'weekly', '2026-10-14', '2026-10-01', '2026-10-31'), ['2026-10-06', '2026-10-13']);
 });
 
+test('a years-old weekly series still shows (no cap cut-off)', () => {
+  assert.deepEqual(occurrences('2018-01-01', 'weekly', null, '2026-10-05', '2026-10-18'), ['2026-10-05', '2026-10-12']);
+  assert.deepEqual(occurrences('2010-03-15', 'monthly', null, '2026-10-01', '2026-11-30'), ['2026-10-15', '2026-11-15']);
+});
+
 test('monthly repeats clamp to the month end; yearly keeps the date', () => {
   assert.deepEqual(occurrences('2026-01-31', 'monthly', null, '2026-02-01', '2026-04-30'), ['2026-02-28', '2026-03-31', '2026-04-30']);
   assert.deepEqual(occurrences('2025-10-09', 'yearly', null, '2026-01-01', '2026-12-31'), ['2026-10-09']);

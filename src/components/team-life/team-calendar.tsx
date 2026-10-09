@@ -47,7 +47,7 @@ function rangeFor(view: View, anchor: string): { from: string; to: string } {
 
 const covers = (e: CalEvent, day: string) => e.day <= day && (e.endDay ?? e.day) >= day;
 
-type EventDraft = { id?: string; title: string; description: string; day: string; time: string; endDay: string; location: string; kind: EventKind; repeat: 'none' | 'weekly' | 'monthly' | 'yearly'; notify: boolean };
+type EventDraft = { id?: string; title: string; description: string; day: string; time: string; endDay: string; location: string; kind: EventKind; repeat: 'none' | 'weekly' | 'monthly' | 'yearly'; repeatUntil?: string | null; notify: boolean };
 
 export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: CalEvent[]; today: string; canPublish: boolean; canAll: boolean }) {
   const [view, setView] = useState<View>('month');
@@ -149,6 +149,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
         location: draft.location,
         kind: draft.kind,
         repeat: draft.repeat,
+        repeatUntil: draft.repeatUntil ?? null,
         notify: draft.notify,
       });
       if (res.error !== undefined) return void toast.error('Saqlab bo‘lmadi — maydonlarni tekshiring');
@@ -376,6 +377,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                         location: openEv.raw?.location ?? '',
                         kind: openEv.raw?.kind ?? 'company',
                         repeat: openEv.raw?.repeat ?? 'none',
+                        repeatUntil: openEv.raw?.repeatUntil ?? null,
                         notify: false,
                       });
                       setOpenEv(null);

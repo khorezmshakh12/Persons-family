@@ -7,7 +7,7 @@ import { after } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
-import { can } from '@/lib/permissions';
+import { can, ROLE_DEPT, type Role } from '@/lib/permissions';
 import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
 import { escapeTelegramText, sendTelegramManyAs, sendTelegramMessageToMany } from '@/lib/telegram';
 import { broadcastNews } from '@/lib/news-delivery';
@@ -160,7 +160,7 @@ export async function saveNewsAction(input: z.input<typeof newsSchema>): Promise
     const [row] = v.id
       ? await sql<{ id: string }[]>`
           update company_news set title = ${v.title}, content = ${v.content}, category = ${v.category}, pinned = ${v.pinned},
-            must_ack = ${v.mustAck}, publish_at = ${v.publishAt}, audience = ${v.audience}, image_url = ${v.imageUrl || null}, notify = ${v.notify}
+            must_ack = ${v.mustAck}, publish_at = ${v.publishAt}, audience = ${v.audience}, image_url = ${v.imageUrl || null}
           where id = ${v.id} and deleted_at is null returning id`
       : await sql<{ id: string }[]>`
           insert into company_news (title, content, created_by, category, pinned, must_ack, publish_at, audience, image_url, notify)
@@ -185,7 +185,8 @@ async function requireNewsOwnerOrAdmin(newsId: string): Promise<{ id: string } |
   if (!user || !profile) return { error: 'sessionExpired' };
   const [n] = await sql<{ created_by: string | null }[]>`select created_by from company_news where id = ${newsId}`;
   if (!n) return { error: 'notFound' };
-  if (n.created_by !== user.id && !can(profile.role, 'news.publish')) return { error: 'forbidden' };
+  const held = profile.roles ?? [profile.role];
+  if (n.created_by !== user.id && !held.some((r) => can(r, 'news.publish'))) return { error: 'forbidden' };
   return { id: user.id };
 }
 
@@ -258,12 +259,14 @@ export async function remindUnackedAction(id: string): Promise<Result<{ sent: nu
   const g = await requirePublisher();
   if ('error' in g) return g;
   if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
-  const [n] = await sql<{ title: string }[]>`select title from company_news where id = ${id} and must_ack and deleted_at is null`;
+  const [n] = await sql<{ title: string; audience: string }[]>`select title, audience from company_news where id = ${id} and must_ack and deleted_at is null`;
   if (!n) return { error: 'notFound' };
-  const rows = await sql<{ telegram_id: number }[]>`
-    select p.telegram_id from profiles p
+  const all = await sql<{ telegram_id: number; role: Role }[]>`
+    select p.telegram_id, p.role from profiles p
     where p.is_active and p.telegram_id is not null
       and not exists (select 1 from company_news_acks a where a.news_id = ${id} and a.user_id = p.id)`;
+  // Only the post's own audience (a finance-only order stays in finance).
+  const rows = all.filter((r) => n.audience === 'all' || ROLE_DEPT[r.role] === n.audience);
   await sendTelegramMessageToMany(
     rows.map((r) => r.telegram_id),
     `🔔 Eslatma: <b>${escapeTelegramText(n.title)}</b> e’loni bilan tanishib, “Tanishdim”ni bosing.`,

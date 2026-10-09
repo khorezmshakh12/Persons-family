@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -227,6 +227,11 @@ export function IntakeView({ initial, canEdit }: { initial: Intake; canEdit: boo
 /* ------------------------------------------------------------ quick log */
 
 function QuickLog({ courses, campaigns, onDone }: { courses: string[]; campaigns: string[]; onDone: () => void }) {
+  // The undo toast outlives this render: always reload with the current view.
+  const done = useRef(onDone);
+  useEffect(() => {
+    done.current = onDone;
+  });
   const [source, setSource] = useState<Source>('instagram');
   const [course, setCourse] = useState('');
   const [stage, setStage] = useState<Stage>('new');
@@ -248,7 +253,7 @@ function QuickLog({ courses, campaigns, onDone }: { courses: string[]; campaigns
               if (r.error !== undefined) toast.error(errText(r.error));
               else {
                 toast.success('Qayd bekor qilindi');
-                onDone();
+                done.current();
               }
             });
           },
@@ -427,7 +432,10 @@ function SourcesCard({ data, jev, jevBusy, onJev, canEdit, onSpend }: { data: In
         if (!Number.isFinite(n) || n < 0) return void toast.error(`${SOURCE_META[s].n}: summa noto‘g‘ri`);
         if (n === (data.monthSpend[s] ?? 0)) continue;
         const res = await setLeadSpendAction({ month: data.month, source: s, amount: n });
-        if (res.error !== undefined) return void toast.error(errText(res.error));
+        if (res.error !== undefined) {
+          onSpend(); // what did save must show
+          return void toast.error(errText(res.error));
+        }
       }
       toast.success('Xarajatlar saqlandi');
       setEditing(false);
@@ -691,7 +699,7 @@ function RecentCard({ data, canEdit, onChange }: { data: Intake; canEdit: boolea
                 {l.course || 'Kurs ko‘rsatilmagan'}
                 {l.name && l.name !== '—' && <span className="text-au-muted"> · {l.name}</span>}
               </span>
-              <span className="text-[11px] text-au-muted tabular-nums">{l.created_at.slice(5, 10).replace('-', '.')}</span>
+              <span className="text-[11px] text-au-muted tabular-nums">{new Date(new Date(l.created_at).getTime() + 5 * 3_600_000).toISOString().slice(5, 10).replace('-', '.')}</span>
               {canEdit ? (
                 <select
                   value={l.stage}

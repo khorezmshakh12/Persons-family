@@ -75,14 +75,14 @@ export async function loadCalendar(viewer: Profile, from: string, to: string, sc
           maybe: rs.filter((r) => r.response === 'maybe').length,
         },
         editable: lead || e.created_by === viewer.id,
-        raw: { description: e.description, location: e.location, kind: e.kind as EventKind, repeat: e.repeat },
+        raw: { description: e.description, location: e.location, kind: e.kind as EventKind, repeat: e.repeat, repeatUntil: e.repeat_until },
       });
     }
   }
   for (const t of tasks)
     out.push({ id: `task-${t.id}`, layer: 'task', title: t.title, day: tk(t.deadline), time: tTime(t.deadline), href: '/tasks', meta: allTasks ? nm(t.first_name, t.last_name) : undefined });
   for (const m of milestones) out.push({ id: `ms-${m.id}`, layer: 'milestone', title: m.title, day: m.date, href: '/strategy', meta: m.space });
-  for (const p of people) {
+  for (const p of scope === 'mine' ? people.filter((x) => x.id === viewer.id) : people) {
     if (p.date_of_birth)
       for (const day of yearlyIn(p.date_of_birth, from, to)) out.push({ id: `bd-${p.id}-${day}`, layer: 'birthday', title: `${nm(p.first_name, p.last_name)} — tug‘ilgan kun`, day, href: `/profile/${p.id}` });
     if (p.hire_date)
@@ -102,7 +102,10 @@ export async function loadCalendar(viewer: Profile, from: string, to: string, sc
     if (b < from || a > to) continue;
     const pid = keyToId[l.k];
     const p = pid ? byId.get(pid) : undefined;
-    const mineOrHr = hrView || pid === viewer.id;
+    // Other people's leave reasons stay in the team view for HR / leadership;
+    // the personal ('mine') scope — and so the .ics feed — never carries them.
+    if (scope === 'mine' && pid !== viewer.id) continue;
+    const mineOrHr = pid === viewer.id || (hrView && scope === 'all');
     out.push({
       id: `lv-${String(l.id)}`,
       layer: 'leave',

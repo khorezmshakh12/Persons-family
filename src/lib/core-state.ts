@@ -429,8 +429,9 @@ export const CORE_CHANNELS: Record<string, string> = { ig: 'Instagram', meta: 'M
 
 /** This Tashkent month's intake for the dashboard card — the same store
  * (ops_leads + lead_spend, merged from Core on 2026-10-09) and the same
- * formulas as the Qabul page: leads = arrived this month, contracts =
- * enrolled this month, CAC = month spend / contracts. */
+ * cohort formulas as the Qabul page: leads = arrived this month, contracts =
+ * those of them now enrolled (so conversion never exceeds 100%), CAC =
+ * month spend / contracts. */
 export async function loadSalesSnapshot() {
   const m = tashkentMonthKey();
   const from = tashkentMidnight(`${m}-01`).toISOString();
@@ -442,8 +443,8 @@ export async function loadSalesSnapshot() {
   const [rows, spendRows, flowRows] = await Promise.all([
     sql<{ source: string; n: number; won: number }[]>`
       select source, count(*) filter (where created_at >= ${from})::int as n,
-        count(*) filter (where enrolled_at >= ${from})::int as won
-      from ops_leads where created_at >= ${from} or enrolled_at >= ${from} group by source`,
+        count(*) filter (where created_at >= ${from} and (enrolled_at is not null or stage = 'enrolled'))::int as won
+      from ops_leads where created_at >= ${from} group by source`,
     sql<{ source: string; amount: number }[]>`select source, amount from lead_spend where month = ${`${m}-01`}`,
     sql<{ d: string; n: number }[]>`
       select to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM-DD') as d, count(*)::int as n
