@@ -12,6 +12,21 @@
 --   closed      status = 'done'        and closed_at is not null
 begin;
 
+-- The issues table predates the migrations folder (created in Supabase), so
+-- a same-named column from that era may already exist with another type or
+-- values. Park any such column as <name>_legacy instead of colliding.
+do $$
+declare c text;
+begin
+  foreach c in array array['kind', 'priority', 'anonymous', 'accepted_at', 'respond_by', 'resolve_by', 'closed_at',
+                           'confirmed', 'rating', 'reopen_count', 'task_id', 'root_cause', 'sla_warned']
+  loop
+    if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'issues' and column_name = c) then
+      execute format('alter table issues rename column %I to %I', c, c || '_legacy');
+    end if;
+  end loop;
+end $$;
+
 alter table issues
   add column if not exists kind text not null default 'problem',
   add column if not exists priority text not null default 'normal',

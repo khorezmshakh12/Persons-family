@@ -110,6 +110,7 @@ async function handle(req: NextRequest): Promise<Response> {
       await sendTelegramAs('kpi', 
         r.telegram_id,
         `🎯 Haftalik OKR check-in: quyidagi key result’lar bo‘yicha bu hafta holat kiritilmagan:\n${list}\nPlatforma › Strategiya › OKR`,
+        { href: '/strategy' },
       ).catch(() => {});
     }
     sent.push('okr_checkin');

@@ -1231,7 +1231,7 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
       fd.set('priority', priority);
       fd.set('anonymous', kind === 'idea' && anon ? 'on' : 'off');
       if (manager && assignee) fd.set('assignedTo', assignee);
-      if (voicePath) fd.set('voiceUrl', voicePath);
+      if (voicePath && !(kind === 'idea' && anon)) fd.set('voiceUrl', voicePath);
       const res = await createIssueAction(undefined, fd);
       if (res?.error || !res?.id) return void toast.error(res?.error === 'invalidInput' ? 'Sarlavha kamida 3 harf bo‘lsin' : errText(res?.error));
       toast.success(kind === 'idea' && anon ? 'Taklif anonim yuborildi' : 'Murojaat yuborildi');
@@ -1319,7 +1319,7 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
             </label>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={toggleRecord} disabled={uploading} className={cn(BTN_SECONDARY, 'h-9', recording && 'border-au-bad text-au-bad')}>
+            <button type="button" onClick={toggleRecord} disabled={uploading || (kind === 'idea' && anon)} title={kind === 'idea' && anon ? 'Anonim taklifda ovoz sizni tanitib qo‘yadi' : undefined} className={cn(BTN_SECONDARY, 'h-9', recording && 'border-au-bad text-au-bad')}>
               {recording ? <Square className="size-4" /> : <Mic className="size-4" />}
               {recording ? 'To‘xtatish' : uploading ? 'Yuklanmoqda…' : 'Ovozli xabar'}
             </button>

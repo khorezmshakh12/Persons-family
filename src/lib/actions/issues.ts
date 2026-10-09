@@ -54,7 +54,9 @@ const link = (id: string) => `/issues?id=${id}`;
 async function ceoUserId(): Promise<string | null> {
   // eslint-disable-next-line no-restricted-syntax
   const [row] = await sql<{ id: string }[]>`
-    select id from profiles where role = 'ceo' and is_active = true order by created_at asc limit 1
+    select p.id from profiles p
+    where p.is_active and (p.role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = p.id and r.role = 'ceo'))
+    order by (p.role = 'ceo') desc, p.created_at asc limit 1
   `;
   return row?.id ?? null;
 }
@@ -327,7 +329,7 @@ export async function getIssuesCenterAction(): Promise<IssuesCenter | null> {
               assigneeName: r.task_first ? fullName({ first_name: r.task_first, last_name: r.task_last }) : null,
             }
           : null,
-        voiceSignedUrl: r.voice_url ? await createSignedReadUrl('issue-voice-notes', r.voice_url, 3600) : null,
+        voiceSignedUrl: r.voice_url && !hide ? await createSignedReadUrl('issue-voice-notes', r.voice_url, 3600) : null,
         ai: ai.get(r.id) ?? null,
         comments: (comments.get(r.id) ?? []).map((c) => {
           const byReporter = c.author_id === r.created_by;
@@ -391,7 +393,7 @@ async function loadIssueAi(ids: string[]): Promise<Map<string, IssueAi>> {
   try {
     const rows = await sql<
       { issue_id: string; category: string | null; category_confidence: number | null; urgency: number | null; it_bug: number | null }[]
-    >`select issue_id, category, category_confidence, urgency, it_bug from issue_ai where issue_id = any(${ids}::uuid[])`;
+    >`select issue_id, category, category_confidence, urgency, it_bug from issue_ai where issue_id = any(${sql.array(ids)}::uuid[])`;
     return new Map(
       rows.map((r) => [r.issue_id, { category: r.category, categoryConfidence: r.category_confidence, urgency: r.urgency, itBug: r.it_bug }]),
     );
@@ -434,23 +436,38 @@ export async function moveIssueAction(input: z.input<typeof moveSchema>): Promis
   if (to === 'resolved' && (!note || note.length < 3)) return { error: 'resolutionNote' };
 
   const reporterResolves = to === 'resolved' && i.created_by === v.userId;
+  // `status` alone can't tell new/accepted or resolved/closed apart — guard
+  // on the exact stage that was read, so a racing click never applies twice.
+  const guard =
+    from === 'new'
+      ? sql`status = 'open' and accepted_at is null`
+      : from === 'accepted'
+        ? sql`status = 'open' and accepted_at is not null`
+        : from === 'in_progress'
+          ? sql`status = 'in_progress'`
+          : from === 'resolved'
+            ? sql`status = 'done' and closed_at is null`
+            : sql`status = 'done' and closed_at is not null`;
+  // A finished linked task can't carry a reopened issue — unlink it.
+  const unlinkDoneTask = sql`task_id = case when exists (select 1 from tasks t where t.id = issues.task_id and t.status = 'done') then null else task_id end`;
   const reopening = from === 'resolved' || from === 'closed';
   const resolveBy = i.kind === 'idea' ? null : new Date(Date.now() + PRIORITY_META[i.priority].resolveH * 3_600_000).toISOString();
   try {
     const res =
       to === 'accepted'
         ? await sql`update issues set status = 'open', accepted_at = coalesce(accepted_at, now())
-                    where id = ${id} and status = ${i.status}`
+                    where id = ${id} and ${guard}`
         : to === 'in_progress'
           ? await sql`update issues set status = 'in_progress', accepted_at = coalesce(accepted_at, now()),
                       resolved_at = null, resolved_by = null, closed_at = null, confirmed = null, rating = null,
                       reopen_count = reopen_count + ${reopening ? 1 : 0},
-                      resolve_by = ${reopening ? resolveBy : sql`resolve_by`}, sla_warned = ${reopening ? null : sql`sla_warned`}
-                      where id = ${id} and status = ${i.status}`
+                      resolve_by = ${reopening ? resolveBy : sql`resolve_by`}, sla_warned = ${reopening ? null : sql`sla_warned`},
+                      ${reopening ? unlinkDoneTask : sql`task_id = task_id`}
+                      where id = ${id} and ${guard}`
           : await sql`update issues set status = 'done', accepted_at = coalesce(accepted_at, now()),
                       resolved_at = now(), resolved_by = ${v.userId},
                       closed_at = ${reporterResolves ? sql`now()` : null}, confirmed = ${reporterResolves ? true : null}
-                      where id = ${id} and status = ${i.status}`;
+                      where id = ${id} and ${guard}`;
     if (res.count === 0) return { error: 'conflict' };
   } catch (error) {
     console.error('moveIssueAction failed', error instanceof Error ? error.message : error);
@@ -506,7 +523,8 @@ export async function confirmIssueAction(input: z.input<typeof confirmSchema>): 
       ? await sql`update issues set closed_at = now(), confirmed = true, rating = ${rating ?? null}
                   where id = ${id} and status = 'done' and closed_at is null`
       : await sql`update issues set status = 'in_progress', resolved_at = null, resolved_by = null, confirmed = false,
-                  reopen_count = reopen_count + 1, resolve_by = ${resolveBy}, sla_warned = null
+                  reopen_count = reopen_count + 1, resolve_by = ${resolveBy}, sla_warned = null,
+                  task_id = case when exists (select 1 from tasks t where t.id = issues.task_id and t.status = 'done') then null else task_id end
                   where id = ${id} and status = 'done' and closed_at is null`;
     if (res.count === 0) return { error: 'conflict' };
   } catch (error) {
@@ -579,6 +597,7 @@ export async function setIssueMetaAction(input: z.input<typeof metaSchema>): Pro
   if (d.kind && d.kind !== i.kind) await logEvent(d.id, actorId, 'kind', KIND_META[d.kind].n);
   if (d.rootCause !== undefined) await logEvent(d.id, actorId, 'root_cause', d.rootCause || null);
   if (d.assignedTo !== undefined && d.assignedTo !== i.assigned_to) {
+    if (i.assigned_to) await resolveActionNotifications(`issue:${d.id}`, [i.assigned_to]);
     const [who] = d.assignedTo ? await sql<{ first_name: string | null; last_name: string | null }[]>`select first_name, last_name from profiles where id = ${d.assignedTo}` : [];
     await logEvent(d.id, actorId, 'assigned', who ? fullName(who) : 'Hech kim');
     if (d.assignedTo && d.assignedTo !== actorId)
