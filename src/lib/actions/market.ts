@@ -997,13 +997,14 @@ export type MarketInsights = {
   handover: { id: string; item: string; who: string; approved_at: string | null }[];
   avgDecisionHours: number | null;
   buyers: number;
+  handoverCount: number;
 };
 
 /** CEO view of the shop: spend trend, best sellers, unmet wishes, stock. */
 export async function getMarketInsightsAction(): Promise<MarketInsights | null> {
   const g = await requireMarketCeo();
   if ('error' in g) return null;
-  const [months, top, wished, categories, lowStock, handover, [avg], [buyers]] = await Promise.all([
+  const [months, top, wished, categories, lowStock, handover, [avg], [buyers], [hc]] = await Promise.all([
     sql<{ month: string; stars: number; orders: number }[]>`
       select to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month,
         coalesce(sum(star_cost) filter (where status in ('approved', 'fulfilled')), 0)::int as stars,
@@ -1037,6 +1038,7 @@ export async function getMarketInsightsAction(): Promise<MarketInsights | null> 
     sql<{ n: number }[]>`
       select count(distinct user_id)::int as n from market_orders
       where status in ('approved', 'fulfilled') and created_at >= now() - interval '90 days'`,
+    sql<{ n: number }[]>`select count(*)::int as n from market_orders where status = 'approved'`,
   ]);
-  return { months, top, wished, categories, lowStock, handover, avgDecisionHours: avg?.h ?? null, buyers: buyers?.n ?? 0 };
+  return { months, top, wished, categories, lowStock, handover, avgDecisionHours: avg?.h ?? null, buyers: buyers?.n ?? 0, handoverCount: hc?.n ?? 0 };
 }

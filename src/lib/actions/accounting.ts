@@ -501,11 +501,12 @@ export async function closePeriodAction(month: string, note = ''): Promise<Resul
   const g = await requireEditor();
   if ('error' in g) return g;
   if (!ym.safeParse(month).success) return { error: 'invalidInput' };
-  const p = await loadClosePeriod(month);
-  if (p.closed) return { error: 'alreadyClosed' };
-  if (p.checks.some((c) => c.blocking && !c.ok)) return { error: 'blocked' };
   try {
+    const p = await loadClosePeriod(month);
+    if (p.closed) return { error: 'alreadyClosed' };
+    if (p.checks.some((c) => c.blocking && !c.ok)) return { error: 'blocked' };
     await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext(${`acct-close:${month}`}))`;
       await tx`
         insert into acct_periods (month, closed_at, closed_by, note) values (${`${month}-01`}, now(), ${g.id}, ${note || null})
         on conflict (month) do update set closed_at = now(), closed_by = excluded.closed_by, note = excluded.note`;

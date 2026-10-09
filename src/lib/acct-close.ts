@@ -27,7 +27,7 @@ export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {
       from acct_periods a left join profiles p on p.id = a.closed_by where a.month = ${month}`,
     sql<{ status: string }[]>`select status from pay_runs where period = ${month}`,
     sql<{ code: string; amount: number }[]>`
-      select debit as code, sum(amount) as amount from acct_entries where source like ${`payroll:${ym}:%`} group by debit`,
+      select source as code, sum(amount) as amount from acct_entries where source like ${`payroll:${ym}:%`} group by source`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where source = ${`depr:${ym}`}`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where source = ${`tax:${ym}`}`,
     sql<{ code: string; bal: number }[]>`
@@ -45,7 +45,9 @@ export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {
   // Payroll: the accrual posted to the books vs the approved pay run.
   const lines = (await loadPayLines(month)).filter(isRelevant);
   const payable = lines.reduce((a, l) => a + Math.max(0, l.payable), 0);
-  const accrued = posted.filter((r) => r.code.startsWith('9')).reduce((a, r) => a + Number(r.amount), 0);
+  // Only the gross accrual (payroll:YM:accr-*) — social tax is an expense
+  // on top of pay and must not count against the pay run.
+  const accrued = posted.filter((r) => /:accr-/.test(r.code)).reduce((a, r) => a + Number(r.amount), 0);
   const runOk = run?.status === 'approved' || run?.status === 'paid';
   const diff = Math.abs(accrued - payable);
 

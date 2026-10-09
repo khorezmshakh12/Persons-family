@@ -27,6 +27,7 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [handover, setHandover] = useState(data.handover);
+  const [pendingCount, setPendingCount] = useState(data.handoverCount);
   const [thr, setThr] = useState<Record<string, string>>({});
   const max = Math.max(1, ...data.months.map((m) => m.stars));
   const total = data.months.reduce((a, m) => a + m.stars, 0);
@@ -37,13 +38,17 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
       if (res?.error) return void toast.error('Saqlab bo‘lmadi');
       const row = handover.find((h) => h.id === id);
       setHandover((l) => l.filter((h) => h.id !== id));
+      setPendingCount((n) => Math.max(0, n - 1));
       toast.success('Topshirildi — xodimga xabar yuborildi', {
         duration: 6000,
         action: {
           label: 'Bekor qilish',
           onClick: () =>
             void setMarketOrderFulfilledAction(id, false).then((r) => {
-              if (!r?.error && row) setHandover((l) => [row, ...l]);
+              if (!r?.error && row) {
+                setHandover((l) => [row, ...l]);
+                setPendingCount((n) => n + 1);
+              }
             }),
         },
       });
@@ -65,7 +70,7 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
         {[
           { n: '6 oyda sarflangan', v: `${total.toLocaleString('en-US').replace(/,/g, ' ')} ★`, icon: <BarChart3 className="size-4" /> },
           { n: 'Xaridorlar (90 kun)', v: String(data.buyers), icon: <Users className="size-4" /> },
-          { n: 'Topshirish kutilmoqda', v: String(handover.length), icon: <Gift className="size-4" />, tone: handover.length ? 'text-au-accent-text' : '' },
+          { n: 'Topshirish kutilmoqda', v: String(pendingCount), icon: <Gift className="size-4" />, tone: pendingCount ? 'text-au-accent-text' : '' },
           { n: 'O‘rtacha qaror vaqti', v: data.avgDecisionHours === null ? '—' : data.avgDecisionHours < 48 ? `${data.avgDecisionHours.toFixed(1)} soat` : `${(data.avgDecisionHours / 24).toFixed(1)} kun`, icon: <Timer className="size-4" /> },
         ].map((k, i) => (
           <div key={k.n} style={{ ['--i' as string]: i }} className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-1 p-4')}>

@@ -45,6 +45,14 @@ $$;
 create or replace function acct_entries_close_guard() returns trigger
 language plpgsql as $$
 begin
+  -- Serialise with a concurrent close of the same month (the first close
+  -- has no acct_periods row to FOR SHARE yet).
+  if tg_op in ('UPDATE', 'DELETE') then
+    perform pg_advisory_xact_lock(hashtext('acct-close:' || to_char(old.entry_date, 'YYYY-MM')));
+  end if;
+  if tg_op in ('INSERT', 'UPDATE') then
+    perform pg_advisory_xact_lock(hashtext('acct-close:' || to_char(new.entry_date, 'YYYY-MM')));
+  end if;
   if (tg_op in ('UPDATE', 'DELETE') and acct_month_closed(old.entry_date))
      or (tg_op in ('INSERT', 'UPDATE') and acct_month_closed(new.entry_date)) then
     raise exception 'period_closed' using errcode = 'P0001';
