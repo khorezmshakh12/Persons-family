@@ -25,16 +25,16 @@ const RCAT: Record<RiskCat, string> = {
   strategic: 'Strategik',
   operational: 'Operatsion',
   financial: 'Moliyaviy',
-  compliance: 'Muvofiqlik',
+  compliance: 'Huquqiy',
   people: 'Kadrlar',
-  technology: 'Texnologik',
+  technology: 'Texnik',
 };
-const RTREAT: Record<RiskTreat, string> = { avoid: 'Oldini olish', reduce: 'Kamaytirish', transfer: 'O‘tkazish', accept: 'Qabul qilish' };
+const RTREAT: Record<RiskTreat, string> = { avoid: 'Oldini olamiz', reduce: 'Kamaytiramiz', transfer: 'Boshqaga o‘tkazamiz', accept: 'Qabul qilamiz' };
 const RSTAT: Record<RiskStatus, [string, string]> = {
   open: ['Ochiq', 'warn'],
-  monitoring: ['Monitoring', 'ok'],
-  closed: ['Yopilgan', ''],
-  occurred: ['Yuz berdi', 'bad'],
+  monitoring: ['Kuzatuvda', 'ok'],
+  closed: ['Yopildi', ''],
+  occurred: ['Sodir bo‘ldi', 'bad'],
 };
 const RLVL = {
   low: ['Past', 'var(--au-ok)'],
@@ -104,7 +104,7 @@ export function RiskRegister({
           status: v.status,
           postmortem: v.postmortem,
         }),
-      v.id ? 'Risk saqlandi' : "Risk qo'shildi",
+      v.id ? 'Xavf saqlandi' : 'Xavf qo‘shildi',
     );
   const sel = (label: string, value: string | number, opts: [string | number, string][], on: (v: string) => void) => (
     <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
@@ -124,11 +124,11 @@ export function RiskRegister({
   return (
     <div className="sx-card s12">
       <div className="sx-h">
-        <h3>ISO 31000 Risk registri & Post-mortem</h3>
+        <h3>Xavflar reestri</h3>
         <small>ehtimollik × ta’sir (5×5) · davolash · egasi · qayta ko‘rib chiqish</small>
         <span className="sp" />
         <button className="sx-btn sm" disabled={pending} onClick={() => setF({ ...EMPTY })}>
-          + Risk
+          + Xavf qo‘shish
         </button>
       </div>
       <div className="grid gap-4 md:grid-cols-[auto_1fr]">
@@ -170,36 +170,36 @@ export function RiskRegister({
             </span>
           ))}
           <span className={cn('sx-pl', sum.overdue ? 'bad' : 'ok')}>{sum.overdue} ko‘rib chiqish muddati o‘tgan</span>
-          <span className={cn('sx-pl', sum.pmDue ? 'warn' : 'ok')}>{sum.pmDue} post-mortem kutilmoqda</span>
+          <span className={cn('sx-pl', sum.pmDue ? 'warn' : 'ok')}>{sum.pmDue} ta saboq yozilmagan</span>
         </div>
       </div>
 
       {f && lvF && (
         <div className="mt-4 grid gap-2 rounded-xl border border-au-line p-3 sm:grid-cols-4">
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted sm:col-span-2">
-            Risk
+            Xavf nima?
             <input className="sx-inp !h-[32px]" maxLength={300} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
           </label>
           {sel('Loyiha', f.space_id ?? '', [['', '—'], ...spaces.map((s): [string, string] => [s.id, s.name])], (v) => setF({ ...f, space_id: v || null }))}
           {sel('Toifa', f.category, Object.entries(RCAT), (v) => setF({ ...f, category: v as RiskCat }))}
-          {sel('Ehtimollik (1–5)', f.likelihood, scale, (v) => setF({ ...f, likelihood: +v }))}
-          {sel('Ta’sir (1–5)', f.impact, scale, (v) => setF({ ...f, impact: +v }))}
-          {sel('Davolash', f.treatment, Object.entries(RTREAT), (v) => setF({ ...f, treatment: v as RiskTreat }))}
+          {sel('Qanchalik ehtimol (1–5)', f.likelihood, scale, (v) => setF({ ...f, likelihood: +v }))}
+          {sel('Bo‘lsa, qanchalik yomon (1–5)', f.impact, scale, (v) => setF({ ...f, impact: +v }))}
+          {sel('Javob', f.treatment, Object.entries(RTREAT), (v) => setF({ ...f, treatment: v as RiskTreat }))}
           {sel('Holat', f.status, Object.entries(RSTAT).map(([k, [n]]): [string, string] => [k, n]), (v) => setF({ ...f, status: v as RiskStatus }))}
-          {sel('Egasi', f.owner_id ?? '', [['', '—'], ...people.map((p): [string, string] => [p.id, `${p.first_name} ${p.last_name}`])], (v) =>
+          {sel('Mas’ul', f.owner_id ?? '', [['', '—'], ...people.map((p): [string, string] => [p.id, `${p.first_name} ${p.last_name}`])], (v) =>
             setF({ ...f, owner_id: v || null }),
           )}
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            Qayta ko‘rib chiqish
+            Qachon qayta ko‘ramiz
             <input className="sx-inp !h-[32px]" type="date" value={f.review_date ?? ''} onChange={(e) => setF({ ...f, review_date: e.target.value || null })} />
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted sm:col-span-2">
-            Choralar (mitigatsiya)
+            Oldini olish uchun nima qilamiz
             <textarea className="sx-inp !h-[64px] py-1" maxLength={2000} value={f.mitigation} onChange={(e) => setF({ ...f, mitigation: e.target.value })} />
           </label>
           {(f.status === 'occurred' || f.status === 'closed' || f.postmortem) && (
             <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted sm:col-span-4">
-              Post-mortem — nima bo‘ldi, ildiz sababi, xulosa va keyingi choralar
+              Nimadan saboq oldik — nima bo‘ldi, sababi, endi nima qilamiz
               <textarea className="sx-inp !h-[90px] py-1" maxLength={4000} value={f.postmortem} onChange={(e) => setF({ ...f, postmortem: e.target.value })} />
             </label>
           )}
@@ -234,7 +234,7 @@ export function RiskRegister({
         <table className="sx-tbl">
           <thead>
             <tr>
-              <th className="l">Risk</th>
+              <th className="l">Xavf</th>
               <th>Toifa</th>
               <th>E × T</th>
               <th>Daraja</th>
@@ -248,7 +248,7 @@ export function RiskRegister({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={8} className="l">
-                  <div className="sx-empty">Risk qo‘shing — 5×5 xarita, egasi va post-mortem shu yerda yuritiladi.</div>
+                  <div className="sx-empty">Hali xavf yo‘q — loyihaga xavf qo‘shing: ehtimoli, ta’siri, mas’uli va qayta ko‘rish sanasi.</div>
                 </td>
               </tr>
             )}
@@ -260,7 +260,7 @@ export function RiskRegister({
                 <tr key={r.id} className="cursor-pointer" onClick={() => setF({ ...r })}>
                   <td className="l">
                     <b>{r.title}</b>
-                    {r.status === 'occurred' && !r.postmortem.trim() && <span className="sx-pl warn ml-2">post-mortem yo‘q</span>}
+                    {r.status === 'occurred' && !r.postmortem.trim() && <span className="sx-pl warn ml-2">saboq yozilmagan</span>}
                   </td>
                   <td>{RCAT[r.category]}</td>
                   <td className="tabular-nums">
