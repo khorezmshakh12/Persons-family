@@ -1,20 +1,8 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import {
-  BookOpen,
-  Building2,
-  ChartColumn,
-  Coins,
-  FileText,
-  Percent,
-  Rows3,
-  SlidersHorizontal,
-  Wallet,
-  Pencil,
-  Trash2,
-  Plus,
-} from 'lucide-react';
+import { BookOpen, Building2, ChartColumn, Coins, FileText, Percent, Rows3, SlidersHorizontal, Wallet, Pencil, Trash2, Plus, Lock } from 'lucide-react';
+import { AccountingClose } from './accounting-close';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
@@ -81,7 +69,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import './strategy.css';
 import './suite.css';
 
-type Tab = 'ma_cost' | 'ma_bud' | 'ma_sim' | 'ma_cash' | 'fa_jr' | 'fa_gl' | 'fa_rep' | 'fa_tax' | 'fa_fa';
+type Tab = 'ma_cost' | 'ma_bud' | 'ma_sim' | 'ma_cash' | 'fa_jr' | 'fa_gl' | 'fa_rep' | 'fa_tax' | 'fa_fa' | 'fa_close';
 const TABS: ({ v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> } | { g: string })[] = [
   // Owner, 2026-10-05: tailored to an education centre — the everyday
   // money in/out and the reports first, analysis next, bookkeeping last.
@@ -97,6 +85,7 @@ const TABS: ({ v: Tab; n: string; Icon: React.ComponentType<{ className?: string
   { v: 'fa_fa', n: 'Jihozlar (asosiy vositalar)', Icon: Building2 },
   { v: 'fa_jr', n: 'Jurnal', Icon: BookOpen },
   { v: 'fa_gl', n: 'Aylanma va qoldiqlar', Icon: Wallet },
+  { v: 'fa_close', n: 'Oy yopish', Icon: Lock },
 ];
 const FLAT = TABS.filter((t): t is { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> } => 'v' in t);
 const KEY = 'persons-acct-tab';
@@ -107,7 +96,9 @@ const err = (c: string) =>
       ? "Ma'lumot noto'g'ri"
       : c === 'notFound'
         ? 'Topilmadi'
-        : c === 'inUse'
+        : c === 'periodClosed'
+          ? 'Bu oy yopilgan — o‘zgartirish uchun “Oy yopish” bo‘limida qayta oching'
+          : c === 'inUse'
           ? 'Bu hisob ishlatilgan (jurnal, qoldiq yoki byudjet) — o‘chirib bo‘lmaydi'
           : 'Saqlab bo‘lmadi (kod band bo‘lishi mumkin)';
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
@@ -192,6 +183,7 @@ export function AccountingWorkspace({
           {tab === 'fa_rep' && <FaReports books={books} ym={ym} />}
           {tab === 'fa_tax' && <FaTax books={books} ym={ym} />}
           {tab === 'fa_fa' && <FaAssets books={books} ym={ym} today={today} />}
+          {tab === 'fa_close' && <AccountingClose ym={ym} />}
         </div>
       </section>
     </SuiteShell>
