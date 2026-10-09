@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { TASK_OPEN_STATUSES } from '@/lib/task-status';
 import { isDueForCreation, nextDue, type Every } from '@/lib/task-recurrence';
 import { tashkentDayKey, tashkentMidnight } from '@/lib/time';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { deliverScheduledChannelPosts } from '@/lib/chat-channels';
+import { deliverScheduledNews } from '@/lib/news-delivery';
 
 // Spec #4: nudge the assignee once, ~2 hours before a task's deadline.
 // Cloud Scheduler should hit this every ~15 minutes (Bearer CRON_SECRET):
@@ -20,7 +22,7 @@ import { deliverScheduledChannelPosts } from '@/lib/chat-channels';
 const REMINDER_TEXT =
   "Deadline tugashiga 2 soat qoldi, berilgan vazifani vaqtida bajarishingizni so'rayman hurmat bilan Persons Agenti 🤖";
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -50,7 +52,7 @@ export async function GET(req: NextRequest) {
   for (const task of due) {
     if (task.telegram_id) {
       try {
-        await sendTelegramMessage(task.telegram_id, REMINDER_TEXT);
+        await sendTelegramAs('task', task.telegram_id, REMINDER_TEXT);
         sent += 1;
       } catch (error) {
         // Leave deadline_reminder_sent_at null so the next run retries.
@@ -72,7 +74,12 @@ export async function GET(req: NextRequest) {
     console.error('deliverScheduledChannelPosts failed', error instanceof Error ? error.message : error);
     return 0;
   });
-  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts });
+  // News: scheduled company posts whose publish time has passed.
+  const scheduledNews = await deliverScheduledNews().catch((error) => {
+    console.error('deliverScheduledNews failed', error instanceof Error ? error.message : error);
+    return 0;
+  });
+  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts, scheduledNews });
 }
 
 /**
@@ -120,9 +127,11 @@ async function createRecurringTasks(): Promise<number> {
     created += 1;
     await bumpNavBadgeSignal(r.assigned_to).catch(() => {});
     if (r.telegram_id) {
-      await sendTelegramMessage(r.telegram_id, `🔁 Takrorlanuvchi vazifa: <b>${escapeTelegramText(r.title)}</b>\nMuddat: ${due} ${r.due_time}`).catch(() => {});
+      await sendTelegramAs('task', r.telegram_id, `🔁 Takrorlanuvchi vazifa: <b>${escapeTelegramText(r.title)}</b>\nMuddat: ${due} ${r.due_time}`).catch(() => {});
     }
   }
   if (created) await bumpBoardSignal('tasks').catch(() => {});
   return created;
 }
+
+export const GET = withCronLog('task-deadline-reminders', handle);

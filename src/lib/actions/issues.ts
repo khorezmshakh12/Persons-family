@@ -12,7 +12,7 @@ import { logSystemAction } from '@/lib/audit-log';
 import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { createSignedWriteUrl, createSignedReadUrl } from '@/lib/gcp/storage';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { can } from '@/lib/permissions';
 
 // Issues is a CEO-managed board, but reporting is open to everyone: any
@@ -53,7 +53,7 @@ async function notifyIssueAssigned({
   if (!assigneeTelegramId) return;
   try {
     const text = `Sizga yangi murojaat biriktirildi: <b>${escapeTelegramText(title)}</b>\nKimdan: ${escapeTelegramText(reporterName)}`;
-    await sendTelegramMessage(assigneeTelegramId, text);
+    await sendTelegramAs('issue', assigneeTelegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -227,7 +227,7 @@ export async function updateIssueStatusAction(formData: FormData): Promise<Updat
         done: 'Bajarildi',
       }[parsed.data.status] || parsed.data.status;
       const text = `<b>Murojaat yangilandi</b>\n<b>Murojaat:</b> ${escapeTelegramText(existing.title)}\n<b>Holati:</b> ${statusLabel}`;
-      await sendTelegramMessage(reporter.telegram_id, text);
+      await sendTelegramAs('issue', reporter.telegram_id, text);
     } catch (error) {
       console.error('Telegram notification failed:', error instanceof Error ? error.message : error);
     }
@@ -713,7 +713,7 @@ async function notifyIssueComment({
     await Promise.all(
       recipients
         .filter((r): r is { telegram_id: number } => Boolean(r.telegram_id))
-        .map((r) => sendTelegramMessage(r.telegram_id, text)),
+        .map((r) => sendTelegramAs('issue', r.telegram_id, text)),
     );
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);

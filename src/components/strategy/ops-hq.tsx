@@ -509,7 +509,7 @@ export function IntakeAnalytics({ data }: { data: OpsData }) {
   const enrolled = months.map((m) => byMonth(m).filter((l) => l.stage === 'enrolled').length);
   const cur = byMonth(months[11]);
   const conv = cur.length ? Math.round((cur.filter((l) => l.stage === 'enrolled').length / cur.length) * 100) : null;
-  const srcRows = ['instagram', 'telegram', 'referral', 'walkin', 'website', 'other'].map((k) => {
+  const srcRows = ['instagram', 'meta', 'telegram', 'google', 'referral', 'walkin', 'website', 'other'].map((k) => {
     const L = data.leads.filter((l) => l.source === k && Date.parse(l.created_at) >= Date.parse(`${months[9]}-01T00:00:00Z`));
     const e = L.filter((l) => l.stage === 'enrolled').length;
     return { k, n: L.length, conv: L.length ? Math.round((e / L.length) * 100) : 0 };
@@ -519,6 +519,8 @@ export function IntakeAnalytics({ data }: { data: OpsData }) {
     telegram: ['Telegram', '#2477c9'],
     referral: ['Tavsiya', '#139a52'],
     walkin: ['O‘zi keldi', '#ff9f1c'],
+    meta: ['Meta reklama', '#1877f2'],
+    google: ['Google', '#34a853'],
     website: ['Veb-sayt', '#7a5af8'],
     other: ['Boshqa', '#b9b2a6'],
   };

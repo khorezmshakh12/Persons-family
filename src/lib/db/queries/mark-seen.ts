@@ -51,7 +51,7 @@ export async function markCompanyNewsSeen(userId: string): Promise<boolean> {
   const res = await sql`
     insert into company_news_reads (news_id, user_id)
     select id, ${userId} from company_news
-    where created_at >= now() - interval '7 days'
+    where created_at >= now() - interval '7 days' and deleted_at is null and (publish_at is null or publish_at <= now())
     on conflict (news_id, user_id) do nothing
   `;
   if (res.count === 0) return false;

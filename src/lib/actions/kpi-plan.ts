@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { authErrorCode, requireCap, requireSection } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { tashkentMonthKey } from '@/lib/time';
 import { SCENARIO_LABEL, monthName, pctFor, shiftMonth, type Scenario } from '@/lib/kpi-plan';
 
@@ -27,7 +27,7 @@ const thisMonth = () => `${tashkentMonthKey()}-01`;
 async function notify(userId: string, message: string) {
   try {
     const [p] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${userId}`;
-    if (p?.telegram_id) await sendTelegramMessage(p.telegram_id, message);
+    if (p?.telegram_id) await sendTelegramAs('kpi', p.telegram_id, message);
   } catch (error) {
     console.error('kpi notify failed', error instanceof Error ? error.message : error);
   }

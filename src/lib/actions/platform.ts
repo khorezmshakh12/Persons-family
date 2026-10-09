@@ -39,6 +39,13 @@ export async function setSectionAccessAction(userId: string, section: string, va
     `;
     if (!target) return { error: 'notFound' };
     if (!isCeo && (target.role === 'ceo' || target.extra.includes('ceo'))) return { error: 'ceoOnly' };
+    const [prev] = await sql<{ allow: boolean }[]>`
+      select allow from section_access where user_id = ${parsed.data.userId} and section = ${parsed.data.section}`;
+    const before = prev ? (prev.allow ? 'allow' : 'deny') : 'default';
+    if (before !== parsed.data.value)
+      await sql`
+        insert into platform_changes (actor, kind, target, key, before, after)
+        values (${gate.user.id}, 'section_access', ${parsed.data.userId}, ${parsed.data.section}, ${before}, ${parsed.data.value})`;
     if (parsed.data.value === 'default') {
       await sql`delete from section_access where user_id = ${parsed.data.userId} and section = ${parsed.data.section}`;
     } else {
@@ -97,5 +104,20 @@ export async function setSalesTargetAction(month: string, leads: number, won: nu
     return { error: 'saveFailed' };
   }
   revalidatePath('/', 'layout');
+  return {};
+}
+
+/** Undo one journal entry: put the section access back to its "before". */
+export async function revertPlatformChangeAction(changeId: string): Promise<PlatformActionState> {
+  const gate = await requirePlatformAdmin();
+  if ('error' in gate) return gate;
+  if (!z.string().uuid().safeParse(changeId).success) return { error: 'invalidInput' };
+  const [c] = await sql<{ kind: string; target: string; key: string; before: string; reverted_at: string | null }[]>`
+    select kind, target, key, before, reverted_at from platform_changes where id = ${changeId}`;
+  if (!c || c.kind !== 'section_access') return { error: 'notFound' };
+  if (c.reverted_at) return { error: 'alreadyReverted' };
+  const res = await setSectionAccessAction(c.target, c.key, c.before);
+  if (res?.error) return res;
+  await sql`update platform_changes set reverted_at = now(), reverted_by = ${gate.user.id} where id = ${changeId}`;
   return {};
 }

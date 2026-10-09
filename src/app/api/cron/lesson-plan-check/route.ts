@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
 import { groupDayStatus } from '@/lib/lesson-plan-status';
 
@@ -33,7 +34,7 @@ const MAX_CATCHUP_DAYS = 7;
 // covering the wrong date. lesson_plan_cron_runs now records every
 // date_key actually processed, so each run catches up on anything since
 // the last one instead of only ever looking at the single most recent day.
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -248,7 +249,7 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
   }
   const telegramText = telegramLines.join('\n');
 
-  await sendTelegramMessageToMany(recipientChatIds, telegramText);
+  await sendTelegramManyAs('lesson', recipientChatIds, telegramText);
 
   if (incompleteTeachers > 0) {
     const summary = gapPlainLines.join('\n');
@@ -260,3 +261,5 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
 
   return { checkedGroups: groups.length, incompleteTeachers };
 }
+
+export const GET = withCronLog('lesson-plan-check', handle);

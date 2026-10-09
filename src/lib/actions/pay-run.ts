@@ -8,7 +8,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { canSeeFor } from '@/lib/permissions';
 import { logSystemAction } from '@/lib/audit-log';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { formatUZS } from '@/lib/format-currency';
 import { startOfTashkentMonthKey } from '@/lib/time';
 import { askTypeSafe, typesafeEnabled } from '@/lib/typesafe';
@@ -37,7 +37,7 @@ async function requireFinanceManager(): Promise<{ id: string } | { error: string
 
 async function notifyStaff(staffId: string, text: string) {
   const [p] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${staffId}`;
-  if (p?.telegram_id) await sendTelegramMessage(p.telegram_id, text);
+  if (p?.telegram_id) await sendTelegramAs('pay', p.telegram_id, text);
 }
 
 const moveSchema = z.object({
@@ -228,7 +228,7 @@ export async function requestAdvanceAction(input: z.input<typeof requestSchema>)
     const who = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
     for (const c of ceos)
       if (c.telegram_id)
-        await sendTelegramMessage(
+        await sendTelegramAs('pay', 
           c.telegram_id,
           `📝 <b>Avans so‘rovi</b>\n${escapeTelegramText(who)}: ${escapeTelegramText(formatUZS(p.data.amount))} so‘m\n<b>Sabab:</b> ${escapeTelegramText(p.data.reason)}`,
         ).catch(() => {});

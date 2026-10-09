@@ -265,7 +265,8 @@ async function NewsSliderSection() {
   const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
   const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
     select id, title, content, created_at from company_news
-    order by created_at desc limit 6
+    where deleted_at is null and (publish_at is null or publish_at <= now())
+    order by pinned desc, created_at desc limit 6
   `.catch(() => []);
   return (
     <NewsSliderView

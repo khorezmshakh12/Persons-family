@@ -8,7 +8,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { bumpBoardSignal } from '@/lib/gcp/firestoreAdmin';
 import { can } from '@/lib/permissions';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 
 export type TaskCommentActionState = { error?: string } | undefined;
 
@@ -77,7 +77,7 @@ async function notifyTaskComment(
           `💬 <b>${escapeTelegramText(authorName)}</b> "` +
           `${escapeTelegramText(taskTitle)}" vazifasiga izoh qo‘shdi:\n\n` +
           `${escapeTelegramText(commentBody.slice(0, 200))}${commentBody.length > 200 ? '...' : ''}`;
-        await sendTelegramMessage(profile.telegram_id, text);
+        await sendTelegramAs('task', profile.telegram_id, text);
       } catch (error) {
         console.error('Telegram comment notification failed:', error instanceof Error ? error.message : error);
       }

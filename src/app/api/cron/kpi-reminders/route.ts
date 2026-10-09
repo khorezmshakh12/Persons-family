@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { tashkentDayKey, tashkentDayOfWeek, tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { weekOf } from '@/lib/strategy-plan';
 import { monthName, shiftMonth } from '@/lib/kpi-plan';
@@ -20,7 +21,7 @@ import { monthName, shiftMonth } from '@/lib/kpi-plan';
 //    month that just started (once).
 // kpi_reminders dedupes, so a missed or repeated run never double-sends.
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   if (!expected || req.headers.get('authorization') !== `Bearer ${expected}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
       : `📝 <b>${monthName(next)}</b> KPI rejasini topshirish vaqti keldi — muddat: oyning oxirgi kuni, 23:59.\nUch ssenariy: yomon, yaxshi, juda yaxshi. Platforma › Mening KPI`;
     for (const p of await missing(next)) {
       if (!p.telegram_id) continue;
-      await sendTelegramMessage(p.telegram_id, text).catch(() => {});
+      await sendTelegramAs('kpi', p.telegram_id, text).catch(() => {});
     }
     sent.push(last ? 'last' : 'early');
   }
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
       ? `📋 <b>${monthName(thisMonth)}</b> KPI rejasini topshirmaganlar (${rows.length}):\n` +
         rows.map((r) => `• ${escapeTelegramText(`${r.first_name} ${r.last_name}`)}`).join('\n')
       : `✅ ${monthName(thisMonth)}: hamma KPI rejasini topshirdi.`;
-    for (const c of ceos) await sendTelegramMessage(c.telegram_id!, text).catch(() => {});
+    for (const c of ceos) await sendTelegramAs('kpi', c.telegram_id!, text).catch(() => {});
     sent.push('digest');
   }
 
@@ -85,7 +86,7 @@ export async function GET(req: NextRequest) {
         `🧭 Oy yarmi — <b>${monthName(thisMonth)}</b> KPI'ingiz qayerda?\n` +
         (lines.length ? `“Yaxshi” maqsadlaringiz:\n${lines.join('\n')}\n` : '') +
         `Oy oxirigacha 2 hafta bor. Platforma › Mening KPI`;
-      await sendTelegramMessage(r.telegram_id, text).catch(() => {});
+      await sendTelegramAs('kpi', r.telegram_id, text).catch(() => {});
     }
     sent.push('midmonth');
   }
@@ -104,7 +105,7 @@ export async function GET(req: NextRequest) {
       group by p.telegram_id`.catch(() => []);
     for (const r of rows) {
       const list = r.titles.slice(0, 8).map((t) => `• ${escapeTelegramText(t)}`).join('\n');
-      await sendTelegramMessage(
+      await sendTelegramAs('kpi', 
         r.telegram_id,
         `🎯 Haftalik OKR check-in: quyidagi key result’lar bo‘yicha bu hafta holat kiritilmagan:\n${list}\nPlatforma › Strategiya › OKR`,
       ).catch(() => {});
@@ -114,3 +115,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ ok: true, sent });
 }
+
+export const GET = withCronLog('kpi-reminders', handle);
