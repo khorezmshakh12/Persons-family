@@ -414,18 +414,32 @@ function TAccount({ line, rows, name }: { line: ReturnType<typeof ledger>[string
 
 /* ---------------------------------------------------------------- FA · reports */
 export function FaReports({ books, ym }: { books: Books; ym: string }) {
+  // "Bu raqam nimadan iborat?" — the P&L line whose entries are open.
+  const [drill, setDrill] = useState<string | null>(null);
   const s = statements(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
   const L = ledger(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
   const cf = cashFlowStatement(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));
   const q = ratios(s);
   const rec = reconcile(books.courses, s);
   const accName = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? c;
-  const row = (n: string, v: number, cls = '') => (
-    <tr className={cls}>
-      <td className="l">{n}</td>
+  const row = (n: string, v: number, cls = '', code?: string) => (
+    <tr
+      className={cn(cls, code && 'cursor-pointer hover:bg-au-card-2', code && drill === code && 'bg-au-accent-soft')}
+      onClick={code ? () => setDrill(drill === code ? null : code) : undefined}
+      title={code ? 'Bosing — qaysi yozuvlardan iborat' : undefined}
+    >
+      <td className="l">
+        {n}
+        {code && <span className="ml-1 text-[10px] text-au-muted">{drill === code ? '▾' : '▸'}</span>}
+      </td>
       <td style={{ color: v < 0 ? 'var(--au-bad)' : undefined }}>{fmtNum(v)}</td>
     </tr>
   );
+  const drillRows = drill
+    ? books.entries
+        .filter((e) => e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym) && (e.debit === drill || e.credit === drill))
+        .sort((a, b) => b.amount - a.amount)
+    : [];
   const grp = (n: string) => (
     <tr>
       <td className="l text-[11px] font-bold tracking-wide text-au-muted uppercase" colSpan={2}>
@@ -503,17 +517,41 @@ export function FaReports({ books, ym }: { books: Books; ym: string }) {
           </div>
           <table className="sx-tbl">
             <tbody>
-              {row("Sof tushum — ta'lim xizmatlari", s.revenue)}
-              {row('Sotilgan xizmatlar tannarxi', -s.cogs)}
+              {row("Sof tushum — ta'lim xizmatlari", s.revenue, '', '9030')}
+              {row('Sotilgan xizmatlar tannarxi', -s.cogs, '', '9130')}
               {row('Yalpi foyda', s.gross, 'sub')}
-              {row('Sotish xarajatlari', -s.selling)}
-              {row("Ma'muriy xarajatlar", -s.admin)}
-              {row('Boshqa operatsion xarajatlar', -s.other)}
+              {row('Sotish xarajatlari', -s.selling, '', '9410')}
+              {row("Ma'muriy xarajatlar", -s.admin, '', '9420')}
+              {row('Boshqa operatsion xarajatlar', -s.other, '', '9430')}
               {row('Operatsion foyda', s.operating, 'sub')}
-              {row('Soliq xarajatlari', -s.tax)}
+              {row('Soliq xarajatlari', -s.tax, '', '9810')}
               {row('SOF FOYDA (ZARAR)', s.net, 'big')}
             </tbody>
           </table>
+          {drill && (
+            <div className="mt-3 rounded-xl border border-au-line bg-au-card-2 p-3">
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <b>{accName(drill)} — {drillRows.length} ta yozuv</b>
+                <button className="sx-btn sm" onClick={() => setDrill(null)}>
+                  Yopish
+                </button>
+              </div>
+              {drillRows.length === 0 ? (
+                <div className="text-xs text-au-muted">Bu oyda yozuv yo‘q.</div>
+              ) : (
+                <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto text-xs">
+                  {drillRows.map((e) => (
+                    <li key={e.id} className="flex items-center gap-2">
+                      <span className="tabular-nums text-au-muted">{e.entry_date.slice(8, 10)}.{e.entry_date.slice(5, 7)}</span>
+                      <span className="min-w-0 flex-1 truncate">{e.description}</span>
+                      {e.source && <span className="sx-pl info">AUTO</span>}
+                      <b className="tabular-nums">{fmtNum(e.debit === drill ? e.amount : -e.amount)}</b>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
         <div className="sx-card">
           <div className="sx-h">

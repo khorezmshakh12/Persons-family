@@ -13,6 +13,8 @@ export type Entry = {
   credit: string;
   amount: number;
   source: string | null;
+  /** Receipt photo / PDF (contract-files bucket), v8-B. */
+  receipt_path?: string | null;
 };
 export type Asset = {
   id: string;

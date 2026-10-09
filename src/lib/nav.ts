@@ -169,7 +169,9 @@ export const NAV_ITEMS: NavItem[] = [
   // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.
   { key: 'kpi', href: '/my-kpi' },
   { key: 'profile', href: '/profile' },
-  { key: 'telegramSetup', href: '/telegram-setup' },
+  // Telegram centre lives in Platform (v8-B); listed on its own only for
+  // people without Platform (the IT developer) — see navItemsForRole.
+  { key: 'telegramSetup', href: '/platform?tab=telegram' },
   { key: 'settings', href: '/settings' },
 ];
 
@@ -188,6 +190,7 @@ export function navItemsForRole(
     // link would just dump them on Materials' login screen.
     if (item.key === 'materials' && !materialsLinked) return false;
     if (item.core && !coreViews.includes(item.core)) return false;
+    if (item.key === 'telegramSetup' && canSee(role, 'platform')) return false;
     return true;
   });
 }

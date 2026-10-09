@@ -1,43 +1,28 @@
 'use client';
 
+import { CASH_ACC, CASH_CATS, METHOD, templateDoc } from '@/lib/accounting-cash';
 import type { Books } from '@/lib/accounting-data';
-import { useState } from 'react';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Download, Paperclip, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { cashWeeks, fmtMln, fmtNum, monthEnd, monthStart } from '@/lib/accounting';
 import { CASH_BUCKETS, cashForecast } from '@/lib/accounting-ma';
-import { addJournalEntryAction, deleteJournalEntryAction } from '@/lib/actions/accounting';
+import {
+  addJournalEntryAction,
+  applyCashTemplatesAction,
+  deleteCashTemplateAction,
+  deleteJournalEntryAction,
+  getReceiptUrlAction,
+  requestReceiptUploadAction,
+  saveCashTemplateAction,
+  setEntryReceiptAction,
+} from '@/lib/actions/accounting';
 import { ask, toast } from './suite-shell';
 import { Chart } from './charts';
 import { MoneyInput } from '@/components/ui/money-input';
-import { useRun } from './accounting-shared';
+import { downloadCsv, err, useRun } from './accounting-shared';
 
 /* ------------------------------------------------------------------ MA · cash */
-/** Plain-language income / expense categories of an education centre. Each
- * maps to the account on the other side of the cash line, so a cash entry
- * lands in the journal — and therefore in every report — without the user
- * ever seeing an account code (owner, 2026-10-05). */
-export const CASH_CATS: { k: string; n: string; dir: 'in' | 'out'; acc: string }[] = [
-  { k: 'tuition', n: 'O‘quvchi to‘lovi (o‘qish haqi)', dir: 'in', acc: '9030' },
-  { k: 'prepay', n: 'Oldindan to‘lov (keyingi oylar uchun)', dir: 'in', acc: '6310' },
-  { k: 'debt', n: 'O‘quvchi qarzini to‘ladi', dir: 'in', acc: '4010' },
-  { k: 'material', n: 'Darslik / material sotuvi', dir: 'in', acc: '9030' },
-  { k: 'capital', n: 'Ta’sischi mablag‘i', dir: 'in', acc: '8300' },
-  { k: 'tsalary', n: 'O‘qituvchilar maoshi', dir: 'out', acc: '9130' },
-  { k: 'asalary', n: 'Ma’muriyat maoshi', dir: 'out', acc: '9420' },
-  { k: 'rent', n: 'Ijara', dir: 'out', acc: '9420' },
-  { k: 'util', n: 'Kommunal (svet, gaz, internet)', dir: 'out', acc: '9430' },
-  { k: 'mkt', n: 'Marketing / reklama', dir: 'out', acc: '9410' },
-  { k: 'books', n: 'Darslik va o‘quv materiallari', dir: 'out', acc: '9130' },
-  { k: 'tax', n: 'Soliq to‘lovi', dir: 'out', acc: '6410' },
-  { k: 'social', n: 'Ijtimoiy soliq to‘lovi', dir: 'out', acc: '6520' },
-  { k: 'equip', n: 'Jihoz / mebel xaridi', dir: 'out', acc: '0100' },
-  { k: 'supplier', n: 'Yetkazib beruvchiga to‘lov', dir: 'out', acc: '6010' },
-  { k: 'other', n: 'Boshqa xarajat', dir: 'out', acc: '9430' },
-];
-export const CASH_ACC = ['5010', '5110'] as const;
-export const METHOD = { '5010': 'Naqd (kassa)', '5110': 'Bank / karta' } as const;
-
 export function MaCash({ books, today, ym }: { books: Books; today: string; ym: string }) {
   const W = cashWeeks(books.accounts, books.opening, books.entries, today, 13);
   const min = books.tax.minCash;
@@ -123,6 +108,8 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
   const blank = { dir: 'in' as 'in' | 'out', cat: cats.find((c) => c.dir === 'in')?.k ?? '', method: (methods[0] ?? '5010') as string, date: defDate, amount: null as number | null, note: '' };
   const [f, setF] = useState(blank);
   const [editId, setEditId] = useState<string | null>(null);
+  // An edited entry keeps its doc tag (TPL:<id> marks a template entry).
+  const [editDoc, setEditDoc] = useState('');
   const [fYm, setFYm] = useState(ym);
   if (fYm !== ym) {
     setFYm(ym);
@@ -158,7 +145,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
     const description = f.note.trim() ? `${cat.n} — ${f.note.trim()}` : cat.n;
     const [debit, credit] = cat.dir === 'in' ? [f.method, cat.acc] : [cat.acc, f.method];
     run(
-      () => addJournalEntryAction({ id: editId ?? undefined, date: f.date, doc: '', description, debit, credit, amount: f.amount ?? 0 }),
+      () => addJournalEntryAction({ id: editId ?? undefined, date: f.date, doc: editId ? editDoc : '', description, debit, credit, amount: f.amount ?? 0 }),
       editId ? 'Yozuv saqlandi' : cat.dir === 'in' ? 'Kirim qo‘shildi' : 'Chiqim qo‘shildi',
       () => {
         setF({ ...blank, dir: f.dir, cat: f.cat, method: f.method, date: f.date });
@@ -170,6 +157,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
     const cat = r.cat;
     const note = cat && r.e.description.startsWith(`${cat.n} — `) ? r.e.description.slice(cat.n.length + 3) : cat && r.e.description === cat.n ? '' : r.e.description;
     setEditId(r.e.id);
+    setEditDoc(r.e.doc ?? '');
     setF({ dir: r.dir, cat: cat?.k ?? '', method: r.method, date: r.e.entry_date, amount: r.e.amount, note });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -252,8 +240,25 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
               Bekor qilish
             </button>
           )}
+          {!editId && (
+            <button
+              className="sx-btn"
+              disabled={pending}
+              title="Ijara, internet kabi har oy bir xil to‘lovlar uchun"
+              onClick={() => {
+                if (!f.cat || !f.amount || f.amount <= 0) return toast.error('Toifa va summani kiriting');
+                run(
+                  () => saveCashTemplateAction({ cat: f.cat, method: f.method as (typeof CASH_ACC)[number], amount: f.amount ?? 0, note: f.note, day: Math.min(28, +f.date.slice(8, 10) || 1) }),
+                  'Shablon saqlandi — «Har oy takrorlanadigan» ro‘yxatida',
+                );
+              }}
+            >
+              <Repeat className="size-4" /> Har oy takrorlash
+            </button>
+          )}
         </div>
       </div>
+      <Templates books={books} ym={ym} />
       <div className="sx-card s12">
         <div className="sx-h">
           <h3>Kirim-chiqim daftari</h3>
@@ -274,6 +279,26 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
             </button>
           ))}
           <input className="sx-inp !h-[32px] !w-[180px]" placeholder="Qidirish…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <button
+            className="sx-btn sm"
+            disabled={!rows.length}
+            onClick={() =>
+              downloadCsv(`kirim-chiqim-${ym}.csv`, [
+                ['Sana', 'Toifa', 'Izoh', 'Qanday', 'Kirim', 'Chiqim', 'Chek'],
+                ...rows.map((r) => [
+                  r.e.entry_date,
+                  r.label,
+                  r.e.description,
+                  METHOD[r.method as keyof typeof METHOD] ?? '',
+                  r.dir === 'in' ? r.e.amount : '',
+                  r.dir === 'out' ? r.e.amount : '',
+                  r.e.receipt_path ? 'bor' : '',
+                ]),
+              ])
+            }
+          >
+            <Download className="size-3.5" /> Excel (CSV)
+          </button>
         </div>
         <div className="sx-tw">
           <table className="sx-tbl">
@@ -285,13 +310,14 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
                 <th className="l">Qanday</th>
                 <th>Kirim</th>
                 <th>Chiqim</th>
+                <th>Chek</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="l">
+                  <td colSpan={8} className="l">
                     <div className="sx-empty">Bu oy uchun kirim yoki chiqim yozilmagan — yuqoridagi formadan qo‘shing.</div>
                   </td>
                 </tr>
@@ -306,6 +332,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
                   <td className="l text-au-muted">{METHOD[r.method as keyof typeof METHOD] ?? '—'}</td>
                   <td className="text-au-ok">{r.dir === 'in' ? fmtNum(r.e.amount) : ''}</td>
                   <td className="text-au-bad">{r.dir === 'out' ? fmtNum(r.e.amount) : ''}</td>
+                  <td>{r.e.source ? null : <ReceiptCell entryId={r.e.id} has={!!r.e.receipt_path} warn={r.dir === 'out'} />}</td>
                   <td>
                     {r.e.source ? (
                       <span className="sx-pl info" title="Ish haqi / soliq / eskirish bo‘limidan avtomatik">
@@ -417,5 +444,178 @@ function CashForecast({ books, today, min }: { books: Books; today: string; min:
         )}
       </div>
     </>
+  );
+}
+
+/** Receipt photo / PDF behind one manual cash movement: attach, open,
+ * replace or remove. An expense without one is flagged amber. */
+function ReceiptCell({ entryId, has, warn }: { entryId: string; has: boolean; warn: boolean }) {
+  const { run, pending } = useRun();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const upload = async (file: File) => {
+    setBusy(true);
+    try {
+      const u = await requestReceiptUploadAction(entryId, file.name, file.type, file.size);
+      if (u.error || !u.url || !u.path) {
+        toast.error(u.error === 'fileType' ? 'Faqat rasm (JPG/PNG/WEBP/HEIC) yoki PDF' : u.error === 'fileSize' ? 'Fayl 10 MB dan oshmasin' : err(u.error ?? ''));
+        return;
+      }
+      const put = await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+      if (!put.ok) return void toast.error('Yuklab bo‘lmadi');
+      const path = u.path;
+      run(() => setEntryReceiptAction(entryId, path), 'Chek biriktirildi');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input
+        ref={input}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) upload(file);
+        }}
+      />
+      {has ? (
+        <>
+          <button
+            className="sx-btn sm text-au-ok"
+            aria-label="Chekni ko‘rish"
+            title="Chekni ko‘rish"
+            onClick={async () => {
+              const r = await getReceiptUrlAction(entryId);
+              if (r.url) window.open(r.url, '_blank', 'noopener');
+              else toast.error(err(r.error ?? ''));
+            }}
+          >
+            <Paperclip className="size-3.5" /> ✓
+          </button>
+          <button
+            className="sx-btn sm"
+            aria-label="Chekni olib tashlash"
+            disabled={pending}
+            onClick={async () => (await ask('Chek olib tashlansinmi?')) && run(() => setEntryReceiptAction(entryId, null), 'Chek olib tashlandi')}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </>
+      ) : (
+        <button
+          className={cn('sx-btn sm', warn && 'text-au-accent-text')}
+          aria-label="Chek biriktirish"
+          title={warn ? 'Chiqim uchun chek biriktiring' : 'Chek biriktirish'}
+          disabled={busy || pending}
+          onClick={() => input.current?.click()}
+        >
+          <Paperclip className="size-3.5" /> {busy ? '…' : '+'}
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** Monthly recurring movements: one click writes this month's rent,
+ * internet… (each once per month; an edited entry keeps its tag). */
+function Templates({ books, ym }: { books: Books; ym: string }) {
+  const { run, pending } = useRun();
+  if (!books.templates.length) return null;
+  const inMonth = (id: string) => books.entries.some((e) => e.doc === templateDoc(id) && e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym));
+  const active = books.templates.filter((t) => t.active);
+  const missing = active.filter((t) => !inMonth(t.id));
+  const catName = (k: string) => CASH_CATS.find((c) => c.k === k)?.n ?? k;
+  const dirOf = (k: string) => CASH_CATS.find((c) => c.k === k)?.dir ?? 'out';
+  return (
+    <div className="sx-card s12">
+      <div className="sx-h">
+        <h3>Har oy takrorlanadigan</h3>
+        <small>
+          {active.length} ta faol · bu oyda {missing.length ? <b className="text-au-accent-text">{missing.length} tasi hali yozilmagan</b> : 'hammasi yozilgan'}
+        </small>
+        <span className="sp" />
+        <button
+          className="sx-btn primary sm"
+          disabled={pending || !missing.length}
+          onClick={() =>
+            run(async () => {
+              const r = await applyCashTemplatesAction(ym);
+              if (!r.error) toast.success(r.count ? `${r.count} ta yozuv qo‘shildi` : 'Bu oy uchun hammasi allaqachon yozilgan');
+              return r;
+            })
+          }
+        >
+          Bu oyga yozish ({missing.length})
+        </button>
+      </div>
+      <div className="sx-tw">
+        <table className="sx-tbl">
+          <thead>
+            <tr>
+              <th className="l">Kuni</th>
+              <th className="l">Toifa</th>
+              <th className="l">Izoh</th>
+              <th className="l">Qanday</th>
+              <th>Summa</th>
+              <th className="l">Bu oy</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {books.templates.map((t) => (
+              <tr key={t.id} className={cn(!t.active && 'opacity-50')}>
+                <td className="l tabular-nums">{t.day}-sana</td>
+                <td className="l">
+                  <b>{catName(t.cat)}</b>
+                </td>
+                <td className="l text-au-muted">{t.note || '—'}</td>
+                <td className="l text-au-muted">{METHOD[t.method as keyof typeof METHOD] ?? '—'}</td>
+                <td className={dirOf(t.cat) === 'in' ? 'text-au-ok' : 'text-au-bad'}>{fmtNum(t.amount)}</td>
+                <td className="l">
+                  {!t.active ? <span className="sx-pl">to‘xtatilgan</span> : inMonth(t.id) ? <span className="sx-pl ok">yozilgan</span> : <span className="sx-pl warn">kutilmoqda</span>}
+                </td>
+                <td>
+                  <span className="inline-flex items-center gap-1">
+                    <button
+                      className="sx-btn sm"
+                      disabled={pending}
+                      onClick={() =>
+                        run(
+                          () =>
+                            saveCashTemplateAction({
+                              id: t.id,
+                              cat: t.cat,
+                              method: t.method as (typeof CASH_ACC)[number],
+                              amount: t.amount,
+                              note: t.note,
+                              day: t.day,
+                              active: !t.active,
+                            }),
+                          t.active ? 'To‘xtatildi' : 'Yoqildi',
+                        )
+                      }
+                    >
+                      {t.active ? 'To‘xtatish' : 'Yoqish'}
+                    </button>
+                    <button
+                      className="sx-btn sm text-au-bad"
+                      aria-label="O‘chirish"
+                      disabled={pending}
+                      onClick={async () => (await ask(`Shablon o‘chirilsinmi?\n${catName(t.cat)} · ${fmtNum(t.amount)} so‘m`)) && run(() => deleteCashTemplateAction(t.id), 'O‘chirildi')}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
