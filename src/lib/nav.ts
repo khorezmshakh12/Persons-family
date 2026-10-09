@@ -133,7 +133,7 @@ export const NAV_ITEMS: NavItem[] = [
   // SECTION_ROLES, the CEO's per-person ACL in Core can narrow them — passed
   // in as `coreViews`, see coreViews() in lib/core-state.ts.
   { key: 'coreInbox', href: '/inbox', core: 'inbox' },
-  { key: 'sales', href: '/sales', core: 'sales' },
+  { key: 'sales', href: '/sales' },
   { key: 'hr', href: '/hr', core: 'hr' },
   { key: 'report', href: '/report' },
   { key: 'platform', href: '/platform', core: 'settings' },

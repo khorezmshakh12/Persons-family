@@ -26,7 +26,7 @@ import './strategy.css';
 import './suite.css';
 
 export type Stage = 'new' | 'contacted' | 'trial' | 'enrolled' | 'lost';
-export type Source = 'instagram' | 'telegram' | 'referral' | 'walkin' | 'website' | 'other';
+export type Source = 'instagram' | 'meta' | 'telegram' | 'google' | 'referral' | 'walkin' | 'website' | 'other';
 export type OpsData = {
   groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null; teacher_id: string | null; duration: number }[];
   leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null; ai_intent?: number | null; ai_hot?: number | null }[];
@@ -64,6 +64,8 @@ const SOURCES: { k: Source; n: string; c: string }[] = [
   { k: 'instagram', n: 'Instagram', c: '#e8567a' },
   { k: 'telegram', n: 'Telegram', c: '#2477c9' },
   { k: 'referral', n: 'Tavsiya', c: '#139a52' },
+  { k: 'meta', n: 'Meta reklama', c: '#1877f2' },
+  { k: 'google', n: 'Google', c: '#34a853' },
   { k: 'walkin', n: 'O‘zi keldi', c: '#ff9f1c' },
   { k: 'website', n: 'Veb-sayt', c: '#7a5af8' },
   { k: 'other', n: 'Boshqa', c: '#b9b2a6' },

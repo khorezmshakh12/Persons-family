@@ -13,7 +13,7 @@ import { DEFAULT_DURATION, isBlocking, issuesFor, scheduleIssues, type Availabil
 
 type Result = { error?: string };
 
-const SOURCES = ['instagram', 'telegram', 'referral', 'walkin', 'website', 'other'] as const;
+const SOURCES = ['instagram', 'meta', 'telegram', 'google', 'referral', 'walkin', 'website', 'other'] as const;
 const STAGES = ['new', 'contacted', 'trial', 'enrolled', 'lost'] as const;
 
 const leadSchema = z.object({
@@ -43,14 +43,15 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
       const res = await sql`
         update ops_leads set name = ${v.name || '—'}, phone = ${v.phone}, source = ${v.source}, course = ${v.course},
           stage = ${v.stage}, note = ${v.note}, updated_at = now(),
+          trial_at = case when ${v.stage} in ('trial', 'enrolled') then coalesce(trial_at, now()) else trial_at end,
           enrolled_at = case when ${v.stage} = 'enrolled' then coalesce(enrolled_at, now()) else null end
         where id = ${v.id}`;
       if (res.count === 0) return { error: 'notFound' };
     } else {
       const [row] = await sql<{ id: string }[]>`
-        insert into ops_leads (name, phone, source, course, stage, note, owner_id, enrolled_at)
+        insert into ops_leads (name, phone, source, course, stage, note, owner_id, enrolled_at, trial_at)
         values (${v.name || '—'}, ${v.phone}, ${v.source}, ${v.course}, ${v.stage}, ${v.note}, ${by},
-          ${v.stage === 'enrolled' ? sql`now()` : null})
+          ${v.stage === 'enrolled' ? sql`now()` : null}, ${v.stage === 'trial' || v.stage === 'enrolled' ? sql`now()` : null})
         returning id`;
       leadId = row.id;
     }

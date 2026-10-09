@@ -206,6 +206,8 @@ const SRC: { k: Source; n: string; c: string }[] = [
   { k: 'instagram', n: 'Instagram', c: '#e8567a' },
   { k: 'telegram', n: 'Telegram', c: '#2477c9' },
   { k: 'referral', n: 'Tavsiya', c: '#139a52' },
+  { k: 'meta', n: 'Meta reklama', c: '#1877f2' },
+  { k: 'google', n: 'Google', c: '#34a853' },
   { k: 'walkin', n: 'O‘zi keldi', c: '#ff9f1c' },
   { k: 'website', n: 'Veb-sayt', c: '#7a5af8' },
   { k: 'other', n: 'Boshqa', c: '#b9b2a6' },
