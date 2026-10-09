@@ -930,3 +930,113 @@ export async function getMarketAdminAction(): Promise<MarketAdminView> {
     } : EMPTY_ADMIN_VIEW.stats,
   };
 }
+
+/* ------------------------------------------------------------ v7: hand-over + insights */
+
+async function requireMarketCeo(): Promise<{ id: string } | { error: string }> {
+  try {
+    const { profile } = await requireCap('market.manage');
+    return { id: profile.id };
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+}
+
+/** Approved → handed over (or back, as the undo). Pings the buyer. */
+export async function setMarketOrderFulfilledAction(orderId: string, fulfilled: boolean): Promise<MarketActionState> {
+  const g = await requireMarketCeo();
+  if ('error' in g) return g;
+  if (!z.string().uuid().safeParse(orderId).success) return { error: 'invalidInput' };
+  let row: { user_id: string; name: string } | undefined;
+  try {
+    [row] = await sql<{ user_id: string; name: string }[]>`
+      update market_orders o set status = ${fulfilled ? 'fulfilled' : 'approved'}
+      from market_items i
+      where o.id = ${orderId} and i.id = o.item_id and o.status = ${fulfilled ? 'approved' : 'fulfilled'}
+      returning o.user_id, i.name`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  if (!row) return { error: 'invalidTransition' };
+  const r = row;
+  if (fulfilled)
+    after(async () => {
+      const [p] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${r.user_id}`;
+      if (p?.telegram_id) await sendTelegramAs('stars', p.telegram_id, `🎁 <b>${escapeTelegramText(r.name)}</b> sizga topshirildi. Yoqimli foydalaning!`).catch(() => {});
+    });
+  logSystemAction('market.fulfil', `${orderId} → ${fulfilled ? 'fulfilled' : 'approved'}`);
+  revalidatePath('/[locale]/market', 'page');
+  return {};
+}
+
+const stockAlertSchema = z.object({ itemId: z.string().uuid(), lowStock: z.number().int().min(0).max(1000) });
+
+export async function setMarketLowStockAction(input: z.input<typeof stockAlertSchema>): Promise<MarketActionState> {
+  try {
+    await requireMarketEditor();
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = stockAlertSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    await sql`update market_items set low_stock = ${p.data.lowStock} where id = ${p.data.itemId}`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/market', 'page');
+  return {};
+}
+
+export type MarketInsights = {
+  months: { month: string; stars: number; orders: number }[];
+  top: { name: string; orders: number; stars: number }[];
+  wished: { id: string; name: string; wishes: number; stock: number; star_cost: number }[];
+  categories: { category: string; orders: number; stars: number }[];
+  lowStock: { id: string; name: string; stock: number; low_stock: number; wishes: number }[];
+  handover: { id: string; item: string; who: string; approved_at: string | null }[];
+  avgDecisionHours: number | null;
+  buyers: number;
+};
+
+/** CEO view of the shop: spend trend, best sellers, unmet wishes, stock. */
+export async function getMarketInsightsAction(): Promise<MarketInsights | null> {
+  const g = await requireMarketCeo();
+  if ('error' in g) return null;
+  const [months, top, wished, categories, lowStock, handover, [avg], [buyers]] = await Promise.all([
+    sql<{ month: string; stars: number; orders: number }[]>`
+      select to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as month,
+        coalesce(sum(star_cost) filter (where status in ('approved', 'fulfilled')), 0)::int as stars,
+        count(*) filter (where status in ('approved', 'fulfilled'))::int as orders
+      from market_orders where created_at >= now() - interval '6 months' group by 1 order by 1`,
+    sql<{ name: string; orders: number; stars: number }[]>`
+      select i.name, count(*)::int as orders, sum(o.star_cost)::int as stars
+      from market_orders o join market_items i on i.id = o.item_id
+      where o.status in ('approved', 'fulfilled') and o.created_at >= now() - interval '180 days'
+      group by i.name order by orders desc limit 8`,
+    sql<{ id: string; name: string; wishes: number; stock: number; star_cost: number }[]>`
+      select i.id, i.name, count(w.*)::int as wishes, i.stock, i.star_cost
+      from market_items i join market_wishlist w on w.item_id = i.id
+      where i.archived_at is null group by i.id order by wishes desc limit 8`,
+    sql<{ category: string; orders: number; stars: number }[]>`
+      select coalesce(i.category, 'other') as category, count(*)::int as orders, sum(o.star_cost)::int as stars
+      from market_orders o join market_items i on i.id = o.item_id
+      where o.status in ('approved', 'fulfilled') and o.created_at >= now() - interval '180 days'
+      group by 1 order by orders desc`,
+    sql<{ id: string; name: string; stock: number; low_stock: number; wishes: number }[]>`
+      select i.id, i.name, i.stock, i.low_stock, (select count(*)::int from market_wishlist w where w.item_id = i.id) as wishes
+      from market_items i where i.is_active and i.archived_at is null and i.stock <= i.low_stock
+      order by i.stock, wishes desc`,
+    sql<{ id: string; item: string; who: string; approved_at: string | null }[]>`
+      select o.id, i.name as item, trim(concat(p.first_name, ' ', p.last_name)) as who, o.decided_at as approved_at
+      from market_orders o join market_items i on i.id = o.item_id join profiles p on p.id = o.user_id
+      where o.status = 'approved' order by o.decided_at nulls last limit 50`,
+    sql<{ h: number | null }[]>`
+      select avg(extract(epoch from decided_at - created_at) / 3600)::float8 as h
+      from market_orders where decided_at is not null and created_at >= now() - interval '90 days'`,
+    sql<{ n: number }[]>`
+      select count(distinct user_id)::int as n from market_orders
+      where status in ('approved', 'fulfilled') and created_at >= now() - interval '90 days'`,
+  ]);
+  return { months, top, wished, categories, lowStock, handover, avgDecisionHours: avg?.h ?? null, buyers: buyers?.n ?? 0 };
+}
