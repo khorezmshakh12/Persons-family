@@ -1261,7 +1261,8 @@
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
-      "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring."
+      "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring.",
+      "periodLocked": "Bu oy yopilgan (oylik tasdiqlangan). O'zgartirish uchun Moliya › Oylik jarayonida tuzatish yozuvi qo'shing."
     },
     "payroll": {
       "title": "Oylik maosh",

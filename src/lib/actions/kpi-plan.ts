@@ -277,9 +277,9 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
       let entryId: string | null = null;
       if (amount !== 0) {
         const [e] = await tx<{ id: string }[]>`
-          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period)
+          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source)
           values (${plan.user_id}, ${`KPI · ${monthName(plan.month)}: ${SCENARIO_LABEL[v.grade as Scenario]} (${percent > 0 ? '+' : ''}${percent}%)`},
-                  ${amount}, ${v.note || null}, ${reviewerId}, 'adjustment', ${plan.month})
+                  ${amount}, ${v.note || null}, ${reviewerId}, 'adjustment', ${plan.month}, 'kpi')
           returning id`;
         entryId = e.id;
       }
@@ -305,7 +305,8 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
     revalidatePath('/[locale]/finance', 'layout');
     done();
     return { amount: out.amount };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    // The month's pay run is approved: the DB refuses the ledger row.
+    return { error: error instanceof Error && /period_locked/.test(error.message) ? 'periodLocked' : 'updateFailed' };
   }
 }

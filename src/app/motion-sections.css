@@ -72,6 +72,18 @@
   }
 }
 
+/* Vertical bars grow from the baseline, staggered by --i. */
+.ms-grow-y {
+  transform-origin: center bottom;
+  animation: ms-grow-y 0.7s var(--m-ease-out) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+@keyframes ms-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
 /* SVG strokes draw themselves: give the path pathLength="1". */
 .ms-draw {
   stroke-dasharray: 1;
@@ -147,13 +159,13 @@
   transition: transform 0.9s var(--m-ease-spring);
 }
 
-html[data-motion-level='off'] :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc),
+html[data-motion-level='off'] :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc, .ms-grow-y),
 html[data-motion-level='off'] .ms-needle {
   animation: none !important;
   transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc),
+  :is(.lane-count, .ms-breathe, .ms-alarm, .ms-rise, .ms-wave, .ms-fill, .ms-draw, .ms-pulse, .ms-pop-in, .ms-glow, .ms-enter-right, .ms-arc, .ms-grow-y),
   .ms-needle {
     animation: none !important;
     transition: none !important;

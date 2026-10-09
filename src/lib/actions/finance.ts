@@ -10,6 +10,10 @@ import { fieldErrorCodes, type FieldErrors } from '@/lib/form-errors';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { formatUZS } from '@/lib/format-currency';
 
+/** The DB trigger refuses writes to a month whose pay run is approved. */
+const lockedOr = (error: unknown, fallback: string) =>
+  error instanceof Error && /period_locked/.test(error.message) ? 'periodLocked' : fallback;
+
 export type FinanceActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
 
 const PERIOD_RE = /^\d{4}-\d{2}-01$/;
@@ -53,8 +57,8 @@ export async function addFinanceEntryAction(
         ${parsed.data.note || null}, ${adminId}, ${kind}, ${period}
       )
     `;
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    return { error: lockedOr(error, 'updateFailed') };
   }
 
   logSystemAction(
@@ -126,7 +130,7 @@ export async function setSalaryMonthAction(
     `;
   } catch (error) {
     console.error('setSalaryMonthAction failed', error instanceof Error ? error.message : error);
-    return { error: 'updateFailed' };
+    return { error: lockedOr(error, 'updateFailed') };
   }
 
   logSystemAction(
@@ -178,7 +182,7 @@ export async function updateFinanceEntryAction(
     if (res.count === 0) return { error: 'notFound' };
   } catch (error) {
     console.error('updateFinanceEntryAction failed', error instanceof Error ? error.message : error);
-    return { error: 'updateFailed' };
+    return { error: lockedOr(error, 'updateFailed') };
   }
   revalidatePath('/[locale]/finance/[staffId]', 'page');
 
@@ -204,7 +208,7 @@ export async function deleteFinanceEntryAction(
     await sql`delete from finance_entries where id = ${parsed.data.entryId}`;
   } catch (error) {
     console.error('deleteFinanceEntryAction failed', error instanceof Error ? error.message : error);
-    return { error: 'deleteFailed' };
+    return { error: lockedOr(error, 'deleteFailed') };
   }
 
   revalidatePath('/[locale]/finance', 'page');

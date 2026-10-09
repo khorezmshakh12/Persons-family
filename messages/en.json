@@ -1261,7 +1261,8 @@
       "invalidInput": "Please check the values you entered.",
       "fieldInvalid": "This field is invalid.",
       "updateFailed": "Could not save. Please try again.",
-      "deleteFailed": "Could not delete this entry. Please try again."
+      "deleteFailed": "Could not delete this entry. Please try again.",
+      "periodLocked": "This month is closed (payroll approved). Add a correction in Finance › Pay run."
     },
     "payroll": {
       "title": "Payroll",
