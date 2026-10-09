@@ -176,7 +176,7 @@ async function handle(req: NextRequest): Promise<Response> {
       members.map((m) => m.line),
     );
     try {
-      await sendTelegramManyAs('report', ceoChatIds, text);
+      await sendTelegramManyAs('report', ceoChatIds, text, { record: false });
       groupsSent += 1;
     } catch (error) {
       // sendTelegramMessageToMany already swallows per-recipient failures;

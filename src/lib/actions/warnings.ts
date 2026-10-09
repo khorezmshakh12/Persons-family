@@ -31,7 +31,8 @@ async function notifyWarningIssued({
   if (!recipientTelegramId) return;
   try {
     const text = `<b>Sizga ogohlantirish berildi</b>\nSabab: ${escapeTelegramText(reason)}`;
-    await sendTelegramAs('stars', recipientTelegramId, text);
+    // The bell lists unseen warnings itself (is_seen) — Telegram only.
+    await sendTelegramAs('stars', recipientTelegramId, text, { record: false });
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

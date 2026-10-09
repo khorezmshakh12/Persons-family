@@ -1,64 +1,50 @@
-import { getTranslations } from 'next-intl/server';
+import { notFound } from 'next/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { getMonthlyIssueArchiveAction, getVisibleIssuesAction } from '@/lib/actions/issues';
+import { getIssuesCenterAction, getMonthlyIssueArchiveAction } from '@/lib/actions/issues';
 import { getIssueStatsAction } from '@/lib/actions/issue-stats';
-import { CreateIssueDialog } from '@/components/issues/create-issue-dialog';
-import { AiTriageButton } from '@/components/issues/ai-triage-button';
-import { IssuesBoard } from '@/components/issues/issues-board';
-import { IssuesStats } from '@/components/issues/issues-stats';
-import { MonthlyIssueArchive } from '@/components/issues/monthly-issue-archive';
+import { IssuesCenterView } from '@/components/issues/issues-center';
 import { MarkIssuesSeen } from '@/components/issues/mark-issues-seen';
-import type { Issue } from '@/components/issues/issue-card';
 import { can } from '@/lib/permissions';
-import { BgVideo } from '@/components/motion/bg-video';
+import { allowedTaskAssigneeRoles } from '@/lib/task-roles';
+import type { StaffRole } from '@/lib/nav';
 
 export const dynamic = 'force-dynamic';
 
-export default async function IssuesPage() {
-  const t = await getTranslations('issues');
+/** Murojaatlar markazi (v8-A, 2026-10-10). Everyone raises and follows
+ * their own; managers (issues.manage) run the queue; an assignee works the
+ * ones given to them. Every action re-checks its own gate. */
+export default async function IssuesPage({ searchParams }: { searchParams: Promise<{ id?: string; new?: string }> }) {
   const { profile } = await getAuthState();
-  const isCeo = can(profile!.role, 'issues.manage');
+  if (!profile) notFound();
+  const manager = can(profile.role, 'issues.manage');
+  const sp = await searchParams;
+  const taskRoles = allowedTaskAssigneeRoles(profile.role as StaffRole);
 
-  // Every staff member reaches this page: a non-CEO gets a read-only view of
-  // just the issues they raised (getVisibleIssuesAction scopes the query to
-  // created_by = self) plus the "new issue" form, which auto-routes to the
-  // CEO — so no assignee picker and no stats panel for them. The CEO gets
-  // the full managed board, the assignee list of every active staff member,
-  // and the resolution-stats panel. Every issues.ts Server Action re-checks
-  // its own gate (create/report is open to all; status/edit/delete stay
-  // CEO-only), so this page-level split is presentation, not the boundary.
-  // The archive under the board carries every *past* Tashkent month that
-  // resolved an issue, scoped exactly like getVisibleIssuesAction (CEO: all;
-  // anyone else: only the issues they raised).
-  const [issues, assignees, issueStats, issueArchive] = await Promise.all([
-    getVisibleIssuesAction(),
-    isCeo
-      ? sql<{ id: string; first_name: string; last_name: string }[]>`
-          select id, first_name, last_name from profiles
-          where is_active = true order by first_name asc
-        `
-      : Promise.resolve([] as { id: string; first_name: string; last_name: string }[]),
-    isCeo
-      ? getIssueStatsAction()
-      : Promise.resolve({ data: undefined } as Awaited<ReturnType<typeof getIssueStatsAction>>),
+  const [center, archive, stats, people] = await Promise.all([
+    getIssuesCenterAction(),
     getMonthlyIssueArchiveAction(),
+    manager ? getIssueStatsAction() : Promise.resolve({ data: undefined }),
+    sql<{ id: string; first_name: string | null; last_name: string | null; role: string }[]>`
+      select id, first_name, last_name, role::text as role from profiles where is_active order by first_name, last_name`,
   ]);
+  if (!center) notFound();
 
+  const named = people.map((p) => ({ id: p.id, name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || '—', role: p.role }));
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+    <>
       <MarkIssuesSeen />
-      <div className="flex flex-wrap items-center justify-between gap-3 relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
-        <BgVideo variant="hero" />
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          {isCeo && <AiTriageButton />}
-          <CreateIssueDialog assignees={assignees} canAssign={isCeo} />
-        </div>
-      </div>
-      {isCeo && <IssuesStats stats={issueStats.data ?? null} />}
-      <IssuesBoard issues={issues as unknown as Issue[]} readOnly={!isCeo} />
-      <MonthlyIssueArchive months={issueArchive} />
-    </div>
+      <IssuesCenterView
+        initial={center}
+        archive={archive}
+        stats={stats.data ?? null}
+        // Managers pick any active person as the assignee.
+        assignees={manager ? named.map(({ id, name }) => ({ id, name })) : []}
+        // Who this viewer may give a task to (themselves always).
+        taskPeople={named.filter((p) => p.id === profile.id || (taskRoles as string[]).includes(p.role)).map(({ id, name }) => ({ id, name }))}
+        focusId={sp.id ?? null}
+        openNew={sp.new === '1'}
+      />
+    </>
   );
 }

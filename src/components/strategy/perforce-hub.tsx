@@ -208,7 +208,8 @@ export function PerforceHub({ data, today, viewerId, isLead, seesBudget }: { dat
     if (restored.current) return;
     restored.current = true;
     try {
-      const v = localStorage.getItem(KEY) as Tab | null;
+      // ?tab=… (a bell / Telegram link) wins over the remembered tab.
+      const v = (new URLSearchParams(window.location.search).get('tab') ?? localStorage.getItem(KEY)) as Tab | null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore of per-device preferences
       if (v && TABS.some((t) => t.v === v)) setTab(v);
       if (!localStorage.getItem(INTRO)) setIntro(true);

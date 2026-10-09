@@ -30,10 +30,11 @@ const TAB_PRIORITY: NavItem['key'][] = [
 ];
 
 const TILE: Record<NavGroup, string> = {
-  main: 'bg-au-accent-soft text-au-accent-text',
-  motivation: 'bg-au-ok-soft text-au-ok',
-  workflow: 'bg-au-info-soft text-au-info',
-  management: 'bg-au-card-2 text-au-ink',
+  daily: 'bg-au-accent-soft text-au-accent-text',
+  me: 'bg-au-ok-soft text-au-ok',
+  team: 'bg-au-info-soft text-au-info',
+  manage: 'bg-au-card-2 text-au-ink',
+  system: 'bg-au-card-2 text-au-muted',
 };
 
 function isActive(pathname: string, item: NavItem) {
@@ -147,7 +148,7 @@ export function BottomTabBar({
             {groups.map(({ group, items }) => (
               <section key={group} className="mb-3 rounded-[20px] bg-au-card p-3 shadow-au-card">
                 <h3 className="px-1 pb-2 text-[11px] font-semibold tracking-[0.07em] text-au-muted uppercase">
-                  {group === 'main' ? tApp('home') : tShell(`groups.${group}`)}
+                  {tShell(`groups.${group}`)}
                 </h3>
                 <div className="grid grid-cols-4 gap-y-3">
                   {items.map((item) => {

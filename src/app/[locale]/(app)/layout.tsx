@@ -3,6 +3,7 @@ import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
+import { loadFeed } from '@/lib/notifications';
 import { computeNavBadgeKeys } from '@/lib/nav-badges';
 import { checkMaterialsLink } from '@/lib/sso/checkMaterialsLink';
 import { coreViews } from '@/lib/core-state';
@@ -50,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [
     activeProfiles,
     unreadChatRows,
-    unseenIssueRows,
+    feedRows,
     unseenTaskRows,
     unseenWarningRows,
     unseenLessonPlanAlertRows,
@@ -66,11 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         where receiver_id = ${user!.id} and is_read = false
         order by created_at desc limit 50
       `,
-      sql<{ id: string; title: string; created_at: string }[]>`
-        select id, title, created_at from issues
-        where assigned_to = ${user!.id} and is_seen = false
-        order by created_at desc limit 50
-      `,
+      loadFeed(user!.id),
       sql<{ id: string; title: string; created_at: string }[]>`
         select id, title, created_at from tasks
         where assigned_to = ${user!.id} and is_seen = false
@@ -129,11 +126,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     messageText: m.message_text,
     createdAt: m.created_at,
   }));
-  const initialUnseenIssues = unseenIssueRows.map((i) => ({
-    id: i.id,
-    title: i.title,
-    createdAt: i.created_at,
-  }));
   const initialUnseenTasks = unseenTaskRows.map((t) => ({
     id: t.id,
     title: t.title,
@@ -170,7 +162,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userId={user!.id}
         profileNames={profileNames}
         initialUnreadChats={initialUnreadChats}
-        initialUnseenIssues={initialUnseenIssues}
+        initialFeed={feedRows}
         initialUnseenTasks={initialUnseenTasks}
         initialUnseenWarnings={initialUnseenWarnings}
         initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}

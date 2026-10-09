@@ -140,7 +140,8 @@ export function AccountingWorkspace({
     if (restored.current) return;
     restored.current = true;
     try {
-      const v = localStorage.getItem(KEY) as Tab | null;
+      // ?tab=… (Ctrl+K action / a link) wins over the remembered tab.
+      const v = (new URLSearchParams(window.location.search).get('tab') ?? localStorage.getItem(KEY)) as Tab | null;
       if (v && FLAT.some((t) => t.v === v)) setTab(v);
     } catch {}
   }, []);

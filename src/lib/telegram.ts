@@ -1,6 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { sql } from '@/lib/db/client';
 import { NOTIFY_META, type NotifyKind } from '@/lib/notify-kinds';
+import { recordForChats, recordNotifications } from '@/lib/notifications';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -129,16 +130,58 @@ async function blockedChats(chatIds: number[], kind: NotifyKind): Promise<Set<nu
   }
 }
 
+/** In-app copy options for the kinded sends. Every kinded Telegram message
+ * also lands in the bell (Bildirishnomalar markazi) — muted kinds and quiet
+ * hours only silence Telegram, never the in-app record. `record: false` for
+ * callers whose event the bell already shows another way (new tasks,
+ * warnings) or that recorded it themselves (notifyUsers). Chat is never
+ * recorded — it has its own unread state. */
+export type SendOpts = { record?: boolean; href?: string | null; action?: boolean; ref?: string | null };
+
+function shouldRecord(kind: NotifyKind, opts?: SendOpts) {
+  return kind !== 'chat' && opts?.record !== false;
+}
+
 /** sendTelegramMessage, honouring the recipient's preferences for `kind`. */
-export async function sendTelegramAs(kind: NotifyKind, chatId: string | number, text: string): Promise<void> {
+export async function sendTelegramAs(kind: NotifyKind, chatId: string | number, text: string, opts?: SendOpts): Promise<void> {
   const id = Number(chatId);
+  if (Number.isFinite(id) && shouldRecord(kind, opts)) await recordForChats([id], { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
   if (Number.isFinite(id) && (await blockedChats([id], kind)).has(id)) return;
   await sendTelegramMessage(chatId, text);
 }
 
 /** sendTelegramMessageToMany, honouring each recipient's preferences. */
-export async function sendTelegramManyAs(kind: NotifyKind, chatIds: (number | string | null | undefined)[], text: string): Promise<void> {
+export async function sendTelegramManyAs(
+  kind: NotifyKind,
+  chatIds: (number | string | null | undefined)[],
+  text: string,
+  opts?: SendOpts,
+): Promise<void> {
   const ids = chatIds.map((c) => (typeof c === 'string' ? Number(c) : c)).filter((c): c is number => typeof c === 'number' && Number.isFinite(c));
-  const blocked = await blockedChats([...new Set(ids)], kind);
-  await sendTelegramMessageToMany(ids.filter((c) => !blocked.has(c)), text);
+  const unique = [...new Set(ids)];
+  if (shouldRecord(kind, opts)) await recordForChats(unique, { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
+  const blocked = await blockedChats(unique, kind);
+  await sendTelegramMessageToMany(unique.filter((c) => !blocked.has(c)), text);
+}
+
+/** The people-addressed path: stores the notification for every person
+ * (Telegram linked or not), then mirrors it to the linked ones' Telegram
+ * under their preferences. Never throws. */
+export async function notifyUsers(
+  kind: NotifyKind,
+  userIds: (string | null | undefined)[],
+  text: string,
+  opts: Omit<SendOpts, 'record'> & { telegram?: boolean } = {},
+): Promise<void> {
+  const ids = [...new Set(userIds.filter((x): x is string => Boolean(x)))];
+  if (!ids.length) return;
+  await recordNotifications(ids, { kind, text, href: opts.href, action: opts.action, ref: opts.ref });
+  if (opts.telegram === false) return;
+  try {
+    const rows = await sql<{ telegram_id: string | number }[]>`
+      select telegram_id from profiles where id = any(${sql.array(ids)}::uuid[]) and is_active and telegram_id is not null`;
+    await sendTelegramManyAs(kind, rows.map((r) => r.telegram_id), text, { record: false });
+  } catch (error) {
+    console.error('notifyUsers telegram failed', error instanceof Error ? error.message : error);
+  }
 }

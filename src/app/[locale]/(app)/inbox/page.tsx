@@ -1,7 +1,7 @@
-import { CoreSection } from '@/components/core/core-section';
+import { getLocale } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default function Page() {
-  return <CoreSection view="inbox" navKey="coreInbox" />;
+/** Inbox section removed (owner, 2026-10-05) — old links land on the Dashboard. */
+export default async function InboxPage() {
+  redirect({ href: '/dashboard', locale: await getLocale() });
 }

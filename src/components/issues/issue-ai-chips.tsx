@@ -3,15 +3,8 @@
 import { Bug, Sparkles } from 'lucide-react';
 import { CHIP_ACCENT, CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK } from '@/lib/glass';
 import type { IssueAi } from '@/lib/actions/issues';
+import { CATEGORY_LABEL } from '@/lib/issues-flow';
 
-const CATEGORY_LABEL: Record<string, string> = {
-  sayt_it: 'Sayt / IT',
-  texnik_jihoz: 'Jihoz / bino',
-  oquv_jarayoni: "O'quv jarayoni",
-  moliya: 'Moliya',
-  xodimlar: 'Xodimlar',
-  boshqa: 'Boshqa',
-};
 const URGENCY = [
   { n: 'Shoshilinch emas', c: CHIP_NEUTRAL },
   { n: 'Oddiy', c: CHIP_INFO },

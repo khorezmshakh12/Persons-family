@@ -1805,9 +1805,11 @@
     "subtitle": "Education Platform",
     "root": "Persons",
     "groups": {
-      "motivation": "Motivation",
-      "workflow": "Workflow",
-      "management": "Management"
+      "daily": "Daily",
+      "me": "Me",
+      "team": "Team",
+      "manage": "Management",
+      "system": "System"
     },
     "search": "Staff, group or issue…",
     "starBalance": "Star balance",
