@@ -6,27 +6,19 @@ import { redirect } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
-import { GLASS_CARD } from '@/lib/glass';
-import { cn } from '@/lib/utils';
 import { roleLabel } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type FinanceEntry } from '@/components/finance/finance-entries-list';
 import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
 import { can } from '@/lib/permissions';
-import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
-import { getStaffPayroll } from '@/lib/payroll';
-import { formatUZS } from '@/lib/format-currency';
-import { CountUp } from '@/components/motion/count-up';
+import { PayStatement } from '@/components/finance/pay-statement';
+import { loadAdvances, loadPayHistory, loadPayLines, loadPayRun } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
 
 const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 const monthLabel = (ym: string) => `${MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
-
-function netTotal(entries: { amount: number }[]) {
-  return entries.reduce((sum, e) => sum + e.amount, 0);
-}
 
 // Exported so /finance/page.tsx can render a non-admin viewer's own finance
 // page in place instead of redirect()-ing here — see the matching comment
@@ -40,13 +32,12 @@ export async function FinanceDetailContent({
   searchParams?: Promise<{ incomeYear?: string; month?: string }> | { incomeYear?: string; month?: string };
 }) {
   const tStaff = await getTranslations('staff');
-  const tSum = await getTranslations('finance.summary');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
 
   const isSelf = user!.id === staffId;
-  // Viewing anyone's pay: finance.viewAll (CEO, COO, Financist). Changing it:
-  // finance.manage (CEO, Financist) — the COO reads only.
+  // Viewing anyone's pay: finance.viewAll; changing it: finance.manage. Who
+  // holds each lives in CAP_ROLES (lib/permissions.ts) — today the CEO only.
   const isCeo = can(profile!.role, 'finance.manage');
   const isAdmin = isCeo;
   if (!isSelf && !can(profile!.role, 'finance.viewAll')) redirect({ href: '/dashboard', locale });
@@ -62,7 +53,8 @@ export async function FinanceDetailContent({
     const t = new Date(Date.UTC(y, m - 1 + d, 1));
     return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}`;
   };
-  const inMonth = (at: string | null) => !!at && tashkentMonthKey(new Date(at)) === month;
+  // Month arrows keep the Income Roadmap year the viewer picked.
+  const monthHref = (d: number) => `/finance/${staffId}?month=${shift(d)}${year ? `&incomeYear=${year}` : ''}`;
 
   const [target] = await sql<
     { id: string; first_name: string; last_name: string; avatar_url: string | null; role: string }[]
@@ -71,45 +63,19 @@ export async function FinanceDetailContent({
 
   const avatarSrc = await resolveAvatarUrl(target.avatar_url);
 
-  const [entries, earnings, [pen], payroll] = await Promise.all([
+  const period = `${month}-01`;
+  const [entries, lines, run, history, advances] = await Promise.all([
     sql<FinanceEntry[]>`
-      select id, title, amount, note, created_at from finance_entries
+      select id, title, amount, note, kind, source, created_at from finance_entries
       where staff_id = ${staffId}
         and coalesce(to_char(period, 'YYYY-MM'), to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM')) = ${month}
       order by created_at desc
     `,
-    getNetEarningEntries(staffId),
-    sql<{ penalties: number }[]>`
-      select coalesce(sum(amount) filter (where entry_type = 'penalty'), 0) as penalties
-      from performance_entries where staff_id = ${staffId}
-        and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') = ${month}
-    `,
-    getStaffPayroll(staffId, `${month}-01`),
+    loadPayLines(period, staffId),
+    loadPayRun(period),
+    loadPayHistory(period, staffId),
+    isSelf ? loadAdvances(staffId) : Promise.resolve(null),
   ]);
-
-  const net = netTotal(entries);
-  // Owner, 2026-10-05: the planned salary and what was actually handed over
-  // are two different numbers — never show the paid sum under "Maosh".
-  //   Maosh        = the CEO's monthly plan (salary_months.gross_amount)
-  //   Jami beriladigan = Maosh + bonuses − penalties
-  //   Berilgan     = salary + advance payments recorded this month
-  //   Qoldi        = Jami beriladigan − Berilgan
-  const total = netEarnings(earnings.filter((e) => inMonth(e.at)));
-  const ledgerPenalties = Math.round(
-    Math.abs(payroll.entries.filter((e) => e.kind === 'penalty').reduce((s, e) => s + e.amount, 0)),
-  );
-  const penalties = Math.round(Number(pen?.penalties) || 0) + ledgerPenalties;
-  const bonuses = total - net + (Math.round(Number(pen?.penalties) || 0));
-  const toPay = payroll.gross + bonuses - penalties;
-  const remaining = toPay - payroll.paid;
-  const summary = [
-    { key: 'salary', value: formatUZS(payroll.gross), tone: 'text-au-ink' },
-    { key: 'bonuses', value: `+${formatUZS(bonuses)}`, tone: 'text-au-ok' },
-    { key: 'penalties', value: `−${formatUZS(penalties)}`, tone: 'text-au-bad' },
-    { key: 'toPay', value: formatUZS(toPay), tone: 'text-au-ink' },
-    { key: 'paid', value: formatUZS(payroll.paid), tone: 'text-au-ok' },
-    { key: 'remaining', value: formatUZS(remaining), tone: remaining > 0 ? 'text-amber-600' : 'text-au-muted' },
-  ] as const;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
@@ -131,7 +97,7 @@ export async function FinanceDetailContent({
 
       <div className="flex items-center justify-between gap-3">
         <Link
-          href={`/finance/${staffId}?month=${shift(-1)}`}
+          href={monthHref(-1)}
           className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
           aria-label="Oldingi oy"
         >
@@ -139,27 +105,14 @@ export async function FinanceDetailContent({
         </Link>
         <span className="text-base font-bold text-au-ink">{monthLabel(month)}</span>
         <Link
-          href={`/finance/${staffId}?month=${shift(1)}`}
+          href={monthHref(1)}
           className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
           aria-label="Keyingi oy"
         >
           ›
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {summary.map((k, i) => (
-          <div
-            key={k.key}
-            style={{ animationDelay: `${i * 50}ms` }}
-            className={cn(GLASS_CARD, 'animate-fade-in-up flex flex-col gap-1 p-4', k.key === 'toPay' && 'bg-au-card-2')}
-          >
-            <span className="text-xs font-medium text-au-muted">{tSum(k.key)}</span>
-            <span className={cn('text-xl font-bold tabular-nums sm:text-2xl', k.tone)}>
-              <CountUp value={k.value} />
-            </span>
-          </div>
-        ))}
-      </div>
+      <PayStatement line={lines[0] ?? null} period={period} status={run.status} history={history} advances={advances} isSelf={isSelf} />
 
       <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
         <SalarySection
@@ -168,7 +121,6 @@ export async function FinanceDetailContent({
           isCeo={isCeo}
           isAdmin={isAdmin}
           entries={(entries ?? []) as FinanceEntry[]}
-          net={net}
           month={month}
         />
       </div>
@@ -185,7 +137,7 @@ export default async function StaffFinancePage({
   searchParams,
 }: {
   params: Promise<{ staffId: string }>;
-  searchParams: Promise<{ incomeYear?: string }>;
+  searchParams: Promise<{ incomeYear?: string; month?: string }>;
 }) {
   const { staffId } = await params;
   return <FinanceDetailContent staffId={staffId} searchParams={searchParams} />;

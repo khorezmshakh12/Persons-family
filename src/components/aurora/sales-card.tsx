@@ -12,7 +12,7 @@ import type { SalesSnapshot } from '@/lib/core-state';
 export async function SalesCard({ data, className, money = false }: { data: SalesSnapshot; className?: string; money?: boolean }) {
   const t = await getTranslations('salesCard');
   const locale = await getLocale();
-  const num = (v: number) => Math.round(v).toLocaleString(locale);
+  const num = (v: number) => Math.round(v).toLocaleString('en-US');
   const max = Math.max(1, ...data.flow.map((f) => f.n));
   const tiles = [
     { label: t('leads'), value: num(data.leads), sub: data.targetLeads ? `/ ${num(data.targetLeads)}` : t('noTarget') },

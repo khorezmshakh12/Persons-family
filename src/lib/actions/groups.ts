@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
 import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
 import {
@@ -174,7 +174,7 @@ async function notifyGroupCreated({
     assignedTaId ? "<b>Yordamchi (TA) tayinlandi.</b>" : "<b>Yordamchi (TA):</b> Tayinlanmagan",
   ].join('\n');
 
-  await sendTelegramMessageToMany([teacherProfile.telegram_id, taTelegramId], text);
+  await sendTelegramManyAs('lesson', [teacherProfile.telegram_id, taTelegramId], text);
 }
 
 const updateGroupSchema = groupSchema.extend({ id: z.string().uuid() });

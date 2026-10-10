@@ -5,15 +5,22 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { updateLessonTopicAction } from '@/lib/actions/course-lessons';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 export function LessonTopicCell({
   lessonId,
   topic,
   canEdit,
+  className,
+  onValueChange,
+  onSaved,
 }: {
   lessonId: string;
   topic: string | null;
   canEdit: boolean;
+  className?: string;
+  onValueChange?: (value: string) => void;
+  onSaved?: () => void;
 }) {
   const t = useTranslations('lessonPlans');
   const [value, setValue] = useState(topic ?? '');
@@ -27,19 +34,23 @@ export function LessonTopicCell({
     startTransition(async () => {
       const result = await updateLessonTopicAction(undefined, formData);
       if (result?.error) toast.error(t(`errors.${result.error}`));
+      else onSaved?.();
     });
   }
 
   return (
     <Textarea
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={(e) => {
+        setValue(e.target.value);
+        onValueChange?.(e.target.value);
+      }}
       onBlur={handleBlur}
       disabled={!canEdit || isPending}
       rows={1}
       maxLength={2000}
       placeholder={canEdit ? t('courseLessons.topicPlaceholder') : t('courseLessons.noTopic')}
-      className="min-h-8 w-56 resize-none rounded-lg border-dashed border-au-line bg-au-card-2 text-xs font-medium text-au-ink transition-colors placeholder:text-au-faint placeholder:italic focus-visible:border-solid focus-visible:border-au-accent focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70"
+      className={cn('min-h-8 w-56 resize-none rounded-lg border-dashed border-au-line bg-au-card-2 text-xs font-medium text-au-ink transition-colors placeholder:text-au-faint placeholder:italic focus-visible:border-solid focus-visible:border-au-accent focus-visible:ring-0 disabled:border-solid disabled:bg-white/[0.03] disabled:opacity-70', className)}
     />
   );
 }

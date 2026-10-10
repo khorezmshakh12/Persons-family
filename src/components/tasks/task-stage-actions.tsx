@@ -3,12 +3,13 @@
 import { useActionState, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { CheckCheck, CheckCircle2, Loader2, SendHorizontal, Upload, XCircle } from 'lucide-react';
+import { CheckCheck, CheckCircle2, Loader2, SendHorizontal, Upload, XCircle, Undo2 } from 'lucide-react';
 import {
   approveTaskAction,
   rejectTaskAction,
   requestTaskProofUploadUrlAction,
   submitTaskAction,
+  undoSubmitTaskAction,
   uploadTaskProofAction,
   type RejectTaskState,
 } from '@/lib/actions/tasks';
@@ -88,7 +89,28 @@ export function TaskStageActions({
   function handleSubmitForReview() {
     const formData = new FormData();
     formData.set('id', taskId);
-    run(() => submitTaskAction(formData));
+    run(() => submitTaskAction(formData), () => {
+      toast.success(t('submittedToast'), {
+        duration: 10000,
+        action: {
+          label: t('undoAction'),
+          onClick: handleUndoSubmit,
+        },
+      });
+    });
+  }
+
+  function handleUndoSubmit() {
+    const formData = new FormData();
+    formData.set('id', taskId);
+    startTransition(async () => {
+      const result = await undoSubmitTaskAction(formData);
+      if (result?.error) {
+        toast.error(t(`errors.${result.error}`));
+      } else {
+        toast.success(t('undoneToast'));
+      }
+    });
   }
 
   function handleApprove() {
@@ -164,6 +186,24 @@ export function TaskStageActions({
     );
   }
 
+  // Accidental submit: the assignee can take it back for as long as the CEO
+  // hasn't decided yet.
+  if (isAssignee && !isReviewer && status === 'submitted') {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={handleUndoSubmit}
+        className="h-8 w-full gap-1.5 text-xs text-au-muted hover:text-au-ink"
+      >
+        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Undo2 className="size-3.5" />}
+        {t('undoSubmit')}
+      </Button>
+    );
+  }
+
   if (isReviewer && status === 'submitted') {
     return (
       <div className="flex w-full flex-wrap items-center gap-2">
@@ -172,7 +212,8 @@ export function TaskStageActions({
           size="sm"
           disabled={busy || rejectPending}
           onClick={handleApprove}
-          className="h-8 flex-1 gap-1.5 bg-emerald-500/85 text-xs text-white hover:bg-emerald-500"
+          data-task-action="approve"
+          className="h-8 flex-1 gap-1.5 bg-au-ok text-xs text-white hover:opacity-90"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
           {t('approve')}
@@ -186,7 +227,8 @@ export function TaskStageActions({
                 size="sm"
                 variant="outline"
                 disabled={busy || rejectPending}
-                className="h-8 flex-1 gap-1.5 border-red-400/40 bg-red-500/15 text-xs text-red-700 hover:bg-red-500/25"
+                data-task-action="reject"
+                className="h-8 flex-1 gap-1.5 border-au-bad/40 bg-au-bad-soft text-xs text-au-bad hover:opacity-90"
               />
             }
           >

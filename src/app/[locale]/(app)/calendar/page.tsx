@@ -1,27 +1,8 @@
-import { Suspense } from 'react';
-import { getTranslations } from 'next-intl/server';
-import { LessonsCalendar } from '@/components/calendar/lessons-calendar';
-import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
-import { BgVideo } from '@/components/motion/bg-video';
+import { getLocale } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 
-export const dynamic = 'force-dynamic';
-
+/** The lessons calendar became a layer of the team calendar (Jamoa hayoti,
+ * 2026-10-09) — old links land there. */
 export default async function CalendarPage() {
-  const t = await getTranslations('calendar');
-
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <div className="relative overflow-hidden rounded-au-card bg-au-hero px-6 py-6 text-au-ink sm:px-[30px] sm:py-7">
-        <BgVideo variant="hero" />
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">
-          {t('title')}
-        </h1>
-        <p className="mt-1 text-au-muted">{t('subtitle')}</p>
-      </div>
-
-      <Suspense fallback={<GlassCardSkeleton />}>
-        <LessonsCalendar />
-      </Suspense>
-    </div>
-  );
+  redirect({ href: '/company-news?tab=calendar', locale: await getLocale() });
 }

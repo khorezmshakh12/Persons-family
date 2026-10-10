@@ -12,6 +12,12 @@ import { markConversationReadAction } from '@/lib/actions/notifications';
 import { ChatSidebar } from './chat-sidebar';
 import './chat.css';
 import { ConversationView } from './conversation-view';
+import { ChannelView } from './channel-view';
+import { ChannelList, ChatSearch, GroupDialog, InfoPanel, StatusPicker, StatusTag } from './chat-extras';
+import { fmtDayTime, flashMessage, STATUS_META } from './chat-kit';
+import { getChannelPageAction, getChatStatusesAction, listChannelsAction, type ChatSearchHit, type ChatStatusMap } from '@/lib/actions/chat-channels';
+import type { ChannelSummary } from '@/lib/chat-channels';
+import { PanelRight, Search } from 'lucide-react';
 import type { ChatSender } from './message-bubble';
 import type {
   ActiveConversation,
@@ -41,6 +47,8 @@ type FirestoreChatMessage = {
   mediaUrl: string | null;
   mediaType: ChatMediaType;
   createdAt: string;
+  replyToId?: string | null;
+  editedAt?: string | null;
 };
 
 export function ChatHubClient({
@@ -51,7 +59,11 @@ export function ChatHubClient({
   staff,
   conversationStates,
   initialUnreadSenderIds,
+  initialChannels,
+  initialStatuses,
 }: {
+  initialChannels: ChannelSummary[];
+  initialStatuses: ChatStatusMap;
   currentUserId: string;
   currentUserName: string;
   currentUserAvatar: string | null;
@@ -68,6 +80,38 @@ export function ChatHubClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [active, setActive] = useState<ActiveConversation>(null);
+  const [channels, setChannels] = useState(initialChannels);
+  const [channelId, setChannelId] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState(initialStatuses);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [groupDialog, setGroupDialog] = useState<{ open: boolean; edit: (ChannelSummary & { members: string[] }) | null }>({ open: false, edit: null });
+  const [channelJump, setChannelJump] = useState<{ id: string; thread: string | null } | null>(null);
+  const [dmJump, setDmJump] = useState<string | null>(null);
+  const openDm = (userId: string) => {
+    setChannelId(null);
+    setActive({ userId });
+  };
+  const openChannel = (id: string) => {
+    setActive(null);
+    setChannelId(id);
+  };
+  const activeChannel = channels.find((c) => c.id === channelId) ?? null;
+
+  // The info panel's open state is remembered per viewer.
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable after hydration
+      if (localStorage.getItem('persons-chat-info') === '1') setInfoOpen(true);
+    } catch {}
+  }, []);
+  const toggleInfo = () =>
+    setInfoOpen((v) => {
+      try {
+        localStorage.setItem('persons-chat-info', v ? '0' : '1');
+      } catch {}
+      return !v;
+    });
 
   // Deep-linked from the notification bell (`/chat?with=<userId>`) — open
   // that conversation directly instead of landing on the bare "select a
@@ -86,6 +130,7 @@ export function ChatHubClient({
     }
     if (appliedDeepLinkRef.current === withUserId) return;
     appliedDeepLinkRef.current = withUserId;
+    setChannelId(null);
     setActive({ userId: withUserId });
 
     // Consume the deep link. Leaving `?with=X` in the URL meant a later
@@ -331,8 +376,9 @@ export function ChatHubClient({
                 created_at: data.createdAt,
                 is_read: previousLocal?.is_read ?? false,
                 pinned_at: previousLocal?.pinned_at ?? null,
-                reply_to_id: previousLocal?.reply_to_id ?? null,
+                reply_to_id: data.replyToId ?? previousLocal?.reply_to_id ?? null,
                 reactions: previousLocal?.reactions ?? {},
+                edited_at: data.editedAt ?? previousLocal?.edited_at ?? null,
               });
             }
             const next = Array.from(byId.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -390,6 +436,89 @@ export function ChatHubClient({
     };
   }, [staff, currentUserId]);
 
+  // Channel list (unread / mention counts) follows each channel's signal;
+  // statuses follow the shared chat-status signal.
+  const channelIds = channels.map((c) => c.id).join(',');
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubs: (() => void)[] = [];
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        listChannelsAction()
+          .then((list) => !cancelled && setChannels(list))
+          .catch(() => {});
+      }, 400);
+    };
+    ensureRealtimeSignedIn()
+      .then(() => {
+        if (cancelled) return;
+        const db = getRealtimeDb();
+        for (const id of channelIds.split(',').filter(Boolean)) {
+          let first = true;
+          unsubs.push(
+            onSnapshot(doc(db, 'board_signals', `chat-${id}`), () => {
+              if (first) {
+                first = false;
+                return;
+              }
+              refresh();
+            }),
+          );
+        }
+        let firstStatus = true;
+        unsubs.push(
+          onSnapshot(doc(db, 'board_signals', 'chat-status'), () => {
+            if (firstStatus) {
+              firstStatus = false;
+              return;
+            }
+            getChatStatusesAction()
+              .then((m) => !cancelled && setStatuses(m))
+              .catch(() => {});
+          }),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      unsubs.forEach((u) => u());
+    };
+  }, [channelIds]);
+
+  // Ctrl+F or "/" opens chat search (Slack style).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing = !!t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') || (!typing && e.key === '/')) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  function pickSearchHit(hit: ChatSearchHit) {
+    setSearchOpen(false);
+    if (hit.kind === 'channel') {
+      openChannel(hit.target);
+      setChannelJump({ id: hit.id, thread: hit.thread_id });
+    } else {
+      openDm(hit.target);
+      setDmJump(hit.id);
+    }
+  }
+
+  async function editChannel() {
+    if (!activeChannel) return;
+    const page = await getChannelPageAction(activeChannel.id);
+    setGroupDialog({ open: true, edit: { ...activeChannel, members: 'error' in page ? [] : page.audience } });
+  }
+
   function handleOptimisticSend(partial: {
     messageText?: string;
     mediaUrl?: string;
@@ -429,25 +558,92 @@ export function ChatHubClient({
     });
   }
 
+  // Search jump into a DM: once its history is on screen, flash the hit.
+  const activeDmLoaded = !!active && loadedDmPairs.has(dmKey(currentUserId, active.userId));
+  useEffect(() => {
+    if (!dmJump || !active) return;
+    const tm = setTimeout(() => {
+      if (flashMessage(`msg-${dmJump}`)) setDmJump(null);
+      else if (activeDmLoaded) {
+        toast.message('Bu xabar eskiroq — yuqoriga aylantirib toping');
+        setDmJump(null);
+      }
+    }, 250);
+    return () => clearTimeout(tm);
+  }, [dmJump, active, optimisticMessages.length, activeDmLoaded]);
+
+  const statusLine = (id: string) => {
+    const st = statuses[id];
+    return st ? `${STATUS_META[st.status].emoji} ${STATUS_META[st.status].label}${st.until ? ` · ${fmtDayTime(st.until)} gacha` : ''}` : null;
+  };
+  const people = staffMap;
+
   return (
     <div className={cn(GLASS_CARD, 'ch-shell flex h-full min-h-0 flex-col overflow-hidden sm:flex-row')}>
       {/* Below `sm:`, the sidebar and the active thread would otherwise
           share the viewport's height and squeeze each other unusable — show
           exactly one at a time (list, or the open thread with a back
           button) and let `sm:flex` restore the side-by-side desktop layout. */}
-      <div className={cn('min-h-0', active ? 'hidden sm:flex sm:h-full' : 'flex h-full')}>
+      <div className={cn('min-h-0', active || channelId ? 'hidden sm:flex sm:h-full' : 'flex h-full')}>
         <ChatSidebar
           staff={staff}
           conversationStates={conversationStates}
           active={active}
-          onSelect={(userId) => setActive({ userId })}
+          onSelect={openDm}
+          header={
+            <div className="mb-2 flex flex-col gap-2">
+              <StatusPicker mine={statuses[currentUserId]} onChanged={() => getChatStatusesAction().then(setStatuses)} />
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="flex items-center gap-2 rounded-xl border border-au-line px-3 py-2 text-left text-sm text-au-faint hover:bg-au-card-2"
+              >
+                <Search className="size-4" />
+                <span className="flex-1">Xabarlardan qidirish</span>
+                <kbd className="rounded border border-au-line px-1.5 text-[10px]">Ctrl F</kbd>
+              </button>
+            </div>
+          }
+          renderChannels={(needle) => (
+            <ChannelList channels={channels} activeId={channelId} onSelect={openChannel} onNew={() => setGroupDialog({ open: true, edit: null })} needle={needle} />
+          )}
+          statusTagFor={(id) => <StatusTag s={statuses[id]} />}
           onRequestResolved={() => router.refresh()}
           unreadDmUserIds={unreadDmUserIds}
           canModerateDmImportance={canModerateDmImportance}
         />
       </div>
-      <div className={cn('min-h-0 flex-1', active ? 'flex h-full' : 'hidden sm:flex sm:h-full')}>
+      <div className={cn('min-h-0 min-w-0 flex-1', active || channelId ? 'flex h-full' : 'hidden sm:flex sm:h-full')}>
+        {activeChannel ? (
+          <ChannelView
+            key={activeChannel.id}
+            channel={activeChannel}
+            me={currentUserId}
+            people={people}
+            onBack={() => setChannelId(null)}
+            onRead={(id) => setChannels((list) => list.map((c) => (c.id === id ? { ...c, unread: 0, mentions: 0 } : c)))}
+            infoOpen={infoOpen}
+            onToggleInfo={toggleInfo}
+            onEdit={editChannel}
+            jump={channelJump}
+            onJumped={() => setChannelJump(null)}
+          />
+        ) : (
         <ConversationView
+          headerActions={
+            active ? (
+              <button
+                type="button"
+                aria-label="Ma’lumot paneli"
+                aria-pressed={infoOpen}
+                onClick={toggleInfo}
+                className={cn('grid size-9 shrink-0 place-items-center rounded-full transition-colors', infoOpen ? 'bg-au-card-2 text-au-ink' : 'text-au-muted hover:bg-au-card-2 hover:text-au-ink')}
+              >
+                <PanelRight className="size-[18px]" />
+              </button>
+            ) : null
+          }
+          statusLine={active ? statusLine(active.userId) : null}
           active={active}
           conversationState={activeConversationState}
           messages={optimisticMessages}
@@ -458,7 +654,36 @@ export function ChatHubClient({
           onConfirmedSend={handleConfirmedSend}
           onBack={() => setActive(null)}
         />
+        )}
+        {infoOpen && (active || activeChannel) && (
+          <InfoPanel
+            scope={activeChannel ? { channelId: activeChannel.id } : { userId: active!.userId }}
+            people={people}
+            channel={activeChannel}
+            onClose={toggleInfo}
+            onLeft={() => {
+              setChannelId(null);
+              listChannelsAction().then(setChannels);
+            }}
+          />
+        )}
       </div>
+      <ChatSearch open={searchOpen} onClose={() => setSearchOpen(false)} people={people} onPick={pickSearchHit} />
+      <GroupDialog
+        open={groupDialog.open}
+        onOpenChange={(open) => setGroupDialog((g) => ({ ...g, open }))}
+        staff={staff}
+        people={people}
+        me={currentUserId}
+        edit={groupDialog.edit}
+        onSaved={(id) => {
+          listChannelsAction().then((list) => {
+            setChannels(list);
+            if (id && list.some((c) => c.id === id)) openChannel(id);
+            else if (!id) setChannelId(null);
+          });
+        }}
+      />
     </div>
   );
 }

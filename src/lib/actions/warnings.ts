@@ -8,7 +8,7 @@ import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 
 export type WarningActionState = { error?: string } | undefined;
@@ -31,7 +31,8 @@ async function notifyWarningIssued({
   if (!recipientTelegramId) return;
   try {
     const text = `<b>Sizga ogohlantirish berildi</b>\nSabab: ${escapeTelegramText(reason)}`;
-    await sendTelegramMessage(recipientTelegramId, text);
+    // The bell lists unseen warnings itself (is_seen) — Telegram only.
+    await sendTelegramAs('stars', recipientTelegramId, text, { record: false });
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

@@ -1,7 +1,10 @@
 'use client';
 
 import { Pencil, Plus } from 'lucide-react';
+import { useState, useTransition } from 'react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { updateStrategyRoadmapNodeAction } from '@/lib/actions/strategy-roadmap';
 import type { StrategyRoadmap, StrategyTask } from '@/lib/strategy';
 
 type Node = { id: string; t: string; q?: string; main: boolean; x: number; y: number; w: number; h: number };
@@ -49,6 +52,76 @@ const path = (l: Link) =>
   l.main
     ? `M${l.x1} ${l.y1} L${l.x2} ${l.y2}`
     : `M${l.x1} ${l.y1} C${(l.x1 + l.x2) / 2} ${l.y1}, ${(l.x1 + l.x2) / 2} ${l.y2}, ${l.x2} ${l.y2}`;
+
+/**
+ * Inline node editor: pencil icon appears on hover, click to edit title.
+ */
+function NodeEditButton({ roadmapId, nodeId, title }: { roadmapId: string; nodeId: string; title: string }) {
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(title);
+  const [isPending, startTransition] = useTransition();
+
+  function save() {
+    const trimmed = editTitle.trim();
+    if (!trimmed || trimmed === title) {
+      setEditing(false);
+      setEditTitle(title);
+      return;
+    }
+    startTransition(async () => {
+      const result = await updateStrategyRoadmapNodeAction({
+        roadmapId,
+        nodeId,
+        title: trimmed,
+      });
+      if (result.error) {
+        toast.error(result.error === 'notFound' ? 'Topilmadi' : "Saqlab bo'lmadi");
+        setEditTitle(title);
+      } else {
+        toast.success('Saqlandi');
+      }
+      setEditing(false);
+    });
+  }
+
+  if (!editing) {
+    return (
+      <button
+        className="absolute inset-0 flex items-center justify-end gap-1 rounded opacity-0 transition-opacity hover:opacity-100"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setEditing(true);
+          setEditTitle(title);
+        }}
+      >
+        <Pencil className="size-3 shrink-0 text-au-muted" />
+      </button>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      maxLength={80}
+      value={editTitle}
+      onChange={(e) => setEditTitle(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') save();
+        if (e.key === 'Escape') {
+          setEditing(false);
+          setEditTitle(title);
+        }
+      }}
+      onBlur={save}
+      disabled={isPending}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute inset-0 rounded bg-au-card px-1 text-xs font-medium outline-none ring-1 ring-au-accent"
+      style={{ fontSize: 'inherit', fontWeight: 'inherit' }}
+    />
+  );
+}
 
 export function RoadmapView({
   roadmaps,
@@ -112,13 +185,14 @@ export function RoadmapView({
             return (
               <button
                 key={n.id}
-                className={cn('rn', n.main ? 'main' : 'topic', st(n.id), selected === n.id && 'sel')}
+                className={cn('rn relative', n.main ? 'main' : 'topic', st(n.id), selected === n.id && 'sel')}
                 style={{ left: n.x, top: n.y, width: n.w, height: n.h, animationDelay: `${Math.min(i, 30) * 25}ms` }}
                 onClick={() => onNode(R.id, n.id)}
               >
                 {n.main && <span className="q">{n.q}</span>}
                 <span className="truncate">{n.t}</span>
                 {c > 0 && <span className="cnt">{c}</span>}
+                <NodeEditButton roadmapId={R.id} nodeId={n.id} title={n.t} />
               </button>
             );
           })}

@@ -6,8 +6,12 @@ import { after } from 'next/server';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { formatUZS } from '@/lib/format-currency';
+
+/** The DB refuses to change a row an approved pay run already counted
+ * (20261010120000_payroll_lock_complete). */
+const isPeriodLocked = (error: unknown) => error instanceof Error && /period_locked/.test(error.message);
 
 export type PerformanceActionState = { error?: string } | undefined;
 
@@ -110,7 +114,7 @@ export async function addPerformanceEntryAction(
       const text =
         `<b>${emoji}</b>\n<b>Miqdori:</b> ${formatUZS(parsed.data.amount)}\n` +
         `<b>Sabab:</b> ${escapeTelegramText(parsed.data.reason)}`;
-      await sendTelegramMessage(staff.telegram_id, text);
+      await sendTelegramAs('stars', staff.telegram_id, text);
     }
   } catch (error) {
     console.error('Performance notification failed:', error instanceof Error ? error.message : error);
@@ -122,6 +126,46 @@ export async function addPerformanceEntryAction(
 }
 
 const deleteEntrySchema = z.object({ entryId: z.string().uuid() });
+
+const updateEntrySchema = z.object({
+  entryId: z.string().uuid(),
+  entryType: z.enum(['bonus', 'penalty']),
+  amount: z.coerce.number().positive(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+export async function updatePerformanceEntryAction(
+  _prevState: PerformanceActionState,
+  formData: FormData,
+): Promise<PerformanceActionState> {
+  try {
+    await requireCap('kpi.manage');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = updateEntrySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  try {
+    const res = await sql`
+      update performance_entries set
+        entry_type = ${parsed.data.entryType},
+        amount = ${parsed.data.amount},
+        reason = ${parsed.data.reason}
+      where id = ${parsed.data.entryId}
+    `;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch (error) {
+    console.error('updatePerformanceEntryAction failed', error instanceof Error ? error.message : error);
+    return { error: isPeriodLocked(error) ? 'periodLocked' : 'updateFailed' };
+  }
+
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
+  revalidatePath('/[locale]/profile/[id]', 'page');
+  revalidatePath('/[locale]/performance', 'page');
+  return {};
+}
 
 export async function deletePerformanceEntryAction(
   _prevState: PerformanceActionState,
@@ -137,11 +181,15 @@ export async function deletePerformanceEntryAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   try {
-    await sql`delete from performance_entries where id = ${parsed.data.entryId}`;
-  } catch {
-    return { error: 'updateFailed' };
+    const res = await sql`delete from performance_entries where id = ${parsed.data.entryId}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch (error) {
+    console.error('deletePerformanceEntryAction failed', error instanceof Error ? error.message : error);
+    return { error: isPeriodLocked(error) ? 'periodLocked' : 'updateFailed' };
   }
 
   revalidatePath('/[locale]/performance', 'page');
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
+  revalidatePath('/[locale]/profile/[id]', 'page');
   return {};
 }

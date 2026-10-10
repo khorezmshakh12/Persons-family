@@ -31,7 +31,7 @@
     "issues": "Muammolar",
     "lessonPlans": "Dars Reja Taxtasi",
     "tasks": "Vazifalar",
-    "companyNews": "Kompaniya Yangiliklari",
+    "companyNews": "Jamoa hayoti",
     "telegramSetup": "Telegram",
     "selfDevelopment": "O'z-o'zini Rivojlantirish",
     "taskTracker": "Task Tracker",
@@ -52,7 +52,6 @@
     "report": "Oylik hisobot",
     "platform": "Platforma sozlamalari",
     "coreBoard": "Platforma ko'rinishi",
-    "butterfly": "Kapalak",
     "kpi": "Mening KPI"
   },
   "auth": {
@@ -542,7 +541,7 @@
       "deleteComment": "Izohni o'chirish",
       "viewOnly": "Siz bu yerda faqat ko'rishingiz mumkin, izoh qoldira olmaysiz.",
       "move": "Boshqa sanaga ko'chirish",
-      "moveDialogTitle": "Lesson planni ko'chirish",
+      "moveDialogTitle": "Dars rejasini ko'chirish",
       "moveTargetDate": "Qaysi sanaga ko'chirilsin",
       "moveReason": "Ko'chirish sababi",
       "moveReasonPlaceholder": "Nega dars reja bo'yicha o'tmadi...",
@@ -552,7 +551,10 @@
       "pastMonths": "O'tgan oylar",
       "upcomingMonths": "Keyingi oylar",
       "readOnly": "Faqat o'qish",
-      "noLessonsThisMonth": "Bu oy uchun hali darslar rejalashtirilmagan."
+      "noLessonsThisMonth": "Bu oy uchun hali darslar rejalashtirilmagan.",
+      "confirmDeleteSlot": "Bo‘sh dars qatori o‘chirilsinmi?",
+      "deleteSlot": "Bo‘sh qatorni o‘chirish",
+      "editComment": "Izohni tahrirlash"
     },
     "staffChat": {
       "title": "Xodimlar chati: {name}"
@@ -599,6 +601,67 @@
         "noSchedule": "Avval guruhga juft/toq kunlar jadvalini belgilang.",
         "updateFailed": "Sinxronlab bo‘lmadi. Qayta urinib ko‘ring."
       }
+    },
+    "v2": {
+      "subtitle": "Haftalik ish stoli: ertangi darslar, to‘liqlik va tekshiruv",
+      "tabsLabel": "Bo‘limlar",
+      "tabs": {
+        "week": "Mening haftam",
+        "groups": "Guruhlar",
+        "review": "Tekshiruv",
+        "discipline": "Intizom"
+      }
+    },
+    "week": {
+      "until": "23:59 gacha",
+      "saved": "Saqlandi",
+      "copyFrom": "Tayyor rejadan nusxa olish",
+      "copied": "Reja nusxalandi",
+      "openGroup": "Guruh sahifasini ochish",
+      "optional": "ixtiyoriy",
+      "tomorrow": "Ertangi darslar",
+      "lessons": "ta dars",
+      "allReady": "Ertangi rejalar tayyor",
+      "prev": "Oldingi hafta",
+      "next": "Keyingi hafta",
+      "thisWeek": "Shu hafta",
+      "weekdays": [
+        "Dushanba",
+        "Seshanba",
+        "Chorshanba",
+        "Payshanba",
+        "Juma",
+        "Shanba"
+      ],
+      "noLessons": "Dars yo‘q",
+      "noTopic": "mavzu yo‘q",
+      "reviewedOk": "Tekshirildi"
+    },
+    "review": {
+      "errors": {
+        "noteRequired": "Qaytarish uchun izoh yozing",
+        "failed": "Saqlab bo‘lmadi"
+      },
+      "okDone": "Tasdiqlandi",
+      "sentBack": "Izoh o‘qituvchiga yuborildi",
+      "aiUnavailable": "Jev hozir javob bermadi",
+      "today": "Bugun",
+      "tomorrow": "Ertaga",
+      "empty": "Bu kunga dars rejalari yo‘q",
+      "progress": "Ko‘rib chiqildi",
+      "ok": "Yaxshi",
+      "needsWork": "Qayta ishlash kerak",
+      "askAi": "Jev bahosi",
+      "notePlaceholder": "Izoh (qaytarishda majburiy)"
+    },
+    "discipline": {
+      "empty": "Hali ma’lumot yo‘q — tungi tekshiruv har kuni yozib boradi",
+      "teacher": "O‘qituvchi",
+      "onTime": "O‘z vaqtida",
+      "complete": "To‘liq",
+      "incomplete": "Yarim",
+      "missing": "Yozilmagan",
+      "noClass": "dars yo‘q"
     }
   },
   "staffChat": {
@@ -612,7 +675,8 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidMessage": "Xabar bo'sh bo'lishi mumkin emas.",
       "sendFailed": "Xabarni yuborib bo'lmadi. Qayta urinib ko'ring."
-    }
+    },
+    "edit": "Tahrirlash"
   },
   "tasks": {
     "title": "Vazifalar",
@@ -639,7 +703,8 @@
     "columns": {
       "pending": "Kutilmoqda",
       "in_progress": "Jarayonda",
-      "done": "Bajarildi"
+      "done": "Bajarildi",
+      "review": "Tekshiruvda"
     },
     "errors": {
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
@@ -656,7 +721,8 @@
       "notUnderReview": "Bu vazifa hozir tekshiruvda emas.",
       "underReview": "Bu vazifa tekshiruvda — hozircha o'zgartirib bo'lmaydi.",
       "uploadFailed": "Faylni yuklab bo'lmadi. Qayta urinib ko'ring.",
-      "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak)."
+      "fileTooLarge": "Fayl juda katta (50MB dan oshmasligi kerak).",
+      "tooLate": "Bekor qilib bo'lmaydi — CEO allaqachon qaror qildi."
     },
     "deadline": "Muddat",
     "overdue": "Muddati o'tgan",
@@ -732,7 +798,8 @@
       "in_progress": "Bajarilmoqda",
       "submitted": "Tekshiruvga yuborildi",
       "approved": "Tasdiqlandi",
-      "done": "Yakunlandi"
+      "done": "Yakunlandi",
+      "pending": "Kutilmoqda"
     },
     "submitForReview": "Tekshiruvga yuborish",
     "proofRequiredShort": "fayl kerak",
@@ -747,6 +814,9 @@
     "uploadProof": "Faylni yuklash",
     "uploadProofHint": "Vazifa faqat fayl yuklangandan so'ng yakunlanadi.",
     "waitingForCeo": "CEO tekshiruvini kutmoqda",
+    "submittedToast": "Vazifa topshirildi",
+    "undoAction": "Bekor qilish",
+    "undoneToast": "Topshirish bekor qilindi",
     "rejectionReason": "Rad etish sababi",
     "attachments": {
       "title": "Ilova qilingan fayllar",
@@ -764,7 +834,64 @@
     },
     "deletedToast": "Vazifa o‘chirildi",
     "undo": "Bekor qilish",
-    "calendarView": "Kalendar"
+    "calendarView": "Kalendar",
+    "undoSubmit": "Topshirishni bekor qilish",
+    "subtitle": "Rejadan tasdiqgacha — barcha ish bir joyda",
+    "waiting": "{hours} soat kutmoqda",
+    "shortcuts": "C — yangi · / — qidirish · J/K — kartalar · Enter — izohlar · A/R — tasdiqlash/qaytarish",
+    "showOlderDone": "Oldingi bajarilganlar ({count})",
+    "views": {
+      "label": "Ko‘rinish",
+      "board": "Doska",
+      "list": "Ro‘yxat",
+      "calendar": "Kalendar",
+      "report": "Hisobot"
+    },
+    "strip": {
+      "active": "Faol",
+      "today": "Bugun tugaydi",
+      "overdue": "Muddati o‘tgan",
+      "review": "Tekshiruvda"
+    },
+    "workload": {
+      "title": "Jamoa yuklamasi",
+      "hint": "Bosing — faqat o‘sha xodim"
+    },
+    "list": {
+      "title": "Vazifa",
+      "status": "Holat"
+    },
+    "calendar": {
+      "weekdays": [
+        "Du",
+        "Se",
+        "Ch",
+        "Pa",
+        "Ju",
+        "Sh",
+        "Ya"
+      ],
+      "prev": "Oldingi oy",
+      "next": "Keyingi oy",
+      "today": "Bugun"
+    },
+    "quick": {
+      "label": "Tezkor yozish",
+      "placeholder": "Oylik hisobot @Ali ertaga 15:00 +10",
+      "hint": "@ism — mas’ul · bugun/ertaga/25.10 — kun · 15:00 — vaqt · +10 — yulduz"
+    },
+    "repeat": {
+      "label": "Takrorlash",
+      "none": "Takrorlanmaydi",
+      "weekly": "Har hafta",
+      "monthly": "Har oy",
+      "hint": "Keyingi vazifa muddatidan oldin avtomatik yaratiladi (hafta — 2 kun, oy — 5 kun oldin)",
+      "listTitle": "Takrorlanuvchi vazifalar",
+      "next": "keyingisi {date} {time}",
+      "stop": "To‘xtatish",
+      "stopped": "Takrorlash to‘xtatildi",
+      "stopFailed": "To‘xtatib bo‘lmadi"
+    }
   },
   "companyNews": {
     "title": "Kompaniya Yangiliklari",
@@ -995,7 +1122,8 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, kamida bitta maydonni to'ldiring.",
       "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
-      "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
+      "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+      "periodLocked": "Bu oyning oyligi tasdiqlangan — bonusni o‘zgartirib bo‘lmaydi. Moliya › Oylik jarayonida tuzatish yozuvi qo‘shing."
     },
     "starAward": "Yulduz mukofoti",
     "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi.",
@@ -1011,6 +1139,65 @@
       "insights": "Tahlil",
       "history": "Tarix",
       "performance": "Samaradorlik"
+    },
+    "rubric": {
+      "title": "Rubrika (1–5)",
+      "applyAi": "Jev taklifi: {values}"
+    },
+    "v2": {
+      "thisMonth": "Shu oy",
+      "status": {
+        "missing": "Topshirilmagan",
+        "submitted": "Topshirildi · baho kutilmoqda",
+        "scored": "Baholandi"
+      },
+      "tabs": {
+        "compliance": "Topshirish holati"
+      },
+      "ring": {
+        "days": "kun qoldi",
+        "done": "topshirildi"
+      },
+      "streak": {
+        "value": "{count} oy ketma-ket",
+        "label": "Hisobot seriyasi — uzmang!"
+      },
+      "rubricTitle": "Oxirgi baho rubrikasi",
+      "grid": {
+        "staff": "Xodim",
+        "scored": "Baholangan",
+        "unrated": "Baholanmagan",
+        "missing": "Topshirilmagan"
+      },
+      "queue": {
+        "progress": "Baholandi"
+      },
+      "goal": {
+        "label": "Oy maqsadi",
+        "none": "Maqsad qo‘yilmagan",
+        "edit": "Maqsadni tahrirlash",
+        "prompt": "Bu oy nimani o‘rganmoqchisiz?",
+        "placeholder": "Masalan: IELTS Writing bo‘yicha 2 ta kurs, 7.0 darajadagi esse yozish",
+        "save": "Maqsadni saqlash"
+      },
+      "form": {
+        "kind": "Nima orqali o‘rgandingiz?",
+        "kinds": {
+          "course": "Kurs",
+          "book": "Kitob",
+          "skill": "Ko‘nikma",
+          "practice": "Amaliyot",
+          "other": "Boshqa"
+        },
+        "hours": "Sarflangan soat",
+        "evidence": "Isbot (havola)"
+      },
+      "hoursValue": "{hours} soat",
+      "feature": {
+        "cta": "Oyning eng yaxshi hisoboti sifatida yangiliklarga chiqarish",
+        "done": "Yangiliklarga chiqarildi",
+        "failed": "Chiqarib bo‘lmadi"
+      }
     }
   },
   "performance": {
@@ -1047,9 +1234,14 @@
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
-      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "notFound": "Yozuv topilmadi",
+      "periodLocked": "Bu oy yopilgan (oylik tasdiqlangan). Moliya › Oylik jarayonida tuzatish yozuvi qo‘shing."
     },
-    "fromWarning": "Ogohlantirishdan"
+    "fromWarning": "Ogohlantirishdan",
+    "edit": "Tahrirlash",
+    "editEntry": "Yozuvni tahrirlash",
+    "entryUpdated": "Yozuv saqlandi"
   },
   "finance": {
     "title": "Moliya",
@@ -1072,7 +1264,10 @@
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
-      "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring."
+      "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring.",
+      "periodLocked": "Bu oy yopilgan (oylik tasdiqlangan). O'zgartirish uchun Moliya › Oylik jarayonida tuzatish yozuvi qo'shing.",
+      "notFound": "Yozuv topilmadi (o‘chirilgan bo‘lishi mumkin)",
+      "systemEntry": "Bu yozuvni tizim yaratgan (KPI, oylik jarayoni yoki tuzatish) — uni o‘z bo‘limida o‘zgartiring"
     },
     "payroll": {
       "title": "Oylik maosh",
@@ -1116,7 +1311,10 @@
       "toPay": "Jami beriladigan",
       "paid": "Berilgan",
       "remaining": "Qoldi"
-    }
+    },
+    "edit": "Tahrirlash",
+    "editEntry": "Yozuvni tahrirlash",
+    "entryUpdated": "Yozuv saqlandi"
   },
   "kpi": {
     "title": "KPI",
@@ -1244,7 +1442,7 @@
     "title": "Ish haqi",
     "salaryLedger": "Maosh",
     "missions": "Missiya bonuslari (arxiv)",
-    "total": "Jami (Total)",
+    "total": "Jami hisoblangan daromad",
     "totalCommentPlaceholder": "Izoh qo'shish...",
     "commentSaved": "Izoh saqlandi.",
     "errors": {
@@ -1252,7 +1450,9 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
-    }
+    },
+    "ledgerAdjustments": "Qo‘shimcha va ushlanmalar:",
+    "ledgerPaid": "Berilgan:"
   },
   "roadmap": {
     "title": "Yo'l xaritasi",
@@ -1280,7 +1480,7 @@
       "done": "Bajarildi",
       "failed": "Bajarilmadi"
     },
-    "progress": "Progress %",
+    "progress": "Bajarilish %",
     "solution": "Nima yordam berdi",
     "solutionPlaceholder": "Ixtiyoriy izohlar — bu qanday erishildi",
     "failureReason": "Nega bajarilmadi",
@@ -1380,7 +1580,10 @@
         "invalidInput": "Iltimos, barcha majburiy maydonlarni to'ldiring.",
         "createFailed": "Vazifani qo'shib bo'lmadi. Qayta urinib ko'ring.",
         "deleteFailed": "Vazifani o'chirib bo'lmadi. Qayta urinib ko'ring."
-      }
+      },
+      "dutyUpdated": "Vazifa saqlandi",
+      "edit": "Tahrirlash",
+      "editDuty": "Majburiyatni tahrirlash"
     },
     "contracts": {
       "title": "Shartnoma va vazifalar",
@@ -1568,7 +1771,19 @@
       "confirmDeleteItemTitle": "Sovg'a o'chirilsinmi?",
       "confirmDeleteItemDescription": "\"{name}\" katalogdan butunlay o'chiriladi. Bu amalni orqaga qaytarib bo'lmaydi.",
       "itemDeleted": "Sovg'a o'chirildi.",
-      "category": "Kategoriya"
+      "category": "Kategoriya",
+      "addOne": "Bittaga ko‘paytirish",
+      "removeOne": "Bittaga kamaytirish",
+      "stockUpdated": "Qoldiq yangilandi",
+      "orderHistory": "Buyurtmalar tarixi",
+      "noOrderHistory": "Hali buyurtmalar yo‘q",
+      "restockSoon": "Tez orada keladi",
+      "archived": "Arxivda",
+      "restore": "Qaytarish",
+      "itemRestored": "Mahsulot arxivdan qaytarildi.",
+      "rejectPlaceholder": "Rad etish sababi (ixtiyoriy)",
+      "itemArchived": "Mahsulot arxivga o’tkazildi",
+      "deleteArchiveHint": "Agar bu mahsulotga buyurtmalar bo’lgan bo’lsa, u o’chirilmaydi — arxivga o’tkaziladi va tarix saqlanadi."
     },
     "comingSoon": "Persons Market tez orada ochiladi — hozir yangi sovg'alar tayyorlanmoqda.",
     "starsNeeded": "Yana {count} yulduz kerak",
@@ -1589,15 +1804,19 @@
       "remove": "Istaklardan olib tashlash",
       "affordable": "Endi olishingiz mumkin!",
       "count": "Nechta xodim xohlaydi"
-    }
+    },
+    "lowStock": "Faqat {count} ta qoldi",
+    "orderPlaced": "Buyurtma qabul qilindi"
   },
   "shell": {
     "subtitle": "Ta’lim platformasi",
     "root": "Persons",
     "groups": {
-      "motivation": "Motivatsiya",
-      "workflow": "Ish jarayoni",
-      "management": "Boshqaruv"
+      "daily": "Kundalik",
+      "me": "Men",
+      "team": "Jamoa",
+      "manage": "Boshqaruv",
+      "system": "Tizim"
     },
     "search": "Xodim, guruh yoki murojaat…",
     "starBalance": "Yulduz balansi",
@@ -1697,7 +1916,93 @@
     "colOnTime": "O‘z vaqtida",
     "colOverdue": "Kechikkan",
     "colStars": "Yulduzlar",
-    "empStatsEmpty": "Hozircha xodimlar yo‘q."
+    "empStatsEmpty": "Hozircha xodimlar yo‘q.",
+    "pulse": "Puls",
+    "kpiPlans": "KPI rejalari",
+    "kpiSelfDev": "Self-dev hisobotlari",
+    "kpiStrategy": "Strategiya",
+    "waitingApproval": "tasdiq kutmoqda",
+    "unrated": "baholanmagan",
+    "strategyCaption": "{done}/{total} vazifa bajarildi",
+    "attention": {
+      "title": "Diqqat talab",
+      "count": "{count} ta",
+      "error": "Ma’lumotni yuklab bo‘lmadi",
+      "allClear": "Hammasi joyida",
+      "allClearHint": "Hozircha shoshilinch ish yo‘q",
+      "items": {
+        "taskReview": {
+          "title": "{count, plural, other {# ta vazifa tasdiq kutmoqda}}",
+          "hint": "Bajarilgan ishni tekshiring va qabul qiling",
+          "cta": "Tekshirish"
+        },
+        "kpiReview": {
+          "title": "{count, plural, other {# ta KPI rejasi tasdiq kutmoqda}}",
+          "hint": "Tasdiqlang yoki izoh bilan qaytaring",
+          "cta": "Ko‘rib chiqish"
+        },
+        "overdue": {
+          "title": "{count, plural, other {# ta vazifa muddati o‘tgan}}",
+          "hint": "Mas’ullar bilan muddatni aniqlashtiring",
+          "cta": "Ochish"
+        },
+        "staleIssues": {
+          "title": "{count, plural, other {# ta murojaat 7 kundan beri ochiq}}",
+          "hint": "Uzoq kutayotgan muammolarni hal qiling",
+          "cta": "Ochish"
+        },
+        "selfDevRate": {
+          "title": "{count, plural, other {# ta self-dev hisoboti baholanmagan}}",
+          "hint": "Bu oygi hisobotlarga ball qo‘ying",
+          "cta": "Baholash"
+        },
+        "selfDevMissing": {
+          "title": "{count, plural, other {# kishi self-dev topshirmagan}}",
+          "hint": "Bu oygi o‘z-o‘zini rivojlantirish hisoboti yo‘q",
+          "cta": "Ko‘rish"
+        },
+        "kpiMissing": {
+          "title": "{count, plural, other {# kishida bu oy KPI rejasi yo‘q}}",
+          "hint": "Reja topshirilmagan yoki tasdiqlanmagan",
+          "cta": "Ko‘rish"
+        },
+        "myOverdue": {
+          "title": "{count, plural, other {# ta vazifangiz muddati o‘tgan}}",
+          "hint": "Avval shularni yoping",
+          "cta": "Ochish"
+        },
+        "kpiReturned": {
+          "title": "KPI rejangiz qaytarildi",
+          "hint": "CEO izohini o‘qing va qayta topshiring",
+          "cta": "Tuzatish"
+        },
+        "kpiThis": {
+          "title": "Bu oy KPI rejangiz yo‘q",
+          "hint": "Uch ssenariyda kiriting va CEO’ga topshiring",
+          "cta": "Rejani kiritish"
+        },
+        "kpiNext": {
+          "title": "Keyingi oy KPI rejasini topshiring",
+          "hint": "Muddat: oyning oxirgi kuni, 23:59",
+          "cta": "Rejani kiritish"
+        },
+        "selfDev": {
+          "title": "Bu oygi self-dev hisobotingiz yo‘q",
+          "hint": "O‘z-o‘zini rivojlantirish har oy majburiy",
+          "cta": "Topshirish"
+        },
+        "myDueToday": {
+          "title": "{count, plural, other {# ta vazifa bugun tugaydi}}",
+          "hint": "Kun oxirigacha yakunlang",
+          "cta": "Ochish"
+        },
+        "myIssues": {
+          "title": "{count, plural, other {Sizga # ta murojaat biriktirilgan}}",
+          "hint": "Ochiq murojaatlarni hal qiling",
+          "cta": "Ochish"
+        }
+      }
+    }
   },
   "themeSettings": {
     "title": "Mavzu",
@@ -1884,7 +2189,7 @@
     },
     "full": {
       "name": "To‘liq",
-      "hint": "Hammasi: island, 3D egilish, konfetti, jonli fon."
+      "hint": "Hammasi: dinamik orol, 3D egilish, konfetti, jonli fon."
     }
   },
   "bgSettings": {
@@ -1903,17 +2208,6 @@
     "aquarium": {
       "name": "Akvarium",
       "hint": "Haqiqiy baliqlar suzib yuradi."
-    },
-    "butterfly": {
-      "name": "Kapalak",
-      "hint": "Zarrachalardan yig‘ilib-tarqaladigan kapalak va gullar."
     }
-  },
-  "butterfly": {
-    "title": "Kapalak",
-    "subtitle": "Zarrachalar bog‘da kapalak va gullarga aylanib, yana tarqaladi.",
-    "hint": "Aylantirish uchun suring · yaqinlashtirish uchun g‘ildirak / ikki barmoq",
-    "fullscreen": "To‘liq ekran",
-    "exitFullscreen": "To‘liq ekrandan chiqish"
   }
 }

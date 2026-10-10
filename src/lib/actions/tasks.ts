@@ -10,7 +10,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { allowedTaskAssigneeRoles, canAssignTasks } from '@/lib/task-roles';
 import { efficiencyForMonth, type EfficiencyStats } from '@/lib/task-efficiency';
 import type { StaffRole } from '@/lib/nav';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { insertStarTransaction } from '@/lib/stars-write';
 import {
@@ -23,6 +23,8 @@ import {
   type TaskStatus,
 } from '@/lib/task-status';
 import { createSignedWriteUrl } from '@/lib/gcp/storage';
+import { tashkentDayKey } from '@/lib/time';
+import { syncIssuesForTask } from '@/lib/issues-sync';
 
 export type TaskActionState = { error?: string } | undefined;
 
@@ -53,7 +55,7 @@ const TASK_STATUS_LABELS: Record<string, string> = {
 async function notifyTelegram(telegramId: number | null, text: string) {
   if (!telegramId) return;
   try {
-    await sendTelegramMessage(telegramId, text);
+    await sendTelegramAs('task', telegramId, text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -102,7 +104,8 @@ async function notifyTaskAssigned({
       timeZone: 'Asia/Tashkent',
     });
     const text = `Sizga yangi vazifa biriktirildi: <b>${escapeTelegramText(title)}</b>\nHolati: ${TASK_STATUS_LABELS[status] ?? escapeTelegramText(status)}\nMuddati: ${escapeTelegramText(deadlineLabel)}`;
-    await sendTelegramMessage(assigneeTelegramId, text);
+    // The bell already lists unseen new tasks (is_seen) — Telegram only.
+    await sendTelegramAs('task', assigneeTelegramId, text, { record: false });
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -132,6 +135,8 @@ const taskSchema = z.object({
     .union([z.literal('on'), z.literal('true'), z.literal('false'), z.literal('')])
     .optional()
     .transform((value) => value === 'on' || value === 'true'),
+  // Repeat this task every week / month (same weekday or day, same time).
+  repeat: z.enum(['', 'weekly', 'monthly']).optional(),
 });
 
 export async function assignTaskAction(
@@ -169,6 +174,17 @@ export async function assignTaskAction(
   } catch (error) {
     console.error('assignTaskAction failed', error instanceof Error ? error.message : error);
     return { error: 'createFailed' };
+  }
+
+  // The template the deadline cron turns into the next instances.
+  if (parsed.data.repeat) {
+    const due = new Date(parsed.data.deadline);
+    const dueTime = new Date(due.getTime() + 5 * 3600_000).toISOString().slice(11, 16);
+    await sql`
+      insert into task_recurrences (title, description, assigned_to, assigned_by, every, due_time, last_due, star_reward, star_penalty, requires_proof)
+      values (${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.assignedTo}, ${actingUserId}, ${parsed.data.repeat},
+        ${dueTime}, ${tashkentDayKey(due)}, ${parsed.data.starReward ?? 0}, ${parsed.data.starPenalty ?? 0}, ${parsed.data.requiresProof})
+    `.catch((error) => console.error('task recurrence insert failed', error instanceof Error ? error.message : error));
   }
 
   await bumpBoardSignal('tasks');
@@ -561,6 +577,8 @@ async function finalizeTaskDone(
     deadline: existing.deadline,
     completedInstant,
   });
+  // A task made from a murojaat resolves it (the reporter then confirms).
+  await syncIssuesForTask(taskId, existing.assigned_to);
 
   return {};
 }
@@ -603,8 +621,15 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   const [existing] = await selectLifecycleRow(parsed.data.id);
   if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
 
-  // Handed in and parked on the CEO's desk — the assignee cannot pull it
-  // back, and nothing about it may change until approve/reject decides. This
+  // Handed in but not yet decided: dragging it back to an open lane takes
+  // the submission back (same path as the "Bekor qilish" button); dropping
+  // it on review/done again changes nothing.
+  if (existing.status === 'submitted') {
+    return parsed.data.status === 'done' ? {} : undoSubmitTaskAction(formData);
+  }
+
+  // Waiting on the proof upload — nothing about it may change until the
+  // upload (or the CEO) decides. This
   // is also the half of "no penalty while under review" that lives on the
   // request path; the cron half is in task-overdue-penalties/route.ts.
   if (isTaskUnderReview(existing.status)) return { error: 'underReview' };
@@ -630,13 +655,14 @@ export async function updateTaskStatusAction(formData: FormData): Promise<Update
   // guard in the WHERE keeps a stale drag from overwriting a transition
   // (submit / approve) that landed in the meantime.
   try {
-    await sql`
+    const res = await sql`
       update tasks set
         status = ${parsed.data.status},
         completed_at = null,
         updated_at = now()
       where id = ${parsed.data.id} and status in ${sql([...TASK_OPEN_STATUSES])}
     `;
+    if (res.count === 0) return { error: 'invalidTransition' };
   } catch (error) {
     console.error('updateTaskStatusAction failed', error instanceof Error ? error.message : error);
     return { error: 'updateFailed' };
@@ -678,6 +704,67 @@ export async function submitTaskAction(formData: FormData): Promise<UpdateTaskSt
   }
 
   return transitionToSubmitted(parsed.data.id, existing, user.id);
+}
+
+/**
+ * Assignee takes a submission back. Allowed for the task assignee for as
+ * long as the CEO hasn't decided (status is still 'submitted'); reverts the
+ * status to 'in_progress'. (Owner, 2026-10-08: the old 10-minute window left
+ * people stuck with an accidental submit.)
+ */
+export async function undoSubmitTaskAction(formData: FormData): Promise<UpdateTaskStatusResult> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = taskIdSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const [existing] = await sql<{
+    assigned_to: string;
+    assigned_by: string;
+    title: string;
+    status: string;
+    submitted_at: string | null;
+  }[]>`
+    select assigned_to, assigned_by, title, status, submitted_at
+    from tasks where id = ${parsed.data.id}
+  `;
+
+  if (!existing || existing.assigned_to !== user.id) return { error: 'forbidden' };
+  if (existing.status !== 'submitted') return { error: 'tooLate' };
+
+  // The status guard in the WHERE means a CEO decision that lands first wins.
+  try {
+    const res = await sql`
+      update tasks set
+        status = 'in_progress',
+        submitted_at = null,
+        updated_at = now()
+      where id = ${parsed.data.id} and assigned_to = ${user.id} and status = 'submitted'
+    `;
+    if (res.count === 0) return { error: 'tooLate' };
+  } catch (error) {
+    console.error('undoSubmitTaskAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
+  }
+
+  await bumpBoardSignal('tasks');
+  await bumpNavBadgeSignal(existing.assigned_by);
+
+  after(async () => {
+    try {
+      const [ceoTelegramId, actorName] = await Promise.all([telegramIdFor(existing.assigned_by), displayNameFor(user.id)]);
+      await notifyTelegram(
+        ceoTelegramId,
+        `↩️ <b>${escapeTelegramText(actorName)}</b> "${escapeTelegramText(existing.title)}" vazifasini topshirishni bekor qildi (qayta ishlayapti).`,
+      );
+    } catch (error) {
+      console.error('undo submit notification failed', error);
+    }
+  });
+
+  revalidatePath('/[locale]/tasks', 'page');
+  return {};
 }
 
 /**
@@ -1311,7 +1398,9 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
   if (!existing || existing.assigned_by !== actingUserId) return { error: 'forbidden' };
 
   try {
-    await sql`delete from tasks where id = ${parsed.data.id}`;
+    const res = await sql`delete from tasks where id = ${parsed.data.id}`;
+    // Already gone (another tab/admin deleted it): no second notification.
+    if (res.count === 0) return { error: 'deleteFailed' };
   } catch (error) {
     console.error('deleteTaskAction failed', error instanceof Error ? error.message : error);
     return { error: 'deleteFailed' };
@@ -1333,6 +1422,31 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
     });
   }
 
+  revalidatePath('/[locale]/tasks', 'page');
+  return {};
+}
+
+
+/** Stop a recurring task (the already-created instances stay). */
+export async function stopTaskRecurrenceAction(id: string): Promise<TaskActionState> {
+  let actingUserId: string;
+  let actingRole: StaffRole;
+  try {
+    const { user, profile } = await requireTaskAssigner();
+    actingUserId = user.id;
+    actingRole = profile.role;
+  } catch {
+    return { error: 'forbidden' };
+  }
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`
+      update task_recurrences set active = false
+      where id = ${id} and active and (${actingRole === 'ceo'} or assigned_by = ${actingUserId})`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
   revalidatePath('/[locale]/tasks', 'page');
   return {};
 }

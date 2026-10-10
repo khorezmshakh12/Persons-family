@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
@@ -16,6 +16,7 @@ import {
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
   updateTaskStatusAction,
+  undoSubmitTaskAction,
   deleteTaskAction,
   getVisibleTasksAction,
   type MonthlyTaskArchiveEntry,
@@ -35,10 +36,13 @@ import { TaskMoveBurst } from './task-move-burst';
 import { celebrate } from '@/components/motion/events';
 import { TaskCard, type Task } from './task-card';
 import type { Assignee } from './assign-task-dialog';
-import type { TaskStatus } from './task-status-control';
-import { boardColumnFor } from '@/lib/task-status';
+import { BOARD_LANES, boardLaneFor, laneDropStatus, type BoardLane } from '@/lib/task-status';
+import { useNowTicker } from '@/lib/use-now-ticker';
+import { TaskCalendarView, TaskListView, TaskStatStrip, TaskViewSwitch, TaskWorkload, type TaskView } from './task-views';
 
-const COLUMNS: TaskStatus[] = ['pending', 'in_progress', 'done'];
+const COLUMNS = BOARD_LANES;
+/** The done lane shows the last week; older work is one click away. */
+const DONE_WINDOW_MS = 7 * 24 * 3600_000;
 
 /**
  * The board only has droppable columns for the three drag targets — the
@@ -73,6 +77,7 @@ export function TaskBoard({
   assignees,
   currentUserId,
   archive,
+  report,
 }: {
   tasks: Task[];
   isAdmin: boolean;
@@ -83,6 +88,8 @@ export function TaskBoard({
    * life of the page — a task completed now stays on the board until its
    * month rolls over, so a live refresh can never move a row into it. */
   archive: MonthlyTaskArchiveEntry[];
+  /** Server-rendered statistics, shown in the "Hisobot" view. */
+  report?: ReactNode;
 }) {
   const t = useTranslations('tasks');
   const [tasks, setTasks] = useState(initialTasks);
@@ -93,7 +100,10 @@ export function TaskBoard({
   // only happens in handleDragEnd — they just drive where the card is
   // *rendered* while the pointer is still down.
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
+  const [overStatus, setOverStatus] = useState<BoardLane | null>(null);
+  const [view, setView] = useState<TaskView>('board');
+  const [showAllDone, setShowAllDone] = useState(false);
+  const now = useNowTicker();
   // One-shot salute fired at a card's landing spot on a column change; the
   // burst component clears it via onDone once its own timer elapses.
   const [burst, setBurst] = useState<{ id: number; x: number; y: number } | null>(null);
@@ -107,9 +117,9 @@ export function TaskBoard({
   // rebuild the two columns it actually affects — the other column keeps its
   // array identity and stays skipped by TaskKanbanColumn's memo.
   const baseColumns = useMemo(() => {
-    const map = new Map<TaskStatus, Task[]>();
+    const map = new Map<BoardLane, Task[]>();
     for (const status of COLUMNS) map.set(status, []);
-    for (const task of visibleTasks) map.get(boardColumnFor(task.status))?.push(task);
+    for (const task of visibleTasks) map.get(boardLaneFor(task.status))?.push(task);
     // Every column: newest at the top, so the oldest work sinks to the
     // bottom. The two open columns order by when the task was created; the
     // done column by when it actually finished / was handed in (doneSortKey).
@@ -117,19 +127,37 @@ export function TaskBoard({
     map.get('pending')?.sort((a, b) => ((a.created_at ?? '') < (b.created_at ?? '') ? 1 : -1));
     map.get('in_progress')?.sort((a, b) => ((a.created_at ?? '') < (b.created_at ?? '') ? 1 : -1));
     map.get('done')?.sort((a, b) => (doneSortKey(a) < doneSortKey(b) ? 1 : -1));
+    // Oldest wait first: the card that has sat longest on the CEO's desk.
+    map.get('review')?.sort((a, b) => ((a.submitted_at ?? '') > (b.submitted_at ?? '') ? 1 : -1));
     return map;
   }, [visibleTasks]);
+
+  // Done lane: this week's finishes unless "show all" is on.
+  const doneRecent = useMemo(() => {
+    const all = baseColumns.get('done') ?? [];
+    return now === null ? all : all.filter((task) => now - new Date(doneSortKey(task) || 0).getTime() < DONE_WINDOW_MS);
+  }, [baseColumns, now]);
+  const doneHidden = showAllDone ? 0 : (baseColumns.get('done')?.length ?? 0) - doneRecent.length;
+
+  // Lane header bar: share of open cards still on time.
+  const onTimePct = (lane: BoardLane): number | null => {
+    if (lane !== 'pending' && lane !== 'in_progress') return null;
+    const list = baseColumns.get(lane) ?? [];
+    if (list.length === 0) return null;
+    return (list.filter((task) => !task.is_overdue).length / list.length) * 100;
+  };
 
   // Provisional placement: while the pointer is over a column the card
   // doesn't belong to yet, render it there (and out of its home column).
   const { columns, previewStatus } = useMemo(() => {
-    if (!activeTask || !overStatus || activeTask.status === overStatus) {
+    const home = activeTask ? boardLaneFor(activeTask.status) : null;
+    if (!activeTask || !home || !overStatus || home === overStatus) {
       return { columns: baseColumns, previewStatus: null };
     }
     const next = new Map(baseColumns);
     next.set(
-      activeTask.status,
-      (baseColumns.get(activeTask.status) ?? []).filter((task) => task.id !== activeTask.id),
+      home,
+      (baseColumns.get(home) ?? []).filter((task) => task.id !== activeTask.id),
     );
     next.set(overStatus, [...(baseColumns.get(overStatus) ?? []), activeTask]);
     return { columns: next, previewStatus: overStatus };
@@ -198,16 +226,16 @@ export function TaskBoard({
 
   // `over.id` is a column droppable id, but resolve through the cards too so
   // a stray id can never be written to the database as a status.
-  function resolveStatus(overId: string | number | undefined | null): TaskStatus | null {
+  function resolveStatus(overId: string | number | undefined | null): BoardLane | null {
     if (overId == null) return null;
     const id = String(overId);
-    if ((COLUMNS as string[]).includes(id)) return id as TaskStatus;
+    if ((COLUMNS as readonly string[]).includes(id)) return id as BoardLane;
     // Dropped onto a card: resolve to the *column* that card renders in, not
     // its raw status — a `submitted`/`awaiting_upload` card sits in the done
     // column, and sending that raw status to updateTaskStatusAction failed
     // validation (`invalidInput`) and bounced the drop.
     const overTask = tasks.find((task) => task.id === id);
-    return overTask ? boardColumnFor(overTask.status) : null;
+    return overTask ? boardLaneFor(overTask.status) : null;
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -234,9 +262,14 @@ export function TaskBoard({
     if (!over) return;
 
     const taskId = String(active.id);
-    const nextStatus = resolveStatus(over.id);
+    const lane = resolveStatus(over.id);
     const current = tasks.find((task) => task.id === taskId);
-    if (!nextStatus || !current || boardColumnFor(current.status) === nextStatus) return;
+    if (!lane || !current || boardLaneFor(current.status) === lane) return;
+    // The review and done lanes both mean "hand it in".
+    const nextStatus = laneDropStatus(lane);
+    // Already handed in: only a drop back onto an open lane (= take it back)
+    // means anything.
+    if (current.status === 'submitted' && nextStatus === 'done') return;
 
     // A little salute at the card's landing spot. `translated` is the
     // dragged node's final rect in viewport coords; fall back to the
@@ -246,7 +279,6 @@ export function TaskBoard({
       setBurst({ id: Date.now(), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
     }
 
-    const previousTasks = tasks;
     setTasks((prev) =>
       // A drop on done is a hand-in: the server parks it at `submitted`, so
       // show that optimistically rather than a `done` it never becomes.
@@ -261,14 +293,37 @@ export function TaskBoard({
       const formData = new FormData();
       formData.set('id', taskId);
       formData.set('status', nextStatus);
-      const result = await updateTaskStatusAction(formData);
+      let result: Awaited<ReturnType<typeof updateTaskStatusAction>>;
+      try {
+        result = await updateTaskStatusAction(formData);
+      } catch {
+        result = { error: 'updateFailed' };
+      }
       if (result?.error) {
-        setTasks(previousTasks);
+        setTasks((prev) => prev.map((x) => (x.id === taskId ? current : x)));
         toast.error(t(`errors.${result.error}`));
       } else if (nextStatus === 'done') {
         // Handed in — a genuine success beat; the reward floats up (#18).
-        const reward = previousTasks.find((x) => x.id === taskId)?.star_reward ?? 0;
+        const reward = current.star_reward ?? 0;
         celebrate(reward > 0 ? `+${reward} ★` : undefined);
+        // Same undo the "Topshirish" button offers.
+        toast.success(t('submittedToast'), {
+          duration: 10000,
+          action: {
+            label: t('undoAction'),
+            onClick: () => {
+              const fd = new FormData();
+              fd.set('id', taskId);
+              void undoSubmitTaskAction(fd).then((r) => {
+                if (r?.error) toast.error(t(`errors.${r.error}`));
+                else {
+                  setTasks((prev) => prev.map((x) => (x.id === taskId ? { ...x, status: 'in_progress', submitted_at: null } : x)));
+                  toast.success(t('undoneToast'));
+                }
+              });
+            },
+          },
+        });
       }
     })();
   }
@@ -307,17 +362,87 @@ export function TaskBoard({
     });
   }
 
+  // From the list / calendar: jump to the card on the board and flash it.
+  function openTask(id: string) {
+    setView('board');
+    if (boardLaneFor(tasks.find((task) => task.id === id)?.status ?? 'pending') === 'done') setShowAllDone(true);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-task-card="${id}"]`);
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus({ preventScroll: true });
+        el.classList.remove('ms-glow');
+        void el.offsetWidth;
+        el.classList.add('ms-glow');
+      }),
+    );
+  }
+
+  // Keyboard: C new task · / search · J/K move between cards · Enter comments
+  // · A approve · R return (the last two on a card under review, CEO only).
+  // Mount-only listener; it reads the DOM, never React state.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      const cards = [...document.querySelectorAll<HTMLElement>('[data-task-card]')];
+      const focused = target?.closest<HTMLElement>('[data-task-card]') ?? null;
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        e.preventDefault();
+        window.dispatchEvent(new Event('tasks:new'));
+      } else if (key === '/') {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('[data-task-search]')?.focus();
+      } else if ((key === 'j' || key === 'k') && cards.length) {
+        e.preventDefault();
+        const i = focused ? cards.indexOf(focused) : -1;
+        const next = cards[Math.max(0, Math.min(cards.length - 1, key === 'j' ? i + 1 : i < 0 ? 0 : i - 1))];
+        next.focus();
+        next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else if (focused && (key === 'enter' || key === 'a' || key === 'r')) {
+        const action = key === 'enter' ? 'comments' : key === 'a' ? 'approve' : 'reject';
+        const btn = focused.querySelector<HTMLElement>(`[data-task-action="${action}"]`);
+        if (btn) {
+          e.preventDefault();
+          btn.click();
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       {burst && (
         <TaskMoveBurst key={burst.id} x={burst.x} y={burst.y} onDone={() => setBurst(null)} />
       )}
+      <TaskStatStrip tasks={tasks} now={now} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <TaskViewSwitch view={view} onChange={setView} showReport={!!report} />
+        <p className="hidden text-xs text-au-faint lg:block">{t('shortcuts')}</p>
+      </div>
       <TaskFilterBar
         filters={filters}
         onChange={setFilters}
         isAdmin={isAdmin}
         assignees={assignees}
       />
+      {isAdmin && view === 'board' && (
+        <TaskWorkload
+          tasks={tasks}
+          picked={filters.assignee}
+          onPick={(id) => setFilters((f) => ({ ...f, assignee: f.assignee === id ? 'all' : id }))}
+        />
+      )}
+      {view === 'list' && <TaskListView tasks={visibleTasks} isAdmin={isAdmin} onOpen={openTask} />}
+      {view === 'calendar' && <TaskCalendarView tasks={visibleTasks} onOpen={openTask} />}
+      {view === 'report' && report}
+      {view === 'board' && (
       <DndContext
         sensors={sensors}
         // The provisional placement reflows both columns mid-drag, so the
@@ -328,13 +453,26 @@ export function TaskBoard({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-3">
+        {/* Phones: lanes scroll sideways with snap; md+: a grid. */}
+        <div className="-mx-4 flex snap-x snap-mandatory items-start gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
           {COLUMNS.map((status) => (
+            <div key={status} className="w-[86vw] max-w-[360px] shrink-0 snap-start md:w-auto md:max-w-none">
             <TaskKanbanColumn
-              key={status}
               status={status}
               label={t(`columns.${status}`)}
-              tasks={columns.get(status) ?? []}
+              tasks={status === 'done' && !showAllDone && previewStatus !== 'done' ? doneRecent : (columns.get(status) ?? [])}
+              onTimePct={onTimePct(status)}
+              footer={
+                status === 'done' && doneHidden > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDone(true)}
+                    className="rounded-au-ctl border border-dashed border-au-line py-2 text-xs font-semibold text-au-muted hover:border-au-faint hover:text-au-ink"
+                  >
+                    {t('showOlderDone', { count: doneHidden })}
+                  </button>
+                ) : undefined
+              }
               isAdmin={isAdmin}
               assignees={assignees}
               currentUserId={currentUserId}
@@ -342,8 +480,9 @@ export function TaskBoard({
               onRequestDelete={handleRequestDelete}
               previewTaskId={previewStatus === status ? activeId : null}
               collapsible={true}
-              defaultExpanded={status !== 'done'}
+              defaultExpanded
             />
+            </div>
           ))}
         </div>
         {/* Portalled out of the app shell's transformed <main> so the fixed
@@ -362,7 +501,8 @@ export function TaskBoard({
           ) : null}
         </KanbanDragOverlay>
       </DndContext>
-      <MonthlyArchive months={archive} isAdmin={isAdmin} />
+      )}
+      {view === 'board' && <MonthlyArchive months={archive} isAdmin={isAdmin} />}
     </div>
   );
 }

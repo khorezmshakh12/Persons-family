@@ -2,7 +2,8 @@ import 'server-only';
 import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
 import { sql } from '@/lib/db/client';
 import { askTypeSafe } from '@/lib/typesafe';
-import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
+import { addDaysToKey, tashkentDayKey, tashkentMidnight, tashkentMonthKey } from '@/lib/time';
+import { SOURCE_META, type Source } from '@/lib/intake';
 import type { Profile } from '@/lib/auth/session';
 import { can, canSeeFor, ROLE_DEPT as PERMISSION_DEPT, type SectionKey } from '@/lib/permissions';
 import { defaultBosses, redactForViewer } from '@/lib/core-access';
@@ -424,32 +425,56 @@ export async function coreViews(me: Profile): Promise<CoreView[]> {
   return acl ? byRole.filter((v) => acl.includes(v)) : byRole;
 }
 
-type Lead = { at: number; st: string; ch: string; hist?: { st: string; at: number }[] };
 export const CORE_CHANNELS: Record<string, string> = { ig: 'Instagram', meta: 'Meta Ads', tg: 'Telegram', gg: 'Google', ref: 'Tavsiya', off: 'Offline' };
 
-/** This Tashkent month's sales from Core's lead data, with the same formulas
- * as Core's salesCalc(): leads = created this month, contracts = those now
- * 'won', CAC = month spend / contracts; plus a 7-day lead flow and channels. */
+/** This Tashkent month's intake for the dashboard card — the same store
+ * (ops_leads + lead_spend, merged from Core on 2026-10-09) and the same
+ * cohort formulas as the Qabul page: leads = arrived this month, contracts =
+ * those of them now enrolled (so conversion never exceeds 100%), CAC =
+ * month spend / contracts. */
 export async function loadSalesSnapshot() {
-  const s = await readShared();
-  const leads = (s.leads as Lead[] | undefined) ?? [];
   const m = tashkentMonthKey();
-  const inMonth = leads.filter((l) => tashkentMonthKey(new Date(l.at)) === m);
-  const sp = ((s.spend as Record<string, Record<string, number>> | undefined) ?? {})[m] ?? {};
-  const tg = ((s.tgt as Record<string, { leads?: number; won?: number }> | undefined) ?? {})[m] ?? {};
-  const spend = Object.values(sp).reduce((a, v) => a + (Number(v) || 0), 0);
-  const won = inMonth.filter((l) => l.st === 'won').length;
+  const from = tashkentMidnight(`${m}-01`).toISOString();
   const today = tashkentDayKey();
   const days = Array.from({ length: 7 }, (_, i) => addDaysToKey(today, i - 6));
-  const flow = days.map((d) => ({ day: d, n: leads.filter((l) => tashkentDayKey(new Date(l.at)) === d).length }));
-  const channels = Object.entries(CORE_CHANNELS)
-    .map(([k, name]) => {
-      const n = inMonth.filter((l) => l.ch === k).length;
-      const cs = Number(sp[k]) || 0;
-      return { k, name, n, won: inMonth.filter((l) => l.ch === k && l.st === 'won').length, spend: cs, cpl: n ? cs / n : 0 };
+  const flowFrom = tashkentMidnight(days[0]).toISOString();
+  const s = await readShared();
+  const tg = ((s.tgt as Record<string, { leads?: number; won?: number }> | undefined) ?? {})[m] ?? {};
+  const [rows, spendRows, flowRows] = await Promise.all([
+    sql<{ source: string; n: number; won: number }[]>`
+      select source, count(*) filter (where created_at >= ${from})::int as n,
+        count(*) filter (where created_at >= ${from} and (enrolled_at is not null or stage = 'enrolled'))::int as won
+      from ops_leads where created_at >= ${from} group by source`,
+    sql<{ source: string; amount: number }[]>`select source, amount from lead_spend where month = ${`${m}-01`}`,
+    sql<{ d: string; n: number }[]>`
+      select to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM-DD') as d, count(*)::int as n
+      from ops_leads where created_at >= ${flowFrom} group by 1`,
+  ]);
+  const spendBy = new Map(spendRows.map((r) => [r.source, Number(r.amount)]));
+  const leads = rows.reduce((a, r) => a + r.n, 0);
+  const won = rows.reduce((a, r) => a + r.won, 0);
+  const spend = [...spendBy.values()].reduce((a, v) => a + v, 0);
+  const flowBy = new Map(flowRows.map((r) => [r.d, r.n]));
+  const channels = [...new Set([...rows.map((r) => r.source), ...spendBy.keys()])]
+    .map((k) => {
+      const r = rows.find((x) => x.source === k);
+      const n = r?.n ?? 0;
+      const cs = spendBy.get(k) ?? 0;
+      return { k, name: SOURCE_META[k as Source]?.n ?? k, n, won: r?.won ?? 0, spend: cs, cpl: n ? cs / n : 0 };
     })
     .filter((c) => c.n || c.spend)
     .sort((a, b) => b.n - a.n);
-  return { month: m, leads: inMonth.length, won, targetLeads: tg.leads ?? 0, targetWon: tg.won ?? 0, spend, cac: won ? spend / won : 0, conv: inMonth.length ? (won / inMonth.length) * 100 : 0, flow, channels };
+  return {
+    month: m,
+    leads,
+    won,
+    targetLeads: tg.leads ?? 0,
+    targetWon: tg.won ?? 0,
+    spend,
+    cac: won ? spend / won : 0,
+    conv: leads ? (won / leads) * 100 : 0,
+    flow: days.map((d) => ({ day: d, n: flowBy.get(d) ?? 0 })),
+    channels,
+  };
 }
 export type SalesSnapshot = Awaited<ReturnType<typeof loadSalesSnapshot>>;

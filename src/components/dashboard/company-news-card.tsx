@@ -4,6 +4,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { unseenCompanyNewsCount } from '@/lib/nav-badges';
 import { companyNewsCutoff } from '@/lib/company-news';
 import { CompanyNewsInlineForm } from '@/components/dashboard/company-news-inline-form';
+import { CompanyNewsCarouselInner } from '@/components/dashboard/company-news-carousel-inner';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 
@@ -21,11 +22,18 @@ export async function CompanyNewsCard({
   const [news, unseenCount] = await Promise.all([
     sql<{ id: string; title: string; content: string; created_at: string }[]>`
       select id, title, content, created_at from company_news
-      where created_at >= ${companyNewsCutoff()}
+      where created_at >= ${companyNewsCutoff()} and deleted_at is null and (publish_at is null or publish_at <= now())
       order by created_at desc limit 3
     `,
     user ? unseenCompanyNewsCount(user.id) : 0,
   ]);
+
+  const formattedNews = news.map((item) => ({
+    id: item.id,
+    title: item.title,
+    content: item.content,
+    formattedDate: format.dateTime(new Date(item.created_at), { dateStyle: 'medium' }),
+  }));
 
   return (
     <div
@@ -47,23 +55,7 @@ export async function CompanyNewsCard({
       {news.length === 0 ? (
         <p className="text-sm text-au-muted">{t('companyNews.noNews')}</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {news.map((item, i) => (
-            <div
-              key={item.id}
-              style={{ animationDelay: `${delayMs + 120 + i * 60}ms` }}
-              className="animate-fade-in-up flex flex-col gap-1"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">{item.title}</span>
-                <span className="shrink-0 text-xs text-au-muted">
-                  {format.dateTime(new Date(item.created_at), { dateStyle: 'medium' })}
-                </span>
-              </div>
-              <p className="text-sm whitespace-pre-wrap text-au-muted">{item.content}</p>
-            </div>
-          ))}
-        </div>
+        <CompanyNewsCarouselInner news={formattedNews} delayMs={delayMs} />
       )}
     </div>
   );

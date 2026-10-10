@@ -13,6 +13,8 @@ export type StaffChatMessage = {
   is_read: boolean;
   reply_to_id: string | null;
   reactions: Record<string, string[]>;
+  /** Set when the author edited the text (owner, 2026-10-06). */
+  edited_at?: string | null;
 };
 
 export type ChatQuote = {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
 import { scoreLead, triageIssue } from '@/lib/ai-triage';
 import { JEV_USD_PER_MTOK, typesafeEnabled } from '@/lib/typesafe';
@@ -8,7 +9,7 @@ import { JEV_USD_PER_MTOK, typesafeEnabled } from '@/lib/typesafe';
 // reports token usage and cost from ai_usage. Bounded per run.
 export const maxDuration = 300;
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   if (!expected || req.headers.get('authorization') !== `Bearer ${expected}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -55,3 +56,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withCronLog('ai-triage', handle);

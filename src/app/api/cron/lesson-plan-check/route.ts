@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
+import { groupDayStatus } from '@/lib/lesson-plan-status';
 
 // A run that's this far behind (e.g. the cron was broken for weeks) only
 // catches up this many most-recent days rather than replaying the whole gap
@@ -32,7 +34,7 @@ const MAX_CATCHUP_DAYS = 7;
 // covering the wrong date. lesson_plan_cron_runs now records every
 // date_key actually processed, so each run catches up on anything since
 // the last one instead of only ever looking at the single most recent day.
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -168,6 +170,7 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
   }
 
   type GroupStatus = { groupName: string; status: 'complete' | 'missing' | 'incomplete' };
+  const daily: { date_key: string; group_id: string; teacher_id: string; status: string }[] = [];
   const byTeacher = new Map<string, { teacherName: string; groups: GroupStatus[] }>();
 
   for (const group of groups) {
@@ -183,14 +186,11 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
     // teacher who wrote literally nothing showed as "to'liq emas"
     // (incomplete, implying partial progress) instead of "yozilmagan" (not
     // written at all), which understates the gap.
-    const isBlank = (l: (typeof groupLessons)[number]) =>
-      !l.topic?.trim() && !l.aim?.trim() && !l.language_focus?.trim() && !l.anticipated_problems?.trim() && !l.homework?.trim();
-    const status: GroupStatus['status'] =
-      groupLessons.length === 0 || groupLessons.every((l) => isBlank(l) && l.moved_to_lesson_id === null)
-        ? 'missing'
-        : groupLessons.some((l) => isLessonPlanComplete(l) || l.moved_to_lesson_id !== null)
-          ? 'complete'
-          : 'incomplete';
+    // One shared definition with the UI's completeness rings (lib/lesson-plan-status).
+    const status: GroupStatus['status'] = groupDayStatus(groupLessons);
+
+    // Snapshot for the Intizom grid — the status as of the deadline.
+    daily.push({ date_key: dateKey, group_id: group.id, teacher_id: group.teacher_id, status });
 
     const teacherName = group.teacher_first_name ? `${group.teacher_first_name} ${group.teacher_last_name}` : "Noma'lum";
     const entry = byTeacher.get(group.teacher_id) ?? { teacherName, groups: [] };
@@ -230,6 +230,14 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
     }
   }
 
+  if (daily.length > 0) {
+    await sql`
+      insert into lesson_plan_daily ${sql(daily)}
+      on conflict (date_key, group_id) do nothing`.catch((error) =>
+      console.error('lesson_plan_daily snapshot failed', error instanceof Error ? error.message : error),
+    );
+  }
+
   const telegramLines = [`📋 Kunlik lesson plan hisoboti — ${dateKey}`, ''];
   if (completedLines.length > 0) telegramLines.push(...completedLines);
   if (gapLines.length > 0) {
@@ -241,7 +249,7 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
   }
   const telegramText = telegramLines.join('\n');
 
-  await sendTelegramMessageToMany(recipientChatIds, telegramText);
+  await sendTelegramManyAs('lesson', recipientChatIds, telegramText);
 
   if (incompleteTeachers > 0) {
     const summary = gapPlainLines.join('\n');
@@ -254,21 +262,4 @@ async function checkOneDay(dateKey: string, recipientChatIds: (number | null)[])
   return { checkedGroups: groups.length, incompleteTeachers };
 }
 
-// materials and procedure are intentionally not required here — teachers
-// only need to fill topic, aim, language_focus, anticipated_problems and
-// homework for a plan to count as complete.
-function isLessonPlanComplete(lesson: {
-  topic: string | null;
-  aim: string | null;
-  language_focus: string | null;
-  anticipated_problems: string | null;
-  homework: string | null;
-}): boolean {
-  return Boolean(
-    lesson.topic?.trim() &&
-      lesson.aim?.trim() &&
-      lesson.language_focus?.trim() &&
-      lesson.anticipated_problems?.trim() &&
-      lesson.homework?.trim(),
-  );
-}
+export const GET = withCronLog('lesson-plan-check', handle);

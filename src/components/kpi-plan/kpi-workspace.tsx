@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, Check, ChevronDown, Clock, Plus, RotateCcw, Send, Target, Trash2, Undo2 } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Clock, Plus, RotateCcw, Send, Sparkles, Target, Trash2, Undo2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
@@ -26,6 +26,7 @@ import {
 } from '@/lib/kpi-plan';
 import {
   deleteKpiPlanAction,
+  withdrawKpiPlanAction,
   gradeKpiPlanAction,
   reviewKpiPlanAction,
   saveKpiPlanAction,
@@ -33,6 +34,9 @@ import {
 } from '@/lib/actions/kpi-plan';
 import type { Role } from '@/lib/permissions';
 import type { TeamMember } from '@/lib/kpi-plan-data';
+import { forecast } from '@/lib/kpi-forecast';
+import { celebrate } from '@/components/motion/events';
+import { ForecastGauge, GradeCalibration, GradeHistory, KpiHeatmap, KpiStepper, planStep } from './kpi-visuals';
 
 /* ------------------------------------------------------------ bits */
 
@@ -62,8 +66,12 @@ const ERR: Record<string, string> = {
   notYet: 'Bu oy hali boshlanmagan',
   forbidden: "Ruxsat yo'q",
   invalidInput: "Ma'lumot noto'g'ri",
+  periodLocked: 'Bu oyning oyligi tasdiqlangan — avval Moliya › Oylik jarayonida oyni qayta oching',
 };
 const errText = (c: string) => ERR[c] ?? "Saqlab bo'lmadi, qayta urinib ko'ring";
+
+/** The CEO's defaults (kpi_plans column defaults) until a plan has its own. */
+const DEFAULT_PCT = { pct_bad: -10, pct_good: 0, pct_great: 15 };
 
 const som = (n: number | null | undefined) =>
   n == null ? '—' : `${n < 0 ? '−' : n > 0 ? '+' : ''}${formatUZS(Math.abs(Math.round(n)))} so‘m`;
@@ -87,12 +95,12 @@ function Countdown({ month }: { month: string }) {
 
 /* ------------------------------------------------------------ plan (read-only) */
 
-function PlanView({ plan, showActual = false }: { plan: KpiPlan; showActual?: boolean }) {
+function PlanView({ plan, showActual = false, salary }: { plan: KpiPlan; showActual?: boolean; salary?: number | null }) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-3">
         {SCENARIOS.map((s) => (
-          <div key={s} className={cn(CARD, 'border-t-4 p-4', SC_STYLE[s].ring, plan.grade === s && 'ring-2 ring-au-accent')}>
+          <div key={s} className={cn(CARD, 'ms-rise border-t-4 p-4', SC_STYLE[s].ring, plan.grade === s && 'ms-glow ring-2 ring-au-accent')} style={{ ['--i' as string]: SCENARIOS.indexOf(s) }}>
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-sm font-bold text-au-ink">{SCENARIO_LABEL[s]}</span>
               <Chip className={SC_STYLE[s].chip}>
@@ -100,6 +108,11 @@ function PlanView({ plan, showActual = false }: { plan: KpiPlan; showActual?: bo
                 {pctFor(plan, s)}%
               </Chip>
             </div>
+            {!!salary && (
+              <div className={cn('mb-2 text-lg font-bold tabular-nums', pctFor(plan, s) < 0 ? 'text-au-bad' : pctFor(plan, s) > 0 ? 'text-au-ok' : 'text-au-ink')}>
+                {pctFor(plan, s) === 0 ? 'Oylik o‘zgarmaydi' : som((salary * pctFor(plan, s)) / 100)}
+              </div>
+            )}
             <p className="text-[13px] whitespace-pre-wrap text-au-muted">{plan.scenarios[s]?.summary || '—'}</p>
           </div>
         ))}
@@ -147,7 +160,8 @@ function PlanView({ plan, showActual = false }: { plan: KpiPlan; showActual?: bo
 
 /* ------------------------------------------------------------ editor */
 
-function PlanEditor({ month, plan, role }: { month: string; plan: KpiPlan | undefined; role: Role }) {
+function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPlan | undefined; role: Role; salary?: number | null }) {
+  const pcts = plan ?? DEFAULT_PCT;
   const router = useRouter();
   const [busy, start] = useTransition();
   const [scen, setScen] = useState<Record<Scenario, string>>({
@@ -172,7 +186,20 @@ function PlanEditor({ month, plan, role }: { month: string; plan: KpiPlan | unde
         items: clean.map(({ title, kind, unit, target_bad, target_good, target_great }) => ({ title, kind, unit, target_bad, target_good, target_great })),
       });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(submit ? 'KPI rejasi CEO’ga topshirildi' : 'Qoralama saqlandi');
+      if (submit)
+        toast.success('KPI rejasi CEO’ga topshirildi', {
+          duration: 10000,
+          action: { label: 'Bekor qilish', onClick: () => withdraw(res.id) },
+        });
+      else toast.success('Qoralama saqlandi');
+      router.refresh();
+    });
+
+  const withdraw = (planId: string) =>
+    start(async () => {
+      const res = await withdrawKpiPlanAction(planId);
+      if (res.error !== undefined) return void toast.error(res.error === 'locked' ? 'Qaytarib bo‘lmaydi — CEO allaqachon qaror qildi' : errText(res.error));
+      toast.success('Topshirish bekor qilindi — reja qoralamaga qaytdi');
       router.refresh();
     });
 
@@ -182,7 +209,7 @@ function PlanEditor({ month, plan, role }: { month: string; plan: KpiPlan | unde
         <Banner tone="ok" icon={<Check className="size-4" />}>
           {monthName(month)} rejangiz tasdiqlangan. O‘zgartirish kerak bo‘lsa, CEO bilan gaplashing.
         </Banner>
-        <PlanView plan={plan} />
+        <PlanView plan={plan} salary={salary} />
       </div>
     );
 
@@ -196,16 +223,23 @@ function PlanEditor({ month, plan, role }: { month: string; plan: KpiPlan | unde
       {plan?.status === 'submitted' && (
         <Banner tone="accent" icon={<Clock className="size-4" />}>
           Reja CEO tasdig‘ini kutmoqda. Kerak bo‘lsa tahrirlab, qayta topshirishingiz mumkin.
+          <button className={cn(BTN_GHOST, 'ml-2 h-7 px-2.5 text-xs')} disabled={busy} onClick={() => withdraw(plan.id)}>
+            <Undo2 className="size-3.5" /> Topshirishni bekor qilish
+          </button>
         </Banner>
       )}
 
       <div className="grid gap-3 md:grid-cols-3">
         {SCENARIOS.map((s) => (
-          <label key={s} className={cn(CARD, 'grid gap-2 border-t-4 p-4', SC_STYLE[s].ring)}>
+          <label key={s} className={cn(CARD, 'ms-rise grid gap-2 border-t-4 p-4 transition-shadow focus-within:shadow-au-card-hover focus-within:ring-2 focus-within:ring-au-accent/30', SC_STYLE[s].ring)} style={{ ['--i' as string]: SCENARIOS.indexOf(s) }}>
             <span className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold text-au-ink">{SCENARIO_LABEL[s]}</span>
-              <span className="text-[11px] text-au-faint">{SCENARIO_HINT[s]}</span>
+              <Chip className={SC_STYLE[s].chip}>
+                {pctFor(pcts, s) > 0 ? '+' : ''}
+                {pctFor(pcts, s)}%{salary && pctFor(pcts, s) !== 0 ? ` · ${som((salary * pctFor(pcts, s)) / 100)}` : ''}
+              </Chip>
             </span>
+            <span className="text-[11px] text-au-faint">{SCENARIO_HINT[s]}</span>
             <textarea
               className={cn(INP, 'min-h-[120px] resize-y')}
               maxLength={4000}
@@ -348,6 +382,8 @@ function SelfAssess({ plan }: { plan: KpiPlan }) {
   const [result, setResult] = useState<Scenario | null>(plan.self_result);
   const [note, setNote] = useState(plan.self_note ?? '');
   const [actuals, setActuals] = useState<Record<string, string>>(Object.fromEntries(plan.items.map((i) => [i.id!, i.actual])));
+  // Live forecast from the numbers typed so far.
+  const live = useMemo(() => forecast(plan.items.map((i) => ({ ...i, actual: actuals[i.id!] ?? '' }))), [plan.items, actuals]);
 
   if (plan.grade)
     return (
@@ -359,7 +395,8 @@ function SelfAssess({ plan }: { plan: KpiPlan }) {
     );
 
   return (
-    <div className={cn(CARD, 'grid gap-3 p-4')}>
+    <div className={cn(CARD, 'grid gap-4 p-4 lg:grid-cols-[1fr_240px]')}>
+      <div className="grid content-start gap-3">
       <h3 className="text-sm font-bold text-au-ink">Oy yakuni — o‘zingizni baholang</h3>
       <div className="grid gap-2 sm:grid-cols-2">
         {plan.items.map((it) => (
@@ -372,8 +409,8 @@ function SelfAssess({ plan }: { plan: KpiPlan }) {
       <div className="flex flex-wrap gap-2">
         {SCENARIOS.map((s) => (
           <button
-            key={s}
-            className={cn(BTN, 'border', result === s ? cn('border-transparent', SC_STYLE[s].chip) : 'border-au-line bg-au-card text-au-muted')}
+            key={s + (result === s ? '-on' : '')}
+            className={cn(BTN, 'border', result === s ? cn('ms-pop-in border-transparent', SC_STYLE[s].chip) : 'border-au-line bg-au-card text-au-muted')}
             onClick={() => setResult(s)}
           >
             {SCENARIO_LABEL[s]}
@@ -395,17 +432,54 @@ function SelfAssess({ plan }: { plan: KpiPlan }) {
       >
         Saqlash
       </button>
+      </div>
+      <div className="grid content-start justify-items-center gap-2 rounded-au-ctl bg-au-card-2 p-3">
+        <span className="text-[11px] font-semibold tracking-wide text-au-faint uppercase">Bashorat</span>
+        <ForecastGauge value={live} />
+        {live && live.scenario !== result && (
+          <button className={cn(BTN_GHOST, 'py-1.5 text-xs')} onClick={() => setResult(live.scenario)}>
+            <Sparkles className="size-3.5" /> “{SCENARIO_LABEL[live.scenario]}” ni tanlash
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------ employee */
 
-export function MyKpi({ plans, role, thisMonth, nextMonth }: { plans: KpiPlan[]; role: Role; thisMonth: string; nextMonth: string }) {
+export function MyKpi({ plans, role, thisMonth, nextMonth, salary }: { plans: KpiPlan[]; role: Role; thisMonth: string; nextMonth: string; salary: number | null }) {
   const next = plans.find((p) => p.month === nextMonth);
   const cur = plans.find((p) => p.month === thisMonth);
   const past = plans.filter((p) => p.month < thisMonth);
+  const step = planStep(cur);
+  const nextAction = [
+    'Joriy oy rejasini kiriting va topshiring',
+    'CEO rejangizni ko‘rib chiqmoqda',
+    'Reja tasdiqlangan — natijalarni oy oxirida kiriting',
+    'Oy yakunida natijalaringizni kiriting va o‘zingizni baholang',
+    'CEO bahosi kutilmoqda',
+    'Baho qo‘yildi — Moliyaga yuborildi',
+    'Oy yopildi',
+  ][step];
   return (
+    <div className="grid gap-5">
+      <section className={cn(CARD, 'grid gap-5 p-5')}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.06em] text-au-accent-text uppercase">Joriy oy</div>
+            <h2 className="font-display text-2xl font-bold text-au-ink">{monthName(thisMonth)} KPI</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {cur?.grade && <Chip className={SC_STYLE[cur.grade].chip}>{SCENARIO_LABEL[cur.grade]}</Chip>}
+            {cur?.grade_amount != null && <b className="text-lg tabular-nums text-au-ink">{som(cur.grade_amount)}</b>}
+          </div>
+        </div>
+        <KpiStepper plan={cur} />
+        <p className="flex items-center gap-2 text-sm text-au-muted">
+          <ChevronRight className="size-4 text-au-accent-text" /> {nextAction}
+        </p>
+      </section>
     <Tabs defaultValue={cur && cur.status !== 'approved' ? 'current' : 'next'}>
       <div className="flex flex-wrap items-center gap-3">
         <TabsList className="border border-au-line bg-au-card-2">
@@ -417,7 +491,7 @@ export function MyKpi({ plans, role, thisMonth, nextMonth }: { plans: KpiPlan[];
         {next && <Chip className={STATUS_CHIP[next.status]}>{STATUS_LABEL[next.status]}</Chip>}
       </div>
       <TabsContent value="next" className="mt-4 outline-none">
-        <PlanEditor key={next?.id ?? 'new'} month={nextMonth} plan={next} role={role} />
+        <PlanEditor key={next?.id ?? 'new'} month={nextMonth} plan={next} role={role} salary={salary} />
       </TabsContent>
       <TabsContent value="current" className="mt-4 grid gap-4 outline-none">
         {!cur ? (
@@ -425,19 +499,20 @@ export function MyKpi({ plans, role, thisMonth, nextMonth }: { plans: KpiPlan[];
             <Banner tone="bad" icon={<AlertTriangle className="size-4" />}>
               {monthName(thisMonth)} uchun KPI rejasi yo‘q. Hozir kiritib, CEO’ga topshiring.
             </Banner>
-            <PlanEditor month={thisMonth} plan={undefined} role={role} />
+            <PlanEditor month={thisMonth} plan={undefined} role={role} salary={salary} />
           </div>
         ) : cur.status === 'approved' ? (
           <>
-            <PlanView plan={cur} showActual />
+            <PlanView plan={cur} showActual salary={salary} />
             <SelfAssess plan={cur} />
           </>
         ) : (
-          <PlanEditor month={thisMonth} plan={cur} role={role} />
+          <PlanEditor month={thisMonth} plan={cur} role={role} salary={salary} />
         )}
       </TabsContent>
       <TabsContent value="history" className="mt-4 grid gap-3 outline-none">
         {past.length === 0 && <p className="text-sm text-au-muted">Hali tarix yo‘q.</p>}
+        <GradeHistory plans={plans} />
         {past.map((p) => (
           <details key={p.id} className={cn(CARD, 'group p-4')}>
             <summary className="flex cursor-pointer list-none items-center gap-3">
@@ -447,21 +522,48 @@ export function MyKpi({ plans, role, thisMonth, nextMonth }: { plans: KpiPlan[];
               <ChevronDown className="size-4 text-au-faint transition group-open:rotate-180" />
             </summary>
             <div className="mt-4">
-              <PlanView plan={p} showActual />
+              <PlanView plan={p} showActual salary={salary} />
             </div>
           </details>
         ))}
       </TabsContent>
     </Tabs>
+    </div>
   );
 }
 
 /* ------------------------------------------------------------ CEO */
 
-function ReviewCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
+/** Who decided what, when — percentages, grades and manual overrides. */
+function AuditTrail({ plan }: { plan: KpiPlan }) {
+  if (!plan.audit?.length) return null;
+  return (
+    <details className="group rounded-au-ctl border border-au-line px-3 py-2">
+      <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-au-muted">
+        <Clock className="size-3.5" /> O‘zgarishlar tarixi · {plan.audit.length}
+        <ChevronDown className="ml-auto size-3.5 transition group-open:rotate-180" />
+      </summary>
+      <ol className="mt-2 grid gap-1.5 border-l-2 border-au-line pl-3">
+        {plan.audit.map((a, i) => (
+          <li key={i} className="text-xs text-au-muted">
+            <b className="text-au-ink">{new Date(a.at).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b>
+            {' · '}
+            {a.actor ?? '—'}:{' '}
+            {a.action === 'review'
+              ? `${a.detail.decision === 'approve' ? 'tasdiqladi' : 'qaytardi'}${a.detail.pct ? ` (${a.detail.pct.map((x) => `${x}%`).join(' / ')})` : ''}`
+              : `baholadi — ${a.detail.grade ? SCENARIO_LABEL[a.detail.grade] : ''}, ${som(a.detail.amount)}${a.detail.override != null ? ' (qo‘lda)' : ''}`}
+            {a.detail.note ? ` — “${a.detail.note}”` : ''}
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+function ReviewCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember; onDone?: () => void }) {
   const router = useRouter();
   const [busy, start] = useTransition();
-  const [open, setOpen] = useState(plan.status === 'submitted');
+  const [open, setOpen] = useState(true);
   const [pcts, setPcts] = useState({ bad: String(plan.pct_bad), good: String(plan.pct_good), great: String(plan.pct_great) });
   const [note, setNote] = useState('');
   const late = isLate(plan);
@@ -477,6 +579,8 @@ function ReviewCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
       });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(decision === 'approve' ? 'Tasdiqlandi — xodimga xabar yuborildi' : 'Qaytarildi — xodimga xabar yuborildi');
+      if (decision === 'approve') celebrate();
+      onDone?.();
       router.refresh();
     });
   return (
@@ -496,7 +600,8 @@ function ReviewCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
       </button>
       {open && (
         <div className="grid gap-4 border-t border-au-line p-4">
-          <PlanView plan={plan} />
+          <PlanView plan={plan} salary={member.salary} />
+          <AuditTrail plan={plan} />
           {plan.status !== 'approved' || !plan.grade ? (
             <div className="grid gap-3 rounded-au-ctl bg-au-card-2 p-3">
               <div className="grid gap-2 sm:grid-cols-3">
@@ -524,10 +629,11 @@ function ReviewCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
   );
 }
 
-function GradeCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
+function GradeCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember; onDone?: () => void }) {
   const router = useRouter();
   const [busy, start] = useTransition();
-  const [open, setOpen] = useState(!plan.grade);
+  const [open, setOpen] = useState(true);
+  const live = useMemo(() => forecast(plan.items), [plan.items]);
   const [grade, setGrade] = useState<Scenario | null>(plan.grade ?? plan.self_result);
   const [override, setOverride] = useState('');
   const [note, setNote] = useState(plan.grade_note ?? '');
@@ -558,7 +664,14 @@ function GradeCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
       </button>
       {open && (
         <div className="grid gap-4 border-t border-au-line p-4">
-          <PlanView plan={plan} showActual />
+          <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+            <PlanView plan={plan} showActual salary={member.salary} />
+            <div className="grid content-start justify-items-center gap-1 rounded-au-ctl bg-au-card-2 p-3">
+              <span className="text-[11px] font-semibold tracking-wide text-au-faint uppercase">Natijalar bo‘yicha</span>
+              <ForecastGauge value={live} />
+            </div>
+          </div>
+          <AuditTrail plan={plan} />
           {plan.self_note && (
             <p className="rounded-au-ctl bg-au-card-2 p-3 text-[13px] whitespace-pre-wrap text-au-muted">
               <b className="text-au-ink">Xodim izohi:</b> {plan.self_note}
@@ -568,8 +681,8 @@ function GradeCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
             <div className="grid gap-2 sm:grid-cols-3">
               {SCENARIOS.map((s) => (
                 <button
-                  key={s}
-                  className={cn(CARD, 'grid gap-0.5 border-t-4 p-3 text-left transition', SC_STYLE[s].ring, grade === s ? 'ring-2 ring-au-accent' : 'opacity-80 hover:opacity-100')}
+                  key={s + (grade === s ? '-on' : '')}
+                  className={cn(CARD, 'grid gap-0.5 border-t-4 p-3 text-left transition', SC_STYLE[s].ring, grade === s ? 'ms-pop-in scale-[1.02] shadow-au-card-hover ring-2 ring-au-accent' : 'opacity-60 hover:opacity-100')}
                   onClick={() => {
                     setGrade(s);
                     setOverride('');
@@ -603,6 +716,8 @@ function GradeCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
                     const res = await gradeKpiPlanAction({ planId: plan.id, grade: grade!, amount: override.trim() ? amount : null, note });
                     if (res.error !== undefined) return void toast.error(errText(res.error));
                     toast.success(`Baholandi: ${som(res.amount)} — Moliya va xodimga yuborildi`);
+                    if (grade === 'great') celebrate('Juda yaxshi!');
+                    onDone?.();
                     router.refresh();
                   })
                 }
@@ -620,24 +735,96 @@ function GradeCard({ plan, member }: { plan: KpiPlan; member: TeamMember }) {
   );
 }
 
+/** One row in a two-pane queue (left list). */
+function QueueRow({
+  member,
+  meta,
+  chip,
+  active,
+  onClick,
+  index,
+}: {
+  member: TeamMember;
+  meta: string;
+  chip: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  index: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'true' : undefined}
+      className={cn(
+        'ms-rise flex w-full items-center gap-3 rounded-au-ctl px-3 py-2.5 text-left transition-colors',
+        active ? 'bg-au-accent-soft ring-1 ring-au-accent/40' : 'hover:bg-au-card-2',
+      )}
+      style={{ ['--i' as string]: Math.min(index, 8) }}
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-au-card-2 text-xs font-bold text-au-muted uppercase">
+        {member.first_name[0]}
+        {member.last_name[0]}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-au-ink">
+          {member.first_name} {member.last_name}
+        </span>
+        <span className="block truncate text-[11px] text-au-faint">{meta}</span>
+      </span>
+      {chip}
+    </button>
+  );
+}
+
+/** List on the left, the selected item on the right; after a decision the
+ * next pending one slides in. On phones the list sits above the detail. */
+function TwoPane({ list, detail, progress }: { list: React.ReactNode; detail: React.ReactNode; progress?: { done: number; total: number } }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+      <div className={cn(CARD, 'grid gap-1 p-2 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto')}>
+        {progress && progress.total > 0 && (
+          <div className="px-2 pt-1 pb-2">
+            <div className="mb-1 flex justify-between text-[11px] font-semibold text-au-muted">
+              <span>Bajarildi</span>
+              <span className="tabular-nums">
+                {progress.done}/{progress.total}
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-au-card-2">
+              <div className="h-full rounded-full bg-au-ok transition-[width] duration-500 ease-out" style={{ width: `${(progress.done / progress.total) * 100}%` }} />
+            </div>
+          </div>
+        )}
+        {list}
+      </div>
+      <div className="min-w-0">{detail}</div>
+    </div>
+  );
+}
+
 export function TeamKpi({
   team,
   plans,
   thisMonth,
   nextMonth,
   prevMonth,
+  heatMonths,
 }: {
   team: TeamMember[];
   plans: KpiPlan[];
   thisMonth: string;
   nextMonth: string;
   prevMonth: string;
+  /** Oldest → newest, for the team heat map. */
+  heatMonths: string[];
 }) {
   const byUser = useMemo(() => new Map(team.map((m) => [m.id, m])), [team]);
   const planOf = (uid: string, month: string) => plans.find((p) => p.user_id === uid && p.month === month);
-  const nextPlans = plans.filter((p) => p.month === nextMonth && p.status !== 'draft' && byUser.has(p.user_id));
   const order = { submitted: 0, returned: 1, approved: 2, draft: 3 } as const;
-  nextPlans.sort((a, b) => order[a.status] - order[b.status]);
+  const nextPlans = plans
+    .filter((p) => p.month === nextMonth && p.status !== 'draft' && byUser.has(p.user_id))
+    .sort((a, b) => order[a.status] - order[b.status]);
   const missingNext = team.filter((m) => {
     const p = planOf(m.id, nextMonth);
     return !p || p.status === 'draft';
@@ -647,16 +834,18 @@ export function TeamKpi({
     .sort((a, b) => Number(!!a.grade) - Number(!!b.grade) || b.month.localeCompare(a.month));
   const pendingReview = nextPlans.filter((p) => p.status === 'submitted').length;
   const pendingGrade = toGrade.filter((p) => !p.grade).length;
-  const cell = (p: KpiPlan | undefined) =>
-    !p || p.status === 'draft' ? (
-      <Chip className={STATUS_CHIP.missing}>Topshirilmagan</Chip>
-    ) : p.grade ? (
-      <Chip className={SC_STYLE[p.grade].chip}>
-        {SCENARIO_LABEL[p.grade]} · {som(p.grade_amount)}
-      </Chip>
-    ) : (
-      <Chip className={STATUS_CHIP[p.status]}>{STATUS_LABEL[p.status]}</Chip>
-    );
+
+  // Selection per queue; after a decision jump to the next still-pending item.
+  const [reviewSel, setReviewSel] = useState<string | null>(() => nextPlans.find((p) => p.status === 'submitted')?.id ?? nextPlans[0]?.id ?? null);
+  const [gradeSel, setGradeSel] = useState<string | null>(() => toGrade.find((p) => !p.grade)?.id ?? toGrade[0]?.id ?? null);
+  const nextAfter = (list: KpiPlan[], current: string | null, pending: (p: KpiPlan) => boolean) => {
+    const i = list.findIndex((p) => p.id === current);
+    const rest = [...list.slice(i + 1), ...list.slice(0, Math.max(0, i))];
+    return rest.find(pending)?.id ?? current;
+  };
+  const reviewPlan = nextPlans.find((p) => p.id === reviewSel) ?? nextPlans[0];
+  const gradePlan = toGrade.find((p) => p.id === gradeSel) ?? toGrade[0];
+  const gradedThisMonth = plans.filter((p) => p.month === thisMonth || p.month === prevMonth);
 
   return (
     <Tabs defaultValue={pendingReview ? 'review' : pendingGrade ? 'grade' : 'team'}>
@@ -669,7 +858,7 @@ export function TeamKpi({
         <Countdown month={nextMonth} />
       </div>
 
-      <TabsContent value="review" className="mt-4 grid gap-3 outline-none">
+      <TabsContent value="review" className="mt-4 grid gap-4 outline-none">
         <div className="flex flex-wrap items-center gap-2 text-sm text-au-muted">
           <b className="text-au-ink">{monthName(nextMonth)}</b> rejalari · {team.length - missingNext.length} / {team.length} topshirdi
         </div>
@@ -685,44 +874,78 @@ export function TeamKpi({
             </div>
           </div>
         )}
-        {nextPlans.length === 0 && <p className="text-sm text-au-muted">Hozircha topshirilgan reja yo‘q.</p>}
-        {nextPlans.map((p) => (
-          <ReviewCard key={p.id} plan={p} member={byUser.get(p.user_id)!} />
-        ))}
+        {nextPlans.length === 0 ? (
+          <p className="text-sm text-au-muted">Hozircha topshirilgan reja yo‘q.</p>
+        ) : (
+          <TwoPane
+            progress={{ done: nextPlans.length - pendingReview, total: nextPlans.length }}
+            list={nextPlans.map((p, i) => {
+              const m = byUser.get(p.user_id)!;
+              return (
+                <QueueRow
+                  key={p.id}
+                  index={i}
+                  member={m}
+                  meta={`${p.items.length} ko‘rsatkich${isLate(p) ? ' · kechikdi' : ''}`}
+                  chip={<Chip className={STATUS_CHIP[p.status]}>{STATUS_LABEL[p.status]}</Chip>}
+                  active={p.id === reviewPlan?.id}
+                  onClick={() => setReviewSel(p.id)}
+                />
+              );
+            })}
+            detail={
+              reviewPlan && (
+                <div key={reviewPlan.id} className="ms-enter-right">
+                  <ReviewCard
+                    plan={reviewPlan}
+                    member={byUser.get(reviewPlan.user_id)!}
+                    onDone={() => setReviewSel(nextAfter(nextPlans, reviewPlan.id, (p) => p.status === 'submitted' && p.id !== reviewPlan.id))}
+                  />
+                </div>
+              )
+            }
+          />
+        )}
       </TabsContent>
 
-      <TabsContent value="grade" className="mt-4 grid gap-3 outline-none">
-        {toGrade.length === 0 && <p className="text-sm text-au-muted">Baholanadigan tasdiqlangan reja yo‘q.</p>}
-        {toGrade.map((p) => (
-          <GradeCard key={p.id} plan={p} member={byUser.get(p.user_id)!} />
-        ))}
+      <TabsContent value="grade" className="mt-4 grid gap-4 outline-none">
+        <GradeCalibration plans={gradedThisMonth} />
+        {toGrade.length === 0 ? (
+          <p className="text-sm text-au-muted">Baholanadigan tasdiqlangan reja yo‘q.</p>
+        ) : (
+          <TwoPane
+            progress={{ done: toGrade.length - pendingGrade, total: toGrade.length }}
+            list={toGrade.map((p, i) => {
+              const m = byUser.get(p.user_id)!;
+              return (
+                <QueueRow
+                  key={p.id}
+                  index={i}
+                  member={m}
+                  meta={`${monthName(p.month)}${p.self_result ? ` · o‘zi: ${SCENARIO_LABEL[p.self_result]}` : ''}`}
+                  chip={p.grade ? <Chip className={SC_STYLE[p.grade].chip}>{SCENARIO_LABEL[p.grade]}</Chip> : <Chip className="bg-au-accent-soft text-au-accent-text">Kutilmoqda</Chip>}
+                  active={p.id === gradePlan?.id}
+                  onClick={() => setGradeSel(p.id)}
+                />
+              );
+            })}
+            detail={
+              gradePlan && (
+                <div key={gradePlan.id} className="ms-enter-right">
+                  <GradeCard
+                    plan={gradePlan}
+                    member={byUser.get(gradePlan.user_id)!}
+                    onDone={() => setGradeSel(nextAfter(toGrade, gradePlan.id, (p) => !p.grade && p.id !== gradePlan.id))}
+                  />
+                </div>
+              )
+            }
+          />
+        )}
       </TabsContent>
 
       <TabsContent value="team" className="mt-4 outline-none">
-        <div className={cn(CARD, 'overflow-x-auto')}>
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b border-au-line text-left text-[11px] font-semibold tracking-wide text-au-faint uppercase">
-                <th className="px-4 py-2.5">Xodim</th>
-                <th className="px-3 py-2.5">{monthName(prevMonth)}</th>
-                <th className="px-3 py-2.5">{monthName(thisMonth)}</th>
-                <th className="px-3 py-2.5">{monthName(nextMonth)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {team.map((m) => (
-                <tr key={m.id} className="border-b border-au-line/60 last:border-0">
-                  <td className="px-4 py-2.5 font-semibold text-au-ink">
-                    {m.first_name} {m.last_name}
-                  </td>
-                  <td className="px-3 py-2.5">{cell(planOf(m.id, prevMonth))}</td>
-                  <td className="px-3 py-2.5">{cell(planOf(m.id, thisMonth))}</td>
-                  <td className="px-3 py-2.5">{cell(planOf(m.id, nextMonth))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <KpiHeatmap team={team} plans={plans} months={heatMonths} />
       </TabsContent>
     </Tabs>
   );

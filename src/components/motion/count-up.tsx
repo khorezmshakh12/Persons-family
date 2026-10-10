@@ -42,8 +42,19 @@ export function CountUp({ value, duration = 900 }: { value: string; duration?: n
     }
     let raf = 0;
     let start = 0;
+    let done = false;
+    // requestAnimationFrame pauses in hidden tabs / a backgrounded Telegram
+    // Mini App, which used to leave a half-counted (wrong) number on screen.
+    // Whatever happens to the frames, the real value lands on time.
+    let safety: ReturnType<typeof setTimeout> | undefined;
     const run = () => {
+      safety = setTimeout(() => {
+        done = true;
+        cancelAnimationFrame(raf);
+        setShown(value);
+      }, duration + 150);
       const tick = (t: number) => {
+        if (done) return;
         if (!start) start = t;
         const p = Math.min(1, (t - start) / duration);
         const eased = 1 - Math.pow(1 - p, 3);
@@ -56,7 +67,10 @@ export function CountUp({ value, duration = 900 }: { value: string; duration?: n
     const el = ref.current;
     if (!el || typeof IntersectionObserver === 'undefined') {
       run();
-      return () => cancelAnimationFrame(raf);
+      return () => {
+        cancelAnimationFrame(raf);
+        clearTimeout(safety);
+      };
     }
     const io = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) {
@@ -68,6 +82,7 @@ export function CountUp({ value, duration = 900 }: { value: string; duration?: n
     return () => {
       io.disconnect();
       cancelAnimationFrame(raf);
+      clearTimeout(safety);
     };
   }, [value, duration]);
 

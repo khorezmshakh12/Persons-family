@@ -3,9 +3,11 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
+import { logSystemAction } from '@/lib/audit-log';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap, requireSection } from '@/lib/auth/require-admin';
-import { telegramBot, isTelegramConfigured, sendTelegramMessageToMany, escapeTelegramText, TELEGRAM_WEBAPP_URL } from '@/lib/telegram';
+import { telegramBot, TELEGRAM_WEBAPP_URL } from '@/lib/telegram';
+import { recordNotifications } from '@/lib/notifications';
 
 export type TelegramActionState = { error?: string; success?: boolean } | undefined;
 
@@ -52,42 +54,37 @@ export async function adminDisconnectTelegramAction(
   } catch {
     return { error: 'updateFailed' };
   }
+  logSystemAction('staff.telegram_disconnect', `Disconnected Telegram of ${parsed.data.id}`);
 
   revalidatePath('/[locale]/staff', 'page');
   return { success: true };
 }
 
-const broadcastSchema = z.object({ message: z.string().trim().min(1).max(2000) });
-
-/** Hidden CEO-only tool: an urgent notification to every staff member who
- * has connected Telegram, regardless of role. */
-export async function sendBroadcastAction(
-  _prevState: TelegramActionState,
-  formData: FormData,
-): Promise<TelegramActionState> {
+/** Platform › Telegram: an in-app reminder (bell, "Harakat kerak") to the
+ * people who haven't linked Telegram yet — they can't be messaged there. */
+export async function remindTelegramLinkAction(userIds: string[]): Promise<{ error?: string; sent?: number }> {
   try {
-    await requireCap('news.publish');
+    await requireSection('telegramSetup');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
-
-  if (!isTelegramConfigured()) return { error: 'notConfigured' };
-
-  const parsed = broadcastSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: 'invalidInput' };
-
-  const staff = await sql<{ telegram_id: number }[]>`
-    select telegram_id from profiles where telegram_id is not null
-  `;
-
-  try {
-    const text = `📢 <b>E'lon</b>\n\n${escapeTelegramText(parsed.data.message)}`;
-    await sendTelegramMessageToMany(staff.map((s) => s.telegram_id), text);
-  } catch (error) {
-    console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
-  }
-
-  return { success: true };
+  const ids = z.array(z.string().uuid()).max(500).safeParse(userIds);
+  if (!ids.success || !ids.data.length) return { error: 'invalidInput' };
+  const rows = await sql<{ id: string }[]>`
+    select p.id from profiles p
+    where p.id = any(${sql.array(ids.data)}::uuid[]) and p.is_active and p.telegram_id is null
+      and not exists (select 1 from notifications n where n.user_id = p.id and n.ref = 'tg-link' and n.action)`;
+  await recordNotifications(
+    rows.map((r) => r.id),
+    {
+      kind: 'system',
+      text: "📱 Telegram'ni ulang\nVazifa, oylik va murojaat xabarlari telefoningizga kelishi uchun: Sozlamalar › Telegram › «Ulash».",
+      href: '/settings?s=telegram',
+      action: true,
+      ref: 'tg-link',
+    },
+  );
+  return { sent: rows.length };
 }
 
 /** One-time (or after-a-domain-change) setup step: registers this

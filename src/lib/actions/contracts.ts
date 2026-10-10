@@ -146,6 +146,39 @@ export async function createDutyAction(
   return {};
 }
 
+const updateDutySchema = dutySchema.extend({ id: z.string().uuid() }).omit({ staffId: true });
+
+export async function updateDutyAction(
+  _prevState: ContractActionState,
+  formData: FormData,
+): Promise<ContractActionState> {
+  try {
+    await requireCap('contracts.manage');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+
+  const parsed = updateDutySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  try {
+    const res = await sql`
+      update staff_duties set
+        contract_id = ${parsed.data.contractId || null},
+        title = ${parsed.data.title},
+        description = ${parsed.data.description || null}
+      where id = ${parsed.data.id}
+    `;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+
+  revalidatePath('/[locale]/profile/[id]', 'page');
+  revalidatePath('/[locale]/staff', 'page');
+  return {};
+}
+
 export async function deleteDutyAction(
   _prevState: ContractActionState,
   formData: FormData,

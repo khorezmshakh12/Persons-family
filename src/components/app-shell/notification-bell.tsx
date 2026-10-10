@@ -1,34 +1,47 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useFormatter, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Bell, Volume2, VolumeX } from 'lucide-react';
+import {
+  AlertTriangle,
+  BarChart3,
+  Bell,
+  BookOpen,
+  CheckCheck,
+  Compass,
+  LifeBuoy,
+  ListChecks,
+  Megaphone,
+  MessageCircle,
+  Settings2,
+  Star,
+  Target,
+  Volume2,
+  VolumeX,
+  Wallet,
+} from 'lucide-react';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Link } from '@/i18n/navigation';
-import { getNotificationBellDataAction } from '@/lib/actions/notification-bell';
+import { getNotificationBellDataAction, markNotificationsReadAction } from '@/lib/actions/notification-bell';
 import {
   markConversationReadAction,
-  markIssueSeenAction,
   markTasksSeenAction,
   markWarningsSeenAction,
   markLessonPlanAlertsSeenAction,
 } from '@/lib/actions/notifications';
+import type { FeedItem } from '@/lib/notifications';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { useNotificationChime } from './use-notification-chime';
-import { emitLiveEvent, type LiveEventDetail } from '@/components/motion/events';
+import { emitLiveEvent, type LiveEventKind } from '@/components/motion/events';
+
+export type { FeedItem };
 
 export type UnreadChatItem = {
   id: string;
   senderId: string;
   messageText: string | null;
-  createdAt: string;
-};
-
-export type UnseenIssueItem = {
-  id: string;
-  title: string;
   createdAt: string;
 };
 
@@ -50,10 +63,60 @@ export type UnseenLessonPlanAlertItem = {
   createdAt: string;
 };
 
+/* Bildirishnomalar markazi (v8-A, 2026-10-10). One list, three views:
+ * "Harakat kerak" (things waiting on me — approve, confirm, a new task),
+ * "O‘qilmagan" and "Hammasi". Stored notifications (the `notifications`
+ * table — every kinded Telegram send and every notifyUsers call lands there)
+ * merge with the four live sources that keep their own read state: unread
+ * DMs, unseen tasks, unseen warnings and the lesson-plan report. */
+
+type Row = {
+  key: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  href: string | null;
+  at: string;
+  unread: boolean;
+  action: boolean;
+  open: () => void;
+};
+
+const KIND_ICON: Record<string, ComponentType<{ className?: string }>> = {
+  chat: MessageCircle,
+  task: ListChecks,
+  issue: LifeBuoy,
+  news: Megaphone,
+  kpi: Target,
+  pay: Wallet,
+  stars: Star,
+  lesson: BookOpen,
+  report: BarChart3,
+  perforce: Compass,
+  warning: AlertTriangle,
+};
+const KIND_TINT: Record<string, string> = {
+  chat: 'bg-au-info-soft text-au-info',
+  task: 'bg-au-accent-soft text-au-accent-text',
+  issue: 'bg-au-bad-soft text-au-bad',
+  warning: 'bg-au-bad-soft text-au-bad',
+  pay: 'bg-au-ok-soft text-au-ok',
+  stars: 'bg-au-accent-soft text-au-accent-text',
+  kpi: 'bg-au-info-soft text-au-info',
+};
+const LIVE_KIND: Record<string, LiveEventKind> = { chat: 'chat', task: 'task', issue: 'issue', warning: 'warning', lesson: 'lessonPlan' };
+
+type View = 'action' | 'unread' | 'all';
+const VIEWS: { v: View; n: string }[] = [
+  { v: 'action', n: 'Harakat kerak' },
+  { v: 'unread', n: 'O‘qilmagan' },
+  { v: 'all', n: 'Hammasi' },
+];
+
 export function NotificationBell({
   userId,
   initialUnreadChats,
-  initialUnseenIssues,
+  initialFeed,
   initialUnseenTasks,
   initialUnseenWarnings,
   initialUnseenLessonPlanAlerts,
@@ -61,7 +124,7 @@ export function NotificationBell({
 }: {
   userId: string;
   initialUnreadChats: UnreadChatItem[];
-  initialUnseenIssues: UnseenIssueItem[];
+  initialFeed: FeedItem[];
   initialUnseenTasks: UnseenTaskItem[];
   initialUnseenWarnings: UnseenWarningItem[];
   initialUnseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
@@ -71,25 +134,20 @@ export function NotificationBell({
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
   const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
-  const [unseenIssues, setUnseenIssues] = useState(initialUnseenIssues);
+  const [feed, setFeed] = useState(initialFeed);
   const [unseenTasks, setUnseenTasks] = useState(initialUnseenTasks);
   const [unseenWarnings, setUnseenWarnings] = useState(initialUnseenWarnings);
   const [unseenLessonPlanAlerts, setUnseenLessonPlanAlerts] = useState(initialUnseenLessonPlanAlerts);
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<View>('unread');
 
-  // Realtime keeps the bell live without a refetch: a Firestore signal doc
-  // changing (see lib/gcp/firestoreAdmin.ts's bumpNavBadgeSignal, called by
-  // every Server Action that touches staff_chats/issues/tasks/
-  // staff_warnings for this user) triggers a full resync from Cloud SQL —
-  // same "always re-derive the true set" reasoning as NavBadgesProvider,
-  // just returning the full item list here instead of a boolean.
-  // lesson_plan_compliance_alerts is a CEO-only broadcast (no per-user
-  // column), so it listens to the shared board_signals/lesson_plan_alerts
-  // doc instead of its own uid doc.
+  // Re-derive everything from Cloud SQL whenever this person's
+  // nav_badge_signals doc (bumped by every notification write) or the shared
+  // lesson-plan signal changes, and on every open.
   const resync = useCallback(async () => {
     const data = await getNotificationBellDataAction();
     setUnreadChats(data.unreadChats);
-    setUnseenIssues(data.unseenIssues);
+    setFeed(data.feed);
     setUnseenTasks(data.unseenTasks);
     setUnseenWarnings(data.unseenWarnings);
     setUnseenLessonPlanAlerts(data.unseenLessonPlanAlerts);
@@ -98,10 +156,7 @@ export function NotificationBell({
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
-
-    // Dynamically imported so the Firestore/Auth SDK isn't part of the
-    // bundle every page has to parse before hydrating — see the identical
-    // comment in nav-badges-context.tsx.
+    // Dynamically imported so the Firestore SDK stays out of the first bundle.
     Promise.all([import('firebase/firestore'), import('@/lib/firebase/client')])
       .then(async ([{ doc, onSnapshot }, { ensureRealtimeSignedIn, getRealtimeDb }]) => {
         await ensureRealtimeSignedIn();
@@ -115,357 +170,292 @@ export function NotificationBell({
         };
       })
       .catch((error) => console.error('notification bell realtime sign-in failed', error));
-
     return () => {
       cancelled = true;
       unsubscribe?.();
     };
   }, [userId, resync]);
 
-  const totalCount =
-    unreadChats.length + unseenIssues.length + unseenTasks.length + unseenWarnings.length + unseenLessonPlanAlerts.length;
+  // Optimistic removal + background persist; a failed write puts it back.
+  // No router.refresh() here — it raced the <Link> navigation (see git
+  // history of this file); each destination page clears its own dots.
+  const fail = useCallback(
+    (undo: () => void) => (error: unknown) => {
+      console.error('notification mark failed', error);
+      undo();
+      toast.error(t('markReadFailed'));
+    },
+    [t],
+  );
 
-  // A little attention wiggle on the bell itself (not just the badge), plus a
-  // short chime, the moment a *new* item lands — skips the initial mount
-  // (that's just the server-rendered starting count, not a "new" arrival) and
-  // skips drops (marking something read shouldn't shake or beep at anyone).
-  // Bumping shakeKey remounts the icon under a fresh `key`, which restarts
-  // the CSS animation — simpler than juggling animation-restart timers. The
-  // badge gets the same treatment for free: it's keyed on `totalCount`, so a
-  // changed count remounts it and replays `.animate-pop-in` (transform-only,
-  // so even a stalled animation leaves the number readable).
-  //
-  // The ref comparison is the whole guard. The effect depends on nothing but
-  // `totalCount` and `play` (a stable useCallback that never changes
-  // identity), so it cannot re-arm itself, and a re-render at an unchanged
-  // count is a no-op.
-  //
-  // prefers-reduced-motion is handled entirely in globals.css, where both
-  // `.animate-shake` and `.animate-pop-in` collapse to `animation: none` —
-  // which is why nothing here checks for it. The chime is a separate channel
-  // and stays on regardless; muting it is its own control below.
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    const lastBySender = new Map<string, UnreadChatItem>();
+    for (const m of unreadChats) {
+      const e = lastBySender.get(m.senderId);
+      if (!e || e.createdAt < m.createdAt) lastBySender.set(m.senderId, m);
+    }
+    for (const m of lastBySender.values()) {
+      const count = unreadChats.filter((c) => c.senderId === m.senderId).length;
+      out.push({
+        key: `chat:${m.senderId}`,
+        kind: 'chat',
+        title: profileNames[m.senderId] ?? t('unknownSender'),
+        body: `${count > 1 ? `${count} ta xabar · ` : ''}${m.messageText ?? t('mediaMessage')}`,
+        href: `/chat?with=${m.senderId}`,
+        at: m.createdAt,
+        unread: true,
+        action: false,
+        open: () => {
+          const removed = unreadChats.filter((c) => c.senderId === m.senderId);
+          setUnreadChats((prev) => prev.filter((c) => c.senderId !== m.senderId));
+          markConversationReadAction(m.senderId).catch(fail(() => setUnreadChats((prev) => [...removed, ...prev])));
+        },
+      });
+    }
+    const clearTasks = () => {
+      const removed = unseenTasks;
+      setUnseenTasks([]);
+      markTasksSeenAction().catch(fail(() => setUnseenTasks(removed)));
+    };
+    for (const x of unseenTasks)
+      out.push({ key: `task:${x.id}`, kind: 'task', title: 'Yangi vazifa', body: x.title, href: '/tasks', at: x.createdAt, unread: true, action: true, open: clearTasks });
+    const clearWarnings = () => {
+      const removed = unseenWarnings;
+      setUnseenWarnings([]);
+      markWarningsSeenAction().catch(fail(() => setUnseenWarnings(removed)));
+    };
+    for (const x of unseenWarnings)
+      out.push({
+        key: `warn:${x.id}`,
+        kind: 'warning',
+        title: 'Sizga ogohlantirish berildi',
+        body: x.reason,
+        href: `/profile/${userId}`,
+        at: x.createdAt,
+        unread: true,
+        action: false,
+        open: clearWarnings,
+      });
+    const clearLesson = () => {
+      const removed = unseenLessonPlanAlerts;
+      setUnseenLessonPlanAlerts([]);
+      markLessonPlanAlertsSeenAction().catch(fail(() => setUnseenLessonPlanAlerts(removed)));
+    };
+    for (const x of unseenLessonPlanAlerts)
+      out.push({ key: `lp:${x.id}`, kind: 'lesson', title: t('lessonPlanAlerts'), body: x.summary, href: '/lesson-plans', at: x.createdAt, unread: true, action: false, open: clearLesson });
+    for (const n of feed)
+      out.push({
+        key: `n:${n.id}`,
+        kind: n.kind,
+        title: n.title,
+        body: n.body,
+        href: n.href,
+        at: n.createdAt,
+        unread: n.unread,
+        action: n.action,
+        open: () => {
+          if (!n.unread) return;
+          setFeed((prev) => prev.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
+          markNotificationsReadAction([n.id]).catch(fail(() => setFeed((prev) => prev.map((x) => (x.id === n.id ? { ...x, unread: true } : x)))));
+        },
+      });
+    return out.sort((a, b) => (a.at < b.at ? 1 : -1));
+  }, [unreadChats, unseenTasks, unseenWarnings, unseenLessonPlanAlerts, feed, profileNames, userId, t, fail]);
+
+  const unreadCount = rows.filter((r) => r.unread).length;
+  const actionCount = rows.filter((r) => r.action).length;
+  const shown = rows.filter((r) => (view === 'action' ? r.action : view === 'unread' ? r.unread : true)).slice(0, 80);
+
+  // Open on "Harakat kerak" when something waits on me, else "O‘qilmagan".
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    if (next) {
+      setView(actionCount ? 'action' : 'unread');
+      resync();
+    }
+  }
+
+  function markAll() {
+    const before = { feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts };
+    setFeed((prev) => prev.map((x) => ({ ...x, unread: false })));
+    setUnseenTasks([]);
+    setUnseenWarnings([]);
+    setUnseenLessonPlanAlerts([]);
+    Promise.all([
+      markNotificationsReadAction('all'),
+      before.unseenTasks.length ? markTasksSeenAction() : null,
+      before.unseenWarnings.length ? markWarningsSeenAction() : null,
+      before.unseenLessonPlanAlerts.length ? markLessonPlanAlertsSeenAction() : null,
+    ]).catch(
+      fail(() => {
+        setFeed(before.feed);
+        setUnseenTasks(before.unseenTasks);
+        setUnseenWarnings(before.unseenWarnings);
+        setUnseenLessonPlanAlerts(before.unseenLessonPlanAlerts);
+      }),
+    );
+  }
+
+  // Shake + chime when the unread count grows (never on mount or on drops).
   const previousCountRef = useRef<number | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
   const { play, muted, toggleMuted } = useNotificationChime();
   useEffect(() => {
-    if (previousCountRef.current !== null && totalCount > previousCountRef.current) {
+    if (previousCountRef.current !== null && unreadCount > previousCountRef.current) {
       setShakeKey((k) => k + 1);
       play();
     }
-    previousCountRef.current = totalCount;
-  }, [totalCount, play]);
+    previousCountRef.current = unreadCount;
+  }, [unreadCount, play]);
 
-  // MOTION v3 "Dynamic Island": announce the newest arrival as a window
-  // event. Pure broadcast — no state, no server calls — and a no-op unless
-  // the motion layer (MOTION_ROLES only) is listening. Same ref guard as
-  // above: fires only when the count grows, never on mount or on drops.
+  // MOTION v3 "Dynamic Island": announce the newest arrival (same guard).
   const liveCountRef = useRef<number | null>(null);
   useEffect(() => {
     const previous = liveCountRef.current;
-    liveCountRef.current = totalCount;
-    if (previous === null || totalCount <= previous) return;
-    const candidates: (LiveEventDetail & { at: string })[] = [
-      ...unreadChats.map((c) => ({
-        kind: 'chat' as const,
-        text: [profileNames[c.senderId], c.messageText].filter(Boolean).join(': '),
-        href: '/chat',
-        at: c.createdAt,
-      })),
-      ...unseenTasks.map((x) => ({ kind: 'task' as const, text: x.title, href: '/tasks', at: x.createdAt })),
-      ...unseenIssues.map((x) => ({ kind: 'issue' as const, text: x.title, href: '/issues', at: x.createdAt })),
-      ...unseenWarnings.map((x) => ({ kind: 'warning' as const, text: x.reason, at: x.createdAt })),
-      ...unseenLessonPlanAlerts.map((x) => ({
-        kind: 'lessonPlan' as const,
-        text: x.summary,
-        href: '/lesson-plans',
-        at: x.createdAt,
-      })),
-    ];
-    const newest = candidates.sort((a, b) => (a.at < b.at ? 1 : -1))[0];
-    if (newest?.text) emitLiveEvent({ kind: newest.kind, text: newest.text, href: newest.href });
-  }, [totalCount, unreadChats, unseenTasks, unseenIssues, unseenWarnings, unseenLessonPlanAlerts, profileNames]);
-
-  // One preview row per sender (their latest unread message), newest first.
-  const chatPreviews = Array.from(
-    unreadChats
-      .reduce((map, m) => {
-        const existing = map.get(m.senderId);
-        if (!existing || existing.createdAt < m.createdAt) map.set(m.senderId, m);
-        return map;
-      }, new Map<string, UnreadChatItem>())
-      .values(),
-  )
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-    .slice(0, 5);
-
-  const issuePreviews = [...unseenIssues].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
-  const taskPreviews = [...unseenTasks].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
-  const warningPreviews = [...unseenWarnings].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
-  const lessonPlanAlertPreviews = [...unseenLessonPlanAlerts]
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-    .slice(0, 5);
-
-  // Optimistically drop the item(s) from local state the instant it's
-  // clicked — the badge shouldn't wait on a network round trip, and the
-  // click also drives a <Link> navigation that must never be blocked by an
-  // awaited mutation — then persist the read/seen state in the background
-  // so it stays cleared on reload and for the sidebar dot in /chat, which
-  // listens for this same row change. If the mutation itself fails, the
-  // optimistic removal is reverted and surfaced as a toast instead of
-  // silently leaving the client and database out of sync.
-  //
-  // Deliberately NO router.refresh() chained onto these mutations — that is
-  // what used to stop a notification from opening at all. Since the Cloud
-  // SQL migration these mark-seen calls are Server Actions, so each one is
-  // dispatched into Next's router action queue the moment it's called and
-  // becomes the queue's pending action. The <Link>'s own ACTION_NAVIGATE
-  // fires immediately after this handler returns (next/link runs the
-  // caller's onClick first, then navigates), which discards that pending
-  // server action and takes over the slot. When the discarded action's
-  // response finally lands, the queue clears its pending slot even though
-  // the navigation is still in flight — so a router.refresh() in the
-  // mutation's .then() found an "idle" queue and ran straight away against
-  // the *pre-click* router state. Resolving after the navigation, it then
-  // overwrote it: the dropdown closed, the row was correctly marked seen,
-  // and the user was left sitting on the page they clicked from.
-  //
-  // Nothing is lost by dropping it. Every destination refreshes the sidebar
-  // dots itself once it has actually mounted — MarkTasksSeen (/tasks),
-  // MarkIssuesSeen (/issues), MarkWarningsSeen (own /profile/<id>) and
-  // chat-hub-client's own markConversationReadAction all do mark-seen +
-  // router.refresh() *after* the navigation has committed, so there is
-  // nothing left to race — and every mark-seen query also bumps
-  // nav_badge_signals/{uid} (see lib/db/queries/mark-seen.ts), which
-  // NavBadgesProvider listens to and re-derives from. ('lessonPlans' isn't
-  // a sidebar badge key at all — see computeNavBadgeKeys — so that one's
-  // refresh never cleared anything in the first place.)
-  function handleChatClick(senderId: string) {
-    const removed = unreadChats.filter((m) => m.senderId === senderId);
-    setUnreadChats((prev) => prev.filter((m) => m.senderId !== senderId));
-    setOpen(false);
-    markConversationReadAction(senderId).catch((error) => {
-      console.error('markConversationReadAction failed', error);
-      setUnreadChats((prev) => [...removed, ...prev]);
-      toast.error(t('markReadFailed'));
-    });
-  }
-
-  function handleIssueClick(issueId: string) {
-    const removed = unseenIssues.find((i) => i.id === issueId);
-    setUnseenIssues((prev) => prev.filter((i) => i.id !== issueId));
-    setOpen(false);
-    markIssueSeenAction(issueId).catch((error) => {
-      console.error('markIssueSeenAction failed', error);
-      if (removed) setUnseenIssues((prev) => [removed, ...prev]);
-      toast.error(t('markReadFailed'));
-    });
-  }
-
-  // Tasks only expose a bulk "mark all seen" action (mirrors visiting
-  // /tasks via MarkTasksSeen) — there's no per-task equivalent of
-  // markIssueSeenAction, so clicking any one task preview clears the whole
-  // task badge/list.
-  function handleTaskClick() {
-    const removed = unseenTasks;
-    setUnseenTasks([]);
-    setOpen(false);
-    markTasksSeenAction().catch((error) => {
-      console.error('markTasksSeenAction failed', error);
-      setUnseenTasks(removed);
-      toast.error(t('markReadFailed'));
-    });
-  }
-
-  // Warnings only expose a bulk "mark all seen" action (mirrors visiting
-  // one's own profile via MarkWarningsSeen) — same reasoning as
-  // handleTaskClick.
-  function handleWarningClick() {
-    const removed = unseenWarnings;
-    setUnseenWarnings([]);
-    setOpen(false);
-    markWarningsSeenAction().catch((error) => {
-      console.error('markWarningsSeenAction failed', error);
-      setUnseenWarnings(removed);
-      toast.error(t('markReadFailed'));
-    });
-  }
-
-  // Bulk mark-seen, same reasoning as handleTaskClick/handleWarningClick —
-  // there's no per-alert equivalent, and clicking any one preview clears
-  // the whole section. Unlike tasks/issues/warnings, /lesson-plans has no
-  // mark-seen component of its own, so this is the only thing that clears
-  // these alerts.
-  function handleLessonPlanAlertClick() {
-    const removed = unseenLessonPlanAlerts;
-    setUnseenLessonPlanAlerts([]);
-    setOpen(false);
-    markLessonPlanAlertsSeenAction().catch((error) => {
-      console.error('markLessonPlanAlertsSeenAction failed', error);
-      setUnseenLessonPlanAlerts(removed);
-      toast.error(t('markReadFailed'));
-    });
-  }
-
-  // Failsafe: every time the dropdown opens, re-read the absolute truth
-  // from the database and reconcile local state to match it. This is what
-  // actually guarantees correctness regardless of any missed Firestore
-  // signal or a mutation that failed without the user noticing the toast.
-  useEffect(() => {
-    if (open) resync();
-  }, [open, resync]);
+    liveCountRef.current = unreadCount;
+    if (previous === null || unreadCount <= previous) return;
+    const newest = rows.find((r) => r.unread);
+    if (newest) emitLiveEvent({ kind: LIVE_KIND[newest.kind] ?? 'info', text: [newest.title, newest.body].filter(Boolean).join(': '), href: newest.href ?? undefined });
+  }, [unreadCount, rows]);
 
   return (
     <div className="flex items-center">
-      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
         <PopoverPrimitive.Trigger
           render={
             <button
               type="button"
-              aria-label={t('title')}
+              aria-label={unreadCount ? `${t('title')}: ${unreadCount}` : t('title')}
               className="relative grid size-[38px] shrink-0 place-items-center rounded-au-ctl border border-au-line bg-au-card text-au-muted transition-colors duration-150 hover:text-au-ink"
             />
           }
         >
           <Bell key={shakeKey} strokeWidth={1.75} className={cn('size-[17px]', shakeKey > 0 && 'animate-shake')} />
-          {totalCount > 0 && (
+          {unreadCount > 0 && (
             <span
-              key={totalCount}
-              className="animate-pop-in pointer-events-none absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-au-bad px-1 text-[10px] font-bold text-white ring-2 ring-au-bg tabular-nums"
+              key={unreadCount}
+              className={cn(
+                'animate-pop-in pointer-events-none absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ring-2 ring-au-bg tabular-nums',
+                actionCount ? 'bg-au-bad' : 'bg-au-info',
+              )}
             >
-              {totalCount > 9 ? '9+' : totalCount}
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="end" sideOffset={10} className="z-50 outline-none">
-            <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-80 max-w-[90vw] flex-col gap-3 p-4')}>
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-au-ink">{t('title')}</h3>
-                {/* Per-device chime switch — lives with the notifications it
-                    silences (owner, 2026-10-05: a loose speaker icon next to
-                    the bell read as a bug). */}
-                <button
-                  type="button"
-                  onClick={toggleMuted}
-                  aria-pressed={muted}
-                  aria-label={muted ? t('unmuteSound') : t('muteSound')}
-                  title={muted ? t('unmuteSound') : t('muteSound')}
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
-                >
-                  {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-                </button>
-              </div>
-              {totalCount === 0 ? (
-                <p className="text-sm text-au-muted">{t('empty')}</p>
-              ) : (
-                <div className="flex max-h-96 flex-col gap-4 overflow-y-auto">
-                  {chatPreviews.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
-                        {t('messages')}
-                      </p>
-                      {chatPreviews.map((m) => (
-                        <Link
-                          key={m.id}
-                          href={`/chat?with=${m.senderId}`}
-                          onClick={() => handleChatClick(m.senderId)}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
-                        >
-                          <span className="text-sm font-medium text-au-ink">
-                            {profileNames[m.senderId] ?? t('unknownSender')}
-                          </span>
-                          <span className="truncate text-xs text-au-muted">{m.messageText ?? t('mediaMessage')}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                  {issuePreviews.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
-                        {t('issues')}
-                      </p>
-                      {issuePreviews.map((issue) => (
-                        <Link
-                          key={issue.id}
-                          href="/issues"
-                          onClick={() => handleIssueClick(issue.id)}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
-                        >
-                          <span className="truncate text-sm font-medium text-au-ink">{issue.title}</span>
-                          <span className="text-xs text-au-muted">
-                            {format.relativeTime(new Date(issue.createdAt), now)}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                  {taskPreviews.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
-                        {t('tasks')}
-                      </p>
-                      {taskPreviews.map((task) => (
-                        <Link
-                          key={task.id}
-                          href="/tasks"
-                          onClick={handleTaskClick}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
-                        >
-                          <span className="truncate text-sm font-medium text-au-ink">{task.title}</span>
-                          <span className="text-xs text-au-muted">
-                            {format.relativeTime(new Date(task.createdAt), now)}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                  {warningPreviews.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
-                        {t('warnings')}
-                      </p>
-                      {warningPreviews.map((warning) => (
-                        <Link
-                          key={warning.id}
-                          href={`/profile/${userId}`}
-                          onClick={handleWarningClick}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
-                        >
-                          <span className="truncate text-sm font-medium text-au-ink">{warning.reason}</span>
-                          <span className="text-xs text-au-muted">
-                            {format.relativeTime(new Date(warning.createdAt), now)}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                  {lessonPlanAlertPreviews.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="px-2 text-[11px] font-semibold tracking-wide text-au-muted uppercase">
-                        {t('lessonPlanAlerts')}
-                      </p>
-                      {lessonPlanAlertPreviews.map((alert) => (
-                        <Link
-                          key={alert.id}
-                          href="/lesson-plans"
-                          onClick={handleLessonPlanAlertClick}
-                          className="flex flex-col gap-0.5 rounded-lg px-2 py-1.5 hover:bg-au-card-2"
-                        >
-                          <span className="whitespace-pre-line text-sm font-medium text-au-ink">{alert.summary}</span>
-                          <span className="text-xs text-au-muted">
-                            {format.relativeTime(new Date(alert.createdAt), now)}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+            <PopoverPrimitive.Popup className={cn(GLASS_CARD, 'flex w-[380px] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden p-0')}>
+              <div className="flex items-center justify-between gap-2 border-b border-au-line px-4 py-3">
+                <h3 className="text-sm font-bold text-au-ink">
+                  {t('title')}
+                  {unreadCount > 0 && <span className="ml-1.5 text-au-muted tabular-nums">{unreadCount}</span>}
+                </h3>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={markAll}
+                    disabled={!unreadCount}
+                    className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-au-muted hover:bg-au-card-2 hover:text-au-ink disabled:opacity-40"
+                  >
+                    <CheckCheck className="size-3.5" /> Hammasi o‘qildi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleMuted}
+                    aria-pressed={muted}
+                    aria-label={muted ? t('unmuteSound') : t('muteSound')}
+                    title={muted ? t('unmuteSound') : t('muteSound')}
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink"
+                  >
+                    {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+                  </button>
                 </div>
-              )}
+              </div>
+
+              <div role="tablist" className="flex gap-1 border-b border-au-line px-3 py-2">
+                {VIEWS.map(({ v, n }) => {
+                  const c = v === 'action' ? actionCount : v === 'unread' ? unreadCount : 0;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      role="tab"
+                      aria-selected={view === v}
+                      onClick={() => setView(v)}
+                      className={cn(
+                        'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-colors',
+                        view === v ? 'bg-au-primary text-white' : 'text-au-muted hover:bg-au-card-2 hover:text-au-ink',
+                      )}
+                    >
+                      {n}
+                      {c > 0 && (
+                        <span className={cn('rounded-full px-1.5 text-[10px] tabular-nums', view === v ? 'bg-white/20' : v === 'action' ? 'bg-au-bad-soft text-au-bad' : 'bg-au-card-2')}>
+                          {c}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="max-h-[min(28rem,65vh)] overflow-y-auto overscroll-contain p-1.5">
+                {shown.length === 0 ? (
+                  <p className="px-3 py-10 text-center text-sm text-au-muted">
+                    {view === 'action' ? 'Sizdan hech narsa kutilmayapti 🎉' : view === 'unread' ? 'Hammasi o‘qilgan.' : t('empty')}
+                  </p>
+                ) : (
+                  shown.map((r) => {
+                    const Icon = KIND_ICON[r.kind] ?? Bell;
+                    const inner = (
+                      <>
+                        <span className={cn('mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg', KIND_TINT[r.kind] ?? 'bg-au-card-2 text-au-muted')}>
+                          <Icon className="size-4" />
+                        </span>
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className={cn('line-clamp-2 text-[13px] leading-snug', r.unread ? 'font-semibold text-au-ink' : 'font-medium text-au-muted')}>{r.title}</span>
+                          {r.body && <span className="line-clamp-2 text-xs leading-snug whitespace-pre-line text-au-muted">{r.body}</span>}
+                          <span className="flex items-center gap-1.5 text-[11px] text-au-faint">
+                            {format.relativeTime(new Date(r.at), now)}
+                            {r.action && <span className="rounded bg-au-bad-soft px-1 font-semibold text-au-bad">Harakat kerak</span>}
+                          </span>
+                        </span>
+                        {r.unread && <span aria-label="o‘qilmagan" className="mt-2 size-2 shrink-0 rounded-full bg-au-info" />}
+                      </>
+                    );
+                    const cls = cn('flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-au-card-2', r.unread && 'bg-au-card-2/50');
+                    return r.href ? (
+                      <Link
+                        key={r.key}
+                        href={r.href}
+                        onClick={() => {
+                          r.open();
+                          setOpen(false);
+                        }}
+                        className={cls}
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <button key={r.key} type="button" onClick={r.open} className={cls}>
+                        {inner}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-au-line bg-au-card-2 px-4 py-2 text-[11px] text-au-muted">
+                <span>90 kun saqlanadi</span>
+                <Link href="/settings?s=notifications" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 font-semibold hover:text-au-ink">
+                  <Settings2 className="size-3.5" /> Telegram sozlamalari
+                </Link>
+              </div>
             </PopoverPrimitive.Popup>
           </PopoverPrimitive.Positioner>
         </PopoverPrimitive.Portal>
       </PopoverPrimitive.Root>
-
     </div>
   );
 }

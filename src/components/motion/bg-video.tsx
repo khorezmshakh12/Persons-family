@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { currentTheme, subscribeTheme, THEME_SWATCHES, type ThemeId } from '@/lib/themes';
 import { currentBg, readStoredBg, subscribeBg, type BgMode } from '@/lib/bg-mode';
 import { currentMotionLevel, subscribeMotionLevel } from '@/lib/motion-level';
-import { ButterflyCanvas } from '@/components/butterfly/butterfly-canvas';
 
 /**
  * Moving abstract background (public/bg/<theme>.webm|mp4|jpg — seamless
@@ -74,17 +73,6 @@ export function BgVideo({ variant, theme }: { variant: 'site' | 'hero' | 'login'
   const fill = 'pointer-events-none h-full w-full object-cover';
   // Off (the default): nothing at all — heroes keep their gradient.
   if (mode === 'off') return null;
-  // Butterfly: one live WebGL scene behind the whole app only — heroes keep
-  // their gradient (no second GPU context), login stays plain. Still frames
-  // aren't meaningful for it, so it simply doesn't run when motion is off.
-  if (mode === 'butterfly') {
-    if (variant !== 'site' || !play) return null;
-    return (
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
-        <ButterflyCanvas variant="background" />
-      </div>
-    );
-  }
   const media = play ? (
     <video
       key={`${mode}-${id}`}

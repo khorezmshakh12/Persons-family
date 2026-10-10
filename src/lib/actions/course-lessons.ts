@@ -8,6 +8,7 @@ import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
 import { currentMonthKey, isPastMonth } from '@/lib/lesson-months';
 import { can } from '@/lib/permissions';
+import { filledFields } from '@/lib/lesson-plan-status';
 
 export type LessonActionState = { error?: string; errorParams?: Record<string, string> } | undefined;
 export type UploadUrlResult = { path?: string; url?: string; error?: string; detail?: string };
@@ -103,6 +104,7 @@ export async function updateLessonDateAction(
   }
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -137,6 +139,7 @@ export async function updateLessonTopicAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -169,6 +172,7 @@ export async function updateLessonGameLinkAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -209,6 +213,7 @@ export async function updateLessonPlanFieldAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -246,6 +251,7 @@ export async function updateLessonProcedureAction(
   if (!row) return { error: 'dateRequired' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -331,20 +337,25 @@ export async function attachLessonMaterialAction(
   // lesson's signed-read URLs.
   if (!parsed.data.path.includes(`/${parsed.data.lessonId}/`)) return { error: 'forbidden' };
 
-  const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
-    select attachments from course_lessons where id = ${parsed.data.lessonId}
-  `;
-  if (!lesson) return { error: 'forbidden' };
+  const missing = await sql.begin(async (tx) => {
+    const [lesson] = await tx<{ attachments: LessonAttachment[] | null }[]>`
+      select attachments from course_lessons where id = ${parsed.data.lessonId} for update
+    `;
+    if (!lesson) return true;
 
-  const attachments = lesson.attachments ?? [];
-  const nextAttachments: LessonAttachment[] = [
-    ...attachments,
-    { path: parsed.data.path, name: parsed.data.name, type: parsed.data.type, size: parsed.data.size },
-  ];
+    const attachments = lesson.attachments ?? [];
+    const nextAttachments: LessonAttachment[] = [
+      ...attachments,
+      { path: parsed.data.path, name: parsed.data.name, type: parsed.data.type, size: parsed.data.size },
+    ];
 
-  await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    await tx`update course_lessons set attachments = ${tx.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    return false;
+  });
+  if (missing) return { error: 'forbidden' };
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -372,25 +383,30 @@ export async function removeLessonMaterialAction(
   const denial = await lessonWriteDenial(parsed.data.lessonId, user.id, profile?.role);
   if (denial) return { error: denial };
 
-  const [lesson] = await sql<{ attachments: LessonAttachment[] | null }[]>`
-    select attachments from course_lessons where id = ${parsed.data.lessonId}
-  `;
-  if (!lesson) return { error: 'forbidden' };
-
-  const attachments = lesson.attachments ?? [];
   // Only ever delete an object this lesson actually references — `path`
   // arrives from the client, and the storage layer mints delete calls with
   // no ownership check of its own (the old lesson_materials storage policy
   // did that), so an unmatched path must not reach deleteObject().
-  const target = attachments.find((a) => a.path === parsed.data.path);
-  if (!target) return { error: 'forbidden' };
-  const nextAttachments = attachments.filter((a) => a.path !== parsed.data.path);
+  const target = await sql.begin(async (tx) => {
+    const [lesson] = await tx<{ attachments: LessonAttachment[] | null }[]>`
+      select attachments from course_lessons where id = ${parsed.data.lessonId} for update
+    `;
+    if (!lesson) return null;
 
-  await sql`update course_lessons set attachments = ${sql.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    const attachments = lesson.attachments ?? [];
+    const found = attachments.find((a) => a.path === parsed.data.path);
+    if (!found) return null;
+    const nextAttachments = attachments.filter((a) => a.path !== parsed.data.path);
+
+    await tx`update course_lessons set attachments = ${tx.json(nextAttachments)} where id = ${parsed.data.lessonId}`;
+    return found;
+  });
+  if (!target) return { error: 'forbidden' };
 
   await deleteObject('lesson_materials', target.path);
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -491,6 +507,7 @@ export async function moveLessonPlanAction(_prevState: LessonActionState, formDa
   });
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -534,6 +551,7 @@ export async function createLessonCommentAction(
   `;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
   return {};
 }
 
@@ -563,4 +581,158 @@ export async function deleteLessonCommentAction(formData: FormData): Promise<voi
   `;
 
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
+}
+
+const updateCommentSchema = z.object({
+  id: z.string().uuid(),
+  body: z.string().trim().min(1).max(1000),
+});
+
+/** Edit own comment. Same permissions and month-lock rule as delete. */
+export async function updateLessonCommentAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = updateCommentSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  // Author only, same closed-month rule.
+  let row: { id: string } | undefined;
+  try {
+    [row] = await sql<{ id: string }[]>`
+    update lesson_comments c
+    set comment_text = ${parsed.data.body}
+    from course_lessons cl
+    where c.lesson_id = cl.id and c.id = ${parsed.data.id}
+      and c.user_id = ${user.id}
+      and (cl.lesson_date is null or cl.lesson_date >= ${`${currentMonthKey()}-01`})
+    returning c.id
+  `;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  if (!row) return { error: 'forbidden' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
+  return {};
+}
+
+/** Delete an empty lesson slot. Only allowed if no content is filled:
+ * no topic, no aim, language_focus, anticipated_problems, materials, homework,
+ * no attachments, empty procedure. Same permissions and month-lock as edits. */
+export async function deleteLessonSlotAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  const { user, profile } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = idSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidInput' };
+
+  const denial = await lessonWriteDenial(parsed.data.id, user.id, profile?.role);
+  if (denial) return { error: denial };
+
+  // Fetch the lesson to check if it's empty before deleting.
+  const [lesson] = await sql<{
+    topic: string | null;
+    aim: string | null;
+    language_focus: string | null;
+    anticipated_problems: string | null;
+    materials: string | null;
+    homework: string | null;
+    procedure: unknown;
+    attachments: LessonAttachment[] | null;
+  }[]>`
+    select topic, aim, language_focus, anticipated_problems, materials, homework, procedure, attachments
+    from course_lessons where id = ${parsed.data.id}
+  `;
+  if (!lesson) return { error: 'forbidden' };
+
+  // Check if all content fields are empty.
+  const hasContent =
+    lesson.topic?.trim() ||
+    lesson.aim?.trim() ||
+    lesson.language_focus?.trim() ||
+    lesson.anticipated_problems?.trim() ||
+    lesson.materials?.trim() ||
+    lesson.homework?.trim() ||
+    (lesson.attachments && lesson.attachments.length > 0) ||
+    (lesson.procedure && typeof lesson.procedure === 'string' && lesson.procedure !== '[]');
+
+  if (hasContent) return { error: 'notEmpty' };
+
+  // Delete the row.
+  const [deleted] = await sql<{ id: string }[]>`
+    delete from course_lessons where id = ${parsed.data.id}
+    returning id
+  `;
+  if (!deleted) return { error: 'forbidden' };
+
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  revalidatePath('/[locale]/lesson-plans', 'page');
+  return {};
+}
+
+/* ------------------------------------------------------------ copy a plan */
+
+export type CopySource = { id: string; label: string; filled: number };
+
+/** Lessons whose plan could seed `lessonId`: the same course and lesson
+ * number in the teacher's other groups, and the previous lesson of this
+ * group — newest content first. */
+export async function lessonCopySourcesAction(lessonId: string): Promise<CopySource[]> {
+  const { user } = await getAuthState();
+  if (!user || !z.string().uuid().safeParse(lessonId).success) return [];
+  const rows = await sql<{ id: string; label: string; topic: string | null; aim: string | null; language_focus: string | null; anticipated_problems: string | null; homework: string | null }[]>`
+    with t as (
+      select cl.group_id, cl.lesson_number, g.course_name, g.teacher_id
+      from course_lessons cl join groups g on g.id = cl.group_id where cl.id = ${lessonId}
+    )
+    select s.id, concat(sg.name, ' · #', s.lesson_number, coalesce(' · ' || s.lesson_date::text, '')) as label,
+      s.topic, s.aim, s.language_focus, s.anticipated_problems, s.homework
+    from course_lessons s
+    join groups sg on sg.id = s.group_id, t
+    where s.id <> ${lessonId}
+      and sg.teacher_id = ${user.id}
+      and coalesce(s.topic, '') <> ''
+      and (
+        (sg.course_name is not distinct from t.course_name and s.lesson_number = t.lesson_number and s.group_id <> t.group_id)
+        or (s.group_id = t.group_id and s.lesson_number = t.lesson_number - 1)
+      )
+    order by s.lesson_date desc nulls last
+    limit 6`;
+  return rows.map((r) => ({ id: r.id, label: r.label, filled: filledFields(r) }));
+}
+
+/** Copy topic, plan fields and procedure from `sourceId` into `targetId`
+ * (date, files and comments stay). The target must be writable by the
+ * caller; the source must be one of the caller's own lessons. */
+export async function copyLessonPlanAction(targetId: string, sourceId: string): Promise<LessonActionState> {
+  const { user, profile } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  if (!z.string().uuid().safeParse(targetId).success || !z.string().uuid().safeParse(sourceId).success) return { error: 'invalidInput' };
+  const denial = await lessonWriteDenial(targetId, user.id, profile?.role);
+  if (denial) return { error: denial };
+  try {
+    const res = await sql`
+      update course_lessons t set
+        topic = s.topic, aim = s.aim, language_focus = s.language_focus,
+        anticipated_problems = s.anticipated_problems, materials = s.materials,
+        homework = s.homework, procedure = s.procedure, game_link = coalesce(t.game_link, s.game_link)
+      from course_lessons s join groups sg on sg.id = s.group_id
+      where t.id = ${targetId} and s.id = ${sourceId} and t.lesson_date is not null
+        and (sg.teacher_id = ${user.id} or ${can(profile?.role, 'academic.manage')})`;
+    if (res.count === 0) return { error: 'dateRequired' };
+  } catch {
+    return { error: 'invalidInput' };
+  }
+  revalidatePath('/[locale]/lesson-plans', 'page');
+  revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
+  return {};
 }

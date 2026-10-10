@@ -4,12 +4,15 @@ import { memo, useState, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import { useFormatter, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Trash2, Check, CheckCheck, Reply, SmilePlus } from 'lucide-react';
+import { Trash2, Check, CheckCheck, Reply, SmilePlus, Pencil, ClipboardList } from 'lucide-react';
+import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { deleteStaffChatAction, toggleStaffChatReactionAction } from '@/lib/actions/staff-chats';
+import { deleteStaffChatAction, toggleStaffChatReactionAction, updateStaffChatAction } from '@/lib/actions/staff-chats';
 import { cn } from '@/lib/utils';
+import { Link } from '@/i18n/navigation';
 import type { ChatQuote, StaffChatMessage } from './types';
+import { taskHref } from './chat-kit';
 
 export type ChatSender = { first_name: string; last_name: string; avatar_url: string | null };
 
@@ -54,6 +57,32 @@ function MessageBubbleComponent({
   const [isDeletePending, startDeleteTransition] = useTransition();
   const [isReactionPending, startReactionTransition] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Inline edit of one's own text (owner, 2026-10-06). shownText/editedAt
+  // show the saved edit immediately; the realtime mirror then confirms it.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [shownText, setShownText] = useState<string | null>(null);
+  const [editedAt, setEditedAt] = useState<string | null>(null);
+  const [isEditPending, startEditTransition] = useTransition();
+  function startEdit() {
+    setDraft(shownText ?? message.message_text ?? '');
+    setEditing(true);
+  }
+  function saveEdit() {
+    const text = draft.trim();
+    if (!text) return;
+    if (text === (shownText ?? message.message_text)) return setEditing(false);
+    startEditTransition(async () => {
+      const res = await updateStaffChatAction({ id: message.id, messageText: text });
+      if (res.error) {
+        toast.error('Xabarni tahrirlab bo‘lmadi');
+        return;
+      }
+      setShownText(text);
+      setEditedAt(res.editedAt ?? new Date().toISOString());
+      setEditing(false);
+    });
+  }
   const name = sender ? `${sender.first_name} ${sender.last_name}` : '—';
   const initials = sender ? `${sender.first_name[0]}${sender.last_name[0]}` : '?';
   const reactionEntries = Object.entries(message.reactions ?? {}).filter(
@@ -89,8 +118,9 @@ function MessageBubbleComponent({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       data-own={isOwn}
+      id={`msg-${message.id}`}
       className={cn(
-        'flex items-end gap-2',
+        'flex scroll-mt-24 items-end gap-2 rounded-xl transition-colors duration-700',
         grouped ? 'mt-0.5' : 'mt-3',
         !isOptimistic && 'ch-row',
         isOwn && 'flex-row-reverse',
@@ -107,30 +137,36 @@ function MessageBubbleComponent({
         ) : (
           <span className="w-8 shrink-0" aria-hidden />
         ))}
-      <div className={cn('group flex max-w-[78%] flex-col gap-1', isOwn && 'items-end')}>
+      <div className={cn('group flex min-w-0 max-w-[78%] flex-col gap-1', isOwn && 'items-end')}>
         <div className={cn('flex items-center gap-1', isOwn && 'flex-row-reverse')}>
           <div
             className={cn(
-              'ch-bubble flex flex-col gap-1.5 px-3 pt-2 pb-1.5 text-sm break-words whitespace-pre-wrap',
+              'ch-bubble flex min-w-0 flex-col gap-1.5 px-3 pt-2 pb-1.5 text-sm break-words whitespace-pre-wrap [overflow-wrap:anywhere]',
               isOwn ? 'ch-own' : 'ch-other',
               tail && 'ch-tail',
             )}
           >
             {!isOwn && !grouped && <span className="ch-name text-xs font-semibold">{name}</span>}
             {message.reply_to_id && repliedQuote && (
-              <div
-                className={cn(
-                  'flex flex-col gap-0.5 rounded-lg border-l-2 px-2 py-1 text-xs',
-                  isOwn ? 'border-au-faint bg-au-card-2' : 'border-au-faint bg-au-card-2',
-                )}
+              <button
+                type="button"
+                onClick={() => {
+                  // Jump to the quoted message and flash it briefly.
+                  const el = document.getElementById(`msg-${message.reply_to_id}`);
+                  if (!el) return;
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('bg-au-accent-soft');
+                  setTimeout(() => el.classList.remove('bg-au-accent-soft'), 1400);
+                }}
+                className="flex min-w-0 flex-col gap-0.5 rounded-lg border-l-2 border-au-faint bg-au-card-2 px-2 py-1 text-left text-xs hover:brightness-95"
               >
                 <span className={cn('font-medium', isOwn ? 'text-au-ink' : 'text-au-muted')}>
                   {repliedQuote.senderName}
                 </span>
-                <span className={cn('truncate', isOwn ? 'text-au-muted' : 'text-au-muted')}>
+                <span className="line-clamp-2 text-au-muted">
                   {repliedQuote.text ?? t(`mediaLabel.${repliedQuote.mediaType}`)}
                 </span>
-              </div>
+              </button>
             )}
             {message.reply_to_id && !repliedQuote && (
               <span className="text-xs italic opacity-60">{t('originalMessageUnavailable')}</span>
@@ -151,9 +187,42 @@ function MessageBubbleComponent({
             {message.media_type === 'voice' && message.media_url && (
               <audio src={message.media_url} controls className="h-10 max-w-full" />
             )}
-            {message.message_text && <span>{message.message_text}</span>}
+            {editing ? (
+              <span className="flex min-w-[220px] flex-col gap-1.5 whitespace-normal">
+                <textarea
+                  autoFocus
+                  value={draft}
+                  maxLength={2000}
+                  rows={Math.min(6, Math.max(2, draft.split(/\n/).length))}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      saveEdit();
+                    } else if (e.key === 'Escape') setEditing(false);
+                  }}
+                  className="w-full resize-none rounded-lg border border-au-line bg-au-card px-2 py-1.5 text-sm text-au-ink outline-none focus:border-au-accent"
+                />
+                <span className="flex justify-end gap-1.5">
+                  <button type="button" onClick={() => setEditing(false)} className="rounded-md px-2 py-0.5 text-xs font-semibold text-au-muted hover:text-au-ink">
+                    Bekor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveEdit}
+                    disabled={isEditPending || !draft.trim()}
+                    className="rounded-md bg-au-ink px-2.5 py-0.5 text-xs font-semibold text-au-card disabled:opacity-50"
+                  >
+                    Saqlash
+                  </button>
+                </span>
+              </span>
+            ) : (
+              (shownText ?? message.message_text) && <span>{shownText ?? message.message_text}</span>
+            )}
             {/* Time + read ticks inside the bubble, bottom-right (Telegram). */}
             <span className="ch-meta -mb-0.5 flex items-center justify-end gap-1 self-end text-[11px] leading-none">
+              {(editedAt ?? message.edited_at) && <span className="italic opacity-80">tahrirlangan ·</span>}
               {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
               {isOwn && !isOptimistic && (
                 <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
@@ -213,6 +282,21 @@ function MessageBubbleComponent({
               >
                 <Reply className="size-3.5" />
               </Button>
+              {message.message_text && (
+                <Link
+                  href={taskHref(message.message_text, `${name}, shaxsiy chat`)}
+                  aria-label="Vazifaga aylantirish"
+                  title="Vazifaga aylantirish"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-au-muted hover:bg-au-card-2 hover:text-au-ink"
+                >
+                  <ClipboardList className="size-3.5" />
+                </Link>
+              )}
+              {isOwn && message.message_text && (
+                <Button type="button" variant="ghost" size="icon-sm" onClick={startEdit} aria-label="Tahrirlash">
+                  <Pencil className="size-3.5" />
+                </Button>
+              )}
               {isOwn && (
                 <Button
                   type="button"

@@ -324,8 +324,8 @@ export function SlotModal({
 }) {
   const { pending, run } = useAct();
   const [enr, setEnr] = useState(cell.kind === 'group' ? cell.g.enrolled ?? 0 : 0);
-  const [kind, setKind] = useState<'trial' | 'buffer'>('trial');
-  const [title, setTitle] = useState('');
+  const [kind, setKind] = useState<'trial' | 'buffer'>(cell.kind === 'hold' ? cell.h.kind : 'trial');
+  const [title, setTitle] = useState(cell.kind === 'hold' ? cell.h.title : '');
   const coh = cohort === 'odd' ? 'Toq kunlar · Du-Chor-Ju' : 'Juft kunlar · Se-Pay-Sha';
   const head = cell.kind === 'group' ? cell.g.name : cell.kind === 'hold' ? (cell.h.kind === 'trial' ? 'Sinov darsi' : 'Lean bufer') : "Bo'sh slot";
   const fields: [string, React.ReactNode][] = [
@@ -369,9 +369,26 @@ export function SlotModal({
           </>
         )}
         {cell.kind === 'hold' && (
-          <button className="sx-btn text-au-bad" disabled={pending} onClick={() => run(() => deleteSlotHoldAction(cell.h.id), "Band qilish bekor qilindi", onClose)}>
-            Bandlikni olib tashlash
-          </button>
+          <>
+            {/* Editable booking (owner, 2026-10-06): change its type / note. */}
+            <label>
+              Tur
+              <select className="sx-inp !w-[150px]" value={kind} onChange={(e) => setKind(e.target.value as 'trial' | 'buffer')}>
+                <option value="trial">Sinov darsi</option>
+                <option value="buffer">Lean bufer</option>
+              </select>
+            </label>
+            <label className="min-w-[180px] flex-1">
+              Izoh
+              <input className="sx-inp" maxLength={120} value={title} placeholder="Masalan: Speaking Club" onChange={(e) => setTitle(e.target.value)} />
+            </label>
+            <button className="sx-btn primary" disabled={pending} onClick={() => run(() => saveSlotHoldAction({ id: cell.h.id, room, time, cohort, kind, title }), 'Saqlandi', onClose)}>
+              Saqlash
+            </button>
+            <button className="sx-btn text-au-bad" disabled={pending} onClick={() => run(() => deleteSlotHoldAction(cell.h.id), "Band qilish bekor qilindi", onClose)}>
+              O&apos;chirish
+            </button>
+          </>
         )}
         {cell.kind === 'free' && (
           <>

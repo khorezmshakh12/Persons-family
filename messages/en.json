@@ -31,7 +31,7 @@
     "issues": "Issues",
     "lessonPlans": "Lesson Plan Board",
     "tasks": "Tasks",
-    "companyNews": "Company News",
+    "companyNews": "Team life",
     "telegramSetup": "Telegram",
     "selfDevelopment": "Self-Development",
     "taskTracker": "Task Tracker",
@@ -52,7 +52,6 @@
     "report": "Monthly report",
     "platform": "Platform settings",
     "coreBoard": "Platform view",
-    "butterfly": "Butterfly",
     "kpi": "My KPI"
   },
   "auth": {
@@ -552,7 +551,10 @@
       "pastMonths": "Past months",
       "upcomingMonths": "Upcoming months",
       "readOnly": "Read-only",
-      "noLessonsThisMonth": "No lessons scheduled for this month yet."
+      "noLessonsThisMonth": "No lessons scheduled for this month yet.",
+      "confirmDeleteSlot": "Delete this empty lesson slot?",
+      "deleteSlot": "Delete empty slot",
+      "editComment": "Edit comment"
     },
     "staffChat": {
       "title": "Staff Chat: {name}"
@@ -599,6 +601,67 @@
         "noSchedule": "Set an odd/even schedule for the group first.",
         "updateFailed": "Could not resync. Please try again."
       }
+    },
+    "v2": {
+      "subtitle": "Weekly desk: tomorrow’s lessons, completeness and review",
+      "tabsLabel": "Sections",
+      "tabs": {
+        "week": "My week",
+        "groups": "Groups",
+        "review": "Review",
+        "discipline": "Discipline"
+      }
+    },
+    "week": {
+      "until": "until 23:59",
+      "saved": "Saved",
+      "copyFrom": "Copy from a ready plan",
+      "copied": "Plan copied",
+      "openGroup": "Open the group page",
+      "optional": "optional",
+      "tomorrow": "Tomorrow’s lessons",
+      "lessons": "lessons",
+      "allReady": "Tomorrow’s plans are ready",
+      "prev": "Previous week",
+      "next": "Next week",
+      "thisWeek": "This week",
+      "weekdays": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+      ],
+      "noLessons": "No lessons",
+      "noTopic": "no topic",
+      "reviewedOk": "Reviewed"
+    },
+    "review": {
+      "errors": {
+        "noteRequired": "Write a note to send it back",
+        "failed": "Could not save"
+      },
+      "okDone": "Approved",
+      "sentBack": "Note sent to the teacher",
+      "aiUnavailable": "Jev did not respond",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "empty": "No lesson plans for this day",
+      "progress": "Reviewed",
+      "ok": "Good",
+      "needsWork": "Needs work",
+      "askAi": "Jev score",
+      "notePlaceholder": "Note (required to send back)"
+    },
+    "discipline": {
+      "empty": "No data yet — the nightly check records it every day",
+      "teacher": "Teacher",
+      "onTime": "On time",
+      "complete": "Complete",
+      "incomplete": "Partial",
+      "missing": "Missing",
+      "noClass": "no class"
     }
   },
   "staffChat": {
@@ -612,7 +675,8 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidMessage": "Message can't be empty.",
       "sendFailed": "Could not send your message. Please try again."
-    }
+    },
+    "edit": "Edit"
   },
   "tasks": {
     "title": "Tasks",
@@ -639,7 +703,8 @@
     "columns": {
       "pending": "Pending",
       "in_progress": "In Progress",
-      "done": "Done"
+      "done": "Done",
+      "review": "In review"
     },
     "errors": {
       "forbidden": "You don't have permission to do this.",
@@ -656,7 +721,8 @@
       "notUnderReview": "This task isn't under review right now.",
       "underReview": "This task is under review — it can't be changed yet.",
       "uploadFailed": "Could not upload the file. Please try again.",
-      "fileTooLarge": "The file is too large (50MB max)."
+      "fileTooLarge": "The file is too large (50MB max).",
+      "tooLate": "Can’t take it back — the CEO has already decided."
     },
     "deadline": "Deadline",
     "overdue": "Overdue",
@@ -732,7 +798,8 @@
       "in_progress": "In progress",
       "submitted": "Submitted for review",
       "approved": "Approved",
-      "done": "Done"
+      "done": "Done",
+      "pending": "Waiting"
     },
     "submitForReview": "Submit for review",
     "proofRequiredShort": "file required",
@@ -747,6 +814,9 @@
     "uploadProof": "Upload file",
     "uploadProofHint": "The task finishes only once the file is uploaded.",
     "waitingForCeo": "Waiting for the CEO's review",
+    "submittedToast": "Task submitted",
+    "undoAction": "Undo",
+    "undoneToast": "Submission undone",
     "rejectionReason": "Reason for rejection",
     "attachments": {
       "title": "Attachments",
@@ -764,7 +834,64 @@
     },
     "deletedToast": "Task deleted",
     "undo": "Undo",
-    "calendarView": "Calendar"
+    "calendarView": "Calendar",
+    "undoSubmit": "Undo submission",
+    "subtitle": "From plan to approval — all work in one place",
+    "waiting": "waiting {hours}h",
+    "shortcuts": "C — new · / — search · J/K — cards · Enter — comments · A/R — approve/return",
+    "showOlderDone": "Earlier finished ({count})",
+    "views": {
+      "label": "View",
+      "board": "Board",
+      "list": "List",
+      "calendar": "Calendar",
+      "report": "Report"
+    },
+    "strip": {
+      "active": "Active",
+      "today": "Due today",
+      "overdue": "Overdue",
+      "review": "In review"
+    },
+    "workload": {
+      "title": "Team workload",
+      "hint": "Click to show only that person"
+    },
+    "list": {
+      "title": "Task",
+      "status": "Status"
+    },
+    "calendar": {
+      "weekdays": [
+        "Mo",
+        "Tu",
+        "We",
+        "Th",
+        "Fr",
+        "Sa",
+        "Su"
+      ],
+      "prev": "Previous month",
+      "next": "Next month",
+      "today": "Today"
+    },
+    "quick": {
+      "label": "Quick entry",
+      "placeholder": "Monthly report @Ali tomorrow 15:00 +10",
+      "hint": "@name — assignee · today/tomorrow/25.10 — day · 15:00 — time · +10 — stars"
+    },
+    "repeat": {
+      "label": "Repeat",
+      "none": "Does not repeat",
+      "weekly": "Every week",
+      "monthly": "Every month",
+      "hint": "The next one is created automatically before its deadline (weekly 2 days, monthly 5 days ahead)",
+      "listTitle": "Recurring tasks",
+      "next": "next {date} {time}",
+      "stop": "Stop",
+      "stopped": "Recurrence stopped",
+      "stopFailed": "Could not stop"
+    }
   },
   "companyNews": {
     "title": "Company News",
@@ -995,7 +1122,8 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please fill in at least one field.",
       "alreadySubmitted": "You've already submitted your progress for this month.",
-      "submitFailed": "Something went wrong. Please try again."
+      "submitFailed": "Something went wrong. Please try again.",
+      "periodLocked": "This month's payroll is approved — the bonus can no longer change. Add a correction in Finance › Pay run."
     },
     "starAward": "Star award",
     "starAwardHint": "Separate from the score. The employee spends stars in Persons Market.",
@@ -1011,6 +1139,65 @@
       "insights": "Insights",
       "history": "History",
       "performance": "Performance"
+    },
+    "rubric": {
+      "title": "Rubric (1–5)",
+      "applyAi": "Jev suggests: {values}"
+    },
+    "v2": {
+      "thisMonth": "This month",
+      "status": {
+        "missing": "Not submitted",
+        "submitted": "Submitted · awaiting score",
+        "scored": "Scored"
+      },
+      "tabs": {
+        "compliance": "Submission status"
+      },
+      "ring": {
+        "days": "days left",
+        "done": "submitted"
+      },
+      "streak": {
+        "value": "{count} months in a row",
+        "label": "Report streak — keep it going!"
+      },
+      "rubricTitle": "Latest rubric",
+      "grid": {
+        "staff": "Staff",
+        "scored": "Scored",
+        "unrated": "Not scored",
+        "missing": "Not submitted"
+      },
+      "queue": {
+        "progress": "Scored"
+      },
+      "goal": {
+        "label": "Month goal",
+        "none": "No goal set",
+        "edit": "Edit goal",
+        "prompt": "What do you want to learn this month?",
+        "placeholder": "e.g. two IELTS Writing courses, write a band-7 essay",
+        "save": "Save goal"
+      },
+      "form": {
+        "kind": "How did you learn?",
+        "kinds": {
+          "course": "Course",
+          "book": "Book",
+          "skill": "Skill",
+          "practice": "Practice",
+          "other": "Other"
+        },
+        "hours": "Hours spent",
+        "evidence": "Evidence (link)"
+      },
+      "hoursValue": "{hours} h",
+      "feature": {
+        "cta": "Feature as the month’s best report in news",
+        "done": "Published to news",
+        "failed": "Could not publish"
+      }
     }
   },
   "performance": {
@@ -1047,9 +1234,14 @@
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
-      "updateFailed": "Could not save. Please try again."
+      "updateFailed": "Could not save. Please try again.",
+      "notFound": "Entry not found",
+      "periodLocked": "This month is closed (payroll approved). Add a correction in Finance › Pay run."
     },
-    "fromWarning": "From warning"
+    "fromWarning": "From warning",
+    "edit": "Edit",
+    "editEntry": "Edit entry",
+    "entryUpdated": "Entry updated"
   },
   "finance": {
     "title": "Finance",
@@ -1072,7 +1264,10 @@
       "invalidInput": "Please check the values you entered.",
       "fieldInvalid": "This field is invalid.",
       "updateFailed": "Could not save. Please try again.",
-      "deleteFailed": "Could not delete this entry. Please try again."
+      "deleteFailed": "Could not delete this entry. Please try again.",
+      "periodLocked": "This month is closed (payroll approved). Add a correction in Finance › Pay run.",
+      "notFound": "Entry not found (it may have been deleted)",
+      "systemEntry": "This entry was created by the system (KPI, pay run or correction) — change it in its own workflow"
     },
     "payroll": {
       "title": "Payroll",
@@ -1116,7 +1311,10 @@
       "toPay": "Total to pay",
       "paid": "Paid",
       "remaining": "Remaining"
-    }
+    },
+    "edit": "Edit",
+    "editEntry": "Edit entry",
+    "entryUpdated": "Entry updated"
   },
   "kpi": {
     "title": "KPI",
@@ -1244,7 +1442,7 @@
     "title": "Salary",
     "salaryLedger": "Salary",
     "missions": "Mission bonuses (archive)",
-    "total": "Total",
+    "total": "Total earned",
     "totalCommentPlaceholder": "Add a comment...",
     "commentSaved": "Comment saved.",
     "errors": {
@@ -1252,7 +1450,9 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
-    }
+    },
+    "ledgerAdjustments": "Additions & deductions:",
+    "ledgerPaid": "Paid out:"
   },
   "roadmap": {
     "title": "Roadmap",
@@ -1380,7 +1580,10 @@
         "invalidInput": "Please fill in all required fields.",
         "createFailed": "Could not add this duty. Please try again.",
         "deleteFailed": "Could not delete this duty. Please try again."
-      }
+      },
+      "dutyUpdated": "Duty updated",
+      "edit": "Edit",
+      "editDuty": "Edit duty"
     },
     "contracts": {
       "title": "Contracts & Duties",
@@ -1568,7 +1771,19 @@
       "confirmDeleteItemTitle": "Delete this reward?",
       "confirmDeleteItemDescription": "\"{name}\" will be permanently removed from the catalog. This can't be undone.",
       "itemDeleted": "Reward deleted.",
-      "category": "Category"
+      "category": "Category",
+      "addOne": "Add one",
+      "removeOne": "Remove one",
+      "stockUpdated": "Stock updated",
+      "orderHistory": "Order history",
+      "noOrderHistory": "No orders yet",
+      "restockSoon": "Restocking soon",
+      "archived": "Archived",
+      "restore": "Restore",
+      "itemRestored": "Item restored from archive.",
+      "rejectPlaceholder": "Reason for rejecting (optional)",
+      "itemArchived": "Item archived",
+      "deleteArchiveHint": "If this item has orders it is archived instead of deleted, so the history is kept."
     },
     "comingSoon": "Persons Market opens soon — new rewards are being prepared.",
     "starsNeeded": "{count} more stars needed",
@@ -1589,15 +1804,19 @@
       "remove": "Remove from wishlist",
       "affordable": "You can get it now!",
       "count": "Employees who want it"
-    }
+    },
+    "lowStock": "Only {count} left",
+    "orderPlaced": "Order placed"
   },
   "shell": {
     "subtitle": "Education Platform",
     "root": "Persons",
     "groups": {
-      "motivation": "Motivation",
-      "workflow": "Workflow",
-      "management": "Management"
+      "daily": "Daily",
+      "me": "Me",
+      "team": "Team",
+      "manage": "Management",
+      "system": "System"
     },
     "search": "Staff, group or issue…",
     "starBalance": "Star balance",
@@ -1697,7 +1916,93 @@
     "colOnTime": "On time",
     "colOverdue": "Overdue",
     "colStars": "Stars",
-    "empStatsEmpty": "No employees yet."
+    "empStatsEmpty": "No employees yet.",
+    "pulse": "Pulse",
+    "kpiPlans": "KPI plans",
+    "kpiSelfDev": "Self-dev reports",
+    "kpiStrategy": "Strategy",
+    "waitingApproval": "awaiting approval",
+    "unrated": "unrated",
+    "strategyCaption": "{done}/{total} tasks done",
+    "attention": {
+      "title": "Needs attention",
+      "count": "{count}",
+      "error": "Couldn’t load this",
+      "allClear": "All clear",
+      "allClearHint": "Nothing urgent right now",
+      "items": {
+        "taskReview": {
+          "title": "{count, plural, one {# task awaits approval} other {# tasks await approval}}",
+          "hint": "Review the finished work and accept it",
+          "cta": "Review"
+        },
+        "kpiReview": {
+          "title": "{count, plural, one {# KPI plan awaits approval} other {# KPI plans await approval}}",
+          "hint": "Approve or return with a note",
+          "cta": "Review"
+        },
+        "overdue": {
+          "title": "{count, plural, one {# task is overdue} other {# tasks are overdue}}",
+          "hint": "Agree new dates with the owners",
+          "cta": "Open"
+        },
+        "staleIssues": {
+          "title": "{count, plural, one {# issue open for 7+ days} other {# issues open for 7+ days}}",
+          "hint": "Resolve the long-waiting problems",
+          "cta": "Open"
+        },
+        "selfDevRate": {
+          "title": "{count, plural, one {# self-dev report unrated} other {# self-dev reports unrated}}",
+          "hint": "Score this month’s reports",
+          "cta": "Rate"
+        },
+        "selfDevMissing": {
+          "title": "{count, plural, one {# person hasn’t filed self-dev} other {# people haven’t filed self-dev}}",
+          "hint": "No self-development report this month",
+          "cta": "View"
+        },
+        "kpiMissing": {
+          "title": "{count, plural, one {# person has no KPI plan} other {# people have no KPI plan}}",
+          "hint": "Plan not submitted or approved this month",
+          "cta": "View"
+        },
+        "myOverdue": {
+          "title": "{count, plural, one {# of your tasks is overdue} other {# of your tasks are overdue}}",
+          "hint": "Close these first",
+          "cta": "Open"
+        },
+        "kpiReturned": {
+          "title": "Your KPI plan was returned",
+          "hint": "Read the CEO’s note and resubmit",
+          "cta": "Fix"
+        },
+        "kpiThis": {
+          "title": "No KPI plan for this month",
+          "hint": "Fill in three scenarios and submit to the CEO",
+          "cta": "Add plan"
+        },
+        "kpiNext": {
+          "title": "Submit next month’s KPI plan",
+          "hint": "Deadline: last day of the month, 23:59",
+          "cta": "Add plan"
+        },
+        "selfDev": {
+          "title": "No self-dev report this month",
+          "hint": "Self-development is required every month",
+          "cta": "Submit"
+        },
+        "myDueToday": {
+          "title": "{count, plural, one {# task due today} other {# tasks due today}}",
+          "hint": "Finish by the end of the day",
+          "cta": "Open"
+        },
+        "myIssues": {
+          "title": "{count, plural, one {# issue assigned to you} other {# issues assigned to you}}",
+          "hint": "Resolve your open issues",
+          "cta": "Open"
+        }
+      }
+    }
   },
   "themeSettings": {
     "title": "Theme",
@@ -1903,17 +2208,6 @@
     "aquarium": {
       "name": "Aquarium",
       "hint": "Real fish swimming."
-    },
-    "butterfly": {
-      "name": "Butterfly",
-      "hint": "Particles that gather into a butterfly and flowers, then scatter."
     }
-  },
-  "butterfly": {
-    "title": "Butterfly",
-    "subtitle": "Scattered particles bloom into a butterfly among flowers, then dissolve again.",
-    "hint": "Drag to orbit · scroll or pinch to zoom",
-    "fullscreen": "Full screen",
-    "exitFullscreen": "Exit full screen"
   }
 }

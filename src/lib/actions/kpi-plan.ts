@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { authErrorCode, requireCap, requireSection } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { escapeTelegramText, sendTelegramMessage } from '@/lib/telegram';
+import { escapeTelegramText, notifyUsers } from '@/lib/telegram';
 import { tashkentMonthKey } from '@/lib/time';
 import { SCENARIO_LABEL, monthName, pctFor, shiftMonth, type Scenario } from '@/lib/kpi-plan';
 
@@ -25,12 +25,8 @@ function done(): Result {
 const thisMonth = () => `${tashkentMonthKey()}-01`;
 
 async function notify(userId: string, message: string) {
-  try {
-    const [p] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${userId}`;
-    if (p?.telegram_id) await sendTelegramMessage(p.telegram_id, message);
-  } catch (error) {
-    console.error('kpi notify failed', error instanceof Error ? error.message : error);
-  }
+  // Bell + Telegram; never throws.
+  await notifyUsers('kpi', [userId], message, { href: '/my-kpi' });
 }
 
 /* ------------------------------------------------------------ employee */
@@ -106,6 +102,28 @@ export async function saveKpiPlanAction(input: z.input<typeof planSchema>): Prom
   } catch {
     return { error: 'updateFailed' };
   }
+}
+
+/** Take a submitted plan back to draft before the CEO decides (owner,
+ * 2026-10-08: a submit could not be undone). */
+export async function withdrawKpiPlanAction(planId: string): Promise<Result> {
+  let userId: string;
+  try {
+    ({ profile: { id: userId } } = await requireSection('kpi'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(planId).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`
+      update kpi_plans set status = 'draft', submitted_at = null, updated_at = now()
+      where id = ${planId} and user_id = ${userId} and status = 'submitted'`;
+    if (res.count === 0) return { error: 'locked' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('kpi.withdraw', 'KPI plan withdrawn');
+  return done();
 }
 
 /** Remove the viewer's own plan while it is still a draft or returned. */
@@ -197,6 +215,9 @@ export async function reviewKpiPlanAction(input: z.input<typeof reviewSchema>): 
       returning user_id, month::text as month`;
     if (!row) return { error: 'notFound' };
     logSystemAction('kpi.review', `KPI ${v.decision} ${row.month}`);
+    await sql`
+      insert into kpi_audit (plan_id, actor, action, detail)
+      values (${v.planId}, ${reviewerId}, 'review', ${sql.json({ decision: v.decision, pct: [v.pctBad, v.pctGood, v.pctGreat], note: v.note || null })})`.catch(() => {});
     await notify(
       row.user_id,
       v.decision === 'approve'
@@ -251,10 +272,20 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
       if (plan.finance_entry_id) await tx`delete from finance_entries where id = ${plan.finance_entry_id}`;
       let entryId: string | null = null;
       if (amount !== 0) {
+        // A month whose pay run is already approved takes no new ledger row:
+        // a late grade is paid in the next open month (the title keeps the
+        // KPI's own month). Re-grading a row a locked month already counted
+        // still fails with period_locked above — that needs a correction.
+        let payPeriod = plan.month.slice(0, 10);
+        for (let i = 0; i < 12; i++) {
+          const [run] = await tx<{ status: string }[]>`select status from pay_runs where period = ${payPeriod} for share`;
+          if (!run || (run.status !== 'approved' && run.status !== 'paid')) break;
+          payPeriod = shiftMonth(payPeriod, 1);
+        }
         const [e] = await tx<{ id: string }[]>`
-          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period)
+          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source)
           values (${plan.user_id}, ${`KPI · ${monthName(plan.month)}: ${SCENARIO_LABEL[v.grade as Scenario]} (${percent > 0 ? '+' : ''}${percent}%)`},
-                  ${amount}, ${v.note || null}, ${reviewerId}, 'adjustment', ${plan.month})
+                  ${amount}, ${v.note || null}, ${reviewerId}, 'adjustment', ${payPeriod}, 'kpi')
           returning id`;
         entryId = e.id;
       }
@@ -262,12 +293,15 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
         update kpi_plans set grade = ${v.grade}, grade_pct = ${percent}, grade_amount = ${amount}, grade_note = ${v.note || null},
           graded_by = ${reviewerId}, graded_at = now(), finance_entry_id = ${entryId}, updated_at = now()
         where id = ${plan.id}`;
+      await tx`
+        insert into kpi_audit (plan_id, actor, action, detail)
+        values (${plan.id}, ${reviewerId}, 'grade', ${tx.json({ grade: v.grade, percent, amount, override: v.amount ?? null })})`;
       return { amount, userId: plan.user_id, month: plan.month, percent };
     });
     if (!out) return { error: 'notFound' };
     if (out === 'future') return { error: 'notYet' };
     logSystemAction('kpi.grade', `KPI graded ${out.month}: ${v.grade}`);
-    const fmt = (n: number) => Math.abs(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+    const fmt = (n: number) => Math.abs(n).toLocaleString('en-US');
     await notify(
       out.userId,
       `📊 ${monthName(out.month)} KPI natijangiz: <b>${SCENARIO_LABEL[v.grade as Scenario]}</b> (${out.percent > 0 ? '+' : ''}${out.percent}%)\n` +
@@ -277,7 +311,8 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
     revalidatePath('/[locale]/finance', 'layout');
     done();
     return { amount: out.amount };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (error) {
+    // The month's pay run is approved: the DB refuses the ledger row.
+    return { error: error instanceof Error && /period_locked/.test(error.message) ? 'periodLocked' : 'updateFailed' };
   }
 }

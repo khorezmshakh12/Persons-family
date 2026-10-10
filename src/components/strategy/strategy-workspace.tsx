@@ -18,6 +18,8 @@ import {
   Target,
   Map as MapIcon,
   Hammer,
+  Briefcase,
+  Network,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -58,20 +60,41 @@ import { RoadmapEditor } from './roadmap-editor';
 import { deleteRoadmapAction, updateMilestoneAction } from '@/lib/actions/strategy-roadmap';
 import { FinanceView, AnalyticsView, type BooksLite } from './view-finance';
 import { OkrView } from './view-okr';
+import { OkrTree, PortfolioView } from './view-strategy-v2';
+import { setTaskDepsAction, shiftStrategyTasksAction } from '@/lib/actions/strategy';
+import type { Dep } from '@/lib/strategy-plan';
+import type { PortfolioRow } from '@/lib/strategy-portfolio';
+import { daysBetween } from '@/lib/strategy';
 import type { Objective } from '@/lib/strategy-okr';
 import type { FinInputs } from '@/lib/strategy-finance';
 import { SuiteShell, playSound, toast, type PaletteItem } from './suite-shell';
 import './strategy.css';
 import './suite.css';
 
-export type ViewKey = 'dash' | 'okr' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'fin' | 'analytics';
+export type ViewKey = 'dash' | 'portfolio' | 'okr' | 'tree' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'fin' | 'analytics';
 type Icon = React.ComponentType<{ className?: string }>;
 
 /** Five sections (Linear / Asana style) — each holds one or more views. */
 type GroupKey = 'dash' | 'okr' | 'plan' | 'exec' | 'money';
 const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: string; Icon: Icon }[] }[] = [
-  { g: 'dash', n: 'Umumiy', Icon: LayoutDashboard, views: [{ v: 'dash', n: 'Dashboard', Icon: LayoutDashboard }] },
-  { g: 'okr', n: 'Maqsadlar', Icon: Target, views: [{ v: 'okr', n: 'OKR', Icon: Target }] },
+  {
+    g: 'dash',
+    n: 'Umumiy',
+    Icon: LayoutDashboard,
+    views: [
+      { v: 'dash', n: 'Dashboard', Icon: LayoutDashboard },
+      { v: 'portfolio', n: 'Portfel', Icon: Briefcase },
+    ],
+  },
+  {
+    g: 'okr',
+    n: 'Maqsadlar',
+    Icon: Target,
+    views: [
+      { v: 'okr', n: 'OKR', Icon: Target },
+      { v: 'tree', n: 'Daraxt', Icon: Network },
+    ],
+  },
   {
     g: 'plan',
     n: 'Reja',
@@ -96,7 +119,7 @@ const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: stri
     n: 'Moliya',
     Icon: Wallet,
     views: [
-      { v: 'fin', n: 'Moliya', Icon: Wallet },
+      { v: 'fin', n: 'Ko‘rsatkichlar', Icon: Wallet },
       { v: 'analytics', n: 'Tahlil', Icon: LineChart },
     ],
   },
@@ -119,6 +142,11 @@ export type WorkspaceApi = {
   openTask: (id: string | null, preset?: Partial<StrategyTask>) => void;
   moveTask: (id: string, status: TaskStatus) => void;
   patchTask: (id: string, patch: Partial<StrategyTask>) => void;
+  /** Strategy v2: every task of the space and their dependencies. */
+  tasks: StrategyTask[];
+  deps: Dep[];
+  setDeps: (taskId: string, dependsOn: string[]) => Promise<void>;
+  shiftTasks: (moves: { id: string; start_date: string; end_date: string }[]) => Promise<void>;
 };
 
 function errorText(code: string) {
@@ -140,8 +168,12 @@ export function StrategyWorkspace({
   books,
   fin,
   okr,
+  deps: initialDeps = [],
+  portfolio = [],
   finance = false,
 }: {
+  deps?: Dep[];
+  portfolio?: PortfolioRow[];
   spaces: { id: string; name: string; color: string }[];
   space: StrategySpace | null;
   tasks: StrategyTask[];
@@ -158,6 +190,7 @@ export function StrategyWorkspace({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [tasks, setTasks] = useState(initialTasks);
+  const [deps, setDepsState] = useState<Dep[]>(initialDeps);
   const [roadmaps, setRoadmaps] = useState(initialRoadmaps);
   const [mind, setMind] = useState<StrategyMind>(space?.mind ?? { t: '', ch: [] });
   const [ms, setMs] = useState(milestones);
@@ -441,7 +474,30 @@ export function StrategyWorkspace({
     return true;
   }
 
-  const api: WorkspaceApi = { today, people, personById, openTask, moveTask, patchTask };
+  async function setDeps(taskId: string, dependsOn: string[]) {
+    const before = deps;
+    setDepsState((list) => [...list.filter((d) => d.task_id !== taskId), ...dependsOn.map((depends_on) => ({ task_id: taskId, depends_on }))]);
+    const res = await setTaskDepsAction(taskId, dependsOn);
+    if (res.error !== undefined) {
+      setDepsState(before);
+      toast.error(res.error === 'cycle' ? 'Aylana bog‘liqlik bo‘lib qoladi — bu vazifa allaqachon unga bog‘liq' : errorText(res.error));
+    }
+  }
+
+  async function shiftTasks(moves: { id: string; start_date: string; end_date: string }[]) {
+    const before = tasks;
+    setTasks((list) => list.map((t) => {
+      const m = moves.find((x) => x.id === t.id);
+      return m ? { ...t, start_date: m.start_date, end_date: m.end_date } : t;
+    }));
+    const res = await shiftStrategyTasksAction(moves.map((m) => ({ id: m.id, startDate: m.start_date, endDate: m.end_date })));
+    if (res.error !== undefined) {
+      setTasks(before);
+      toast.error(errorText(res.error));
+    } else toast.success(`${moves.length} ta bog‘liq vazifa surildi`);
+  }
+
+  const api: WorkspaceApi = { today, people, personById, openTask, moveTask, patchTask, tasks, deps, setDeps, shiftTasks };
   const drawerTask = drawer?.kind === 'task' && drawer.id ? tasks.find((t) => t.id === drawer.id) : undefined;
   const lateCount = tasks.filter((t) => isLate(t, today)).length;
   const fullBleed = view === 'mind' || view === 'gantt';
@@ -594,7 +650,16 @@ export function StrategyWorkspace({
             {view === 'dash' && (
               <DashboardView api={api} finance={finance} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} okr={okr} onOkr={() => go('okr')} />
             )}
-            {view === 'okr' && <OkrView api={api} space={space} objectives={okr} finance={finance} />}
+            {view === 'okr' && <OkrView api={api} space={space} objectives={okr} finance={finance} tasks={tasks} />}
+            {view === 'tree' && (
+              <OkrTree
+                api={api}
+                objectives={okr}
+                tasks={tasks}
+                spaceElapsed={Math.max(0, Math.min(100, Math.round((daysBetween(space.start_date, today) / Math.max(1, daysBetween(space.start_date, space.end_date))) * 100)))}
+              />
+            )}
+            {view === 'portfolio' && <PortfolioView rows={portfolio} currentId={space.id} today={today} />}
             {view === 'roadmap' && (
               <RoadmapView
                 roadmaps={roadmaps}
@@ -610,7 +675,7 @@ export function StrategyWorkspace({
             {view === 'mind' && <MindView api={api} mind={mind} onChange={updateMind} />}
             {view === 'board' && <BoardView api={api} tasks={visible} onQuickAdd={(title, status) => createTask({ title, status })} />}
             {view === 'list' && <ListView api={api} tasks={visible} />}
-            {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={ms} onMilestones={() => setDrawer({ kind: 'space', edit: true })} />}
+            {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={ms} deps={deps} onMilestones={() => setDrawer({ kind: 'space', edit: true })} />}
             {finance && books && fin && view === 'fin' && <FinanceView books={books} fin={fin} today={today} onGo={() => go('analytics')} />}
             {finance && books && fin && view === 'analytics' && <AnalyticsView books={books} fin={fin} today={today} />}
           </div>

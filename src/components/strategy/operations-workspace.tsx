@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Filter, Grid3x3, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarRange, Filter, Gauge, LayoutDashboard, Pencil, Plus, Trash2, UsersRound } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { Books } from '@/lib/accounting-data';
@@ -11,27 +11,47 @@ import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type Palette
 import { HBars } from './charts';
 import { SC_KEYS, type OpsPlan, type ScKey } from '@/lib/ops-plan';
 import { OpsTop, PlanFunnel, PlanModal, RoomRegister, SlotModal, buildModel, type Cell, type Cohort, type OpsModel } from './operations-plan';
+import {
+  IntakeHeat,
+  IntakeTrend,
+  QuickIntake,
+  SlotFinderBar,
+  UnscheduledGroups,
+  usePlaceGroup,
+  type Finder,
+} from './operations-extras';
+import { ScheduleTimeline, type TimelineMode } from './ops-schedule-timeline';
+import { CapacityDemand, IntakeAnalytics, OpsOverview, TeachersOps } from './ops-hq';
 import './strategy.css';
 import './suite.css';
 
 export type Stage = 'new' | 'contacted' | 'trial' | 'enrolled' | 'lost';
-export type Source = 'instagram' | 'telegram' | 'referral' | 'walkin' | 'website' | 'other';
+export type Source = 'instagram' | 'meta' | 'telegram' | 'google' | 'referral' | 'walkin' | 'website' | 'other';
 export type OpsData = {
-  groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null }[];
+  groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null; teacher_id: string | null; duration: number }[];
   leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null; ai_intent?: number | null; ai_hot?: number | null }[];
   staff: { id: string; name: string; role: string }[];
   metrics: { id: string; staff_id: string; name: string; weight_percentage: number }[];
   entries: { metric_id: string; month: string; target_value: number; actual_value: number | null }[];
-  rooms: { code: string; title: string; capacity: number; note: string }[];
+  rooms: { code: string; title: string; capacity: number; note: string; features?: string[] }[];
   holds: { id: string; room: string; time: string; cohort: 'odd' | 'even'; kind: 'trial' | 'buffer'; title: string }[];
   plan: OpsPlan;
+  availability: { teacher_id: string; cohort: 'odd' | 'even'; start: string; end: string }[];
+  log: { id: string; group_id: string; group_name: string; before: LogPlace; after: LogPlace; at: string; actor: string }[];
+  meId: string;
+  canEdit: boolean;
 };
+export type LogPlace = { room: string | null; time: string | null; cohort: 'odd' | 'even' | null; duration: number };
 
-// Simplified (owner, 2026-10-04): rooms + leads; growth/KPI live in Strategy OKR and My KPI.
-type Tab = 'cap' | 'fun';
+// Operation HQ v2 (2026-10-08): overview, schedule timeline, capacity &
+// demand, teachers, intake analytics. Growth/KPI still live in Strategy OKR.
+type Tab = 'ov' | 'sched' | 'cap' | 'tch' | 'fun';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { v: 'cap', n: 'Xonalar matritsasi', Icon: Grid3x3 },
-  { v: 'fun', n: 'Lid voronkasi', Icon: Filter },
+  { v: 'ov', n: 'Boshqaruv', Icon: LayoutDashboard },
+  { v: 'sched', n: 'Jadval', Icon: CalendarRange },
+  { v: 'cap', n: 'Quvvat va talab', Icon: Gauge },
+  { v: 'tch', n: 'O‘qituvchilar', Icon: UsersRound },
+  { v: 'fun', n: 'Kelganlar', Icon: Filter },
 ];
 const STAGES: { k: Stage; n: string; c: string }[] = [
   { k: 'new', n: 'Yangi', c: '#b9b2a6' },
@@ -44,6 +64,8 @@ const SOURCES: { k: Source; n: string; c: string }[] = [
   { k: 'instagram', n: 'Instagram', c: '#e8567a' },
   { k: 'telegram', n: 'Telegram', c: '#2477c9' },
   { k: 'referral', n: 'Tavsiya', c: '#139a52' },
+  { k: 'meta', n: 'Meta reklama', c: '#1877f2' },
+  { k: 'google', n: 'Google', c: '#34a853' },
   { k: 'walkin', n: 'O‘zi keldi', c: '#ff9f1c' },
   { k: 'website', n: 'Veb-sayt', c: '#7a5af8' },
   { k: 'other', n: 'Boshqa', c: '#b9b2a6' },
@@ -56,7 +78,10 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const tzDay = (s: string) => tashkentDayKey(new Date(s));
 
 export function OperationsWorkspace({ data, books, today }: { data: OpsData; books: Books; today: string }) {
-  const [tab, setTab] = useState<Tab>('cap');
+  const [tab, setTab] = useState<Tab>('ov');
+  const [cohort, setCohort] = useState<Cohort>('odd');
+  const [mode, setMode] = useState<TimelineMode>('room');
+  const [focus, setFocus] = useState<string | null>(null);
   const [sc, setSc] = useState<ScKey>('average');
   const [planOpen, setPlanOpen] = useState(false);
   const m = useMemo(() => buildModel(data, books, today, sc), [data, books, today, sc]);
@@ -85,6 +110,28 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
       localStorage.setItem(KEY, v);
     } catch {}
   };
+  // From the overview: open the schedule on the right cohort, focused on a group.
+  const goGroup = (v: string, groupId?: string) => {
+    const g = groupId ? data.groups.find((x) => x.id === groupId) : null;
+    if (g?.schedule_type) setCohort(g.schedule_type);
+    setFocus(groupId ?? null);
+    setMode('room');
+    go(v);
+  };
+  // 1–5 switch tabs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const i = Number(e.key) - 1;
+      if (i >= 0 && i < TABS.length) {
+        playSound('nav');
+        go(TABS[i].v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const scheduled = data.groups.filter((g) => g.room && g.time && g.schedule_type);
   const items: PaletteItem[] = [
     { g: 'Amallar', t: "Yangi lid qo'shish", run: () => go('fun') },
@@ -104,12 +151,57 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
         <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">
-        <div className="sx-grid">
-          <OpsTop m={m} onSc={pickSc} onPlan={openPlan} />
-        </div>
         <div key={tab} className="sx-fade">
-          {tab === 'cap' && <Rooms data={data} m={m} />}
-          {tab === 'fun' && <Funnel leads={data.leads} m={m} onPlan={openPlan} />}
+          {tab === 'ov' && <OpsOverview data={data} capOf={m.cap} rooms={m.rooms} onGo={goGroup} />}
+          {(tab === 'sched' || tab === 'tch') && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="sx-seg">
+                {(['odd', 'even'] as Cohort[]).map((c) => (
+                  <button key={c} className={cn(cohort === c && 'on')} onClick={() => setCohort(c)}>
+                    {c === 'odd' ? 'Toq kunlar · Du-Chor-Ju' : 'Juft kunlar · Se-Pay-Sha'}
+                  </button>
+                ))}
+              </div>
+              {tab === 'sched' && (
+                <div className="sx-seg">
+                  {(
+                    [
+                      ['room', 'Xonalar'],
+                      ['teacher', 'O‘qituvchilar'],
+                      ['course', 'Kurslar'],
+                    ] as [TimelineMode, string][]
+                  ).map(([k, n]) => (
+                    <button key={k} className={cn(mode === k && 'on')} onClick={() => setMode(k)}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <small className="text-xs text-au-faint">Sudrang · 15 daqiqaga yopishadi · D — qoralama · Ctrl+Z — bekor qilish</small>
+            </div>
+          )}
+          {tab === 'sched' && <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode={mode} focusId={focus} readOnlyRows={mode !== 'room'} />}
+          {tab === 'cap' && (
+            <div className="flex flex-col gap-[18px]">
+              <CapacityDemand data={data} capOf={m.cap} rooms={m.rooms} />
+              <Rooms data={data} m={m} />
+            </div>
+          )}
+          {tab === 'tch' && (
+            <div className="flex flex-col gap-[18px]">
+              <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode="teacher" readOnlyRows />
+              <TeachersOps data={data} cohort={cohort} />
+            </div>
+          )}
+          {tab === 'fun' && (
+            <div className="flex flex-col gap-[18px]">
+              <IntakeAnalytics data={data} />
+              <div className="sx-grid">
+                <OpsTop m={m} onSc={pickSc} onPlan={openPlan} />
+              </div>
+              <Funnel leads={data.leads} m={m} onPlan={openPlan} />
+            </div>
+          )}
         </div>
         {planOpen && <PlanModal plan={data.plan} leads={data.leads} onClose={() => setPlanOpen(false)} />}
       </section>
@@ -124,6 +216,9 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
   const [coh, setCoh] = useState<Cohort>('odd');
   const [roomF, setRoomF] = useState('all');
   const [open, setOpen] = useState<{ room: string; time: string } | null>(null);
+  const [finder, setFinder] = useState<Finder | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const { place, busy: placing } = usePlaceGroup();
   const ok = groups.filter((g) => g.room && g.time && g.schedule_type);
   const { rooms, times } = m;
   const shown = roomF === 'all' ? rooms : rooms.filter((r) => r === roomF);
@@ -151,6 +246,10 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
   const cohName = coh === 'odd' ? 'Toq kunlar' : 'Juft kunlar';
   const cls = (c: Cell) => (c.kind === 'group' ? (isIelts(c.g) ? 'ie' : 'gr') : c.kind === 'hold' ? (c.h.kind === 'trial' ? 'tr' : 'bf') : '');
   const sel = open ? cellOf(open.room, open.time) : null;
+  // Free-slot finder: free cells at the chosen time with enough seats.
+  const isMatch = (r: string, t: string) =>
+    !!finder && cellOf(r, t).kind === 'free' && (!finder.time || finder.time === t) && m.cap(r) >= finder.minCap;
+  const matchCount = finder ? shown.reduce((a, r) => a + times.filter((t) => isMatch(r, t)).length, 0) : 0;
   return (
     <div className="sx-grid">
       <div className="sx-card s4">
@@ -246,6 +345,14 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
             ))}
           </select>
         </div>
+        <div className="mb-3">
+          <SlotFinderBar times={times} value={finder} onChange={setFinder} matches={matchCount} />
+        </div>
+        {picked && (
+          <p className="mb-3 rounded-lg bg-au-accent-soft px-3 py-2 text-sm font-semibold text-au-accent-text">
+            «{missing.find((g) => g.id === picked)?.name}» guruhini joylash: {cohName.toLowerCase()} matritsasida bo‘sh slotni bosing yoki sudrab tashlang.
+          </p>
+        )}
         <div className="mb-3 flex flex-wrap gap-3 text-xs text-au-muted">
           {[
             ['Faol guruh', 'var(--au-primary)'],
@@ -287,12 +394,28 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
                     </div>
                     {shown.map((r, ri) => {
                       const c = cellOf(r, t);
+                      const freeCell = c.kind === 'free';
+                      const target = !!picked && freeCell;
                       return (
                         <button
                           key={r}
-                          className={cn('sx-slot', cls(c), c.kind === 'group' && c.clash > 1 && 'clash')}
+                          className={cn(
+                            'sx-slot',
+                            cls(c),
+                            c.kind === 'group' && c.clash > 1 && 'clash',
+                            isMatch(r, t) && 'ms-pulse !border-au-ok !bg-au-ok-soft !text-au-ok',
+                            target && '!border-dashed !border-au-accent !bg-au-accent-soft/50',
+                          )}
                           style={{ animationDelay: `${Math.min(ti * shown.length + ri, 40) * 12}ms` }}
-                          onClick={() => setOpen({ room: r, time: t })}
+                          disabled={placing && target}
+                          onDragOver={(e) => {
+                            if (freeCell) e.preventDefault();
+                          }}
+                          onDrop={(e) => {
+                            const id = e.dataTransfer.getData('text/group');
+                            if (freeCell && id) place(id, r, t, coh, () => setPicked(null));
+                          }}
+                          onClick={() => (target ? place(picked!, r, t, coh, () => setPicked(null)) : setOpen({ room: r, time: t }))}
                         >
                           {c.kind === 'group' ? (
                             <>
@@ -311,6 +434,10 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
                               <span className="t">{c.h.kind === 'trial' ? 'Sinov darsi' : 'Lean bufer'}</span>
                               <b>{c.h.title || '—'}</b>
                             </>
+                          ) : target ? (
+                            'shu yerga joylash'
+                          ) : isMatch(r, t) ? (
+                            `bo‘sh · ${m.cap(r)} o‘rin`
                           ) : (
                             'bo‘sh'
                           )}
@@ -325,26 +452,7 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
         )}
       </div>
       <RoomRegister rooms={data.rooms} known={rooms} seats={data.plan.seats} />
-      <div className="sx-card s12">
-        <div className="sx-h">
-          <h3>Jadvalga kiritilmagan guruhlar</h3>
-          <small>{missing.length} ta</small>
-        </div>
-        {missing.length === 0 ? (
-          <div className="sx-empty">Hamma guruhlar jadvalda ✓</div>
-        ) : (
-          <div className="flex max-h-[240px] flex-col gap-1.5 overflow-auto text-sm">
-            {missing.map((g) => (
-              <div key={g.id} className="flex items-center justify-between gap-2 rounded-lg bg-au-card-2 px-3 py-1.5">
-                <span className="font-semibold">{g.name}</span>
-                <span className="text-xs text-au-muted">
-                  {[!g.room && 'xona', !g.time && 'vaqt', !g.schedule_type && 'kunlar'].filter(Boolean).join(', ')} yo‘q
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <UnscheduledGroups groups={missing} picked={picked} onPick={setPicked} />
       {open && sel && (
         <SlotModal
           key={`${open.room}|${open.time}|${coh}`}
@@ -393,6 +501,9 @@ function Funnel({ leads, m, onPlan }: { leads: OpsData['leads']; m: OpsModel; on
   const list = leads.filter((l) => filter === 'all' || l.stage === filter);
   return (
     <div className="sx-grid">
+      <QuickIntake />
+      <IntakeTrend leads={leads} today={m.today} pacePerMonth={m.leadsPerMonth} />
+      <IntakeHeat leads={leads} today={m.today} />
       <PlanFunnel key={`${m.sc}-${JSON.stringify(m.plan.scenarios[m.sc])}`} m={m} onPlan={onPlan} />
       <div className="sx-card sx-stat dark s3">
         <div className="l">Jami lidlar</div>
@@ -454,12 +565,12 @@ function Funnel({ leads, m, onPlan }: { leads: OpsData['leads']; m: OpsModel; on
       </div>
       <div className="sx-card s12" ref={formRef}>
         <div className="sx-h">
-          <h3>{editId ? 'Lidni tahrirlash' : 'Yangi lid'}</h3>
+          <h3>{editId ? 'Yozuvni tahrirlash' : 'Batafsil yozuv'}</h3>
           {editId && <small>o‘zgartiring va «Saqlash»ni bosing</small>}
         </div>
         <div className="sx-form">
           <label className="min-w-[180px] flex-1">
-            Ism
+            Ism (ixtiyoriy)
             <input className="sx-inp" maxLength={120} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
           </label>
           <label>
@@ -496,7 +607,7 @@ function Funnel({ leads, m, onPlan }: { leads: OpsData['leads']; m: OpsModel; on
           </label>
           <button
             className="sx-btn primary"
-            disabled={pending || !f.name.trim()}
+            disabled={pending}
             onClick={() =>
               save({ ...f, id: editId ?? undefined }, editId ? 'Lid saqlandi' : "Lid qo'shildi", () => {
                 setF(empty);

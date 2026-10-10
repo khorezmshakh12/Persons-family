@@ -3,10 +3,9 @@
  *   off      — plain page colour (no video anywhere)
  *   flow     — the themed abstract loops (public/bg/<theme>.*)
  *   aquarium — real aquarium footage (public/bg/aquarium/*)
- *   butterfly — the three.js "Butterfly in a Garden" particle scene
  * The pre-paint script sets html[data-bg]; BgVideo and a little CSS read it.
  */
-export const BG_MODES = ['off', 'flow', 'aquarium', 'butterfly'] as const;
+export const BG_MODES = ['off', 'flow', 'aquarium'] as const;
 export type BgMode = (typeof BG_MODES)[number];
 export const BG_KEY = 'persons-bg';
 export const DEFAULT_BG: BgMode = 'off';

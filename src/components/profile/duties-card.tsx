@@ -42,6 +42,8 @@ export async function DutiesCard({ staffId, canManage }: { staffId: string; canM
               title={duty.title}
               description={duty.description}
               contractTitle={duty.contract_title}
+              contractId={duty.contract_id}
+              contracts={contracts}
               canManage={canManage}
             />
           ))}

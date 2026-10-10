@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { RoleSwitcher } from './role-switcher';
 import { canAssignRoles } from '@/lib/permissions';
+import { canAssignTasks } from '@/lib/task-roles';
 import { getTranslations } from 'next-intl/server';
 import packageJson from '../../../package.json';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -15,7 +16,7 @@ import { NavBadgesProvider } from './nav-badges-context';
 import {
   NotificationBell,
   type UnreadChatItem,
-  type UnseenIssueItem,
+  type FeedItem,
   type UnseenTaskItem,
   type UnseenWarningItem,
   type UnseenLessonPlanAlertItem,
@@ -40,7 +41,7 @@ export async function AppShell({
   userId,
   profileNames,
   initialUnreadChats,
-  initialUnseenIssues,
+  initialFeed,
   initialUnseenTasks,
   initialUnseenWarnings,
   initialUnseenLessonPlanAlerts,
@@ -54,7 +55,7 @@ export async function AppShell({
   userId: string;
   profileNames: Record<string, string>;
   initialUnreadChats: UnreadChatItem[];
-  initialUnseenIssues: UnseenIssueItem[];
+  initialFeed: FeedItem[];
   initialUnseenTasks: UnseenTaskItem[];
   initialUnseenWarnings: UnseenWarningItem[];
   initialUnseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
@@ -74,6 +75,16 @@ export async function AppShell({
   const palettePages = navItemsForRole(profile.role, { materialsLinked, coreViews })
     .filter((i) => !i.external)
     .map((i) => ({ href: i.href, label: tNav(i.key) }));
+  // ⌘K "Amallar" (v8-A): the everyday actions this person can take.
+  const has = (href: string) => palettePages.some((p) => p.href === href);
+  const paletteActions = [
+    has('/issues') && { href: '/issues?new=1', label: 'Murojaat yuborish' },
+    canAssignTasks(profile.role) && has('/tasks') && { href: '/tasks?new=1', label: 'Vazifa yaratish' },
+    has('/perforce') && { href: '/perforce?tab=status', label: 'Loyiha holatini yozish (Perforce)' },
+    has('/accounting') && { href: '/accounting?tab=ma_cash', label: 'Kirim / chiqim qo‘shish' },
+    has('/self-development') && { href: '/self-development', label: 'O‘sish hisobotini yozish' },
+    { href: '/settings?s=notifications', label: 'Bildirishnoma sozlamalari' },
+  ].filter((x): x is { href: string; label: string } => Boolean(x));
   // The Roadmap section was removed (owner, 2026-09-26), and with it the
   // sidebar goal card that linked to it.
   const canSeeGoals = false;
@@ -116,7 +127,7 @@ export async function AppShell({
       >
         <PresenceProvider userId={userId}>
           <NavBadgesProvider userId={userId} initialKeys={newNavKeys}>
-            <CommandPalette pages={palettePages} />
+            <CommandPalette pages={palettePages} actions={paletteActions} />
             <div className="relative flex min-h-screen bg-au-bg">
               {/* Moving themed background behind the whole app, under a scrim. */}
               <BgVideo variant="site" />
@@ -143,7 +154,7 @@ export async function AppShell({
                     userId={userId}
                     profileNames={profileNames}
                     initialUnreadChats={initialUnreadChats}
-                    initialUnseenIssues={initialUnseenIssues}
+                    initialFeed={initialFeed}
                     initialUnseenTasks={initialUnseenTasks}
                     initialUnseenWarnings={initialUnseenWarnings}
                     initialUnseenLessonPlanAlerts={initialUnseenLessonPlanAlerts}

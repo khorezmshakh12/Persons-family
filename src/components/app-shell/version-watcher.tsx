@@ -30,6 +30,7 @@ export function VersionWatcher() {
   const t = useTranslations('common');
   const [stale, setStale] = useState(false);
   const seenRevision = useRef<string | null>(null);
+  const reloadOnReturn = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +45,14 @@ export function VersionWatcher() {
           seenRevision.current = revision;
         } else if (revision !== seenRevision.current) {
           setStale(true);
+          // Returning to a tab that is a version behind: reload straight away
+          // unless someone is mid-typing, so the first click after a deploy
+          // never hits a dead Server Action (owner health check, 2026-10-05).
+          const el = document.activeElement;
+          const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable);
+          if (reloadOnReturn.current && !typing) window.location.reload();
         }
+        reloadOnReturn.current = false;
       } catch {
         // Offline / transient — the next tick retries.
       }
@@ -54,7 +62,10 @@ export function VersionWatcher() {
     const interval = setInterval(check, POLL_MS);
 
     const onFocus = () => {
-      if (document.visibilityState === 'visible') void check();
+      if (document.visibilityState === 'visible') {
+        reloadOnReturn.current = true;
+        void check();
+      }
     };
     document.addEventListener('visibilitychange', onFocus);
 

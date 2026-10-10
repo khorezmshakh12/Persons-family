@@ -22,7 +22,6 @@ export async function SalarySection({
   isCeo,
   isAdmin,
   entries,
-  net,
   month,
 }: {
   staffId: string;
@@ -30,11 +29,15 @@ export async function SalarySection({
   isCeo: boolean;
   isAdmin: boolean;
   entries: FinanceEntry[];
-  net: number;
   /** YYYY-MM the page is showing. */
   month: string;
 }) {
   const t = await getTranslations('salary');
+  // Payments and earnings are different money: a month's salary payment
+  // already includes its bonuses, so the two are never summed together.
+  const isPayment = (e: FinanceEntry) => e.kind === 'salary' || e.kind === 'advance';
+  const adjustments = entries.filter((e) => !isPayment(e)).reduce((s, e) => s + e.amount, 0);
+  const paid = entries.filter(isPayment).reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
@@ -46,14 +49,20 @@ export async function SalarySection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-medium text-au-ink">{t('salaryLedger')}</h3>
-            <span
-              className={cn('text-lg font-bold tabular-nums', net > 0 ? 'text-emerald-600' : net < 0 ? 'text-red-600' : 'text-au-muted')}
-            >
-              {net >= 0 ? '+' : ''}
-              {formatUZS(net)}
-            </span>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              <span className="text-au-muted">
+                {t('ledgerAdjustments')}{' '}
+                <b className={cn('tabular-nums', adjustments > 0 ? 'text-au-ok' : adjustments < 0 ? 'text-au-bad' : 'text-au-ink')}>
+                  {adjustments > 0 ? '+' : ''}
+                  {formatUZS(adjustments)}
+                </b>
+              </span>
+              <span className="text-au-muted">
+                {t('ledgerPaid')} <b className="tabular-nums text-au-ink">{formatUZS(paid)}</b>
+              </span>
+            </div>
           </div>
-          {isAdmin && <ManageStaffFinanceDialog staffId={staffId} />}
+          {isAdmin && <ManageStaffFinanceDialog staffId={staffId} month={month} />}
         </div>
         <FinanceEntriesList entries={entries} isAdmin={isAdmin} />
       </div>

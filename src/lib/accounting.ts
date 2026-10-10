@@ -13,6 +13,8 @@ export type Entry = {
   credit: string;
   amount: number;
   source: string | null;
+  /** Receipt photo / PDF (contract-files bucket), v8-B. */
+  receipt_path?: string | null;
 };
 export type Asset = {
   id: string;
@@ -56,35 +58,6 @@ export const DEFAULT_TAX: TaxSettings = {
   vatExempt: true,
   minCash: 30_000_000,
 };
-
-/** Accounts the statements are computed from — renameable, but never
- * retyped or deleted. */
-export const CORE_ACCOUNTS = new Set([
-  '0100', '0200', '2910', '4010', '5010', '5110', '6010', '6310', '6410', '6520', '6710', '8300', '8710',
-  '9030', '9130', '9410', '9420', '9430', '9810',
-]);
-
-/** Code ranges per account type (national chart of accounts layout). */
-const CODE_RANGE: Record<AccType, [number, number]> = {
-  A: [100, 1999],
-  CA: [2000, 5999],
-  L: [6000, 7999],
-  E: [8000, 8999],
-  R: [9000, 9099],
-  X: [9100, 9999],
-};
-
-/** The next free 4-digit code for a new account of `type` — steps of 10
- * after the highest code in use in that range, then any free code. */
-export function nextAccountCode(type: AccType, used: string[]): string | null {
-  const [lo, hi] = CODE_RANGE[type];
-  const taken = new Set(used.map(Number));
-  const inRange = [...taken].filter((n) => n >= lo && n <= hi);
-  const pad = (n: number) => String(n).padStart(4, '0');
-  for (let n = (inRange.length ? Math.max(...inRange) : lo - 10) + 10; n <= hi; n += 10) if (!taken.has(n)) return pad(n);
-  for (let n = lo; n <= hi; n++) if (!taken.has(n)) return pad(n);
-  return null;
-}
 
 /** Debit-normal accounts (balance grows with debits). */
 export const debitNormal = (t: AccType) => t === 'A' || t === 'X';
@@ -409,9 +382,13 @@ export function cashWeeks(
 
 /** Journal templates (debit, credit) from the prototype. */
 export const JOURNAL_TEMPLATES: [string, string, string][] = [
-  ["O'quvchi to'lovi (bank)", '5110', '4010'],
-  ["O'quvchi to'lovi (kassa)", '5010', '4010'],
-  ["O'qish to'lovi hisoblandi", '4010', '9030'],
+  // An education centre is paid as it teaches: a student payment is the
+  // month's revenue (9030), not a debt being repaid — crediting 4010 left
+  // receivables negative and the P&L empty (owner, 2026-10-06).
+  ["O'quvchi to'lovi (bank)", '5110', '9030'],
+  ["O'quvchi to'lovi (kassa)", '5010', '9030'],
+  ["O'qish to'lovi hisoblandi (qarzga)", '4010', '9030'],
+  ["O'quvchi qarzini to'ladi", '5010', '4010'],
   ["Oldindan to'lov", '5110', '6310'],
   ['Ish haqi hisoblash', '9130', '6710'],
   ['Ijara hisob-fakturasi', '9420', '6010'],
@@ -439,4 +416,4 @@ export const fmtMln = (v: number) => {
   const s = a >= 1e9 ? `${(a / 1e9).toFixed(2)} mlrd` : a >= 1e6 ? `${(a / 1e6).toFixed(1)} mln` : a >= 1e3 ? `${Math.round(a / 1e3)} ming` : `${Math.round(a)}`;
   return (v < 0 ? '−' : '') + s;
 };
-export const fmtNum = (v: number) => (Math.round(v) || 0).toLocaleString('ru-RU').replace(/ /g, ' ');
+export const fmtNum = (v: number) => (Math.round(v) || 0).toLocaleString('en-US');

@@ -30,7 +30,6 @@ export type NavItem = {
     | 'profile'
     | 'settings'
     | 'materials'
-    | 'butterfly'
     | 'kpi';
   href: string;
   /** Points at a different app on the shared gateway (see
@@ -44,72 +43,75 @@ export type NavItem = {
   folded?: boolean;
 };
 
-/** Sidebar section an item is listed under (Persons Aurora layout). Purely
- * presentational — visibility is still decided by `roles` alone. */
-export type NavGroup = 'main' | 'motivation' | 'workflow' | 'management';
+/** Sidebar section an item is listed under (v8-A, 2026-10-10: five groups
+ * by how people use them). Purely presentational — visibility is still
+ * decided by `roles` alone. */
+export type NavGroup = 'daily' | 'me' | 'team' | 'manage' | 'system';
 
-export const NAV_GROUP_ORDER: NavGroup[] = ['main', 'motivation', 'workflow', 'management'];
+export const NAV_GROUP_ORDER: NavGroup[] = ['daily', 'me', 'team', 'manage', 'system'];
 
 const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
-  dashboard: 'main',
-  coreInbox: 'main',
-  sales: 'main',
-  hr: 'main',
-  report: 'management',
-  platform: 'management',
-  tasks: 'main',
-  finance: 'main',
-  staff: 'main',
-  market: 'motivation',
-  selfDevelopment: 'motivation',
-  taskTracker: 'main',
-  // Owner, 2026-10-04: Chat and Issues are daily tools — top of the main group.
-  chat: 'main',
-  issues: 'main',
-  lessonPlans: 'workflow',
-  companyNews: 'workflow',
-  materials: 'workflow',
-  strategy: 'management',
-  accounting: 'main',
-  operations: 'main',
-  perforce: 'main',
-  roadmap: 'management',
-  telegramSetup: 'management',
-  profile: 'management',
-  settings: 'management',
-  butterfly: 'motivation',
-  kpi: 'main',
+  // Kundalik — what everyone opens every day.
+  dashboard: 'daily',
+  tasks: 'daily',
+  chat: 'daily',
+  issues: 'daily',
+  companyNews: 'daily',
+  taskTracker: 'daily',
+  coreInbox: 'daily',
+  // Men — my own numbers and growth.
+  kpi: 'me',
+  selfDevelopment: 'me',
+  profile: 'me',
+  // Jamoa — people and the teaching floor.
+  staff: 'team',
+  hr: 'team',
+  lessonPlans: 'team',
+  operations: 'team',
+  sales: 'team',
+  materials: 'team',
+  // Boshqaruv — direction, projects, numbers.
+  strategy: 'manage',
+  perforce: 'manage',
+  report: 'manage',
+  finance: 'manage',
+  accounting: 'manage',
+  roadmap: 'manage',
+  // Tizim
+  market: 'system',
+  settings: 'system',
+  platform: 'system',
+  telegramSetup: 'system',
 };
 
-// Order inside each sidebar section — mirrors the Aurora reference.
+// Order inside each sidebar section.
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
+  'tasks',
   'chat',
   'issues',
-  'kpi',
-  'coreInbox',
-  'accounting',
-  'operations',
-  'perforce',
-  'tasks',
-  'taskTracker',
-  'finance',
-  'staff',
-  'sales',
-  'hr',
-  'market',
-  'selfDevelopment',
-  'butterfly',
-  'lessonPlans',
   'companyNews',
+  'taskTracker',
+  'kpi',
+  'selfDevelopment',
+  'profile',
+  'staff',
+  'hr',
+  'lessonPlans',
+  'operations',
+  'sales',
   'materials',
   'strategy',
+  'perforce',
   'report',
+  'finance',
+  'accounting',
   'roadmap',
-  'telegramSetup',
-  'profile',
+  'market',
   'settings',
   'platform',
+  'telegramSetup',
+  'coreInbox',
 ];
 
 // Per-section audiences — derived from lib/permissions.ts (the single role
@@ -134,11 +136,11 @@ export const NAV_ITEMS: NavItem[] = [
   // Core v2 (the owner's Claude-designed workspace, src/core/core.html) is
   // spread over these sections, one Core page each, embedded 1:1. On top of
   // SECTION_ROLES, the CEO's per-person ACL in Core can narrow them — passed
-  // in as `coreViews`, see coreViews() in lib/core-state.ts.
-  { key: 'coreInbox', href: '/inbox', core: 'inbox' },
-  { key: 'sales', href: '/sales', core: 'sales' },
+  // in as `coreViews`, see coreViews() in lib/core-state.ts. (Inbox removed
+  // by the owner 2026-10-05; /inbox now redirects to the Dashboard.)
+  { key: 'sales', href: '/sales' },
   { key: 'hr', href: '/hr', core: 'hr' },
-  { key: 'report', href: '/report', core: 'report' },
+  { key: 'report', href: '/report' },
   { key: 'platform', href: '/platform', core: 'settings' },
   // Goes through the SSO handoff route, not straight to /materials, so
   // clicking it doesn't drop the employee on Materials' login screen — see
@@ -164,12 +166,12 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'perforce', href: '/perforce' },
   // Persons Market — curation is the 'market.manage' capability.
   { key: 'market', href: '/market' },
-  // The particle-garden page — open to everyone.
-  { key: 'butterfly', href: '/butterfly' },
   // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.
   { key: 'kpi', href: '/my-kpi' },
   { key: 'profile', href: '/profile' },
-  { key: 'telegramSetup', href: '/telegram-setup' },
+  // Telegram centre lives in Platform (v8-B); listed on its own only for
+  // people without Platform (the IT developer) — see navItemsForRole.
+  { key: 'telegramSetup', href: '/platform?tab=telegram' },
   { key: 'settings', href: '/settings' },
 ];
 
@@ -188,6 +190,7 @@ export function navItemsForRole(
     // link would just dump them on Materials' login screen.
     if (item.key === 'materials' && !materialsLinked) return false;
     if (item.core && !coreViews.includes(item.core)) return false;
+    if (item.key === 'telegramSetup' && canSee(role, 'platform')) return false;
     return true;
   });
 }

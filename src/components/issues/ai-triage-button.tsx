@@ -20,7 +20,7 @@ export function AiTriageButton() {
         start(async () => {
           const res = await triageOpenIssuesAction();
           if (res.error) toast.error("AI tahlil ishlamadi");
-          else if (!res.done) toast("Tahlil qilinmagan ochiq murojaat yo'q (yoki AI kaliti sozlanmagan)");
+          else if (!res.done) toast("Barcha murojaatlar allaqachon tahlil qilingan (yoki AI kaliti sozlanmagan)");
           else {
             toast.success(`${res.done} ta murojaat AI bilan tahlil qilindi`);
             router.refresh();

@@ -1,6 +1,8 @@
+import { projectsAtRisk, ragLabel } from '@/lib/perforce-reminders';
 import { NextRequest, NextResponse } from 'next/server';
+import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
-import { sendTelegramMessage, sendTelegramMessageToMany } from '@/lib/telegram';
+import { sendTelegramAs, sendTelegramManyAs } from '@/lib/telegram';
 import {
   WEEKLY_EFFICIENCY_WARN_THRESHOLD,
   efficiencyForWeek,
@@ -17,6 +19,8 @@ import {
   reportRoleGroup,
   type ReportRoleGroup,
 } from '@/lib/telegram-reports';
+import { loadTeamReport } from '@/lib/team-report-data';
+import { fmtMetric, METRIC_META, type Metric } from '@/lib/team-report';
 
 // Cloud Scheduler fires this every Monday at 06:00 Asia/Tashkent (see the
 // gcloud command in this feature's report, and the lesson-plan-check-daily
@@ -48,7 +52,7 @@ type EmployeeRow = {
 
 type TaskRow = TaskLike & { assigned_to: string | null };
 
-export async function GET(req: NextRequest) {
+async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   const auth = req.headers.get('authorization');
   if (!expected || auth !== `Bearer ${expected}`) {
@@ -102,7 +106,7 @@ export async function GET(req: NextRequest) {
       const chatId = Number(employee.telegram_id);
       if (Number.isFinite(chatId)) {
         try {
-          await sendTelegramMessage(chatId, formatEmployeeWarning(name, stats, weekLabel));
+          await sendTelegramAs('report', chatId, formatEmployeeWarning(name, stats, weekLabel), { href: '/tasks' });
           warned = true;
           warnedCount += 1;
         } catch (error) {
@@ -172,7 +176,7 @@ export async function GET(req: NextRequest) {
       members.map((m) => m.line),
     );
     try {
-      await sendTelegramMessageToMany(ceoChatIds, text);
+      await sendTelegramManyAs('report', ceoChatIds, text, { record: false });
       groupsSent += 1;
     } catch (error) {
       // sendTelegramMessageToMany already swallows per-recipient failures;
@@ -182,11 +186,43 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Team summary (Hisobotlar) for the week that just ended — the run fires
+  // on Monday, so the last bucket is the new, empty week; use the one before.
+  let summarySent = false;
+  try {
+    const rep = await loadTeamReport('week');
+    const atRisk = await projectsAtRisk().catch(() => []);
+    const i = rep.buckets.length - 2;
+    const line = (m: Metric) => {
+      const v = rep.series[m][i];
+      const p = rep.series[m][i - 1];
+      const unit = METRIC_META[m].unit;
+      const d = v !== null && p !== null ? (unit === '%' ? `${v - p >= 0 ? '+' : ''}${Math.round(v - p)} p.p.` : `${v - p >= 0 ? '+' : ''}${v - p}`) : '';
+      return `• ${METRIC_META[m].n}: <b>${fmtMetric(v, unit)}</b>${d ? ` (${d})` : ''}`;
+    };
+    const text = [
+      `📈 <b>Jamoa hisoboti · ${rep.buckets[i].label} haftasi</b>`,
+      ...(['tasksDone', 'onTime', 'missed', 'issuesNew', 'issuesResolved', 'leads', 'enrolled'] as Metric[]).map(line),
+      rep.attention.length ? `\n⚠️ E’tibor kerak: ${rep.attention.slice(0, 5).map((a) => a.name).join(', ')}${rep.attention.length > 5 ? '…' : ''}` : '',
+      atRisk.length ? `\n🧭 Loyihalar (Perforce): ${atRisk.map((x) => `${x.name} — ${ragLabel(x.rag)} (${x.why})`).join('; ')}` : '',
+      '\nBatafsil: Hisobotlar bo‘limi',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    await sendTelegramManyAs('report', ceoChatIds, text, { href: '/report' });
+    summarySent = true;
+  } catch (error) {
+    console.error('Weekly team summary failed', error instanceof Error ? error.message : error);
+  }
+
   return NextResponse.json({
     ok: true,
+    summarySent,
     week: week.startKey,
     employees: employees.length,
     warned: warnedCount,
     groupsSent,
   });
 }
+
+export const GET = withCronLog('weekly-task-report', handle);

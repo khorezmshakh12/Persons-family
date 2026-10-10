@@ -1,7 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
 import type { NavItem } from '@/lib/nav';
-import { CAP_ROLES } from '@/lib/permissions';
 
 /**
  * Single source of truth for which sidebar "new" dots should be lit for a
@@ -15,19 +14,27 @@ import { CAP_ROLES } from '@/lib/permissions';
 export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'][]> {
   const [[tasks], [issues], [companyNews], [chat], [warnings]] = await Promise.all([
     sql<{ count: number }[]>`select count(*)::int from tasks where assigned_to = ${userId} and is_seen = false`,
-    // Issue dots only for the issue managers (issues.manage) — never for
-    // someone else still carrying a stale `assigned_to` row.
+    // Murojaatlar (v8): an issue given to me I haven't opened yet, or a fix
+    // of mine waiting for my confirmation.
     sql<{ count: number }[]>`
       select count(*)::int from issues
-      where assigned_to = ${userId} and is_seen = false
-        and exists (select 1 from profiles where id = ${userId} and role::text = any(${[...CAP_ROLES['issues.manage']]}))
+      where (assigned_to = ${userId} and is_seen = false and status <> 'done')
+         or (created_by = ${userId} and status = 'done' and closed_at is null)
     `,
     sql<{ count: number }[]>`
       select count(*)::int from company_news cn
-      where cn.created_at >= now() - interval '7 days'
+      where cn.created_at >= now() - interval '7 days' and cn.deleted_at is null and (cn.publish_at is null or cn.publish_at <= now())
         and not exists (select 1 from company_news_reads r where r.news_id = cn.id and r.user_id = ${userId})
     `,
-    sql<{ count: number }[]>`select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false`,
+    // Unread DMs, plus unread @mentions in chat channels (Chat v2).
+    sql<{ count: number }[]>`
+      select (select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false)
+        + coalesce((select count(*)::int from chat_channel_messages x
+            left join chat_channel_members m on m.channel_id = x.channel_id and m.user_id = ${userId}
+            where ${userId} = any(x.mentions) and x.send_at <= now()
+              and x.send_at > coalesce(m.last_read_at, now() - interval '3 days')), 0) as count`.catch(() =>
+      sql<{ count: number }[]>`select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false`,
+    ),
     sql<{ count: number }[]>`select count(*)::int from staff_warnings where staff_id = ${userId} and is_seen = false`,
   ]);
 
@@ -45,7 +52,7 @@ export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'
 export async function unseenCompanyNewsCount(userId: string): Promise<number> {
   const [row] = await sql<{ count: number }[]>`
     select count(*)::int from company_news cn
-    where cn.created_at >= now() - interval '7 days'
+    where cn.created_at >= now() - interval '7 days' and cn.deleted_at is null and (cn.publish_at is null or cn.publish_at <= now())
       and not exists (select 1 from company_news_reads r where r.news_id = cn.id and r.user_id = ${userId})
   `;
   return row.count;

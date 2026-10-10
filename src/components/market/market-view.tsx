@@ -31,6 +31,7 @@ import {
   adjustMarketItemStockAction,
   cancelMarketOrderAction,
   toggleMarketWishlistAction,
+  restoreMarketItemAction,
 } from '@/lib/actions/market';
 import { isLowStock, MARKET_CATEGORIES, type MarketCategory } from '@/lib/market';
 import { GLASS_CARD, SURFACE_HERO } from '@/lib/glass';
@@ -170,6 +171,44 @@ function ItemActiveToggle({ item }: { item: MarketItemRow }) {
  * ("two more hoodies arrived") shouldn't need the full edit dialog. Hidden for
  * unlimited items, which have no stock number to move.
  */
+/**
+ * Restore button for archived items — one-click return to the shelf.
+ */
+function RestoreItemButton({ item }: { item: MarketItemRow }) {
+  const t = useTranslations('market');
+  const [isPending, startTransition] = useTransition();
+
+  if (!item.archived_at) return null;
+
+  function restore() {
+    const formData = new FormData();
+    formData.set('itemId', item.id);
+
+    startTransition(async () => {
+      const result = await restoreMarketItemAction(undefined, formData);
+      if (result?.error) {
+        toast.error(t(`errors.${result.error}`));
+      } else {
+        toast.success(t('admin.itemRestored'));
+      }
+    });
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      disabled={isPending}
+      onClick={restore}
+      className="h-8 gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-700 hover:bg-emerald-500/10"
+    >
+      <Archive className="size-3.5" />
+      {t('admin.restore')}
+    </Button>
+  );
+}
+
 function StockAdjust({ item }: { item: MarketItemRow }) {
   const t = useTranslations('market');
   const [isPending, startTransition] = useTransition();
@@ -814,9 +853,7 @@ export function MarketView({ balance, items, orders, adminView }: MarketViewProp
                       <StockAdjust item={item} />
                       <ItemActiveToggle item={item} />
                       <EditItemDialog item={item} />
-                      {/* An archived item is already removed; re-running the
-                          delete would just archive it again. Bringing it back
-                          is the Active toggle, which clears the archive. */}
+                      {item.archived_at && <RestoreItemButton item={item} />}
                       {!item.archived_at && <DeleteItemDialog item={item} />}
                     </div>
                   </div>

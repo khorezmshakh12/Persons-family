@@ -51,6 +51,7 @@ export async function loginAction(
       return { error: 'accountDeactivated' };
     }
 
+    await sql`update profiles set last_seen_at = now() where id = ${decoded.uid}`.catch(() => {});
     const sessionCookie = await createSessionCookie(signInResult.idToken);
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, sessionCookie, {

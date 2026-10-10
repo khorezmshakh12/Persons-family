@@ -17,6 +17,8 @@ import {
 } from '@/lib/strategy';
 import { PersonAvatar } from './bits';
 import type { WorkspaceApi } from './strategy-workspace';
+import { cascadeShift, criticalPath, depViolations, type Dep } from '@/lib/strategy-plan';
+import { ask } from './suite-shell';
 
 const DW = 22;
 const ROW = 40;
@@ -29,12 +31,14 @@ export function GanttView({
   space,
   tasks,
   milestones,
+  deps = [],
   onMilestones,
 }: {
   api: WorkspaceApi;
   space: StrategySpace;
   tasks: StrategyTask[];
   milestones: StrategyMilestone[];
+  deps?: Dep[];
   onMilestones: () => void;
 }) {
   const { today } = api;
@@ -100,14 +104,35 @@ export function GanttView({
     if (!d || d.id !== t.id) return;
     if (!d.moved) return api.openTask(t.id);
     if (d.dd === 0) return;
+    let next: { id: string; start_date: string; end_date: string };
     if (d.resize) {
       let ne = addDays(t.end_date, d.dd);
       if (ne < t.start_date) ne = t.start_date;
+      next = { id: t.id, start_date: t.start_date, end_date: ne };
       api.patchTask(t.id, { end_date: ne });
     } else {
-      api.patchTask(t.id, { start_date: addDays(t.start_date, d.dd), end_date: addDays(t.end_date, d.dd) });
+      next = { id: t.id, start_date: addDays(t.start_date, d.dd), end_date: addDays(t.end_date, d.dd) };
+      api.patchTask(t.id, { start_date: next.start_date, end_date: next.end_date });
     }
+    // Pushed past a dependant's start: offer to cascade the chain.
+    const moves = cascadeShift(api.tasks, api.deps, next);
+    if (moves.length)
+      void ask(`${moves.length} ta bog‘liq vazifa endi bu vazifa tugashidan oldin boshlanadi. Ularni ham surilsinmi?`, { ok: 'Ha, surilsin' }).then(
+        (yes) => {
+          if (yes) void api.shiftTasks(moves);
+        },
+      );
   }
+
+  // Dependency arrows: from the end of the prerequisite to the start of the
+  // dependant; red when the dependant starts too early. The critical chain is
+  // outlined on the bars.
+  const rowOf = new Map<string, number>();
+  rows.forEach((r, i) => 't' in r && rowOf.set(r.t.id, i));
+  const visibleDeps = deps.filter((x) => rowOf.has(x.task_id) && rowOf.has(x.depends_on));
+  const bad = new Set(depViolations(tasks, visibleDeps).map((x) => `${x.task_id}|${x.depends_on}`));
+  const critical = criticalPath(tasks, visibleDeps);
+  const byId = new Map(tasks.map((x) => [x.id, x]));
 
   return (
     <div className="sx-gantt">
@@ -177,6 +202,41 @@ export function GanttView({
             {today >= R0 && today <= R1 && (
               <div className="g-todayline" style={{ left: daysBetween(R0, today) * DW + DW / 2 }} />
             )}
+            {visibleDeps.length > 0 && (
+              <svg className="pointer-events-none absolute inset-0 z-[1] overflow-visible" width={W} height={rows.length * ROW} aria-hidden>
+                <defs>
+                  <marker id="g-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M0 0 8 4 0 8z" fill="var(--au-muted)" />
+                  </marker>
+                  <marker id="g-arrow-bad" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M0 0 8 4 0 8z" fill="var(--au-bad)" />
+                  </marker>
+                </defs>
+                {visibleDeps.map((x) => {
+                  const p = byId.get(x.depends_on)!;
+                  const s = byId.get(x.task_id)!;
+                  const x1 = (daysBetween(R0, p.end_date) + 1) * DW;
+                  const y1 = rowOf.get(p.id)! * ROW + ROW / 2;
+                  const x2 = daysBetween(R0, s.start_date) * DW;
+                  const y2 = rowOf.get(s.id)! * ROW + ROW / 2;
+                  const isBad = bad.has(`${x.task_id}|${x.depends_on}`);
+                  const mid = Math.max(x1 + 10, Math.min(x2 - 10, x1 + 10));
+                  return (
+                    <path
+                      key={`${x.task_id}|${x.depends_on}`}
+                      d={`M${x1} ${y1} H${mid} V${y2} H${x2 - 2}`}
+                      fill="none"
+                      stroke={isBad ? 'var(--au-bad)' : 'var(--au-muted)'}
+                      strokeWidth={isBad ? 2 : 1.5}
+                      strokeDasharray={isBad ? '4 3' : undefined}
+                      markerEnd={`url(#${isBad ? 'g-arrow-bad' : 'g-arrow'})`}
+                      pathLength={1}
+                      className="ms-draw"
+                    />
+                  );
+                })}
+              </svg>
+            )}
             {rows.map((r, i) => {
               if ('ms' in r)
                 return milestones.map((m) => (
@@ -195,13 +255,21 @@ export function GanttView({
               const t = r.t;
               const d = drag?.id === t.id ? drag : null;
               const l = daysBetween(R0, t.start_date) * DW + (d && !d.resize ? d.dd * DW : 0);
-              const w = Math.max(DW, (daysBetween(t.start_date, t.end_date) + 1) * DW + (d ? d.dd * DW : 0));
+              const w = Math.max(DW, (daysBetween(t.start_date, t.end_date) + 1) * DW + (d?.resize ? d.dd * DW : 0));
               const col = isLate(t, today) ? 'var(--au-bad)' : t.status === 'todo' ? '#a8a093' : STATUSES[t.status].c;
               return (
                 <div
                   key={t.id}
                   className={`g-bar ${d ? 'dragging' : ''}`}
-                  style={{ left: l, top: i * ROW + 8, width: w, background: col, animationDelay: `${Math.min(i, 20) * 25}ms` }}
+                  title={critical.has(t.id) ? 'Kritik yo‘l — kechiksa, butun loyiha kechikadi' : undefined}
+                  style={{
+                    left: l,
+                    top: i * ROW + 8,
+                    width: w,
+                    background: col,
+                    animationDelay: `${Math.min(i, 20) * 25}ms`,
+                    ...(critical.has(t.id) ? { boxShadow: '0 0 0 2px var(--au-card), 0 0 0 4px var(--au-bad)' } : {}),
+                  }}
                   onPointerDown={(e) => onDown(e, t)}
                   onPointerMove={(e) => onMove(e, t)}
                   onPointerUp={() => onUp(t)}

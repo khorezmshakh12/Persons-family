@@ -6,7 +6,7 @@ import { after } from 'next/server';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 import { bumpSignal } from '@/lib/gcp/firestoreAdmin';
 import { can } from '@/lib/permissions';
 
@@ -21,7 +21,7 @@ async function notifyCompanyNews({ title }: { title: string }) {
       select telegram_id from profiles where telegram_id is not null
     `;
     const text = `Kompaniya yangiligi: <b>${escapeTelegramText(title)}</b>`;
-    await sendTelegramMessageToMany(staff.map((s) => s.telegram_id), text);
+    await sendTelegramManyAs('news', staff.map((s) => s.telegram_id), text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }

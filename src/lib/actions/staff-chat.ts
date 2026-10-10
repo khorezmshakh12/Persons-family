@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { after } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
-import { escapeTelegramText, sendTelegramMessageToMany } from '@/lib/telegram';
-import { mirrorGroupChatMessage, deleteGroupChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
+import { mirrorGroupChatMessage, deleteGroupChatMessageMirror, updateGroupChatMessageMirror } from '@/lib/gcp/firestoreAdmin';
 
 export type StaffChatActionState = { error?: string } | undefined;
 
@@ -43,7 +43,7 @@ async function notifyGroupChatMessage({
     `;
 
     const text = `<b>${escapeTelegramText(senderName)}</b> guruh chatiga yozdi:\n${escapeTelegramText(content)}`;
-    await sendTelegramMessageToMany(recipients.map((r) => r.telegram_id), text);
+    await sendTelegramManyAs('chat', recipients.map((r) => r.telegram_id), text);
   } catch (error) {
     console.error('Telegram Notification Failed:', error instanceof Error ? error.message : error);
   }
@@ -128,4 +128,37 @@ export async function deleteStaffChatMessageAction(formData: FormData): Promise<
     returning conversation_id
   `;
   if (deleted) await deleteGroupChatMessageMirror(deleted.conversation_id, parsed.data.id);
+}
+
+const updateMessageSchema = z.object({
+  id: z.string().uuid(),
+  content: z.string().trim().min(1).max(2000),
+});
+
+/** Edit own group chat message. Author only. */
+export async function updateStaffChatMessageAction(
+  _prevState: StaffChatActionState,
+  formData: FormData,
+): Promise<StaffChatActionState> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+
+  const parsed = updateMessageSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: 'invalidMessage' };
+
+  const [row] = await sql<{ conversation_id: string; edited_at: string }[]>`
+    update staff_chat_messages set content = ${parsed.data.content}, edited_at = now()
+    where id = ${parsed.data.id} and user_id = ${user.id}
+    returning conversation_id, edited_at
+  `;
+  if (!row) return { error: 'forbidden' };
+
+  try {
+    await updateGroupChatMessageMirror(row.conversation_id, parsed.data.id, parsed.data.content, row.edited_at);
+  } catch (error) {
+    // The edit is saved; a mirror hiccup only delays the other side's view.
+    console.error('group chat edit mirror failed', error);
+  }
+
+  return {};
 }

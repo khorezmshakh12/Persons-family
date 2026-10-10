@@ -5,6 +5,7 @@
 @import "./motion.css";
 @import "./themes.css";
 @import "./motion-v4.css";
+@import "./motion-sections.css";
 
 @custom-variant dark (&:is(.dark *));
 

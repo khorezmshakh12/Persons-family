@@ -126,6 +126,7 @@ export function TaskCommentsDrawer({
             variant="outline"
             size="sm"
             aria-label={t('comments.title')}
+            data-task-action="comments"
             className="h-7 w-fit gap-1.5 rounded-full border-au-line bg-au-card-2 px-3 text-xs text-au-muted hover:bg-au-card-2 hover:text-au-ink"
           />
         }
@@ -166,7 +167,7 @@ export function TaskCommentsDrawer({
                         {format.relativeTime(new Date(c.created_at), now)}
                       </span>
                     </div>
-                    <p className="text-sm whitespace-pre-wrap text-au-ink">{c.body}</p>
+                    <p className="text-sm whitespace-pre-wrap text-au-ink [overflow-wrap:anywhere]">{c.body}</p>
                   </div>
                   {c.author_id === currentUserId && !isOptimistic && (
                     <button

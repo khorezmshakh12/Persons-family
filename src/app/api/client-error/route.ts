@@ -33,6 +33,12 @@ export async function POST(request: Request) {
   const message = clip(body.message, 500);
   if (!message) return new NextResponse(null, { status: 400 });
 
+  // Also to Cloud Logging (stderr → severity ERROR), so browser errors can be
+  // reviewed with `gcloud logging read` without querying the database.
+  console.error(
+    '[client-error]',
+    JSON.stringify({ message, path: clip(body.path, 200), stack: clip(body.stack, 800), ua: clip(request.headers.get('user-agent'), 120) }),
+  );
   logSystemAction(
     'client.error',
     `${message}\npath: ${clip(body.path, 200)}\nua: ${clip(request.headers.get('user-agent'), 160)}\n${clip(body.stack, 1500)}`,

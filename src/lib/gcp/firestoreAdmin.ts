@@ -49,6 +49,7 @@ export async function mirrorChatMessage(params: {
   mediaUrl: string | null;
   mediaType: string;
   createdAt: string;
+  replyToId?: string | null;
 }): Promise<void> {
   const id = conversationId(params.senderId, params.receiverId);
   const convoRef = db().doc(`chats/${id}`);
@@ -68,6 +69,7 @@ export async function mirrorChatMessage(params: {
       mediaType: params.mediaType,
       createdAt: params.createdAt,
       isRead: false,
+      replyToId: params.replyToId ?? null,
     });
   });
 }
@@ -78,6 +80,19 @@ export async function mirrorChatMessage(params: {
 export async function deleteChatMessageMirror(senderId: string, receiverId: string, messageId: string): Promise<void> {
   const id = conversationId(senderId, receiverId);
   await db().doc(`chats/${id}`).collection('messages').doc(messageId).delete();
+}
+
+/** Updates a DM message's mirrored text after its author edits it, so the
+ * other side sees the change live (additive helper, 2026-10-06). */
+export async function updateChatMessageMirror(
+  senderId: string,
+  receiverId: string,
+  messageId: string,
+  messageText: string,
+  editedAt: string,
+): Promise<void> {
+  const id = conversationId(senderId, receiverId);
+  await db().doc(`chats/${id}`).collection('messages').doc(messageId).set({ messageText, editedAt }, { merge: true });
 }
 
 /** Flips isRead on every mirrored message from otherUserId to userId, so
@@ -150,4 +165,15 @@ export async function mirrorGroupChatMessage(params: {
  * Cloud SQL — same reasoning as deleteChatMessageMirror() above. */
 export async function deleteGroupChatMessageMirror(groupId: string, messageId: string): Promise<void> {
   await db().doc(`group_chats/${groupId}`).collection('messages').doc(messageId).delete();
+}
+
+/** Updates a group chat message's mirrored content after its author edits it,
+ * so the other side sees the change live (additive helper, 2026-10-06). */
+export async function updateGroupChatMessageMirror(
+  groupId: string,
+  messageId: string,
+  content: string,
+  editedAt: string,
+): Promise<void> {
+  await db().doc(`group_chats/${groupId}`).collection('messages').doc(messageId).set({ content, editedAt }, { merge: true });
 }

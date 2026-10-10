@@ -199,6 +199,9 @@ export function ChatComposer({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       formRef.current?.requestSubmit();
+    } else if (e.key === 'Escape' && replyTarget) {
+      e.preventDefault();
+      onClearReply();
     }
   }
 
@@ -206,15 +209,15 @@ export function ChatComposer({
     <form
       ref={formRef}
       action={formAction}
-      className="ch-composer flex flex-col gap-2 border-t border-au-line p-4"
+      className="ch-composer flex min-w-0 flex-col gap-2 border-t border-au-line p-4"
     >
       <input type="hidden" name="receiverId" value={receiverId} />
       {replyTarget && <input type="hidden" name="replyToId" value={replyTarget.id} />}
       {replyTarget && (
-        <div className="flex items-center gap-2 rounded-lg border-l-2 border-au-faint bg-au-card px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border-l-2 border-au-faint bg-au-card px-3 py-1.5">
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-xs font-medium text-au-ink">{replyTarget.senderName}</span>
-            <span className="truncate text-xs text-au-muted">
+            <span className="line-clamp-2 text-xs break-words text-au-muted [overflow-wrap:anywhere]">
               {replyTarget.text ?? t(`mediaLabel.${replyTarget.mediaType}`)}
             </span>
           </div>

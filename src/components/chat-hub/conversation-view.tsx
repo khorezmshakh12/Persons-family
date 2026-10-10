@@ -42,7 +42,13 @@ export function ConversationView({
   onOptimisticSend,
   onConfirmedSend,
   onBack,
+  headerActions,
+  statusLine,
 }: {
+  /** Right side of the header (info panel toggle…). */
+  headerActions?: React.ReactNode;
+  /** "📚 Darsda · 15:30 gacha" — shown instead of online/offline when set. */
+  statusLine?: string | null;
   active: ActiveConversation;
   conversationState: ConversationState;
   messages: StaffChatMessage[];
@@ -191,7 +197,7 @@ export function ConversationView({
   const headerInitials = contact ? `${contact.first_name[0]}${contact.last_name[0]}` : '?';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="ch-head flex items-center gap-3 border-b border-au-line px-4 py-3">
         <button
           type="button"
@@ -209,9 +215,10 @@ export function ConversationView({
           <h2 className="truncate text-base font-semibold text-au-ink">{headerName}</h2>
           {/* Telegram-style status line under the name. */}
           <span className={typing || online ? 'text-xs text-au-accent-text' : 'text-xs text-au-faint'}>
-            {typing ? `${t('typing')}…` : online ? t('online') : t('offline')}
+            {typing ? `${t('typing')}…` : statusLine ? statusLine : online ? t('online') : t('offline')}
           </span>
         </div>
+        {headerActions}
       </div>
 
       {conversationState.kind === 'none' ? (

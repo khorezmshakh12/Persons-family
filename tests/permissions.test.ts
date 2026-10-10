@@ -29,16 +29,17 @@ const read = (p: string) => readFileSync(join(root, p), 'utf8');
 const EVERYONE: SectionKey[] = [
   // Inbox (approvals) removed for everyone — owner, 2026-10-05.
   'dashboard', 'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker',
-  'finance', 'profile', 'settings', 'materials', 'hr', 'butterfly', 'kpi',
+  'finance', 'profile', 'settings', 'materials', 'hr', 'kpi',
 ];
 
 // The owner-facing matrix: department sections per role, on top of EVERYONE.
 const EXPECTED: Record<Role, SectionKey[]> = {
   // Owner, 2026-09-30: Market closed to all but CEO / COO / IT Developer;
   // monthly report removed; Strategy = CEO, COO, PM; Accounting = CEO only;
-  // Platform settings = CEO, COO.
-  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
-  coo: ['sales', 'staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market'],
+  // Platform settings = CEO, COO. Reports (Hisobotlar) reopened for CEO + COO
+  // as a native page (owner, 2026-10-09).
+  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market', 'report'],
+  coo: ['sales', 'staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market', 'report'],
   commercial_director: ['sales', 'operations'],
   academic_director: ['lessonPlans', 'operations'],
   financist: ['sales'],
@@ -72,7 +73,9 @@ test('the sidebar shows exactly the sections a role may open', () => {
   const coreViews = ['inbox', 'sales', 'hr', 'report', 'settings'];
   for (const role of ROLES) {
     const keys = navItemsForRole(role, { materialsLinked: true, coreViews }).map((i) => i.key).sort();
-    const expected = ALL_SECTIONS.filter((s) => canSee(role, s)).sort();
+    // Telegram is a Platform tab (v8-B): listed on its own only for roles
+    // that can't open Platform.
+    const expected = ALL_SECTIONS.filter((s) => canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
     assert.deepEqual(keys, expected, role);
   }
 });
@@ -187,7 +190,7 @@ test('every restricted page guards with the matrix', () => {
     [`${app}market/page.tsx`, /canSeeFor\(profile, 'market'\)/],
     ['src/components/core/core-section.tsx', /coreViews\(profile!?\)\)\.includes\(view\)/],
     ['src/app/api/core/app/route.ts', /coreViews\(profile\)\)\.includes\(view\)/],
-    [`${app}task-tracker/page.tsx`, /canSeeFor\(profile, 'taskTracker'\)/],
+    ['src/app/[locale]/(full)/task-tracker/page.tsx', /canSeeFor\(profile, 'taskTracker'\)/],
     ['src/app/api/task-tracker/app/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
     ['src/app/api/task-tracker/state/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
   ];
