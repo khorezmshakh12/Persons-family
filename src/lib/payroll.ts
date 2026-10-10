@@ -49,7 +49,7 @@ export function shiftPeriod(period: string, months: number): string {
   return `${ny}-${String(nm).padStart(2, '0')}-01`;
 }
 
-/** Whole-team payroll for one month — every active staff member, their
+/** Whole-team payroll for one month — every staff member paid that month, their
  * planned gross, what has been paid to them this month, and the shortfall.
  * `totals.remaining` is the payroll the CEO still owes for the month.
  * `amount` columns come back as JS numbers — db/client.ts parses `numeric`. */
@@ -72,7 +72,10 @@ export async function getPayrollSummary(period: string): Promise<PayrollSummary>
       ), 0) as paid
     from profiles p
     left join salary_months sm on sm.staff_id = p.id and sm.period = ${period}
-    where p.is_active = true
+    -- Active staff, plus anyone who left but still has pay this month.
+    where p.is_active
+       or sm.staff_id is not null
+       or exists (select 1 from finance_entries f where f.staff_id = p.id and f.period = ${period})
     order by p.first_name asc
   `;
 

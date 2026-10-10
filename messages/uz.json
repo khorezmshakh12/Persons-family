@@ -1122,7 +1122,8 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Iltimos, kamida bitta maydonni to'ldiring.",
       "alreadySubmitted": "Siz shu oy uchun natijalaringizni allaqachon yuborgansiz.",
-      "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring."
+      "submitFailed": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+      "periodLocked": "Bu oyning oyligi tasdiqlangan — bonusni o‘zgartirib bo‘lmaydi. Moliya › Oylik jarayonida tuzatish yozuvi qo‘shing."
     },
     "starAward": "Yulduz mukofoti",
     "starAwardHint": "Balldan alohida. Xodim yulduzlarni Persons Marketda sarflaydi.",
@@ -1233,7 +1234,9 @@
       "forbidden": "Sizda bu amal uchun ruxsat yo'q.",
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
-      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
+      "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "notFound": "Yozuv topilmadi",
+      "periodLocked": "Bu oy yopilgan (oylik tasdiqlangan). Moliya › Oylik jarayonida tuzatish yozuvi qo‘shing."
     },
     "fromWarning": "Ogohlantirishdan",
     "edit": "Tahrirlash",
@@ -1262,7 +1265,9 @@
       "fieldInvalid": "Bu maydon noto'g'ri to'ldirilgan.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
       "deleteFailed": "Bu yozuvni o'chirib bo'lmadi. Qayta urinib ko'ring.",
-      "periodLocked": "Bu oy yopilgan (oylik tasdiqlangan). O'zgartirish uchun Moliya › Oylik jarayonida tuzatish yozuvi qo'shing."
+      "periodLocked": "Bu oy yopilgan (oylik tasdiqlangan). O'zgartirish uchun Moliya › Oylik jarayonida tuzatish yozuvi qo'shing.",
+      "notFound": "Yozuv topilmadi (o‘chirilgan bo‘lishi mumkin)",
+      "systemEntry": "Bu yozuvni tizim yaratgan (KPI, oylik jarayoni yoki tuzatish) — uni o‘z bo‘limida o‘zgartiring"
     },
     "payroll": {
       "title": "Oylik maosh",
@@ -1437,7 +1442,7 @@
     "title": "Ish haqi",
     "salaryLedger": "Maosh",
     "missions": "Missiya bonuslari (arxiv)",
-    "total": "Jami (Total)",
+    "total": "Jami hisoblangan daromad",
     "totalCommentPlaceholder": "Izoh qo'shish...",
     "commentSaved": "Izoh saqlandi.",
     "errors": {
@@ -1445,7 +1450,9 @@
       "sessionExpired": "Sessiya muddati tugadi — sahifani yangilab, qaytadan kiring.",
       "invalidInput": "Kiritilgan qiymatlarni tekshiring.",
       "updateFailed": "Saqlab bo'lmadi. Qayta urinib ko'ring."
-    }
+    },
+    "ledgerAdjustments": "Qo‘shimcha va ushlanmalar:",
+    "ledgerPaid": "Berilgan:"
   },
   "roadmap": {
     "title": "Yo'l xaritasi",

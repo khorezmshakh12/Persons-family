@@ -136,7 +136,9 @@ export async function saveEvaluationAction(
       where id = ${parsed.data.id} and user_id = ${parsed.data.userId}
     `;
     if (res.count === 0) return { error: 'submitFailed' };
-  } catch {
+  } catch (error) {
+    // The month's pay run is approved: its bonus can no longer change.
+    if (error instanceof Error && /period_locked/.test(error.message)) return { error: 'periodLocked' };
     return { error: 'submitFailed' };
   }
 

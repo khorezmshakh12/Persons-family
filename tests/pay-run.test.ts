@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blockers, canMove, computeLine, drift, shiftMonth, totals, type PayInput } from '../src/lib/pay-run';
+import { blockers, canMove, computeLine, drift, effectivePeriod, shiftMonth, totals, type PayInput } from '../src/lib/pay-run';
 
 const input = (over: Partial<PayInput> = {}): PayInput => ({
   staffId: 's1',
@@ -74,4 +74,48 @@ test('totals, drift and month shifting', () => {
   assert.deepEqual(drift([a], null), []);
   assert.equal(shiftMonth('2026-01-01', -1), '2025-12-01');
   assert.equal(shiftMonth('2026-12-01', 1), '2027-01-01');
+});
+
+test('effectivePeriod: a movement stays in its own Tashkent month while that month is open', () => {
+  assert.equal(effectivePeriod('2026-09-15T10:00:00Z', new Map()), '2026-09-01');
+  // 30 Sep 20:00 UTC is already 1 Oct in Tashkent (UTC+5).
+  assert.equal(effectivePeriod('2026-09-30T20:00:00Z', new Map()), '2026-10-01');
+});
+
+test('effectivePeriod: counted before approval stays; created after approval rolls forward', () => {
+  const locks = new Map([['2026-09-01', '2026-09-28T09:00:00.000Z']]);
+  assert.equal(effectivePeriod('2026-09-20T10:00:00Z', locks), '2026-09-01');
+  assert.equal(effectivePeriod('2026-09-28T09:00:00Z', locks), '2026-09-01');
+  assert.equal(effectivePeriod('2026-09-29T10:00:00Z', locks), '2026-10-01');
+});
+
+test('effectivePeriod: rolls past every month approved before the movement', () => {
+  const locks = new Map([
+    ['2026-09-01', '2026-09-10T00:00:00.000Z'],
+    ['2026-10-01', '2026-09-12T00:00:00.000Z'],
+  ]);
+  assert.equal(effectivePeriod('2026-09-15T00:00:00Z', locks), '2026-11-01');
+});
+
+test('carry: last month’s overpayment is a deduction, reported apart from earnings cuts', () => {
+  const l = computeLine(
+    input({
+      components: [
+        { kind: 'base', title: '', amount: 5_000_000 },
+        { kind: 'penalty', title: 'Jarima', amount: -100_000 },
+        { kind: 'carry', title: 'Ortiqcha to‘lov', amount: -400_000 },
+      ],
+    }),
+  );
+  assert.equal(l.deductions, -500_000);
+  assert.equal(l.carry, -400_000);
+  assert.equal(l.payable, 4_500_000);
+  // Accrued pay for the books = payable − carry.
+  assert.equal(l.payable - l.carry, 4_900_000);
+});
+
+test('a pending advance blocks approval', () => {
+  const l = computeLine(input({ advancePending: true }));
+  assert.ok(l.flags.includes('advancePending'));
+  assert.deepEqual(blockers([l]).map((x) => x.staffId), ['s1']);
 });

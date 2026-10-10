@@ -27,6 +27,7 @@ const STATUS_CHIP: Record<PayRunStatus, { n: string; cls: string; Icon: typeof C
 const ADV_ERR: Record<string, string> = {
   alreadyPending: 'Sizda ko‘rib chiqilayotgan so‘rov bor',
   overLimit: 'Avans oylik maoshdan oshmasligi kerak',
+  noSalary: 'Bu oy uchun maoshingiz hali belgilanmagan — avans so‘rab bo‘lmaydi',
   alreadyDecided: 'So‘rov allaqachon ko‘rib chiqilgan',
   invalidInput: 'Summa va sababni tekshiring',
 };

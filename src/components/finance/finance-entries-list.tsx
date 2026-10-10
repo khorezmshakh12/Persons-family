@@ -4,7 +4,11 @@ import { useState, useTransition, useActionState, useEffect } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { toast } from 'sonner';
 import { Trash2, Pencil } from 'lucide-react';
-import { deleteFinanceEntryAction, updateFinanceEntryAction, type FinanceActionState } from '@/lib/actions/finance';
+import {
+  deleteFinanceEntryAction,
+  updateFinanceEntryAction,
+  type FinanceActionState,
+} from '@/lib/actions/finance';
 import { formatUZS } from '@/lib/format-currency';
 import { cn } from '@/lib/utils';
 import {
@@ -25,10 +29,28 @@ export type FinanceEntry = {
   title: string;
   amount: number;
   note: string | null;
+  kind: 'adjustment' | 'salary' | 'advance' | 'penalty';
+  /** Who wrote it: a hand entry, or a workflow (KPI, pay run, advance, correction). */
+  source: 'manual' | 'kpi' | 'payrun' | 'advance' | 'correction' | 'carry';
   created_at: string;
 };
 
-export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry[]; isAdmin: boolean }) {
+/** Workflow-owned rows are changed in their own workflow, not here. */
+const SOURCE_LABEL: Partial<Record<FinanceEntry['source'], string>> = {
+  kpi: 'KPI',
+  payrun: 'Oylik jarayoni',
+  advance: 'Avans',
+  correction: 'Tuzatish',
+  carry: 'Ortiqcha to‘lov',
+};
+
+export function FinanceEntriesList({
+  entries,
+  isAdmin,
+}: {
+  entries: FinanceEntry[];
+  isAdmin: boolean;
+}) {
   const t = useTranslations('finance');
   const tCommon = useTranslations('common');
   const format = useFormatter();
@@ -51,13 +73,18 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
   }, [editState, t]);
 
   if (entries.length === 0) {
-    return <p className="text-sm text-au-muted">{t('noEntries')}</p>;
+    return <p className="text-au-muted text-sm">{t('noEntries')}</p>;
   }
 
   function handleDelete(entryId: string) {
     // A ledger row is money — never delete it on a single stray click.
     const entry = entries.find((e) => e.id === entryId);
-    if (!window.confirm(`«${entry?.title ?? ''}» yozuvi o‘chirilsinmi? (${formatUZS(entry?.amount ?? 0)} so‘m)`)) return;
+    if (
+      !window.confirm(
+        `«${entry?.title ?? ''}» yozuvi o‘chirilsinmi? (${formatUZS(entry?.amount ?? 0)} so‘m)`,
+      )
+    )
+      return;
     const formData = new FormData();
     formData.set('entryId', entryId);
     startTransition(async () => {
@@ -75,33 +102,47 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
           <div
             key={entry.id}
             style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
-            className="animate-fade-in-up flex items-center justify-between gap-3 rounded-xl border border-au-line bg-au-card-2 px-3 py-2 text-sm"
+            className="animate-fade-in-up border-au-line bg-au-card-2 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm"
           >
             <div className="flex min-w-0 flex-col">
-              <span className="font-medium text-au-ink">{entry.title}</span>
-              {entry.note && <span className="truncate text-xs text-au-muted">{entry.note}</span>}
+              <span className="text-au-ink font-medium">
+                {entry.title}
+                {SOURCE_LABEL[entry.source] && (
+                  <span className="bg-au-card text-au-muted ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                    {SOURCE_LABEL[entry.source]}
+                  </span>
+                )}
+              </span>
+              {entry.note && <span className="text-au-muted truncate text-xs">{entry.note}</span>}
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className={cn('font-semibold tabular-nums', entry.amount >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+              <span
+                className={cn(
+                  'font-semibold tabular-nums',
+                  entry.amount >= 0 ? 'text-emerald-600' : 'text-red-600',
+                )}
+              >
                 {entry.amount >= 0 ? '+' : ''}
                 {formatUZS(entry.amount)}
               </span>
-              <span className="text-xs text-au-muted">
+              <span className="text-au-muted text-xs">
                 {format.dateTime(new Date(entry.created_at), { dateStyle: 'medium' })}
               </span>
-              {isAdmin && (
+              {isAdmin && (entry.source === 'manual' || entry.source === 'advance') && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditOpen(entry.id);
-                      setEditAmount(entry.amount);
-                    }}
-                    aria-label={t('edit')}
-                    className="tap-scale text-au-muted hover:text-au-ink disabled:opacity-50"
-                  >
-                    <Pencil className="size-4" />
-                  </button>
+                  {entry.source === 'manual' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditOpen(entry.id);
+                        setEditAmount(entry.amount);
+                      }}
+                      aria-label={t('edit')}
+                      className="tap-scale text-au-muted hover:text-au-ink disabled:opacity-50"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleDelete(entry.id)}
@@ -136,7 +177,9 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
                   required
                 />
                 {editState?.fieldErrors?.title && (
-                  <p className="text-destructive text-xs">{t(`errors.${editState.fieldErrors.title}`)}</p>
+                  <p className="text-destructive text-xs">
+                    {t(`errors.${editState.fieldErrors.title}`)}
+                  </p>
                 )}
               </div>
               <div className="flex flex-col gap-2">
@@ -149,7 +192,9 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
                   placeholder="0"
                 />
                 {editState?.fieldErrors?.amount && (
-                  <p className="text-destructive text-xs">{t(`errors.${editState.fieldErrors.amount}`)}</p>
+                  <p className="text-destructive text-xs">
+                    {t(`errors.${editState.fieldErrors.amount}`)}
+                  </p>
                 )}
               </div>
               <div className="flex flex-col gap-2">
@@ -161,7 +206,9 @@ export function FinanceEntriesList({ entries, isAdmin }: { entries: FinanceEntry
                   placeholder={t('notePlaceholder')}
                 />
               </div>
-              {editState?.error && <p className="text-destructive text-sm">{t(`errors.${editState.error}`)}</p>}
+              {editState?.error && (
+                <p className="text-destructive text-sm">{t(`errors.${editState.error}`)}</p>
+              )}
               <DialogFooter>
                 <Button type="submit" loading={editIsPending} size="sm">
                   {editIsPending ? tCommon('loading') : 'Tahrirlash'}

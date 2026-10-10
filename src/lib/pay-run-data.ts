@@ -1,8 +1,10 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import { tashkentMidnight } from '@/lib/time';
+import { startOfTashkentMonthKey, tashkentMidnight } from '@/lib/time';
 import {
   computeLine,
+  effectivePeriod,
+  monthLabel,
   shiftMonth,
   type PayComponent,
   type PayInput,
@@ -20,6 +22,8 @@ export type PayRun = {
   approved_at: string | null;
   approved_by_name: string | null;
   paid_at: string | null;
+  /** Overpayment of this month already carried into next month (≤ 0). */
+  carried: number;
 };
 
 export type PayRunLogEntry = { id: string; action: string; detail: Record<string, unknown>; at: string; actor: string | null };
@@ -46,12 +50,15 @@ const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.tri
 type Db = typeof sql;
 
 async function loadInputs(period: string, staffId?: string, db: Db = sql): Promise<Omit<PayInput, 'prevPayable'>[]> {
-  const from = tashkentMidnight(period).toISOString();
+  // Dated movements (rag‘bat/jarima, missions) are read two months back: one
+  // created after its own month was approved rolls forward into this one
+  // (effectivePeriod), so an approved month never moves.
+  const from = tashkentMidnight(shiftMonth(period, -2)).toISOString();
   const to = tashkentMidnight(shiftMonth(period, 1)).toISOString();
   const only = staffId ? sql`and p.id = ${staffId}` : sql``;
   const onlyCol = (col: string) => (staffId ? sql`and ${sql(col)} = ${staffId}` : sql``);
 
-  const [people, salaries, entries, selfDev, perf, missions, kpi, advances] = await Promise.all([
+  const [people, salaries, entries, selfDev, perfRows, missionRows, kpi, advances, lockRows] = await Promise.all([
     db<{ id: string; first_name: string | null; last_name: string | null; role: string }[]>`
       select p.id, p.first_name, p.last_name, p.role from profiles p
       where (p.is_active
@@ -61,23 +68,44 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       order by p.first_name, p.last_name`,
     db<{ staff_id: string; gross: number }[]>`
       select staff_id, gross_amount as gross from salary_months where period = ${period} ${onlyCol('staff_id')}`,
-    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; created_at: string | null }[]>`
-      select id, staff_id, title, amount, kind, source, created_at from finance_entries
+    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null }[]>`
+      select id, staff_id, title, amount, kind, source, reversal_of, created_at from finance_entries
       where period = ${period} ${onlyCol('staff_id')} order by created_at`,
     db<{ user_id: string; bonus_amount: number | null; ceo_score: number | null; id: string }[]>`
       select id, user_id, bonus_amount, ceo_score from self_development where month = ${period} ${onlyCol('user_id')}`,
-    db<{ staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
-      select staff_id, entry_type, amount, reason, created_at from performance_entries
+    db<{ id: string; staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
+      select id, staff_id, entry_type, amount, reason, created_at from performance_entries
       where created_at >= ${from} and created_at < ${to} ${onlyCol('staff_id')}`,
-    db<{ staff_id: string; bonus_amount: number; at: string | null }[]>`
-      select staff_id, bonus_amount, coalesce(approved_at, created_at) as at from missions
+    db<{ id: string; staff_id: string; bonus_amount: number; at: string | null }[]>`
+      select id, staff_id, bonus_amount, coalesce(approved_at, created_at) as at from missions
       where status = 'approved' and bonus_amount is not null
         and coalesce(approved_at, created_at) >= ${from} and coalesce(approved_at, created_at) < ${to} ${onlyCol('staff_id')}`,
     db<{ user_id: string }[]>`
       select user_id from kpi_plans where month = ${period} and status = 'approved' and grade is null ${onlyCol('user_id')}`,
     db<{ staff_id: string }[]>`
       select distinct staff_id from advance_requests where status = 'pending' ${onlyCol('staff_id')}`,
+    db<{ period: string; approved_at: string }[]>`
+      select period::text as period, approved_at from pay_runs
+      where status in ('approved', 'paid') and approved_at is not null
+        and period >= ${shiftMonth(period, -2)} and period <= ${period}`,
   ]);
+
+  const locks = new Map(lockRows.map((r) => [r.period.slice(0, 10), new Date(r.approved_at).toISOString()]));
+  const inThisRun = <T,>(rows: T[], at: (r: T) => string | null) =>
+    rows.flatMap((r) => {
+      const a = at(r);
+      if (!a) return [];
+      const own = startOfTashkentMonthKey(new Date(a));
+      if (effectivePeriod(a, locks) !== period) return [];
+      return [{ row: r, from: own === period ? null : own }];
+    });
+  const late = (title: string, from: string | null) => (from ? `${title} (${monthLabel(from)}dan o‘tkazildi)` : title);
+  // Reversals live in the reversed item's own month, so this month's rows
+  // are the only ones that can cancel this month's components.
+  const reversedRefs = new Set(entries.flatMap((e) => (e.reversal_of ? [e.reversal_of] : [])));
+  const ref = (r: string) => ({ ref: r, reversed: reversedRefs.has(r) || undefined });
+  const perf = inThisRun(perfRows, (r) => r.created_at);
+  const missions = inThisRun(missionRows, (r) => r.at);
 
   const gross = new Map(salaries.map((s) => [s.staff_id, s.gross]));
   const kpiPending = new Set(kpi.map((k) => k.user_id));
@@ -95,26 +123,27 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
         continue;
       }
       const kind =
-        e.source === 'correction' ? 'correction'
+        e.source === 'carry' ? 'carry'
+        : e.source === 'correction' ? 'correction'
         : e.source === 'kpi' || e.title.startsWith('KPI ·') ? 'kpi'
         : e.kind === 'penalty' ? 'penalty'
         : 'adjustment';
-      components.push({ kind, title: e.title, amount: e.amount, at: e.created_at, entryId: e.id });
+      components.push({ kind, title: e.title, amount: e.amount, at: e.created_at, entryId: e.id, ...ref(`fe:${e.id}`) });
     }
     let selfDevPending = false;
     for (const s of selfDev) {
       if (s.user_id !== p.id) continue;
       if (s.ceo_score === null) selfDevPending = true;
-      if (s.bonus_amount) components.push({ kind: 'selfdev', title: 'O‘zini rivojlantirish bonusi', amount: s.bonus_amount });
+      if (s.bonus_amount) components.push({ kind: 'selfdev', title: 'O‘zini rivojlantirish bonusi', amount: s.bonus_amount, ...ref(`sd:${s.id}`) });
     }
-    for (const r of perf) {
+    for (const { row: r, from: f } of perf) {
       if (r.staff_id !== p.id) continue;
       const sign = r.entry_type === 'bonus' ? 1 : -1;
-      components.push({ kind: 'perf', title: r.reason || (sign > 0 ? 'Rag‘bat' : 'Jarima'), amount: sign * r.amount, at: r.created_at });
+      components.push({ kind: 'perf', title: late(r.reason || (sign > 0 ? 'Rag‘bat' : 'Jarima'), f), amount: sign * r.amount, at: r.created_at, ...ref(`perf:${r.id}`) });
     }
-    for (const m of missions) {
+    for (const { row: m, from: f } of missions) {
       if (m.staff_id !== p.id) continue;
-      components.push({ kind: 'mission', title: 'Missiya bonusi', amount: m.bonus_amount, at: m.at });
+      components.push({ kind: 'mission', title: late('Missiya bonusi', f), amount: m.bonus_amount, at: m.at, ...ref(`ms:${m.id}`) });
     }
     return {
       staffId: p.id,
@@ -144,6 +173,8 @@ export async function loadPayRun(period: string): Promise<PayRun> {
     select r.status, r.snapshot, r.note, r.approved_at, r.paid_at, p.first_name, p.last_name
     from pay_runs r left join profiles p on p.id = r.approved_by
     where r.period = ${period}`;
+  const [carry] = await sql<{ v: number }[]>`
+    select coalesce(sum(amount), 0) as v from finance_entries where source = 'carry' and carry_from = ${period}`;
   return {
     period,
     status: row?.status ?? 'draft',
@@ -152,6 +183,7 @@ export async function loadPayRun(period: string): Promise<PayRun> {
     approved_at: row?.approved_at ?? null,
     approved_by_name: row?.approved_at ? name(row.first_name, row.last_name) : null,
     paid_at: row?.paid_at ?? null,
+    carried: Math.round(Number(carry?.v ?? 0)),
   };
 }
 

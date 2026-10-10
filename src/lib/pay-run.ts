@@ -9,6 +9,8 @@
  *   remaining = payable − paid                            (< 0 = overpaid)
  */
 
+import { startOfTashkentMonthKey } from './time';
+
 export const PAY_RUN_STATUSES = ['draft', 'review', 'approved', 'paid'] as const;
 export type PayRunStatus = (typeof PAY_RUN_STATUSES)[number];
 
@@ -19,7 +21,7 @@ export const PAY_RUN_STEP: Record<PayRunStatus, { n: string; hint: string }> = {
   paid: { n: 'To‘langan', hint: 'To‘lovlar qayd etilgan' },
 };
 
-export type ComponentKind = 'base' | 'kpi' | 'selfdev' | 'perf' | 'mission' | 'adjustment' | 'penalty' | 'correction';
+export type ComponentKind = 'base' | 'kpi' | 'selfdev' | 'perf' | 'mission' | 'adjustment' | 'penalty' | 'correction' | 'carry';
 
 export const COMPONENT_LABEL: Record<ComponentKind, string> = {
   base: 'Asosiy maosh',
@@ -30,7 +32,11 @@ export const COMPONENT_LABEL: Record<ComponentKind, string> = {
   adjustment: 'Qo‘lda tuzatish',
   penalty: 'Jarima',
   correction: 'Tuzatish yozuvi (qulflangan oy)',
+  carry: 'O‘tgan oy ortiqcha to‘lovi',
 };
+
+/** Components a correction may cancel in one click (see reversal_of). */
+export const REVERSIBLE: ReadonlySet<ComponentKind> = new Set(['kpi', 'selfdev', 'perf', 'mission', 'adjustment', 'penalty']);
 
 export type PayComponent = {
   kind: ComponentKind;
@@ -39,6 +45,11 @@ export type PayComponent = {
   at?: string | null;
   /** finance_entries id when the component is a ledger row (editable). */
   entryId?: string;
+  /** Stable key of the source row ('fe:<id>', 'perf:<id>', 'sd:<id>',
+   * 'ms:<id>') — what a reversal correction points at. */
+  ref?: string;
+  /** A correction already cancels this component. */
+  reversed?: boolean;
 };
 
 export type Payment = { id: string; kind: 'salary' | 'advance'; title: string; amount: number; at: string | null };
@@ -52,7 +63,9 @@ export const FLAG_META: Record<PayFlag, { n: string; blocking: boolean }> = {
   selfDevPending: { n: 'O‘zini rivojlantirish baholanmagan', blocking: false },
   variance: { n: 'O‘tgan oydan keskin farq', blocking: false },
   overpaid: { n: 'Ortiqcha to‘langan', blocking: false },
-  advancePending: { n: 'Avans so‘rovi kutilmoqda', blocking: false },
+  // Blocking: an advance decided after approval could not be written into
+  // the locked month, so it is settled first.
+  advancePending: { n: 'Avans so‘rovi kutilmoqda', blocking: true },
 };
 
 export type PayInput = {
@@ -72,6 +85,9 @@ export type PayLine = PayInput & {
   kpi: number;
   bonuses: number;
   deductions: number;
+  /** Part of `deductions` that recovers last month's overpayment — not a
+   * cut in earnings (accounting books payable − carry as accrued pay). */
+  carry: number;
   payable: number;
   paid: number;
   advances: number;
@@ -90,7 +106,9 @@ export function computeLine(input: PayInput): PayLine {
   let kpi = 0;
   let bonuses = 0;
   let deductions = 0;
+  let carry = 0;
   for (const c of input.components) {
+    if (c.kind === 'carry') carry += c.amount;
     if (c.kind === 'base') base += c.amount;
     else if (c.kind === 'kpi') kpi += c.amount;
     else if (c.amount >= 0) bonuses += c.amount;
@@ -117,6 +135,7 @@ export function computeLine(input: PayInput): PayLine {
     kpi: round(kpi),
     bonuses: round(bonuses),
     deductions: round(deductions),
+    carry: round(carry),
     payable,
     paid,
     advances,
@@ -159,7 +178,7 @@ export function canMove(from: PayRunStatus, to: PayRunStatus): boolean {
   return Math.abs(i - j) === 1;
 }
 
-export type SnapshotLine = { staffId: string; payable: number };
+export type SnapshotLine = { staffId: string; payable: number; carry?: number };
 
 /** Lines whose payable moved since the run was approved (corrections). */
 export function drift(lines: PayLine[], snapshot: SnapshotLine[] | null): { staffId: string; was: number; now: number }[] {
@@ -168,6 +187,27 @@ export function drift(lines: PayLine[], snapshot: SnapshotLine[] | null): { staf
   return lines
     .filter((l) => was.has(l.staffId) && was.get(l.staffId) !== l.payable)
     .map((l) => ({ staffId: l.staffId, was: was.get(l.staffId)!, now: l.payable }));
+}
+
+/** When each month's run was approved (ISO), for months that are locked. */
+export type LockTimes = ReadonlyMap<string, string>;
+
+/**
+ * The month a dated movement (rag‘bat/jarima, missiya bonusi) is paid in:
+ * its own Tashkent month, unless that month was approved before the
+ * movement happened — then it rolls into the next month, so an approved
+ * month never changes and nothing is lost. Mirrors the SQL function
+ * payroll_effective_period (20261010120000_payroll_lock_complete).
+ */
+export function effectivePeriod(at: string, locks: LockTimes): string {
+  const t = new Date(at);
+  let p = startOfTashkentMonthKey(t);
+  for (let i = 0; i < 12; i++) {
+    const approvedAt = locks.get(p);
+    if (!approvedAt || t.getTime() <= new Date(approvedAt).getTime()) break;
+    p = shiftMonth(p, 1);
+  }
+  return p;
 }
 
 /** 'YYYY-MM-01' ± n months. */
