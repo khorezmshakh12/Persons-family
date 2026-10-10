@@ -11,7 +11,9 @@ export async function GET() {
   try {
     const [row] = await sql<{ ok: number }[]>`select 1 as ok`;
     return NextResponse.json(
-      { status: 'ok', db: row?.ok === 1, ms: Date.now() - started },
+      // `deployment` lets an open tab notice a new build before its Server
+      // Actions start failing (components/app-shell/error-reporter.tsx).
+      { status: 'ok', db: row?.ok === 1, ms: Date.now() - started, deployment: process.env.NEXT_DEPLOYMENT_ID || null },
       { headers: { 'cache-control': 'no-store' } },
     );
   } catch (error) {
