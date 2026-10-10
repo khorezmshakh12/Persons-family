@@ -31,7 +31,7 @@ export type FinanceEntry = {
   note: string | null;
   kind: 'adjustment' | 'salary' | 'advance' | 'penalty';
   /** Who wrote it: a hand entry, or a workflow (KPI, pay run, advance, correction). */
-  source: 'manual' | 'kpi' | 'payrun' | 'advance' | 'correction';
+  source: 'manual' | 'kpi' | 'payrun' | 'advance' | 'correction' | 'carry';
   created_at: string;
 };
 
@@ -41,6 +41,7 @@ const SOURCE_LABEL: Partial<Record<FinanceEntry['source'], string>> = {
   payrun: 'Oylik jarayoni',
   advance: 'Avans',
   correction: 'Tuzatish',
+  carry: 'Ortiqcha to‘lov',
 };
 
 export function FinanceEntriesList({

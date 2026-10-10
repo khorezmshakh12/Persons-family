@@ -45,6 +45,8 @@ export async function getNetEarningEntries(staffId: string): Promise<NetEarningE
       select amount, kind, created_at,
         coalesce(period, date_trunc('month', created_at at time zone 'Asia/Tashkent')::date)::text as month
       from finance_entries where staff_id = ${staffId}
+        -- A carry recovers last month's overpayment; it is not a cut in pay.
+        and source <> 'carry'
     `,
     sql<{ entry_type: string; amount: number; created_at: string | null }[]>`
       select entry_type, amount, created_at from performance_entries where staff_id = ${staffId}

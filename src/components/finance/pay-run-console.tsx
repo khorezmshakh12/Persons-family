@@ -51,8 +51,10 @@ import {
   monthLabel,
   PAY_RUN_STATUSES,
   PAY_RUN_STEP,
+  REVERSIBLE,
   shiftMonth,
   totals,
+  type PayComponent,
   type PayFlag,
   type PayLine,
   type PayRunStatus,
@@ -77,7 +79,8 @@ const ERR: Record<string, string> = {
   overLimit: 'Bu oy avanslar jami maoshdan oshib ketadi',
   noSalary: 'Bu oy uchun maosh belgilanmagan — avval maoshni kiriting',
   notPaid: 'Oy hali “To‘langan” bosqichida emas',
-  nothingOwed: 'To‘lanmagan qoldiq yo‘q',
+  nothingOwed: 'Hal qilinadigan qoldiq yo‘q',
+  alreadyReversed: 'Bu yozuv allaqachon bekor qilingan',
   systemEntry: 'Bu yozuvni tizim yaratgan — uni o‘z jarayonida o‘zgartiring',
   alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
   aiDisabled: 'Jev ulanmagan',
@@ -148,7 +151,7 @@ export function PayRunConsole({
       setReason('');
       toast.success(
         to === 'paid'
-          ? `To‘lovlar qayd etildi${res.paidCount ? ` (${res.paidCount} xodim)` : ''} — xodimlarga Telegram xabari yuborildi`
+          ? `To‘lovlar qayd etildi${res.paidCount ? ` (${res.paidCount} xodim)` : ''}${res.carried ? ` · ${res.carried} xodimning ortiqcha to‘lovi keyingi oydan ushlanadi` : ''}`
           : to === 'approved' && idx < 2
             ? 'Oylik tasdiqlandi — oy qulflandi'
             : `Bosqich: ${PAY_RUN_STEP[to].n}`,
@@ -156,13 +159,23 @@ export function PayRunConsole({
       router.refresh();
     });
 
-  // A correction after payment leaves money owed; the run pays it itself.
+  // A correction after payment leaves money owed (paid by the run) or an
+  // overpayment that differs from what is already carried into next month.
   const owed = lines.reduce((t, l) => t + Math.max(0, l.remaining), 0);
+  const over = lines.reduce((t, l) => t + Math.min(0, l.remaining), 0);
+  const unsettled = run.status === 'paid' && (owed > 0 || over !== run.carried);
   const payOutstanding = () =>
     start(async () => {
       const res = await payOutstandingAction({ period });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(`Qoldiq to‘landi (${res.paidCount} xodim) — xodimlarga xabar yuborildi`);
+      toast.success(
+        [
+          res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : '',
+          res.carried ? `${res.carried} xodimning ortiqcha to‘lovi keyingi oydan ushlanadi` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Hisob-kitob yangilandi',
+      );
       router.refresh();
     });
 
@@ -249,9 +262,14 @@ export function PayRunConsole({
               {next === 'paid' && <><Banknote className="size-4" /> To‘lovlarni qayd etish ({som(owed)} so‘m)</>}
             </button>
           )}
-          {run.status === 'paid' && owed > 0 && (
-            <button className={BTN_PRIMARY} disabled={busy} onClick={payOutstanding} title="Tuzatish yozuvlaridan keyin qolgan qarzni to‘lash">
-              <Banknote className="size-4" /> Qoldiqni to‘lash ({som(owed)} so‘m)
+          {unsettled && (
+            <button
+              className={BTN_PRIMARY}
+              disabled={busy}
+              onClick={payOutstanding}
+              title="Tuzatishlardan keyin: qarz to‘lanadi, ortiqcha to‘lov keyingi oydan ushlanadi"
+            >
+              <Banknote className="size-4" /> Qoldiqni hal qilish{owed > 0 ? ` (${som(owed)} so‘m)` : ''}
             </button>
           )}
           {prev && !back && (
@@ -561,6 +579,19 @@ function logLabel(e: PayRunLogEntry) {
     const d = e.detail as { title?: string; amount?: number };
     return `Tuzatish: ${d.title ?? ''} (${signed(Number(d.amount ?? 0))})`;
   }
+  if (e.action === 'reversal') {
+    const d = e.detail as { title?: string; amount?: number };
+    return `${d.title ?? 'Teskari yozuv'} (${signed(Number(d.amount ?? 0))})`;
+  }
+  if (e.action === 'settle' || e.action === 'topup') {
+    const d = e.detail as { paid?: number; total?: number; carried?: number };
+    return [
+      d.paid ? `Qoldiq to‘landi: ${d.paid} xodim (${som(Number(d.total ?? 0))} so‘m)` : '',
+      d.carried ? `${d.carried} xodimning ortiqcha to‘lovi keyingi oyga o‘tkazildi` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Hisob-kitob yangilandi';
+  }
   const [a, b] = e.action.split('→') as [PayRunStatus, PayRunStatus];
   if (!b) return e.action;
   return `${PAY_RUN_STEP[a]?.n ?? a} → ${PAY_RUN_STEP[b]?.n ?? b}`;
@@ -670,6 +701,10 @@ function LineDrawer({
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
   const [kind, setKind] = useState<'adjustment' | 'penalty' | 'salary' | 'advance'>('adjustment');
+  // One-click reversal of a component in a locked month (a correction that
+  // points at it — the database refuses a second one).
+  const [reversing, setReversing] = useState<PayComponent | null>(null);
+  const [reverseWhy, setReverseWhy] = useState('');
   const num = Number(amount.replace(/\s/g, '').replace(',', '.'));
   const valid = amount.trim() !== '' && Number.isFinite(num) && num !== 0;
 
@@ -690,6 +725,23 @@ function LineDrawer({
       if (res?.error) return void toast.error(errText(res.error));
       toast.success('Maosh saqlandi');
       reset();
+      onDone();
+    });
+
+  const reverse = (c: PayComponent) =>
+    start(async () => {
+      const res = await addPayCorrectionAction({
+        period,
+        staffId: line.staffId,
+        amount: -c.amount,
+        title: `Teskari yozuv: ${c.title}`.slice(0, 200),
+        reason: reverseWhy.trim(),
+        reversalOf: c.ref,
+      });
+      if (res.error !== undefined) return void toast.error(errText(res.error));
+      toast.success('Teskari yozuv qo‘shildi — summa bekor qilindi');
+      setReversing(null);
+      setReverseWhy('');
       onDone();
     });
 
@@ -757,17 +809,69 @@ function LineDrawer({
           <h4 className="text-xs font-bold tracking-wide text-au-muted uppercase">Hisob tarkibi</h4>
           {line.components.length === 0 && <p className="text-sm text-au-muted">Bu oy uchun hech narsa yo‘q</p>}
           <ul className="flex flex-col divide-y divide-au-line rounded-au-ctl border border-au-line">
-            {line.components.map((c, i) => (
-              <li key={i} style={{ ['--i' as string]: i }} className="ms-rise flex items-center justify-between gap-3 px-3 py-2">
-                <div className="flex min-w-0 flex-col">
-                  <span className="text-sm font-semibold">{COMPONENT_LABEL[c.kind]}</span>
-                  {c.kind !== 'base' && <span className="truncate text-[11px] text-au-muted">{c.title}</span>}
-                </div>
-                <span className={cn('shrink-0 font-bold tabular-nums', c.kind === 'base' ? 'text-au-ink' : c.amount >= 0 ? 'text-au-ok' : 'text-au-bad')}>
-                  {c.kind === 'base' ? som(c.amount) : signed(c.amount)}
-                </span>
-              </li>
-            ))}
+            {line.components.map((c, i) => {
+              const canReverse = locked && !!c.ref && !c.reversed && REVERSIBLE.has(c.kind);
+              const open = reversing !== null && reversing.ref === c.ref;
+              return (
+                <li key={i} style={{ ['--i' as string]: i }} className="ms-rise flex flex-col gap-2 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="text-sm font-semibold">
+                        {COMPONENT_LABEL[c.kind]}
+                        {c.reversed && <span className={cn(CHIP_NEUTRAL, 'ml-2')}>bekor qilingan</span>}
+                      </span>
+                      {c.kind !== 'base' && <span className="truncate text-[11px] text-au-muted">{c.title}</span>}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={cn(
+                          'font-bold tabular-nums',
+                          c.reversed && 'line-through opacity-60',
+                          c.kind === 'base' ? 'text-au-ink' : c.amount >= 0 ? 'text-au-ok' : 'text-au-bad',
+                        )}
+                      >
+                        {c.kind === 'base' ? som(c.amount) : signed(c.amount)}
+                      </span>
+                      {canReverse && !open && (
+                        <button
+                          className="rounded-full p-1 text-au-muted hover:bg-au-card-2 hover:text-au-ink"
+                          title="Teskari yozuv bilan bekor qilish"
+                          aria-label="Teskari yozuv bilan bekor qilish"
+                          onClick={() => {
+                            setReversing(c);
+                            setReverseWhy('');
+                          }}
+                        >
+                          <Undo2 className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {open && (
+                    <div className="ms-pop-in flex flex-col gap-2 rounded-au-ctl border border-au-line bg-au-card-2 p-2">
+                      <span className="text-xs text-au-muted">
+                        {signed(-c.amount)} so‘m tuzatish yozuvi qo‘shiladi. Asl yozuv o‘zgarmaydi, jurnalda ikkalasi ham qoladi.
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          autoFocus
+                          value={reverseWhy}
+                          onChange={(e) => setReverseWhy(e.target.value)}
+                          placeholder="Sabab (majburiy)"
+                          className={cn(INPUT, 'min-w-40 flex-1')}
+                        />
+                        <button className={BTN_PRIMARY} disabled={busy || reverseWhy.trim().length < 3} onClick={() => reverse(c)}>
+                          Bekor qilish
+                        </button>
+                        <button className={BTN_GHOST} onClick={() => setReversing(null)}>
+                          Yopish
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
             <li className="flex items-center justify-between bg-au-card-2 px-3 py-2 font-bold">
               <span>To‘lanadi</span>
               <span className="tabular-nums">{som(line.payable)}</span>

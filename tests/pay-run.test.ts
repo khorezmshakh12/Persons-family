@@ -96,3 +96,26 @@ test('effectivePeriod: rolls past every month approved before the movement', () 
   ]);
   assert.equal(effectivePeriod('2026-09-15T00:00:00Z', locks), '2026-11-01');
 });
+
+test('carry: last month’s overpayment is a deduction, reported apart from earnings cuts', () => {
+  const l = computeLine(
+    input({
+      components: [
+        { kind: 'base', title: '', amount: 5_000_000 },
+        { kind: 'penalty', title: 'Jarima', amount: -100_000 },
+        { kind: 'carry', title: 'Ortiqcha to‘lov', amount: -400_000 },
+      ],
+    }),
+  );
+  assert.equal(l.deductions, -500_000);
+  assert.equal(l.carry, -400_000);
+  assert.equal(l.payable, 4_500_000);
+  // Accrued pay for the books = payable − carry.
+  assert.equal(l.payable - l.carry, 4_900_000);
+});
+
+test('a pending advance blocks approval', () => {
+  const l = computeLine(input({ advancePending: true }));
+  assert.ok(l.flags.includes('advancePending'));
+  assert.deepEqual(blockers([l]).map((x) => x.staffId), ['s1']);
+});

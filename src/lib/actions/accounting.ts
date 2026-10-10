@@ -449,14 +449,16 @@ async function payrollBase(month: string): Promise<PayrollLine[]> {
   const period = monthStart(month);
   const [lines, run] = await Promise.all([loadPayLines(period), loadPayRun(period)]);
   const locked = run.status === 'approved' || run.status === 'paid';
-  const frozen = new Map((locked ? (run.snapshot ?? []) : []).map((s) => [s.staffId, s.payable]));
+  const frozen = new Map((locked ? (run.snapshot ?? []) : []).map((s) => [s.staffId, s]));
   return lines
     .filter(isRelevant)
     .map((l) => ({
       staffId: l.staffId,
       name: l.name,
       role: l.role,
-      gross: Math.max(0, frozen.get(l.staffId) ?? l.payable),
+      // Accrued pay is payable before recovering last month's overpayment —
+      // the carry reduces the cash paid, not the salary earned.
+      gross: Math.max(0, (frozen.get(l.staffId)?.payable ?? l.payable) - (frozen.get(l.staffId)?.carry ?? l.carry)),
       paid: l.paid,
     }))
     .filter((r) => r.gross > 0 || r.paid > 0);
