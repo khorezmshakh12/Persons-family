@@ -1,8 +1,10 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import { tashkentMidnight } from '@/lib/time';
+import { startOfTashkentMonthKey, tashkentMidnight } from '@/lib/time';
 import {
   computeLine,
+  effectivePeriod,
+  monthLabel,
   shiftMonth,
   type PayComponent,
   type PayInput,
@@ -46,12 +48,15 @@ const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.tri
 type Db = typeof sql;
 
 async function loadInputs(period: string, staffId?: string, db: Db = sql): Promise<Omit<PayInput, 'prevPayable'>[]> {
-  const from = tashkentMidnight(period).toISOString();
+  // Dated movements (rag‘bat/jarima, missions) are read two months back: one
+  // created after its own month was approved rolls forward into this one
+  // (effectivePeriod), so an approved month never moves.
+  const from = tashkentMidnight(shiftMonth(period, -2)).toISOString();
   const to = tashkentMidnight(shiftMonth(period, 1)).toISOString();
   const only = staffId ? sql`and p.id = ${staffId}` : sql``;
   const onlyCol = (col: string) => (staffId ? sql`and ${sql(col)} = ${staffId}` : sql``);
 
-  const [people, salaries, entries, selfDev, perf, missions, kpi, advances] = await Promise.all([
+  const [people, salaries, entries, selfDev, perfRows, missionRows, kpi, advances, lockRows] = await Promise.all([
     db<{ id: string; first_name: string | null; last_name: string | null; role: string }[]>`
       select p.id, p.first_name, p.last_name, p.role from profiles p
       where (p.is_active
@@ -77,7 +82,24 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       select user_id from kpi_plans where month = ${period} and status = 'approved' and grade is null ${onlyCol('user_id')}`,
     db<{ staff_id: string }[]>`
       select distinct staff_id from advance_requests where status = 'pending' ${onlyCol('staff_id')}`,
+    db<{ period: string; approved_at: string }[]>`
+      select period::text as period, approved_at from pay_runs
+      where status in ('approved', 'paid') and approved_at is not null
+        and period >= ${shiftMonth(period, -2)} and period <= ${period}`,
   ]);
+
+  const locks = new Map(lockRows.map((r) => [r.period.slice(0, 10), new Date(r.approved_at).toISOString()]));
+  const inThisRun = <T,>(rows: T[], at: (r: T) => string | null) =>
+    rows.flatMap((r) => {
+      const a = at(r);
+      if (!a) return [];
+      const own = startOfTashkentMonthKey(new Date(a));
+      if (effectivePeriod(a, locks) !== period) return [];
+      return [{ row: r, from: own === period ? null : own }];
+    });
+  const late = (title: string, from: string | null) => (from ? `${title} (${monthLabel(from)}dan o‘tkazildi)` : title);
+  const perf = inThisRun(perfRows, (r) => r.created_at);
+  const missions = inThisRun(missionRows, (r) => r.at);
 
   const gross = new Map(salaries.map((s) => [s.staff_id, s.gross]));
   const kpiPending = new Set(kpi.map((k) => k.user_id));
@@ -107,14 +129,14 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       if (s.ceo_score === null) selfDevPending = true;
       if (s.bonus_amount) components.push({ kind: 'selfdev', title: 'O‘zini rivojlantirish bonusi', amount: s.bonus_amount });
     }
-    for (const r of perf) {
+    for (const { row: r, from: f } of perf) {
       if (r.staff_id !== p.id) continue;
       const sign = r.entry_type === 'bonus' ? 1 : -1;
-      components.push({ kind: 'perf', title: r.reason || (sign > 0 ? 'Rag‘bat' : 'Jarima'), amount: sign * r.amount, at: r.created_at });
+      components.push({ kind: 'perf', title: late(r.reason || (sign > 0 ? 'Rag‘bat' : 'Jarima'), f), amount: sign * r.amount, at: r.created_at });
     }
-    for (const m of missions) {
+    for (const { row: m, from: f } of missions) {
       if (m.staff_id !== p.id) continue;
-      components.push({ kind: 'mission', title: 'Missiya bonusi', amount: m.bonus_amount, at: m.at });
+      components.push({ kind: 'mission', title: late('Missiya bonusi', f), amount: m.bonus_amount, at: m.at });
     }
     return {
       staffId: p.id,

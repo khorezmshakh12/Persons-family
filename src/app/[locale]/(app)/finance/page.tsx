@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export default async function FinancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; month?: string; incomeYear?: string }>;
 }) {
   const t = await getTranslations('finance');
   const tStaff = await getTranslations('staff');
@@ -51,5 +51,5 @@ export default async function FinancePage({
 
   // Non-admin: their own pay statement, KPI and Income Roadmap live on the
   // per-staff detail page, rendered here in place.
-  return <FinanceDetailContent staffId={user!.id} />;
+  return <FinanceDetailContent staffId={user!.id} searchParams={searchParams} />;
 }

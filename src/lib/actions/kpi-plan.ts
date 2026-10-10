@@ -272,10 +272,20 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
       if (plan.finance_entry_id) await tx`delete from finance_entries where id = ${plan.finance_entry_id}`;
       let entryId: string | null = null;
       if (amount !== 0) {
+        // A month whose pay run is already approved takes no new ledger row:
+        // a late grade is paid in the next open month (the title keeps the
+        // KPI's own month). Re-grading a row a locked month already counted
+        // still fails with period_locked above — that needs a correction.
+        let payPeriod = plan.month.slice(0, 10);
+        for (let i = 0; i < 12; i++) {
+          const [run] = await tx<{ status: string }[]>`select status from pay_runs where period = ${payPeriod} for share`;
+          if (!run || (run.status !== 'approved' && run.status !== 'paid')) break;
+          payPeriod = shiftMonth(payPeriod, 1);
+        }
         const [e] = await tx<{ id: string }[]>`
           insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source)
           values (${plan.user_id}, ${`KPI · ${monthName(plan.month)}: ${SCENARIO_LABEL[v.grade as Scenario]} (${percent > 0 ? '+' : ''}${percent}%)`},
-                  ${amount}, ${v.note || null}, ${reviewerId}, 'adjustment', ${plan.month}, 'kpi')
+                  ${amount}, ${v.note || null}, ${reviewerId}, 'adjustment', ${payPeriod}, 'kpi')
           returning id`;
         entryId = e.id;
       }

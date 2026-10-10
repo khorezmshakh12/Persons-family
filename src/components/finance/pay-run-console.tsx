@@ -35,6 +35,7 @@ import {
   addPayCorrectionAction,
   decideAdvanceAction,
   movePayRunAction,
+  payOutstandingAction,
   reviewPayRunWithJevAction,
   savePayRunNoteAction,
   type JevPayVerdict,
@@ -74,6 +75,10 @@ const ERR: Record<string, string> = {
   periodLocked: 'Oy qulflangan — tuzatish yozuvi qo‘shing',
   notLocked: 'Oy hali tasdiqlanmagan — yozuvni oddiy tartibda qo‘shing',
   overLimit: 'Bu oy avanslar jami maoshdan oshib ketadi',
+  noSalary: 'Bu oy uchun maosh belgilanmagan — avval maoshni kiriting',
+  notPaid: 'Oy hali “To‘langan” bosqichida emas',
+  nothingOwed: 'To‘lanmagan qoldiq yo‘q',
+  systemEntry: 'Bu yozuvni tizim yaratgan — uni o‘z jarayonida o‘zgartiring',
   alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
   aiDisabled: 'Jev ulanmagan',
   aiFailed: 'Jev javob bermadi — keyinroq urinib ko‘ring',
@@ -148,6 +153,16 @@ export function PayRunConsole({
             ? 'Oylik tasdiqlandi — oy qulflandi'
             : `Bosqich: ${PAY_RUN_STEP[to].n}`,
       );
+      router.refresh();
+    });
+
+  // A correction after payment leaves money owed; the run pays it itself.
+  const owed = lines.reduce((t, l) => t + Math.max(0, l.remaining), 0);
+  const payOutstanding = () =>
+    start(async () => {
+      const res = await payOutstandingAction({ period });
+      if (res.error !== undefined) return void toast.error(errText(res.error));
+      toast.success(`Qoldiq to‘landi (${res.paidCount} xodim) — xodimlarga xabar yuborildi`);
       router.refresh();
     });
 
@@ -231,7 +246,12 @@ export function PayRunConsole({
             >
               {next === 'review' && <><ArrowRight className="size-4" /> Tekshirishga o‘tkazish</>}
               {next === 'approved' && <><BadgeCheck className="size-4" /> Tasdiqlash va oyni qulflash</>}
-              {next === 'paid' && <><Banknote className="size-4" /> To‘lovlarni qayd etish ({som(lines.reduce((t, l) => t + Math.max(0, l.remaining), 0))} so‘m)</>}
+              {next === 'paid' && <><Banknote className="size-4" /> To‘lovlarni qayd etish ({som(owed)} so‘m)</>}
+            </button>
+          )}
+          {run.status === 'paid' && owed > 0 && (
+            <button className={BTN_PRIMARY} disabled={busy} onClick={payOutstanding} title="Tuzatish yozuvlaridan keyin qolgan qarzni to‘lash">
+              <Banknote className="size-4" /> Qoldiqni to‘lash ({som(owed)} so‘m)
             </button>
           )}
           {prev && !back && (
@@ -243,13 +263,11 @@ export function PayRunConsole({
             <button
               className={BTN_GHOST}
               disabled={busy}
-              title="Hisob-kitob jurnaliga ish haqi yozuvlarini tasdiqlangan summalar bilan yozadi (qayta bosilsa almashtiradi)"
+              title="Buxgalteriya jurnaliga ish haqi yozuvlarini tasdiqlangan summalar bilan yozadi (qayta bosilsa almashtiradi)"
               onClick={() =>
                 start(async () => {
-                  const res = await postPayrollAction(
-                    period.slice(0, 7),
-                    Object.fromEntries(lines.map((l) => [l.staffId, Math.max(0, l.payable)])),
-                  );
+                  // The server books the approved snapshot itself.
+                  const res = await postPayrollAction(period.slice(0, 7));
                   if (res.error !== undefined) return void toast.error(errText(res.error));
                   toast.success(`Buxgalteriyaga o‘tkazildi (${res.count ?? 0} yozuv)`);
                 })

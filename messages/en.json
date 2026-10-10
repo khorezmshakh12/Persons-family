@@ -1122,7 +1122,8 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please fill in at least one field.",
       "alreadySubmitted": "You've already submitted your progress for this month.",
-      "submitFailed": "Something went wrong. Please try again."
+      "submitFailed": "Something went wrong. Please try again.",
+      "periodLocked": "This month's payroll is approved — the bonus can no longer change. Add a correction in Finance › Pay run."
     },
     "starAward": "Star award",
     "starAwardHint": "Separate from the score. The employee spends stars in Persons Market.",
@@ -1233,7 +1234,9 @@
       "forbidden": "You don't have permission to do this.",
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
-      "updateFailed": "Could not save. Please try again."
+      "updateFailed": "Could not save. Please try again.",
+      "notFound": "Entry not found",
+      "periodLocked": "This month is closed (payroll approved). Add a correction in Finance › Pay run."
     },
     "fromWarning": "From warning",
     "edit": "Edit",
@@ -1262,7 +1265,9 @@
       "fieldInvalid": "This field is invalid.",
       "updateFailed": "Could not save. Please try again.",
       "deleteFailed": "Could not delete this entry. Please try again.",
-      "periodLocked": "This month is closed (payroll approved). Add a correction in Finance › Pay run."
+      "periodLocked": "This month is closed (payroll approved). Add a correction in Finance › Pay run.",
+      "notFound": "Entry not found (it may have been deleted)",
+      "systemEntry": "This entry was created by the system (KPI, pay run or correction) — change it in its own workflow"
     },
     "payroll": {
       "title": "Payroll",
@@ -1437,7 +1442,7 @@
     "title": "Salary",
     "salaryLedger": "Salary",
     "missions": "Mission bonuses (archive)",
-    "total": "Total",
+    "total": "Total earned",
     "totalCommentPlaceholder": "Add a comment...",
     "commentSaved": "Comment saved.",
     "errors": {
@@ -1445,7 +1450,9 @@
       "sessionExpired": "Your session expired — please refresh the page and log in again.",
       "invalidInput": "Please check the values you entered.",
       "updateFailed": "Could not save. Please try again."
-    }
+    },
+    "ledgerAdjustments": "Additions & deductions:",
+    "ledgerPaid": "Paid out:"
   },
   "roadmap": {
     "title": "Roadmap",

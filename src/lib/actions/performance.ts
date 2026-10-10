@@ -9,6 +9,10 @@ import { logSystemAction } from '@/lib/audit-log';
 import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { formatUZS } from '@/lib/format-currency';
 
+/** The DB refuses to change a row an approved pay run already counted
+ * (20261010120000_payroll_lock_complete). */
+const isPeriodLocked = (error: unknown) => error instanceof Error && /period_locked/.test(error.message);
+
 export type PerformanceActionState = { error?: string } | undefined;
 
 const tierSchema = z.object({
@@ -154,7 +158,7 @@ export async function updatePerformanceEntryAction(
     if (res.count === 0) return { error: 'notFound' };
   } catch (error) {
     console.error('updatePerformanceEntryAction failed', error instanceof Error ? error.message : error);
-    return { error: 'updateFailed' };
+    return { error: isPeriodLocked(error) ? 'periodLocked' : 'updateFailed' };
   }
 
   revalidatePath('/[locale]/finance/[staffId]', 'page');
@@ -177,11 +181,15 @@ export async function deletePerformanceEntryAction(
   if (!parsed.success) return { error: 'invalidInput' };
 
   try {
-    await sql`delete from performance_entries where id = ${parsed.data.entryId}`;
-  } catch {
-    return { error: 'updateFailed' };
+    const res = await sql`delete from performance_entries where id = ${parsed.data.entryId}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch (error) {
+    console.error('deletePerformanceEntryAction failed', error instanceof Error ? error.message : error);
+    return { error: isPeriodLocked(error) ? 'periodLocked' : 'updateFailed' };
   }
 
   revalidatePath('/[locale]/performance', 'page');
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
+  revalidatePath('/[locale]/profile/[id]', 'page');
   return {};
 }

@@ -20,10 +20,6 @@ export const dynamic = 'force-dynamic';
 const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
 const monthLabel = (ym: string) => `${MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 
-function netTotal(entries: { amount: number }[]) {
-  return entries.reduce((sum, e) => sum + e.amount, 0);
-}
-
 // Exported so /finance/page.tsx can render a non-admin viewer's own finance
 // page in place instead of redirect()-ing here — see the matching comment
 // on ProfileDetailContent (profile/[id]/page.tsx) for why that redirect
@@ -40,8 +36,8 @@ export async function FinanceDetailContent({
   const { user, profile } = await getAuthState();
 
   const isSelf = user!.id === staffId;
-  // Viewing anyone's pay: finance.viewAll (CEO, COO, Financist). Changing it:
-  // finance.manage (CEO, Financist) — the COO reads only.
+  // Viewing anyone's pay: finance.viewAll; changing it: finance.manage. Who
+  // holds each lives in CAP_ROLES (lib/permissions.ts) — today the CEO only.
   const isCeo = can(profile!.role, 'finance.manage');
   const isAdmin = isCeo;
   if (!isSelf && !can(profile!.role, 'finance.viewAll')) redirect({ href: '/dashboard', locale });
@@ -57,6 +53,8 @@ export async function FinanceDetailContent({
     const t = new Date(Date.UTC(y, m - 1 + d, 1));
     return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}`;
   };
+  // Month arrows keep the Income Roadmap year the viewer picked.
+  const monthHref = (d: number) => `/finance/${staffId}?month=${shift(d)}${year ? `&incomeYear=${year}` : ''}`;
 
   const [target] = await sql<
     { id: string; first_name: string; last_name: string; avatar_url: string | null; role: string }[]
@@ -68,7 +66,7 @@ export async function FinanceDetailContent({
   const period = `${month}-01`;
   const [entries, lines, run, history, advances] = await Promise.all([
     sql<FinanceEntry[]>`
-      select id, title, amount, note, created_at from finance_entries
+      select id, title, amount, note, kind, source, created_at from finance_entries
       where staff_id = ${staffId}
         and coalesce(to_char(period, 'YYYY-MM'), to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM')) = ${month}
       order by created_at desc
@@ -78,8 +76,6 @@ export async function FinanceDetailContent({
     loadPayHistory(period, staffId),
     isSelf ? loadAdvances(staffId) : Promise.resolve(null),
   ]);
-
-  const net = netTotal(entries);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
@@ -101,7 +97,7 @@ export async function FinanceDetailContent({
 
       <div className="flex items-center justify-between gap-3">
         <Link
-          href={`/finance/${staffId}?month=${shift(-1)}`}
+          href={monthHref(-1)}
           className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
           aria-label="Oldingi oy"
         >
@@ -109,7 +105,7 @@ export async function FinanceDetailContent({
         </Link>
         <span className="text-base font-bold text-au-ink">{monthLabel(month)}</span>
         <Link
-          href={`/finance/${staffId}?month=${shift(1)}`}
+          href={monthHref(1)}
           className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
           aria-label="Keyingi oy"
         >
@@ -125,7 +121,6 @@ export async function FinanceDetailContent({
           isCeo={isCeo}
           isAdmin={isAdmin}
           entries={(entries ?? []) as FinanceEntry[]}
-          net={net}
           month={month}
         />
       </div>
@@ -142,7 +137,7 @@ export default async function StaffFinancePage({
   searchParams,
 }: {
   params: Promise<{ staffId: string }>;
-  searchParams: Promise<{ incomeYear?: string }>;
+  searchParams: Promise<{ incomeYear?: string; month?: string }>;
 }) {
   const { staffId } = await params;
   return <FinanceDetailContent staffId={staffId} searchParams={searchParams} />;

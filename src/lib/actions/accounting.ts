@@ -6,7 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { getPayrollSummary } from '@/lib/payroll';
+import { loadPayLines, loadPayRun } from '@/lib/pay-run-data';
+import { isRelevant } from '@/lib/pay-run';
 import { teacherCostFor } from '@/lib/accounting-ma';
 import {
   DEFAULT_TAX,
@@ -153,14 +154,20 @@ export async function postPayrollAction(month: string, overrides: Record<string,
   const ov = overridesSchema.safeParse(overrides);
   if (!ym.safeParse(month).success || !ov.success) return { error: 'invalidInput' };
   try {
-    const [summary, tax] = await Promise.all([getPayrollSummary(monthStart(month)), loadTax()]);
+    const [base, tax] = await Promise.all([payrollBase(month), loadTax()]);
     const rows = payrollPostings(
       month,
-      summary.rows.map((r) => ({ staffId: r.staffId, name: r.name, role: r.role, gross: ov.data[r.staffId] ?? r.gross, paid: r.paid })),
+      base.map((r) => ({ ...r, gross: ov.data[r.staffId] ?? r.gross })),
       tax,
     );
     await replacePostings(`payroll:${month}:`, monthEnd(month), rows, g.id);
-    logSystemAction('acct.payroll_post', `Posted payroll ${month} (${rows.length} rows)`);
+    // An accountant's hand edit of an accrued amount is a decision — keep it on record.
+    const edited = base.filter((r) => ov.data[r.staffId] !== undefined && ov.data[r.staffId] !== r.gross);
+    logSystemAction(
+      'acct.payroll_post',
+      `Posted payroll ${month} (${rows.length} rows)` +
+        (edited.length ? `; edited: ${edited.map((r) => `${r.staffId} ${r.gross}→${ov.data[r.staffId]}`).join(', ')}` : ''),
+    );
     done();
     return { count: rows.length };
   } catch (error) {
@@ -430,19 +437,38 @@ export async function deleteCourseAction(id: string): Promise<Result> {
 
 export type PayrollLine = { staffId: string; name: string; role: string; gross: number; paid: number };
 
-/** Read-only: the real payroll (salary_months + paid finance entries) for a
- * month, for the Soliq & ish haqi tab. */
+/**
+ * A month's accrued payroll, per person, from the pay run — the same
+ * numbers Moliya shows. Once the run is approved the frozen snapshot is the
+ * truth (what was approved is what is booked); before that, the live
+ * payable. Everyone with pay that month is included, not only active staff
+ * — someone who left mid-month was still paid. Never trusts amounts sent by
+ * the browser.
+ */
+async function payrollBase(month: string): Promise<PayrollLine[]> {
+  const period = monthStart(month);
+  const [lines, run] = await Promise.all([loadPayLines(period), loadPayRun(period)]);
+  const locked = run.status === 'approved' || run.status === 'paid';
+  const frozen = new Map((locked ? (run.snapshot ?? []) : []).map((s) => [s.staffId, s.payable]));
+  return lines
+    .filter(isRelevant)
+    .map((l) => ({
+      staffId: l.staffId,
+      name: l.name,
+      role: l.role,
+      gross: Math.max(0, frozen.get(l.staffId) ?? l.payable),
+      paid: l.paid,
+    }))
+    .filter((r) => r.gross > 0 || r.paid > 0);
+}
+
+/** Read-only: the real payroll for a month, for the Soliq & ish haqi tab. */
 export async function getPayrollForMonthAction(month: string): Promise<{ error?: string; rows?: PayrollLine[] }> {
   const g = await requireEditor();
   if ('error' in g) return g;
   if (!ym.safeParse(month).success) return { error: 'invalidInput' };
   try {
-    const summary = await getPayrollSummary(monthStart(month));
-    return {
-      rows: summary.rows
-        .filter((r) => r.gross > 0 || r.paid > 0)
-        .map((r) => ({ staffId: r.staffId, name: r.name, role: r.role, gross: r.gross, paid: r.paid })),
-    };
+    return { rows: await payrollBase(month) };
   } catch {
     return { error: 'loadFailed' };
   }

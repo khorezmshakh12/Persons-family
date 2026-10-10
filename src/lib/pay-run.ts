@@ -9,6 +9,8 @@
  *   remaining = payable − paid                            (< 0 = overpaid)
  */
 
+import { startOfTashkentMonthKey } from './time';
+
 export const PAY_RUN_STATUSES = ['draft', 'review', 'approved', 'paid'] as const;
 export type PayRunStatus = (typeof PAY_RUN_STATUSES)[number];
 
@@ -168,6 +170,27 @@ export function drift(lines: PayLine[], snapshot: SnapshotLine[] | null): { staf
   return lines
     .filter((l) => was.has(l.staffId) && was.get(l.staffId) !== l.payable)
     .map((l) => ({ staffId: l.staffId, was: was.get(l.staffId)!, now: l.payable }));
+}
+
+/** When each month's run was approved (ISO), for months that are locked. */
+export type LockTimes = ReadonlyMap<string, string>;
+
+/**
+ * The month a dated movement (rag‘bat/jarima, missiya bonusi) is paid in:
+ * its own Tashkent month, unless that month was approved before the
+ * movement happened — then it rolls into the next month, so an approved
+ * month never changes and nothing is lost. Mirrors the SQL function
+ * payroll_effective_period (20261010120000_payroll_lock_complete).
+ */
+export function effectivePeriod(at: string, locks: LockTimes): string {
+  const t = new Date(at);
+  let p = startOfTashkentMonthKey(t);
+  for (let i = 0; i < 12; i++) {
+    const approvedAt = locks.get(p);
+    if (!approvedAt || t.getTime() <= new Date(approvedAt).getTime()) break;
+    p = shiftMonth(p, 1);
+  }
+  return p;
 }
 
 /** 'YYYY-MM-01' ± n months. */
