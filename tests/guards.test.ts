@@ -85,3 +85,26 @@ test('every migration is a self-contained begin; … commit; transaction', () =>
     assert.ok(sql.endsWith('commit;'), `${file}: must end with commit;`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// cmdk's <Command.Dialog>: `contentClassName` is the panel, `className` the
+// Command inside it. Positioning on the inner Command took it out of the
+// panel — the panel collapsed and search results floated over the page with
+// no surface (2026-10-10).
+test('⌘K palette: the dialog panel, not the inner Command, is positioned and opaque', () => {
+  const src = read('src/components/command-palette/command-palette.tsx');
+  const content = /contentClassName="([^"]*)"/.exec(src)?.[1] ?? '';
+  const inner = /<Command\.Dialog[\s\S]*?\n\s+className="([^"]*)"/.exec(src)?.[1] ?? '';
+  assert.match(content, /\bfixed\b/, 'contentClassName must position the panel');
+  assert.match(content, /\bbg-au-card\b/, 'the panel needs an opaque surface');
+  assert.doesNotMatch(inner, /\bfixed\b/, 'the inner Command must not be fixed — it escapes the panel');
+});
+
+// After a deploy, open tabs call Server Actions the new build no longer has.
+// The reporter reloads once and must not report the rest as bugs.
+test('error reporter: stale-build failures reload instead of being reported', () => {
+  const src = read('src/components/app-shell/error-reporter.tsx');
+  assert.match(src, /handledAsStaleBuild\(message\)/);
+  assert.match(src, /Failed to find Server Action/);
+  assert.match(read('src/app/api/health/route.ts'), /deployment: process\.env\.NEXT_DEPLOYMENT_ID/);
+});
