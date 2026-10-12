@@ -18,6 +18,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const prefill = sp.new ? { title: (sp.title ?? '').slice(0, 200), description: (sp.desc ?? '').slice(0, 2000) } : null;
   const t = await getTranslations('tasks');
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   // Calendar and Core platform views removed (owner, 2026-10-04): the board is the one view.
   // Assign/Edit/Delete controls for anyone who leads a team (same rule as
   // requireTaskAssigner() in tasks.ts); the dropdown lists only their people.

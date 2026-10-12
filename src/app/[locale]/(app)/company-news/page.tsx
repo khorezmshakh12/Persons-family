@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 /** Jamoa hayoti — company announcements and the team calendar (sections v6). */
 export default async function CompanyNewsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   const tab = (await searchParams).tab === 'calendar' ? 'calendar' : 'news';
   const isAdmin = can(profile!.role, 'news.publish');
   const today = tashkentDayKey();

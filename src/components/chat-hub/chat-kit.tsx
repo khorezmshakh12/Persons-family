@@ -41,7 +41,7 @@ export function dayLabel(day: string) {
 }
 
 export const fmtTime = (iso: string) =>
-  new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(iso));
 
 export const fmtDayTime = (iso: string) => `${dayLabel(tashkentDay(iso))}, ${fmtTime(iso)}`;
 

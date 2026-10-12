@@ -581,7 +581,7 @@ export function ScheduleTimeline({
                         {l.before.room ?? '—'} {l.before.time ?? ''} → {l.after.room} {l.after.time} ({l.after.cohort === 'odd' ? 'toq' : 'juft'})
                       </span>
                       <span className="block text-[10.5px] text-au-faint">
-                        {l.actor} · {new Date(l.at).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {l.actor} · {new Date(l.at).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}
                       </span>
                     </span>
                     {canEdit && (

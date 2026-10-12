@@ -34,6 +34,7 @@ export async function FinanceDetailContent({
   const tStaff = await getTranslations('staff');
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
 
   const isSelf = user!.id === staffId;
   // Viewing anyone's pay: finance.viewAll; changing it: finance.manage. Who

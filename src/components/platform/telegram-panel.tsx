@@ -12,7 +12,7 @@ import type { TelegramCenter } from '@/lib/telegram-center';
 import { WebhookRegisterButton } from '@/components/telegram/webhook-register-button';
 
 const dt = (iso: string) =>
-  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tashkent' });
+  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', timeZone: 'Asia/Tashkent' });
 
 /** Platform › Telegram (v8-B, 2026-10-10): is the bot healthy, who still
  * can't receive notifications, and which sends failed. Announcements live

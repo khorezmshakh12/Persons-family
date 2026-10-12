@@ -321,7 +321,7 @@ function TaskCardImpl({
             )}
           >
             <CalendarClock className="size-3.5" aria-hidden />
-            {format.dateTime(new Date(task.deadline), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {format.dateTime(new Date(task.deadline), { day: 'numeric', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}
           </span>
           {overdue && (
             <Badge variant="tint" tint="red" className="px-1.5 py-0.5 text-[10px] tracking-wide uppercase">

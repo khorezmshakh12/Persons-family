@@ -46,6 +46,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const tMotion = await getTranslations('motionSettings');
   const tBg = await getTranslations('bgSettings');
   const { profile } = await getAuthState();
+  if (!profile) return null; // layout redirects to /login
   const isCeo = can(profile!.role, 'news.publish');
   const q = (await searchParams).s;
   const sections = SECTIONS.filter((k) => k !== 'system' || isCeo);

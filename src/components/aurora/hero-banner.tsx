@@ -53,7 +53,7 @@ export async function HeroBanner({
   const now = new Date();
 
   const dateLabel = new Intl.DateTimeFormat(locale, { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(now);
-  const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' }).format(now);
+  const timeLabel = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(now);
 
   // The ring is "this month's plan": this month's completions vs open work.
   const status = data?.monthStatus;

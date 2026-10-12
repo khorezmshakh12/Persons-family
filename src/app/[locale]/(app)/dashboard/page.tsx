@@ -294,6 +294,7 @@ async function ActivitySection({ viewer }: { viewer: Viewer }) {
 // blocking on the slowest of several independent database queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   const isCeo = can(profile!.role, 'company.overview');
 
   const viewer: Viewer = { userId: user!.id, role: profile!.role as StaffRole };

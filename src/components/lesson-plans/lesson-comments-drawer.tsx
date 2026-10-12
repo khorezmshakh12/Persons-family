@@ -156,7 +156,7 @@ export function LessonCommentsDrawer({
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold">{c.authorName}</span>
                       <span className="text-[10px] text-au-muted">
-                        {format.dateTime(new Date(c.created_at), { hour: '2-digit', minute: '2-digit' })}
+                        {format.dateTime(new Date(c.created_at), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}
                       </span>
                     </div>
                     {isEditing ? (

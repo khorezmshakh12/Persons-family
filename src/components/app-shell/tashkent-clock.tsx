@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 const formatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Tashkent',
-  hour: '2-digit',
+  hour: '2-digit', hourCycle: 'h23',
   minute: '2-digit',
   second: '2-digit',
 });
