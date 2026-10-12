@@ -19,6 +19,7 @@ export default async function FinancePage({
   const t = await getTranslations('finance');
   const tStaff = await getTranslations('staff');
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   const isAdmin = can(profile!.role, 'finance.viewAll');
 
   if (isAdmin) {

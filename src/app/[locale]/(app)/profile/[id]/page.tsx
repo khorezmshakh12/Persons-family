@@ -94,6 +94,7 @@ export async function ProfileDetailContent({
   const tProfile = await getTranslations('profile');
   const locale = await getLocale();
   const { user, profile: viewerProfile } = await getAuthState();
+  if (!user || !viewerProfile) return null; // layout redirects to /login
 
   const isSelf = user!.id === id;
   // Full profile (self-development, duties, contracts, management): CEO/COO.

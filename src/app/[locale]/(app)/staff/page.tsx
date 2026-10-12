@@ -32,6 +32,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
   const tab = (TABS.some((t) => t.k === tabParam) ? tabParam : 'accounts') as ConsoleTab;
   const t = await getTranslations('staff');
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   const isCeo = profile!.role === 'ceo';
 
   const [accounts, audit] = await Promise.all([loadConsoleAccounts(isCeo), loadAccountAudit()]);

@@ -145,7 +145,7 @@ const FLOW: { s: Stage; n: string }[] = [
 ];
 
 const dt = (iso: string) =>
-  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tashkent' });
+  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', timeZone: 'Asia/Tashkent' });
 
 /** "YYYY-MM-DDTHH:mm" in Tashkent, `days` from now at 18:00. */
 function tashkentInput(nowMs: number, days: number): string {

@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ChatPage() {
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
 
   const [staffRows, unreadRows, conversations] = await Promise.all([
     sql<{ id: string; first_name: string; last_name: string; avatar_url: string | null; role: StaffRole }[]>`

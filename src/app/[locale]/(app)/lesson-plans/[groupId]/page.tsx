@@ -39,6 +39,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   // Role gating for this whole section happens in lesson-plans/layout.tsx —
   // see its comment for why that redirect can't live here.
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
 
   const [groupRow] = await sql<
     {

@@ -87,7 +87,7 @@ function StaffMessageItemComponent({
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">{name}</span>
           <span className="text-xs text-au-muted">
-            {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
+            {format.dateTime(new Date(message.created_at), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}
           </span>
           {(editedAt || message.edited_at) && <span className="text-xs italic text-au-muted">tahrirlangan</span>}
         </div>
