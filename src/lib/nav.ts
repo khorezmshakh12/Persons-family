@@ -167,7 +167,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'accounting', href: '/accounting', folded: true },
   { key: 'operations', href: '/operations' },
   { key: 'perforce', href: '/perforce' },
-  { key: 'attendance', href: '/attendance' },
+  // Davomat lives in HR as its own tab (owner, 2026-10-14).
+  { key: 'attendance', href: '/hr?tab=attendance', folded: true },
   // Persons Market — curation is the 'market.manage' capability.
   { key: 'market', href: '/market' },
   // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.
