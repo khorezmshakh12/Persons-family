@@ -102,6 +102,7 @@ export type SectionKey =
   | 'accounting'
   | 'operations'
   | 'perforce'
+  | 'attendance'
   | 'telegramSetup'
   | 'profile'
   | 'settings'
@@ -152,6 +153,8 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   ],
   perforce: [...LEADERSHIP, 'operations_manager', 'project_manager', 'it_developer'],
   platform: LEADERSHIP,
+  // Xodimlar davomati — only these three mark attendance (owner, 2026-10-14).
+  attendance: ['ceo', 'coo', 'admin_manager'],
   telegramSetup: ['ceo', 'coo', 'it_developer'],
 };
 
