@@ -1,13 +1,16 @@
 import { getTranslations } from 'next-intl/server';
 import { CoreSection } from '@/components/core/core-section';
+import { AttendanceView } from '@/components/attendance/attendance-view';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { HrHub, type HrTab } from '@/components/hr/hr-hub';
 import { BgVideo } from '@/components/motion/bg-video';
 import { Link } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
 import { loadEmployeeTaskStats } from '@/lib/aurora-dashboard';
+import { DAY_RE } from '@/lib/attendance';
+import { loadAttendanceRows } from '@/lib/attendance-data';
 import { loadHrPeople, loadOnboarding } from '@/lib/hr-data';
-import { can, ROLES, type Department } from '@/lib/permissions';
+import { can, canSeeFor, ROLES, type Department } from '@/lib/permissions';
 import { roleLabel } from '@/lib/roles';
 import { tashkentDayKey } from '@/lib/time';
 import { cn } from '@/lib/utils';
@@ -28,30 +31,38 @@ const DEPT_LABEL: Record<Department, string> = {
  * hiring and the month-end bonus still run in Core (their data lives in
  * core_state), so they stay one tab away instead of being lost.
  */
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const { tab: tabParam } = await searchParams;
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; day?: string }> }) {
+  const { tab: tabParam, day: dayParam } = await searchParams;
   const { profile } = await getAuthState();
   const isManager = !!profile && can(profile.role, 'staff.manage');
   const overview = !!profile && can(profile.role, 'company.overview');
+  // Davomat — CEO, COO and Admin Manager only (SECTION_ROLES.attendance).
+  const marksAttendance = !!profile && canSeeFor(profile, 'attendance');
 
-  const tabs: { k: HrTab | 'core'; n: string }[] = isManager
+  const allTabs: { k: HrTab | 'core' | 'attendance'; n: string }[] = isManager
     ? [
         { k: 'people', n: 'Xodimlar' },
         { k: 'org', n: 'Tuzilma' },
         { k: 'onboarding', n: 'Onboarding' },
         { k: 'analytics', n: 'Tahlil' },
+        { k: 'attendance', n: 'Davomat' },
         { k: 'core', n: 'Ta’til · Ishga olish · Bonus' },
       ]
     : [
         { k: 'people', n: 'Mening profilim' },
         { k: 'core', n: 'Ta’til va davomat' },
       ];
-  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core';
+  const tabs = allTabs.filter((t) => t.k !== 'attendance' || marksAttendance);
+  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance';
+  const today = tashkentDayKey();
+  const day = dayParam && DAY_RE.test(dayParam) ? dayParam : today;
 
   const tStaff = await getTranslations('staff');
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabel(tStaff, r)]));
-  const people = tab === 'core' || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
-  const onboarding = tab === 'core' ? [] : await loadOnboarding(people.map((p) => p.id));
+  const native = tab !== 'core' && tab !== 'attendance';
+  const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
+  const onboarding = !native ? [] : await loadOnboarding(people.map((p) => p.id));
+  const attendance = tab === 'attendance' ? await loadAttendanceRows(day) : null;
   const stats = tab === 'analytics' && overview ? await loadEmployeeTaskStats() : null;
 
   return (
@@ -80,15 +91,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
             ))}
           </div>
         </nav>
-        {tab !== 'core' && profile && (
+        {attendance && <AttendanceView key={day} day={day} today={today} initialRows={attendance} />}
+        {native && profile && (
           <div className="pb-8">
             <HrHub
               people={people}
               onboarding={onboarding}
               isManager={isManager}
               meId={profile.id}
-              today={tashkentDayKey()}
-              tab={tab}
+              today={today}
+              tab={tab as HrTab}
               roleLabels={roleLabels}
               deptLabels={DEPT_LABEL}
               analyticsExtra={overview ? <EmployeeStatsTable rows={stats} /> : undefined}

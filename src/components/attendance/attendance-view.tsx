@@ -149,7 +149,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
 
   function goTo(next: string) {
     if (!next || next === day) return;
-    router.push(next === today ? '/attendance' : `/attendance?day=${next}`);
+    router.push(next === today ? '/hr?tab=attendance' : `/hr?tab=attendance&day=${next}`);
   }
 
   /** Optimistic local update + save; rolls back on error. */
@@ -315,7 +315,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
   const deleting = rows.find((r) => r.id === deleteId) ?? null;
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-3 pt-1 pb-8 text-au-ink sm:px-6 lg:px-8">
+    <section className="flex w-full flex-col gap-6 pb-8 text-au-ink">
       {/* 1. Sarlavha, jonli soat, sana tanlash, amallar */}
       <div className={cn(CARD, 'flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between')}>
         <div className="flex items-center gap-3">

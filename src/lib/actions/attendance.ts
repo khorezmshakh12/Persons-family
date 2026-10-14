@@ -45,7 +45,7 @@ export async function saveAttendanceAction(input: z.input<typeof recordSchema>):
   } catch {
     return { error: 'updateFailed' };
   }
-  revalidatePath('/[locale]/attendance', 'page');
+  revalidatePath('/[locale]/hr', 'page');
   return {};
 }
 
@@ -59,7 +59,7 @@ export async function clearAttendanceAction(profileId: string, dayKey: string): 
   } catch {
     return { error: 'updateFailed' };
   }
-  revalidatePath('/[locale]/attendance', 'page');
+  revalidatePath('/[locale]/hr', 'page');
   return {};
 }
 
@@ -80,6 +80,6 @@ export async function markAllPresentAction(dayKey: string): Promise<Result> {
   } catch {
     return { error: 'updateFailed' };
   }
-  revalidatePath('/[locale]/attendance', 'page');
+  revalidatePath('/[locale]/hr', 'page');
   return {};
 }
