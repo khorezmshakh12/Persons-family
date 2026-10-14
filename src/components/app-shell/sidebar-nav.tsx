@@ -28,6 +28,7 @@ import {
   Calculator,
   Gauge,
   Layers,
+  UserCheck,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -58,6 +59,7 @@ export const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: str
   accounting: Calculator,
   operations: Gauge,
   perforce: Layers,
+  attendance: UserCheck,
   profile: User,
   settings: Settings,
   materials: BookOpen,

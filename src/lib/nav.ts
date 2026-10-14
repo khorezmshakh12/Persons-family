@@ -27,6 +27,7 @@ export type NavItem = {
     | 'accounting'
     | 'operations'
     | 'perforce'
+    | 'attendance'
     | 'profile'
     | 'settings'
     | 'materials'
@@ -66,6 +67,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   // Jamoa — people and the teaching floor.
   staff: 'team',
   hr: 'team',
+  attendance: 'team',
   lessonPlans: 'team',
   operations: 'team',
   sales: 'team',
@@ -97,6 +99,7 @@ const NAV_SORT: NavItem['key'][] = [
   'profile',
   'staff',
   'hr',
+  'attendance',
   'lessonPlans',
   'operations',
   'sales',
@@ -164,6 +167,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'accounting', href: '/accounting', folded: true },
   { key: 'operations', href: '/operations' },
   { key: 'perforce', href: '/perforce' },
+  { key: 'attendance', href: '/attendance' },
   // Persons Market — curation is the 'market.manage' capability.
   { key: 'market', href: '/market' },
   // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.
