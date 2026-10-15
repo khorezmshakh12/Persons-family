@@ -17,7 +17,7 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
@@ -57,6 +57,7 @@ export async function loadCrmData() {
       sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
       sql<Row[]>`select id, full_name from crm_students where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_groups where archived_at is not null order by archived_at desc limit 200`,
+      sql<Row[]>`select id, name from crm_courses where archived_at is null`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -143,8 +144,14 @@ export async function loadCrmData() {
     c.groups++;
     if (g.fee) c.fees.push(g.fee);
   }
+  const courseIdByName = new Map(crmCourses.map((c) => [c.name as string, String(c.id)]));
+  // kurslar ro'yxatiga guruhsiz kurslarni ham qo'shamiz (crm_courses dan)
+  for (const c of crmCourses) {
+    const nm = c.name as string;
+    if (nm && !courseMap.has(nm)) courseMap.set(nm, { name: nm, groups: 0, fees: [] });
+  }
   const coursesOut = [...courseMap.values()]
-    .map((c) => ({ name: c.name, groups: c.groups, fee: c.fees.length ? Math.round(c.fees.reduce((a, b) => a + b, 0) / c.fees.length) : null }))
+    .map((c) => ({ id: courseIdByName.get(c.name) ?? null, name: c.name, groups: c.groups, fee: c.fees.length ? Math.round(c.fees.reduce((a, b) => a + b, 0) / c.fees.length) : null }))
     .sort((a, b) => b.groups - a.groups);
 
   const paymentsOut = payments.map((p) => ({
