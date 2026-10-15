@@ -17,7 +17,7 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, balance, status from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
@@ -36,7 +36,10 @@ export async function loadCrmData() {
         left join crm_teachers t on t.id = g.head_teacher_id
         left join crm_rooms r on r.id = g.room_id
         where g.archived_at is null`,
-      sql<Row[]>`select id, display_name from crm_teachers where archived_at is null`,
+      sql<Row[]>`
+        select t.id, t.display_name, t.profile_id, p.first_name, p.last_name
+        from crm_teachers t left join profiles p on p.id = t.profile_id
+        where t.archived_at is null`,
       sql<Row[]>`
         select p.paid_at, p.amount, p.method, p.student_id, s.full_name as sn,
                p.group_name, p.is_refund, p.refund_amount
@@ -48,6 +51,7 @@ export async function loadCrmData() {
         from crm_leads l left join crm_courses c on c.id = l.course_id`,
       sql<Row[]>`select id, name from crm_lead_sections where archived_at is null order by sort`,
       sql<Row[]>`select student_id, group_id, att_date, present, is_late from crm_attendance`,
+      sql<Row[]>`select id, first_name, last_name, role from profiles where is_active = true order by first_name, last_name`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -214,7 +218,13 @@ export async function loadCrmData() {
     generated: today,
     students: studentsOut,
     groups: groupsOut,
-    teachers: teachers.map((t) => ({ id: String(t.id), name: t.display_name })),
+    teachers: teachers.map((t) => ({
+      id: String(t.id),
+      name: t.display_name,
+      profileId: t.profile_id ? String(t.profile_id) : null,
+      staffName: t.first_name || t.last_name ? `${t.first_name ?? ''} ${t.last_name ?? ''}`.trim() : null,
+    })),
+    staff: staff.map((p) => ({ id: String(p.id), name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim(), role: p.role })),
     courses: coursesOut,
     payments: paymentsOut,
     expenses: expensesOut,
