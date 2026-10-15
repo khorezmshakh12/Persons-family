@@ -77,3 +77,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
   }
 }
+
+// Mavjud o'quvchini tahrirlash (F.I.O, telefon, ota-ona, jins, tug'ilgan sana).
+export async function PATCH(req: Request) {
+  const me = await crmUser();
+  if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
+
+  let body: { studentId?: string; name?: string; tel?: string; ptel?: string; sex?: string; birthday?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Noto‘g‘ri so‘rov' }, { status: 400 });
+  }
+
+  const id = body.studentId ?? '';
+  const name = (body.name ?? '').trim();
+  if (!id || !name) return NextResponse.json({ error: 'O‘quvchi va F.I.O majburiy' }, { status: 400 });
+  const sex = body.sex === 'm' || body.sex === 'w' ? body.sex : null;
+  const birthday = /^\d{4}-\d{2}-\d{2}$/.test(body.birthday ?? '') ? body.birthday! : null;
+
+  try {
+    const ok = await sql.begin(async (tx) => {
+      const res = await tx`update crm_students set full_name = ${name}, sex = ${sex}, birthday = ${birthday}, updated_at = now() where id = ${id} and archived_at is null`;
+      if (res.count === 0) return false;
+      await tx`delete from crm_contacts where student_id = ${id}`;
+      if (body.tel) await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${id}, 'student', ${body.tel}, true)`;
+      if (body.ptel) await tx`insert into crm_contacts (student_id, kind, phone) values (${id}, 'guardian', ${body.ptel})`;
+      return true;
+    });
+    if (!ok) return NextResponse.json({ error: 'O‘quvchi topilmadi' }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('[crm] update student failed', e);
+    return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
+  }
+}
