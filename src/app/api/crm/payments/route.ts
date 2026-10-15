@@ -70,3 +70,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
   }
 }
+
+// To'lovni o'chirish (xatoni tuzatish) — balansni teskari to'g'rilaydi.
+export async function DELETE(req: Request) {
+  const me = await crmUser();
+  if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
+  let body: { paymentId?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Noto‘g‘ri so‘rov' }, { status: 400 });
+  }
+  if (!body.paymentId) return NextResponse.json({ error: 'To‘lov majburiy' }, { status: 400 });
+
+  try {
+    const ok = await sql.begin(async (tx) => {
+      const [p] = await tx<{ amount: number; is_refund: boolean; student_id: string | null }[]>`
+        select amount, is_refund, student_id from crm_payments where id = ${body.paymentId!}`;
+      if (!p) return false;
+      await tx`delete from crm_payments where id = ${body.paymentId!}`;
+      // Oddiy to'lov balansni +amount qilgandi → o'chirishda -amount; refund esa aksincha.
+      if (p.student_id) {
+        const delta = p.is_refund ? p.amount : -p.amount;
+        await tx`update crm_students set balance = balance + ${delta}, updated_at = now() where id = ${p.student_id}`;
+      }
+      return true;
+    });
+    if (!ok) return NextResponse.json({ error: 'To‘lov topilmadi' }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('[crm] delete payment failed', e);
+    return NextResponse.json({ error: 'O‘chirishda xatolik' }, { status: 500 });
+  }
+}

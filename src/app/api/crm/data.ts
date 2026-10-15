@@ -41,7 +41,7 @@ export async function loadCrmData() {
         from crm_teachers t left join profiles p on p.id = t.profile_id
         where t.archived_at is null`,
       sql<Row[]>`
-        select p.paid_at, p.amount, p.method, p.student_id, s.full_name as sn,
+        select p.id, p.paid_at, p.amount, p.method, p.student_id, s.full_name as sn,
                p.group_name, p.is_refund, p.refund_amount
         from crm_payments p left join crm_students s on s.id = p.student_id
         order by p.paid_at desc`,
@@ -141,6 +141,7 @@ export async function loadCrmData() {
     .sort((a, b) => b.groups - a.groups);
 
   const paymentsOut = payments.map((p) => ({
+    id: String(p.id),
     date: d10(p.paid_at as string),
     amt: num(p.amount),
     m: p.method,
