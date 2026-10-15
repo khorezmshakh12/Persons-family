@@ -47,7 +47,7 @@ export async function loadCrmData() {
         order by p.paid_at desc`,
       sql<Row[]>`select spent_at, amount, category, note from crm_expenses order by spent_at desc`,
       sql<Row[]>`
-        select l.name, l.phone, l.section_id, c.name as course, l.note, l.created_at
+        select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.created_at, l.converted_student_id
         from crm_leads l left join crm_courses c on c.id = l.course_id`,
       sql<Row[]>`select id, name from crm_lead_sections where archived_at is null order by sort`,
       sql<Row[]>`select student_id, group_id, att_date, present, is_late from crm_attendance`,
@@ -154,12 +154,14 @@ export async function loadCrmData() {
   const expensesOut = expenses.map((e) => ({ date: d10(e.spent_at as string), amt: num(e.amount), cat: e.category, c: e.note }));
 
   const leadsOut = leads.map((l) => ({
+    id: String(l.id),
     name: l.name,
     tel: l.phone,
     sec: l.section_id ? String(l.section_id) : '',
     course: l.course,
     note: l.note,
     date: d10(l.created_at as string),
+    converted: !!l.converted_student_id,
   }));
 
   const leadSectionsOut = sections.map((s) => ({ _id: String(s.id), name: s.name }));
