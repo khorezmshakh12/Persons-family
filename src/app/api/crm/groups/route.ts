@@ -65,3 +65,64 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
   }
 }
+
+// Mavjud guruhni tahrirlash (nom, kunlar, vaqt, xona, o'rinlar, kurs, o'qituvchi).
+export async function PATCH(req: Request) {
+  const me = await crmUser();
+  if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
+
+  let body: { groupId?: string; name?: string; course?: string; teacher?: string; room?: string; days?: string; startTime?: string; limit?: number | string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Noto‘g‘ri so‘rov' }, { status: 400 });
+  }
+
+  const groupId = body.groupId ?? '';
+  const name = (body.name ?? '').trim();
+  if (!groupId || !name) return NextResponse.json({ error: 'Guruh va nomi majburiy' }, { status: 400 });
+  const startTime = /^\d{2}:\d{2}$/.test(body.startTime ?? '') ? body.startTime! : null;
+  const studentLimit = Math.max(1, Math.round(Number(body.limit) || 12));
+
+  try {
+    const ok = await sql.begin(async (tx) => {
+      const course = (body.course ?? '').trim();
+      const teacher = (body.teacher ?? '').trim();
+      const room = (body.room ?? '').trim();
+
+      let courseId: string | null = null;
+      if (course) {
+        const [r] = await tx<{ id: string }[]>`insert into crm_courses (name, created_by) values (${course}, ${me.id}) on conflict do nothing returning id`;
+        courseId = r?.id ?? (await tx<{ id: string }[]>`select id from crm_courses where name = ${course} limit 1`)[0]?.id ?? null;
+      }
+      let teacherId: string | null = null;
+      if (teacher) {
+        const [r] = await tx<{ id: string }[]>`select id from crm_teachers where lower(display_name) = lower(${teacher}) and archived_at is null limit 1`;
+        teacherId = r?.id ?? (await tx<{ id: string }[]>`insert into crm_teachers (display_name, created_by) values (${teacher}, ${me.id}) returning id`)[0].id;
+      }
+      let roomId: string | null = null;
+      if (room) {
+        const [r] = await tx<{ id: string }[]>`select id from crm_rooms where lower(name) = lower(${room}) and archived_at is null limit 1`;
+        roomId = r?.id ?? (await tx<{ id: string }[]>`insert into crm_rooms (name) values (${room}) returning id`)[0].id;
+      }
+
+      // Bo'sh qoldirilgan bog'lanishlar (course/teacher/room) o'zgarmaydi — coalesce.
+      const res = await tx`
+        update crm_groups set
+          name = ${name},
+          days = ${body.days ?? null},
+          start_time = ${startTime},
+          student_limit = ${studentLimit},
+          course_id = coalesce(${courseId}, course_id),
+          head_teacher_id = coalesce(${teacherId}, head_teacher_id),
+          room_id = coalesce(${roomId}, room_id)
+        where id = ${groupId} and archived_at is null`;
+      return res.count > 0;
+    });
+    if (!ok) return NextResponse.json({ error: 'Guruh topilmadi' }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('[crm] update group failed', e);
+    return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
+  }
+}
