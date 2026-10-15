@@ -19,7 +19,7 @@ type Row = Record<string, string | number | boolean | null>;
 export async function loadCrmData() {
   const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups] =
     await Promise.all([
-      sql<Row[]>`select id, full_name, sex, birthday, scores, balance, status, note from crm_students where archived_at is null`,
+      sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
       sql<Row[]>`
         select e.student_id, e.group_id, e.tariff_amount, e.status, e.activation_date,
@@ -89,6 +89,7 @@ export async function loadCrmData() {
       bd: d10(s.birthday as string),
       bal: num(s.balance),
       scores: num(s.scores),
+      coins: num(s.coins),
       note: s.note ?? '',
       active: s.status === 'active',
       groups: (enrOf.get(id) ?? []).map((e) => ({
