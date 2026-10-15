@@ -107,6 +107,7 @@ export type SectionKey =
   | 'profile'
   | 'settings'
   | 'materials'
+  | 'crmPersons'
   | 'kpi';
 
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
@@ -155,6 +156,9 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   platform: LEADERSHIP,
   // Xodimlar davomati — only these three mark attendance (owner, 2026-10-14).
   attendance: ['ceo', 'coo', 'admin_manager'],
+  // CRM of Persons — the full student CRM (persons.schoolup.uz clone). Student
+  // PII, so CEO, COO and Admin Manager only (owner, 2026-10-15).
+  crmPersons: ['ceo', 'coo', 'admin_manager'],
   telegramSetup: ['ceo', 'coo', 'it_developer'],
 };
 

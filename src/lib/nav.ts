@@ -31,6 +31,7 @@ export type NavItem = {
     | 'profile'
     | 'settings'
     | 'materials'
+    | 'crmPersons'
     | 'kpi';
   href: string;
   /** Points at a different app on the shared gateway (see
@@ -72,6 +73,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   operations: 'team',
   sales: 'team',
   materials: 'team',
+  crmPersons: 'team',
   // Boshqaruv — direction, projects, numbers.
   strategy: 'manage',
   perforce: 'manage',
@@ -104,6 +106,7 @@ const NAV_SORT: NavItem['key'][] = [
   'operations',
   'sales',
   'materials',
+  'crmPersons',
   'strategy',
   'perforce',
   'report',
@@ -149,6 +152,10 @@ export const NAV_ITEMS: NavItem[] = [
   // clicking it doesn't drop the employee on Materials' login screen — see
   // src/app/api/sso/materials/route.ts.
   { key: 'materials', href: '/staff/api/sso/materials', external: true },
+  // CRM of Persons — the full student CRM served, auth- and role-gated, by
+  // src/app/api/crm/route.ts. external:true → a plain full-page <a> (like
+  // Materials), so it opens as its own page rather than an in-app route.
+  { key: 'crmPersons', href: '/staff/api/crm', external: true },
   { key: 'staff', href: '/staff' },
   { key: 'chat', href: '/chat' },
   // Any staff member can report an issue and see the ones they raised;
