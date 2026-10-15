@@ -17,9 +17,9 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups] =
     await Promise.all([
-      sql<Row[]>`select id, full_name, sex, birthday, scores, balance, status from crm_students where archived_at is null`,
+      sql<Row[]>`select id, full_name, sex, birthday, scores, balance, status, note from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
       sql<Row[]>`
         select e.student_id, e.group_id, e.tariff_amount, e.status, e.activation_date,
@@ -55,6 +55,8 @@ export async function loadCrmData() {
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
       sql<Row[]>`select income_acct, cash_acct from crm_settings where id = true`,
       sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
+      sql<Row[]>`select id, full_name from crm_students where archived_at is not null order by archived_at desc limit 200`,
+      sql<Row[]>`select id, name from crm_groups where archived_at is not null order by archived_at desc limit 200`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -87,6 +89,7 @@ export async function loadCrmData() {
       bd: d10(s.birthday as string),
       bal: num(s.balance),
       scores: num(s.scores),
+      note: s.note ?? '',
       active: s.status === 'active',
       groups: (enrOf.get(id) ?? []).map((e) => ({
         gid: String(e.group_id),
@@ -237,6 +240,8 @@ export async function loadCrmData() {
       cash: (settings[0]?.cash_acct as string) ?? null,
       posted: num(postedRows[0]?.c),
     },
+    archivedStudents: archStudents.map((s) => ({ id: String(s.id), name: s.full_name })),
+    archivedGroups: archGroups.map((g) => ({ id: String(g.id), name: g.name })),
     courses: coursesOut,
     payments: paymentsOut,
     expenses: expensesOut,

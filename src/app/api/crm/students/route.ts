@@ -83,7 +83,7 @@ export async function PATCH(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { studentId?: string; name?: string; tel?: string; ptel?: string; sex?: string; birthday?: string };
+  let body: { studentId?: string; name?: string; tel?: string; ptel?: string; sex?: string; birthday?: string; note?: string };
   try {
     body = await req.json();
   } catch {
@@ -95,10 +95,11 @@ export async function PATCH(req: Request) {
   if (!id || !name) return NextResponse.json({ error: 'O‘quvchi va F.I.O majburiy' }, { status: 400 });
   const sex = body.sex === 'm' || body.sex === 'w' ? body.sex : null;
   const birthday = /^\d{4}-\d{2}-\d{2}$/.test(body.birthday ?? '') ? body.birthday! : null;
+  const note = (body.note ?? '').toString();
 
   try {
     const ok = await sql.begin(async (tx) => {
-      const res = await tx`update crm_students set full_name = ${name}, sex = ${sex}, birthday = ${birthday}, updated_at = now() where id = ${id} and archived_at is null`;
+      const res = await tx`update crm_students set full_name = ${name}, sex = ${sex}, birthday = ${birthday}, note = ${note}, updated_at = now() where id = ${id} and archived_at is null`;
       if (res.count === 0) return false;
       await tx`delete from crm_contacts where student_id = ${id}`;
       if (body.tel) await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${id}, 'student', ${body.tel}, true)`;
