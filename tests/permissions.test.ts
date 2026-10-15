@@ -45,7 +45,7 @@ const EXPECTED: Record<Role, SectionKey[]> = {
   academic_director: ['lessonPlans', 'operations'],
   financist: ['sales'],
   operations_manager: ['operations', 'perforce'],
-  admin_manager: ['staff', 'operations', 'attendance', 'crmPersons'],
+  admin_manager: ['staff', 'operations', 'attendance'],
   sales_manager: ['sales', 'operations'],
   event_manager: ['operations'],
   project_manager: ['strategy', 'operations', 'perforce'],
