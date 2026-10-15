@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import postgres from 'postgres';
 
 type Group = { gid: string; group: string; course?: string; teacher?: string; status?: string; fee?: string; start?: string; days?: string };
-type Student = { id: string; name: string; tel?: string; ptel?: string | null; sex?: string; bd?: string; scores?: number; groups?: Group[] };
+type Student = { id: string; name: string; tel?: string; ptel?: string | null; sex?: string; bd?: string; scores?: number; bal?: number; groups?: Group[] };
 type Export = {
   students?: Student[];
   groups?: { id: string; name: string; course?: string; teacherId?: string; room?: string; days?: string; start?: string; end?: string; limit?: number; fee?: string | null }[];
@@ -124,9 +124,9 @@ async function main() {
     const studentId = new Map<string, string>();
     for (const s of data.students ?? []) {
       const [row] = await tx`
-        insert into crm_students (external_id, full_name, sex, birthday, scores)
-        values (${s.id}, ${s.name}, ${s.sex === 'm' || s.sex === 'w' ? s.sex : null}, ${d(s.bd)}, ${s.scores ?? 0})
-        on conflict (external_id) do update set full_name = excluded.full_name
+        insert into crm_students (external_id, full_name, sex, birthday, scores, balance)
+        values (${s.id}, ${s.name}, ${s.sex === 'm' || s.sex === 'w' ? s.sex : null}, ${d(s.bd)}, ${s.scores ?? 0}, ${Number(s.bal) || 0})
+        on conflict (external_id) do update set full_name = excluded.full_name, balance = excluded.balance
         returning id`;
       studentId.set(s.id, row.id);
       // contacts — faqat yangi importda (dublikat bo'lmasligi uchun avval tozalaymiz)
