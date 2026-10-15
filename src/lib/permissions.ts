@@ -157,8 +157,8 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   // Xodimlar davomati — only these three mark attendance (owner, 2026-10-14).
   attendance: ['ceo', 'coo', 'admin_manager'],
   // CRM of Persons — the full student CRM (persons.schoolup.uz clone). Student
-  // PII, so CEO, COO and Admin Manager only (owner, 2026-10-15).
-  crmPersons: ['ceo', 'coo', 'admin_manager'],
+  // PII, so CEO and COO only (owner, 2026-10-15; Admin Manager removed same day).
+  crmPersons: ['ceo', 'coo'],
   telegramSetup: ['ceo', 'coo', 'it_developer'],
 };
 
