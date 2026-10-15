@@ -17,7 +17,7 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, balance, status from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
@@ -54,6 +54,7 @@ export async function loadCrmData() {
       sql<Row[]>`select id, first_name, last_name, role from profiles where is_active = true order by first_name, last_name`,
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
       sql<Row[]>`select income_acct, cash_acct from crm_settings where id = true`,
+      sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -231,7 +232,11 @@ export async function loadCrmData() {
     })),
     staff: staff.map((p) => ({ id: String(p.id), name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim(), role: p.role })),
     acct: acct.map((a) => ({ code: String(a.code), name: a.name, type: a.type })),
-    finance: { income: (settings[0]?.income_acct as string) ?? null, cash: (settings[0]?.cash_acct as string) ?? null },
+    finance: {
+      income: (settings[0]?.income_acct as string) ?? null,
+      cash: (settings[0]?.cash_acct as string) ?? null,
+      posted: num(postedRows[0]?.c),
+    },
     courses: coursesOut,
     payments: paymentsOut,
     expenses: expensesOut,
