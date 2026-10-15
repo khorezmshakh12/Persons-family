@@ -45,7 +45,7 @@ export async function loadCrmData() {
                p.group_name, p.is_refund, p.refund_amount
         from crm_payments p left join crm_students s on s.id = p.student_id
         order by p.paid_at desc`,
-      sql<Row[]>`select spent_at, amount, category, note from crm_expenses order by spent_at desc`,
+      sql<Row[]>`select id, spent_at, amount, category, note from crm_expenses order by spent_at desc`,
       sql<Row[]>`
         select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.created_at, l.converted_student_id
         from crm_leads l left join crm_courses c on c.id = l.course_id`,
