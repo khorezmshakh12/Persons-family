@@ -126,3 +126,24 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
   }
 }
+
+// Guruhni arxivlash (yumshoq o'chirish).
+export async function DELETE(req: Request) {
+  const me = await crmUser();
+  if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
+  let body: { groupId?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Noto‘g‘ri so‘rov' }, { status: 400 });
+  }
+  if (!body.groupId) return NextResponse.json({ error: 'Guruh majburiy' }, { status: 400 });
+  try {
+    const res = await sql`update crm_groups set archived_at = now(), status = 'archived' where id = ${body.groupId} and archived_at is null`;
+    if (res.count === 0) return NextResponse.json({ error: 'Guruh topilmadi' }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('[crm] archive group failed', e);
+    return NextResponse.json({ error: 'O‘chirishda xatolik' }, { status: 500 });
+  }
+}

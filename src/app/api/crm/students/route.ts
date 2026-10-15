@@ -112,3 +112,24 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Saqlashda xatolik' }, { status: 500 });
   }
 }
+
+// O'quvchini arxivlash (yumshoq o'chirish — to'lov/davomat tarixi saqlanadi).
+export async function DELETE(req: Request) {
+  const me = await crmUser();
+  if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
+  let body: { studentId?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Noto‘g‘ri so‘rov' }, { status: 400 });
+  }
+  if (!body.studentId) return NextResponse.json({ error: 'O‘quvchi majburiy' }, { status: 400 });
+  try {
+    const res = await sql`update crm_students set archived_at = now(), status = 'archived' where id = ${body.studentId} and archived_at is null`;
+    if (res.count === 0) return NextResponse.json({ error: 'O‘quvchi topilmadi' }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error('[crm] archive student failed', e);
+    return NextResponse.json({ error: 'O‘chirishda xatolik' }, { status: 500 });
+  }
+}
