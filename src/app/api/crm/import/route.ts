@@ -10,6 +10,14 @@ export const dynamic = 'force-dynamic';
 // holda `fresh:true` talab qiladi (crm_* ni tozalab qayta yozadi).
 
 const d = (s?: string | null) => (s && s.length >= 10 ? s.slice(0, 10) : null);
+// Guruh nomidan vaqtni HH:MM ga keltiradi ("9:00" -> "09:00"); mos kelmasa null.
+function normTime(name: string): string | null {
+  const m = name.match(/\d{1,2}[:.]\d{2}/);
+  if (!m) return null;
+  const [h, mm] = m[0].replace('.', ':').split(':');
+  const t = `${h.padStart(2, '0')}:${mm}`;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : null;
+}
 const METHODS = new Set(['cash', 'card', 'online', 'click', 'payme', 'uzum', 'transfer', 'other']);
 const method = (m?: string) => (m && METHODS.has(m) ? m : 'other');
 const statusOf = (s?: string) => (s === 'freeze' || s === 'frozen' ? 'frozen' : s === 'left' ? 'left' : 'active');
@@ -83,7 +91,7 @@ export async function POST(req: Request) {
 
       const groupId = new Map<string, string>();
       for (const g of body.groups ?? []) {
-        const tm = (g.name.match(/\d{1,2}[:.]\d{2}/) || [])[0]?.replace('.', ':') ?? null;
+        const tm = normTime(g.name);
         const [r] = await tx<{ id: string }[]>`
           insert into crm_groups (external_id, name, course_id, head_teacher_id, days, start_time, student_limit, start_date, end_date, created_by)
           values (${g.id}, ${g.name}, ${g.course ? courseId.get(g.course) ?? null : null}, ${g.teacherId ? teacherId.get(g.teacherId) ?? null : null}, ${g.days ?? null}, ${tm}, ${g.limit ?? 12}, ${d(g.start)}, ${d(g.end)}, ${me.id})

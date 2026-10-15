@@ -109,7 +109,13 @@ async function main() {
     // groups
     const groupId = new Map<string, string>();
     for (const g of data.groups ?? []) {
-      const tm = (g.name.match(/\d{1,2}[:.]\d{2}/) || [])[0]?.replace('.', ':') ?? null;
+      const tmRaw = (g.name.match(/\d{1,2}[:.]\d{2}/) || [])[0]?.replace('.', ':');
+      let tm: string | null = null;
+      if (tmRaw) {
+        const [h, mm] = tmRaw.split(':');
+        const t = `${h.padStart(2, '0')}:${mm}`;
+        tm = /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : null;
+      }
       const [row] = await tx`
         insert into crm_groups (external_id, name, course_id, head_teacher_id, room_id, days, start_time, student_limit, start_date, end_date)
         values (${g.id}, ${g.name}, ${g.course ? courseId.get(g.course) ?? null : null},
