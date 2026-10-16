@@ -17,7 +17,7 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
@@ -53,11 +53,13 @@ export async function loadCrmData() {
       sql<Row[]>`select student_id, group_id, att_date, present, is_late from crm_attendance`,
       sql<Row[]>`select id, first_name, last_name, role from profiles where is_active = true order by first_name, last_name`,
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
-      sql<Row[]>`select income_acct, cash_acct from crm_settings where id = true`,
+      sql<Row[]>`select income_acct, cash_acct, center_name, cycle_days, late_after_minutes, currency from crm_settings where id = true`,
       sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
       sql<Row[]>`select id, full_name from crm_students where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_groups where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_courses where archived_at is null`,
+      sql<Row[]>`select id, title, body, created_at from crm_announcements where archived_at is null order by created_at desc limit 50`,
+      sql<Row[]>`select id, student_id, kind, points, note, created_at from crm_behaviours order by created_at desc limit 1000`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -250,6 +252,14 @@ export async function loadCrmData() {
     },
     archivedStudents: archStudents.map((s) => ({ id: String(s.id), name: s.full_name })),
     archivedGroups: archGroups.map((g) => ({ id: String(g.id), name: g.name })),
+    cfg: {
+      centerName: (settings[0]?.center_name as string) ?? null,
+      cycleDays: num(settings[0]?.cycle_days) || 30,
+      lateAfter: num(settings[0]?.late_after_minutes) || 10,
+      currency: (settings[0]?.currency as string) ?? 'UZS',
+    },
+    announcements: announcements.map((a) => ({ id: String(a.id), title: a.title, body: a.body, date: d10(a.created_at as string) })),
+    behaviours: behaviours.map((b) => ({ id: String(b.id), sid: String(b.student_id), kind: b.kind, points: num(b.points), note: b.note, date: d10(b.created_at as string) })),
     courses: coursesOut,
     payments: paymentsOut,
     expenses: expensesOut,
