@@ -17,7 +17,7 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours, rooms, exams] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
@@ -60,6 +60,8 @@ export async function loadCrmData() {
       sql<Row[]>`select id, name from crm_courses where archived_at is null`,
       sql<Row[]>`select id, title, body, created_at from crm_announcements where archived_at is null order by created_at desc limit 50`,
       sql<Row[]>`select id, student_id, kind, points, note, created_at from crm_behaviours order by created_at desc limit 1000`,
+      sql<Row[]>`select id, name, capacity from crm_rooms where archived_at is null order by name`,
+      sql<Row[]>`select e.id, e.student_id, s.full_name as sn, e.group_name, e.name, e.exam_date, e.score, e.max_score, e.passed, e.cert, e.note from crm_exams e left join crm_students s on s.id = e.student_id order by e.exam_date desc nulls last, e.created_at desc limit 1000`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -260,6 +262,8 @@ export async function loadCrmData() {
     },
     announcements: announcements.map((a) => ({ id: String(a.id), title: a.title, body: a.body, date: d10(a.created_at as string) })),
     behaviours: behaviours.map((b) => ({ id: String(b.id), sid: String(b.student_id), kind: b.kind, points: num(b.points), note: b.note, date: d10(b.created_at as string) })),
+    rooms: rooms.map((r) => ({ id: String(r.id), name: r.name, capacity: r.capacity == null ? null : num(r.capacity) })),
+    exams: exams.map((e) => ({ id: String(e.id), sid: e.student_id ? String(e.student_id) : null, sn: e.sn, group: e.group_name, name: e.name, date: d10(e.exam_date as string), score: e.score == null ? null : num(e.score), max: num(e.max_score) || 100, passed: !!e.passed, cert: !!e.cert, note: e.note })),
     courses: coursesOut,
     payments: paymentsOut,
     expenses: expensesOut,
