@@ -118,15 +118,16 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
-  let body: { studentId?: string };
+  let body: { studentId?: string; reason?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Noto‘g‘ri so‘rov' }, { status: 400 });
   }
   if (!body.studentId) return NextResponse.json({ error: 'O‘quvchi majburiy' }, { status: 400 });
+  const reason = (body.reason ?? '').trim() || null;
   try {
-    const res = await sql`update crm_students set archived_at = now(), status = 'archived' where id = ${body.studentId} and archived_at is null`;
+    const res = await sql`update crm_students set archived_at = now(), status = 'archived', leave_reason = ${reason} where id = ${body.studentId} and archived_at is null`;
     if (res.count === 0) return NextResponse.json({ error: 'O‘quvchi topilmadi' }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e) {

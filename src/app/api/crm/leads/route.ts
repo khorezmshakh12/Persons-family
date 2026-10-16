@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { name?: string; phone?: string; course?: string; sectionId?: string; note?: string };
+  let body: { name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string };
   try {
     body = await req.json();
   } catch {
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const name = (body.name ?? '').trim();
   const phone = (body.phone ?? '').trim();
   if (!name && !phone) return NextResponse.json({ error: 'Ism yoki telefon majburiy' }, { status: 400 });
+  const source = (body.source ?? '').trim() || null;
 
   try {
     const id = await sql.begin(async (tx) => {
@@ -34,8 +35,8 @@ export async function POST(req: Request) {
         sectionId = s?.id ?? null;
       }
       const [l] = await tx<{ id: string }[]>`
-        insert into crm_leads (section_id, name, phone, course_id, note, status, created_by)
-        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, 'open', ${me.id})
+        insert into crm_leads (section_id, name, phone, course_id, note, source, status, created_by)
+        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${me.id})
         returning id`;
       return l.id;
     });
@@ -51,7 +52,7 @@ export async function PATCH(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { leadId?: string; name?: string; phone?: string; course?: string; sectionId?: string; note?: string };
+  let body: { leadId?: string; name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string };
   try {
     body = await req.json();
   } catch {
@@ -76,7 +77,7 @@ export async function PATCH(req: Request) {
         const [s] = await tx<{ id: string }[]>`select id from crm_lead_sections where id = ${body.sectionId} limit 1`;
         sectionResolved = s?.id ?? null;
       }
-      const res = await tx`update crm_leads set name = ${name || null}, phone = ${phone || null}, course_id = ${courseId}, section_id = ${sectionResolved}, note = ${body.note ?? null}, updated_at = now() where id = ${leadId}`;
+      const res = await tx`update crm_leads set name = ${name || null}, phone = ${phone || null}, course_id = ${courseId}, section_id = ${sectionResolved}, note = ${body.note ?? null}, source = ${(body.source ?? '').trim() || null}, updated_at = now() where id = ${leadId}`;
       return res.count > 0;
     });
     if (!ok) return NextResponse.json({ error: 'Lid topilmadi' }, { status: 400 });
