@@ -55,7 +55,7 @@ export async function loadCrmData() {
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
       sql<Row[]>`select income_acct, cash_acct, center_name, cycle_days, late_after_minutes, currency from crm_settings where id = true`,
       sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
-      sql<Row[]>`select id, full_name from crm_students where archived_at is not null order by archived_at desc limit 200`,
+      sql<Row[]>`select id, full_name, archived_at from crm_students where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_groups where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_courses where archived_at is null`,
       sql<Row[]>`select id, title, body, created_at from crm_announcements where archived_at is null order by created_at desc limit 50`,
@@ -252,7 +252,7 @@ export async function loadCrmData() {
       cash: (settings[0]?.cash_acct as string) ?? null,
       posted: num(postedRows[0]?.c),
     },
-    archivedStudents: archStudents.map((s) => ({ id: String(s.id), name: s.full_name })),
+    archivedStudents: archStudents.map((s) => ({ id: String(s.id), name: s.full_name, left: d10(s.archived_at as string) })),
     archivedGroups: archGroups.map((g) => ({ id: String(g.id), name: g.name })),
     cfg: {
       centerName: (settings[0]?.center_name as string) ?? null,
