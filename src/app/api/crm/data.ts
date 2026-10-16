@@ -47,7 +47,7 @@ export async function loadCrmData() {
         order by p.paid_at desc`,
       sql<Row[]>`select id, spent_at, amount, category, note from crm_expenses order by spent_at desc`,
       sql<Row[]>`
-        select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.created_at, l.converted_student_id
+        select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.source, l.created_at, l.converted_student_id
         from crm_leads l left join crm_courses c on c.id = l.course_id`,
       sql<Row[]>`select id, name from crm_lead_sections where archived_at is null order by sort`,
       sql<Row[]>`select student_id, group_id, att_date, present, is_late from crm_attendance`,
@@ -55,7 +55,7 @@ export async function loadCrmData() {
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
       sql<Row[]>`select income_acct, cash_acct, center_name, cycle_days, late_after_minutes, currency from crm_settings where id = true`,
       sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
-      sql<Row[]>`select id, full_name, archived_at from crm_students where archived_at is not null order by archived_at desc limit 200`,
+      sql<Row[]>`select id, full_name, archived_at, leave_reason from crm_students where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_groups where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_courses where archived_at is null`,
       sql<Row[]>`select id, title, body, created_at from crm_announcements where archived_at is null order by created_at desc limit 50`,
@@ -180,6 +180,7 @@ export async function loadCrmData() {
     course: l.course,
     note: l.note,
     date: d10(l.created_at as string),
+    source: l.source ?? null,
     converted: !!l.converted_student_id,
   }));
 
@@ -252,7 +253,7 @@ export async function loadCrmData() {
       cash: (settings[0]?.cash_acct as string) ?? null,
       posted: num(postedRows[0]?.c),
     },
-    archivedStudents: archStudents.map((s) => ({ id: String(s.id), name: s.full_name, left: d10(s.archived_at as string) })),
+    archivedStudents: archStudents.map((s) => ({ id: String(s.id), name: s.full_name, left: d10(s.archived_at as string), reason: s.leave_reason ?? null })),
     archivedGroups: archGroups.map((g) => ({ id: String(g.id), name: g.name })),
     cfg: {
       centerName: (settings[0]?.center_name as string) ?? null,
