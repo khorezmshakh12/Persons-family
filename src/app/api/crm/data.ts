@@ -212,6 +212,26 @@ export async function loadCrmData() {
   // --- dashboard statistikasi ---
   const month = tashkent({ year: 'numeric', month: '2-digit' }); // 'YYYY-MM'
   const today = tashkent({ year: 'numeric', month: '2-digit', day: '2-digit' }); // 'YYYY-MM-DD'
+
+  // --- kogorta retention: qaysi oy birinchi faollashgan o'quvchilar necha % qolgan ---
+  const miOf = (ym: string) => { const [y, m] = ym.split('-').map(Number); return (y || 0) * 12 + ((m || 1) - 1); };
+  const nowMi = miOf(month);
+  const firstStartOf = (sid: string) => {
+    const es = enrOf.get(sid) ?? [];
+    const ds = es.map((e) => d10(e.activation_date as string)).filter(Boolean).sort();
+    return ds[0] ?? '';
+  };
+  const cohRows: { cohort: string; left: string | null }[] = [];
+  for (const s of studentsOut) { const f = firstStartOf(s.id); if (f) cohRows.push({ cohort: f.slice(0, 7), left: null }); }
+  for (const s of archStudents) { const f = firstStartOf(String(s.id)); if (f) cohRows.push({ cohort: f.slice(0, 7), left: d10(s.archived_at as string).slice(0, 7) || null }); }
+  const cohBy = new Map<string, { cohort: string; left: string | null }[]>();
+  for (const r of cohRows) { (cohBy.get(r.cohort) ?? cohBy.set(r.cohort, []).get(r.cohort)!).push(r); }
+  const cohortsOut = [...cohBy.keys()].filter((m) => miOf(m) <= nowMi).sort().slice(-4).map((m) => {
+    const arr = cohBy.get(m)!; const size = arr.length; const base = miOf(m); const maxK = Math.min(3, nowMi - base);
+    const ret: number[] = [];
+    for (let k = 0; k <= maxK; k++) { const at = base + k; const still = arr.filter((r) => r.left == null || miOf(r.left) > at).length; ret.push(size ? Math.round((still / size) * 100) : 0); }
+    return { month: m, size, ret };
+  });
   const sumIn = (arr: { date: string; amt: number; refund?: boolean }[]) =>
     arr.filter((x) => x.date.slice(0, 7) === month && !x.refund).reduce((s, x) => s + x.amt, 0);
   const activeEnr = enrollments.filter((e) => e.status === 'active').length;
@@ -276,6 +296,7 @@ export async function loadCrmData() {
     leads: leadsOut,
     salaries: salariesOut,
     marketing: marketingOut,
+    cohorts: cohortsOut,
     leadSections: leadSectionsOut,
     attendance: attendanceOut,
     attStudent,
