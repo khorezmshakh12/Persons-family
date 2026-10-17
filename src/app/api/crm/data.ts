@@ -17,7 +17,7 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 type Row = Record<string, string | number | boolean | null>;
 
 export async function loadCrmData() {
-  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours, rooms, exams] =
+  const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours, rooms, exams, salaries, marketing] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
@@ -62,6 +62,8 @@ export async function loadCrmData() {
       sql<Row[]>`select id, student_id, kind, points, note, created_at from crm_behaviours order by created_at desc limit 1000`,
       sql<Row[]>`select id, name, capacity from crm_rooms where archived_at is null order by name`,
       sql<Row[]>`select e.id, e.student_id, s.full_name as sn, e.group_name, e.name, e.exam_date, e.score, e.max_score, e.passed, e.cert, e.note from crm_exams e left join crm_students s on s.id = e.student_id order by e.exam_date desc nulls last, e.created_at desc limit 1000`,
+      sql<Row[]>`select id, period, name, amount, note from crm_salaries order by period desc, created_at desc limit 1000`,
+      sql<Row[]>`select id, spent_at, channel, amount, note from crm_marketing_spend order by spent_at desc limit 1000`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -186,6 +188,9 @@ export async function loadCrmData() {
 
   const leadSectionsOut = sections.map((s) => ({ _id: String(s.id), name: s.name }));
 
+  const salariesOut = salaries.map((s) => ({ id: String(s.id), period: String(s.period).slice(0, 7), name: s.name, amt: num(s.amount), note: s.note }));
+  const marketingOut = marketing.map((m) => ({ id: String(m.id), date: d10(m.spent_at as string), channel: m.channel, amt: num(m.amount), note: m.note }));
+
   // --- davomat + xulosalar (attStudent / attGroup) ---
   const attStudent: Record<string, { p: number; a: number; late: number }> = {};
   const attGroup: Record<string, { p: number; a: number; late: number }> = {};
@@ -226,7 +231,7 @@ export async function loadCrmData() {
     trial: 0,
     payments: sumIn(paymentsOut),
     expenses: expensesOut.filter((e) => e.date.slice(0, 7) === month).reduce((s, e) => s + e.amt, 0),
-    withdraws: 0,
+    withdraws: salariesOut.filter((s) => s.period === month).reduce((a, s) => a + s.amt, 0),
     notGrouped: studentsOut.filter((s) => s.active && !groupedSids.has(s.id)).length,
     trends: {},
   };
@@ -269,6 +274,8 @@ export async function loadCrmData() {
     payments: paymentsOut,
     expenses: expensesOut,
     leads: leadsOut,
+    salaries: salariesOut,
+    marketing: marketingOut,
     leadSections: leadSectionsOut,
     attendance: attendanceOut,
     attStudent,
