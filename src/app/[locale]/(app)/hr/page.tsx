@@ -10,7 +10,9 @@ import { loadEmployeeTaskStats } from '@/lib/aurora-dashboard';
 import { DAY_RE } from '@/lib/attendance';
 import { loadAttendanceRows } from '@/lib/attendance-data';
 import { loadHrPeople, loadOnboarding } from '@/lib/hr-data';
-import { can, canSeeFor, ROLES, type Department } from '@/lib/permissions';
+import { can, canSeeFor, ROLES, ROLE_DEPT, type Department } from '@/lib/permissions';
+import { sql } from '@/lib/db/client';
+import { CareerRoadmap } from '@/components/hr/career-roadmap';
 import { roleLabel } from '@/lib/roles';
 import { tashkentDayKey } from '@/lib/time';
 import { cn } from '@/lib/utils';
@@ -39,10 +41,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   // Davomat — CEO, COO and Admin Manager only (SECTION_ROLES.attendance).
   const marksAttendance = !!profile && canSeeFor(profile, 'attendance');
 
-  const allTabs: { k: HrTab | 'core' | 'attendance'; n: string }[] = isManager
+  const allTabs: { k: HrTab | 'core' | 'attendance' | 'roadmap'; n: string }[] = isManager
     ? [
         { k: 'people', n: 'Xodimlar' },
         { k: 'org', n: 'Tuzilma' },
+        { k: 'roadmap', n: 'Rivojlanish' },
         { k: 'onboarding', n: 'Onboarding' },
         { k: 'analytics', n: 'Tahlil' },
         { k: 'attendance', n: 'Davomat' },
@@ -50,20 +53,36 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       ]
     : [
         { k: 'people', n: 'Mening profilim' },
+        { k: 'roadmap', n: 'Rivojlanish' },
         { k: 'core', n: 'Ta’til va davomat' },
       ];
   const tabs = allTabs.filter((t) => t.k !== 'attendance' || marksAttendance);
-  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance';
+  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance' | 'roadmap';
   const today = tashkentDayKey();
   const day = dayParam && DAY_RE.test(dayParam) ? dayParam : today;
 
   const tStaff = await getTranslations('staff');
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabel(tStaff, r)]));
-  const native = tab !== 'core' && tab !== 'attendance';
+  const native = tab !== 'core' && tab !== 'attendance' && tab !== 'roadmap';
   const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
   const onboarding = !native ? [] : await loadOnboarding(people.map((p) => p.id));
   const attendance = tab === 'attendance' ? await loadAttendanceRows(day) : null;
   const stats = tab === 'analytics' && overview ? await loadEmployeeTaskStats() : null;
+
+  // HR rivojlanish yo'li (barcha xodimlar) — lavozim pog'onasi + o'z so'rovlari;
+  // CEO uchun tasdiqlash navbati.
+  const held = profile ? (profile.roles ?? [profile.role]) : [];
+  const isCeoHeld = held.includes('ceo');
+  const ladder = ROLES.map((r) => ({ role: r as string, dept: ROLE_DEPT[r] as string, label: roleLabels[r] ?? (r as string) }));
+  const myRequests = tab === 'roadmap' && profile
+    ? await sql<{ role: string; status: string }[]>`select role, status from position_requests where user_id = ${profile.id} and status = 'pending'`.catch(() => [])
+    : [];
+  const roadmapQueue = tab === 'roadmap' && isCeoHeld
+    ? await sql<{ id: string; name: string; role: string }[]>`
+        select pr.id, trim(coalesce(p.first_name,'') || ' ' || coalesce(p.last_name,'')) as name, pr.role
+        from position_requests pr join profiles p on p.id = pr.user_id
+        where pr.status = 'pending' order by pr.created_at`.catch(() => [])
+    : [];
 
   return (
     <div className="flex flex-col gap-5">
@@ -92,6 +111,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           </div>
         </nav>
         {attendance && <AttendanceView key={day} day={day} today={today} initialRows={attendance} />}
+        {tab === 'roadmap' && profile && (
+          <div className="pb-8">
+            <CareerRoadmap
+              ladder={ladder}
+              deptLabels={DEPT_LABEL}
+              held={held}
+              requests={myRequests}
+              isCeo={isCeoHeld}
+              queue={roadmapQueue.map((q) => ({ id: q.id, name: q.name || '—', role: q.role, label: roleLabels[q.role] ?? q.role }))}
+            />
+          </div>
+        )}
         {native && profile && (
           <div className="pb-8">
             <HrHub
