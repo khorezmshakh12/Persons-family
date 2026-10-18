@@ -35,7 +35,7 @@ export function NewsSliderView({
           {allLabel} →
         </Link>
       </div>
-      <CardCarousel label={title} interval={4500} peek={!flat || items.length > 1}>
+      <CardCarousel label={title} interval={4500} peek={!flat}>
         {items.map((n) => (
           <Link
             key={n.id}
@@ -43,7 +43,7 @@ export function NewsSliderView({
             draggable={false}
             className={cn(
               'flex h-full flex-col rounded-au-card border border-au-line bg-au-card shadow-au-card transition-colors hover:bg-au-card-2',
-              flat ? 'min-h-[92px] justify-center gap-1 px-5 py-3.5' : 'min-h-[132px] gap-1.5 p-5',
+              flat ? 'min-h-[92px] justify-center gap-1 px-11 py-3.5' : 'min-h-[132px] gap-1.5 px-11 py-5',
             )}
           >
             <div className="flex items-baseline justify-between gap-3">
