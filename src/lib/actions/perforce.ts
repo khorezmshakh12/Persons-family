@@ -396,8 +396,9 @@ export async function applyDeadlineDecisionAction(id: string): Promise<Result> {
     select kind, status, space_id, proposed_value, applied_at from pf_change_requests where id = ${id}`;
   if (!cr || cr.status !== 'approved') return { error: 'notApplicable' };
   if (cr.applied_at) return { error: 'alreadyApplied' };
+  // deadline + to'g'ri sana + space → muddatni ko'chiradi; aks holda (sanasiz
+  // yoki noto'g'ri) boshqa kinslar kabi faqat «qo'llandi» deb belgilanadi.
   const movesDeadline = cr.kind === 'deadline' && !!cr.space_id && /^\d{4}-\d{2}-\d{2}$/.test(cr.proposed_value);
-  if (cr.kind === 'deadline' && !movesDeadline) return { error: 'badDate' };
   try {
     const ok = await sql.begin(async (tx) => {
       const claim = await tx`update pf_change_requests set applied_at = now() where id = ${id} and applied_at is null and status = 'approved'`;

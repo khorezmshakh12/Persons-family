@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db/client';
 import { crmUser } from '../guard';
-import { tashkentDayKey } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +11,8 @@ export const dynamic = 'force-dynamic';
 // To'lov: Dt kassa / Kt kirim (qaytarish aksincha). Xarajat/oylik: Dt 9420
 // (ma'muriy) / Kt kassa. Marketing: Dt 9410 (sotuv) / Kt kassa.
 // source UNIQUE (crm-pay/exp/sal/mkt:<id>) → qayta o'tkazilsa dublikat yo'q.
-// To'lov sanasi Asia/Tashkent bo'yicha (paid_at timestamptz'ni UTC'da date'ga
-// cast qilib yuborish kech kunlik to'lovlarni oldingi oyga tashlar edi).
+// paid_at/spent_at — `date` ustunlari (biznes kuni), shuning uchun entry_date'ga
+// to'g'ridan-to'g'ri yoziladi; oylik yozuv sanasi = period oyining 1-kuni.
 // Yopiq oy DB triggeri (period_closed) yozuvni rad etadi — har biri alohida
 // try/catch'da, qolganlarini to'xtatmaydi.
 const ACC = { expense: '9420', salary: '9420', marketing: '9410' };
@@ -59,7 +58,7 @@ export async function POST() {
       order by p.paid_at`;
     for (const p of pays) {
       await put(
-        tashkentDayKey(new Date(p.paid_at)),
+        p.paid_at,
         `CRM${p.is_refund ? ' (qaytarish)' : ''}: ${p.sn ?? 'to‘lov'}`,
         p.is_refund ? income : cash,
         p.is_refund ? cash : income,

@@ -7,10 +7,6 @@ import { sql } from '@/lib/db/client';
 // payments.sid = attendance.sid; groups.id = enrollment.gid = attendance.gid).
 
 const d10 = (s: unknown) => (s ? String(s).slice(0, 10) : '');
-// Tashkent calendar day of a timestamptz (d10 slices the raw UTC wire string,
-// so late-evening rows fall a day/month early — use this for money/dates that
-// drive monthly totals).
-const d10tz = (s: unknown) => (s ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date(String(s))) : '');
 const num = (n: unknown) => Number(n) || 0;
 
 // Toshkent oyi / kuni — eslint man etgan getMonth/getDate'siz (Intl orqali).
@@ -172,7 +168,7 @@ export async function loadCrmData(branchArg?: string) {
 
   const paymentsOut = payments.map((p) => ({
     id: String(p.id),
-    date: d10tz(p.paid_at),
+    date: d10(p.paid_at as string),
     amt: num(p.amount),
     m: p.method,
     sid: p.student_id ? String(p.student_id) : null,

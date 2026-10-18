@@ -261,7 +261,7 @@ function NetCard({ M, prev, H }: { M: Row; prev: Row; H: Row[] }) {
   const d = M.npm !== null && prev.npm !== null ? M.npm - prev.npm : null;
   return (
     <div className={`sx-card sx-stat dark s5 fn-np ${M.NP < 0 ? 'neg' : ''}`}>
-      <MH n={2} t="Sof biznes foydasi" en="Operating margin" fx="((Yalpi foyda − Marketing − Ma'muriy − Boshqa operatsion) / Tushum) × 100" />
+      <MH n={2} t="Sof biznes foydasi" en="Net profit margin" fx="((Yalpi foyda − Marketing − Ma'muriy − Boshqa operatsion − Soliq) / Tushum) × 100" />
       <div className="fn-npmain">
         <div className="v">{pc(M.npm)}</div>
         <div>
