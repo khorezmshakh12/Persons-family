@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { StarIcon } from '@/components/ui/star-icon';
 import { useTranslations } from 'next-intl';
 import {
+  ChevronDown,
   LayoutDashboard,
   Users,
   MessageSquare,
@@ -97,16 +99,50 @@ export function SidebarNav({
   const order = groups.flatMap((g) => g.items).filter((i) => !i.external);
   const currentIndex = order.findIndex((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
 
+  // Collapsible groups — per-viewer convenience, remembered in localStorage.
+  // The `daily` group has no header and the group holding the current page
+  // always stays open, so a collapse can never hide where you are.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('persons:nav-collapsed');
+      if (raw) setCollapsed(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* storage blocked — groups just stay expanded */
+    }
+  }, []);
+  const toggleGroup = (g: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      try {
+        localStorage.setItem('persons:nav-collapsed', JSON.stringify([...next]));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+
   return (
     <nav className="flex flex-col">
-      {groups.map(({ group, items }) => (
+      {groups.map(({ group, items }) => {
+        const hasActive = items.some((i) => !i.external && (pathname === i.href || pathname.startsWith(`${i.href}/`)));
+        const open = group === 'daily' || hasActive || !collapsed.has(group);
+        return (
         <div key={group} className="flex flex-col gap-0.5">
           {group !== 'daily' && (
-            <p className="px-2.5 pt-4 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-au-muted uppercase">
-              {tShell(`groups.${group}`)}
-            </p>
+            <button
+              type="button"
+              onClick={() => toggleGroup(group)}
+              aria-expanded={open}
+              className="flex items-center gap-1.5 px-2.5 pt-4 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-au-muted uppercase transition-colors hover:text-au-ink"
+            >
+              <ChevronDown className={cn('size-3 shrink-0 transition-transform', !open && '-rotate-90')} />
+              <span className="truncate">{tShell(`groups.${group}`)}</span>
+            </button>
           )}
-          {items.map((item) => {
+          {open && items.map((item) => {
             const Icon = ICONS[item.key];
             const active = !item.external && (pathname === item.href || pathname.startsWith(`${item.href}/`));
             const itemClassName = active ? NAV_ITEM_ACTIVE : NAV_ITEM;
@@ -175,7 +211,8 @@ export function SidebarNav({
             );
           })}
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
