@@ -383,28 +383,33 @@ export async function commentChangeRequestAction(input: z.input<typeof commentSc
   return done();
 }
 
-/** An approved deadline decision: move the project's end date to the
- * proposed one (YYYY-MM-DD), once. */
+/** Apply (enact) an approved decision, once. A `deadline` decision also moves
+ * the project's end date to the proposed YYYY-MM-DD; every other kind
+ * (budget/scope/people/other) is simply stamped as applied so the log records
+ * that leadership enacted it (no unsafe auto-rewrite of free-text values).
+ * Name kept for the existing call site. */
 export async function applyDeadlineDecisionAction(id: string): Promise<Result> {
   const g = await requireLead();
   if ('error' in g) return g;
   if (!uuid.safeParse(id).success) return { error: 'invalidInput' };
   const [cr] = await sql<{ kind: string; status: string; space_id: string | null; proposed_value: string; applied_at: string | null }[]>`
     select kind, status, space_id, proposed_value, applied_at from pf_change_requests where id = ${id}`;
-  if (!cr || cr.kind !== 'deadline' || cr.status !== 'approved' || !cr.space_id) return { error: 'notApplicable' };
+  if (!cr || cr.status !== 'approved') return { error: 'notApplicable' };
   if (cr.applied_at) return { error: 'alreadyApplied' };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(cr.proposed_value)) return { error: 'badDate' };
+  const movesDeadline = cr.kind === 'deadline' && !!cr.space_id && /^\d{4}-\d{2}-\d{2}$/.test(cr.proposed_value);
+  if (cr.kind === 'deadline' && !movesDeadline) return { error: 'badDate' };
   try {
     const ok = await sql.begin(async (tx) => {
       const claim = await tx`update pf_change_requests set applied_at = now() where id = ${id} and applied_at is null and status = 'approved'`;
       if (claim.count === 0) return false;
-      await tx`update strategy_spaces set end_date = ${cr.proposed_value} where id = ${cr.space_id}`;
+      if (movesDeadline) await tx`update strategy_spaces set end_date = ${cr.proposed_value} where id = ${cr.space_id}`;
       return true;
     });
     if (!ok) return { error: 'alreadyApplied' };
   } catch {
     return { error: 'updateFailed' };
   }
+  logSystemAction('pf.decision_apply', `${id} (${cr.kind})`);
   revalidatePath('/[locale]/strategy', 'page');
   return done();
 }
