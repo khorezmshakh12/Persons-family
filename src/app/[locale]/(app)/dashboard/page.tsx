@@ -6,7 +6,8 @@ import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { DailyChecklist } from '@/components/dashboard/daily-checklist';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
-import { tashkentDayKey } from '@/lib/time';
+import { tashkentDayKey, tashkentYmd } from '@/lib/time';
+import { Link } from '@/i18n/navigation';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
@@ -275,6 +276,26 @@ async function ChecklistSection({ userId }: { userId: string }) {
   return <DailyChecklist items={rows} />;
 }
 
+async function BpointReminderSection({ userId }: { userId: string }) {
+  const yr = tashkentYmd().year;
+  const rows = await sql<{ amount: number }[]>`select amount from staff_bpoint where user_id = ${userId} and year = ${yr}`.catch(() => []);
+  if (rows[0] && rows[0].amount > 0) return null; // belgilangan — eslatma kerak emas
+  return (
+    <Link
+      href={`/finance/${userId}`}
+      className={cn(SURFACE_CARD, 'flex items-center gap-3 p-4 transition-colors hover:bg-au-card-2')}
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-au-accent-soft text-au-accent-text">
+        <Target className="size-4" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-sm font-bold text-au-ink">B-nuqtangizni belgilang</span>
+        <span className="text-xs text-au-muted">{yr}-yil maosh maqsadingizni kiriting →</span>
+      </span>
+    </Link>
+  );
+}
+
 async function NewsSliderSection() {
   const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
   const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
@@ -351,6 +372,9 @@ export default async function DashboardPage() {
             under this month's leaderboard, news under the star rating
             (owner, 2026-10-04 / 10-06). */}
         <aside className="grid min-w-0 grid-cols-1 gap-[18px] lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
+          <Reveal fallback={null}>
+            <BpointReminderSection userId={user!.id} />
+          </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
             <ChecklistSection userId={user!.id} />
           </Reveal>
