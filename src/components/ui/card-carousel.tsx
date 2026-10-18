@@ -93,7 +93,7 @@ export function CardCarousel({
   };
 
   const arrow =
-    'absolute top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-full border border-au-line bg-au-card text-au-ink shadow-au-card transition hover:scale-105 hover:bg-au-card-2';
+    'absolute top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full border border-au-line bg-au-card/85 text-au-ink shadow-au-card backdrop-blur-sm transition hover:scale-105 hover:bg-au-card';
   return (
     <section
       className={cn('flex min-w-0 flex-col gap-3', className)}
@@ -154,11 +154,11 @@ export function CardCarousel({
             ))}
           </div>
         </div>
-        <button type="button" className={cn(arrow, 'left-1 max-sm:size-8')} onClick={() => goTo(index - 1)} aria-label="Oldingi">
-          <ChevronLeft className="size-5" />
+        <button type="button" className={cn(arrow, 'left-1.5')} onClick={() => goTo(index - 1)} aria-label="Oldingi">
+          <ChevronLeft className="size-4" />
         </button>
-        <button type="button" className={cn(arrow, 'right-1 max-sm:size-8')} onClick={() => goTo(index + 1)} aria-label="Keyingi">
-          <ChevronRight className="size-5" />
+        <button type="button" className={cn(arrow, 'right-1.5')} onClick={() => goTo(index + 1)} aria-label="Keyingi">
+          <ChevronRight className="size-4" />
         </button>
       </div>
       <div className="flex items-center justify-center gap-1.5">
