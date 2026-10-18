@@ -4,7 +4,9 @@ import { CircleAlert, GraduationCap, ListTodo, Map, Star, SquareCheckBig, Target
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
+import { DailyChecklist } from '@/components/dashboard/daily-checklist';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
+import { tashkentDayKey } from '@/lib/time';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
@@ -261,6 +263,18 @@ async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   return top ? <MonthTop3 stacked month={top.month} people={top.people} viewerId={viewerId} /> : null;
 }
 
+async function ChecklistSection({ userId }: { userId: string }) {
+  const day = tashkentDayKey();
+  const rows = await sql<{ id: string; title: string; done: boolean }[]>`
+    select i.id, i.title, (t.item_id is not null) as done
+    from checklist_items i
+    left join checklist_ticks t on t.item_id = i.id and t.date_key = ${day}
+    where i.user_id = ${userId}
+    order by i.sort, i.created_at
+  `.catch(() => []);
+  return <DailyChecklist items={rows} />;
+}
+
 async function NewsSliderSection() {
   const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
   const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
@@ -337,6 +351,9 @@ export default async function DashboardPage() {
             under this month's leaderboard, news under the star rating
             (owner, 2026-10-04 / 10-06). */}
         <aside className="grid min-w-0 grid-cols-1 gap-[18px] lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
+          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
+            <ChecklistSection userId={user!.id} />
+          </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
             <LeaderboardSection userId={user!.id} compact={!isCeo} />
           </Reveal>
