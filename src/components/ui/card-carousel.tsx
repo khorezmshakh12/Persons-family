@@ -154,10 +154,10 @@ export function CardCarousel({
             ))}
           </div>
         </div>
-        <button type="button" className={cn(arrow, '-left-3 max-sm:left-1 max-sm:size-8')} onClick={() => goTo(index - 1)} aria-label="Oldingi">
+        <button type="button" className={cn(arrow, 'left-1 max-sm:size-8')} onClick={() => goTo(index - 1)} aria-label="Oldingi">
           <ChevronLeft className="size-5" />
         </button>
-        <button type="button" className={cn(arrow, '-right-3 max-sm:right-1 max-sm:size-8')} onClick={() => goTo(index + 1)} aria-label="Keyingi">
+        <button type="button" className={cn(arrow, 'right-1 max-sm:size-8')} onClick={() => goTo(index + 1)} aria-label="Keyingi">
           <ChevronRight className="size-5" />
         </button>
       </div>

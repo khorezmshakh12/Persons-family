@@ -61,6 +61,17 @@ async function ceoUserId(): Promise<string | null> {
   return row?.id ?? null;
 }
 
+/** IT-flagged reports route to the oldest active IT developer (stable pick). */
+async function itDeveloperUserId(): Promise<string | null> {
+  // eslint-disable-next-line no-restricted-syntax
+  const [row] = await sql<{ id: string }[]>`
+    select p.id from profiles p
+    where p.is_active and (p.role = 'it_developer' or exists (select 1 from profile_roles r where r.user_id = p.id and r.role = 'it_developer'))
+    order by (p.role = 'it_developer') desc, p.created_at asc limit 1
+  `;
+  return row?.id ?? null;
+}
+
 async function requireViewer() {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return null;
@@ -112,6 +123,7 @@ const createIssueSchema = z.object({
   kind: z.enum(ISSUE_KINDS).default('problem'),
   priority: z.enum(PRIORITIES).default('normal'),
   anonymous: z.enum(['on', 'off', '']).optional(),
+  it: z.enum(['on', 'off', '']).optional(),
   assignedTo: z.union([z.string().uuid(), z.literal('none'), z.literal('')]).optional(),
   voiceUrl: z.string().max(500).optional().or(z.literal('')),
 });
@@ -124,12 +136,15 @@ export async function createIssueAction(_prev: IssueActionState, formData: FormD
   const d = parsed.data;
   const anonymous = d.kind === 'idea' && d.anonymous === 'on';
 
-  // A manager may delegate straight away; anyone else's report goes to the CEO.
+  // A manager may delegate straight away; an IT-flagged report goes to the IT
+  // developer (fallback CEO); anyone else's report goes to the CEO.
   let assignedTo: string | null = null;
   if (v.manager && d.assignedTo && d.assignedTo !== 'none') {
     const [target] = await sql<{ id: string }[]>`select id from profiles where id = ${d.assignedTo} and is_active = true`;
     if (!target) return { error: 'invalidAssignee' };
     assignedTo = target.id;
+  } else if (d.it === 'on') {
+    assignedTo = (await itDeveloperUserId()) ?? (await ceoUserId());
   } else if (!v.manager) {
     assignedTo = await ceoUserId();
   }
