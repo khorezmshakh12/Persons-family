@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string };
+  let body: { name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string; branch?: string };
   try {
     body = await req.json();
   } catch {
@@ -20,6 +20,7 @@ export async function POST(req: Request) {
   const phone = (body.phone ?? '').trim();
   if (!name && !phone) return NextResponse.json({ error: 'Ism yoki telefon majburiy' }, { status: 400 });
   const source = (body.source ?? '').trim() || null;
+  const branch = ['persons_lc', 'pekin', 'social', 'it'].includes(body.branch ?? '') ? body.branch! : 'persons_lc';
 
   try {
     const id = await sql.begin(async (tx) => {
@@ -35,8 +36,8 @@ export async function POST(req: Request) {
         sectionId = s?.id ?? null;
       }
       const [l] = await tx<{ id: string }[]>`
-        insert into crm_leads (section_id, name, phone, course_id, note, source, status, created_by)
-        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${me.id})
+        insert into crm_leads (section_id, name, phone, course_id, note, source, status, branch, created_by)
+        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${branch}, ${me.id})
         returning id`;
       return l.id;
     });

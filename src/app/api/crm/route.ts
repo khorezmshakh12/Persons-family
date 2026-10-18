@@ -23,9 +23,10 @@ export async function GET(req: Request) {
   }
 
   const template = Buffer.from(CRM_TEMPLATE_B64, 'base64').toString('utf8');
+  const branch = new URL(req.url).searchParams.get('branch') ?? undefined;
   let data: Awaited<ReturnType<typeof loadCrmData>> | null = null;
   try {
-    data = await loadCrmData();
+    data = await loadCrmData(branch);
   } catch (e) {
     console.error('[crm] data load failed', e);
   }

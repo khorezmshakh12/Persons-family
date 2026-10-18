@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { period?: string; name?: string; teacherId?: string; amount?: number | string; note?: string };
+  let body: { period?: string; name?: string; teacherId?: string; amount?: number | string; note?: string; branch?: string };
   try {
     body = await req.json();
   } catch {
@@ -23,11 +23,12 @@ export async function POST(req: Request) {
   const amount = Math.max(0, Math.round(Number(body.amount) || 0));
   const teacherId = body.teacherId ? body.teacherId : null;
   const note = (body.note ?? '').toString().trim() || null;
+  const branch = ['persons_lc', 'pekin', 'social', 'it'].includes(body.branch ?? '') ? body.branch! : 'persons_lc';
 
   try {
     const [r] = await sql<{ id: string }[]>`
-      insert into crm_salaries (period, name, teacher_id, amount, note, created_by)
-      values (${period}, ${name}, ${teacherId}, ${amount}, ${note}, ${me.id})
+      insert into crm_salaries (period, name, teacher_id, amount, note, branch, created_by)
+      values (${period}, ${name}, ${teacherId}, ${amount}, ${note}, ${branch}, ${me.id})
       returning id`;
     return NextResponse.json({ ok: true, id: r.id });
   } catch (e) {

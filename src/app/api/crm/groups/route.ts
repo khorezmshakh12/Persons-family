@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
   let body: {
     name?: string; course?: string; teacher?: string; room?: string;
-    days?: string; startTime?: string; tariff?: number | string; limit?: number | string;
+    days?: string; startTime?: string; tariff?: number | string; limit?: number | string; branch?: string;
   };
   try {
     body = await req.json();
@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
   const name = (body.name ?? '').trim();
   if (!name) return NextResponse.json({ error: 'Guruh nomi majburiy' }, { status: 400 });
+  const branch = ['persons_lc', 'pekin', 'social', 'it'].includes(body.branch ?? '') ? body.branch! : 'persons_lc';
   const startTime = /^\d{2}:\d{2}$/.test(body.startTime ?? '') ? body.startTime! : null;
   const studentLimit = Math.max(1, Math.round(Number(body.limit) || 12));
   const tariff = Number(body.tariff) || 0;
@@ -54,8 +55,8 @@ export async function POST(req: Request) {
       }
 
       const [g] = await tx<{ id: string }[]>`
-        insert into crm_groups (name, course_id, head_teacher_id, room_id, tariff_id, days, start_time, student_limit, status, created_by)
-        values (${name}, ${courseId}, ${teacherId}, ${roomId}, ${tariffId}, ${body.days ?? null}, ${startTime}, ${studentLimit}, 'active', ${me.id})
+        insert into crm_groups (name, course_id, head_teacher_id, room_id, tariff_id, days, start_time, student_limit, status, branch, created_by)
+        values (${name}, ${courseId}, ${teacherId}, ${roomId}, ${tariffId}, ${body.days ?? null}, ${startTime}, ${studentLimit}, 'active', ${branch}, ${me.id})
         returning id`;
       return g.id;
     });
