@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   let body: {
     name?: string; tel?: string; ptel?: string; sex?: string; birthday?: string;
     groupId?: string; tariff?: number | string; activationDate?: string;
-    payMethod?: string; payAmount?: number | string;
+    payMethod?: string; payAmount?: number | string; branch?: string;
   };
   try {
     body = await req.json();
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     : 'cash';
   const sex = body.sex === 'm' || body.sex === 'w' ? body.sex : null;
   const birthday = /^\d{4}-\d{2}-\d{2}$/.test(body.birthday ?? '') ? body.birthday! : null;
+  const branch = ['persons_lc', 'pekin', 'social', 'it'].includes(body.branch ?? '') ? body.branch! : 'persons_lc';
 
   try {
     const grp = await sql<{ id: string; name: string }[]>`select id, name from crm_groups where id = ${groupId} and archived_at is null`;
@@ -44,8 +45,8 @@ export async function POST(req: Request) {
     const studentId = await sql.begin(async (tx) => {
       const balance = payAmount - tariff; // charge (-tariff) + to'lov (+payAmount)
       const [s] = await tx<{ id: string }[]>`
-        insert into crm_students (full_name, sex, birthday, balance, created_by)
-        values (${name}, ${sex}, ${birthday}, ${balance}, ${me.id})
+        insert into crm_students (full_name, sex, birthday, balance, branch, created_by)
+        values (${name}, ${sex}, ${birthday}, ${balance}, ${branch}, ${me.id})
         returning id`;
       if (body.tel) await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${s.id}, 'student', ${body.tel}, true)`;
       if (body.ptel) await tx`insert into crm_contacts (student_id, kind, phone) values (${s.id}, 'guardian', ${body.ptel})`;

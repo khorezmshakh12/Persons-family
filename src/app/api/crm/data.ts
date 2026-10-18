@@ -16,10 +16,13 @@ function tashkent(fmt: Intl.DateTimeFormatOptions): string {
 
 type Row = Record<string, string | number | boolean | null>;
 
-export async function loadCrmData() {
+export async function loadCrmData(branchArg?: string) {
+  // Filial filtri: 'all' (Konsolidatsiya) → hammasi; aks holda shu filial yozuvlari.
+  const br = ['persons_lc', 'pekin', 'social', 'it'].includes(branchArg ?? '') ? (branchArg as string) : 'all';
+  const brAll = br === 'all';
   const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours, rooms, exams, salaries, marketing] =
     await Promise.all([
-      sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null`,
+      sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null and (${brAll} or branch = ${br})`,
       sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
       sql<Row[]>`
         select e.student_id, e.group_id, e.tariff_amount, e.status, e.activation_date,
@@ -27,7 +30,8 @@ export async function loadCrmData() {
         from crm_enrollments e
         join crm_groups g on g.id = e.group_id
         left join crm_courses c on c.id = g.course_id
-        left join crm_teachers t on t.id = g.head_teacher_id`,
+        left join crm_teachers t on t.id = g.head_teacher_id
+        where (${brAll} or g.branch = ${br})`,
       sql<Row[]>`
         select g.id, g.name, g.days, g.start_date, g.end_date, g.student_limit, g.head_teacher_id,
                c.name as course, t.display_name as teacher, r.name as room
@@ -35,7 +39,7 @@ export async function loadCrmData() {
         left join crm_courses c on c.id = g.course_id
         left join crm_teachers t on t.id = g.head_teacher_id
         left join crm_rooms r on r.id = g.room_id
-        where g.archived_at is null`,
+        where g.archived_at is null and (${brAll} or g.branch = ${br})`,
       sql<Row[]>`
         select t.id, t.display_name, t.profile_id, p.first_name, p.last_name
         from crm_teachers t left join profiles p on p.id = t.profile_id
@@ -44,26 +48,28 @@ export async function loadCrmData() {
         select p.id, p.paid_at, p.amount, p.method, p.student_id, s.full_name as sn,
                p.group_name, p.is_refund, p.refund_amount
         from crm_payments p left join crm_students s on s.id = p.student_id
+        where (${brAll} or s.branch = ${br})
         order by p.paid_at desc`,
-      sql<Row[]>`select id, spent_at, amount, category, note from crm_expenses order by spent_at desc`,
+      sql<Row[]>`select id, spent_at, amount, category, note from crm_expenses where (${brAll} or branch = ${br}) order by spent_at desc`,
       sql<Row[]>`
         select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.source, l.created_at, l.converted_student_id
-        from crm_leads l left join crm_courses c on c.id = l.course_id`,
+        from crm_leads l left join crm_courses c on c.id = l.course_id
+        where (${brAll} or l.branch = ${br})`,
       sql<Row[]>`select id, name from crm_lead_sections where archived_at is null order by sort`,
-      sql<Row[]>`select student_id, group_id, att_date, present, is_late from crm_attendance`,
+      sql<Row[]>`select a.student_id, a.group_id, a.att_date, a.present, a.is_late from crm_attendance a join crm_students s on s.id = a.student_id where (${brAll} or s.branch = ${br})`,
       sql<Row[]>`select id, first_name, last_name, role from profiles where is_active = true order by first_name, last_name`,
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
       sql<Row[]>`select income_acct, cash_acct, center_name, cycle_days, late_after_minutes, currency from crm_settings where id = true`,
       sql<Row[]>`select count(*)::int as c from acct_entries where source like 'crm-pay:%'`,
-      sql<Row[]>`select id, full_name, archived_at, leave_reason from crm_students where archived_at is not null order by archived_at desc limit 200`,
+      sql<Row[]>`select id, full_name, archived_at, leave_reason from crm_students where archived_at is not null and (${brAll} or branch = ${br}) order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_groups where archived_at is not null order by archived_at desc limit 200`,
       sql<Row[]>`select id, name from crm_courses where archived_at is null`,
       sql<Row[]>`select id, title, body, created_at from crm_announcements where archived_at is null order by created_at desc limit 50`,
       sql<Row[]>`select id, student_id, kind, points, note, created_at from crm_behaviours order by created_at desc limit 1000`,
       sql<Row[]>`select id, name, capacity from crm_rooms where archived_at is null order by name`,
       sql<Row[]>`select e.id, e.student_id, s.full_name as sn, e.group_name, e.name, e.exam_date, e.score, e.max_score, e.passed, e.cert, e.note from crm_exams e left join crm_students s on s.id = e.student_id order by e.exam_date desc nulls last, e.created_at desc limit 1000`,
-      sql<Row[]>`select id, period, name, amount, note from crm_salaries order by period desc, created_at desc limit 1000`,
-      sql<Row[]>`select id, spent_at, channel, amount, note from crm_marketing_spend order by spent_at desc limit 1000`,
+      sql<Row[]>`select id, period, name, amount, note from crm_salaries where (${brAll} or branch = ${br}) order by period desc, created_at desc limit 1000`,
+      sql<Row[]>`select id, spent_at, channel, amount, note from crm_marketing_spend where (${brAll} or branch = ${br}) order by spent_at desc limit 1000`,
     ]);
 
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
@@ -263,6 +269,7 @@ export async function loadCrmData() {
 
   return {
     generated: today,
+    branch: br,
     students: studentsOut,
     groups: groupsOut,
     teachers: teachers.map((t) => ({
