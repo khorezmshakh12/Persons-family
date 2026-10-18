@@ -12,6 +12,7 @@ import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-di
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { ResyncScheduleButton } from '@/components/lesson-plans/resync-schedule-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
+import { CourseSyllabusSection } from '@/components/lesson-plans/course-syllabus-section';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -196,6 +197,10 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             .join(' · ') || t('noConfiguration')}
         </p>
       </div>
+
+      <Suspense fallback={<GlassCardSkeleton />}>
+        <CourseSyllabusSection groupId={group.id} canManage={canEditLessonContent || isCeo} />
+      </Suspense>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-xl font-bold tracking-tight text-au-ink">{t('courseLessons.title')}</h2>

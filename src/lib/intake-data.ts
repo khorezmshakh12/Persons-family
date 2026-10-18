@@ -122,12 +122,17 @@ export async function loadIntake(range: IntakeRange = 'month', fromKey?: string,
   const sources = sourceMatrix(rows, w, spend, weeks);
 
   const caps = new Map(rooms.map((r) => [r.code, r.capacity]));
-  const recent90 = rows.filter((l) => new Date(l.created_at).getTime() >= Date.now() - 90 * 86_400_000);
-  const balance = courseBalance(recent90, 3, groups, (room) => caps.get(room) ?? 0);
+  const cut90 = Date.now() - 90 * 86_400_000;
+  const recent90 = rows.filter((l) => new Date(l.created_at).getTime() >= cut90);
   const norm = (s: string) => s.trim().toLowerCase();
+  const balance = courseBalance(recent90, 3, groups, (room) => caps.get(room) ?? 0);
+  // Oyna chegaralarini bir marta hisoblab, har qatorда sanani faqat bir marta parse qilamiz.
+  const wFrom = new Date(w.from).getTime();
+  const wTo = new Date(w.to).getTime();
   const courseMap = new Map<string, { course: string; leads: number; enrolled: number }>();
   for (const l of rows) {
-    if (new Date(l.created_at).getTime() < new Date(w.from).getTime() || new Date(l.created_at).getTime() >= new Date(w.to).getTime()) continue;
+    const t = new Date(l.created_at).getTime();
+    if (t < wFrom || t >= wTo) continue;
     const k = norm(l.course || '—');
     const c = courseMap.get(k) ?? { course: l.course.trim() || 'Kurs ko‘rsatilmagan', leads: 0, enrolled: 0 };
     c.leads++;

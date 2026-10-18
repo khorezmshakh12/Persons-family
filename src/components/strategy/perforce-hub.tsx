@@ -1161,9 +1161,13 @@ function DecisionsTab({ data, viewerId, isLead, personById, focus }: { data: PfD
                   Qaytarib olish
                 </button>
               )}
-              {d.status === 'approved' && d.kind === 'deadline' && d.space_id && !d.applied_at && isLead && (
-                <button className="sx-btn primary sm" disabled={pending} onClick={() => act(() => applyDeadlineDecisionAction(d.id), 'Loyiha muddati yangilandi')}>
-                  Loyiha muddatini yangilash
+              {d.status === 'approved' && !d.applied_at && isLead && (
+                <button
+                  className="sx-btn primary sm"
+                  disabled={pending}
+                  onClick={() => act(() => applyDeadlineDecisionAction(d.id), d.kind === 'deadline' ? 'Loyiha muddati yangilandi' : 'Qaror qo‘llandi')}
+                >
+                  {d.kind === 'deadline' && d.space_id ? 'Loyiha muddatini yangilash' : 'Qarorni qo‘llash'}
                 </button>
               )}
               {d.applied_at && <span className="sx-pl ok">Qo‘llangan · {fmtDay(d10(d.applied_at))}</span>}

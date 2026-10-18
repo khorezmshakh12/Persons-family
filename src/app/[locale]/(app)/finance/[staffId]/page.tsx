@@ -1,5 +1,7 @@
 import { Link } from '@/i18n/navigation';
-import { tashkentMonthKey } from '@/lib/time';
+import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
+import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
+import { BpointCard } from '@/components/finance/bpoint-card';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -78,6 +80,15 @@ export async function FinanceDetailContent({
     isSelf ? loadAdvances(staffId) : Promise.resolve(null),
   ]);
 
+  // B-nuqta (yillik maosh maqsadi) + shu yilgi topilgan (netEarnings).
+  const bYear = tashkentYmd().year;
+  const [bpRows, earnEntries] = await Promise.all([
+    sql<{ amount: number; note: string | null }[]>`select amount, note from staff_bpoint where user_id = ${staffId} and year = ${bYear}`,
+    getNetEarningEntries(staffId),
+  ]);
+  const bpoint = bpRows[0] ?? null;
+  const earnedYtd = netEarnings(earnEntries.filter((e) => (e.at ?? '') >= `${bYear}-01-01`));
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <div className="animate-fade-in-up flex items-center gap-4">
@@ -127,6 +138,17 @@ export async function FinanceDetailContent({
       </div>
 
       <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
+        <BpointCard
+          year={bYear}
+          amount={bpoint?.amount ?? 0}
+          note={bpoint?.note ?? null}
+          earnedYtd={earnedYtd}
+          canEdit={isSelf || isCeo}
+          staffId={staffId}
+        />
+      </div>
+
+      <div style={{ animationDelay: '210ms' }} className="animate-fade-in-up">
         <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} />
       </div>
     </div>

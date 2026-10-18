@@ -8,6 +8,7 @@ import { loadBooks } from '@/lib/accounting-data';
 import { addMonths } from '@/lib/accounting';
 import { parsePlan } from '@/lib/ops-plan';
 import { OperationsWorkspace, type OpsData } from '@/components/strategy/operations-workspace';
+import { OpsCrmSummary } from '@/components/operations/ops-crm-summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,5 +61,12 @@ export default async function OperationsPage() {
     meId: profile.id,
     canEdit: canFor(profile, 'operations.edit'),
   };
-  return <OperationsWorkspace data={data} books={books} today={tashkentDayKey()} />;
+  return (
+    <>
+      <div className="mx-auto w-full max-w-[1440px] px-4 pt-4 sm:px-7">
+        <OpsCrmSummary />
+      </div>
+      <OperationsWorkspace data={data} books={books} today={tashkentDayKey()} />
+    </>
+  );
 }

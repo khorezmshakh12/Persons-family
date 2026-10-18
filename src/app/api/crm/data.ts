@@ -238,8 +238,9 @@ export async function loadCrmData(branchArg?: string) {
     for (let k = 0; k <= maxK; k++) { const at = base + k; const still = arr.filter((r) => r.left == null || miOf(r.left) > at).length; ret.push(size ? Math.round((still / size) * 100) : 0); }
     return { month: m, size, ret };
   });
+  // Oylik sof tushum: qaytarishlar (refund) chiqarib tashlanmaydi, AYIRILADI.
   const sumIn = (arr: { date: string; amt: number; refund?: boolean }[]) =>
-    arr.filter((x) => x.date.slice(0, 7) === month && !x.refund).reduce((s, x) => s + x.amt, 0);
+    arr.filter((x) => x.date.slice(0, 7) === month).reduce((s, x) => s + (x.refund ? -x.amt : x.amt), 0);
   const activeEnr = enrollments.filter((e) => e.status === 'active').length;
   const frozenEnr = enrollments.filter((e) => e.status === 'frozen').length;
   const groupedSids = new Set(enrollments.filter((e) => e.status === 'active').map((e) => String(e.student_id)));

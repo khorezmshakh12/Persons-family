@@ -5,8 +5,10 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { DailyChecklist } from '@/components/dashboard/daily-checklist';
+import { GoalsCard } from '@/components/dashboard/goals-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
-import { tashkentDayKey } from '@/lib/time';
+import { tashkentDayKey, tashkentYmd, tashkentMonthKey } from '@/lib/time';
+import { Link } from '@/i18n/navigation';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
@@ -263,6 +265,23 @@ async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   return top ? <MonthTop3 stacked month={top.month} people={top.people} viewerId={viewerId} /> : null;
 }
 
+async function GoalsSection({ userId }: { userId: string }) {
+  const dayK = tashkentDayKey();
+  const monthK = tashkentMonthKey();
+  const d = new Date(`${dayK}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); // dushanba
+  const weekK = d.toISOString().slice(0, 10);
+  const rows = await sql<{ id: string; scope: 'day' | 'week' | 'month'; title: string; done: boolean }[]>`
+    select id, scope, title, done from goals
+    where user_id = ${userId} and (
+      (scope = 'day' and period_key = ${dayK}) or
+      (scope = 'week' and period_key = ${weekK}) or
+      (scope = 'month' and period_key = ${monthK}))
+    order by created_at
+  `.catch(() => []);
+  return <GoalsCard periodKeys={{ day: dayK, week: weekK, month: monthK }} goals={rows} />;
+}
+
 async function ChecklistSection({ userId }: { userId: string }) {
   const day = tashkentDayKey();
   const rows = await sql<{ id: string; title: string; done: boolean }[]>`
@@ -273,6 +292,26 @@ async function ChecklistSection({ userId }: { userId: string }) {
     order by i.sort, i.created_at
   `.catch(() => []);
   return <DailyChecklist items={rows} />;
+}
+
+async function BpointReminderSection({ userId }: { userId: string }) {
+  const yr = tashkentYmd().year;
+  const rows = await sql<{ amount: number }[]>`select amount from staff_bpoint where user_id = ${userId} and year = ${yr}`.catch(() => []);
+  if (rows[0] && rows[0].amount > 0) return null; // belgilangan — eslatma kerak emas
+  return (
+    <Link
+      href={`/finance/${userId}`}
+      className={cn(SURFACE_CARD, 'flex items-center gap-3 p-4 transition-colors hover:bg-au-card-2')}
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-au-accent-soft text-au-accent-text">
+        <Target className="size-4" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-sm font-bold text-au-ink">B-nuqtangizni belgilang</span>
+        <span className="text-xs text-au-muted">{yr}-yil maosh maqsadingizni kiriting →</span>
+      </span>
+    </Link>
+  );
 }
 
 async function NewsSliderSection() {
@@ -351,8 +390,14 @@ export default async function DashboardPage() {
             under this month's leaderboard, news under the star rating
             (owner, 2026-10-04 / 10-06). */}
         <aside className="grid min-w-0 grid-cols-1 gap-[18px] lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
+          <Reveal fallback={null}>
+            <BpointReminderSection userId={user!.id} />
+          </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
             <ChecklistSection userId={user!.id} />
+          </Reveal>
+          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
+            <GoalsSection userId={user!.id} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
             <LeaderboardSection userId={user!.id} compact={!isCeo} />
