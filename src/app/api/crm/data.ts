@@ -7,6 +7,10 @@ import { sql } from '@/lib/db/client';
 // payments.sid = attendance.sid; groups.id = enrollment.gid = attendance.gid).
 
 const d10 = (s: unknown) => (s ? String(s).slice(0, 10) : '');
+// Tashkent calendar day of a timestamptz (d10 slices the raw UTC wire string,
+// so late-evening rows fall a day/month early — use this for money/dates that
+// drive monthly totals).
+const d10tz = (s: unknown) => (s ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date(String(s))) : '');
 const num = (n: unknown) => Number(n) || 0;
 
 // Toshkent oyi / kuni — eslint man etgan getMonth/getDate'siz (Intl orqali).
@@ -168,7 +172,7 @@ export async function loadCrmData(branchArg?: string) {
 
   const paymentsOut = payments.map((p) => ({
     id: String(p.id),
-    date: d10(p.paid_at as string),
+    date: d10tz(p.paid_at),
     amt: num(p.amount),
     m: p.method,
     sid: p.student_id ? String(p.student_id) : null,
@@ -238,8 +242,9 @@ export async function loadCrmData(branchArg?: string) {
     for (let k = 0; k <= maxK; k++) { const at = base + k; const still = arr.filter((r) => r.left == null || miOf(r.left) > at).length; ret.push(size ? Math.round((still / size) * 100) : 0); }
     return { month: m, size, ret };
   });
+  // Oylik sof tushum: qaytarishlar (refund) chiqarib tashlanmaydi, AYIRILADI.
   const sumIn = (arr: { date: string; amt: number; refund?: boolean }[]) =>
-    arr.filter((x) => x.date.slice(0, 7) === month && !x.refund).reduce((s, x) => s + x.amt, 0);
+    arr.filter((x) => x.date.slice(0, 7) === month).reduce((s, x) => s + (x.refund ? -x.amt : x.amt), 0);
   const activeEnr = enrollments.filter((e) => e.status === 'active').length;
   const frozenEnr = enrollments.filter((e) => e.status === 'frozen').length;
   const groupedSids = new Set(enrollments.filter((e) => e.status === 'active').map((e) => String(e.student_id)));
