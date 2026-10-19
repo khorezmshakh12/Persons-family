@@ -23,7 +23,7 @@ export async function loadCrmData(branchArg?: string) {
   const [students, contacts, enrollments, groups, teachers, payments, expenses, leads, sections, attendance, staff, acct, settings, postedRows, archStudents, archGroups, crmCourses, announcements, behaviours, rooms, exams, salaries, marketing] =
     await Promise.all([
       sql<Row[]>`select id, full_name, sex, birthday, scores, coins, balance, status, note from crm_students where archived_at is null and (${brAll} or branch = ${br})`,
-      sql<Row[]>`select student_id, kind, phone, is_primary from crm_contacts`,
+      sql<Row[]>`select student_id, kind, phone, is_primary, telegram_chat_id, telegram_username from crm_contacts`,
       sql<Row[]>`
         select e.student_id, e.group_id, e.tariff_amount, e.status, e.activation_date,
                g.name as gname, g.days, c.name as course, t.display_name as teacher
@@ -52,10 +52,12 @@ export async function loadCrmData(branchArg?: string) {
         order by p.paid_at desc`,
       sql<Row[]>`select id, spent_at, amount, category, note from crm_expenses where (${brAll} or branch = ${br}) order by spent_at desc`,
       sql<Row[]>`
-        select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.source, l.created_at, l.converted_student_id
+        select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.source, l.created_at, l.converted_student_id,
+               l.telegram_chat_id, l.telegram_username, l.trial_date, l.trial_time, l.trial_note
         from crm_leads l left join crm_courses c on c.id = l.course_id
-        where (${brAll} or l.branch = ${br})`,
-      sql<Row[]>`select id, name from crm_lead_sections where archived_at is null order by sort`,
+        where (${brAll} or l.branch = ${br})
+        order by l.created_at desc`,
+      sql<Row[]>`select id, name, sort from crm_lead_sections where archived_at is null order by sort`,
       sql<Row[]>`select a.student_id, a.group_id, a.att_date, a.present, a.is_late from crm_attendance a join crm_students s on s.id = a.student_id where (${brAll} or s.branch = ${br})`,
       sql<Row[]>`select id, first_name, last_name, role from profiles where is_active = true order by first_name, last_name`,
       sql<Row[]>`select code, name, type from acct_accounts where type in ('R', 'A') order by type, sort, code`,
@@ -75,12 +77,18 @@ export async function loadCrmData(branchArg?: string) {
   // --- aloqa: telefon (tel) + ota-ona (ptel) ---
   const telOf = new Map<string, string>();
   const ptelOf = new Map<string, string>();
+  const tgUserOf = new Map<string, string>();
+  const tgLinked = new Set<string>();
   for (const c of contacts) {
     const sid = String(c.student_id);
     if (c.kind === 'guardian') {
       if (c.phone && !ptelOf.has(sid)) ptelOf.set(sid, String(c.phone));
     } else if (c.phone && (c.is_primary || !telOf.has(sid))) {
       telOf.set(sid, String(c.phone));
+    }
+    if (c.telegram_chat_id != null) {
+      tgLinked.add(sid);
+      if (c.telegram_username && !tgUserOf.has(sid)) tgUserOf.set(sid, String(c.telegram_username));
     }
   }
 
@@ -105,6 +113,8 @@ export async function loadCrmData(branchArg?: string) {
       coins: num(s.coins),
       note: s.note ?? '',
       active: s.status === 'active',
+      tg: tgLinked.has(id),
+      tgUser: tgUserOf.get(id) ?? '',
       groups: (enrOf.get(id) ?? []).map((e) => ({
         gid: String(e.group_id),
         group: e.gname,
@@ -190,9 +200,14 @@ export async function loadCrmData(branchArg?: string) {
     date: d10(l.created_at as string),
     source: l.source ?? null,
     converted: !!l.converted_student_id,
+    tg: l.telegram_chat_id != null,
+    tgUser: l.telegram_username ?? '',
+    trialDate: d10(l.trial_date as string),
+    trialTime: l.trial_time ?? '',
+    trialNote: l.trial_note ?? '',
   }));
 
-  const leadSectionsOut = sections.map((s) => ({ _id: String(s.id), name: s.name }));
+  const leadSectionsOut = sections.map((s) => ({ _id: String(s.id), name: s.name, sort: num(s.sort) }));
 
   const salariesOut = salaries.map((s) => ({ id: String(s.id), period: String(s.period).slice(0, 7), name: s.name, amt: num(s.amount), note: s.note }));
   const marketingOut = marketing.map((m) => ({ id: String(m.id), date: d10(m.spent_at as string), channel: m.channel, amt: num(m.amount), note: m.note }));

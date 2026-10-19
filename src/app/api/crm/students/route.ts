@@ -102,9 +102,25 @@ export async function PATCH(req: Request) {
     const ok = await sql.begin(async (tx) => {
       const res = await tx`update crm_students set full_name = ${name}, sex = ${sex}, birthday = ${birthday}, note = ${note}, updated_at = now() where id = ${id} and archived_at is null`;
       if (res.count === 0) return false;
-      await tx`delete from crm_contacts where student_id = ${id}`;
-      if (body.tel) await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${id}, 'student', ${body.tel}, true)`;
-      if (body.ptel) await tx`insert into crm_contacts (student_id, kind, phone) values (${id}, 'guardian', ${body.ptel})`;
+      // Kontaktlarni o'CHIRIB qayta yaratmaymiz — aks holda bot ulagan
+      // telegram_chat_id/telegram_username yo'qoladi. Mavjud 'student'/'guardian'
+      // qatorini YANGILAYMIZ (telegram ustunlariga tegmaymiz), bo'lmasa qo'shamiz.
+      const tel = (body.tel ?? '').trim();
+      const ptel = (body.ptel ?? '').trim();
+      const [sc] = await tx<{ id: string }[]>`select id from crm_contacts where student_id = ${id} and kind = 'student' order by is_primary desc, created_at limit 1`;
+      if (tel) {
+        if (sc) await tx`update crm_contacts set phone = ${tel}, is_primary = true where id = ${sc.id}`;
+        else await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${id}, 'student', ${tel}, true)`;
+      } else if (sc) {
+        await tx`update crm_contacts set phone = null where id = ${sc.id}`;
+      }
+      const [gc] = await tx<{ id: string }[]>`select id from crm_contacts where student_id = ${id} and kind = 'guardian' order by created_at limit 1`;
+      if (ptel) {
+        if (gc) await tx`update crm_contacts set phone = ${ptel} where id = ${gc.id}`;
+        else await tx`insert into crm_contacts (student_id, kind, phone) values (${id}, 'guardian', ${ptel})`;
+      } else if (gc) {
+        await tx`update crm_contacts set phone = null where id = ${gc.id}`;
+      }
       return true;
     });
     if (!ok) return NextResponse.json({ error: 'O‘quvchi topilmadi' }, { status: 400 });
