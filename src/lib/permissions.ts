@@ -182,7 +182,8 @@ export type Capability =
   | 'kpi.review' // approve / grade My KPI plans (salary impact)
   | 'strategy.finance' // Strategy › Moliya / Tahlil / budget (company books, no per-person pay)
   | 'accounting.edit'
-  | 'operations.edit';
+  | 'operations.edit'
+  | 'checklist.manage';
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -212,6 +213,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'kpi.review': ['ceo'],
   'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
+  // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
+  'checklist.manage': ['ceo', 'coo'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
