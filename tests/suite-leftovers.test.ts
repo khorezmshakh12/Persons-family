@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JOURNAL_TEMPLATES, type Course } from '../src/lib/accounting';
 import { capacityFit, costPerLessonHour, seatCapacity, segmentPL, teacherCostFor } from '../src/lib/accounting-ma';
-import { riskLevel, riskScore, riskSummary, type Risk } from '../src/lib/perforce';
 
 const C = (id: string, fee: number, students: number, teacher: number, book: number, hours = 0): Course => ({
   id, name: id, fee, students, teacher_cost: teacher, book_cost: book, hours_month: hours,
@@ -36,20 +35,4 @@ test('seatCapacity & capacityFit', () => {
 
 test('Ustav kapitaliga badal template: Dt 5110 / Kt 8300', () => {
   assert.deepEqual(JOURNAL_TEMPLATES.find((t) => t[0] === 'Ustav kapitaliga badal')?.slice(1), ['5110', '8300']);
-});
-
-test('risk score, level and register summary', () => {
-  assert.equal(riskScore({ likelihood: 4, impact: 5 }), 20);
-  assert.equal(riskScore({ likelihood: 9, impact: 0 }), 5);
-  assert.deepEqual([1, 6, 12, 20].map(riskLevel), ['low', 'medium', 'high', 'critical']);
-  const R = (likelihood: number, impact: number, status: Risk['status'], review_date: string | null = null, postmortem = ''): Risk => ({
-    id: `${likelihood}${impact}${status}`, likelihood, impact, status, review_date, postmortem,
-  });
-  const s = riskSummary([R(5, 5, 'open', '2026-09-01'), R(2, 3, 'monitoring', '2026-10-01'), R(3, 3, 'occurred'), R(1, 1, 'closed'), R(2, 2, 'occurred', null, 'root cause')], '2026-09-25');
-  assert.equal(s.live, 2);
-  assert.equal(s.overdue, 1);
-  assert.equal(s.pmDue, 1);
-  assert.equal(s.matrix[4][4], 1);
-  assert.equal(s.matrix[2][1], 1);
-  assert.deepEqual(s.by, { low: 0, medium: 1, high: 0, critical: 1 });
 });

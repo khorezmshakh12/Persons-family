@@ -101,7 +101,6 @@ export type SectionKey =
   | 'strategy'
   | 'accounting'
   | 'operations'
-  | 'perforce'
   | 'attendance'
   | 'telegramSetup'
   | 'profile'
@@ -152,7 +151,6 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
     'project_manager',
     'it_developer',
   ],
-  perforce: [...LEADERSHIP, 'operations_manager', 'project_manager', 'it_developer'],
   platform: LEADERSHIP,
   // Xodimlar davomati — only these three mark attendance (owner, 2026-10-14).
   attendance: ['ceo', 'coo', 'admin_manager'],
@@ -184,8 +182,7 @@ export type Capability =
   | 'kpi.review' // approve / grade My KPI plans (salary impact)
   | 'strategy.finance' // Strategy › Moliya / Tahlil / budget (company books, no per-person pay)
   | 'accounting.edit'
-  | 'operations.edit'
-  | 'perforce.edit';
+  | 'operations.edit';
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -215,7 +212,6 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'kpi.review': ['ceo'],
   'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
-  'perforce.edit': SECTION_ROLES.perforce,
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
@@ -286,7 +282,6 @@ export function canSeeFor(
 export const CAP_SECTION: Partial<Record<Capability, SectionKey>> = {
   'strategy.edit': 'strategy',
   'operations.edit': 'operations',
-  'perforce.edit': 'perforce',
 };
 
 export function canFor(
@@ -304,6 +299,6 @@ export function canFor(
  * are not switchable (no lock-outs); financial ones only by the CEO. */
 export const OVERRIDABLE_SECTIONS: SectionKey[] = [
   'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker', 'finance', 'hr', 'sales',
-  'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'market', 'telegramSetup', 'materials',
+  'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'market', 'telegramSetup', 'materials',
 ];
 export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];

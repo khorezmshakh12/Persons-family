@@ -394,7 +394,7 @@ async function syncTasks(next: CoreTask[], prev: CoreTask[], taskPr: Record<stri
 }
 
 /** Core's page ids, in its own nav order (ALL_V in core.html). */
-export const CORE_VIEWS = ['home', 'tasks', 'inbox', 'sales', 'hr', 'perforce', 'ops', 'strategy', 'report', 'settings'] as const;
+export const CORE_VIEWS = ['home', 'tasks', 'inbox', 'sales', 'hr', 'ops', 'strategy', 'report', 'settings'] as const;
 export type CoreView = (typeof CORE_VIEWS)[number];
 
 /** The site section each Core page lives under — Core pages follow the
@@ -405,7 +405,6 @@ const VIEW_SECTION: Record<CoreView, SectionKey> = {
   inbox: 'coreInbox',
   sales: 'sales',
   hr: 'hr',
-  perforce: 'perforce',
   ops: 'operations',
   strategy: 'strategy',
   report: 'report',

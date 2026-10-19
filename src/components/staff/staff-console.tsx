@@ -85,7 +85,6 @@ const SECTION_LABEL: [SectionKey, string][] = [
   ['finance', 'Moliya'],
   ['accounting', 'Buxgalteriya'],
   ['strategy', 'Strategiya'],
-  ['perforce', 'Perforce'],
   ['market', 'Market'],
   ['materials', 'Materiallar'],
   ['telegramSetup', 'Telegram sozlash'],

@@ -29,7 +29,6 @@ import {
   SlidersHorizontal,
   Calculator,
   Gauge,
-  Layers,
   UserCheck,
   GraduationCap,
 } from 'lucide-react';
@@ -61,7 +60,6 @@ export const ICONS: Record<NavItem['key'], React.ComponentType<{ className?: str
   strategy: MapIcon,
   accounting: Calculator,
   operations: Gauge,
-  perforce: Layers,
   attendance: UserCheck,
   profile: User,
   settings: Settings,

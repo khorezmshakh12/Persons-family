@@ -261,7 +261,6 @@ export async function updateStrategySpaceAction(input: z.input<typeof spaceUpdat
   }
   logSystemAction('strategy.space.update', `Strategy space "${v.name}"`);
   revalidatePath('/[locale]/strategy', 'page');
-  revalidatePath('/[locale]/perforce', 'page');
   return {};
 }
 
@@ -281,7 +280,6 @@ export async function deleteStrategySpaceAction(id: string): Promise<Result> {
     return { error: 'updateFailed' };
   }
   revalidatePath('/[locale]/strategy', 'page');
-  revalidatePath('/[locale]/perforce', 'page');
   return {};
 }
 

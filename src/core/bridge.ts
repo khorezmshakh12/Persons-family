@@ -1,7 +1,7 @@
 // Scripts injected around the unmodified Core v2 page (src/core/core.html).
 // BEFORE: seeds localStorage['persons-core-v2'] (Core's own load() reads it)
 // with the server state and mirrors every Core save() to the server.
-// AFTER: sends Strategiya / Operatsiya / Perforce to the site's own pages
+// AFTER: sends Strategiya / Operatsiya to the site's own pages
 // and pulls other people's changes once a minute.
 
 export const bridgeBefore = (boot: unknown) => `<script>
@@ -39,7 +39,7 @@ window.__CORE_BOOT=${JSON.stringify(boot).replace(/</g, '\u003c')};
 // site section, with its own sidebar/header hidden).
 const SITE: Record<string, string> = {
   home: 'dashboard', tasks: 'tasks?view=core', inbox: 'inbox', sales: 'sales', hr: 'hr', report: 'report',
-  settings: 'platform', strategy: 'strategy', ops: 'operations', perforce: 'perforce',
+  settings: 'platform', strategy: 'strategy', ops: 'operations',
 };
 
 /** Embedded look: no Core sidebar/header/ticker, no "reset to sample data"
@@ -63,7 +63,7 @@ export const bridgeAfter = (locale: string) => `<script>
     Object.keys(ns).forEach(function(k){ if(k!=='tasks'&&k!=='staff'&&k!=='me'&&k!=='v'){ S[k]=ns[k]; last[k]=JSON.parse(JSON.stringify(ns[k])); } });
     P=S.staff; try{ render(true); }catch(e){}
   };
-  ['strategy','ops','perforce'].forEach(function(v){ PAGES[v]=function(el){ el.innerHTML='<div class="empty" style="padding:40px;text-align:center">Ochilmoqda…</div>'; window.top.location.href='/staff/${locale}/'+SITE[v]; }; });
+  ['strategy','ops'].forEach(function(v){ PAGES[v]=function(el){ el.innerHTML='<div class="empty" style="padding:40px;text-align:center">Ochilmoqda…</div>'; window.top.location.href='/staff/${locale}/'+SITE[v]; }; });
   setInterval(function(){
     if(document.hidden||DR||document.querySelector('.dm-bg')||(document.activeElement&&document.activeElement.closest('input,textarea,select'))) return;
     fetch(B.api,{cache:'no-store'}).then(function(r){ return r.ok?r.json():null; }).then(function(res){ if(res&&res.state) window.__coreApply(res.state); }).catch(function(){});

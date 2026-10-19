@@ -26,7 +26,6 @@ export type NavItem = {
     | 'strategy'
     | 'accounting'
     | 'operations'
-    | 'perforce'
     | 'attendance'
     | 'profile'
     | 'settings'
@@ -76,7 +75,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   crmPersons: 'team',
   // Boshqaruv — direction, projects, numbers.
   strategy: 'manage',
-  perforce: 'manage',
   report: 'manage',
   finance: 'manage',
   accounting: 'manage',
@@ -108,7 +106,6 @@ const NAV_SORT: NavItem['key'][] = [
   'materials',
   'crmPersons',
   'strategy',
-  'perforce',
   'report',
   'finance',
   'accounting',
@@ -127,7 +124,6 @@ export const LESSON_PLAN_ROLES: StaffRole[] = [...SECTION_ROLES.lessonPlans];
 export const STRATEGY_ROLES: StaffRole[] = [...SECTION_ROLES.strategy];
 export const ACCOUNTING_ROLES: StaffRole[] = [...SECTION_ROLES.accounting];
 export const OPERATIONS_ROLES: StaffRole[] = [...SECTION_ROLES.operations];
-export const PERFORCE_ROLES: StaffRole[] = [...SECTION_ROLES.perforce];
 export const MARKET_ROLES: StaffRole[] = [...SECTION_ROLES.market];
 
 /** Who gets the first-visit intro and the new UI motion (nav/button/logo
@@ -173,7 +169,6 @@ export const NAV_ITEMS: NavItem[] = [
   // from the Finance page's «Hisob-kitob» tab, not the sidebar.
   { key: 'accounting', href: '/accounting', folded: true },
   { key: 'operations', href: '/operations' },
-  { key: 'perforce', href: '/perforce' },
   // Davomat lives in HR as its own tab (owner, 2026-10-14).
   { key: 'attendance', href: '/hr?tab=attendance', folded: true },
   // Persons Market — curation is the 'market.manage' capability.

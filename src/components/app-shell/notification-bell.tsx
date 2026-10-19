@@ -9,7 +9,6 @@ import {
   Bell,
   BookOpen,
   CheckCheck,
-  Compass,
   LifeBuoy,
   ListChecks,
   Megaphone,
@@ -92,7 +91,6 @@ const KIND_ICON: Record<string, ComponentType<{ className?: string }>> = {
   stars: Star,
   lesson: BookOpen,
   report: BarChart3,
-  perforce: Compass,
   warning: AlertTriangle,
 };
 const KIND_TINT: Record<string, string> = {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { remindWeeklyStatus } from '@/lib/perforce-reminders';
 import { autoCloseResolvedIssues, remindIssueDeadlines } from '@/lib/issues-sync';
 import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
@@ -81,15 +80,10 @@ async function handle(req: NextRequest): Promise<Response> {
     console.error('deliverScheduledNews failed', error instanceof Error ? error.message : error);
     return 0;
   });
-  // Perforce: Friday-afternoon weekly status nudges to project owners.
-  const statusNudges = await remindWeeklyStatus().catch((error) => {
-    console.error('remindWeeklyStatus failed', error instanceof Error ? error.message : error);
-    return 0;
-  });
   // Murojaatlar: passed response/resolve deadlines, unanswered fixes.
   const issueNudges = await remindIssueDeadlines();
   const issuesClosed = await autoCloseResolvedIssues();
-  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts, scheduledNews, statusNudges, issueNudges, issuesClosed });
+  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts, scheduledNews, issueNudges, issuesClosed });
 }
 
 /**

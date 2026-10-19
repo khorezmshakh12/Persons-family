@@ -80,7 +80,6 @@ export async function AppShell({
   const paletteActions = [
     has('/issues') && { href: '/issues?new=1', label: 'Murojaat yuborish' },
     canAssignTasks(profile.role) && has('/tasks') && { href: '/tasks?new=1', label: 'Vazifa yaratish' },
-    has('/perforce') && { href: '/perforce?tab=status', label: 'Loyiha holatini yozish (Perforce)' },
     has('/accounting') && { href: '/accounting?tab=ma_cash', label: 'Kirim / chiqim qo‘shish' },
     has('/self-development') && { href: '/self-development', label: 'O‘sish hisobotini yozish' },
     { href: '/settings?s=notifications', label: 'Bildirishnoma sozlamalari' },
