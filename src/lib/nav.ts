@@ -159,7 +159,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'issues', href: '/issues' },
   { key: 'lessonPlans', href: '/lesson-plans' },
   { key: 'tasks', href: '/tasks' },
-  // Task Tracker: each employee's private weekly task/habit sheet (src/tracker).
+  // Checklist: each employee's role-based daily/weekly/monthly checklist
+  // (native page, src/app/[locale]/(app)/task-tracker).
   { key: 'taskTracker', href: '/task-tracker' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },

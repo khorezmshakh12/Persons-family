@@ -48,6 +48,21 @@ export function tashkentMonthKey(at: Date = new Date()): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+/** ISO week key 'YYYY-Www' (Mon–Sun) for the current Tashkent week.
+ * Used to scope a weekly checklist tick — a new week simply has no ticks yet. */
+export function tashkentWeekKey(at: Date = new Date()): string {
+  const { year, month, day } = tashkentYmd(at);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  const dow = (d.getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
+  d.setUTCDate(d.getUTCDate() - dow + 3); // the Thursday of this ISO week
+  const isoYear = d.getUTCFullYear();
+  const firstThursday = new Date(Date.UTC(isoYear, 0, 4));
+  const fdow = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - fdow + 3);
+  const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000));
+  return `${isoYear}-W${String(week).padStart(2, '0')}`;
+}
+
 /** First day of the previous Tashkent month as 'YYYY-MM-01'. */
 export function startOfPreviousTashkentMonthKey(at: Date = new Date()): string {
   const { year, month } = tashkentYmd(at);
