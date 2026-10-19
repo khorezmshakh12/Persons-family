@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast as sonner } from 'sonner';
-import { ArrowRight, Calculator, FileDown, Gauge, Layers, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRight, Calculator, FileDown, Gauge, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { useMotionKit } from './motion-kit';
@@ -131,12 +131,11 @@ type Suite = { openPalette: () => void };
 const SuiteCtx = createContext<Suite>({ openPalette: () => {} });
 export const useSuite = () => useContext(SuiteCtx);
 
-export type SectionKey = 'str' | 'acct' | 'ops' | 'pf';
+export type SectionKey = 'str' | 'acct' | 'ops';
 const SECTIONS: { k: SectionKey; n: string; href: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { k: 'str', n: 'Strategiya', href: '/strategy', Icon: MapIcon },
   { k: 'acct', n: 'Hisob-kitob', href: '/accounting', Icon: Calculator },
   { k: 'ops', n: 'Operatsiya HQ', href: '/operations', Icon: Gauge },
-  { k: 'pf', n: 'Persons Perforce', href: '/perforce', Icon: Layers },
 ];
 
 const RIPPLE_SEL =

@@ -1,6 +1,6 @@
 /* Strategy suite chrome: section bar, ⌘K palette, sound toggle, ripple,
    progress bar, card spotlight, and the shared table / form / stat pieces
-   used by Hisob-kitob, Operatsiya HQ and Perforce. Transform-only entrances. */
+   used by Hisob-kitob and Operatsiya HQ. Transform-only entrances. */
 
 .sx-topbar {
   position: fixed;
