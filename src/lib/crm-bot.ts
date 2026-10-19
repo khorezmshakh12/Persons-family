@@ -14,8 +14,25 @@ const TOKEN = process.env.CRM_BOT_TOKEN;
 export const CRM_BOT_SECRET = process.env.CRM_BOT_SECRET;
 
 type TgContact = { phone_number?: string; user_id?: number };
-type TgMessage = { chat: { id: number }; from?: { id: number }; text?: string; contact?: TgContact };
+type TgMessage = { chat: { id: number }; from?: { id: number; username?: string }; text?: string; contact?: TgContact };
 export type TgUpdate = { message?: TgMessage };
+
+// CRM lid-botidan ixtiyoriy chatga xabar yuborish (lead-message route uchun).
+// Token yo'q bo'lsa yoki xatolik bo'lsa false qaytaradi.
+export async function sendToChat(chatId: number, text: string): Promise<boolean> {
+  if (!TOKEN) return false;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text }),
+    });
+    return r.ok;
+  } catch (e) {
+    console.error('[crm-bot] sendToChat failed', e);
+    return false;
+  }
+}
 
 async function tg(method: string, body: Record<string, unknown>): Promise<void> {
   if (!TOKEN) return;
@@ -98,6 +115,7 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
     }
     const phone = session.phone ?? '';
     const l9 = last9(phone);
+    const username = msg.from?.username ?? null;
     try {
       // Telefon mavjud o'quvchi/ota-ona kontaktiga mos kelsa — biriktiramiz.
       const [match] = l9
@@ -108,7 +126,7 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
             order by (c.kind = 'guardian') desc limit 1`
         : [];
       if (match) {
-        await sql`update crm_contacts set telegram_chat_id = ${chatId}
+        await sql`update crm_contacts set telegram_chat_id = ${chatId}, telegram_username = ${username}
           where student_id = ${match.student_id} and right(regexp_replace(phone, '[^0-9]', '', 'g'), 9) = ${l9}`;
         await send(
           chatId,
@@ -116,10 +134,10 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
           REMOVE_KB,
         );
       } else {
+        // section_id = null → CRM taxtasidagi «So'rovlar» (taqsimlanmagan) ustuniga tushadi.
         await sql`
-          insert into crm_leads (section_id, name, phone, source, status, branch, telegram_chat_id)
-          values ((select id from crm_lead_sections where archived_at is null order by sort limit 1),
-                  ${name}, ${phone}, 'telegram', 'open', 'persons_lc', ${chatId})`;
+          insert into crm_leads (section_id, name, phone, source, status, branch, telegram_chat_id, telegram_username)
+          values (null, ${name}, ${phone}, 'telegram', 'open', 'persons_lc', ${chatId}, ${username})`;
         await send(chatId, '✅ Arizangiz qabul qilindi!\nTez orada menejerlarimiz siz bilan bog‘lanadi.', REMOVE_KB);
       }
       await sql`update crm_bot_sessions set step = 'done', updated_at = now() where chat_id = ${chatId}`;

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string; branch?: string };
+  let body: { name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string; branch?: string; trialDate?: string; trialTime?: string; trialNote?: string };
   try {
     body = await req.json();
   } catch {
@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   if (!name && !phone) return NextResponse.json({ error: 'Ism yoki telefon majburiy' }, { status: 400 });
   const source = (body.source ?? '').trim() || null;
   const branch = ['persons_lc', 'pekin', 'social', 'it'].includes(body.branch ?? '') ? body.branch! : 'persons_lc';
+  const trialDate = /^\d{4}-\d{2}-\d{2}$/.test(body.trialDate ?? '') ? body.trialDate! : null;
+  const trialTime = /^\d{2}:\d{2}$/.test(body.trialTime ?? '') ? body.trialTime! : null;
+  const trialNote = (body.trialNote ?? '').trim() || null;
 
   try {
     const id = await sql.begin(async (tx) => {
@@ -36,8 +39,8 @@ export async function POST(req: Request) {
         sectionId = s?.id ?? null;
       }
       const [l] = await tx<{ id: string }[]>`
-        insert into crm_leads (section_id, name, phone, course_id, note, source, status, branch, created_by)
-        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${branch}, ${me.id})
+        insert into crm_leads (section_id, name, phone, course_id, note, source, status, branch, trial_date, trial_time, trial_note, created_by)
+        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${branch}, ${trialDate}, ${trialTime}, ${trialNote}, ${me.id})
         returning id`;
       return l.id;
     });
@@ -53,7 +56,7 @@ export async function PATCH(req: Request) {
   const me = await crmUser();
   if (!me) return NextResponse.json({ error: 'Ruxsat yo‘q' }, { status: 401 });
 
-  let body: { leadId?: string; name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string };
+  let body: { leadId?: string; name?: string; phone?: string; course?: string; sectionId?: string; note?: string; source?: string; trialDate?: string; trialTime?: string; trialNote?: string };
   try {
     body = await req.json();
   } catch {
@@ -64,6 +67,9 @@ export async function PATCH(req: Request) {
   const name = (body.name ?? '').trim();
   const phone = (body.phone ?? '').trim();
   if (!leadId || (!name && !phone)) return NextResponse.json({ error: 'Lid va ism yoki telefon majburiy' }, { status: 400 });
+  const trialDate = /^\d{4}-\d{2}-\d{2}$/.test(body.trialDate ?? '') ? body.trialDate! : null;
+  const trialTime = /^\d{2}:\d{2}$/.test(body.trialTime ?? '') ? body.trialTime! : null;
+  const trialNote = (body.trialNote ?? '').trim() || null;
 
   try {
     const ok = await sql.begin(async (tx) => {
@@ -78,7 +84,7 @@ export async function PATCH(req: Request) {
         const [s] = await tx<{ id: string }[]>`select id from crm_lead_sections where id = ${body.sectionId} limit 1`;
         sectionResolved = s?.id ?? null;
       }
-      const res = await tx`update crm_leads set name = ${name || null}, phone = ${phone || null}, course_id = ${courseId}, section_id = ${sectionResolved}, note = ${body.note ?? null}, source = ${(body.source ?? '').trim() || null}, updated_at = now() where id = ${leadId}`;
+      const res = await tx`update crm_leads set name = ${name || null}, phone = ${phone || null}, course_id = ${courseId}, section_id = ${sectionResolved}, note = ${body.note ?? null}, source = ${(body.source ?? '').trim() || null}, trial_date = ${trialDate}, trial_time = ${trialTime}, trial_note = ${trialNote}, updated_at = now() where id = ${leadId}`;
       return res.count > 0;
     });
     if (!ok) return NextResponse.json({ error: 'Lid topilmadi' }, { status: 400 });
