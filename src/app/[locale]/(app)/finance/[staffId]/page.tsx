@@ -2,6 +2,7 @@ import { Link } from '@/i18n/navigation';
 import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
 import { BpointCard } from '@/components/finance/bpoint-card';
+import { BpointProgress } from '@/components/finance/bpoint-progress';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -20,6 +21,7 @@ import { loadAdvances, loadPayHistory, loadPayLines, loadPayRun } from '@/lib/pa
 export const dynamic = 'force-dynamic';
 
 const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+const SHORT_UZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
 const monthLabel = (ym: string) => `${MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 
 // Exported so /finance/page.tsx can render a non-admin viewer's own finance
@@ -89,65 +91,97 @@ export async function FinanceDetailContent({
   const bpoint = bpRows[0] ?? null;
   const earnedYtd = netEarnings(earnEntries.filter((e) => (e.at ?? '') >= `${bYear}-01-01`));
 
+  // B-nuqta sari: shu yilning har oyi uchun kümülyativ topilgan va maqsadga
+  // nisbatan foiz (grafik joriy oygacha ko'rsatadi).
+  const nowYmd = tashkentYmd();
+  const upToMonth = bYear < nowYmd.year ? 12 : bYear > nowYmd.year ? 0 : nowYmd.month;
+  const byMonth = new Array(12).fill(0) as number[];
+  for (const e of earnEntries) {
+    const at = e.at ?? '';
+    if (at.slice(0, 4) !== String(bYear)) continue;
+    const mi = Number(at.slice(5, 7)) - 1;
+    if (mi >= 0 && mi < 12) byMonth[mi] += Number(e.amount) || 0;
+  }
+  const bTarget = bpoint?.amount ?? 0;
+  let cum = 0;
+  const bMonths = [] as { label: string; cumulative: number; pct: number }[];
+  for (let i = 0; i < upToMonth; i++) {
+    cum += byMonth[i];
+    bMonths.push({ label: SHORT_UZ[i], cumulative: Math.round(cum), pct: bTarget > 0 ? Math.round((cum / bTarget) * 100) : 0 });
+  }
+
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
-      <div className="animate-fade-in-up flex items-center gap-4">
-        <Avatar className="size-14 border border-au-line">
-          <AvatarImage src={avatarSrc ?? undefined} alt="" />
-          <AvatarFallback className="text-lg">
-            {target.first_name[0]}
-            {target.last_name[0]}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex min-w-0 flex-col">
-          <h1 className="truncate text-[26px] leading-8 font-bold tracking-tight text-au-ink">
-            {target.first_name} {target.last_name}
-          </h1>
-          <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
+    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+      {/* Header: who + month navigator */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="animate-fade-in-up flex items-center gap-4">
+          <Avatar className="size-14 border border-au-line">
+            <AvatarImage src={avatarSrc ?? undefined} alt="" />
+            <AvatarFallback className="text-lg">
+              {target.first_name[0]}
+              {target.last_name[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-col">
+            <h1 className="truncate text-[26px] leading-8 font-bold tracking-tight text-au-ink">
+              {target.first_name} {target.last_name}
+            </h1>
+            <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href={monthHref(-1)}
+            className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
+            aria-label="Oldingi oy"
+          >
+            ‹
+          </Link>
+          <span className="min-w-32 text-center text-base font-bold text-au-ink">{monthLabel(month)}</span>
+          <Link
+            href={monthHref(1)}
+            className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
+            aria-label="Keyingi oy"
+          >
+            ›
+          </Link>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <Link
-          href={monthHref(-1)}
-          className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
-          aria-label="Oldingi oy"
-        >
-          ‹
-        </Link>
-        <span className="text-base font-bold text-au-ink">{monthLabel(month)}</span>
-        <Link
-          href={monthHref(1)}
-          className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
-          aria-label="Keyingi oy"
-        >
-          ›
-        </Link>
-      </div>
-      <PayStatement line={lines[0] ?? null} period={period} status={run.status} history={history} advances={advances} isSelf={isSelf} />
+      {/* Wide two-column layout: pay this month on the left, B-point goals on the right */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
+          <PayStatement line={lines[0] ?? null} period={period} status={run.status} history={history} advances={advances} isSelf={isSelf} />
+          <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
+            <SalarySection
+              staffId={staffId}
+              isSelf={isSelf}
+              isCeo={isCeo}
+              isAdmin={isAdmin}
+              entries={(entries ?? []) as FinanceEntry[]}
+              month={month}
+            />
+          </div>
+        </div>
 
-      <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
-        <SalarySection
-          staffId={staffId}
-          isSelf={isSelf}
-          isCeo={isCeo}
-          isAdmin={isAdmin}
-          entries={(entries ?? []) as FinanceEntry[]}
-          month={month}
-        />
-      </div>
-
-      <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
-        <BpointCard
-          year={bYear}
-          amount={bpoint?.amount ?? 0}
-          note={bpoint?.note ?? null}
-          earnedYtd={earnedYtd}
-          canEdit={isSelf || isCeo}
-          staffId={staffId}
-        />
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-5">
+          <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
+            <BpointCard
+              year={bYear}
+              amount={bTarget}
+              note={bpoint?.note ?? null}
+              earnedYtd={earnedYtd}
+              canEdit={isSelf || isCeo}
+              staffId={staffId}
+            />
+          </div>
+          <div style={{ animationDelay: '180ms' }} className="animate-fade-in-up">
+            <BpointProgress year={bYear} target={bTarget} months={bMonths} />
+          </div>
+        </div>
       </div>
 
+      {/* Income roadmap spans the full width */}
       <div style={{ animationDelay: '210ms' }} className="animate-fade-in-up">
         <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} />
       </div>
