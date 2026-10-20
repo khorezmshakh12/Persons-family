@@ -30,12 +30,15 @@ export function ChecklistPage(props: {
   canManage: boolean;
   managing: boolean;
   roles: RoleOption[];
+  /** Ustozda bugun dars yo'q — kunlik checklist talab qilinmaydi. */
+  dailyLocked?: boolean;
 }): JSX.Element {
-  const { data, role, roleLabel, canManage, managing, roles } = props;
+  const { data, role, roleLabel, canManage, managing, roles, dailyLocked } = props;
   const router = useRouter();
   const pathname = usePathname();
 
   const [active, setActive] = useState<Cadence>('daily');
+  const locked = active === 'daily' && !!dailyLocked && !managing;
   // Optimistic tick overrides keyed by template id. Ticks are not refreshed,
   // so they survive a router.refresh gracefully (fall back to the server row).
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
@@ -144,41 +147,51 @@ export function ChecklistPage(props: {
         })}
       </div>
 
-      {/* Progress */}
-      <div className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-4')}>
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-au-ink">Bajarildi</span>
-          <span className="text-sm font-semibold tabular-nums text-au-muted">
-            {done}/{total} · {pct}%
-          </span>
+      {locked ? (
+        /* Ustozda bugun dars yo'q — kunlik checklist talab qilinmaydi. */
+        <div className={cn(SURFACE_CARD, 'flex flex-col items-center gap-1 p-6 text-center')}>
+          <p className="text-sm font-semibold text-au-ink">Bugun dars yo‘q</p>
+          <p className="text-xs text-au-muted">Bugun darsingiz bo‘lmagani uchun kunlik checklist talab qilinmaydi.</p>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-au-line">
-          <div className="h-full rounded-full bg-au-accent transition-all" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* Progress */}
+          <div className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-4')}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-au-ink">Bajarildi</span>
+              <span className="text-sm font-semibold tabular-nums text-au-muted">
+                {done}/{total} · {pct}%
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-au-line">
+              <div className="h-full rounded-full bg-au-accent transition-all" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
 
-      {/* Items */}
-      <ul className="flex flex-col gap-2">
-        {rows.map((r) => (
-          <ChecklistItemRow
-            key={r.id}
-            row={r}
-            done={isDone(r)}
-            managing={managing && canManage}
-            onToggle={() => toggle(r)}
-            onChanged={() => router.refresh()}
-          />
-        ))}
-        {rows.length === 0 && (
-          <li className={cn(SURFACE_INSET, 'px-4 py-3 text-sm text-au-muted')}>
-            Hali band yo‘q.{managing && canManage ? ' Quyidan yangi band qo‘shing.' : ''}
-          </li>
-        )}
-      </ul>
+          {/* Items */}
+          <ul className="flex flex-col gap-2">
+            {rows.map((r) => (
+              <ChecklistItemRow
+                key={r.id}
+                row={r}
+                done={isDone(r)}
+                managing={managing && canManage}
+                onToggle={() => toggle(r)}
+                onChanged={() => router.refresh()}
+              />
+            ))}
+            {rows.length === 0 && (
+              <li className={cn(SURFACE_INSET, 'px-4 py-3 text-sm text-au-muted')}>
+                Hali band yo‘q.{managing && canManage ? ' Quyidan yangi band qo‘shing.' : ''}
+              </li>
+            )}
+          </ul>
 
-      {/* Add form (manage mode) */}
-      {managing && canManage && (
-        <AddTemplateForm role={role} cadence={active} onAdded={() => router.refresh()} />
+          {/* Add form (manage mode) */}
+          {managing && canManage && (
+            <AddTemplateForm role={role} cadence={active} onAdded={() => router.refresh()} />
+          )}
+        </>
       )}
     </div>
   );

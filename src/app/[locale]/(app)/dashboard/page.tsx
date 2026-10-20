@@ -5,6 +5,9 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { DailyChecklist } from '@/components/dashboard/daily-checklist';
+import { DashboardChecklist } from '@/components/checklist/dashboard-checklist';
+import { loadChecklist } from '@/lib/checklist-data';
+import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
 import { GoalsCard } from '@/components/dashboard/goals-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { tashkentDayKey, tashkentYmd, tashkentMonthKey } from '@/lib/time';
@@ -294,6 +297,28 @@ async function ChecklistSection({ userId }: { userId: string }) {
   return <DailyChecklist items={rows} />;
 }
 
+// Rol bo'yicha kunlik checklist (checklist_templates). Ustozlarda bugun dars
+// bo'lmasa — ko'rsatilmaydi (lesson-plan bilan integratsiya).
+async function RoleChecklistSection({ userId, role }: { userId: string; role: string }) {
+  const gateTeacher = isTeacherRole(role);
+  const [data, lessonToday] = await Promise.all([
+    loadChecklist(userId, role),
+    gateTeacher ? teacherHasLessonOn(userId, tashkentDayKey()) : Promise.resolve(true),
+  ]);
+  const noLessonToday = gateTeacher && !lessonToday;
+  const items = data.daily.map((r) => ({ id: r.id, title: r.title, done: r.done }));
+  const doneCount = items.filter((i) => i.done).length;
+  return (
+    <DashboardChecklist
+      items={noLessonToday ? [] : items}
+      total={noLessonToday ? 0 : items.length}
+      doneCount={noLessonToday ? 0 : doneCount}
+      noLessonToday={noLessonToday}
+      href="/task-tracker"
+    />
+  );
+}
+
 async function BpointReminderSection({ userId }: { userId: string }) {
   const yr = tashkentYmd().year;
   const rows = await sql<{ amount: number }[]>`select amount from staff_bpoint where user_id = ${userId} and year = ${yr}`.catch(() => []);
@@ -392,6 +417,9 @@ export default async function DashboardPage() {
         <aside className="grid min-w-0 grid-cols-1 gap-[18px] lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
           <Reveal fallback={null}>
             <BpointReminderSection userId={user!.id} />
+          </Reveal>
+          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
+            <RoleChecklistSection userId={user!.id} role={viewer.role} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
             <ChecklistSection userId={user!.id} />
