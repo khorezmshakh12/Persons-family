@@ -4,9 +4,10 @@ import { CircleAlert, GraduationCap, ListTodo, Map, Star, SquareCheckBig, Target
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
-import { DailyChecklist } from '@/components/dashboard/daily-checklist';
 import { DashboardChecklist } from '@/components/checklist/dashboard-checklist';
+import { ChecklistStatsCompact } from '@/components/checklist/checklist-stats-compact';
 import { loadChecklist } from '@/lib/checklist-data';
+import { loadChecklistStats } from '@/lib/checklist-stats';
 import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
 import { GoalsCard } from '@/components/dashboard/goals-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
@@ -285,18 +286,6 @@ async function GoalsSection({ userId }: { userId: string }) {
   return <GoalsCard periodKeys={{ day: dayK, week: weekK, month: monthK }} goals={rows} />;
 }
 
-async function ChecklistSection({ userId }: { userId: string }) {
-  const day = tashkentDayKey();
-  const rows = await sql<{ id: string; title: string; done: boolean }[]>`
-    select i.id, i.title, (t.item_id is not null) as done
-    from checklist_items i
-    left join checklist_ticks t on t.item_id = i.id and t.date_key = ${day}
-    where i.user_id = ${userId}
-    order by i.sort, i.created_at
-  `.catch(() => []);
-  return <DailyChecklist items={rows} />;
-}
-
 // Rol bo'yicha kunlik checklist (checklist_templates). Ustozlarda bugun dars
 // bo'lmasa — ko'rsatilmaydi (lesson-plan bilan integratsiya).
 async function RoleChecklistSection({ userId, role }: { userId: string; role: string }) {
@@ -317,6 +306,13 @@ async function RoleChecklistSection({ userId, role }: { userId: string; role: st
       href="/task-tracker"
     />
   );
+}
+
+// Checklist statistikasi (eski Task Tracker uslubida): bugungi ring, streak,
+// 7-kunlik mini grafik. To'liq statistika /task-tracker bo'limida.
+async function ChecklistStatsSection({ userId, role }: { userId: string; role: string }) {
+  const stats = await loadChecklistStats(userId, role);
+  return <ChecklistStatsCompact stats={stats} href="/task-tracker" />;
 }
 
 async function BpointReminderSection({ userId }: { userId: string }) {
@@ -422,7 +418,7 @@ export default async function DashboardPage() {
             <RoleChecklistSection userId={user!.id} role={viewer.role} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
-            <ChecklistSection userId={user!.id} />
+            <ChecklistStatsSection userId={user!.id} role={viewer.role} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
             <GoalsSection userId={user!.id} />
