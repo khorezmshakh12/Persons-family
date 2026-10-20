@@ -4,18 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { getAuthState } from '@/lib/auth/session';
 import { can } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
+import { lessonTypeForPosition } from '@/lib/syllabus';
 
 type Result = { error: string } | { ok: true; count?: number };
-
-// 36 darslik standart shablon: testlar belgilangan pozitsiyalarda.
-//   progress test: 7, 13, 19, 25, 31 (har 6-darsdan keyin)
-//   oylik test: 12, 24 ; yakuniy test: 36
-function lessonTypeForPosition(pos: number): string {
-  if ([7, 13, 19, 25, 31].includes(pos)) return 'progress_test';
-  if ([12, 24].includes(pos)) return 'month_test';
-  if (pos === 36) return 'final_test';
-  return 'lesson';
-}
 
 async function gateGroup(groupId: string, userId: string, role: string): Promise<{ error: string } | { ok: true }> {
   const [g] = await sql<{ teacher_id: string }[]>`select teacher_id from groups where id = ${groupId}`;
