@@ -371,9 +371,12 @@ const decideSchema = z.object({
   id: z.string().uuid(),
   approve: z.boolean(),
   note: z.string().trim().max(500).optional().default(''),
+  /** Which month the advance is held back from. Defaults to the current
+   * Tashkent month; the CEO may pick a later month (e.g. next month). */
+  targetPeriod: period.optional(),
 });
 
-/** CEO: approve (pays it as an advance this month) or reject (reason). */
+/** CEO: approve (pays it as an advance, held from the chosen month) or reject. */
 export async function decideAdvanceAction(input: z.input<typeof decideSchema>): Promise<Result> {
   const g = await requireFinanceManager();
   if ('error' in g) return g;
@@ -381,9 +384,12 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
   if (!v.approve && v.note.length < 3) return { error: 'reasonRequired' };
-  // An advance is cash handed over now, so it is held back from the month it
-  // is paid in — not the month it was asked in — and capped by that month.
-  const per = startOfTashkentMonthKey();
+  // An advance is cash handed over now; it is held back from the chosen month
+  // (default: the current one) and capped by that month's salary when known.
+  const current = startOfTashkentMonthKey();
+  const per = v.targetPeriod ?? current;
+  // Can't predate: an advance is never held from a month already gone by.
+  if (per < current) return { error: 'pastMonth' };
   let req: { staff_id: string; amount: number } | null = null;
   try {
     const out = await sql.begin(async (tx) => {
@@ -396,8 +402,13 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
           select gross_amount as gross,
             coalesce((select sum(amount) from finance_entries where staff_id = ${r.staff_id} and period = ${per} and kind = 'advance'), 0) as taken
           from salary_months where staff_id = ${r.staff_id} and period = ${per}`;
-        if (!sal || sal.gross <= 0) return 'noSalary' as const;
-        if (r.amount + sal.taken > sal.gross) return 'overLimit' as const;
+        // A future month may have no salary set yet — then there is no ceiling
+        // to check (CEO's discretion). The current month still requires one.
+        if (!sal || sal.gross <= 0) {
+          if (per === current) return 'noSalary' as const;
+        } else if (r.amount + sal.taken > sal.gross) {
+          return 'overLimit' as const;
+        }
       }
       let entryId: string | null = null;
       if (v.approve) {

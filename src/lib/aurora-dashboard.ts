@@ -2,7 +2,8 @@ import 'server-only';
 import { cache } from 'react';
 import { sql } from '@/lib/db/client';
 import { getStarBalances } from '@/lib/stars';
-import { getPayrollSummary, getStaffPayroll } from '@/lib/payroll';
+import { loadPayLines } from '@/lib/pay-run-data';
+import { totals, isRelevant } from '@/lib/pay-run';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { LESSON_PLAN_ROLES, type StaffRole } from '@/lib/nav';
 import { addDaysToKey, tashkentDayKey, tashkentDayOfWeek, tashkentMidnight, startOfTashkentMonthKey, startOfPreviousTashkentMonthKey } from '@/lib/time';
@@ -591,17 +592,29 @@ export type FinanceSnapshot = {
 export async function loadFinanceSnapshot(v: Viewer): Promise<FinanceSnapshot | null> {
   return safe('finance', async () => {
     const period = startOfTashkentMonthKey();
+    // Same pay-run engine the Finance page uses, so the dashboard card and
+    // Finance can never disagree. `gross` here = payable (base + KPI +
+    // bonuses − deductions), not the bare salary_months plan.
     if (isCompanyWide(v)) {
-      const summary = await getPayrollSummary(period);
+      const lines = (await loadPayLines(period)).filter(isRelevant);
+      const t = totals(lines);
       return {
         scope: 'company' as const,
         period,
-        ...summary.totals,
-        staffCount: summary.rows.filter((r) => r.gross > 0).length,
+        gross: t.payable,
+        paid: t.paid,
+        remaining: t.payable - t.paid,
+        staffCount: lines.filter((l) => l.base > 0).length,
       };
     }
-    const own = await getStaffPayroll(v.userId, period);
-    return { scope: 'self' as const, period, gross: own.gross, paid: own.paid, remaining: own.remaining };
+    const [line] = await loadPayLines(period, v.userId);
+    return {
+      scope: 'self' as const,
+      period,
+      gross: line?.payable ?? 0,
+      paid: line?.paid ?? 0,
+      remaining: line?.remaining ?? 0,
+    };
   });
 }
 

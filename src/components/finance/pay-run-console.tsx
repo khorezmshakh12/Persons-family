@@ -78,6 +78,7 @@ const ERR: Record<string, string> = {
   notLocked: 'Oy hali tasdiqlanmagan — yozuvni oddiy tartibda qo‘shing',
   overLimit: 'Bu oy avanslar jami maoshdan oshib ketadi',
   noSalary: 'Bu oy uchun maosh belgilanmagan — avval maoshni kiriting',
+  pastMonth: 'O‘tib ketgan oyni tanlab bo‘lmaydi',
   notPaid: 'Oy hali “To‘langan” bosqichida emas',
   nothingOwed: 'Hal qilinadigan qoldiq yo‘q',
   alreadyReversed: 'Bu yozuv allaqachon bekor qilingan',
@@ -138,6 +139,11 @@ export function PayRunConsole({
     if (filter === 'jev') return jev[l.staffId]?.verdict === 'check';
     return true;
   });
+  // The table footer "Jami" totals the rows actually shown, so it always
+  // matches the visible list under a search/filter (the top summary tiles
+  // keep the whole-month grand total via `sum`).
+  const shownTotals = totals(shown);
+  const filtered = shown.length !== lines.length;
   const open = lines.find((l) => l.staffId === openId) ?? null;
   const idx = PAY_RUN_STATUSES.indexOf(run.status);
   const next = PAY_RUN_STATUSES[idx + 1] as PayRunStatus | undefined;
@@ -189,11 +195,15 @@ export function PayRunConsole({
       if (n) setFilter('jev');
     });
 
-  const decide = (a: AdvanceRequest, approve: boolean, note = '') =>
+  const decide = (a: AdvanceRequest, approve: boolean, note = '', targetPeriod?: string) =>
     start(async () => {
-      const res = await decideAdvanceAction({ id: a.id, approve, note });
+      const res = await decideAdvanceAction({ id: a.id, approve, note, targetPeriod });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(approve ? `Avans tasdiqlandi: ${som(a.amount)} so‘m` : 'Avans rad etildi');
+      toast.success(
+        approve
+          ? `Avans tasdiqlandi: ${som(a.amount)} so‘m${targetPeriod ? ` · ${monthLabel(targetPeriod)}dan ushlanadi` : ''}`
+          : 'Avans rad etildi',
+      );
       router.refresh();
     });
 
@@ -460,14 +470,14 @@ export function PayRunConsole({
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-au-line bg-au-card-2 font-bold">
-                  <td className="px-3 py-2.5">Jami</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(sum.base)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{signed(sum.kpi)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">+{som(sum.bonuses)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">−{som(Math.abs(sum.deductions))}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(sum.payable)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(sum.paid)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(sum.remaining)}</td>
+                  <td className="px-3 py-2.5">{filtered ? `Jami (${shown.length})` : 'Jami'}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.base)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{signed(shownTotals.kpi)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">+{som(shownTotals.bonuses)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">−{som(Math.abs(shownTotals.deductions))}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.payable)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.paid)}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.remaining)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -618,9 +628,22 @@ function Banner({ tone, icon, children }: { tone: 'info' | 'bad'; icon: ReactNod
   );
 }
 
-function AdvanceItem({ a, busy, onDecide }: { a: AdvanceRequest; busy: boolean; onDecide: (a: AdvanceRequest, ok: boolean, note?: string) => void }) {
+function AdvanceItem({
+  a,
+  busy,
+  onDecide,
+}: {
+  a: AdvanceRequest;
+  busy: boolean;
+  onDecide: (a: AdvanceRequest, ok: boolean, note?: string, targetPeriod?: string) => void;
+}) {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
+  // Which month the advance is held back from. Default = current Tashkent
+  // month; the CEO may pick a later one (e.g. next month).
+  const nowMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date()).slice(0, 7) + '-01';
+  const monthOpts = [0, 1, 2].map((n) => shiftMonth(nowMonth, n));
+  const [per, setPer] = useState(nowMonth);
   return (
     <li className="flex flex-col gap-1.5 rounded-au-ctl border border-au-line p-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -639,13 +662,25 @@ function AdvanceItem({ a, busy, onDecide }: { a: AdvanceRequest; busy: boolean; 
           </button>
         </div>
       ) : (
-        <div className="flex gap-1.5">
-          <button className={cn(BTN, 'h-8 flex-1 bg-au-ok px-2.5 text-xs text-white')} disabled={busy} onClick={() => onDecide(a, true)}>
-            Tasdiqlash
-          </button>
-          <button className={cn(BTN_GHOST, 'h-8 px-2.5 text-xs')} disabled={busy} onClick={() => setRejecting(true)}>
-            Rad etish
-          </button>
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-center gap-1.5 text-[11px] text-au-muted">
+            Qaysi oydan ushlansin:
+            <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(INPUT, 'h-7 flex-1 text-xs')}>
+              {monthOpts.map((m) => (
+                <option key={m} value={m}>
+                  {monthLabel(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex gap-1.5">
+            <button className={cn(BTN, 'h-8 flex-1 bg-au-ok px-2.5 text-xs text-white')} disabled={busy} onClick={() => onDecide(a, true, '', per)}>
+              Tasdiqlash
+            </button>
+            <button className={cn(BTN_GHOST, 'h-8 px-2.5 text-xs')} disabled={busy} onClick={() => setRejecting(true)}>
+              Rad etish
+            </button>
+          </div>
         </div>
       )}
     </li>
