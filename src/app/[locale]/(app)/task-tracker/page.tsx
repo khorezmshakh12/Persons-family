@@ -3,6 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { canSeeFor, can, ROLES } from '@/lib/permissions';
 import { loadChecklist } from '@/lib/checklist-data';
+import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
+import { tashkentDayKey } from '@/lib/time';
 import { ChecklistPage } from '@/components/checklist/checklist-page';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +23,16 @@ export default async function TaskTrackerPage({
   const effectiveRole = requested ?? profile.role;
   const managing = canManage && sp.manage === '1';
 
-  const [data, tRoles] = await Promise.all([loadChecklist(profile.id, effectiveRole), getTranslations('roles')]);
+  // Ustozlar uchun: bugun dars bo'lmasa kunlik checklist talab qilinmaydi.
+  const gateTeacher = !managing && isTeacherRole(effectiveRole);
+  const [data, tRoles, lessonToday] = await Promise.all([
+    loadChecklist(profile.id, effectiveRole),
+    getTranslations('roles'),
+    gateTeacher ? teacherHasLessonOn(profile.id, tashkentDayKey()) : Promise.resolve(true),
+  ]);
+
+  const dailyLocked = gateTeacher && !lessonToday;
+  const finalData = dailyLocked ? { ...data, daily: [] } : data;
 
   const roleLabelOf = (r: string) => ((ROLES as readonly string[]).includes(r) ? tRoles(r) : r);
   const roles = canManage ? ROLES.map((r) => ({ value: r, label: roleLabelOf(r) })) : [];
@@ -29,12 +40,13 @@ export default async function TaskTrackerPage({
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
       <ChecklistPage
-        data={data}
+        data={finalData}
         role={effectiveRole}
         roleLabel={roleLabelOf(effectiveRole)}
         canManage={canManage}
         managing={managing}
         roles={roles}
+        dailyLocked={dailyLocked}
       />
     </div>
   );
