@@ -19,9 +19,10 @@ import { startOfTashkentMonthKey } from '@/lib/time';
  *
  * Payments (finance_entries kind 'salary' / 'advance') are NOT earnings: the
  * pay run pays out base + bonuses − deductions, so adding the payment on top
- * of its parts counted every bonus twice (finance audit 2026-10-10). A
- * payment only stands in for the base salary in a month that has no
- * salary_months row — the hand-kept ledger from before structured payroll.
+ * of its parts counted every bonus twice (finance audit 2026-10-10). Only a
+ * legacy 'salary' payment stands in for the base salary, and only in a month
+ * that has no salary_months row (the hand-kept ledger from before structured
+ * payroll). An 'advance' is cash paid out — never earnings, in any month.
  *
  * Every row comes back as a dated, signed movement so the same list can be
  * summed for a headline and bucketed into a time series without the two
@@ -67,12 +68,20 @@ export async function getNetEarningEntries(staffId: string): Promise<NetEarningE
   ]);
 
   const planned = new Set(salaries.map((s) => s.period.slice(0, 10)));
-  const isPayment = (kind: string) => kind === 'salary' || kind === 'advance';
 
   return [
     ...salaries.map((s) => ({ amount: s.gross, at: s.period.slice(0, 10) })),
     ...finance
-      .filter((row) => !isPayment(row.kind) || !planned.has(row.month.slice(0, 10)))
+      .filter((row) => {
+        // An advance is cash paid out, never earnings — drop it in every month
+        // (a future-month advance into a salary-less month used to leak in here).
+        if (row.kind === 'advance') return false;
+        // A 'salary' payment counts only as a legacy base stand-in: a month
+        // with no salary_months row. Otherwise base comes from `salaries`.
+        if (row.kind === 'salary') return !planned.has(row.month.slice(0, 10));
+        // Everything else (bonus, KPI, penalty, correction…) is signed earnings.
+        return true;
+      })
       .map((row) => ({ amount: row.amount, at: row.created_at })),
     ...performance.map((row) => ({
       amount: row.entry_type === 'bonus' ? row.amount : -row.amount,
