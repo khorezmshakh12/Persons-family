@@ -64,26 +64,26 @@
   --au-shadow-btn: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
   --au-shadow-pop: 0 12px 30px -12px rgba(255, 159, 28, 0.9);
 
-  /* "Quiet Progress" — the old Task Tracker's dark palette, kept for the
-     checklist / goals statistics boards (owner, 2026-10-21). Same in every
-     theme: these boards are always dark. */
-  --qp-bg: #0e121b;
-  --qp-card: #131722;
-  --qp-card-2: #181e2c;
-  --qp-track: #232a3b;
-  --qp-line: rgba(255, 255, 255, 0.1);
-  --qp-ink: #ffffff;
-  --qp-muted: #8e98b0;
-  --qp-dim: #545f7a;
-  --qp-mint: #00f59b;
-  --qp-mint-ink: #06120d;
-  --qp-mint-soft: rgba(0, 245, 155, 0.14);
-  --qp-cyan: #00d4fe;
-  --qp-cyan-soft: rgba(0, 212, 254, 0.16);
-  --qp-yellow: #ffd13b;
-  --qp-yellow-soft: rgba(255, 209, 59, 0.14);
-  --qp-red: #ff4565;
-  --qp-red-soft: rgba(255, 69, 101, 0.12);
+  /* Progress boards (checklist / goals statistics). They follow the
+     Aurora palette — and so every theme — through these aliases
+     (owner, 2026-10-22: "saytga mosla"). */
+  --qp-bg: var(--au-card-2);
+  --qp-card: var(--au-card);
+  --qp-card-2: var(--au-card-2);
+  --qp-track: var(--au-ring-track);
+  --qp-line: var(--au-line);
+  --qp-ink: var(--au-ink);
+  --qp-muted: var(--au-muted);
+  --qp-dim: var(--au-faint);
+  --qp-mint: var(--au-ok);
+  --qp-mint-ink: var(--au-card);
+  --qp-mint-soft: var(--au-ok-soft);
+  --qp-cyan: var(--au-info);
+  --qp-cyan-soft: var(--au-info-soft);
+  --qp-yellow: var(--au-accent-text);
+  --qp-yellow-soft: var(--au-accent-soft);
+  --qp-red: var(--au-bad);
+  --qp-red-soft: var(--au-bad-soft);
 
   /* Type */
   --au-font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -167,10 +167,10 @@
   scrollbar-color: var(--au-line) transparent;
 }
 
-/* Quiet Progress: a non-working day cell (Sunday, or no lesson). */
+/* Progress boards: a non-working day cell (Sunday, or no lesson). */
 .qp-hatch {
   background: repeating-linear-gradient(135deg, var(--qp-card) 0 4px, var(--qp-card-2) 4px 8px);
 }
 .qp-glow {
-  box-shadow: 0 0 12px rgba(0, 245, 155, 0.35);
+  box-shadow: 0 2px 8px -2px var(--au-ok-soft);
 }

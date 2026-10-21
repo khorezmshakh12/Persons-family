@@ -15,6 +15,7 @@ import {
   goalCell,
   goalSummary,
   isWorkDay,
+  leftBehind,
   openToday,
   spline,
   tickKey,
@@ -28,9 +29,10 @@ import {
 /* The old Task Tracker's "Quiet Progress" boards, rebuilt on live data
  * (owner, 2026-10-21): a month matrix, a line that moves with every tick,
  * this week's bars, today's ring and an analysis column — once for the
- * role checklist and once for personal goals. Always dark (qp-* tokens). */
+ * role checklist and once for personal goals. Colours are the qp-* aliases
+ * of the Aurora palette, so the boards follow the site's theme. */
 
-const CARD = 'rounded-[18px] border border-qp-line bg-qp-card text-qp-ink';
+const CARD = 'rounded-au-card border border-qp-line bg-qp-card text-qp-ink shadow-au-card';
 const TILE = 'rounded-[14px] bg-qp-card-2 p-3.5';
 const MONO = 'font-mono tabular-nums';
 const SCOPES: { k: GoalScope; n: string }[] = [
@@ -234,43 +236,34 @@ const FOOT = cn(MONO, 'h-6 w-7 rounded-md text-center text-[11px] leading-6 font
 /* ------------------------------------------------------------ boards */
 
 export function ProgressBoard({ data, roleLabel }: { data: ProgressBoardData; roleLabel: string }) {
-  const [view, setView] = useState<'checklist' | 'goals'>('checklist');
   const board = useBoard(data);
   return (
-    <section className="flex flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label="Statistika">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <span className={cn(MONO, 'text-[11px] tracking-[.16em] text-qp-mint')}>STATISTIKA · {roleLabel.toUpperCase()}</span>
-          <h2 className="text-2xl font-extrabold tracking-tight">{data.monthTitle}</h2>
-          <p className="text-[13px] text-qp-muted">Belgi qo‘ysangiz — chiziq, foizlar va tahlil darhol o‘zgaradi.</p>
-        </div>
-        <div className="flex gap-1 rounded-full border border-qp-line p-1">
-          {(
-            [
-              ['checklist', 'Checklist'],
-              ['goals', 'Maqsadlar'],
-            ] as const
-          ).map(([k, n]) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setView(k)}
-              aria-pressed={view === k}
-              className={cn('h-10 rounded-full px-5 text-[13px] font-bold transition', view === k ? 'bg-qp-mint text-qp-mint-ink' : 'text-qp-muted hover:text-qp-ink')}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </header>
-      {view === 'checklist' ? <ChecklistBoard data={data} board={board} onGoals={() => setView('goals')} /> : <GoalsBoard data={data} board={board} />}
-    </section>
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label="Checklist statistikasi">
+        <BoardHeader kicker={`CHECKLIST · ${roleLabel.toUpperCase()}`} title={`${data.monthTitle} — checklist`} hint="Katakni bossangiz — chiziq, foizlar va tahlil darhol o‘zgaradi." />
+        <ChecklistBoard data={data} board={board} />
+      </section>
+      <section id="maqsadlar" className="flex scroll-mt-4 flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label="Maqsadlar statistikasi">
+        <BoardHeader kicker="MAQSADLAR" title={`${data.monthTitle} — maqsadlar`} hint="Bajarilmagan maqsad o‘chmaydi: qaysi kuni qolib ketgani shu yerda ko‘rinadi va bajarilguncha ko‘chib yuradi." />
+        <GoalsBoard data={data} board={board} />
+      </section>
+    </div>
+  );
+}
+
+function BoardHeader({ kicker, title, hint }: { kicker: string; title: string; hint: string }) {
+  return (
+    <header>
+      <span className={cn(MONO, 'text-[11px] font-bold tracking-[.16em] text-qp-mint')}>{kicker}</span>
+      <h2 className="text-2xl font-extrabold tracking-tight">{title}</h2>
+      <p className="text-[13px] text-qp-muted">{hint}</p>
+    </header>
   );
 }
 
 type Board = ReturnType<typeof useBoard>;
 
-function ChecklistBoard({ data, board, onGoals }: { data: ProgressBoardData; board: Board; onGoals: () => void }) {
+function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board }) {
   const { ticks, goals } = board;
   const { today, items, days } = data;
   const work = days.filter((d) => isWorkDay(d, today));
@@ -372,18 +365,18 @@ function ChecklistBoard({ data, board, onGoals }: { data: ProgressBoardData; boa
                   <tr>
                     <td className="pr-2.5 font-semibold text-qp-cyan">Kunlik maqsadlar</td>
                     {days.map((d) => {
-                      const g = dayGoals(goals, d.key);
+                      const g = dayGoals(goals, d.key, today);
                       return (
                         <td key={d.key} className="p-0">
                           <span
                             className={cn(
                               MONO,
                               'grid size-7 place-items-center rounded-[7px] text-[10px] font-bold',
-                              !g.total ? 'bg-qp-card-2 text-qp-dim' : g.done === g.total ? 'bg-qp-cyan-soft text-qp-cyan' : 'bg-qp-yellow-soft text-qp-yellow',
+                              !g.total ? 'bg-qp-card-2 text-qp-dim' : g.onTime === g.total ? 'bg-qp-cyan-soft text-qp-cyan' : g.left ? 'bg-qp-red-soft text-qp-red' : 'bg-qp-yellow-soft text-qp-yellow',
                             )}
-                            title={g.total ? `${g.done} / ${g.total} maqsad bajarildi` : undefined}
+                            title={g.total ? `${g.onTime} / ${g.total} maqsad shu kuni bajarildi${g.left ? `, ${g.left} ta qolib ketdi` : ''}` : undefined}
                           >
-                            {g.total ? `${g.done}/${g.total}` : ''}
+                            {g.total ? `${g.onTime}/${g.total}` : ''}
                           </span>
                         </td>
                       );
@@ -410,7 +403,7 @@ function ChecklistBoard({ data, board, onGoals }: { data: ProgressBoardData; boa
               label="Kunlar bo‘yicha checklist foizi"
               series={[
                 { values: days.map((d) => (isWorkDay(d, today) ? day(d.key).pct : null)), color: 'var(--qp-mint)', area: true },
-                { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key).total ? dayGoals(goals, d.key).pct : null)), color: 'var(--qp-cyan)', dashed: true },
+                { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)), color: 'var(--qp-cyan)', dashed: true },
               ]}
             />
             <div className="flex gap-4 text-[11px] font-semibold">
@@ -447,7 +440,7 @@ function ChecklistBoard({ data, board, onGoals }: { data: ProgressBoardData; boa
             <h3 className="col-span-2 text-lg font-bold">Davr bo‘yicha</h3>
             <Stat label="Haftalik checklist" value={`${data.weekly.done}/${data.weekly.total}`} />
             <Stat label="Oylik checklist" value={`${data.monthly.done}/${data.monthly.total}`} />
-            <button type="button" onClick={onGoals} className={cn(TILE, 'col-span-2 flex items-center justify-between text-left transition hover:bg-qp-track')}>
+            <a href="#maqsadlar" className={cn(TILE, 'col-span-2 flex items-center justify-between text-left transition hover:bg-qp-track')}>
               <span>
                 <span className="block text-[11px] font-semibold text-qp-muted">Bugungi maqsadlar</span>
                 <span className={cn(MONO, 'text-xl font-bold text-qp-cyan')}>
@@ -455,7 +448,7 @@ function ChecklistBoard({ data, board, onGoals }: { data: ProgressBoardData; boa
                 </span>
               </span>
               <ArrowRight className="size-4 text-qp-muted" />
-            </button>
+            </a>
           </div>
         </aside>
       </div>
@@ -523,8 +516,8 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
   const late = goals.filter((g) => !g.doneDay && g.dueDay < today).length;
   const doneAll = goals.filter((g) => g.doneDay);
   const onTimePct = doneAll.length ? Math.round((doneAll.filter((g) => g.doneDay! <= g.dueDay).length / doneAll.length) * 100) : 0;
-  const goalDays = days.filter((d) => d.key <= today && dayGoals(goals, d.key).total > 0);
-  const avg = goalDays.length ? Math.round(goalDays.reduce((s, d) => s + dayGoals(goals, d.key).pct, 0) / goalDays.length) : 0;
+  const goalDays = days.filter((d) => d.key <= today && dayGoals(goals, d.key, today).total > 0);
+  const avg = goalDays.length ? Math.round(goalDays.reduce((s, d) => s + dayGoals(goals, d.key, today).pct, 0) / goalDays.length) : 0;
   const sorted = useMemo(() => {
     const order: Record<GoalScope, number> = { month: 0, week: 1, day: 2 };
     return [...goals].sort((a, b) => order[a.scope] - order[b.scope] || a.startDay.localeCompare(b.startDay));
@@ -559,7 +552,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
               week={data.week}
               today={today}
               value={(d) => {
-                const g = dayGoals(goals, d.key);
+                const g = dayGoals(goals, d.key, today);
                 return g.total ? g.pct : null;
               }}
             />
@@ -618,16 +611,16 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                     ))}
                   </tbody>
                   <tfoot>
-                    <FootRow label="Kunlik maqsad %" days={days} today={today} pct value={(d) => (d.key <= today && dayGoals(goals, d.key).total ? dayGoals(goals, d.key).pct : null)} />
-                    <FootRow label="Bajarildi" tone="mint" days={days} today={today} value={(d) => (dayGoals(goals, d.key).total ? dayGoals(goals, d.key).done : null)} />
+                    <FootRow label="Kunlik maqsad %" days={days} today={today} pct value={(d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)} />
+                    <FootRow label="Shu kuni bajarildi" tone="mint" days={days} today={today} value={(d) => (dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).onTime : null)} />
                     <FootRow
-                      label="Bajarilmadi"
+                      label="Qolib ketdi"
                       tone="red"
                       days={days}
                       today={today}
                       value={(d) => {
-                        const g = dayGoals(goals, d.key);
-                        return g.total ? g.total - g.done : null;
+                        const g = dayGoals(goals, d.key, today);
+                        return g.total && d.key < today ? g.left : null;
                       }}
                     />
                   </tfoot>
@@ -643,13 +636,28 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
             </div>
             <MonthLine
               days={days}
-              label="Kunlar bo‘yicha kunlik maqsadlar foizi"
-              series={[{ values: days.map((d) => (d.key <= today && dayGoals(goals, d.key).total ? dayGoals(goals, d.key).pct : null)), color: 'var(--qp-cyan)', area: true }]}
+              label="Kunlar bo‘yicha kunlik maqsadlar foizi va qolib ketganlar"
+              series={[
+                { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)), color: 'var(--qp-cyan)', area: true },
+                {
+                  values: days.map((d) => {
+                    const g = dayGoals(goals, d.key, today);
+                    return d.key < today && g.total ? Math.round((g.left / g.total) * 100) : null;
+                  }),
+                  color: 'var(--qp-red)',
+                  dashed: true,
+                },
+              ]}
             />
+            <div className="flex gap-4 text-[11px] font-semibold">
+              <span className="text-qp-cyan">— Shu kuni bajarilgan %</span>
+              <span className="text-qp-red">- - Qolib ketgan %</span>
+            </div>
           </div>
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
+          <LeftBehind goals={goals} today={today} onToggle={board.toggleGoal} />
           <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
             <h3 className="text-lg font-bold">Bajarish kerak</h3>
             <div className="flex gap-1 rounded-xl bg-qp-bg p-1">
@@ -706,6 +714,54 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
         </aside>
       </div>
     </>
+  );
+}
+
+/** Which goals were left behind, day by day — still open ones can be
+ * finished from here; ones done late say when. */
+function LeftBehind({ goals, today, onToggle }: { goals: BoardGoal[]; today: string; onToggle: (id: string) => void }) {
+  const groups = leftBehind(goals, today);
+  const open = groups.reduce((t, g) => t + g.goals.filter((x) => !x.doneDay).length, 0);
+  return (
+    <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-lg font-bold">Qolib ketgan maqsadlar</h3>
+        {open > 0 && <span className={cn(MONO, 'rounded-full bg-qp-red-soft px-2.5 py-0.5 text-xs font-bold text-qp-red')}>{open} ochiq</span>}
+      </div>
+      {groups.length === 0 ? (
+        <p className="text-xs text-qp-muted">Hech narsa qolib ketmagan — barakalla.</p>
+      ) : (
+        <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto pr-1">
+          {groups.map((grp) => (
+            <div key={grp.day} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold">{dayLabel(grp.day)}</span>
+                <span className="text-qp-red">{grp.goals.length} ta qoldi</span>
+              </div>
+              {grp.goals.map((g) => (
+                <div key={g.id} className="flex items-start gap-2.5 rounded-xl bg-qp-card-2 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onToggle(g.id)}
+                    aria-pressed={!!g.doneDay}
+                    aria-label="Bajarildi deb belgilash"
+                    className={cn('grid size-[22px] shrink-0 place-items-center rounded-[7px] border-[1.5px]', g.doneDay ? 'border-qp-mint bg-qp-mint text-qp-mint-ink' : 'border-qp-red/60')}
+                  >
+                    {g.doneDay && <Check className="size-3.5" strokeWidth={3.5} />}
+                  </button>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className={cn('text-[13px] font-semibold', g.doneDay && 'text-qp-muted line-through')}>{g.title}</span>
+                    <span className="text-[11px] text-qp-muted">
+                      {SCOPES.find((x) => x.k === g.scope)?.n} · {g.doneDay ? `${dayLabel(g.doneDay)}da kechikib bajarildi` : 'hali bajarilmagan — bugungi ro‘yxatda turibdi'}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -796,7 +852,7 @@ export function DashboardProgress({ data }: { data: ProgressBoardData }) {
             label="Kunlar bo‘yicha checklist va maqsadlar foizi"
             series={[
               { values: days.map((d) => (isWorkDay(d, today) && items.length ? day(d.key).pct : null)), color: 'var(--qp-mint)', area: true },
-              { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key).total ? dayGoals(goals, d.key).pct : null)), color: 'var(--qp-cyan)', dashed: true },
+              { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)), color: 'var(--qp-cyan)', dashed: true },
             ]}
           />
           <div className="flex gap-4 text-[11px] font-semibold">

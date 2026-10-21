@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checklistDay, checklistStreak, dayGoals, goalCell, goalSummary, openToday, spline, tickKey, type BoardDay, type BoardGoal } from '../src/lib/progress-board';
+import { checklistDay, checklistStreak, dayGoals, goalCell, goalSummary, leftBehind, openToday, spline, tickKey, type BoardDay, type BoardGoal } from '../src/lib/progress-board';
 
 const day = (key: string, off = false): BoardDay => ({ key, n: Number(key.slice(8)), w: '', off });
 const goal = (over: Partial<BoardGoal>): BoardGoal => ({
@@ -42,7 +42,9 @@ test('goal cells: open, late, done day, then nothing', () => {
 test('an open goal carries into today; a done one does not', () => {
   const goals = [goal({ id: 'old' }), goal({ id: 'done', doneDay: '2026-10-20' }), goal({ id: 'now', periodKey: '2026-10-21', dueDay: '2026-10-21' })];
   assert.deepEqual(openToday(goals, 'day', '2026-10-21').map((g) => g.id), ['old', 'now']);
-  assert.deepEqual(dayGoals(goals, '2026-10-20'), { done: 1, total: 2, pct: 50 });
+  assert.deepEqual(dayGoals(goals, '2026-10-20', '2026-10-21'), { done: 1, onTime: 1, left: 1, total: 2, pct: 50 });
+  // Today is not over: nothing is "left" yet.
+  assert.equal(dayGoals(goals, '2026-10-21', '2026-10-21').left, 0);
   const s = goalSummary([goal({ doneDay: '2026-10-20' }), goal({ doneDay: '2026-10-21' }), goal({})], 'day');
   assert.deepEqual(s, { total: 3, done: 2, onTime: 1, late: 1, pct: 67 });
 });
@@ -52,4 +54,19 @@ test('spline starts at the first point and ends at the last', () => {
   assert.ok(d.startsWith('M0.0,10.0'));
   assert.ok(d.endsWith('20.0,5.0'));
   assert.equal(spline([]), '');
+});
+
+test('left behind: unfinished or late, grouped by day, newest first', () => {
+  const goals = [
+    goal({ id: 'open20' }),
+    goal({ id: 'late20', doneDay: '2026-10-22' }),
+    goal({ id: 'ok20', doneDay: '2026-10-20' }),
+    goal({ id: 'open21', periodKey: '2026-10-21', dueDay: '2026-10-21' }),
+    goal({ id: 'today', periodKey: '2026-10-22', dueDay: '2026-10-22' }),
+  ];
+  const out = leftBehind(goals, '2026-10-22');
+  assert.deepEqual(out.map((d) => [d.day, d.goals.map((g) => g.id)]), [
+    ['2026-10-21', ['open21']],
+    ['2026-10-20', ['open20', 'late20']],
+  ]);
 });
