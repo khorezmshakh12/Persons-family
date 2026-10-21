@@ -119,7 +119,7 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
     for (const e of entries) {
       if (e.staff_id !== p.id) continue;
       if (e.kind === 'salary' || e.kind === 'advance') {
-        payments.push({ id: e.id, kind: e.kind, title: e.title, amount: e.amount, at: e.created_at });
+        payments.push({ id: e.id, kind: e.kind, title: e.title, amount: e.amount, at: e.created_at, source: e.source });
         continue;
       }
       const kind =
@@ -128,7 +128,7 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
         : e.source === 'kpi' || e.title.startsWith('KPI ·') ? 'kpi'
         : e.kind === 'penalty' ? 'penalty'
         : 'adjustment';
-      components.push({ kind, title: e.title, amount: e.amount, at: e.created_at, entryId: e.id, ...ref(`fe:${e.id}`) });
+      components.push({ kind, title: e.title, amount: e.amount, at: e.created_at, entryId: e.id, source: e.source, ...ref(`fe:${e.id}`) });
     }
     let selfDevPending = false;
     for (const s of selfDev) {

@@ -21,6 +21,15 @@ export type FinanceActionState = { error?: string; fieldErrors?: FieldErrors; en
 const PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])-01$/;
 
 /** Every page that shows a ledger row or a total built from one. */
+/** One line in the month's history (pay_run_log) per ledger change, so the
+ * payroll screen shows who changed what while a month was open. Never fails
+ * the save it describes. */
+async function logEntry(period: string, actor: string, action: string, detail: Record<string, unknown>) {
+  await sql`insert into pay_run_log (period, actor, action, detail) values (${period}, ${actor}, ${action}, ${sql.json(detail as never)})`.catch(
+    (error) => console.error('pay_run_log write failed', error instanceof Error ? error.message : error),
+  );
+}
+
 function revalidateFinance() {
   revalidatePath('/[locale]/finance', 'page');
   revalidatePath('/[locale]/finance/[staffId]', 'page');
@@ -91,6 +100,7 @@ export async function addFinanceEntryAction(
     'finance.entry_add',
     `Added ${kind} entry "${parsed.data.title}" (${amount}) for staff ${parsed.data.staffId} [${period}]`,
   );
+  await logEntry(period, adminId, 'entry.add', { staffId: parsed.data.staffId, kind, title: parsed.data.title, amount });
 
   // Notify the staff member (salary / advance / penalty) once the response
   // is sent — a Telegram hiccup can never fail or slow the save.
@@ -158,6 +168,7 @@ export async function setSalaryMonthAction(
     return { error: lockedOr(error, 'updateFailed') };
   }
 
+  await logEntry(parsed.data.period, adminId, 'salary.set', { staffId: parsed.data.staffId, amount: parsed.data.grossAmount });
   logSystemAction(
     'finance.salary_set',
     `Set ${parsed.data.period} salary for staff ${parsed.data.staffId} to ${parsed.data.grossAmount}`,
@@ -174,19 +185,25 @@ const updateEntrySchema = z.object({
   title: z.string().trim().min(1).max(200),
   amount: z.coerce.number().refine((n) => n !== 0, 'nonzero'),
   note: z.string().trim().max(1000).optional().or(z.literal('')),
+  /** Move the row to another payroll month (both months must be open). */
+  period: z.string().regex(PERIOD_RE).optional().or(z.literal('')),
 });
 
-/** Edits a ledger row's title, amount and note. The kind (salary / advance /
- * penalty) and the payroll period are left untouched — changing them here
- * would silently move a payment out of "Berilgan". The amount keeps the
- * row's sign: the edit form takes a plain number, and penalties are stored
- * negative. */
+/** Edits a ledger row's title, amount, note and (optionally) its payroll
+ * month. The kind stays — a payment never silently turns into a bonus. The
+ * amount keeps the row's sign: the form takes a plain number, and penalties
+ * are stored negative. Hand-made rows, approved advances and the pay run's
+ * own payments are editable (Finance v2); KPI / correction / carry rows
+ * change in their own workflow. The DB lock still refuses a locked month. */
 export async function updateFinanceEntryAction(
   _prevState: FinanceActionState,
   formData: FormData,
 ): Promise<FinanceActionState> {
+  let adminId: string;
   try {
-    await requireCap('finance.manage');
+    ({
+      user: { id: adminId },
+    } = await requireCap('finance.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -194,17 +211,20 @@ export async function updateFinanceEntryAction(
   const parsed = updateEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput', fieldErrors: fieldErrorCodes(parsed.error) };
   const magnitude = Math.abs(parsed.data.amount);
+  const newPeriod = parsed.data.period || null;
 
-  let before: { staff_id: string; title: string; amount: number } | undefined;
+  type Before = { staff_id: string; title: string; amount: number; period: string; new_period: string };
+  let before: Before | undefined;
   try {
-    [before] = await sql<{ staff_id: string; title: string; amount: number }[]>`
+    [before] = await sql<Before[]>`
       update finance_entries fe set
         title = ${parsed.data.title},
         amount = case when fe.amount < 0 then ${-magnitude}::numeric else ${magnitude}::numeric end,
-        note = ${parsed.data.note || null}
-      from (select id, staff_id, title, amount from finance_entries where id = ${parsed.data.entryId}) old
-      where fe.id = old.id and fe.source = 'manual'
-      returning old.staff_id, old.title, old.amount
+        note = case when ${parsed.data.note === undefined} then fe.note else ${parsed.data.note || null} end,
+        period = coalesce(${newPeriod}::date, fe.period)
+      from (select id, staff_id, title, amount, period from finance_entries where id = ${parsed.data.entryId}) old
+      where fe.id = old.id and fe.source in ('manual', 'advance', 'payrun')
+      returning old.staff_id, old.title, old.amount, to_char(old.period, 'YYYY-MM-DD') as period, to_char(fe.period, 'YYYY-MM-DD') as new_period
     `;
   } catch (error) {
     console.error('updateFinanceEntryAction failed', error instanceof Error ? error.message : error);
@@ -219,6 +239,13 @@ export async function updateFinanceEntryAction(
     'finance.entry_update',
     `Edited entry ${parsed.data.entryId} for staff ${before.staff_id}: "${before.title}" (${before.amount}) → "${parsed.data.title}" (${before.amount < 0 ? -magnitude : magnitude})`,
   );
+  await logEntry(before.period, adminId, 'entry.edit', {
+    staffId: before.staff_id,
+    title: parsed.data.title,
+    from: before.amount,
+    to: before.amount < 0 ? -magnitude : magnitude,
+    movedTo: before.new_period !== before.period ? before.new_period : undefined,
+  });
   revalidateFinance();
   return {};
 }
@@ -227,8 +254,11 @@ export async function deleteFinanceEntryAction(
   _prevState: FinanceActionState,
   formData: FormData,
 ): Promise<FinanceActionState> {
+  let adminId: string;
   try {
-    await requireCap('finance.manage');
+    ({
+      user: { id: adminId },
+    } = await requireCap('finance.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -236,14 +266,14 @@ export async function deleteFinanceEntryAction(
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  type Gone = { staff_id: string; title: string; amount: number; source: string; kind: string };
+  type Gone = { staff_id: string; title: string; amount: number; source: string; kind: string; period: string };
   let gone: Gone | undefined;
   try {
     gone = await sql.begin(async (tx) => {
       const [row] = await tx<Gone[]>`
         delete from finance_entries
-        where id = ${parsed.data.entryId} and source in ('manual', 'advance')
-        returning staff_id, title, amount, source, kind::text as kind
+        where id = ${parsed.data.entryId} and source in ('manual', 'advance', 'payrun')
+        returning staff_id, title, amount, source, kind::text as kind, to_char(period, 'YYYY-MM-DD') as period
       `;
       // A withdrawn advance must not stay "Tasdiqlangan" on the staff side.
       if (row?.source === 'advance')
@@ -267,6 +297,7 @@ export async function deleteFinanceEntryAction(
     'finance.entry_delete',
     `Deleted ${gone.source} entry "${gone.title}" (${gone.amount}) for staff ${gone.staff_id}`,
   );
+  await logEntry(gone.period, adminId, 'entry.delete', { staffId: gone.staff_id, title: gone.title, amount: gone.amount });
   // The add sent the staff member a Telegram note for these kinds — say it
   // was withdrawn so they don't count on money that isn't coming.
   const g = gone;

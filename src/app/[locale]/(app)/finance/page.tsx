@@ -5,7 +5,7 @@ import { FinanceDetailContent } from './[staffId]/page';
 import { can, canSeeFor } from '@/lib/permissions';
 import { roleLabel } from '@/lib/roles';
 import { FinanceTabs } from '@/components/finance/finance-tabs';
-import { PayRunConsole } from '@/components/finance/pay-run-console';
+import { PayrollV2 } from '@/components/finance/payroll-v2';
 import { loadAdvances, loadMyRecentEntries, loadPayHistory, loadPayLines, loadPayRun, loadPayRunLog } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export default async function FinancePage({
     return (
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-3 pt-1 pb-10 sm:px-6">
         <FinanceTabs meId={user!.id} payroll accounting={canSeeFor(profile!, 'accounting')} />
-        <PayRunConsole period={period} run={run} lines={lines} log={log} advances={advances} history={history} roleNames={roleNames} recent={recent} />
+        <PayrollV2 period={period} run={run} lines={lines} log={log} advances={advances} history={history} roleNames={roleNames} recent={recent} />
       </div>
     );
   }

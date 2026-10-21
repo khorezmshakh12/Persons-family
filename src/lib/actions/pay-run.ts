@@ -85,11 +85,11 @@ const moveSchema = z.object({
 });
 
 /**
- * Move the month's pay run one step: draft ⇄ review ⇄ approved ⇄ paid.
- * Forward into `approved` freezes a snapshot and locks the month (the DB
- * trigger refuses ledger writes); forward into `paid` records a salary
- * payment for whatever is still owed. Any step back needs a reason and is
- * the undo: paid → approved removes exactly the payments the run wrote.
+ * Move the month's pay run (see canMove): open → approved → paid, or back
+ * to open ("Oyni ochish"). Forward into `approved` freezes a snapshot and
+ * locks the month (the DB trigger refuses ledger writes); forward into
+ * `paid` records a salary payment for whatever is still owed and re-settles
+ * next month's carry. Reopening keeps the payments already made.
  */
 export async function movePayRunAction(input: z.input<typeof moveSchema>): Promise<Result<{ status: PayRunStatus; paidCount?: number; carried?: number }>> {
   const g = await requireFinanceManager();
@@ -106,8 +106,9 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
       await tx`insert into pay_runs (period) values (${per}) on conflict (period) do nothing`;
       const [run] = await tx<{ status: PayRunStatus }[]>`select status from pay_runs where period = ${per} for update`;
       if (!canMove(run.status, to)) return 'invalidTransition' as const;
+      // Reopening needs no reason any more (owner, 2026-10-21) — every edit
+      // made while open lands in pay_run_log instead.
       const back = PAY_RUN_STATUSES.indexOf(to) < PAY_RUN_STATUSES.indexOf(run.status);
-      if (back && reason.length < 3) return 'reasonRequired' as const;
       // Read the lines under the run's row lock (corrections take it too),
       // so the snapshot and the payments match what is committed.
       const lines = (await loadPayLines(per, undefined, tx as unknown as typeof sql)).filter(isRelevant);
@@ -136,17 +137,13 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
         // Overpaid people (paid > payable) settle against next month.
         carried = await settleCarry(tx, per, lines, g.id);
         await tx`update pay_runs set status = 'paid', paid_by = ${g.id}, paid_at = now(), updated_at = now() where period = ${per}`;
-      } else if (run.status === 'paid' && to === 'approved') {
-        // Unlock for the delete, then lock again — all inside this tx.
-        await tx`update pay_runs set status = 'review' where period = ${per}`;
-        await tx`delete from finance_entries where period = ${per} and source = 'payrun'`;
-        await tx`delete from finance_entries where source = 'carry' and carry_from = ${per}`;
-        await tx`update pay_runs set status = 'approved', paid_by = null, paid_at = null, updated_at = now() where period = ${per}`;
       } else {
         await tx`
           update pay_runs set status = ${to}, updated_at = now(),
             approved_by = case when ${to} in ('draft', 'review') then null else approved_by end,
-            approved_at = case when ${to} in ('draft', 'review') then null else approved_at end
+            approved_at = case when ${to} in ('draft', 'review') then null else approved_at end,
+            paid_by = case when ${to} in ('draft', 'review') then null else paid_by end,
+            paid_at = case when ${to} in ('draft', 'review') then null else paid_at end
           where period = ${per}`;
       }
       await tx`
