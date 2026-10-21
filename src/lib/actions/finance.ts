@@ -15,7 +15,8 @@ import { startOfTashkentMonthKey } from '@/lib/time';
 const lockedOr = (error: unknown, fallback: string) =>
   error instanceof Error && /period_locked/.test(error.message) ? 'periodLocked' : fallback;
 
-export type FinanceActionState = { error?: string; fieldErrors?: FieldErrors } | undefined;
+/** `entryId` comes back from an add so the UI can offer "Qaytarish" (undo). */
+export type FinanceActionState = { error?: string; fieldErrors?: FieldErrors; entryId?: string } | undefined;
 
 const PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])-01$/;
 
@@ -71,13 +72,15 @@ export async function addFinanceEntryAction(
     : kind === 'salary' || kind === 'advance' ? Math.abs(parsed.data.amount)
     : parsed.data.amount;
 
+  let entryId: string | undefined;
   try {
-    await sql`
+    [{ id: entryId }] = await sql<{ id: string }[]>`
       insert into finance_entries (staff_id, title, amount, note, created_by, kind, period)
       values (
         ${parsed.data.staffId}, ${parsed.data.title}, ${amount},
         ${parsed.data.note || null}, ${adminId}, ${kind}, ${period}
       )
+      returning id
     `;
   } catch (error) {
     console.error('addFinanceEntryAction failed', error instanceof Error ? error.message : error);
@@ -116,7 +119,7 @@ export async function addFinanceEntryAction(
   });
 
   revalidateFinance();
-  return {};
+  return { entryId };
 }
 
 const setSalaryMonthSchema = z.object({
@@ -233,13 +236,14 @@ export async function deleteFinanceEntryAction(
   const parsed = deleteEntrySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  let gone: { staff_id: string; title: string; amount: number; source: string } | undefined;
+  type Gone = { staff_id: string; title: string; amount: number; source: string; kind: string };
+  let gone: Gone | undefined;
   try {
     gone = await sql.begin(async (tx) => {
-      const [row] = await tx<{ staff_id: string; title: string; amount: number; source: string }[]>`
+      const [row] = await tx<Gone[]>`
         delete from finance_entries
         where id = ${parsed.data.entryId} and source in ('manual', 'advance')
-        returning staff_id, title, amount, source
+        returning staff_id, title, amount, source, kind::text as kind
       `;
       // A withdrawn advance must not stay "Tasdiqlangan" on the staff side.
       if (row?.source === 'advance')
@@ -263,6 +267,23 @@ export async function deleteFinanceEntryAction(
     'finance.entry_delete',
     `Deleted ${gone.source} entry "${gone.title}" (${gone.amount}) for staff ${gone.staff_id}`,
   );
+  // The add sent the staff member a Telegram note for these kinds — say it
+  // was withdrawn so they don't count on money that isn't coming.
+  const g = gone;
+  if (g.kind !== 'adjustment') after(async () => {
+    try {
+      const [staff] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${g.staff_id}`;
+      if (staff?.telegram_id)
+        await sendTelegramAs(
+          'pay',
+          staff.telegram_id,
+          `<b>↩️ Bekor qilindi</b>
+${escapeTelegramText(g.title)}: ${escapeTelegramText(formatUZS(Math.abs(g.amount)))} so‘m — xato kiritilgan, hisobingizdan olib tashlandi.`,
+        );
+    } catch (error) {
+      console.error('Finance notification failed:', error instanceof Error ? error.message : error);
+    }
+  });
   revalidateFinance();
   return {};
 }

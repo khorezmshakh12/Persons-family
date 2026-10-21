@@ -227,3 +227,16 @@ export async function loadPayHistory(period: string, staffId?: string): Promise<
     return { period: p, planned: Math.round(pl.get(p) ?? 0), paid: Math.round(pd.get(p) ?? 0) };
   });
 }
+
+/** What this person added to the ledger by hand in the last 24 hours —
+ * the "Oxirgi amallar" undo list on the pay run console. */
+export type RecentEntry = { id: string; staffName: string; title: string; amount: number; kind: string; period: string | null; at: string };
+
+export async function loadMyRecentEntries(userId: string): Promise<RecentEntry[]> {
+  const rows = await sql<{ id: string; title: string; amount: number; kind: string; period: string | null; created_at: string; first_name: string | null; last_name: string | null }[]>`
+    select e.id, e.title, e.amount, e.kind::text as kind, to_char(e.period, 'YYYY-MM-DD') as period, e.created_at, p.first_name, p.last_name
+    from finance_entries e join profiles p on p.id = e.staff_id
+    where e.created_by = ${userId} and e.source in ('manual', 'advance') and e.created_at > now() - interval '24 hours'
+    order by e.created_at desc limit 8`;
+  return rows.map((r) => ({ id: r.id, staffName: name(r.first_name, r.last_name), title: r.title, amount: r.amount, kind: r.kind, period: r.period, at: r.created_at }));
+}

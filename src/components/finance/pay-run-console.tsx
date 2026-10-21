@@ -41,7 +41,7 @@ import {
   savePayRunNoteAction,
   type JevPayVerdict,
 } from '@/lib/actions/pay-run';
-import { addFinanceEntryAction, setSalaryMonthAction } from '@/lib/actions/finance';
+import { addFinanceEntryAction, deleteFinanceEntryAction, setSalaryMonthAction } from '@/lib/actions/finance';
 import { postPayrollAction } from '@/lib/actions/accounting';
 import {
   blockers,
@@ -60,7 +60,7 @@ import {
   type PayLine,
   type PayRunStatus,
 } from '@/lib/pay-run';
-import type { AdvanceRequest, MonthPoint, PayRun, PayRunLogEntry } from '@/lib/pay-run-data';
+import type { AdvanceRequest, MonthPoint, PayRun, PayRunLogEntry, RecentEntry } from '@/lib/pay-run-data';
 import { downloadPayslips } from './payslip';
 import { MonthBars } from './month-bars';
 
@@ -94,6 +94,10 @@ const ERR: Record<string, string> = {
   invalidInput: 'Ma’lumotni tekshiring',
 };
 const errText = (c: string) => ERR[c] ?? 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
+const KIND_UZ: Record<string, string> = { salary: 'Oylik', advance: 'Avans', penalty: 'Jarima', adjustment: 'Tuzatish' };
+const hhmm = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' });
+/** Undo window on the success toast of a payment / advance. */
+const UNDO_MS = 15000;
 
 type Filter = 'all' | 'settled' | 'owed' | 'over' | 'flags' | 'jev' | `flag:${PayFlag}`;
 type SortKey = 'name' | 'base' | 'adj' | 'payable' | 'paid' | 'remaining';
@@ -121,6 +125,7 @@ export function PayRunConsole({
   advances,
   history,
   roleNames,
+  recent = [],
 }: {
   period: string;
   run: PayRun;
@@ -129,9 +134,25 @@ export function PayRunConsole({
   advances: AdvanceRequest[];
   history: MonthPoint[];
   roleNames: Record<string, string>;
+  /** My hand-made ledger rows of the last 24h — "Oxirgi amallar" undo list. */
+  recent?: RecentEntry[];
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const [showRecent, setShowRecent] = useState(false);
+
+  // Takes back a payment / advance entered by mistake (deletes the ledger
+  // row; the database still refuses it once the month is locked).
+  const undo = (entryId: string, what: string) =>
+    start(async () => {
+      const fd = new FormData();
+      fd.set('entryId', entryId);
+      const res = await deleteFinanceEntryAction(undefined, fd);
+      if (res?.error) return void toast.error(errText(res.error));
+      toast.success(`Qaytarildi: ${what}`);
+      setShowRecent(false);
+      router.refresh();
+    });
   const lines = useMemo(() => allLines.filter(isRelevant), [allLines]);
   const sum = totals(lines);
   const block = blockers(lines);
@@ -243,7 +264,11 @@ export function PayRunConsole({
       fd.set('period', period);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
-      toast.success(`${l.name}: ${som(owedOf(l))} so‘m to‘landi`);
+      const what = `${l.name} · ${som(owedOf(l))} so‘m`;
+      toast.success(`${l.name}: ${som(owedOf(l))} so‘m to‘landi`, {
+        duration: UNDO_MS,
+        action: res?.entryId ? { label: 'Qaytarish', onClick: () => undo(res.entryId!, what) } : undefined,
+      });
       router.refresh();
     });
 
@@ -356,6 +381,38 @@ export function PayRunConsole({
               <button className={TB_GHOST} disabled={busy} onClick={() => setBack(prev)}>
                 <Undo2 className="size-3.5" /> {run.status === 'paid' ? 'To‘lovni bekor qilish' : run.status === 'approved' ? 'Qulfni ochish' : 'Orqaga'}
               </button>
+            )}
+            {recent.length > 0 && (
+              <div className="relative">
+                <button className={TB_GHOST} disabled={busy} aria-expanded={showRecent} onClick={() => setShowRecent((v) => !v)}>
+                  <History className="size-3.5" /> Oxirgi amallar ({recent.length})
+                </button>
+                {showRecent && (
+                  <div className="absolute top-full right-0 z-30 mt-1.5 w-80 max-w-[calc(100vw-2rem)] rounded-au-card border border-au-line bg-au-card p-2 shadow-lg">
+                    <p className="px-2 pb-1.5 text-[11px] text-au-muted">So‘nggi 24 soatda qo‘lda kiritganlaringiz. Xato bo‘lsa — qaytaring.</p>
+                    <ul className="flex flex-col">
+                      {recent.map((r) => (
+                        <li key={r.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-au-card-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-xs font-semibold text-au-ink">{r.staffName}</div>
+                            <div className="truncate text-[11px] text-au-muted">
+                              {KIND_UZ[r.kind] ?? r.kind} · {r.title} · {hhmm.format(new Date(r.at))}
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-xs font-bold text-au-ink tabular-nums">{som(r.amount)}</span>
+                          <button
+                            className="shrink-0 rounded-au-ctl border border-au-line px-2 py-1 text-[11px] font-semibold text-au-bad hover:bg-au-bad-soft"
+                            disabled={busy}
+                            onClick={() => undo(r.id, `${r.staffName} · ${som(Math.abs(r.amount))} so‘m`)}
+                          >
+                            Qaytarish
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
             <button className={TB_GHOST} disabled={busy} onClick={askJev}>
               <Bot className="size-3.5" /> Jev tahlili
@@ -885,6 +942,7 @@ export function PayRunConsole({
         period={period}
         locked={locked}
         onDone={() => router.refresh()}
+        onUndo={undo}
       />
     </div>
   );
@@ -933,6 +991,7 @@ function GiveAdvanceDialog({
   period,
   locked,
   onDone,
+  onUndo,
 }: {
   open: boolean;
   onClose: () => void;
@@ -941,6 +1000,7 @@ function GiveAdvanceDialog({
   period: string;
   locked: boolean;
   onDone: () => void;
+  onUndo: (entryId: string, what: string) => void;
 }) {
   const [busy, start] = useTransition();
   const [who, setWho] = useState(staffId);
@@ -973,7 +1033,11 @@ function GiveAdvanceDialog({
       fd.set('period', per);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
-      toast.success(`Avans berildi: ${som(num)} so‘m · ${monthLabel(per)}`);
+      const what = `${line?.name ?? 'Xodim'} · ${som(num)} so‘m avans`;
+      toast.success(`Avans berildi: ${som(num)} so‘m · ${monthLabel(per)}`, {
+        duration: UNDO_MS,
+        action: res?.entryId ? { label: 'Qaytarish', onClick: () => onUndo(res.entryId!, what) } : undefined,
+      });
       onClose();
       onDone();
     });

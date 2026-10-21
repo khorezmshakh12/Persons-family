@@ -6,7 +6,7 @@ import { can, canSeeFor } from '@/lib/permissions';
 import { roleLabel } from '@/lib/roles';
 import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { PayRunConsole } from '@/components/finance/pay-run-console';
-import { loadAdvances, loadPayHistory, loadPayLines, loadPayRun, loadPayRunLog } from '@/lib/pay-run-data';
+import { loadAdvances, loadMyRecentEntries, loadPayHistory, loadPayLines, loadPayRun, loadPayRunLog } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,19 +24,20 @@ export default async function FinancePage({
     // `?period=` is user-supplied — normalised (or replaced with the current
     // Tashkent month) before it reaches a query.
     const period = resolvePeriod((await searchParams)?.period);
-    const [lines, run, log, advances, history] = await Promise.all([
+    const [lines, run, log, advances, history, recent] = await Promise.all([
       loadPayLines(period),
       loadPayRun(period),
       loadPayRunLog(period),
       loadAdvances(),
       loadPayHistory(period),
+      can(profile!.role, 'finance.manage') ? loadMyRecentEntries(user!.id) : [],
     ]);
     const roleNames = Object.fromEntries([...new Set(lines.map((l) => l.role))].map((r) => [r, roleLabel(tStaff, r)]));
 
     return (
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 px-3 pt-1 pb-10 sm:px-6">
         <FinanceTabs meId={user!.id} payroll accounting={canSeeFor(profile!, 'accounting')} />
-        <PayRunConsole period={period} run={run} lines={lines} log={log} advances={advances} history={history} roleNames={roleNames} />
+        <PayRunConsole period={period} run={run} lines={lines} log={log} advances={advances} history={history} roleNames={roleNames} recent={recent} />
       </div>
     );
   }
