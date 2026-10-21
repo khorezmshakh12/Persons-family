@@ -68,9 +68,11 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       order by p.first_name, p.last_name`,
     db<{ staff_id: string; gross: number }[]>`
       select staff_id, gross_amount as gross from salary_months where period = ${period} ${onlyCol('staff_id')}`,
-    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null }[]>`
-      select id, staff_id, title, amount, kind, source, reversal_of, created_at from finance_entries
-      where period = ${period} ${onlyCol('staff_id')} order by created_at`,
+    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null; method: string | null; r_status: 'received' | 'disputed' | null; r_note: string | null }[]>`
+      select fe.id, fe.staff_id, fe.title, fe.amount, fe.kind, fe.source, fe.reversal_of, fe.created_at, fe.method,
+        r.status as r_status, r.note as r_note
+      from finance_entries fe left join pay_receipts r on r.entry_id = fe.id
+      where fe.period = ${period} ${onlyCol('fe.staff_id')} order by fe.created_at`,
     db<{ user_id: string; bonus_amount: number | null; ceo_score: number | null; id: string }[]>`
       select id, user_id, bonus_amount, ceo_score from self_development where month = ${period} ${onlyCol('user_id')}`,
     db<{ id: string; staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
@@ -119,7 +121,16 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
     for (const e of entries) {
       if (e.staff_id !== p.id) continue;
       if (e.kind === 'salary' || e.kind === 'advance') {
-        payments.push({ id: e.id, kind: e.kind, title: e.title, amount: e.amount, at: e.created_at, source: e.source });
+        payments.push({
+          id: e.id,
+          kind: e.kind,
+          title: e.title,
+          amount: e.amount,
+          at: e.created_at,
+          source: e.source,
+          method: e.method,
+          receipt: e.r_status ? { status: e.r_status, note: e.r_note ?? '' } : null,
+        });
         continue;
       }
       const kind =
@@ -239,4 +250,65 @@ export async function loadMyRecentEntries(userId: string): Promise<RecentEntry[]
     where e.created_by = ${userId} and e.source in ('manual', 'advance') and e.created_at > now() - interval '24 hours'
     order by e.created_at desc limit 8`;
   return rows.map((r) => ({ id: r.id, staffName: name(r.first_name, r.last_name), title: r.title, amount: r.amount, kind: r.kind, period: r.period, at: r.created_at }));
+}
+
+/** Out-of-pocket spending a staff member asked to get back. */
+export type Reimbursement = {
+  id: string;
+  staff_id: string;
+  staff_name: string;
+  amount: number;
+  title: string;
+  note: string;
+  spent_on: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  period: string | null;
+  decision_note: string;
+  created_at: string;
+};
+
+export async function loadReimbursements(staffId?: string): Promise<Reimbursement[]> {
+  const rows = await sql<(Omit<Reimbursement, 'staff_name'> & { first_name: string | null; last_name: string | null })[]>`
+    select r.id, r.staff_id, r.amount, r.title, r.note, to_char(r.spent_on, 'YYYY-MM-DD') as spent_on, r.status,
+      to_char(r.period, 'YYYY-MM-DD') as period, r.decision_note, r.created_at, p.first_name, p.last_name
+    from reimbursements r join profiles p on p.id = r.staff_id
+    where ${staffId ? sql`r.staff_id = ${staffId}` : sql`r.status = 'pending'`}
+    order by (r.status = 'pending') desc, r.created_at desc
+    limit 50`;
+  return rows.map(({ first_name, last_name, ...r }) => ({ ...r, staff_name: name(first_name, last_name) }));
+}
+
+/** A staff member's latest payments with their "Oldim" answer. */
+export type MyPayment = {
+  id: string;
+  title: string;
+  kind: 'salary' | 'advance';
+  amount: number;
+  period: string | null;
+  at: string;
+  method: string | null;
+  receipt: 'received' | 'disputed' | null;
+  receiptNote: string;
+};
+
+export async function loadMyPayments(staffId: string): Promise<MyPayment[]> {
+  const rows = await sql<{ id: string; title: string; kind: 'salary' | 'advance'; amount: number; period: string | null; created_at: string; method: string | null; status: 'received' | 'disputed' | null; note: string | null }[]>`
+    select fe.id, fe.title, fe.kind::text as kind, fe.amount, to_char(fe.period, 'YYYY-MM-DD') as period, fe.created_at,
+      a.name as method, r.status, r.note
+    from finance_entries fe
+      left join pay_receipts r on r.entry_id = fe.id
+      left join acct_accounts a on a.code = fe.method
+    where fe.staff_id = ${staffId} and fe.kind in ('salary', 'advance') and fe.amount > 0
+    order by fe.created_at desc limit 12`;
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    kind: r.kind,
+    amount: r.amount,
+    period: r.period,
+    at: r.created_at,
+    method: r.method,
+    receipt: r.status,
+    receiptNote: r.note ?? '',
+  }));
 }

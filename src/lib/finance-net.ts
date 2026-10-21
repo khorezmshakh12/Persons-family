@@ -42,8 +42,8 @@ export async function getNetEarningEntries(staffId: string): Promise<NetEarningE
     `,
     // `month` is the row's payroll month: its period, or — for the old
     // period-less rows — the Tashkent month it was written in.
-    sql<{ amount: number; kind: string; created_at: string | null; month: string }[]>`
-      select amount, kind, created_at,
+    sql<{ amount: number; kind: string; source: string; created_at: string | null; month: string }[]>`
+      select amount, kind, source, created_at,
         coalesce(period, date_trunc('month', created_at at time zone 'Asia/Tashkent')::date)::text as month
       from finance_entries where staff_id = ${staffId}
         -- A carry recovers last month's overpayment; it is not a cut in pay.
@@ -76,6 +76,10 @@ export async function getNetEarningEntries(staffId: string): Promise<NetEarningE
         // An advance is cash paid out, never earnings — drop it in every month
         // (a future-month advance into a salary-less month used to leak in here).
         if (row.kind === 'advance') return false;
+        // Advance instalments ('advance' source) only move when the cash is
+        // held back, and a reimbursement gives back money spent for the
+        // centre — neither is pay.
+        if (row.source === 'advance' || row.source === 'reimburse') return false;
         // A 'salary' payment counts only as a legacy base stand-in: a month
         // with no salary_months row. Otherwise base comes from `salaries`.
         if (row.kind === 'salary') return !planned.has(row.month.slice(0, 10));

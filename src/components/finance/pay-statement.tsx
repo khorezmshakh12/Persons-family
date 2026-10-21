@@ -19,7 +19,7 @@ const signed = (n: number) => `${n >= 0 ? '+' : '−'}${formatUZS(Math.abs(Math.
 
 const STATUS_CHIP: Record<PayRunStatus, { n: string; cls: string; Icon: typeof Clock3 }> = {
   draft: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
-  review: { n: 'Tekshirilmoqda', cls: CHIP_INFO, Icon: Clock3 },
+  review: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
   approved: { n: 'Tasdiqlangan', cls: CHIP_OK, Icon: Lock },
   paid: { n: 'To‘langan', cls: CHIP_OK, Icon: CheckCircle2 },
 };

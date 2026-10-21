@@ -85,7 +85,8 @@ test('payroll: taxes and postings keep 6710 consistent', () => {
   const posts = payrollPostings('2026-09', rows, DEFAULT_TAX);
   const sum = (dt: string, kt: string) => posts.filter((x) => x.debit === dt && x.credit === kt).reduce((a, x) => a + x.amount, 0);
   assert.equal(sum('9130', '6710') + sum('9420', '6710'), 8_000_000);
-  assert.equal(sum('6710', '5110'), 4_400_000);
+  // Payments are posted per payment from their cash box (pay-cash.ts), not here.
+  assert.equal(sum('6710', '5110'), 0);
   assert.ok(posts.every((x) => x.amount > 0 && x.source.startsWith('payroll:2026-09:')));
   assert.equal(new Set(posts.map((x) => x.source)).size, posts.length);
 });

@@ -14,12 +14,16 @@ import { formatUZS } from '@/lib/format-currency';
 import { startOfTashkentMonthKey } from '@/lib/time';
 import { askTypeSafe, typesafeEnabled } from '@/lib/typesafe';
 import { loadPayLines } from '@/lib/pay-run-data';
+import { isCashBox, syncPayCash } from '@/lib/pay-cash';
 import { blockers, canMove, isRelevant, monthLabel, PAY_RUN_STATUSES, shiftMonth, type PayLine, type PayRunStatus } from '@/lib/pay-run';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
 const period = z.string().regex(/^\d{4}-\d{2}-01$/);
 const isLocked = (e: unknown) => e instanceof Error && /period_locked/.test(e.message);
+/** The cash box a payment leaves from (acct_accounts.cash_box); optional. */
+const method = z.string().regex(/^\d{4}$/).optional();
+const badMethod = async (m?: string) => !!m && !(await isCashBox(m).catch(() => false));
 
 function done(): Result {
   revalidatePath('/[locale]/finance', 'page');
@@ -82,6 +86,7 @@ const moveSchema = z.object({
   period,
   to: z.enum(PAY_RUN_STATUSES),
   reason: z.string().trim().max(1000).optional().default(''),
+  method,
 });
 
 /**
@@ -98,6 +103,7 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
   if (!p.success) return { error: 'invalidInput' };
   const { to, reason } = p.data;
   const per = p.data.period;
+  if (await badMethod(p.data.method)) return { error: 'invalidInput' };
 
   let paidLines: { staffId: string; amount: number }[] = [];
   let carried = 0;
@@ -132,6 +138,7 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
                 kind: 'salary',
                 period: per,
                 source: 'payrun',
+                method: p.data.method ?? null,
               })),
             )}`;
         // Overpaid people (paid > payable) settle against next month.
@@ -158,6 +165,7 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
   }
 
   logSystemAction('payroll.move', `Pay run ${per} → ${to}${reason ? ` (${reason})` : ''}`);
+  if (paidLines.length) after(() => syncPayCash(per));
   if (to === 'paid' && paidLines.length)
     after(async () => {
       for (const l of paidLines) {
@@ -171,7 +179,7 @@ export async function movePayRunAction(input: z.input<typeof moveSchema>): Promi
   return { status: to, paidCount: paidLines.length, carried };
 }
 
-const outstandingSchema = z.object({ period });
+const outstandingSchema = z.object({ period, method });
 
 /**
  * A paid month that later took a correction is settled again: whatever is
@@ -185,6 +193,7 @@ export async function payOutstandingAction(input: z.input<typeof outstandingSche
   const p = outstandingSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
   const per = p.data.period;
+  if (await badMethod(p.data.method)) return { error: 'invalidInput' };
 
   let paidLines: { staffId: string; amount: number }[] = [];
   let carried = 0;
@@ -207,6 +216,7 @@ export async function payOutstandingAction(input: z.input<typeof outstandingSche
             kind: 'salary',
             period: per,
             source: 'payrun',
+            method: p.data.method ?? null,
           })),
         )}`;
       carried = await settleCarry(tx, per, lines, g.id);
@@ -221,6 +231,7 @@ export async function payOutstandingAction(input: z.input<typeof outstandingSche
     return { error: isLocked(error) ? 'periodLocked' : 'updateFailed' };
   }
 
+  if (paidLines.length) after(() => syncPayCash(per));
   logSystemAction('payroll.settle', `Pay run ${per}: paid outstanding to ${paidLines.length} staff, ${carried} overpayment(s) carried`);
   after(async () => {
     for (const l of paidLines)
@@ -371,6 +382,7 @@ const decideSchema = z.object({
   /** Which month the advance is held back from. Defaults to the current
    * Tashkent month; the CEO may pick a later month (e.g. next month). */
   targetPeriod: period.optional(),
+  method,
 });
 
 /** CEO: approve (pays it as an advance, held from the chosen month) or reject. */
@@ -387,6 +399,7 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
   const per = v.targetPeriod ?? current;
   // Can't predate: an advance is never held from a month already gone by.
   if (per < current) return { error: 'pastMonth' };
+  if (await badMethod(v.method)) return { error: 'invalidInput' };
   let req: { staff_id: string; amount: number } | null = null;
   try {
     const out = await sql.begin(async (tx) => {
@@ -410,8 +423,8 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
       let entryId: string | null = null;
       if (v.approve) {
         const [e] = await tx<{ id: string }[]>`
-          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source)
-          values (${r.staff_id}, ${`Avans · ${monthLabel(per)}`}, ${r.amount}, ${v.note || null}, ${g.id}, 'advance', ${per}, 'advance')
+          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source, method)
+          values (${r.staff_id}, ${`Avans · ${monthLabel(per)}`}, ${r.amount}, ${v.note || null}, ${g.id}, 'advance', ${per}, 'advance', ${v.method ?? null})
           returning id`;
         entryId = e.id;
       }
@@ -435,7 +448,167 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
           : `❌ <b>Avans rad etildi</b>\n<b>Sabab:</b> ${escapeTelegramText(v.note)}`,
       ).catch(() => {}),
     );
+  if (v.approve) after(() => syncPayCash(per));
   logSystemAction('payroll.advance', `Advance ${v.id} ${v.approve ? 'approved' : 'rejected'}`);
+  return done();
+}
+
+/* ------------------------------------------------------------ reimbursements */
+
+const reimburseSchema = z.object({
+  amount: z.number().finite().positive().max(1e11),
+  title: z.string().trim().min(3).max(120),
+  note: z.string().trim().max(1000).optional().default(''),
+  spentOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal('')),
+});
+
+/** Staff: "I paid for the centre out of pocket — give it back". */
+export async function requestReimbursementAction(input: z.input<typeof reimburseSchema>): Promise<Result> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  if (!canSeeFor(profile, 'finance')) return { error: 'forbidden' };
+  const p = reimburseSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    await sql`
+      insert into reimbursements (staff_id, amount, title, note, spent_on)
+      values (${user.id}, ${p.data.amount}, ${p.data.title}, ${p.data.note}, ${p.data.spentOn || null})`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  after(async () => {
+    const who = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
+    await notifyUsers(
+      'pay',
+      await financeManagerIds(),
+      `🧾 <b>Xarajatni qoplash so‘rovi</b>
+${escapeTelegramText(who)}: ${escapeTelegramText(formatUZS(p.data.amount))} so‘m
+<b>Nima uchun:</b> ${escapeTelegramText(p.data.title)}`,
+      { href: '/finance' },
+    ).catch(() => {});
+  });
+  return done();
+}
+
+/** Staff: take a pending reimbursement request back. */
+export async function cancelReimbursementAction(id: string): Promise<Result> {
+  const { user } = await getAuthState();
+  if (!user) return { error: 'sessionExpired' };
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`
+      update reimbursements set status = 'cancelled', decided_at = now()
+      where id = ${id} and staff_id = ${user.id} and status = 'pending'`;
+    if (res.count === 0) return { error: 'alreadyDecided' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}
+
+const decideReimburseSchema = z.object({
+  id: z.string().uuid(),
+  approve: z.boolean(),
+  note: z.string().trim().max(500).optional().default(''),
+  /** The payroll month it is paid with (must be open). */
+  targetPeriod: period.optional(),
+});
+
+/** CEO: approve (added to the chosen month's pay as 'reimburse' — not
+ * earnings, so B-nuqta does not move) or reject with a reason. */
+export async function decideReimbursementAction(input: z.input<typeof decideReimburseSchema>): Promise<Result> {
+  const g = await requireFinanceManager();
+  if ('error' in g) return g;
+  const p = decideReimburseSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  if (!v.approve && v.note.length < 3) return { error: 'reasonRequired' };
+  const per = v.targetPeriod ?? startOfTashkentMonthKey();
+  let req: { staff_id: string; amount: number; title: string } | null = null;
+  try {
+    const out = await sql.begin(async (tx) => {
+      const [r] = await tx<{ staff_id: string; amount: number; title: string }[]>`
+        select staff_id, amount, title from reimbursements where id = ${v.id} and status = 'pending' for update`;
+      if (!r) return 'alreadyDecided' as const;
+      req = r;
+      let entryId: string | null = null;
+      if (v.approve) {
+        const [e] = await tx<{ id: string }[]>`
+          insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source)
+          values (${r.staff_id}, ${`Xarajat qoplash: ${r.title}`.slice(0, 200)}, ${r.amount}, ${v.note || null}, ${g.id}, 'adjustment', ${per}, 'reimburse')
+          returning id`;
+        entryId = e.id;
+      }
+      await tx`
+        update reimbursements set status = ${v.approve ? 'approved' : 'rejected'}, decided_by = ${g.id}, decided_at = now(),
+          decision_note = ${v.note}, entry_id = ${entryId}, period = ${v.approve ? per : null}
+        where id = ${v.id}`;
+      await tx`
+        insert into pay_run_log (period, actor, action, detail)
+        values (${per}, ${g.id}, ${v.approve ? 'reimburse.approve' : 'reimburse.reject'}, ${tx.json({ staffId: r.staff_id, title: r.title, amount: r.amount })})`;
+      return null;
+    });
+    if (out) return { error: out };
+  } catch (error) {
+    return { error: isLocked(error) ? 'periodLocked' : 'updateFailed' };
+  }
+  const r = req as { staff_id: string; amount: number; title: string } | null;
+  if (r)
+    after(() =>
+      notifyStaff(
+        r.staff_id,
+        v.approve
+          ? `✅ <b>Xarajat qoplanadi</b>: ${escapeTelegramText(formatUZS(r.amount))} so‘m (${escapeTelegramText(monthLabel(per))} oyligi bilan).`
+          : `❌ <b>Xarajatni qoplash rad etildi</b>\n<b>Sabab:</b> ${escapeTelegramText(v.note)}`,
+      ).catch(() => {}),
+    );
+  logSystemAction('payroll.reimburse', `Reimbursement ${v.id} ${v.approve ? 'approved' : 'rejected'}`);
+  return done();
+}
+
+/* ------------------------------------------------------------ "Oldim" */
+
+const receiptSchema = z.object({
+  entryId: z.string().uuid(),
+  status: z.enum(['received', 'disputed']),
+  note: z.string().trim().max(500).optional().default(''),
+});
+
+/** Staff: confirm a payment reached them ("Oldim") or flag a problem. A
+ * problem pings the finance managers. */
+export async function confirmPaymentAction(input: z.input<typeof receiptSchema>): Promise<Result> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  const p = receiptSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  if (p.data.status === 'disputed' && p.data.note.length < 3) return { error: 'reasonRequired' };
+  let pay: { title: string; amount: number } | undefined;
+  try {
+    [pay] = await sql<{ title: string; amount: number }[]>`
+      select title, amount from finance_entries
+      where id = ${p.data.entryId} and staff_id = ${user.id} and kind in ('salary', 'advance')`;
+    if (!pay) return { error: 'notFound' };
+    await sql`
+      insert into pay_receipts (entry_id, staff_id, status, note)
+      values (${p.data.entryId}, ${user.id}, ${p.data.status}, ${p.data.note})
+      on conflict (entry_id) do update set status = excluded.status, note = excluded.note, at = now()`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  if (p.data.status === 'disputed') {
+    const t = pay;
+    after(async () => {
+      const who = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
+      await notifyUsers(
+        'pay',
+        await financeManagerIds(),
+        `⚠️ <b>To‘lov bo‘yicha muammo</b>
+${escapeTelegramText(who)} — ${escapeTelegramText(t.title)} (${escapeTelegramText(formatUZS(t.amount))} so‘m)
+${escapeTelegramText(p.data.note)}`,
+        { href: '/finance' },
+      ).catch(() => {});
+    });
+  }
   return done();
 }
 

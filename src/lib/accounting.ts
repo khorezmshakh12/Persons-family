@@ -309,7 +309,9 @@ export function payrollTaxes(rows: PayrollRow[], t: TaxSettings) {
 
 export type Posting = { debit: string; credit: string; amount: number; description: string; source: string };
 
-/** The journal rows a month's payroll produces. Zero lines are dropped. */
+/** The journal rows a month's payroll accrual produces. Zero lines are
+ * dropped. Payments are not here: each one is posted on its own, from the
+ * cash box it left (lib/pay-cash.ts syncPayCash). */
 export function payrollPostings(ym: string, rows: PayrollRow[], t: TaxSettings): Posting[] {
   const p = payrollTaxes(rows, t);
   const s = (k: string) => `payroll:${ym}:${k}`;
@@ -319,7 +321,6 @@ export function payrollPostings(ym: string, rows: PayrollRow[], t: TaxSettings):
     { debit: '6710', credit: '6410', amount: p.pit, description: `JShDS ${t.pit}% ushlab qolindi`, source: s('pit') },
     { debit: '9130', credit: '6520', amount: p.socialTeach, description: `Ijtimoiy soliq ${t.social}% — o'qituvchilar`, source: s('soc-teach') },
     { debit: '9420', credit: '6520', amount: p.socialAdmin, description: `Ijtimoiy soliq ${t.social}% — ma'muriyat`, source: s('soc-admin') },
-    { debit: '6710', credit: '5110', amount: p.paid, description: "Ish haqi to'landi (to'lovlar bo'yicha)", source: s('paid') },
   ].filter((x) => x.amount > 0);
 }
 
