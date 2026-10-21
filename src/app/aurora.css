@@ -64,6 +64,27 @@
   --au-shadow-btn: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
   --au-shadow-pop: 0 12px 30px -12px rgba(255, 159, 28, 0.9);
 
+  /* "Quiet Progress" — the old Task Tracker's dark palette, kept for the
+     checklist / goals statistics boards (owner, 2026-10-21). Same in every
+     theme: these boards are always dark. */
+  --qp-bg: #0e121b;
+  --qp-card: #131722;
+  --qp-card-2: #181e2c;
+  --qp-track: #232a3b;
+  --qp-line: rgba(255, 255, 255, 0.1);
+  --qp-ink: #ffffff;
+  --qp-muted: #8e98b0;
+  --qp-dim: #545f7a;
+  --qp-mint: #00f59b;
+  --qp-mint-ink: #06120d;
+  --qp-mint-soft: rgba(0, 245, 155, 0.14);
+  --qp-cyan: #00d4fe;
+  --qp-cyan-soft: rgba(0, 212, 254, 0.16);
+  --qp-yellow: #ffd13b;
+  --qp-yellow-soft: rgba(255, 209, 59, 0.14);
+  --qp-red: #ff4565;
+  --qp-red-soft: rgba(255, 69, 101, 0.12);
+
   /* Type */
   --au-font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --au-font-display: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
@@ -99,6 +120,23 @@
   --shadow-au-card-hover: var(--au-shadow-card-hover);
   --shadow-au-btn: var(--au-shadow-btn);
   --font-display: var(--au-font-display);
+  --color-qp-bg: var(--qp-bg);
+  --color-qp-card: var(--qp-card);
+  --color-qp-card-2: var(--qp-card-2);
+  --color-qp-track: var(--qp-track);
+  --color-qp-line: var(--qp-line);
+  --color-qp-ink: var(--qp-ink);
+  --color-qp-muted: var(--qp-muted);
+  --color-qp-dim: var(--qp-dim);
+  --color-qp-mint: var(--qp-mint);
+  --color-qp-mint-ink: var(--qp-mint-ink);
+  --color-qp-mint-soft: var(--qp-mint-soft);
+  --color-qp-cyan: var(--qp-cyan);
+  --color-qp-cyan-soft: var(--qp-cyan-soft);
+  --color-qp-yellow: var(--qp-yellow);
+  --color-qp-yellow-soft: var(--qp-yellow-soft);
+  --color-qp-red: var(--qp-red);
+  --color-qp-red-soft: var(--qp-red-soft);
 }
 
 @utility bg-au-hero {
@@ -127,4 +165,12 @@
 /* Thin, warm scrollbars to match the light surfaces */
 * {
   scrollbar-color: var(--au-line) transparent;
+}
+
+/* Quiet Progress: a non-working day cell (Sunday, or no lesson). */
+.qp-hatch {
+  background: repeating-linear-gradient(135deg, var(--qp-card) 0 4px, var(--qp-card-2) 4px 8px);
+}
+.qp-glow {
+  box-shadow: 0 0 12px rgba(0, 245, 155, 0.35);
 }

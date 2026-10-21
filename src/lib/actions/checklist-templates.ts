@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getAuthState } from '@/lib/auth/session';
 import { can } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
-import { tashkentDayKey, tashkentWeekKey, tashkentMonthKey } from '@/lib/time';
+import { addDaysToKey, tashkentDayKey, tashkentWeekKey, tashkentMonthKey } from '@/lib/time';
 
 // Rol bo'yicha checklist shablonlari. Xodim o'z rolining bandini davr bo'yicha
 // belgilaydi (toggle). CEO/COO shablonlarni boshqaradi (add/edit/delete/reorder)
@@ -19,17 +19,23 @@ function periodKey(c: Cadence): string {
   return c === 'daily' ? tashkentDayKey() : c === 'weekly' ? tashkentWeekKey() : tashkentMonthKey();
 }
 
-export async function toggleTemplateTickAction(templateId: string, cadence: Cadence, done: boolean): Promise<ChecklistResult> {
+/** `dayKey` (daily only): tick yesterday's box from the statistics board —
+ * today and yesterday only, so the record stays honest. */
+export async function toggleTemplateTickAction(templateId: string, cadence: Cadence, done: boolean, dayKey?: string): Promise<ChecklistResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
   if (!templateId || !CADENCES.includes(cadence)) return { error: 'badRequest' };
+  if (dayKey !== undefined) {
+    const today = tashkentDayKey();
+    if (cadence !== 'daily' || (dayKey !== today && dayKey !== addDaysToKey(today, -1))) return { error: 'badRequest' };
+  }
   try {
     // Faqat o'z rolining joriy cadence bandini belgilay oladi.
     const [tpl] = await sql<{ id: string }[]>`
       select id from checklist_templates
       where id = ${templateId} and role = ${profile.role} and cadence = ${cadence} and active`;
     if (!tpl) return { error: 'notFound' };
-    const key = periodKey(cadence);
+    const key = dayKey ?? periodKey(cadence);
     if (done) {
       await sql`insert into checklist_template_ticks (template_id, user_id, period_key)
         values (${templateId}, ${user.id}, ${key}) on conflict (template_id, user_id, period_key) do nothing`;
@@ -37,6 +43,7 @@ export async function toggleTemplateTickAction(templateId: string, cadence: Cade
       await sql`delete from checklist_template_ticks where template_id = ${templateId} and user_id = ${user.id} and period_key = ${key}`;
     }
     revalidatePath('/[locale]/task-tracker', 'page');
+    revalidatePath('/[locale]/dashboard', 'page');
     return { ok: true };
   } catch (e) {
     console.error('[checklist-templates] toggle failed', e);

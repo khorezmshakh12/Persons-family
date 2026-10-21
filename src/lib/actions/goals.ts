@@ -33,9 +33,10 @@ export async function toggleGoalAction(id: string, done: boolean): Promise<GoalR
   if (!user || !profile) return { error: 'auth' };
   if (!id) return { error: 'empty' };
   try {
-    const res = await sql`update goals set done = ${!!done} where id = ${id} and user_id = ${user.id}`;
+    const res = await sql`update goals set done = ${!!done}, done_at = case when ${!!done} then coalesce(done_at, now()) else null end where id = ${id} and user_id = ${user.id}`;
     if (res.count === 0) return { error: 'notFound' };
     revalidatePath('/[locale]/dashboard', 'page');
+    revalidatePath('/[locale]/task-tracker', 'page');
     return { ok: true };
   } catch (e) {
     console.error('[goals] toggle failed', e);

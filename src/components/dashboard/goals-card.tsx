@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { addGoalAction, deleteGoalAction, toggleGoalAction } from '@/lib/actions/goals';
 
 type Scope = 'day' | 'week' | 'month';
-export type Goal = { id: string; scope: Scope; title: string; done: boolean };
+/** `carried`: the earlier period key of an unfinished goal brought forward. */
+export type Goal = { id: string; scope: Scope; title: string; done: boolean; carried?: string | null };
 
 const TABS: { k: Scope; n: string }[] = [
   { k: 'day', n: 'Kunlik' },
@@ -73,7 +74,10 @@ export function GoalsCard({ periodKeys, goals: initial }: { periodKeys: Record<S
             >
               {g.done && <Check className="size-3.5" strokeWidth={3} />}
             </button>
-            <span className={cn('flex-1 text-sm', g.done ? 'text-au-faint line-through' : 'text-au-ink')}>{g.title}</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className={cn('text-sm', g.done ? 'text-au-faint line-through' : 'text-au-ink')}>{g.title}</span>
+              {g.carried && <span className="text-[11px] text-au-accent-text">↻ {g.carried} dan ko‘chdi</span>}
+            </span>
             <button type="button" onClick={() => del(g.id)} aria-label="O'chirish" className="shrink-0 rounded-md p-1 text-au-faint opacity-0 transition hover:text-au-bad group-hover:opacity-100 focus-visible:opacity-100">
               <X className="size-3.5" />
             </button>

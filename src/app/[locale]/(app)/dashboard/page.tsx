@@ -5,9 +5,9 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
 import { DashboardChecklist } from '@/components/checklist/dashboard-checklist';
-import { ChecklistStatsCompact } from '@/components/checklist/checklist-stats-compact';
+import { DashboardProgress } from '@/components/checklist/progress-board';
 import { loadChecklist } from '@/lib/checklist-data';
-import { loadChecklistStats } from '@/lib/checklist-stats';
+import { loadProgressBoard } from '@/lib/progress-board-data';
 import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
 import { GoalsCard } from '@/components/dashboard/goals-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
@@ -275,12 +275,15 @@ async function GoalsSection({ userId }: { userId: string }) {
   const d = new Date(`${dayK}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); // dushanba
   const weekK = d.toISOString().slice(0, 10);
-  const rows = await sql<{ id: string; scope: 'day' | 'week' | 'month'; title: string; done: boolean }[]>`
-    select id, scope, title, done from goals
+  // An unfinished goal never disappears: it carries over until it is done.
+  const rows = await sql<{ id: string; scope: 'day' | 'week' | 'month'; title: string; done: boolean; carried: string | null }[]>`
+    select id, scope, title, done,
+      case when period_key <> case scope when 'day' then ${dayK} when 'week' then ${weekK} else ${monthK} end then period_key end as carried
+    from goals
     where user_id = ${userId} and (
-      (scope = 'day' and period_key = ${dayK}) or
-      (scope = 'week' and period_key = ${weekK}) or
-      (scope = 'month' and period_key = ${monthK}))
+      (scope = 'day' and (period_key = ${dayK} or (not done and period_key < ${dayK}))) or
+      (scope = 'week' and (period_key = ${weekK} or (not done and period_key < ${weekK}))) or
+      (scope = 'month' and (period_key = ${monthK} or (not done and period_key < ${monthK}))))
     order by created_at
   `.catch(() => []);
   return <GoalsCard periodKeys={{ day: dayK, week: weekK, month: monthK }} goals={rows} />;
@@ -308,11 +311,11 @@ async function RoleChecklistSection({ userId, role }: { userId: string; role: st
   );
 }
 
-// Checklist statistikasi (eski Task Tracker uslubida): bugungi ring, streak,
-// 7-kunlik mini grafik. To'liq statistika /task-tracker bo'limida.
-async function ChecklistStatsSection({ userId, role }: { userId: string; role: string }) {
-  const stats = await loadChecklistStats(userId, role);
-  return <ChecklistStatsCompact stats={stats} href="/task-tracker" />;
+// Checklist + maqsadlar statistikasi (eski Task Tracker uslubida) — dashboard
+// oxirida, to'liq kenglikda. To'liq jadval /task-tracker bo'limida.
+async function ProgressSection({ userId, role }: { userId: string; role: string }) {
+  const data = await loadProgressBoard(userId, role);
+  return <DashboardProgress data={data} />;
 }
 
 async function BpointReminderSection({ userId }: { userId: string }) {
@@ -418,9 +421,6 @@ export default async function DashboardPage() {
             <RoleChecklistSection userId={user!.id} role={viewer.role} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
-            <ChecklistStatsSection userId={user!.id} role={viewer.role} />
-          </Reveal>
-          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
             <GoalsSection userId={user!.id} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
@@ -439,6 +439,11 @@ export default async function DashboardPage() {
           everyone else their own scores. */}
       <Reveal fallback={<GlassCardSkeleton />}>
         {isCeo ? <TeacherProgressChartSection delayMs={0} /> : <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />}
+      </Reveal>
+
+      {/* Checklist va maqsadlar statistikasi — eng pastda (owner, 2026-10-21). */}
+      <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
+        <ProgressSection userId={user!.id} role={viewer.role} />
       </Reveal>
     </div>
   );
