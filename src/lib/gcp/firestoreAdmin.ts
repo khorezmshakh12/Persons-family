@@ -131,7 +131,7 @@ export async function syncGroupChatMembers(
   // CEO's uid has to be in `members` or their onSnapshot listener is
   // denied and the "monitor" view shows only the server-rendered backlog,
   // never live messages.
-  const ceoRows = await sql<{ id: string }[]>`select id from profiles where role = 'ceo' and is_active = true`;
+  const ceoRows = await sql<{ id: string }[]>`select id from profiles where (role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo')) and is_active = true`;
   const members = [...new Set([teacherId, assignedTaId, ...ceoRows.map((r) => r.id)].filter((id): id is string => Boolean(id)))];
   await db().doc(`group_chat_meta/${groupId}`).set({ members }, { merge: false });
 }

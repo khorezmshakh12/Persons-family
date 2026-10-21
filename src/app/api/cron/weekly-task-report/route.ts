@@ -156,7 +156,7 @@ async function handle(req: NextRequest): Promise<Response> {
   // account yet; sendTelegramMessageToMany drops those silently and catches
   // each send individually.
   const ceoProfiles = await sql<{ telegram_id: string | number | null }[]>`
-    select telegram_id from profiles where role = 'ceo'
+    select telegram_id from profiles where role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo')
   `;
   const ceoChatIds = ceoProfiles.map((c) => c.telegram_id);
 
