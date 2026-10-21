@@ -14,14 +14,6 @@ import { startOfTashkentMonthKey } from './time';
 export const PAY_RUN_STATUSES = ['draft', 'review', 'approved', 'paid'] as const;
 export type PayRunStatus = (typeof PAY_RUN_STATUSES)[number];
 
-export const PAY_RUN_STEP: Record<PayRunStatus, { n: string; hint: string }> = {
-  draft: { n: 'Ochiq', hint: 'Maosh, KPI, bonus va ushlanmalar kiritilmoqda' },
-  // Kept for old rows: Finance v2 (2026-10-21) shows it as "Ochiq" too.
-  review: { n: 'Ochiq', hint: 'Maosh, KPI, bonus va ushlanmalar kiritilmoqda' },
-  approved: { n: 'Tasdiqlangan', hint: 'Oy qulflangan — «Oyni ochish» bilan tahrirlanadi' },
-  paid: { n: 'To‘langan', hint: 'To‘lovlar qayd etilgan' },
-};
-
 export type ComponentKind = 'base' | 'kpi' | 'selfdev' | 'perf' | 'mission' | 'adjustment' | 'penalty' | 'correction' | 'carry';
 
 export const COMPONENT_LABEL: Record<ComponentKind, string> = {
@@ -32,7 +24,7 @@ export const COMPONENT_LABEL: Record<ComponentKind, string> = {
   mission: 'Missiya bonusi',
   adjustment: 'Qo‘lda tuzatish',
   penalty: 'Jarima',
-  correction: 'Tuzatish yozuvi (qulflangan oy)',
+  correction: 'Tuzatish yozuvi',
   carry: 'O‘tgan oy ortiqcha to‘lovi',
 };
 
@@ -71,11 +63,6 @@ export type Payment = {
 /** Ledger rows a person may edit or delete while the month is open; the
  * rest belong to a workflow (KPI grade, correction, carry) and change there. */
 export const EDITABLE_SOURCES: ReadonlySet<string> = new Set(['manual', 'advance', 'payrun', 'reimburse']);
-
-/** The three states the owner works with (Finance v2): draft and review are
- * both just "open". */
-export type PayStage = 'open' | 'approved' | 'paid';
-export const payStage = (s: PayRunStatus): PayStage => (s === 'approved' || s === 'paid' ? s : 'open');
 
 export type PayFlag = 'noBase' | 'kpiPending' | 'selfDevPending' | 'variance' | 'overpaid' | 'negative' | 'advancePending';
 
@@ -190,19 +177,16 @@ export function isRelevant(l: PayLine): boolean {
   return l.base > 0 || l.components.length > 0 || l.payments.length > 0;
 }
 
-export function blockers(lines: PayLine[]): PayLine[] {
-  return lines.filter((l) => isRelevant(l) && l.flags.some((f) => FLAG_META[f].blocking));
+/** A person's month in one word, from their line alone (no month lock
+ * since 2026-10-21 — the run itself has no state worth showing). */
+export function payState(l: Pick<PayLine, 'remaining' | 'paid'>): string {
+  if (l.remaining < 0) return 'Ortiqcha to‘langan';
+  if (l.remaining === 0) return 'To‘langan';
+  return l.paid > 0 ? 'Qisman to‘langan' : 'To‘lanmagan';
 }
 
-/** Allowed moves of the run (Finance v2): open → approved → paid, and
- * "Oyni ochish" takes an approved or paid month straight back to open.
- * Payments already made stay; the next "paid" pays only what is still owed. */
-export function canMove(from: PayRunStatus, to: PayRunStatus): boolean {
-  if (to === 'approved') return from === 'draft' || from === 'review';
-  if (to === 'paid') return from === 'approved';
-  if (to === 'draft') return from !== 'draft';
-  if (to === 'review') return from === 'draft';
-  return false;
+export function blockers(lines: PayLine[]): PayLine[] {
+  return lines.filter((l) => isRelevant(l) && l.flags.some((f) => FLAG_META[f].blocking));
 }
 
 export type SnapshotLine = { staffId: string; payable: number; carry?: number };

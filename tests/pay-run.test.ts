@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blockers, canMove, computeLine, drift, effectivePeriod, shiftMonth, totals, type PayInput } from '../src/lib/pay-run';
+import { blockers, computeLine, drift, effectivePeriod, shiftMonth, totals, type PayInput, payState } from '../src/lib/pay-run';
 
 const input = (over: Partial<PayInput> = {}): PayInput => ({
   staffId: 's1',
@@ -59,16 +59,11 @@ test('only negative pay blocks approval', () => {
   assert.deepEqual(blockers([ok, bad]).map((l) => l.staffId), ['s2']);
 });
 
-test('run: open → approved → paid, and "Oyni ochish" straight back to open', () => {
-  assert.equal(canMove('draft', 'approved'), true);
-  assert.equal(canMove('review', 'approved'), true);
-  assert.equal(canMove('approved', 'paid'), true);
-  assert.equal(canMove('draft', 'paid'), false);
-  assert.equal(canMove('review', 'paid'), false);
-  assert.equal(canMove('approved', 'draft'), true);
-  assert.equal(canMove('paid', 'draft'), true);
-  assert.equal(canMove('paid', 'approved'), false);
-  assert.equal(canMove('draft', 'draft'), false);
+test('payState: one word from the line alone (no month lock)', () => {
+  assert.equal(payState({ remaining: 100, paid: 0 }), 'To‘lanmagan');
+  assert.equal(payState({ remaining: 100, paid: 50 }), 'Qisman to‘langan');
+  assert.equal(payState({ remaining: 0, paid: 150 }), 'To‘langan');
+  assert.equal(payState({ remaining: -20, paid: 170 }), 'Ortiqcha to‘langan');
 });
 
 test('totals, drift and month shifting', () => {
