@@ -55,11 +55,22 @@ export type PayComponent = {
   reversed?: boolean;
 };
 
-export type Payment = { id: string; kind: 'salary' | 'advance'; title: string; amount: number; at: string | null; source?: string };
+export type Payment = {
+  id: string;
+  kind: 'salary' | 'advance';
+  title: string;
+  amount: number;
+  at: string | null;
+  source?: string;
+  /** Cash box code it left from (null: before methods existed). */
+  method?: string | null;
+  /** The staff member's answer: "Oldim" or a flagged problem. */
+  receipt?: { status: 'received' | 'disputed'; note: string } | null;
+};
 
 /** Ledger rows a person may edit or delete while the month is open; the
  * rest belong to a workflow (KPI grade, correction, carry) and change there. */
-export const EDITABLE_SOURCES: ReadonlySet<string> = new Set(['manual', 'advance', 'payrun']);
+export const EDITABLE_SOURCES: ReadonlySet<string> = new Set(['manual', 'advance', 'payrun', 'reimburse']);
 
 /** The three states the owner works with (Finance v2): draft and review are
  * both just "open". */

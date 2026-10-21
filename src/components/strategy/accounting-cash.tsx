@@ -1,15 +1,19 @@
 'use client';
 
-import { CASH_ACC, CASH_CATS, METHOD, templateDoc } from '@/lib/accounting-cash';
+import { isCashCode, PAY_CAT_NAME, PAY_SOURCE, templateDoc, type CashCat } from '@/lib/accounting-cash';
 import type { Books } from '@/lib/accounting-data';
 import { useRef, useState } from 'react';
-import { Download, Paperclip, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
+import { Banknote, Check, CreditCard, Download, EyeOff, Paperclip, Pencil, Plus, Repeat, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { cashWeeks, fmtMln, fmtNum, monthEnd, monthStart } from '@/lib/accounting';
 import { CASH_BUCKETS, cashForecast } from '@/lib/accounting-ma';
 import {
+  addCashBoxAction,
   addJournalEntryAction,
   applyCashTemplatesAction,
+  deleteCashCatAction,
+  renameCashBoxAction,
+  saveCashCatAction,
   deleteCashTemplateAction,
   deleteJournalEntryAction,
   getReceiptUrlAction,
@@ -102,10 +106,12 @@ export function MaCash({ books, today, ym }: { books: Books; today: string; ym: 
 function CashBook({ books, today, ym }: { books: Books; today: string; ym: string }) {
   const { run, pending } = useRun();
   const has = (c: string) => books.accounts.some((a) => a.code === c);
-  const cats = CASH_CATS.filter((c) => has(c.acc));
-  const methods = CASH_ACC.filter(has);
+  // Hidden categories still name old rows; only active ones are offered.
+  const allCats = books.cats.filter((c) => has(c.acc));
+  const cats = allCats.filter((c) => c.active);
+  const methods = books.boxes.map((b) => b.code);
   const defDate = today.slice(0, 7) === ym ? today : monthStart(ym);
-  const blank = { dir: 'in' as 'in' | 'out', cat: cats.find((c) => c.dir === 'in')?.k ?? '', method: (methods[0] ?? '5010') as string, date: defDate, amount: null as number | null, note: '' };
+  const blank = { dir: 'in' as 'in' | 'out', cat: cats.find((c) => c.dir === 'in')?.k ?? '', method: methods[0] ?? '5010', date: defDate, amount: null as number | null, note: '' };
   const [f, setF] = useState(blank);
   const [editId, setEditId] = useState<string | null>(null);
   // An edited entry keeps its doc tag (TPL:<id> marks a template entry).
@@ -117,14 +123,17 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
   }
   const [q, setQ] = useState('');
   const [dirF, setDirF] = useState<'all' | 'in' | 'out'>('all');
-  const isCash = (c: string) => (CASH_ACC as readonly string[]).includes(c);
-  const catOf = (e: Books['entries'][number]) => {
+  const isCash = isCashCode;
+  const catOf = (e: Books['entries'][number]): CashCat | undefined => {
+    // Salary / advance paid from Ish haqi — one category, whatever the role.
+    if (e.source?.startsWith(PAY_SOURCE)) return { k: 'pay', n: PAY_CAT_NAME, dir: 'out', acc: e.debit };
     const dir = isCash(e.debit) ? 'in' : 'out';
     const other = dir === 'in' ? e.credit : e.debit;
-    const list = CASH_CATS.filter((c) => c.dir === dir && c.acc === other);
+    const list = allCats.filter((c) => c.dir === dir && c.acc === other);
     return list.find((c) => e.description.startsWith(c.n)) ?? list[0];
   };
   const accName = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? '—';
+  const boxName = (c: string) => books.boxes.find((b) => b.code === c)?.name ?? accName(c);
   const rows = books.entries
     .filter((e) => e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym))
     .filter((e) => isCash(e.debit) !== isCash(e.credit))
@@ -138,9 +147,10 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
     .sort((a, b) => b.e.entry_date.localeCompare(a.e.entry_date));
   const tin = rows.filter((r) => r.dir === 'in').reduce((a, r) => a + r.e.amount, 0);
   const tout = rows.filter((r) => r.dir === 'out').reduce((a, r) => a + r.e.amount, 0);
-  const curCats = cats.filter((c) => c.dir === f.dir);
+  // An edited row keeps its (possibly hidden) category selectable.
+  const curCats = allCats.filter((c) => c.dir === f.dir && (c.active || c.k === f.cat));
   const submit = () => {
-    const cat = cats.find((c) => c.k === f.cat);
+    const cat = allCats.find((c) => c.k === f.cat);
     if (!cat || !f.amount || f.amount <= 0) return toast.error('Toifa va summani kiriting');
     const description = f.note.trim() ? `${cat.n} — ${f.note.trim()}` : cat.n;
     const [debit, credit] = cat.dir === 'in' ? [f.method, cat.acc] : [cat.acc, f.method];
@@ -163,6 +173,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
   };
   return (
     <>
+      <CashBoxes books={books} />
       <div className="sx-card s12">
         <div className="sx-h">
           <h3>{editId ? 'Yozuvni tahrirlash' : 'Kirim / chiqim qo‘shish'}</h3>
@@ -209,7 +220,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
             <select className="sx-inp !w-[150px]" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}>
               {methods.map((m) => (
                 <option key={m} value={m}>
-                  {METHOD[m]}
+                  {boxName(m)}
                 </option>
               ))}
             </select>
@@ -248,7 +259,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
               onClick={() => {
                 if (!f.cat || !f.amount || f.amount <= 0) return toast.error('Toifa va summani kiriting');
                 run(
-                  () => saveCashTemplateAction({ cat: f.cat, method: f.method as (typeof CASH_ACC)[number], amount: f.amount ?? 0, note: f.note, day: Math.min(28, +f.date.slice(8, 10) || 1) }),
+                  () => saveCashTemplateAction({ cat: f.cat, method: f.method, amount: f.amount ?? 0, note: f.note, day: Math.min(28, +f.date.slice(8, 10) || 1) }),
                   'Shablon saqlandi — «Har oy takrorlanadigan» ro‘yxatida',
                 );
               }}
@@ -259,6 +270,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
         </div>
       </div>
       <Templates books={books} ym={ym} />
+      <CashCategories books={books} />
       <div className="sx-card s12">
         <div className="sx-h">
           <h3>Kirim-chiqim daftari</h3>
@@ -289,7 +301,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
                   r.e.entry_date,
                   r.label,
                   r.e.description,
-                  METHOD[r.method as keyof typeof METHOD] ?? '',
+                  boxName(r.method),
                   r.dir === 'in' ? r.e.amount : '',
                   r.dir === 'out' ? r.e.amount : '',
                   r.e.receipt_path ? 'bor' : '',
@@ -329,13 +341,16 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
                     <b>{r.label}</b>
                   </td>
                   <td className="l text-au-muted">{r.cat && r.e.description.startsWith(r.cat.n) ? r.e.description.slice(r.cat.n.length).replace(/^ — /, '') : r.e.description}</td>
-                  <td className="l text-au-muted">{METHOD[r.method as keyof typeof METHOD] ?? '—'}</td>
+                  <td className="l text-au-muted">{boxName(r.method)}</td>
                   <td className="text-au-ok">{r.dir === 'in' ? fmtNum(r.e.amount) : ''}</td>
                   <td className="text-au-bad">{r.dir === 'out' ? fmtNum(r.e.amount) : ''}</td>
                   <td>{r.e.source ? null : <ReceiptCell entryId={r.e.id} has={!!r.e.receipt_path} warn={r.dir === 'out'} />}</td>
                   <td>
                     {r.e.source ? (
-                      <span className="sx-pl info" title="Ish haqi / soliq / eskirish bo‘limidan avtomatik">
+                      <span
+                        className="sx-pl info"
+                        title={r.e.source.startsWith(PAY_SOURCE) ? 'Moliya › Ish haqi bo‘limidan avtomatik — o‘sha yerda tahrirlanadi' : 'Ish haqi / soliq / eskirish bo‘limidan avtomatik'}
+                      >
                         AUTO
                       </span>
                     ) : (
@@ -528,8 +543,9 @@ function Templates({ books, ym }: { books: Books; ym: string }) {
   const inMonth = (id: string) => books.entries.some((e) => e.doc === templateDoc(id) && e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym));
   const active = books.templates.filter((t) => t.active && t.from <= ym);
   const missing = active.filter((t) => !inMonth(t.id));
-  const catName = (k: string) => CASH_CATS.find((c) => c.k === k)?.n ?? k;
-  const dirOf = (k: string) => CASH_CATS.find((c) => c.k === k)?.dir ?? 'out';
+  const catName = (k: string) => books.cats.find((c) => c.k === k)?.n ?? k;
+  const dirOf = (k: string) => books.cats.find((c) => c.k === k)?.dir ?? 'out';
+  const boxName = (c: string) => books.boxes.find((b) => b.code === c)?.name ?? '—';
   return (
     <div className="sx-card s12">
       <div className="sx-h">
@@ -573,7 +589,7 @@ function Templates({ books, ym }: { books: Books; ym: string }) {
                   <b>{catName(t.cat)}</b>
                 </td>
                 <td className="l text-au-muted">{t.note || '—'}</td>
-                <td className="l text-au-muted">{METHOD[t.method as keyof typeof METHOD] ?? '—'}</td>
+                <td className="l text-au-muted">{boxName(t.method)}</td>
                 <td className={dirOf(t.cat) === 'in' ? 'text-au-ok' : 'text-au-bad'}>{fmtNum(t.amount)}</td>
                 <td className="l">
                   {!t.active ? <span className="sx-pl">to‘xtatilgan</span> : inMonth(t.id) ? <span className="sx-pl ok">yozilgan</span> : <span className="sx-pl warn">kutilmoqda</span>}
@@ -589,7 +605,7 @@ function Templates({ books, ym }: { books: Books; ym: string }) {
                             saveCashTemplateAction({
                               id: t.id,
                               cat: t.cat,
-                              method: t.method as (typeof CASH_ACC)[number],
+                              method: t.method,
                               amount: t.amount,
                               note: t.note,
                               day: t.day,
@@ -616,6 +632,231 @@ function Templates({ books, ym }: { books: Books; ym: string }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Kassalar: every kassa / bank / karta with what is in it right now. Add a
+ * new one (Click, Humo karta, filial kassasi…) or rename one in place. */
+function CashBoxes({ books }: { books: Books }) {
+  const { run, pending } = useRun();
+  const [adding, setAdding] = useState<{ name: string; kind: 'cash' | 'bank' } | null>(null);
+  const [rename, setRename] = useState<{ code: string; name: string } | null>(null);
+  const balance = (code: string) =>
+    books.entries.reduce((t, e) => t + (e.debit === code ? e.amount : 0) - (e.credit === code ? e.amount : 0), books.opening[code] ?? 0);
+  const total = books.boxes.reduce((t, b) => t + balance(b.code), 0);
+  const saveName = (r: { code: string; name: string }) => run(() => renameCashBoxAction(r), 'Nomi o‘zgardi', () => setRename(null));
+  return (
+    <div className="sx-card s12">
+      <div className="sx-h">
+        <h3>Kassalar</h3>
+        <small>
+          jami <b>{fmtNum(total)}</b> so‘m · ish haqi to‘lovlari ham shu yerdan avtomatik ayiriladi
+        </small>
+        <span className="sp" />
+        {!adding && (
+          <button className="sx-btn sm" onClick={() => setAdding({ name: '', kind: 'bank' })}>
+            <Plus className="size-3.5" /> Kassa qo‘shish
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {books.boxes.map((b) => {
+          const v = balance(b.code);
+          const Icon = b.kind === 'cash' ? Banknote : CreditCard;
+          return (
+            <div key={b.code} className="flex flex-col gap-1.5 rounded-[20px] border border-au-line bg-au-card-2 p-4">
+              {rename?.code === b.code ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    className="sx-inp !h-[32px] min-w-0 flex-1"
+                    maxLength={60}
+                    value={rename.name}
+                    onChange={(e) => setRename({ ...rename, name: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && rename.name.trim().length >= 2 && saveName(rename)}
+                  />
+                  <button className="sx-btn sm" aria-label="Saqlash" disabled={pending || rename.name.trim().length < 2} onClick={() => saveName(rename)}>
+                    <Check className="size-3.5" />
+                  </button>
+                  <button className="sx-btn sm" aria-label="Bekor" onClick={() => setRename(null)}>
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-au-ink">
+                    <Icon className="size-4 shrink-0 text-au-muted" />
+                    <span className="truncate">{b.name}</span>
+                  </span>
+                  <button className="sx-btn sm" aria-label="Nomini o‘zgartirish" onClick={() => setRename({ code: b.code, name: b.name })}>
+                    <Pencil className="size-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className={cn('text-xl font-extrabold tabular-nums', v < 0 ? 'text-au-bad' : 'text-au-ink')}>
+                {fmtNum(v)} <span className="text-xs font-semibold text-au-muted">so‘m</span>
+              </div>
+              <div className="text-[11px] text-au-muted">{b.kind === 'cash' ? 'Naqd' : 'Bank / karta'}</div>
+            </div>
+          );
+        })}
+        {adding && (
+          <div className="flex flex-col gap-2 rounded-[20px] border border-dashed border-au-line p-4">
+            <input
+              autoFocus
+              className="sx-inp"
+              maxLength={60}
+              placeholder="Nomi: masalan, Click yoki Filial kassasi"
+              value={adding.name}
+              onChange={(e) => setAdding({ ...adding, name: e.target.value })}
+            />
+            <div className="inline-flex w-fit rounded-xl border border-au-line bg-au-card-2 p-1">
+              {(
+                [
+                  ['cash', 'Naqd'],
+                  ['bank', 'Karta / bank'],
+                ] as const
+              ).map(([k, n]) => (
+                <button key={k} className={cn('sx-chipb !border-0', adding.kind === k && 'on')} onClick={() => setAdding({ ...adding, kind: k })}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                className="sx-btn primary sm"
+                disabled={pending || adding.name.trim().length < 2}
+                onClick={() => run(() => addCashBoxAction(adding), 'Kassa qo‘shildi', () => setAdding(null))}
+              >
+                Qo‘shish
+              </button>
+              <button className="sx-btn sm" onClick={() => setAdding(null)}>
+                Bekor
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type CatDraft = { k?: string; n: string; dir: 'in' | 'out'; acc: string };
+
+/** Kategoriyalar: the cash book's own list — add, rename, re-point to an
+ * account, hide. Hidden ones keep naming the rows already written. */
+function CashCategories({ books }: { books: Books }) {
+  const { run, pending } = useRun();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<CatDraft | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
+  const accounts = books.accounts.filter((a) => !isCashCode(a.code) && a.type !== 'CA');
+  const accName = (c: string) => books.accounts.find((a) => a.code === c)?.name ?? c;
+  const save = (d: CatDraft) =>
+    run(() => saveCashCatAction({ ...d, n: d.n.trim(), active: true }), d.k ? 'Kategoriya saqlandi' : 'Kategoriya qo‘shildi', () => setDraft(null));
+  const hidden = books.cats.filter((c) => !c.active).length;
+
+  const editor = (d: CatDraft) => (
+    <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-au-accent-soft p-2">
+      <input
+        autoFocus
+        className="sx-inp !h-[32px] min-w-[180px] flex-1"
+        maxLength={80}
+        placeholder="Kategoriya nomi"
+        value={d.n}
+        onChange={(e) => setDraft({ ...d, n: e.target.value })}
+      />
+      <select className="sx-inp !h-[32px] !w-auto" value={d.acc} onChange={(e) => setDraft({ ...d, acc: e.target.value })} aria-label="Qaysi hisobga tushadi">
+        {accounts.map((a) => (
+          <option key={a.code} value={a.code}>
+            {a.name}
+          </option>
+        ))}
+      </select>
+      <button className="sx-btn primary sm" disabled={pending || !d.n.trim() || !d.acc} onClick={() => save(d)}>
+        Saqlash
+      </button>
+      <button className="sx-btn sm" onClick={() => setDraft(null)}>
+        Bekor
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="sx-card s12">
+      <div className="sx-h">
+        <h3>Kategoriyalar</h3>
+        <small>
+          {books.cats.length - hidden} ta faol{hidden ? ` · ${hidden} ta yashirilgan` : ''}
+        </small>
+        <span className="sp" />
+        <button className="sx-btn sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {open ? 'Yopish' : 'Boshqarish'}
+        </button>
+      </div>
+      {open && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {(['in', 'out'] as const).map((dir) => {
+            const list = books.cats.filter((c) => c.dir === dir && (showHidden || c.active));
+            const defAcc = accounts.find((a) => a.type === (dir === 'in' ? 'R' : 'X'))?.code ?? '';
+            return (
+              <div key={dir} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <b className={dir === 'in' ? 'text-au-ok' : 'text-au-bad'}>{dir === 'in' ? '↓ Kirim' : '↑ Chiqim'}</b>
+                  {!draft && (
+                    <button className="sx-btn sm" onClick={() => setDraft({ n: '', dir, acc: defAcc })}>
+                      <Plus className="size-3.5" /> Qo‘shish
+                    </button>
+                  )}
+                </div>
+                {draft && !draft.k && draft.dir === dir && editor(draft)}
+                <ul className="flex flex-col divide-y divide-au-line">
+                  {list.map((c) =>
+                    draft?.k === c.k ? (
+                      <li key={c.k} className="py-1.5">
+                        {editor(draft)}
+                      </li>
+                    ) : (
+                      <li key={c.k} className={cn('flex items-center gap-2 py-2', !c.active && 'opacity-50')}>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-au-ink">{c.n}</span>
+                          <span className="block truncate text-[11px] text-au-muted">{accName(c.acc)}</span>
+                        </span>
+                        {c.active ? (
+                          <>
+                            <button className="sx-btn sm" aria-label="Tahrirlash" onClick={() => setDraft({ k: c.k, n: c.n, dir: c.dir, acc: c.acc })}>
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              className="sx-btn sm"
+                              aria-label="Yashirish"
+                              title="Formadan olib tashlash (eski yozuvlarda nomi qoladi)"
+                              disabled={pending}
+                              onClick={() => run(() => deleteCashCatAction(c.k), 'Yashirildi')}
+                            >
+                              <EyeOff className="size-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <button className="sx-btn sm" disabled={pending} onClick={() => save(c)}>
+                            Qaytarish
+                          </button>
+                        )}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            );
+          })}
+          {hidden > 0 && (
+            <button className="sx-btn sm w-fit" onClick={() => setShowHidden((v) => !v)}>
+              {showHidden ? 'Yashirilganlarni berkitish' : `Yashirilganlarni ko‘rsatish (${hidden})`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

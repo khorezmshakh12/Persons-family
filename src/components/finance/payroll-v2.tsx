@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   FileDown,
+  Copy,
+  Receipt,
+  Wallet,
   History,
   Lock,
   LockOpen,
@@ -28,13 +31,25 @@ import { formatUZS } from '@/lib/format-currency';
 import { ExportButtons } from '@/components/export/export-buttons';
 import {
   decideAdvanceAction,
+  decideReimbursementAction,
   movePayRunAction,
   payOutstandingAction,
   reviewPayRunWithJevAction,
   savePayRunNoteAction,
   type JevPayVerdict,
 } from '@/lib/actions/pay-run';
-import { addFinanceEntryAction, deleteFinanceEntryAction, setSalaryMonthAction, updateFinanceEntryAction } from '@/lib/actions/finance';
+import {
+  addAdvanceInstallmentsAction,
+  addFinanceEntryAction,
+  bulkAddEntriesAction,
+  copyBasesFromPrevAction,
+  deleteFinanceEntryAction,
+  getAttendanceProrationAction,
+  setSalaryFromAction,
+  setSalaryMonthAction,
+  updateFinanceEntryAction,
+  type AttendanceProration,
+} from '@/lib/actions/finance';
 import { postPayrollAction } from '@/lib/actions/accounting';
 import { getBpointSnapshotAction, type BpointSnapshot } from '@/lib/actions/bpoint';
 import {
@@ -54,7 +69,8 @@ import {
   type PayRunStatus,
   type PayStage,
 } from '@/lib/pay-run';
-import type { AdvanceRequest, MonthPoint, PayRun, PayRunLogEntry, RecentEntry } from '@/lib/pay-run-data';
+import type { AdvanceRequest, MonthPoint, PayRun, PayRunLogEntry, RecentEntry, Reimbursement } from '@/lib/pay-run-data';
+import type { CashBox } from '@/lib/pay-cash';
 import { downloadPayslips } from './payslip';
 import { MonthBars } from './month-bars';
 
@@ -90,6 +106,7 @@ const ERR: Record<string, string> = {
   nothingOwed: 'Hal qilinadigan qoldiq yo‘q',
   systemEntry: 'Bu yozuvni tizim yaratgan — uni o‘z bo‘limida o‘zgartiring',
   alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
+  reasonRequired: 'Sababini yozing',
   aiDisabled: 'Jev ulanmagan',
   aiFailed: 'Jev javob bermadi — keyinroq urinib ko‘ring',
   forbidden: 'Ruxsat yo‘q',
@@ -115,6 +132,8 @@ const ADD_KINDS = {
 type AddKind = keyof typeof ADD_KINDS;
 
 type Filter = 'all' | 'owed' | 'done' | 'over' | 'flags';
+const COLS = 'grid-cols-[28px_minmax(200px,1.6fr)_repeat(3,minmax(110px,1fr))_112px_96px]';
+const METHOD_KEY = 'pv2-method';
 const FILTERS: [Filter, string][] = [
   ['all', 'Hammasi'],
   ['owed', 'Qarzdor'],
@@ -168,7 +187,13 @@ function logLabel(e: PayRunLogEntry): string {
     case 'entry.delete':
       return `«${String(d.title ?? '')}» o‘chirildi (${n(d.amount)} so‘m)`;
     case 'salary.set':
-      return `Asosiy maosh: ${n(d.amount)} so‘m`;
+      return `Asosiy maosh: ${n(d.amount)} so‘m${d.months ? ` (${String(d.months)} oyga)` : ''}`;
+    case 'salary.copy':
+      return `${String(d.count)} xodimga maosh o‘tgan oydan ko‘chirildi`;
+    case 'reimburse.approve':
+      return `Xarajat qoplash tasdiqlandi: ${String(d.title ?? '')} (${n(d.amount)} so‘m)`;
+    case 'reimburse.reject':
+      return `Xarajat qoplash rad etildi: ${String(d.title ?? '')}`;
     case 'correction':
     case 'reversal':
       return `${String(d.title ?? 'Tuzatish')} (${signed(Number(d.amount ?? 0))})`;
@@ -193,6 +218,8 @@ export function PayrollV2({
   history,
   roleNames,
   recent = [],
+  boxes = [],
+  reimbursements = [],
 }: {
   period: string;
   run: PayRun;
@@ -202,6 +229,10 @@ export function PayrollV2({
   history: MonthPoint[];
   roleNames: Record<string, string>;
   recent?: RecentEntry[];
+  /** Cash boxes a payment can leave from (naqd, karta, bank…). */
+  boxes?: CashBox[];
+  /** Pending "xarajatni qoplash" requests. */
+  reimbursements?: Reimbursement[];
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -222,6 +253,28 @@ export function PayrollV2({
   const [sel, setSel] = useState<string | null>(lines[0]?.staffId ?? null);
   const [jev, setJev] = useState<Record<string, JevPayVerdict>>({});
   const [showRecent, setShowRecent] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  // The cash box payments leave from — remembered per device.
+  const [method, setMethodState] = useState(boxes[0]?.code ?? '');
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(METHOD_KEY);
+      // Reading the device's saved choice after hydration (localStorage is
+      // not available on the server).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved && boxes.some((b) => b.code === saved)) setMethodState(saved);
+    } catch {}
+    // Mount-only: boxes come from the server and do not change while open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const setMethod = (code: string) => {
+    setMethodState(code);
+    try {
+      localStorage.setItem(METHOD_KEY, code);
+    } catch {}
+  };
+  const boxName = (code?: string | null) => boxes.find((b) => b.code === code)?.name ?? null;
+  const noBase = lines.filter((l) => l.flags.includes('noBase'));
 
   const shown = lines.filter((l) => {
     if (q && !`${l.name} ${roleNames[l.role] ?? l.role}`.toLowerCase().includes(q.toLowerCase())) return false;
@@ -250,7 +303,7 @@ export function PayrollV2({
 
   const move = (to: PayRunStatus) =>
     start(async () => {
-      const res = await movePayRunAction({ period, to });
+      const res = await movePayRunAction({ period, to, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(
         to === 'draft'
@@ -264,7 +317,7 @@ export function PayrollV2({
 
   const payOutstanding = () =>
     start(async () => {
-      const res = await payOutstandingAction({ period });
+      const res = await payOutstandingAction({ period, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : 'Hisob-kitob yangilandi');
       refresh();
@@ -278,6 +331,7 @@ export function PayrollV2({
       fd.set('amount', String(owedOf(l)));
       fd.set('kind', 'salary');
       fd.set('period', period);
+      if (method) fd.set('method', method);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
       const what = `${l.name} · ${som(owedOf(l))} so‘m`;
@@ -290,9 +344,38 @@ export function PayrollV2({
 
   const decide = (a: AdvanceRequest, approve: boolean, targetPeriod?: string, note = '') =>
     start(async () => {
-      const res = await decideAdvanceAction({ id: a.id, approve, note, targetPeriod });
+      const res = await decideAdvanceAction({ id: a.id, approve, note, targetPeriod, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(approve ? `Avans tasdiqlandi: ${som(a.amount)} so‘m` : 'Avans rad etildi');
+      refresh();
+    });
+
+  const decideReimburse = (r: Reimbursement, approve: boolean, targetPeriod?: string, note = '') =>
+    start(async () => {
+      const res = await decideReimbursementAction({ id: r.id, approve, note, targetPeriod });
+      if (res.error !== undefined) return void toast.error(errText(res.error));
+      toast.success(approve ? `Qoplash tasdiqlandi: ${som(r.amount)} so‘m` : 'So‘rov rad etildi');
+      refresh();
+    });
+
+  const copyBases = () =>
+    start(async () => {
+      const res = await copyBasesFromPrevAction(period);
+      if (res.error) return void toast.error(errText(res.error));
+      toast.success(res.count ? `${res.count} xodimga o‘tgan oydagi maosh qo‘yildi` : 'O‘tgan oyda maosh topilmadi — qo‘lda kiriting');
+      refresh();
+    });
+
+  // Takes back every row a bulk add made.
+  const undoMany = (ids: string[]) =>
+    start(async () => {
+      for (const id of ids) {
+        const fd = new FormData();
+        fd.set('entryId', id);
+        const res = await deleteFinanceEntryAction(undefined, fd);
+        if (res?.error) return void toast.error(errText(res.error));
+      }
+      toast.success(`Qaytarildi: ${ids.length} yozuv`);
       refresh();
     });
 
@@ -353,6 +436,24 @@ export function PayrollV2({
         </ol>
 
         <div className="flex flex-wrap gap-2">
+          {boxes.length > 0 && (
+            <label className="flex h-11 items-center gap-2 rounded-2xl border border-au-line bg-au-card pr-1 pl-3 text-[13px] font-semibold text-au-muted">
+              <Wallet className="size-4" />
+              <span className="sr-only sm:not-sr-only">To‘lov:</span>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="h-9 rounded-xl bg-transparent pr-1 text-sm font-bold text-au-ink outline-none"
+                aria-label="To‘lov qaysi kassadan"
+              >
+                {boxes.map((b) => (
+                  <option key={b.code} value={b.code}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {stage === 'open' && (
             <button
               className={BTN_DARK}
@@ -400,6 +501,40 @@ export function PayrollV2({
         )
       )}
 
+      {!locked && noBase.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-au-line bg-au-card px-4 py-3 text-sm text-au-ink">
+          <span>
+            <b>{noBase.length} xodimning</b> {monthLabel(period)} maoshi kiritilmagan.
+          </span>
+          <button className={cn(BTN_SOFT, SM)} disabled={busy} onClick={copyBases}>
+            <Copy className="size-4" /> O‘tgan oydagidek qo‘yish
+          </button>
+        </div>
+      )}
+
+      {/* Reimbursement requests */}
+      {reimbursements.length > 0 && (
+        <section className={cn(CARD, 'flex flex-col gap-3 p-4 sm:p-5')}>
+          <h2 className="flex items-center gap-2 text-base font-extrabold text-au-ink">
+            <Receipt className="size-4" /> Xarajatni qoplash so‘rovlari <span className="font-semibold text-au-muted">· {reimbursements.length}</span>
+          </h2>
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {reimbursements.map((r) => (
+              <RequestItem
+                key={r.id}
+                name={r.staff_name}
+                amount={r.amount}
+                text={[r.title, r.note, r.spent_on && `Sana: ${r.spent_on}`].filter(Boolean).join(' · ')}
+                period={period}
+                busy={busy}
+                approveLabel="Oyligiga qo‘shish"
+                onDecide={(ok, per, note) => decideReimburse(r, ok, per, note)}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Advance requests waiting for a decision */}
       {pending.length > 0 && (
         <section className={cn(CARD, 'flex flex-col gap-3 p-4 sm:p-5')}>
@@ -408,7 +543,17 @@ export function PayrollV2({
           </h2>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {pending.map((a) => (
-              <AdvanceRequestItem key={a.id} a={a} period={period} busy={busy} onDecide={decide} />
+              <RequestItem
+                key={a.id}
+                name={a.staff_name}
+                amount={a.amount}
+                text={a.reason}
+                period={period}
+                initial={a.period}
+                busy={busy}
+                approveLabel="Tasdiqlash"
+                onDecide={(ok, per, note) => decide(a, ok, per, note)}
+              />
             ))}
           </ul>
         </section>
@@ -455,9 +600,37 @@ export function PayrollV2({
             ))}
           </div>
 
+          {picked.size > 0 && (
+            <BulkBar
+              count={picked.size}
+              period={period}
+              busy={busy}
+              onAdd={(kind, amount, title, per) =>
+                start(async () => {
+                  const res = await bulkAddEntriesAction({ staffIds: [...picked], kind, amount, title, period: per });
+                  if (res.error) return void toast.error(errText(res.error));
+                  const ids = res.ids ?? [];
+                  toast.success(`${title}: ${ids.length} xodimga ${som(amount)} so‘m`, {
+                    duration: UNDO_MS,
+                    action: ids.length ? { label: 'Qaytarish', onClick: () => undoMany(ids) } : undefined,
+                  });
+                  setPicked(new Set());
+                  refresh();
+                })
+              }
+              onClear={() => setPicked(new Set())}
+            />
+          )}
           <div className="overflow-x-auto">
-            <div className="flex min-w-[720px] flex-col gap-0.5">
-              <div className="grid grid-cols-[minmax(200px,1.6fr)_repeat(3,minmax(110px,1fr))_112px_96px] gap-3 px-3 pt-1 pb-2 text-xs font-bold text-au-muted">
+            <div className="flex min-w-[760px] flex-col gap-0.5">
+              <div className={cn('grid items-center gap-3 px-3 pt-1 pb-2 text-xs font-bold text-au-muted', COLS)}>
+                <input
+                  type="checkbox"
+                  className="size-4 accent-[var(--au-accent)]"
+                  checked={shown.length > 0 && shown.every((l) => picked.has(l.staffId))}
+                  onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((l) => l.staffId)) : new Set())}
+                  aria-label="Hammasini tanlash"
+                />
                 <span>Xodim</span>
                 <span className="text-right">Hisoblangan</span>
                 <span className="text-right">To‘langan</span>
@@ -473,10 +646,25 @@ export function PayrollV2({
                   <div
                     key={l.staffId}
                     className={cn(
-                      'grid grid-cols-[minmax(200px,1.6fr)_repeat(3,minmax(110px,1fr))_112px_96px] items-center gap-3 rounded-2xl border px-3 py-2.5 transition',
+                      'grid items-center gap-3 rounded-2xl border px-3 py-2.5 transition',
+                      COLS,
                       on ? 'border-au-accent/30 bg-au-accent-soft' : 'border-transparent hover:bg-au-card-2',
                     )}
                   >
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-[var(--au-accent)]"
+                      checked={picked.has(l.staffId)}
+                      onChange={(e) =>
+                        setPicked((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(l.staffId);
+                          else next.delete(l.staffId);
+                          return next;
+                        })
+                      }
+                      aria-label={`${l.name} — tanlash`}
+                    />
                     <button onClick={() => setSel(l.staffId)} className="flex min-w-0 items-center gap-3 text-left" aria-pressed={on}>
                       <Avatar name={l.name} />
                       <span className="min-w-0">
@@ -506,7 +694,8 @@ export function PayrollV2({
                 );
               })}
               {shown.length > 0 && (
-                <div className="grid grid-cols-[minmax(200px,1.6fr)_repeat(3,minmax(110px,1fr))_112px_96px] gap-3 border-t border-au-line px-3 pt-3 text-sm font-extrabold text-au-ink">
+                <div className={cn('grid gap-3 border-t border-au-line px-3 pt-3 text-sm font-extrabold text-au-ink', COLS)}>
+                  <span />
                   <span>Jami (ko‘rsatilgan)</span>
                   <span className="text-right tabular-nums">{som(shown.reduce((t, l) => t + l.payable, 0))}</span>
                   <span className="text-right text-au-ok tabular-nums">{som(shown.reduce((t, l) => t + l.paid, 0))}</span>
@@ -530,6 +719,8 @@ export function PayrollV2({
             log={log.filter((e) => (e.detail as { staffId?: string }).staffId === selLine.staffId)}
             status={PAY_RUN_STEP[run.status].n}
             onUndo={undo}
+            method={method}
+            boxName={boxName}
           />
         ) : (
           <section className={cn(CARD, 'p-6 text-sm text-au-muted')}>Bu oy uchun xodim yo‘q</section>
@@ -613,6 +804,7 @@ export function PayrollV2({
         <section className={cn(CARD, 'flex flex-col gap-3 p-5')}>
           <h2 className="text-base font-extrabold text-au-ink">12 oy</h2>
           <MonthBars points={history} current={period} />
+          <YearForecast history={history} period={period} payable={sum.payable} />
         </section>
         <section className={cn(CARD, 'flex flex-col gap-3 p-5')}>
           <h2 className="text-base font-extrabold text-au-ink">Oy jurnali</h2>
@@ -640,32 +832,42 @@ export function PayrollV2({
   );
 }
 
-function AdvanceRequestItem({
-  a,
+/** One request waiting for a decision — an advance or a reimbursement:
+ * approve into a chosen month, or reject with a reason. */
+function RequestItem({
+  name,
+  amount,
+  text,
   period,
+  initial,
   busy,
+  approveLabel,
   onDecide,
 }: {
-  a: AdvanceRequest;
+  name: string;
+  amount: number;
+  text?: string | null;
   period: string;
+  initial?: string | null;
   busy: boolean;
-  onDecide: (a: AdvanceRequest, approve: boolean, targetPeriod?: string, note?: string) => void;
+  approveLabel: string;
+  onDecide: (approve: boolean, targetPeriod?: string, note?: string) => void;
 }) {
   const months = [0, 1, 2].map((n) => shiftMonth(period, n));
-  const [per, setPer] = useState(a.period && months.includes(a.period) ? a.period : period);
+  const [per, setPer] = useState(initial && months.includes(initial) ? initial : period);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
   return (
     <li className="flex flex-col gap-2.5 rounded-[20px] border border-au-line bg-au-card-2 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-bold text-au-ink">{a.staff_name}</span>
-        <span className="font-extrabold text-au-ink tabular-nums">{som(a.amount)}</span>
+        <span className="truncate font-bold text-au-ink">{name}</span>
+        <span className="font-extrabold text-au-ink tabular-nums">{som(amount)}</span>
       </div>
-      {a.reason && <p className="text-xs text-au-muted">{a.reason}</p>}
+      {text && <p className="text-xs text-au-muted">{text}</p>}
       {rejecting ? (
         <div className="flex gap-2">
           <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="Rad etish sababi" className={cn(FIELD, 'h-9 font-medium')} />
-          <button className={cn(BTN, SM, 'bg-au-bad text-white')} disabled={busy || note.trim().length < 3} onClick={() => onDecide(a, false, undefined, note.trim())}>
+          <button className={cn(BTN, SM, 'bg-au-bad text-white')} disabled={busy || note.trim().length < 3} onClick={() => onDecide(false, undefined, note.trim())}>
             Rad
           </button>
           <button className={ICON_BTN} onClick={() => setRejecting(false)} aria-label="Bekor">
@@ -681,8 +883,8 @@ function AdvanceRequestItem({
               </option>
             ))}
           </select>
-          <button className={cn(BTN_OK, SM)} disabled={busy} onClick={() => onDecide(a, true, per)}>
-            Tasdiqlash
+          <button className={cn(BTN_OK, SM)} disabled={busy} onClick={() => onDecide(true, per)}>
+            {approveLabel}
           </button>
           <button className={cn(BTN_SOFT, SM)} disabled={busy} onClick={() => setRejecting(true)}>
             Rad etish
@@ -690,6 +892,81 @@ function AdvanceRequestItem({
         </div>
       )}
     </li>
+  );
+}
+
+/** The same bonus or jarima for every ticked person, for this month or a later one. */
+function BulkBar({
+  count,
+  period,
+  busy,
+  onAdd,
+  onClear,
+}: {
+  count: number;
+  period: string;
+  busy: boolean;
+  onAdd: (kind: 'adjustment' | 'penalty', amount: number, title: string, period: string) => void;
+  onClear: () => void;
+}) {
+  const [kind, setKind] = useState<'adjustment' | 'penalty'>('adjustment');
+  const [amount, setAmount] = useState('');
+  const [title, setTitle] = useState('');
+  const [per, setPer] = useState(period);
+  const num = Number(digits(amount));
+  const name = title.trim() || (kind === 'penalty' ? 'Jarima' : 'Bonus');
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-[20px] border border-au-accent/30 bg-au-accent-soft p-2.5">
+      <span className="px-1 text-sm font-bold text-au-ink">{count} kishi tanlandi</span>
+      <div className="flex rounded-xl bg-au-card p-0.5">
+        {(['adjustment', 'penalty'] as const).map((k) => (
+          <button
+            key={k}
+            onClick={() => setKind(k)}
+            aria-pressed={kind === k}
+            className={cn('h-8 rounded-lg px-3 text-[13px] font-semibold', kind === k ? 'bg-au-ink text-au-card' : 'text-au-muted')}
+          >
+            {k === 'penalty' ? 'Jarima' : 'Bonus'}
+          </button>
+        ))}
+      </div>
+      <input value={amount} onChange={(e) => setAmount(digits(e.target.value))} inputMode="numeric" placeholder="Summa" className={cn(FIELD, 'h-9 w-32 text-right')} aria-label="Summa" />
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nomi (masalan: Bayram bonusi)" className={cn(FIELD, 'h-9 w-56 flex-1 font-medium')} aria-label="Nomi" />
+      <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'h-9 w-auto font-medium')} aria-label="Qaysi oy uchun">
+        {[0, 1, 2, 3].map((n) => {
+          const m = shiftMonth(period, n);
+          return (
+            <option key={m} value={m}>
+              {monthLabel(m)}
+            </option>
+          );
+        })}
+      </select>
+      <button className={cn(BTN_DARK, SM)} disabled={busy || !num} onClick={() => onAdd(kind, num, name, per)}>
+        Hammaga qo‘shish
+      </button>
+      <button className={ICON_BTN} onClick={onClear} aria-label="Tanlovni bekor qilish">
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+/** This year's fund: what the months so far planned (or paid, if more),
+ * plus the current month's fund for every month left — a straight-line
+ * year-end estimate. */
+function YearForecast({ history, period, payable }: { history: MonthPoint[]; period: string; payable: number }) {
+  const year = period.slice(0, 4);
+  const left = 12 - Number(period.slice(5, 7)) + 1;
+  const before = history.filter((p) => p.period.startsWith(year) && p.period < period).reduce((t, p) => t + Math.max(p.planned, p.paid), 0);
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-au-card-2 px-3.5 py-2.5 text-sm">
+      <span className="text-au-muted">
+        {year} yil oxirigacha fond (prognoz)
+        <span className="block text-[11px]">O‘tgan oylar + shu oy fondi × {left} oy</span>
+      </span>
+      <b className="text-au-ink tabular-nums">{som(before + payable * left)}</b>
+    </div>
   );
 }
 
@@ -741,6 +1018,8 @@ function StaffPanel({
   log,
   status,
   onUndo,
+  method,
+  boxName,
 }: {
   line: PayLine;
   period: string;
@@ -750,6 +1029,9 @@ function StaffPanel({
   log: PayRunLogEntry[];
   status: string;
   onUndo: (entryId: string, what: string) => void;
+  /** The cash box chosen in the header — payments added here leave from it. */
+  method: string;
+  boxName: (code?: string | null) => string | null;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -760,6 +1042,9 @@ function StaffPanel({
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
   const [bp, setBp] = useState<BpointSnapshot | null>(null);
+  const [forward, setForward] = useState(false);
+  const [split, setSplit] = useState(1);
+  const [att, setAtt] = useState<AttendanceProration | null>(null);
 
   // B-nuqta for this person; re-read when their pay changes. Async only —
   // the panel remounts per person (key), so no reset is needed here.
@@ -773,6 +1058,17 @@ function StaffPanel({
     };
   }, [line.staffId, line.payable]);
 
+  // Attendance this month, for prorating the base (only shown if marked).
+  useEffect(() => {
+    let alive = true;
+    getAttendanceProrationAction(line.staffId, period).then((r) => {
+      if (alive && !('error' in r)) setAtt(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [line.staffId, period]);
+
   const months = [0, 1, 2, 3].map((n) => shiftMonth(period, n));
   const perLocked = locked && per === period;
   const num = Number(digits(amount));
@@ -781,27 +1077,42 @@ function StaffPanel({
     router.refresh();
   };
 
-  const saveBase = () =>
+  const saveBase = (value = digits(base) || '0') =>
     start(async () => {
+      if (forward) {
+        const res = await setSalaryFromAction({ staffId: line.staffId, period, grossAmount: Number(value) });
+        if (res.error) return void toast.error(errText(res.error));
+        setForward(false);
+        return done(`Yangi maosh ${monthLabel(period)}dan boshlab ${res.count ?? 0} oyga qo‘yildi`);
+      }
       const fd = new FormData();
       fd.set('staffId', line.staffId);
       fd.set('period', period);
-      fd.set('grossAmount', digits(base) || '0');
+      fd.set('grossAmount', value);
       const res = await setSalaryMonthAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
       done('Asosiy maosh saqlandi');
     });
+  const prorated = att && att.workDays > 0 && line.base > 0 && att.present < att.workDays ? Math.round((line.base * att.present) / att.workDays) : null;
 
   const add = () =>
     start(async () => {
       const k = ADD_KINDS[kind];
       const name = title.trim() || `${k.n}${per === period ? '' : ` · ${monthLabel(per)} uchun`}`;
+      if (kind === 'advance' && split > 1) {
+        const res = await addAdvanceInstallmentsAction({ staffId: line.staffId, period: per, amount: num, months: split, title: title.trim(), method: method || undefined });
+        if (res.error) return void toast.error(errText(res.error));
+        setAmount('');
+        setTitle('');
+        return done(`Avans ${som(num)} so‘m — ${split} oyga bo‘lib ushlanadi`);
+      }
       const fd = new FormData();
       fd.set('staffId', line.staffId);
       fd.set('title', name);
       fd.set('amount', String(k.sign * num));
       fd.set('kind', k.kind);
       fd.set('period', per);
+      if (method && (kind === 'advance' || kind === 'salary')) fd.set('method', method);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
       setAmount('');
@@ -923,12 +1234,28 @@ function StaffPanel({
               aria-label="Asosiy maosh"
             />
             {!locked && digits(base) !== String(line.base || '') && (
-              <button className={cn(BTN_DARK, SM)} disabled={busy} onClick={saveBase}>
+              <button className={cn(BTN_DARK, SM)} disabled={busy} onClick={() => saveBase()}>
                 Saqlash
               </button>
             )}
           </span>
         </label>
+        {!locked && digits(base) !== String(line.base || '') && (
+          <label className="flex items-center gap-2 text-xs text-au-muted">
+            <input type="checkbox" className="size-4 accent-[var(--au-accent)]" checked={forward} onChange={(e) => setForward(e.target.checked)} />
+            Keyingi oylarga ham (doimiy o‘zgarish, 12 oy)
+          </label>
+        )}
+        {!locked && prorated !== null && att && (
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-au-card px-3 py-2 text-xs text-au-muted">
+            <span>
+              Davomat: <b className="text-au-ink">{att.present}</b> / {att.workDays} kun → <b className="text-au-ink tabular-nums">{som(prorated)}</b>
+            </span>
+            <button className="font-semibold text-au-accent-text hover:underline" disabled={busy} onClick={() => setBase(String(prorated))}>
+              Qo‘llash
+            </button>
+          </div>
+        )}
         {extras.map((c, i) => (
           <div key={c.entryId ?? c.ref ?? i} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -960,7 +1287,16 @@ function StaffPanel({
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="min-w-0">
                 <span className="block truncate text-au-ink">− {p.kind === 'advance' ? 'Avans' : 'Oylik to‘lovi'}</span>
-                <span className="block text-[11px] text-au-muted">{when(p.at)}</span>
+                <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-au-muted">
+                  {when(p.at)}
+                  {boxName(p.method) && <span>· {boxName(p.method)}</span>}
+                  {p.receipt?.status === 'received' && <span className="font-semibold text-au-ok">· ✓ Oldi</span>}
+                  {p.receipt?.status === 'disputed' && (
+                    <span className="font-semibold text-au-bad" title={p.receipt.note}>
+                      · ⚠ Muammo: {p.receipt.note}
+                    </span>
+                  )}
+                </span>
               </span>
               <span className="flex shrink-0 items-center gap-0.5">
                 <span className="mr-1 font-bold text-au-ok tabular-nums">{som(p.amount)}</span>
@@ -1013,6 +1349,15 @@ function StaffPanel({
           </select>
           <input value={amount} onChange={(e) => setAmount(digits(e.target.value))} inputMode="numeric" placeholder="Summa, so‘m" className={cn(FIELD, 'text-right')} aria-label="Summa" />
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Nomi (ixtiyoriy): ${ADD_KINDS[kind].n}`} className={cn(FIELD, 'col-span-2 font-medium')} aria-label="Nomi" />
+          {kind === 'advance' && (
+            <select value={split} onChange={(e) => setSplit(Number(e.target.value))} className={cn(FIELD, 'col-span-2 font-medium')} aria-label="Qanday ushlanadi">
+              {[1, 2, 3, 4, 6].map((n) => (
+                <option key={n} value={n}>
+                  {n === 1 ? 'Bir oyda ushlanadi' : `${n} oyga bo‘lib ushlanadi (oyiga ${num ? som(Math.floor(num / n)) : '…'})`}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <p className="text-xs text-au-muted">
           {perLocked
@@ -1020,6 +1365,7 @@ function StaffPanel({
             : per === period
               ? 'Shu oy hisobiga yoziladi.'
               : `${monthLabel(per)} oyligiga yoziladi — ${kind === 'advance' ? 'o‘sha oy qoldig‘idan ushlanadi' : 'o‘sha oy hisobida ko‘rinadi'}.`}
+          {(kind === 'advance' || kind === 'salary') && boxName(method) && ` To‘lov: ${boxName(method)}.`}
         </p>
         <button className={BTN_DARK} disabled={busy || perLocked || !num} onClick={add}>
           {ADD_KINDS[kind].n} qo‘shish{num ? ` · ${som(num)} so‘m` : ''}

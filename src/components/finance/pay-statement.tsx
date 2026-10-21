@@ -6,7 +6,7 @@ import { CheckCircle2, Clock3, FileDown, HandCoins, Lock, Undo2 } from 'lucide-r
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
-import { CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
+import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { cancelAdvanceAction, requestAdvanceAction } from '@/lib/actions/pay-run';
 import { COMPONENT_LABEL, monthLabel, PAY_RUN_STEP, type PayLine, type PayRunStatus } from '@/lib/pay-run';
@@ -19,7 +19,7 @@ const signed = (n: number) => `${n >= 0 ? '+' : '−'}${formatUZS(Math.abs(Math.
 
 const STATUS_CHIP: Record<PayRunStatus, { n: string; cls: string; Icon: typeof Clock3 }> = {
   draft: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
-  review: { n: 'Tekshirilmoqda', cls: CHIP_INFO, Icon: Clock3 },
+  review: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
   approved: { n: 'Tasdiqlangan', cls: CHIP_OK, Icon: Lock },
   paid: { n: 'To‘langan', cls: CHIP_OK, Icon: CheckCircle2 },
 };
