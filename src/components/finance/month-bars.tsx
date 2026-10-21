@@ -34,14 +34,14 @@ export function MonthBars({ points, current }: { points: MonthPoint[]; current: 
             onMouseEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
             aria-label={`${p.period}: fond ${p.planned}, to‘langan ${p.paid}`}
-            className="relative flex h-full flex-1 items-end"
+            className={cn('relative flex h-full flex-1 items-end rounded-[3px]', p.period === current && 'outline-1 outline-offset-2 outline-au-accent outline-dashed')}
           >
             <span className="absolute inset-x-0 bottom-0 rounded-t-[3px] border border-dashed border-au-line" style={{ height: h(p.planned) }} />
             <span
               style={{ height: h(p.paid), ['--i' as string]: i }}
               className={cn(
                 'ms-grow-y relative w-full rounded-t-[3px] transition-colors',
-                p.period === current ? 'bg-au-accent' : focus === i ? 'bg-au-ink/70' : 'bg-au-ink/25',
+                p.period === current ? 'bg-au-accent' : focus === i ? 'bg-au-ok' : 'bg-au-ok/60',
               )}
             />
           </button>
@@ -53,6 +53,14 @@ export function MonthBars({ points, current }: { points: MonthPoint[]; current: 
             {SHORT[Number(p.period.slice(5, 7)) - 1]}
           </span>
         ))}
+      </div>
+      <div className="flex items-center justify-end gap-3 text-[10px] text-au-muted">
+        <span className="inline-flex items-center gap-1">
+          <i className="size-2 rounded-xs border border-dashed border-au-muted" /> Fond (maosh)
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <i className="size-2 rounded-xs bg-au-ok" /> To‘langan
+        </span>
       </div>
     </div>
   );
