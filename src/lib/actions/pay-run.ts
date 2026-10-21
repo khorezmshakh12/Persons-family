@@ -15,12 +15,11 @@ import { startOfTashkentMonthKey } from '@/lib/time';
 import { askTypeSafe, typesafeEnabled } from '@/lib/typesafe';
 import { loadPayLines } from '@/lib/pay-run-data';
 import { isCashBox, syncPayCash } from '@/lib/pay-cash';
-import { blockers, canMove, isRelevant, monthLabel, PAY_RUN_STATUSES, shiftMonth, type PayLine, type PayRunStatus } from '@/lib/pay-run';
+import { isRelevant, monthLabel, shiftMonth, type PayLine } from '@/lib/pay-run';
 
 type Result<T = object> = ({ error?: undefined } & T) | { error: string };
 
 const period = z.string().regex(/^\d{4}-\d{2}-01$/);
-const isLocked = (e: unknown) => e instanceof Error && /period_locked/.test(e.message);
 /** The cash box a payment leaves from (acct_accounts.cash_box); optional. */
 const method = z.string().regex(/^\d{4}$/).optional();
 const badMethod = async (m?: string) => !!m && !(await isCashBox(m).catch(() => false));
@@ -82,115 +81,19 @@ async function settleCarry(tx: Tx, per: string, lines: PayLine[], actor: string)
   return over.length;
 }
 
-const moveSchema = z.object({
-  period,
-  to: z.enum(PAY_RUN_STATUSES),
-  reason: z.string().trim().max(1000).optional().default(''),
-  method,
-});
+const payAllSchema = z.object({ period, method });
 
 /**
- * Move the month's pay run (see canMove): open → approved → paid, or back
- * to open ("Oyni ochish"). Forward into `approved` freezes a snapshot and
- * locks the month (the DB trigger refuses ledger writes); forward into
- * `paid` records a salary payment for whatever is still owed and re-settles
- * next month's carry. Reopening keeps the payments already made.
+ * Pay everyone what is still owed for the month, in one go (owner,
+ * 2026-10-21: no month lock any more — the month stays editable). Writes a
+ * 'payrun' salary row per person with a positive remainder from the chosen
+ * cash box, and re-settles next month's carry for anyone overpaid. Safe to
+ * press again after a change: it only pays what is owed at that moment.
  */
-export async function movePayRunAction(input: z.input<typeof moveSchema>): Promise<Result<{ status: PayRunStatus; paidCount?: number; carried?: number }>> {
+export async function payAllRemainingAction(input: z.input<typeof payAllSchema>): Promise<Result<{ paidCount: number; carried: number }>> {
   const g = await requireFinanceManager();
   if ('error' in g) return g;
-  const p = moveSchema.safeParse(input);
-  if (!p.success) return { error: 'invalidInput' };
-  const { to, reason } = p.data;
-  const per = p.data.period;
-  if (await badMethod(p.data.method)) return { error: 'invalidInput' };
-
-  let paidLines: { staffId: string; amount: number }[] = [];
-  let carried = 0;
-  try {
-    const out = await sql.begin(async (tx) => {
-      await tx`insert into pay_runs (period) values (${per}) on conflict (period) do nothing`;
-      const [run] = await tx<{ status: PayRunStatus }[]>`select status from pay_runs where period = ${per} for update`;
-      if (!canMove(run.status, to)) return 'invalidTransition' as const;
-      // Reopening needs no reason any more (owner, 2026-10-21) — every edit
-      // made while open lands in pay_run_log instead.
-      const back = PAY_RUN_STATUSES.indexOf(to) < PAY_RUN_STATUSES.indexOf(run.status);
-      // Read the lines under the run's row lock (corrections take it too),
-      // so the snapshot and the payments match what is committed.
-      const lines = (await loadPayLines(per, undefined, tx as unknown as typeof sql)).filter(isRelevant);
-      if (!back && to === 'approved' && blockers(lines).length) return 'blocked' as const;
-
-      if (to === 'approved' && !back) {
-        const snapshot = lines.map((l) => ({ staffId: l.staffId, payable: l.payable, carry: l.carry }));
-        await tx`
-          update pay_runs set status = 'approved', snapshot = ${tx.json(snapshot)}, approved_by = ${g.id}, approved_at = now(), updated_at = now()
-          where period = ${per}`;
-      } else if (to === 'paid') {
-        paidLines = lines.filter((l) => l.remaining > 0).map((l) => ({ staffId: l.staffId, amount: l.remaining }));
-        if (paidLines.length)
-          await tx`
-            insert into finance_entries ${tx(
-              paidLines.map((l) => ({
-                staff_id: l.staffId,
-                title: `Oylik · ${monthLabel(per)}`,
-                amount: l.amount,
-                created_by: g.id,
-                kind: 'salary',
-                period: per,
-                source: 'payrun',
-                method: p.data.method ?? null,
-              })),
-            )}`;
-        // Overpaid people (paid > payable) settle against next month.
-        carried = await settleCarry(tx, per, lines, g.id);
-        await tx`update pay_runs set status = 'paid', paid_by = ${g.id}, paid_at = now(), updated_at = now() where period = ${per}`;
-      } else {
-        await tx`
-          update pay_runs set status = ${to}, updated_at = now(),
-            approved_by = case when ${to} in ('draft', 'review') then null else approved_by end,
-            approved_at = case when ${to} in ('draft', 'review') then null else approved_at end,
-            paid_by = case when ${to} in ('draft', 'review') then null else paid_by end,
-            paid_at = case when ${to} in ('draft', 'review') then null else paid_at end
-          where period = ${per}`;
-      }
-      await tx`
-        insert into pay_run_log (period, actor, action, detail)
-        values (${per}, ${g.id}, ${`${run.status}→${to}`}, ${tx.json({ reason: reason || null, paid: paidLines.length || undefined, carried: carried || undefined })})`;
-      return null;
-    });
-    if (out) return { error: out };
-  } catch (error) {
-    console.error('movePayRunAction failed', error instanceof Error ? error.message : error);
-    return { error: isLocked(error) ? 'periodLocked' : 'updateFailed' };
-  }
-
-  logSystemAction('payroll.move', `Pay run ${per} → ${to}${reason ? ` (${reason})` : ''}`);
-  if (paidLines.length) after(() => syncPayCash(per));
-  if (to === 'paid' && paidLines.length)
-    after(async () => {
-      for (const l of paidLines) {
-        await notifyStaff(
-          l.staffId,
-          `💰 <b>${escapeTelegramText(monthLabel(per))} oyligi to‘landi</b>\n<b>Summa:</b> ${escapeTelegramText(formatUZS(l.amount))} so‘m\nTafsilotlar: Moliya bo‘limida.`,
-        ).catch(() => {});
-      }
-    });
-  done();
-  return { status: to, paidCount: paidLines.length, carried };
-}
-
-const outstandingSchema = z.object({ period, method });
-
-/**
- * A paid month that later took a correction is settled again: whatever is
- * still owed is paid by the run itself (source 'payrun' — the ledger lock
- * refuses a hand-written payment, and undoing 'paid' removes these rows
- * too), and whatever was overpaid is re-carried into next month.
- */
-export async function payOutstandingAction(input: z.input<typeof outstandingSchema>): Promise<Result<{ paidCount: number; carried: number }>> {
-  const g = await requireFinanceManager();
-  if ('error' in g) return g;
-  const p = outstandingSchema.safeParse(input);
+  const p = payAllSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
   const per = p.data.period;
   if (await badMethod(p.data.method)) return { error: 'invalidInput' };
@@ -199,95 +102,53 @@ export async function payOutstandingAction(input: z.input<typeof outstandingSche
   let carried = 0;
   try {
     const out = await sql.begin(async (tx) => {
-      const [run] = await tx<{ status: PayRunStatus }[]>`select status from pay_runs where period = ${per} for update`;
-      if (run?.status !== 'paid') return 'notPaid' as const;
+      // One pay-all at a time per month — a double click never pays twice.
+      await tx`select pg_advisory_xact_lock(hashtext(${`payrun:${per}`}))`;
       const lines = (await loadPayLines(per, undefined, tx as unknown as typeof sql)).filter(isRelevant);
       paidLines = lines.filter((l) => l.remaining > 0).map((l) => ({ staffId: l.staffId, amount: l.remaining }));
       const [{ n: carriedBefore }] = await tx<{ n: number }[]>`
         select count(*)::int as n from finance_entries where source = 'carry' and carry_from = ${per}`;
       if (!paidLines.length && !lines.some((l) => l.remaining < 0) && !carriedBefore) return 'nothingOwed' as const;
-      if (paidLines.length) await tx`
-        insert into finance_entries ${tx(
-          paidLines.map((l) => ({
-            staff_id: l.staffId,
-            title: `Oylik qoldig‘i · ${monthLabel(per)}`,
-            amount: l.amount,
-            created_by: g.id,
-            kind: 'salary',
-            period: per,
-            source: 'payrun',
-            method: p.data.method ?? null,
-          })),
-        )}`;
+      if (paidLines.length)
+        await tx`
+          insert into finance_entries ${tx(
+            paidLines.map((l) => ({
+              staff_id: l.staffId,
+              title: `Oylik · ${monthLabel(per)}`,
+              amount: l.amount,
+              created_by: g.id,
+              kind: 'salary',
+              period: per,
+              source: 'payrun',
+              method: p.data.method ?? null,
+            })),
+          )}`;
+      // Overpaid people (paid > payable) settle against next month.
       carried = await settleCarry(tx, per, lines, g.id);
       await tx`
         insert into pay_run_log (period, actor, action, detail)
-        values (${per}, ${g.id}, 'settle', ${tx.json({ paid: paidLines.length, total: paidLines.reduce((s, l) => s + l.amount, 0), carried })})`;
+        values (${per}, ${g.id}, 'settle', ${tx.json({ paid: paidLines.length, total: paidLines.reduce((t, l) => t + l.amount, 0), carried })})`;
       return null;
     });
     if (out) return { error: out };
   } catch (error) {
-    console.error('payOutstandingAction failed', error instanceof Error ? error.message : error);
-    return { error: isLocked(error) ? 'periodLocked' : 'updateFailed' };
+    console.error('payAllRemainingAction failed', error instanceof Error ? error.message : error);
+    return { error: 'updateFailed' };
   }
 
-  if (paidLines.length) after(() => syncPayCash(per));
-  logSystemAction('payroll.settle', `Pay run ${per}: paid outstanding to ${paidLines.length} staff, ${carried} overpayment(s) carried`);
+  logSystemAction('payroll.pay_all', `Pay run ${per}: paid ${paidLines.length} staff, ${carried} overpayment(s) carried`);
   after(async () => {
     for (const l of paidLines)
       await notifyStaff(
         l.staffId,
-        `💰 <b>${escapeTelegramText(monthLabel(per))} oyligi bo‘yicha qo‘shimcha to‘lov</b>
-<b>Summa:</b> ${escapeTelegramText(formatUZS(l.amount))} so‘m`,
+        `💰 <b>${escapeTelegramText(monthLabel(per))} oyligi to‘landi</b>
+<b>Summa:</b> ${escapeTelegramText(formatUZS(l.amount))} so‘m
+Tafsilotlar: Moliya bo‘limida.`,
       ).catch(() => {});
+    if (paidLines.length) await syncPayCash(per);
   });
   done();
   return { paidCount: paidLines.length, carried };
-}
-
-const correctionSchema = z.object({
-  period,
-  staffId: z.string().uuid(),
-  amount: z.number().finite().refine((n) => n !== 0).refine((n) => Math.abs(n) <= 1e11),
-  title: z.string().trim().min(2).max(200),
-  reason: z.string().trim().min(3).max(1000),
-  /** Cancels exactly one component of the month (see PayComponent.ref). */
-  reversalOf: z
-    .string()
-    .regex(/^(fe|perf|sd|ms):[0-9a-f-]{36}$/)
-    .optional(),
-});
-
-/** A correction to a locked month: a new signed ledger row with a reason —
- * never an edit of what was approved. */
-export async function addPayCorrectionAction(input: z.input<typeof correctionSchema>): Promise<Result> {
-  const g = await requireFinanceManager();
-  if ('error' in g) return g;
-  const p = correctionSchema.safeParse(input);
-  if (!p.success) return { error: 'invalidInput' };
-  const v = p.data;
-  try {
-    const out = await sql.begin(async (tx) => {
-      const [run] = await tx<{ status: string }[]>`select status from pay_runs where period = ${v.period} for update`;
-      // Corrections are for closed months only; an open month is edited directly.
-      if (!run || (run.status !== 'approved' && run.status !== 'paid')) return 'notLocked' as const;
-      await tx`
-        insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, source, reversal_of)
-        values (${v.staffId}, ${v.title}, ${v.amount}, ${v.reason}, ${g.id}, ${v.amount < 0 ? 'penalty' : 'adjustment'}, ${v.period}, 'correction', ${v.reversalOf ?? null})`;
-      await tx`
-        insert into pay_run_log (period, actor, action, detail)
-        values (${v.period}, ${g.id}, ${v.reversalOf ? 'reversal' : 'correction'}, ${tx.json({ staffId: v.staffId, amount: v.amount, title: v.title, reason: v.reason, reversalOf: v.reversalOf ?? null })})`;
-      return null;
-    });
-    if (out) return { error: out };
-  } catch (error) {
-    console.error('addPayCorrectionAction failed', error instanceof Error ? error.message : error);
-    // uq_finance_entries_reversal_of: this item is already reversed.
-    if (error instanceof Error && /uq_finance_entries_reversal_of/.test(error.message)) return { error: 'alreadyReversed' };
-    return { error: 'updateFailed' };
-  }
-  logSystemAction('payroll.correction', `Correction ${v.period} ${v.staffId}: ${v.amount} (${v.reason})`);
-  return done();
 }
 
 const noteSchema = z.object({ period, note: z.string().trim().max(2000) });
@@ -435,8 +296,8 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
       return null;
     });
     if (out) return { error: out };
-  } catch (error) {
-    return { error: isLocked(error) ? 'periodLocked' : 'updateFailed' };
+  } catch {
+    return { error: 'updateFailed' };
   }
   const r = req as { staff_id: string; amount: number } | null;
   if (r)
@@ -549,8 +410,8 @@ export async function decideReimbursementAction(input: z.input<typeof decideReim
       return null;
     });
     if (out) return { error: out };
-  } catch (error) {
-    return { error: isLocked(error) ? 'periodLocked' : 'updateFailed' };
+  } catch {
+    return { error: 'updateFailed' };
   }
   const r = req as { staff_id: string; amount: number; title: string } | null;
   if (r)

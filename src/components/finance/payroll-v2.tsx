@@ -15,8 +15,6 @@ import {
   Receipt,
   Wallet,
   History,
-  Lock,
-  LockOpen,
   NotebookPen,
   Pencil,
   Search,
@@ -32,8 +30,7 @@ import { ExportButtons } from '@/components/export/export-buttons';
 import {
   decideAdvanceAction,
   decideReimbursementAction,
-  movePayRunAction,
-  payOutstandingAction,
+  payAllRemainingAction,
   reviewPayRunWithJevAction,
   savePayRunNoteAction,
   type JevPayVerdict,
@@ -59,15 +56,11 @@ import {
   FLAG_META,
   isRelevant,
   monthLabel,
-  PAY_RUN_STEP,
-  payStage,
   REVERSIBLE,
   shiftMonth,
   totals,
   type PayComponent,
   type PayLine,
-  type PayRunStatus,
-  type PayStage,
 } from '@/lib/pay-run';
 import type { AdvanceRequest, MonthPoint, PayRun, PayRunLogEntry, RecentEntry, Reimbursement } from '@/lib/pay-run-data';
 import type { CashBox } from '@/lib/pay-cash';
@@ -96,14 +89,10 @@ const ICON_BTN =
 const CHIP = 'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-bold';
 
 const ERR: Record<string, string> = {
-  blocked: 'Tasdiqlab bo‘lmaydi — avval qizil ogohlantirishlarni hal qiling',
-  invalidTransition: 'Bu holatga o‘tib bo‘lmaydi (sahifani yangilang)',
-  periodLocked: 'Bu oy yopilgan — avval «Oyni ochish» ni bosing',
   overLimit: 'Bu oy avanslar jami maoshdan oshib ketadi',
   noSalary: 'Bu oy uchun maosh belgilanmagan — avval maoshni kiriting',
   pastMonth: 'O‘tib ketgan oyni tanlab bo‘lmaydi',
-  notPaid: 'Oy hali “To‘langan” holatida emas',
-  nothingOwed: 'Hal qilinadigan qoldiq yo‘q',
+  nothingOwed: 'To‘lanadigan qoldiq yo‘q',
   systemEntry: 'Bu yozuvni tizim yaratgan — uni o‘z bo‘limida o‘zgartiring',
   alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
   reasonRequired: 'Sababini yozing',
@@ -115,12 +104,6 @@ const ERR: Record<string, string> = {
 };
 const errText = (c: string) => ERR[c] ?? 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
 const UNDO_MS = 15000;
-
-const STAGES: { key: PayStage; n: string }[] = [
-  { key: 'open', n: 'Ochiq' },
-  { key: 'approved', n: 'Tasdiqlangan' },
-  { key: 'paid', n: 'To‘langan' },
-];
 
 /** Kinds the add form offers → what finance_entries stores. */
 const ADD_KINDS = {
@@ -201,12 +184,13 @@ function logLabel(e: PayRunLogEntry): string {
     case 'topup':
       return d.paid ? `Qoldiq to‘landi: ${String(d.paid)} xodim` : 'Hisob-kitob yangilandi';
   }
-  const [a, b] = e.action.split('→') as [PayRunStatus, PayRunStatus];
+  // Status moves from before the month lock was removed (2026-10-21).
+  const b = e.action.split('→')[1];
   if (!b) return e.action;
   if (b === 'draft') return 'Oy qayta ochildi';
-  if (b === 'approved') return 'Oy tasdiqlandi va yopildi';
+  if (b === 'approved') return 'Oy tasdiqlandi';
   if (b === 'paid') return `Qoldiqlar to‘landi${d.paid ? ` (${String(d.paid)} xodim)` : ''}`;
-  return `${PAY_RUN_STEP[a]?.n ?? a} → ${PAY_RUN_STEP[b]?.n ?? b}`;
+  return e.action;
 }
 
 export function PayrollV2({
@@ -237,15 +221,15 @@ export function PayrollV2({
   const router = useRouter();
   const [busy, start] = useTransition();
   const lines = useMemo(() => allLines.filter(isRelevant), [allLines]);
-  const stage = payStage(run.status);
-  const locked = stage !== 'open';
   const sum = totals(lines);
   const owed = lines.reduce((t, l) => t + owedOf(l), 0);
   const over = lines.reduce((t, l) => t + overOf(l), 0);
   const owedCount = lines.filter((l) => l.remaining > 0).length;
   const block = blockers(lines);
   const overNeg = lines.reduce((t, l) => t + Math.min(0, l.remaining), 0);
-  const unsettled = stage === 'paid' && (owed > 0 || overNeg !== run.carried);
+  // Something to settle: someone is owed, or the overpayments differ from
+  // what was already carried into next month.
+  const toSettle = owedCount > 0 || overNeg !== run.carried;
   const pending = advances.filter((a) => a.status === 'pending');
 
   const [q, setQ] = useState('');
@@ -288,8 +272,7 @@ export function PayrollV2({
 
   const refresh = () => router.refresh();
 
-  // Takes back a ledger row entered by mistake (the delete is refused once
-  // the month is locked — reopen it first).
+  // Takes back a ledger row entered by mistake.
   const undo = (entryId: string, what: string) =>
     start(async () => {
       const fd = new FormData();
@@ -301,25 +284,13 @@ export function PayrollV2({
       refresh();
     });
 
-  const move = (to: PayRunStatus) =>
+  const payAll = () =>
     start(async () => {
-      const res = await movePayRunAction({ period, to, method: method || undefined });
+      const res = await payAllRemainingAction({ period, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(
-        to === 'draft'
-          ? 'Oy ochildi — endi hamma narsani tahrirlash mumkin'
-          : to === 'approved'
-            ? 'Oy tasdiqlandi va yopildi'
-            : `Qoldiqlar to‘landi${res.paidCount ? ` (${res.paidCount} xodim)` : ''}${res.carried ? ` · ${res.carried} xodimning ortiqchasi keyingi oydan ushlanadi` : ''}`,
+        `${res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : 'Hisob-kitob yangilandi'}${res.carried ? ` · ${res.carried} xodimning ortiqchasi keyingi oydan ushlanadi` : ''}`,
       );
-      refresh();
-    });
-
-  const payOutstanding = () =>
-    start(async () => {
-      const res = await payOutstandingAction({ period, method: method || undefined });
-      if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : 'Hisob-kitob yangilandi');
       refresh();
     });
 
@@ -415,26 +386,6 @@ export function PayrollV2({
           </Link>
         </div>
 
-        <ol aria-label="Oy holati" className="flex items-center gap-1 rounded-full bg-au-card-2 p-1.5">
-          {STAGES.map((s, i) => {
-            const at = STAGES.findIndex((x) => x.key === stage);
-            const on = s.key === stage;
-            return (
-              <li
-                key={s.key}
-                aria-current={on ? 'step' : undefined}
-                className={cn(
-                  'flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-bold transition',
-                  on ? 'bg-au-card text-au-ink shadow-[var(--au-shadow-btn)]' : i < at ? 'text-au-ok' : 'text-au-muted',
-                )}
-              >
-                <span className={cn('size-2 rounded-full', on ? (s.key === 'paid' ? 'bg-au-ok' : 'bg-au-accent') : i < at ? 'bg-au-ok' : 'bg-au-line')} />
-                {s.n}
-              </li>
-            );
-          })}
-        </ol>
-
         <div className="flex flex-wrap gap-2">
           {boxes.length > 0 && (
             <label className="flex h-11 items-center gap-2 rounded-2xl border border-au-line bg-au-card pr-1 pl-3 text-[13px] font-semibold text-au-muted">
@@ -454,54 +405,24 @@ export function PayrollV2({
               </select>
             </label>
           )}
-          {stage === 'open' && (
-            <button
-              className={BTN_DARK}
-              disabled={busy || block.length > 0}
-              title={block.length ? 'Avval qizil ogohlantirishlarni hal qiling' : undefined}
-              onClick={() => move('approved')}
-            >
-              <Lock className="size-4" /> Tasdiqlash va yopish
-            </button>
-          )}
-          {stage === 'approved' && (
-            <button className={BTN_OK} disabled={busy} onClick={() => move('paid')}>
-              <Check className="size-4" /> {owedCount ? `Qoldiqlarni to‘lash (${owedCount} kishi)` : 'To‘landi deb belgilash'}
-            </button>
-          )}
-          {unsettled && (
-            <button className={BTN_OK} disabled={busy} onClick={payOutstanding}>
-              <Check className="size-4" /> Qoldiqni hal qilish
-            </button>
-          )}
-          {locked && (
-            <button className={BTN_SOFT} disabled={busy} onClick={() => move('draft')}>
-              <LockOpen className="size-4" /> Oyni ochish
+          {toSettle && (
+            <button className={BTN_OK} disabled={busy} onClick={payAll}>
+              <Check className="size-4" /> {owedCount ? `Hammaga qoldiqni to‘lash (${owedCount} kishi)` : 'Ortiqchani keyingi oyga o‘tkazish'}
             </button>
           )}
         </div>
       </section>
 
-      {locked ? (
-        <div className="flex items-start gap-3 rounded-[20px] bg-au-accent-soft px-4 py-3.5 text-sm font-semibold text-au-ink">
-          <Lock className="mt-0.5 size-4 shrink-0 text-au-accent-text" />
+      {block.length > 0 && (
+        <div className="flex items-start gap-3 rounded-[20px] bg-au-bad-soft px-4 py-3.5 text-sm font-semibold text-au-ink">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-au-bad" />
           <span>
-            Oy yopilgan{run.approved_by_name ? ` (${run.approved_by_name})` : ''} — summalar o‘zgarmaydi. Tuzatish kerak bo‘lsa «Oyni ochish» ni bosing: hamma narsa
-            tahrirlanadi, har bir o‘zgarish tarixda qoladi. Keyingi oylarga avans va bonus yozish ochiq.
+            Tekshirib qo‘ying: {block.map((l) => l.name).join(', ')} — {[...new Set(block.flatMap((l) => l.flags.filter((f) => FLAG_META[f].blocking).map((f) => FLAG_META[f].n)))].join(', ')}.
           </span>
         </div>
-      ) : (
-        block.length > 0 && (
-          <div className="flex items-start gap-3 rounded-[20px] bg-au-bad-soft px-4 py-3.5 text-sm font-semibold text-au-ink">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-au-bad" />
-            <span>
-              Tasdiqlashdan oldin hal qiling: {block.map((l) => l.name).join(', ')} — {[...new Set(block.flatMap((l) => l.flags.filter((f) => FLAG_META[f].blocking).map((f) => FLAG_META[f].n)))].join(', ')}.
-            </span>
-          </div>
-        )
       )}
 
-      {!locked && noBase.length > 0 && (
+      {noBase.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-au-line bg-au-card px-4 py-3 text-sm text-au-ink">
           <span>
             <b>{noBase.length} xodimning</b> {monthLabel(period)} maoshi kiritilmagan.
@@ -684,7 +605,7 @@ export function PayrollV2({
                       <span className={cn(CHIP, st.cls)}>{st.n}</span>
                     </span>
                     <span className="text-right">
-                      {!locked && l.remaining > 0 && (
+                      {l.remaining > 0 && (
                         <button className={cn(BTN_OK, SM)} disabled={busy} onClick={() => quickPay(l)}>
                           To‘lash
                         </button>
@@ -713,11 +634,9 @@ export function PayrollV2({
             key={selLine.staffId}
             line={selLine}
             period={period}
-            locked={locked}
             role={roleNames[selLine.role] ?? selLine.role}
             jev={jev[selLine.staffId]}
             log={log.filter((e) => (e.detail as { staffId?: string }).staffId === selLine.staffId)}
-            status={PAY_RUN_STEP[run.status].n}
             onUndo={undo}
             method={method}
             boxName={boxName}
@@ -762,14 +681,13 @@ export function PayrollV2({
             )}
           </div>
         )}
-        <button className={cn(BTN_SOFT, SM)} disabled={busy || !lines.length} onClick={() => downloadPayslips(lines, period, PAY_RUN_STEP[run.status].n)}>
+        <button className={cn(BTN_SOFT, SM)} disabled={busy || !lines.length} onClick={() => downloadPayslips(lines, period)}>
           <FileDown className="size-4" /> Kvitansiyalar PDF
         </button>
         <button className={cn(BTN_SOFT, SM)} disabled={busy} onClick={askJev}>
           <Bot className="size-4" /> Jev tekshiruvi
         </button>
-        {locked && (
-          <button
+        <button
             className={cn(BTN_SOFT, SM)}
             disabled={busy}
             title="Ish haqini Hisob-kitob jurnaliga yozadi (qayta bosilsa almashtiradi)"
@@ -783,7 +701,6 @@ export function PayrollV2({
           >
             <BookOpenCheck className="size-4" /> Hisob-kitobga o‘tkazish
           </button>
-        )}
         <ExportButtons
           filename={`oylik-${period.slice(0, 7)}`}
           columns={[
@@ -1008,26 +925,22 @@ function NotePanel({ period, initial }: { period: string; initial: string }) {
 }
 
 /** Everything about one person's month: how the pay is made up, what was
- * paid, every row editable while open, entries for any month, B-nuqta. */
+ * paid, every row editable, entries for any month, B-nuqta. */
 function StaffPanel({
   line,
   period,
-  locked,
   role,
   jev,
   log,
-  status,
   onUndo,
   method,
   boxName,
 }: {
   line: PayLine;
   period: string;
-  locked: boolean;
   role: string;
   jev?: JevPayVerdict;
   log: PayRunLogEntry[];
-  status: string;
   onUndo: (entryId: string, what: string) => void;
   /** The cash box chosen in the header — payments added here leave from it. */
   method: string;
@@ -1070,7 +983,6 @@ function StaffPanel({
   }, [line.staffId, period]);
 
   const months = [0, 1, 2, 3].map((n) => shiftMonth(period, n));
-  const perLocked = locked && per === period;
   const num = Number(digits(amount));
   const done = (msg: string, entryId?: string, what?: string) => {
     toast.success(msg, entryId && what ? { duration: UNDO_MS, action: { label: 'Qaytarish', onClick: () => onUndo(entryId, what) } } : undefined);
@@ -1149,7 +1061,7 @@ function StaffPanel({
     });
   const cancelled = new Set(line.components.filter((c) => c.title.startsWith('Bekor: ')).map((c) => c.title.slice(7)));
 
-  const editable = (source?: string) => !locked && !!source && EDITABLE_SOURCES.has(source);
+  const editable = (source?: string) => !!source && EDITABLE_SOURCES.has(source);
   const extras = line.components.filter((c) => c.kind !== 'base');
   const pct = line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
 
@@ -1228,25 +1140,24 @@ function StaffPanel({
             <input
               value={base}
               onChange={(e) => setBase(digits(e.target.value))}
-              disabled={locked}
               inputMode="numeric"
               className={cn(FIELD, 'h-10 w-36 text-right')}
               aria-label="Asosiy maosh"
             />
-            {!locked && digits(base) !== String(line.base || '') && (
+            {digits(base) !== String(line.base || '') && (
               <button className={cn(BTN_DARK, SM)} disabled={busy} onClick={() => saveBase()}>
                 Saqlash
               </button>
             )}
           </span>
         </label>
-        {!locked && digits(base) !== String(line.base || '') && (
+        {digits(base) !== String(line.base || '') && (
           <label className="flex items-center gap-2 text-xs text-au-muted">
             <input type="checkbox" className="size-4 accent-[var(--au-accent)]" checked={forward} onChange={(e) => setForward(e.target.checked)} />
             Keyingi oylarga ham (doimiy o‘zgarish, 12 oy)
           </label>
         )}
-        {!locked && prorated !== null && att && (
+        {prorated !== null && att && (
           <div className="flex items-center justify-between gap-2 rounded-xl bg-au-card px-3 py-2 text-xs text-au-muted">
             <span>
               Davomat: <b className="text-au-ink">{att.present}</b> / {att.workDays} kun → <b className="text-au-ink tabular-nums">{som(prorated)}</b>
@@ -1266,7 +1177,7 @@ function StaffPanel({
               <span className="flex shrink-0 items-center gap-0.5">
                 <span className={cn('mr-1 font-bold tabular-nums', c.amount >= 0 ? 'text-au-ok' : 'text-au-bad', c.reversed && 'line-through opacity-60')}>{signed(c.amount)}</span>
                 {c.entryId && rowBtns(c.entryId, c.title, c.amount, c.source)}
-                {!locked && !editable(c.source) && !c.reversed && REVERSIBLE.has(c.kind) && !cancelled.has(c.title) && (
+                {!editable(c.source) && !c.reversed && REVERSIBLE.has(c.kind) && !cancelled.has(c.title) && (
                   <button className={ICON_BTN} disabled={busy} onClick={() => cancel(c)} aria-label="Bekor qilish" title="Teskari yozuv bilan bekor qilish">
                     <Undo2 className="size-4" />
                   </button>
@@ -1360,14 +1271,12 @@ function StaffPanel({
           )}
         </div>
         <p className="text-xs text-au-muted">
-          {perLocked
-            ? `${monthLabel(per)} yopilgan — «Oyni ochish» ni bosing yoki keyingi oyni tanlang.`
-            : per === period
-              ? 'Shu oy hisobiga yoziladi.'
-              : `${monthLabel(per)} oyligiga yoziladi — ${kind === 'advance' ? 'o‘sha oy qoldig‘idan ushlanadi' : 'o‘sha oy hisobida ko‘rinadi'}.`}
+          {per === period
+            ? 'Shu oy hisobiga yoziladi.'
+            : `${monthLabel(per)} oyligiga yoziladi — ${kind === 'advance' ? 'o‘sha oy qoldig‘idan ushlanadi' : 'o‘sha oy hisobida ko‘rinadi'}.`}
           {(kind === 'advance' || kind === 'salary') && boxName(method) && ` To‘lov: ${boxName(method)}.`}
         </p>
-        <button className={BTN_DARK} disabled={busy || perLocked || !num} onClick={add}>
+        <button className={BTN_DARK} disabled={busy || !num} onClick={add}>
           {ADD_KINDS[kind].n} qo‘shish{num ? ` · ${som(num)} so‘m` : ''}
         </button>
       </div>
@@ -1428,7 +1337,7 @@ function StaffPanel({
         )}
       </div>
 
-      <button className={cn(BTN_SOFT, SM, 'self-start')} onClick={() => downloadPayslips([line], period, status)}>
+      <button className={cn(BTN_SOFT, SM, 'self-start')} onClick={() => downloadPayslips([line], period)}>
         <FileDown className="size-4" /> Hisob varaqasi PDF
       </button>
     </aside>

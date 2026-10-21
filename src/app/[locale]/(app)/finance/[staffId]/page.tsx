@@ -18,7 +18,7 @@ import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap
 import { can, canSeeFor } from '@/lib/permissions';
 import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { AdvancePanel, PayHistoryCard, PayStatementCard } from '@/components/finance/pay-statement';
-import { loadAdvances, loadMyPayments, loadPayHistory, loadPayLines, loadPayRun, loadReimbursements } from '@/lib/pay-run-data';
+import { loadAdvances, loadMyPayments, loadPayHistory, loadPayLines, loadReimbursements } from '@/lib/pay-run-data';
 import { MyPaymentsPanel, ReimbursePanel } from '@/components/finance/my-money';
 
 export const dynamic = 'force-dynamic';
@@ -72,7 +72,7 @@ export async function FinanceDetailContent({
   const avatarSrc = await resolveAvatarUrl(target.avatar_url);
 
   const period = `${month}-01`;
-  const [entries, lines, run, history, advances, myPayments, reimbursements] = await Promise.all([
+  const [entries, lines, history, advances, myPayments, reimbursements] = await Promise.all([
     sql<FinanceEntry[]>`
       select id, title, amount, note, kind, source, created_at from finance_entries
       where staff_id = ${staffId}
@@ -80,7 +80,6 @@ export async function FinanceDetailContent({
       order by created_at desc
     `,
     loadPayLines(period, staffId),
-    loadPayRun(period),
     loadPayHistory(period, staffId),
     isSelf ? loadAdvances(staffId) : Promise.resolve(null),
     isSelf ? loadMyPayments(staffId).catch(() => []) : Promise.resolve([]),
@@ -164,7 +163,7 @@ export async function FinanceDetailContent({
       {/* Left 7: statement + ledger; right 5: B-nuqta, advance, 12 months */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="flex min-w-0 flex-col gap-5 lg:col-span-7">
-          <PayStatementCard line={line} period={period} status={run.status} />
+          <PayStatementCard line={line} period={period} />
           {isSelf && <MyPaymentsPanel payments={myPayments} />}
           <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
             <SalarySection

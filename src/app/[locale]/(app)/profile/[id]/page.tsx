@@ -40,7 +40,7 @@ import {
 } from '@/lib/profile-insights';
 import { AboutCard, AccountTab, ActivityCard, MetricsCard, PeopleTab, ProfileStrip, WorkTab } from '@/components/profile/profile-hub';
 import { PayStatement } from '@/components/finance/pay-statement';
-import { loadPayHistory, loadPayLines, loadPayRun } from '@/lib/pay-run-data';
+import { loadPayHistory, loadPayLines } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,14 +155,13 @@ export async function ProfileDetailContent({
       : Promise.resolve([] as { id: string; name: string }[]),
   ]);
   const positionNames = [...new Set([target.role, ...positions.map((r) => r.role)])].map((r) => roleLabel(tStaff, r));
-  const [activity, skills, work, meetings, privateNotes, payLines, payRun, payHistory] = await Promise.all([
+  const [activity, skills, work, meetings, privateNotes, payLines, payHistory] = await Promise.all([
     tab === 'overview' && canViewCeoScoped ? loadProfileActivity(id, true) : Promise.resolve([]),
     tab === 'overview' ? loadSkills(id) : Promise.resolve([]),
     tab === 'work' ? loadWork(id) : Promise.resolve(null),
     tab === 'people' ? loadOneOnOnes(id) : Promise.resolve([]),
     tab === 'people' && isAdmin && !isSelf ? loadPrivateNotes(id) : Promise.resolve(null),
     tab === 'finance' && canViewCeoScoped ? loadPayLines(period, id) : Promise.resolve([]),
-    tab === 'finance' && canViewCeoScoped ? loadPayRun(period) : Promise.resolve(null),
     tab === 'finance' && canViewCeoScoped ? loadPayHistory(period, id) : Promise.resolve([]),
   ]);
 
@@ -269,8 +268,8 @@ export async function ProfileDetailContent({
 
           {tab === 'finance' && (
             <>
-              {canViewCeoScoped && payRun && (
-                <PayStatement line={payLines[0] ?? null} period={period} status={payRun.status} history={payHistory} advances={null} isSelf={false} />
+              {canViewCeoScoped && (
+                <PayStatement line={payLines[0] ?? null} period={period} history={payHistory} advances={null} isSelf={false} />
               )}
             <div className="enter-rise" style={{ animationDelay: '120ms' }}>
               <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>

@@ -2,27 +2,20 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, Clock3, FileDown, HandCoins, Lock, Undo2 } from 'lucide-react';
+import { FileDown, HandCoins, Undo2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { cancelAdvanceAction, requestAdvanceAction } from '@/lib/actions/pay-run';
-import { COMPONENT_LABEL, monthLabel, PAY_RUN_STEP, type PayLine, type PayRunStatus } from '@/lib/pay-run';
+import { COMPONENT_LABEL, monthLabel, type PayLine } from '@/lib/pay-run';
 import type { AdvanceRequest, MonthPoint } from '@/lib/pay-run-data';
 import { downloadPayslips } from './payslip';
 import { MonthBars } from './month-bars';
 
 const som = (n: number) => formatUZS(Math.round(n));
 const signed = (n: number) => `${n >= 0 ? '+' : '−'}${formatUZS(Math.abs(Math.round(n)))}`;
-
-const STATUS_CHIP: Record<PayRunStatus, { n: string; cls: string; Icon: typeof Clock3 }> = {
-  draft: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
-  review: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
-  approved: { n: 'Tasdiqlangan', cls: CHIP_OK, Icon: Lock },
-  paid: { n: 'To‘langan', cls: CHIP_OK, Icon: CheckCircle2 },
-};
 
 const ADV_ERR: Record<string, string> = {
   alreadyPending: 'Sizda ko‘rib chiqilayotgan so‘rov bor',
@@ -37,21 +30,19 @@ const ADV_ERR: Record<string, string> = {
 export function PayStatement({
   line,
   period,
-  status,
   history,
   advances,
   isSelf,
 }: {
   line: PayLine | null;
   period: string;
-  status: PayRunStatus;
   history: MonthPoint[];
   advances: AdvanceRequest[] | null;
   isSelf: boolean;
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <PayStatementCard line={line} period={period} status={status} />
+      <PayStatementCard line={line} period={period} />
       <aside className="flex flex-col gap-4">
         <PayHistoryCard history={history} period={period} />
         {isSelf && advances && <AdvancePanel advances={advances} />}
@@ -71,8 +62,7 @@ export function PayHistoryCard({ history, period }: { history: MonthPoint[]; per
 
 /** The owner-design statement card: status, three headline boxes, then every
  * component and payment of the month as one list. */
-export function PayStatementCard({ line, period, status }: { line: PayLine | null; period: string; status: PayRunStatus }) {
-  const chip = STATUS_CHIP[status];
+export function PayStatementCard({ line, period }: { line: PayLine | null; period: string }) {
   const remaining = line?.remaining ?? 0;
   const owed = Math.max(0, remaining);
   const over = Math.max(0, -remaining);
@@ -98,12 +88,9 @@ export function PayStatementCard({ line, period, status }: { line: PayLine | nul
           ) : line && line.paid > 0 ? (
             <span className="fp-chip fp-chip-ok">✓ To‘liq to‘langan</span>
           ) : null}
-          <span className={chip.cls}>
-            <chip.Icon className="size-3" /> {chip.n}
-          </span>
           {line && (
             <button
-              onClick={() => downloadPayslips([line], period, PAY_RUN_STEP[status].n)}
+              onClick={() => downloadPayslips([line], period)}
               className="inline-flex h-7 items-center gap-1.5 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-xs font-semibold text-au-ink hover:bg-au-card-2"
             >
               <FileDown className="size-3.5" /> Kvitansiya PDF

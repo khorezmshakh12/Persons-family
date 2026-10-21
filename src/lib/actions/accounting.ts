@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { loadPayLines, loadPayRun } from '@/lib/pay-run-data';
+import { loadPayLines } from '@/lib/pay-run-data';
 import { syncPayCash } from '@/lib/pay-cash';
 import { isRelevant } from '@/lib/pay-run';
 import { teacherCostFor } from '@/lib/accounting-ma';
@@ -443,17 +443,14 @@ export type PayrollLine = { staffId: string; name: string; role: string; gross: 
 
 /**
  * A month's accrued payroll, per person, from the pay run — the same
- * numbers Moliya shows. Once the run is approved the frozen snapshot is the
- * truth (what was approved is what is booked); before that, the live
- * payable. Everyone with pay that month is included, not only active staff
+ * numbers Moliya shows (the live payable — the payroll month has no lock
+ * since 2026-10-21). Everyone with pay that month is included, not only active staff
  * — someone who left mid-month was still paid. Never trusts amounts sent by
  * the browser.
  */
 async function payrollBase(month: string): Promise<PayrollLine[]> {
   const period = monthStart(month);
-  const [lines, run] = await Promise.all([loadPayLines(period), loadPayRun(period)]);
-  const locked = run.status === 'approved' || run.status === 'paid';
-  const frozen = new Map((locked ? (run.snapshot ?? []) : []).map((s) => [s.staffId, s]));
+  const lines = await loadPayLines(period);
   return lines
     .filter(isRelevant)
     .map((l) => ({
@@ -462,7 +459,7 @@ async function payrollBase(month: string): Promise<PayrollLine[]> {
       role: l.role,
       // Accrued pay is payable before recovering last month's overpayment —
       // the carry reduces the cash paid, not the salary earned.
-      gross: Math.max(0, (frozen.get(l.staffId)?.payable ?? l.payable) - (frozen.get(l.staffId)?.carry ?? l.carry)),
+      gross: Math.max(0, l.payable - l.carry),
       paid: l.paid,
     }))
     .filter((r) => r.gross > 0 || r.paid > 0);
