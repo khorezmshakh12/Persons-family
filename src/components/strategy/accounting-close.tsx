@@ -14,17 +14,15 @@ const ERR: Record<string, string> = {
   blocked: 'Yopib bo‘lmaydi — qizil bandlarni hal qiling',
   alreadyClosed: 'Oy allaqachon yopilgan',
   notClosed: 'Oy yopilmagan',
-  reasonRequired: 'Sababni yozing (kamida 3 belgi)',
   forbidden: 'Ruxsat yo‘q',
 };
 
-/** Month close: the checklist, then a DB-enforced lock (reopen with a reason). */
+/** Month close: the checklist, then a DB-enforced lock (one-click reopen,
+ * logged). */
 export function AccountingClose({ ym }: { ym: string }) {
   const router = useRouter();
   const [p, setP] = useState<ClosePeriod | null>(null);
   const [busy, start] = useTransition();
-  const [reason, setReason] = useState('');
-  const [reopening, setReopening] = useState(false);
 
   const load = () =>
     start(async () => {
@@ -42,8 +40,6 @@ export function AccountingClose({ ym }: { ym: string }) {
       const res = await fn();
       if (res.error) return void toast.error(ERR[res.error] ?? 'Saqlab bo‘lmadi');
       toast.success(ok);
-      setReason('');
-      setReopening(false);
       const fresh = await getClosePeriodAction(ym);
       if (fresh.period) setP(fresh.period);
       router.refresh();
@@ -70,23 +66,14 @@ export function AccountingClose({ ym }: { ym: string }) {
       <div className="sx-card sx-stat s4">
         <div className="l">Harakat</div>
         {p.closed ? (
-          reopening ? (
-            <div className="mt-1 flex flex-col gap-1.5">
-              <input className="sx-inp !h-[32px]" placeholder="Qayta ochish sababi" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
-              <div className="flex gap-1.5">
-                <button className="sx-btn sm text-au-bad" disabled={busy || reason.trim().length < 3} onClick={() => act(() => reopenPeriodAction(ym, reason), 'Oy qayta ochildi')}>
-                  Qayta ochish
-                </button>
-                <button className="sx-btn sm" onClick={() => setReopening(false)}>
-                  Bekor
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button className="sx-btn sm mt-2 w-fit" onClick={() => setReopening(true)}>
-              <LockOpen className="size-3.5" /> Oyni qayta ochish
-            </button>
-          )
+          <button
+            className="sx-btn sm mt-2 w-fit"
+            disabled={busy}
+            title="Bitta bosish bilan ochiladi — kim va qachon ochgani jurnalda qoladi"
+            onClick={() => act(() => reopenPeriodAction(ym), `${label(ym)} ochildi — endi tahrirlash mumkin`)}
+          >
+            <LockOpen className="size-3.5" /> Oyni ochish
+          </button>
         ) : (
           <button className="sx-btn primary sm mt-2 w-fit" disabled={busy || blockers > 0} onClick={() => act(() => closePeriodAction(ym), `${label(ym)} yopildi`)} title={blockers ? 'Avval qizil bandlarni hal qiling' : undefined}>
             <Lock className="size-3.5" /> Oyni yopish

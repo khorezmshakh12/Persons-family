@@ -22,7 +22,7 @@ import {
 import { requireCap } from '@/lib/auth/require-admin';
 import { loadClosePeriod, type ClosePeriod } from '@/lib/acct-close';
 import { createSignedReadUrl, createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
-import { CASH_ACC, CASH_CATS, cashDescription, templateDoc } from '@/lib/accounting-cash';
+import { cashDescription, templateDoc } from '@/lib/accounting-cash';
 
 type Result = { error?: string };
 
@@ -549,18 +549,23 @@ export async function closePeriodAction(month: string, note = ''): Promise<Resul
   return done();
 }
 
-export async function reopenPeriodAction(month: string, reason: string): Promise<Result> {
+/** One click, no reason required (owner, 2026-10-21) — the log still
+ * records who reopened it and when. */
+export async function reopenPeriodAction(month: string, reason = ''): Promise<Result> {
   const g = await requireEditor();
   if ('error' in g) return g;
-  if (!ym.safeParse(month).success || reason.trim().length < 3) return { error: 'reasonRequired' };
+  if (!ym.safeParse(month).success) return { error: 'invalidInput' };
+  const why = reason.trim().slice(0, 1000) || null;
   try {
-    const res = await sql`update acct_periods set closed_at = null, closed_by = null where month = ${`${month}-01`} and closed_at is not null`;
-    if (res.count === 0) return { error: 'notClosed' };
-    await sql`insert into acct_period_log (month, actor, action, reason) values (${`${month}-01`}, ${g.id}, 'reopen', ${reason.trim()})`;
-  } catch {
-    return { error: 'updateFailed' };
+    await sql.begin(async (tx) => {
+      const res = await tx`update acct_periods set closed_at = null, closed_by = null where month = ${`${month}-01`} and closed_at is not null`;
+      if (res.count === 0) throw new Error('notClosed');
+      await tx`insert into acct_period_log (month, actor, action, reason) values (${`${month}-01`}, ${g.id}, 'reopen', ${why})`;
+    });
+  } catch (error) {
+    return { error: error instanceof Error && error.message === 'notClosed' ? 'notClosed' : 'updateFailed' };
   }
-  logSystemAction('acct.reopen', `Reopened ${month}: ${reason.trim()}`);
+  logSystemAction('acct.reopen', `Reopened ${month}${why ? `: ${why}` : ''}`);
   return done();
 }
 
@@ -641,10 +646,12 @@ export async function getReceiptUrlAction(entryId: string): Promise<{ error?: st
 
 /* ------------------------------------------------------------ templates (v8-B) */
 
+const catKey = z.string().regex(/^[a-z0-9_]{1,24}$/);
+
 const templateSchema = z.object({
   id: z.string().uuid().optional(),
-  cat: z.string().refine((k) => CASH_CATS.some((c) => c.k === k)),
-  method: z.enum(CASH_ACC),
+  cat: catKey,
+  method: code,
   amount: money,
   note: z.string().trim().max(200).default(''),
   day: z.number().int().min(1).max(28),
@@ -658,6 +665,11 @@ export async function saveCashTemplateAction(input: z.input<typeof templateSchem
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
   try {
+    // Category and kassa come from the editable lists (v2), not constants.
+    const [ok] = await sql`
+      select 1 from acct_cash_cats c, acct_accounts a
+      where c.k = ${v.cat} and a.code = ${v.method} and a.cash_box`;
+    if (!ok) return { error: 'invalidInput' };
     if (v.id) {
       const res = await sql`
         update acct_templates set cat = ${v.cat}, method = ${v.method}, amount = ${v.amount}, note = ${v.note}, day = ${v.day}, active = ${v.active}
@@ -688,16 +700,20 @@ export async function applyCashTemplatesAction(month: string): Promise<Result & 
   const g = await requireEditor();
   if ('error' in g) return g;
   if (!ym.safeParse(month).success) return { error: 'invalidInput' };
-  const tpls = await sql<{ id: string; cat: string; method: string; amount: number; note: string; day: number }[]>`
-    select id, cat, method, amount, note, day from acct_templates
-    where active and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') <= ${month}`;
+  const [tpls, cats] = await Promise.all([
+    sql<{ id: string; cat: string; method: string; amount: number; note: string; day: number }[]>`
+      select id, cat, method, amount, note, day from acct_templates
+      where active and to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') <= ${month}`,
+    // A hidden category still applies — hiding only takes it off the form.
+    sql<{ k: string; n: string; dir: 'in' | 'out'; acc: string }[]>`select k, n, dir, acc from acct_cash_cats`,
+  ]);
   let count = 0;
   try {
     await sql.begin(async (tx) => {
       // One applier per month at a time — the doc-tag check below is then exact.
       await tx`select pg_advisory_xact_lock(hashtext(${`acct-tpl:${month}`}))`;
       for (const t of tpls) {
-        const cat = CASH_CATS.find((c) => c.k === t.cat);
+        const cat = cats.find((c) => c.k === t.cat);
         if (!cat) continue;
         const [exists] = await tx`
           select 1 from acct_entries where doc = ${templateDoc(t.id)} and entry_date between ${monthStart(month)} and ${monthEnd(month)}`;
@@ -715,4 +731,106 @@ export async function applyCashTemplatesAction(month: string): Promise<Result & 
   }
   if (count) logSystemAction('acct.templates', `Applied ${count} recurring entries for ${month}`);
   return { ...done(), count };
+}
+
+/* ------------------------------------------------- categories & kassalar (v2) */
+
+const catSchema = z.object({
+  /** Edit this category; omitted → a new one. */
+  k: catKey.optional(),
+  n: z.string().trim().min(1).max(80),
+  dir: z.enum(['in', 'out']),
+  acc: code,
+  active: z.boolean().default(true),
+});
+
+/** Add or edit a Kirim-chiqim category. Its account must be a real,
+ * non-cash account — a category is the *other* side of a cash line. */
+export async function saveCashCatAction(input: z.input<typeof catSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = catSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const [acc] = await sql`select 1 from acct_accounts where code = ${v.acc} and not cash_box`;
+    if (!acc) return { error: 'invalidInput' };
+    if (v.k) {
+      const res = await sql`update acct_cash_cats set n = ${v.n}, dir = ${v.dir}, acc = ${v.acc}, active = ${v.active} where k = ${v.k}`;
+      if (res.count === 0) return { error: 'notFound' };
+    } else {
+      const k = `c_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+      await sql`
+        insert into acct_cash_cats (k, n, dir, acc, sort, active)
+        values (${k}, ${v.n}, ${v.dir}, ${v.acc}, (select coalesce(max(sort), 0) + 10 from acct_cash_cats), ${v.active})`;
+    }
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('acct.cat_save', `${v.k ? 'Edited' : 'Added'} cash category "${v.n}" (${v.dir}, ${v.acc})`);
+  return done();
+}
+
+/** Hide a category from the form. Never a hard delete: past entries and
+ * templates keep resolving its name. */
+export async function deleteCashCatAction(k: string): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!catKey.safeParse(k).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`update acct_cash_cats set active = false where k = ${k}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('acct.cat_hide', `Hid cash category ${k}`);
+  return done();
+}
+
+const boxSchema = z.object({ name: z.string().trim().min(2).max(60), kind: z.enum(['cash', 'bank']) });
+
+/** A new kassa / karta: the next free code of its family (50xx naqd, 51xx
+ * bank/karta), so every report recognises it as cash by its code alone. */
+export async function addCashBoxAction(input: z.input<typeof boxSchema>): Promise<Result & { code?: string }> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = boxSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const fam = p.data.kind === 'cash' ? '50' : '51';
+  let created: string | null = null;
+  try {
+    created = await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext('acct-cash-box'))`;
+      const used = new Set((await tx<{ code: string }[]>`select code from acct_accounts where code like ${`${fam}__`}`).map((r) => r.code));
+      const free = Array.from({ length: 89 }, (_, i) => `${fam}${i + 11}`).find((c) => !used.has(c));
+      if (!free) return null;
+      await tx`
+        insert into acct_accounts (code, name, type, sort, cash_box)
+        values (${free}, ${p.data.name}, 'A',
+          coalesce((select sort from acct_accounts where code = ${`${fam}10`}), 55), true)`;
+      return free;
+    });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  if (!created) return { error: 'tooMany' };
+  logSystemAction('acct.box_add', `Added cash box ${created} "${p.data.name}"`);
+  return { ...done(), code: created };
+}
+
+const renameBoxSchema = z.object({ code, name: z.string().trim().min(2).max(60) });
+
+export async function renameCashBoxAction(input: z.input<typeof renameBoxSchema>): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  const p = renameBoxSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`update acct_accounts set name = ${p.data.name} where code = ${p.data.code} and cash_box`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('acct.box_rename', `Renamed cash box ${p.data.code} to "${p.data.name}"`);
+  return done();
 }

@@ -30,12 +30,12 @@ export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {
       select source as code, sum(amount) as amount from acct_entries where source like ${`payroll:${ym}:%`} group by source`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where source = ${`depr:${ym}`}`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where source = ${`tax:${ym}`}`,
-    sql<{ code: string; bal: number }[]>`
-      select a.code,
+    sql<{ code: string; name: string; bal: number }[]>`
+      select a.code, a.name,
         coalesce((select amount from acct_opening o where o.code = a.code), 0)
         + coalesce((select sum(amount) from acct_entries e where e.debit = a.code and e.entry_date < ${next}), 0)
         - coalesce((select sum(amount) from acct_entries e where e.credit = a.code and e.entry_date < ${next}), 0) as bal
-      from acct_accounts a where a.code in ('5010', '5110')`,
+      from acct_accounts a where a.cash_box order by a.sort, a.code`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where entry_date >= ${month} and entry_date < ${next}`,
     sql<{ action: string; reason: string | null; created_at: string; first_name: string | null; last_name: string | null }[]>`
       select l.action, l.reason, l.created_at, p.first_name, p.last_name
@@ -67,7 +67,7 @@ export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {
     { key: 'tax', n: 'Aylanma soliq hisoblangan', ok: tax.n > 0, detail: tax.n ? 'yozilgan' : '“Soliq” bo‘limida hisoblang', blocking: false },
     ...cash.map((c) => ({
       key: `cash-${c.code}`,
-      n: c.code === '5010' ? 'Kassa qoldig‘i manfiy emas' : 'Bank qoldig‘i manfiy emas',
+      n: `${c.name}: qoldiq manfiy emas`,
       ok: Number(c.bal) >= 0,
       detail: `oy oxiri: ${som(Number(c.bal))} so‘m`,
       blocking: true,

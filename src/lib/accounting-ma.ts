@@ -15,9 +15,11 @@ import {
   type Entry,
   type Statements,
 } from './accounting';
+import { isCashCode } from './accounting-cash';
 
 const r2 = (v: number) => Math.round(v * 100) / 100 || 0;
-const CASH = new Set(['5010', '5110']);
+/** Any cash box (50xx naqd, 51xx bank/karta). */
+const CASH = { has: isCashCode };
 
 /* ------------------------------------------------------------ cost & CVP */
 
@@ -173,11 +175,11 @@ export type CfCat = 'op' | 'inv' | 'fin';
 export const cfCategory = (counter: string): CfCat => (counter.startsWith('0') ? 'inv' : counter.startsWith('8') ? 'fin' : 'op');
 
 /** Direct-method cash-flow statement for [from, to]: every cash movement
- * (5010/5110 against a non-cash account) grouped by counter account.
+ * (a cash box against a non-cash account) grouped by counter account.
  * closing = opening + op + inv + fin, equal to the ledger's cash balance. */
 export function cashFlowStatement(accounts: Account[], opening: Record<string, number>, entries: Entry[], from: string, to: string) {
   const L = ledger(accounts, opening, entries, from, to);
-  const open = r2((L['5010']?.openingPeriod ?? 0) + (L['5110']?.openingPeriod ?? 0));
+  const open = r2(accounts.filter((a) => isCashCode(a.code)).reduce((t, a) => t + (L[a.code]?.openingPeriod ?? 0), 0));
   const lines = new Map<string, { cat: CfCat; code: string; amount: number }>();
   const tot = { op: 0, inv: 0, fin: 0 };
   for (const e of entries) {

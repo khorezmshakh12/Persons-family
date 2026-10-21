@@ -16,6 +16,8 @@ export const err = (c: string) =>
           ? 'Bu oy yopilgan — o‘zgartirish uchun “Oy yopish” bo‘limida qayta oching'
           : c === 'inUse'
           ? 'Bu hisob ishlatilgan (jurnal, qoldiq yoki byudjet) — o‘chirib bo‘lmaydi'
+          : c === 'tooMany'
+          ? 'Bu turdagi kassalar soni chegarasiga yetdi'
           : 'Saqlab bo‘lmadi (kod band bo‘lishi mumkin)';
 export const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
