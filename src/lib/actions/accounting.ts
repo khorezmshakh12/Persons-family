@@ -7,6 +7,7 @@ import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { loadPayLines, loadPayRun } from '@/lib/pay-run-data';
+import { syncPayCash } from '@/lib/pay-cash';
 import { isRelevant } from '@/lib/pay-run';
 import { teacherCostFor } from '@/lib/accounting-ma';
 import {
@@ -161,6 +162,9 @@ export async function postPayrollAction(month: string, overrides: Record<string,
       tax,
     );
     await replacePostings(`payroll:${month}:`, monthEnd(month), rows, g.id);
+    // Payments are posted one by one from their cash box — make sure this
+    // month's are there (they replace the old one-line "paid" row).
+    await syncPayCash(`${month}-01`);
     // An accountant's hand edit of an accrued amount is a decision — keep it on record.
     const edited = base.filter((r) => ov.data[r.staffId] !== undefined && ov.data[r.staffId] !== r.gross);
     logSystemAction(

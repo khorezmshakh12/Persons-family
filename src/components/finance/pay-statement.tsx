@@ -6,7 +6,7 @@ import { CheckCircle2, Clock3, FileDown, HandCoins, Lock, Undo2 } from 'lucide-r
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
-import { CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
+import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { cancelAdvanceAction, requestAdvanceAction } from '@/lib/actions/pay-run';
 import { COMPONENT_LABEL, monthLabel, PAY_RUN_STEP, type PayLine, type PayRunStatus } from '@/lib/pay-run';

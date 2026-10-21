@@ -349,7 +349,7 @@ ${escapeTelegramText(g.title)}: ${escapeTelegramText(formatUZS(Math.abs(g.amount
 
 type Simple = { error?: string; count?: number; ids?: string[] };
 
-async function financeManager(): Promise<{ id: string } | { error: string }> {
+async function requireFinanceManager(): Promise<{ id: string } | { error: string }> {
   try {
     const { user } = await requireCap('finance.manage');
     return { id: user.id };
@@ -367,7 +367,7 @@ const salaryFromSchema = z.object({
 /** A pay rise (or cut) from a month on: sets this month and the next eleven
  * to the new base, skipping months whose pay run is already locked. */
 export async function setSalaryFromAction(input: z.input<typeof salaryFromSchema>): Promise<Simple> {
-  const g = await financeManager();
+  const g = await requireFinanceManager();
   if ('error' in g) return g;
   const p = salaryFromSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
@@ -397,7 +397,7 @@ export async function setSalaryFromAction(input: z.input<typeof salaryFromSchema
 /** Everyone without a base this month gets last month's base — the usual
  * start of a new month. Never overwrites a base already set. */
 export async function copyBasesFromPrevAction(period: string): Promise<Simple> {
-  const g = await financeManager();
+  const g = await requireFinanceManager();
   if ('error' in g) return g;
   if (!PERIOD_RE.test(period)) return { error: 'invalidInput' };
   let count = 0;
@@ -435,7 +435,7 @@ const installmentSchema = z.object({
  * shares sum to the advance exactly (the last one takes the rounding).
  */
 export async function addAdvanceInstallmentsAction(input: z.input<typeof installmentSchema>): Promise<Simple> {
-  const g = await financeManager();
+  const g = await requireFinanceManager();
   if ('error' in g) return g;
   const p = installmentSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
@@ -485,7 +485,7 @@ const bulkSchema = z.object({
 
 /** The same bonus / jarima for many people at once (one insert). */
 export async function bulkAddEntriesAction(input: z.input<typeof bulkSchema>): Promise<Simple> {
-  const g = await financeManager();
+  const g = await requireFinanceManager();
   if ('error' in g) return g;
   const p = bulkSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
@@ -513,7 +513,7 @@ export type AttendanceProration = { workDays: number; present: number };
 /** Attendance for prorating a base: days the centre marked anyone present
  * this month vs days this person was present (office / late / remote / left). */
 export async function getAttendanceProrationAction(staffId: string, period: string): Promise<AttendanceProration | { error: string }> {
-  const g = await financeManager();
+  const g = await requireFinanceManager();
   if ('error' in g) return g;
   if (!z.string().uuid().safeParse(staffId).success || !PERIOD_RE.test(period)) return { error: 'invalidInput' };
   try {
