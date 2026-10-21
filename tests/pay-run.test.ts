@@ -59,11 +59,16 @@ test('only negative pay blocks approval', () => {
   assert.deepEqual(blockers([ok, bad]).map((l) => l.staffId), ['s2']);
 });
 
-test('run moves one step at a time, both ways', () => {
-  assert.equal(canMove('draft', 'review'), true);
+test('run: open → approved → paid, and "Oyni ochish" straight back to open', () => {
+  assert.equal(canMove('draft', 'approved'), true);
+  assert.equal(canMove('review', 'approved'), true);
+  assert.equal(canMove('approved', 'paid'), true);
+  assert.equal(canMove('draft', 'paid'), false);
   assert.equal(canMove('review', 'paid'), false);
-  assert.equal(canMove('paid', 'approved'), true);
-  assert.equal(canMove('approved', 'draft'), false);
+  assert.equal(canMove('approved', 'draft'), true);
+  assert.equal(canMove('paid', 'draft'), true);
+  assert.equal(canMove('paid', 'approved'), false);
+  assert.equal(canMove('draft', 'draft'), false);
 });
 
 test('totals, drift and month shifting', () => {

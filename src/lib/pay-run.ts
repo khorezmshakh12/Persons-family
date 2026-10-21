@@ -15,9 +15,10 @@ export const PAY_RUN_STATUSES = ['draft', 'review', 'approved', 'paid'] as const
 export type PayRunStatus = (typeof PAY_RUN_STATUSES)[number];
 
 export const PAY_RUN_STEP: Record<PayRunStatus, { n: string; hint: string }> = {
-  draft: { n: 'Hisoblash', hint: 'Maosh, KPI, bonus va ushlanmalar yig‘ilmoqda' },
-  review: { n: 'Tekshirish', hint: 'Ogohlantirishlarni ko‘rib chiqing' },
-  approved: { n: 'Tasdiqlangan', hint: 'Oy qulflangan — faqat tuzatish yozuvi bilan o‘zgaradi' },
+  draft: { n: 'Ochiq', hint: 'Maosh, KPI, bonus va ushlanmalar kiritilmoqda' },
+  // Kept for old rows: Finance v2 (2026-10-21) shows it as "Ochiq" too.
+  review: { n: 'Ochiq', hint: 'Maosh, KPI, bonus va ushlanmalar kiritilmoqda' },
+  approved: { n: 'Tasdiqlangan', hint: 'Oy qulflangan — «Oyni ochish» bilan tahrirlanadi' },
   paid: { n: 'To‘langan', hint: 'To‘lovlar qayd etilgan' },
 };
 
@@ -43,8 +44,10 @@ export type PayComponent = {
   title: string;
   amount: number;
   at?: string | null;
-  /** finance_entries id when the component is a ledger row (editable). */
+  /** finance_entries id when the component is a ledger row. */
   entryId?: string;
+  /** finance_entries.source of that row — decides whether it can be edited. */
+  source?: string;
   /** Stable key of the source row ('fe:<id>', 'perf:<id>', 'sd:<id>',
    * 'ms:<id>') — what a reversal correction points at. */
   ref?: string;
@@ -52,7 +55,16 @@ export type PayComponent = {
   reversed?: boolean;
 };
 
-export type Payment = { id: string; kind: 'salary' | 'advance'; title: string; amount: number; at: string | null };
+export type Payment = { id: string; kind: 'salary' | 'advance'; title: string; amount: number; at: string | null; source?: string };
+
+/** Ledger rows a person may edit or delete while the month is open; the
+ * rest belong to a workflow (KPI grade, correction, carry) and change there. */
+export const EDITABLE_SOURCES: ReadonlySet<string> = new Set(['manual', 'advance', 'payrun']);
+
+/** The three states the owner works with (Finance v2): draft and review are
+ * both just "open". */
+export type PayStage = 'open' | 'approved' | 'paid';
+export const payStage = (s: PayRunStatus): PayStage => (s === 'approved' || s === 'paid' ? s : 'open');
 
 export type PayFlag = 'noBase' | 'kpiPending' | 'selfDevPending' | 'variance' | 'overpaid' | 'negative' | 'advancePending';
 
@@ -171,11 +183,15 @@ export function blockers(lines: PayLine[]): PayLine[] {
   return lines.filter((l) => isRelevant(l) && l.flags.some((f) => FLAG_META[f].blocking));
 }
 
-/** Allowed moves of the run. Going back (reopen) always needs a reason. */
+/** Allowed moves of the run (Finance v2): open → approved → paid, and
+ * "Oyni ochish" takes an approved or paid month straight back to open.
+ * Payments already made stay; the next "paid" pays only what is still owed. */
 export function canMove(from: PayRunStatus, to: PayRunStatus): boolean {
-  const i = PAY_RUN_STATUSES.indexOf(from);
-  const j = PAY_RUN_STATUSES.indexOf(to);
-  return Math.abs(i - j) === 1;
+  if (to === 'approved') return from === 'draft' || from === 'review';
+  if (to === 'paid') return from === 'approved';
+  if (to === 'draft') return from !== 'draft';
+  if (to === 'review') return from === 'draft';
+  return false;
 }
 
 export type SnapshotLine = { staffId: string; payable: number; carry?: number };
