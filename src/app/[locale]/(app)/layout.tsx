@@ -20,7 +20,7 @@ import { FormFeedback } from '@/components/motion/form-feedback';
 import { MOTION_ROLES } from '@/lib/nav';
 import { BirthdayReminder } from '@/components/birthday-reminder';
 import { getUpcomingBirthdays, tashkentTodayKey } from '@/lib/upcoming-birthdays';
-import { CAP_ROLES } from '@/lib/permissions';
+import { can } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,12 +83,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // the whole "which teachers missed their plans" report in every
       // employee's bell. Restores CEO-only (same guard as
       // notification-bell.ts / nav-badges.ts / mark-seen.ts).
-      sql<{ id: string; summary: string; created_at: string }[]>`
-        select id, summary, created_at from lesson_plan_compliance_alerts
-        where is_seen = false
-          and exists (select 1 from profiles where id = ${user!.id} and role::text = any(${[...CAP_ROLES['academic.viewAll']]}))
-        order by created_at desc limit 50
-      `,
+      can(profile!.role, 'academic.viewAll')
+        ? sql<{ id: string; summary: string; created_at: string }[]>`
+            select id, summary, created_at from lesson_plan_compliance_alerts
+            where is_seen = false
+            order by created_at desc limit 50
+          `
+        : [],
       computeNavBadgeKeys(user!.id),
       // Don't let a cold start of the Materials service (which scales to
       // zero) stall the whole app shell — cap the wait at 2.5s and just

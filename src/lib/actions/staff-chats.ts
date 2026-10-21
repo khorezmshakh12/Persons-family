@@ -142,7 +142,7 @@ export async function sendStaffChatAction(
     // just works, so this creates (or upgrades a stale pending row to)
     // 'accepted' transparently before the send below.
     try {
-      await startDmConversation(user.id, parsed.data.receiverId);
+      await startDmConversation(user.id, parsed.data.receiverId, profile.role);
     } catch {
       return { error: 'sendFailed' };
     }
@@ -236,14 +236,14 @@ export type ChatRequestResult = { error?: string; requestStatus?: 'pending' | 'a
  * the recipient calls respondToDmRequestAction.
  */
 export async function sendChatRequestAction(receiverId: string): Promise<ChatRequestResult> {
-  const { user } = await getAuthState();
-  if (!user) return { error: 'sessionExpired' };
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
 
   const parsedId = z.string().uuid().safeParse(receiverId);
   if (!parsedId.success) return { error: 'invalidInput' };
 
   try {
-    const { requestStatus } = await startDmConversation(user.id, parsedId.data);
+    const { requestStatus } = await startDmConversation(user.id, parsedId.data, profile.role);
     return { requestStatus };
   } catch {
     return { error: 'requestFailed' };

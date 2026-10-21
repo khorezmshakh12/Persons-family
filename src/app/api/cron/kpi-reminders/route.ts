@@ -60,7 +60,7 @@ async function handle(req: NextRequest): Promise<Response> {
   if (day === 1 && (await claim(thisMonth, 'digest'))) {
     const rows = await missing(thisMonth);
     const ceos = await sql<{ telegram_id: number | null }[]>`
-      select telegram_id from profiles where is_active and role = 'ceo' and telegram_id is not null`;
+      select telegram_id from profiles where is_active and (role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo')) and telegram_id is not null`;
     const text = rows.length
       ? `📋 <b>${monthName(thisMonth)}</b> KPI rejasini topshirmaganlar (${rows.length}):\n` +
         rows.map((r) => `• ${escapeTelegramText(`${r.first_name} ${r.last_name}`)}`).join('\n')

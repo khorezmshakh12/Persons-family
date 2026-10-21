@@ -14,7 +14,9 @@ import {
   ROLES,
   SECTION_ROLES,
   can,
+  canFor,
   canSee,
+  canSeeFor,
   type Role,
   type SectionKey,
 } from '../src/lib/permissions';
@@ -79,6 +81,15 @@ test('the sidebar shows exactly the sections a role may open', () => {
     const expected = ALL_SECTIONS.filter((s) => canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
     assert.deepEqual(keys, expected, role);
   }
+});
+
+test('working as CEO ignores per-person closes set for another position', () => {
+  const closed = { section_overrides: { finance: false, strategy: false, accounting: false } };
+  for (const s of ['finance', 'strategy', 'accounting'] as SectionKey[]) {
+    assert.equal(canSeeFor({ role: 'ceo', ...closed }, s), canSee('ceo', s), s);
+    assert.equal(canSeeFor({ role: 'it_developer', ...closed }, s), false, s);
+  }
+  assert.equal(canFor({ role: 'ceo', ...closed }, 'strategy.edit'), can('ceo', 'strategy.edit'));
 });
 
 test('unknown / stale roles fail closed', () => {

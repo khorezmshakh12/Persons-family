@@ -8,7 +8,7 @@ import type {
   UnseenWarningItem,
   UnseenLessonPlanAlertItem,
 } from '@/components/app-shell/notification-bell';
-import { CAP_ROLES } from '@/lib/permissions';
+import { can } from '@/lib/permissions';
 import { loadFeed, type FeedItem } from '@/lib/notifications';
 
 export type NotificationBellData = {
@@ -43,7 +43,7 @@ const EMPTY: NotificationBellData = {
  * for the same table.
  */
 export async function getNotificationBellDataAction(): Promise<NotificationBellData> {
-  const { user } = await getAuthState();
+  const { user, profile } = await getAuthState();
   if (!user) return EMPTY;
 
   const [unreadChats, feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts] = await Promise.all([
@@ -63,12 +63,13 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
       where staff_id = ${user.id} and is_seen = false
       order by created_at desc limit 50
     `,
-    sql<UnseenLessonPlanAlertItem[]>`
-      select id, summary, created_at as "createdAt" from lesson_plan_compliance_alerts
-      where is_seen = false
-        and exists (select 1 from profiles where id = ${user.id} and role::text = any(${[...CAP_ROLES['academic.viewAll']]}))
-      order by created_at desc limit 50
-    `,
+    profile && can(profile.role, 'academic.viewAll')
+      ? sql<UnseenLessonPlanAlertItem[]>`
+          select id, summary, created_at as "createdAt" from lesson_plan_compliance_alerts
+          where is_seen = false
+          order by created_at desc limit 50
+        `
+      : [],
   ]);
 
   return { unreadChats, feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts };

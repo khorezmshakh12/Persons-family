@@ -276,6 +276,9 @@ export function canSeeFor(
   section: SectionKey,
 ): boolean {
   if (!p) return false;
+  // Working as CEO (primary or switched-to position) means every CEO
+  // section — a per-person close set for another position must not follow.
+  if (p.role === 'ceo') return canSee(p.role, section);
   const o = p.section_overrides?.[section];
   return typeof o === 'boolean' ? o : canSee(p.role, section);
 }
@@ -292,6 +295,7 @@ export function canFor(
   cap: Capability,
 ): boolean {
   if (!p) return false;
+  if (p.role === 'ceo') return can(p.role, cap);
   const sec = CAP_SECTION[cap];
   const o = sec ? p.section_overrides?.[sec] : undefined;
   return typeof o === 'boolean' ? o : can(p.role, cap);

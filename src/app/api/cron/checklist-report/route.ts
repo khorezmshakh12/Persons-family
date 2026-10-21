@@ -65,7 +65,7 @@ async function handle(req: NextRequest): Promise<Response> {
       where p.is_active = true
       order by p.first_name, p.last_name
     `.catch(() => []),
-    sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where role = 'ceo'`,
+    sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where (role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo'))`,
     pinnedChatIds.length > 0
       ? Promise.resolve(pinnedChatIds.map((chat_id) => ({ chat_id })))
       : sql<{ chat_id: number }[]>`select chat_id from telegram_group_chats`.catch(() => []),
