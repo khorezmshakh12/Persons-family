@@ -74,11 +74,25 @@ export function goalCell(g: BoardGoal, day: string, today: string): GoalCell {
   return day > g.dueDay ? 'late' : 'open';
 }
 
-/** The day goals set for one day: how many, how many are done (whenever). */
-export function dayGoals(goals: BoardGoal[], day: string) {
+/** The day goals set for one day: how many were done that same day, and —
+ * once the day is over — how many were left behind ("qolib ketdi"). A goal
+ * finished later still counts as done, but not as done that day. */
+export function dayGoals(goals: BoardGoal[], day: string, today: string) {
   const list = goals.filter((g) => g.scope === 'day' && g.dueDay === day);
   const done = list.filter((g) => g.doneDay).length;
-  return { done, total: list.length, pct: pctOf(done, list.length) };
+  const onTime = list.filter((g) => g.doneDay && g.doneDay <= day).length;
+  return { done, onTime, left: day < today ? list.length - onTime : 0, total: list.length, pct: pctOf(onTime, list.length) };
+}
+
+/** Goals whose period ended unfinished — still open, or done late — newest
+ * day first: the "qolib ketgan maqsadlar" list. */
+export function leftBehind(goals: BoardGoal[], today: string): { day: string; goals: BoardGoal[] }[] {
+  const by = new Map<string, BoardGoal[]>();
+  for (const g of goals) {
+    if (g.dueDay >= today || (g.doneDay && g.doneDay <= g.dueDay)) continue;
+    by.set(g.dueDay, [...(by.get(g.dueDay) ?? []), g]);
+  }
+  return [...by.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([day, list]) => ({ day, goals: list }));
 }
 
 /** Goals that need doing today: today's own, plus every earlier one still open. */
