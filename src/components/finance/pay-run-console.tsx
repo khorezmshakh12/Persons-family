@@ -13,12 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   FileDown,
+  HandCoins,
   History,
   Lock,
   NotebookPen,
   Plus,
   Search,
-  ShieldAlert,
   BookOpenCheck,
   Undo2,
   Wallet,
@@ -27,10 +27,11 @@ import {
 import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
-import { CARD_TITLE, CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
+import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { ExportButtons } from '@/components/export/export-buttons';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   addPayCorrectionAction,
   decideAdvanceAction,
@@ -69,6 +70,9 @@ const BTN =
   'inline-flex items-center justify-center gap-1.5 rounded-au-ctl px-3.5 h-9 text-sm font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none';
 const BTN_PRIMARY = cn(BTN, 'bg-au-primary text-au-primary-ink hover:opacity-90');
 const BTN_GHOST = cn(BTN, 'border border-au-line bg-au-card text-au-ink hover:bg-au-card-2');
+/** Toolbar buttons of the owner design: compact, h-8, text-xs. */
+const TB = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-au-ctl px-3 text-xs font-semibold transition disabled:opacity-50 disabled:pointer-events-none';
+const TB_GHOST = cn(TB, 'border border-au-line bg-au-card text-au-ink hover:bg-au-card-2');
 
 const ERR: Record<string, string> = {
   blocked: 'Tasdiqlab bo‘lmaydi — avval qizil ogohlantirishlarni hal qiling',
@@ -91,7 +95,23 @@ const ERR: Record<string, string> = {
 };
 const errText = (c: string) => ERR[c] ?? 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
 
-type Filter = 'all' | 'flags' | 'owed' | 'over' | 'jev';
+type Filter = 'all' | 'settled' | 'owed' | 'over' | 'flags' | 'jev' | `flag:${PayFlag}`;
+type SortKey = 'name' | 'base' | 'adj' | 'payable' | 'paid' | 'remaining';
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('');
+
+/** One line's place in the month: still owed, overpaid (an advance beyond
+ * the month's pay — held back from next month), fully paid, or not started. */
+const owedOf = (l: PayLine) => Math.max(0, l.remaining);
+const overOf = (l: PayLine) => Math.max(0, -l.remaining);
+const isSettled = (l: PayLine) => l.remaining === 0 && l.paid > 0;
+const adjOf = (l: PayLine) => l.kpi + l.bonuses + l.deductions;
 
 export function PayRunConsole({
   period,
@@ -118,32 +138,59 @@ export function PayRunConsole({
   const locked = run.status === 'approved' || run.status === 'paid';
   const drifted = drift(lines, run.snapshot);
   const [q, setQ] = useState('');
+  const [role, setRole] = useState('all');
   const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<{ by: SortKey; dir: 1 | -1 }>({ by: 'payable', dir: -1 });
   const [openId, setOpenId] = useState<string | null>(null);
   const [jev, setJev] = useState<Record<string, JevPayVerdict>>({});
+  const [jevOpen, setJevOpen] = useState(false);
   const [back, setBack] = useState<PayRunStatus | null>(null);
   const [reason, setReason] = useState('');
+  const [giveFor, setGiveFor] = useState<string | null>(null);
   const pendingAdv = advances.filter((a) => a.status === 'pending');
 
-  const flagCounts = useMemo(() => {
+  const owed = lines.reduce((t, l) => t + owedOf(l), 0);
+  const owedCount = lines.filter((l) => owedOf(l) > 0).length;
+  const overTotal = lines.reduce((t, l) => t + overOf(l), 0);
+  const overCount = lines.filter((l) => overOf(l) > 0).length;
+  const advTotal = lines.reduce((t, l) => t + l.advances, 0);
+  const advCount = lines.filter((l) => l.advances > 0).length;
+  const settledCount = lines.filter(isSettled).length;
+  const flaggedCount = lines.filter((l) => l.flags.length > 0).length;
+  const paidPct = sum.payable > 0 ? Math.min(100, Math.round((sum.paid / sum.payable) * 100)) : 0;
+
+  const flagGroups = useMemo(() => {
     const m = new Map<PayFlag, PayLine[]>();
     for (const l of lines) for (const f of l.flags) m.set(f, [...(m.get(f) ?? []), l]);
     return [...m.entries()].sort((a, b) => Number(FLAG_META[b[0]].blocking) - Number(FLAG_META[a[0]].blocking));
   }, [lines]);
 
-  const shown = lines.filter((l) => {
-    if (q && !l.name.toLowerCase().includes(q.toLowerCase())) return false;
-    if (filter === 'flags') return l.flags.length > 0;
-    if (filter === 'owed') return l.remaining > 0;
-    if (filter === 'over') return l.remaining < 0;
-    if (filter === 'jev') return jev[l.staffId]?.verdict === 'check';
-    return true;
-  });
+  const roles = useMemo(() => [...new Set(lines.map((l) => l.role))], [lines]);
+
+  const shown = lines
+    .filter((l) => {
+      const ql = q.trim().toLowerCase();
+      if (ql && !l.name.toLowerCase().includes(ql) && !(roleNames[l.role] ?? l.role).toLowerCase().includes(ql)) return false;
+      if (role !== 'all' && l.role !== role) return false;
+      if (filter === 'settled') return isSettled(l);
+      if (filter === 'owed') return owedOf(l) > 0;
+      if (filter === 'over') return overOf(l) > 0 || l.advances > 0;
+      if (filter === 'flags') return l.flags.length > 0;
+      if (filter === 'jev') return jev[l.staffId]?.verdict === 'check';
+      if (filter.startsWith('flag:')) return l.flags.includes(filter.slice(5) as PayFlag);
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort.by === 'name') return a.name.localeCompare(b.name) * sort.dir;
+      const v = (l: PayLine): number => (sort.by === 'adj' ? adjOf(l) : l[sort.by as Exclude<SortKey, 'name' | 'adj'>]);
+      return (v(a) - v(b)) * sort.dir;
+    });
   // The table footer "Jami" totals the rows actually shown, so it always
-  // matches the visible list under a search/filter (the top summary tiles
-  // keep the whole-month grand total via `sum`).
+  // matches the visible list under a search/filter (the KPI cards keep the
+  // whole-month grand total via `sum`).
   const shownTotals = totals(shown);
-  const filtered = shown.length !== lines.length;
+  const shownOwed = shown.reduce((t, l) => t + owedOf(l), 0);
+  const shownOver = shown.reduce((t, l) => t + overOf(l), 0);
   const open = lines.find((l) => l.staffId === openId) ?? null;
   const idx = PAY_RUN_STATUSES.indexOf(run.status);
   const next = PAY_RUN_STATUSES[idx + 1] as PayRunStatus | undefined;
@@ -167,9 +214,8 @@ export function PayRunConsole({
 
   // A correction after payment leaves money owed (paid by the run) or an
   // overpayment that differs from what is already carried into next month.
-  const owed = lines.reduce((t, l) => t + Math.max(0, l.remaining), 0);
-  const over = lines.reduce((t, l) => t + Math.min(0, l.remaining), 0);
-  const unsettled = run.status === 'paid' && (owed > 0 || over !== run.carried);
+  const overNeg = lines.reduce((t, l) => t + Math.min(0, l.remaining), 0);
+  const unsettled = run.status === 'paid' && (owed > 0 || overNeg !== run.carried);
   const payOutstanding = () =>
     start(async () => {
       const res = await payOutstandingAction({ period });
@@ -185,11 +231,28 @@ export function PayRunConsole({
       router.refresh();
     });
 
+  // One person's remainder, paid from the row while the month is open (a
+  // locked month is paid by the run itself — the database refuses writes).
+  const quickPay = (l: PayLine) =>
+    start(async () => {
+      const fd = new FormData();
+      fd.set('staffId', l.staffId);
+      fd.set('title', `${monthLabel(period)} oyligi`);
+      fd.set('amount', String(owedOf(l)));
+      fd.set('kind', 'salary');
+      fd.set('period', period);
+      const res = await addFinanceEntryAction(undefined, fd);
+      if (res?.error) return void toast.error(errText(res.error));
+      toast.success(`${l.name}: ${som(owedOf(l))} so‘m to‘landi`);
+      router.refresh();
+    });
+
   const askJev = () =>
     start(async () => {
       const res = await reviewPayRunWithJevAction(period);
       if (res.error !== undefined) return void toast.error(errText(res.error));
       setJev(Object.fromEntries(res.verdicts.map((v) => [v.staffId, v])));
+      setJevOpen(true);
       const n = res.verdicts.filter((v) => v.verdict === 'check').length;
       toast.success(n ? `Jev ${n} ta qatorni tekshirishni tavsiya qildi` : 'Jev: hammasi odatdagidek');
       if (n) setFilter('jev');
@@ -207,43 +270,143 @@ export function PayRunConsole({
       router.refresh();
     });
 
+  const jevChecks = Object.values(jev).filter((v) => v.verdict === 'check').length;
+  const sortTh = (by: SortKey, label: string, right = true) => (
+    <th
+      data-sort={by}
+      onClick={() => setSort((s) => ({ by, dir: s.by === by ? (s.dir === 1 ? -1 : 1) : by === 'name' ? 1 : -1 }))}
+      className={cn('px-3 py-2.5', right && 'text-right', sort.by === by && 'is-sorted')}
+    >
+      {label} <span className="fp-sort-arrow">{sort.by === by ? (sort.dir === 1 ? '▲' : '▼') : '↕'}</span>
+    </th>
+  );
+
   return (
     <div className="flex flex-col gap-5">
-      {/* Month + stepper */}
+      {/* Period, toolbar, stepper, KPI cards */}
       <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-4 p-4 sm:p-5')}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <Link href={`/finance?period=${shiftMonth(period, -1)}`} className="rounded-full p-1.5 text-au-muted hover:bg-au-card-2 hover:text-au-ink" aria-label="Oldingi oy">
-              <ChevronLeft className="size-5" />
-            </Link>
-            <h2 className="min-w-36 text-center text-lg font-bold text-au-ink">{monthLabel(period)}</h2>
-            <Link href={`/finance?period=${shiftMonth(period, 1)}`} className="rounded-full p-1.5 text-au-muted hover:bg-au-card-2 hover:text-au-ink" aria-label="Keyingi oy">
-              <ChevronRight className="size-5" />
-            </Link>
-          </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/finance?period=${shiftMonth(period, -1)}`}
+              aria-label="Oldingi oy"
+              className="inline-flex size-8 items-center justify-center rounded-au-ctl border border-au-line bg-au-card-2 text-au-ink transition hover:bg-au-accent-soft"
+            >
+              <ChevronLeft className="size-4" />
+            </Link>
+            <div className="flex flex-col px-1">
+              <span className="text-[11px] font-bold tracking-wider text-au-muted uppercase">Moliya · Oylik va Avanslar</span>
+              <h1 className="text-xl font-bold tracking-tight text-au-ink sm:text-2xl">{monthLabel(period)}</h1>
+            </div>
+            <Link
+              href={`/finance?period=${shiftMonth(period, 1)}`}
+              aria-label="Keyingi oy"
+              className="inline-flex size-8 items-center justify-center rounded-au-ctl border border-au-line bg-au-card-2 text-au-ink transition hover:bg-au-accent-soft"
+            >
+              <ChevronRight className="size-4" />
+            </Link>
+            <div className="ml-1 flex flex-wrap items-center gap-1.5">
+              {locked ? (
+                <span className="fp-chip fp-chip-accent">
+                  <Lock className="size-3" /> Oy qulflangan
+                </span>
+              ) : (
+                <span className="fp-chip fp-chip-neutral">Ochiq davr</span>
+              )}
+              {overCount > 0 && (
+                <span className="fp-chip fp-chip-info">
+                  {overCount} xodimda ortiqcha ({som(overTotal)})
+                </span>
+              )}
+              {run.approved_by_name && <span className="fp-chip fp-chip-neutral">Tasdiqladi: {run.approved_by_name}</span>}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {next === 'paid' && (
+              <button className={cn(TB, 'bg-au-ok px-3.5 text-white shadow-xs hover:opacity-90')} disabled={busy} onClick={() => move('paid')}>
+                <Banknote className="size-3.5" /> Qoldiqni to‘lash ({som(owed)})
+              </button>
+            )}
+            {unsettled && (
+              <button
+                className={cn(TB, 'bg-au-ok px-3.5 text-white shadow-xs hover:opacity-90')}
+                disabled={busy}
+                onClick={payOutstanding}
+                title="Tuzatishlardan keyin: qarz to‘lanadi, ortiqcha to‘lov keyingi oydan ushlanadi"
+              >
+                <Banknote className="size-3.5" /> Qoldiqni hal qilish{owed > 0 ? ` (${som(owed)})` : ''}
+              </button>
+            )}
+            <button className={cn(TB, 'border border-au-info/40 bg-au-info-soft text-au-info hover:opacity-90')} disabled={busy} onClick={() => setGiveFor('')}>
+              <HandCoins className="size-3.5" /> Avans berish
+            </button>
+            {next && next !== 'paid' && (
+              <button
+                className={cn(TB, 'bg-au-accent px-3.5 text-au-accent-ink shadow-xs hover:opacity-90')}
+                disabled={busy || (next === 'approved' && block.length > 0)}
+                onClick={() => move(next)}
+                title={next === 'approved' && block.length ? 'Avval qizil ogohlantirishlarni hal qiling' : undefined}
+              >
+                {next === 'review' ? <ArrowRight className="size-3.5" /> : <BadgeCheck className="size-3.5" />}
+                {next === 'review' ? 'Tekshirishga o‘tkazish' : 'Tasdiqlash va qulflash'}
+              </button>
+            )}
+            {prev && !back && (
+              <button className={TB_GHOST} disabled={busy} onClick={() => setBack(prev)}>
+                <Undo2 className="size-3.5" /> {run.status === 'paid' ? 'To‘lovni bekor qilish' : run.status === 'approved' ? 'Qulfni ochish' : 'Orqaga'}
+              </button>
+            )}
+            <button className={TB_GHOST} disabled={busy} onClick={askJev}>
+              <Bot className="size-3.5" /> Jev tahlili
+            </button>
             {locked && (
-              <span className={CHIP_INFO}>
-                <Lock className="size-3" /> Oy qulflangan
-              </span>
+              <button
+                className={TB_GHOST}
+                disabled={busy}
+                title="Buxgalteriya jurnaliga ish haqi yozuvlarini tasdiqlangan summalar bilan yozadi (qayta bosilsa almashtiradi)"
+                onClick={() =>
+                  start(async () => {
+                    // The server books the approved snapshot itself.
+                    const res = await postPayrollAction(period.slice(0, 7));
+                    if (res.error !== undefined) return void toast.error(errText(res.error));
+                    toast.success(`Buxgalteriyaga o‘tkazildi (${res.count ?? 0} yozuv)`);
+                  })
+                }
+              >
+                <BookOpenCheck className="size-3.5" /> Kassaga o‘tkazish
+              </button>
             )}
-            {run.approved_by_name && (
-              <span className="text-xs text-au-muted">
-                Tasdiqladi: <b className="text-au-ink">{run.approved_by_name}</b>
-              </span>
-            )}
+            <button className={TB_GHOST} disabled={busy || !lines.length} onClick={() => downloadPayslips(lines, period, PAY_RUN_STEP[run.status].n)}>
+              <FileDown className="size-3.5" /> Kvitansiya PDF
+            </button>
+            <ExportButtons
+              filename={`oylik-${period.slice(0, 7)}`}
+              columns={[
+                { header: 'Xodim', key: 'name' },
+                { header: 'Maosh', key: 'base' },
+                { header: 'KPI', key: 'kpi' },
+                { header: 'Bonus', key: 'bonuses' },
+                { header: 'Ushlanma', key: 'deductions' },
+                { header: 'To‘lanadi', key: 'payable' },
+                { header: 'To‘langan', key: 'paid' },
+                { header: 'Qoldiq', key: 'remaining' },
+              ]}
+              rows={lines.map((l) => ({ ...l }))}
+            />
           </div>
         </div>
 
+        {/* 4-stage stepper */}
         <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {PAY_RUN_STATUSES.map((s, i) => {
-            const state = i < idx ? 'done' : i === idx ? 'now' : 'todo';
+            const state = i < idx || (run.status === 'paid' && i === idx) ? 'done' : i === idx ? 'now' : 'todo';
             return (
               <li
                 key={s}
                 style={{ ['--i' as string]: i }}
                 className={cn(
-                  'ms-rise relative flex flex-col gap-0.5 overflow-hidden rounded-au-ctl border px-3 py-2.5',
+                  'ms-rise relative flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-au-ctl border px-3 py-2.5',
                   state === 'now' ? 'border-au-accent bg-au-accent-soft' : state === 'done' ? 'border-au-line bg-au-ok-soft/50' : 'border-au-line bg-au-card-2',
                 )}
               >
@@ -252,79 +415,12 @@ export function PayRunConsole({
                   {i + 1}-bosqich
                 </span>
                 <span className={cn('text-sm font-bold', state === 'todo' ? 'text-au-muted' : 'text-au-ink')}>{PAY_RUN_STEP[s].n}</span>
-                {state === 'now' && <span className="text-[11px] leading-4 text-au-muted">{PAY_RUN_STEP[s].hint}</span>}
+                <span className="truncate text-[11px] leading-4 text-au-muted">{PAY_RUN_STEP[s].hint}</span>
                 {state === 'now' && <i className="ms-fill absolute inset-x-0 bottom-0 h-0.5 origin-left bg-au-accent" />}
               </li>
             );
           })}
         </ol>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {next && (
-            <button
-              className={BTN_PRIMARY}
-              disabled={busy || (next === 'approved' && block.length > 0)}
-              onClick={() => move(next)}
-              title={next === 'approved' && block.length ? 'Avval qizil ogohlantirishlarni hal qiling' : undefined}
-            >
-              {next === 'review' && <><ArrowRight className="size-4" /> Tekshirishga o‘tkazish</>}
-              {next === 'approved' && <><BadgeCheck className="size-4" /> Tasdiqlash va oyni qulflash</>}
-              {next === 'paid' && <><Banknote className="size-4" /> To‘lovlarni qayd etish ({som(owed)} so‘m)</>}
-            </button>
-          )}
-          {unsettled && (
-            <button
-              className={BTN_PRIMARY}
-              disabled={busy}
-              onClick={payOutstanding}
-              title="Tuzatishlardan keyin: qarz to‘lanadi, ortiqcha to‘lov keyingi oydan ushlanadi"
-            >
-              <Banknote className="size-4" /> Qoldiqni hal qilish{owed > 0 ? ` (${som(owed)} so‘m)` : ''}
-            </button>
-          )}
-          {prev && !back && (
-            <button className={BTN_GHOST} disabled={busy} onClick={() => setBack(prev)}>
-              <Undo2 className="size-4" /> {run.status === 'paid' ? 'To‘lovni bekor qilish' : run.status === 'approved' ? 'Oyni qayta ochish' : 'Orqaga'}
-            </button>
-          )}
-          {locked && (
-            <button
-              className={BTN_GHOST}
-              disabled={busy}
-              title="Buxgalteriya jurnaliga ish haqi yozuvlarini tasdiqlangan summalar bilan yozadi (qayta bosilsa almashtiradi)"
-              onClick={() =>
-                start(async () => {
-                  // The server books the approved snapshot itself.
-                  const res = await postPayrollAction(period.slice(0, 7));
-                  if (res.error !== undefined) return void toast.error(errText(res.error));
-                  toast.success(`Buxgalteriyaga o‘tkazildi (${res.count ?? 0} yozuv)`);
-                })
-              }
-            >
-              <BookOpenCheck className="size-4" /> Buxgalteriyaga o‘tkazish
-            </button>
-          )}
-          <button className={BTN_GHOST} disabled={busy} onClick={askJev}>
-            <Bot className="size-4" /> Jev tekshiruvi
-          </button>
-          <button className={BTN_GHOST} disabled={busy || !lines.length} onClick={() => downloadPayslips(lines, period, PAY_RUN_STEP[run.status].n)}>
-            <FileDown className="size-4" /> Hisob varaqalari (PDF)
-          </button>
-          <ExportButtons
-            filename={`oylik-${period.slice(0, 7)}`}
-            columns={[
-              { header: 'Xodim', key: 'name' },
-              { header: 'Maosh', key: 'base' },
-              { header: 'KPI', key: 'kpi' },
-              { header: 'Bonus', key: 'bonuses' },
-              { header: 'Ushlanma', key: 'deductions' },
-              { header: 'To‘lanadi', key: 'payable' },
-              { header: 'To‘langan', key: 'paid' },
-              { header: 'Qoldiq', key: 'remaining' },
-            ]}
-            rows={lines.map((l) => ({ ...l }))}
-          />
-        </div>
 
         {back && (
           <div className="ms-pop-in flex flex-col gap-2 rounded-au-ctl border border-au-bad/30 bg-au-bad-soft/40 p-3">
@@ -337,7 +433,7 @@ export function PayRunConsole({
               Sababi jurnalga yoziladi.
             </span>
             <div className="flex flex-wrap gap-2">
-              <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Sabab…" className={cn(INPUT, 'min-w-60 flex-1')} />
+              <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Sabab…" className={cn(INPUT, 'h-9 min-w-60 flex-1')} />
               <button className={cn(BTN, 'bg-au-bad text-white hover:opacity-90')} disabled={busy || reason.trim().length < 3} onClick={() => move(back, reason.trim())}>
                 Tasdiqlash
               </button>
@@ -347,26 +443,74 @@ export function PayRunConsole({
             </div>
           </div>
         )}
-      </section>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {[
-          { n: 'Ish haqi fondi', v: som(sum.payable), sub: `maosh ${som(sum.base)} · KPI ${signed(sum.kpi)}`, tone: 'text-au-ink' },
-          { n: 'Bonuslar', v: `+${som(sum.bonuses)}`, sub: 'o‘zini rivojlantirish, rag‘bat, missiya', tone: 'text-au-ok' },
-          { n: 'Ushlanmalar', v: `−${som(Math.abs(sum.deductions))}`, sub: 'jarima va tuzatishlar', tone: 'text-au-bad' },
-          { n: 'To‘langan', v: som(sum.paid), sub: `${sum.payable ? Math.round((sum.paid / sum.payable) * 100) : 0}% fonddan`, tone: 'text-au-ink' },
-          { n: 'Qoldiq', v: som(sum.remaining), sub: `${lines.filter((l) => l.remaining > 0).length} xodimga`, tone: sum.remaining > 0 ? 'text-au-accent-text' : 'text-au-muted' },
-        ].map((k, i) => (
-          <div key={k.n} style={{ ['--i' as string]: i }} className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-1 p-4', i === 0 && 'col-span-2 lg:col-span-1')}>
-            <span className="text-xs font-semibold text-au-muted">{k.n}</span>
-            <span className={cn('text-xl font-bold tabular-nums', k.tone)}>
-              <CountUp value={k.v} />
-            </span>
-            <span className="truncate text-[11px] text-au-muted">{k.sub}</span>
+        {jevOpen && (
+          <div className="ms-pop-in flex flex-wrap items-start justify-between gap-3 rounded-au-ctl border border-au-accent bg-au-accent-soft/40 p-3.5">
+            <div className="flex items-start gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-au-accent text-au-accent-ink">
+                <Bot className="size-5" />
+              </span>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold text-au-ink">Jev xulosasi</span>
+                <p className="text-xs leading-relaxed text-au-muted">
+                  • <b>To‘lanishi kerak:</b> {owedCount} xodimga jami <b className="text-au-ink">{som(owed)} so‘m</b>.<br />
+                  • <b>Avanslar:</b> {advCount} xodimga <b className="text-au-ink">{som(advTotal)} so‘m</b>
+                  {overCount > 0 ? <>, shundan {overCount} xodimda {som(overTotal)} so‘m ortiqcha (keyingi oydan ushlanadi)</> : null}.<br />
+                  • <b>Tekshiruv:</b> {jevChecks ? `Jev ${jevChecks} ta qatorni tekshirishni tavsiya qildi.` : 'Hammasi odatdagidek.'}
+                  {flaggedCount > 0 && ` ${flaggedCount} xodimda ogohlantirish bor.`}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {jevChecks > 0 && (
+                <button className={cn(TB, 'bg-au-accent text-au-accent-ink')} onClick={() => setFilter('jev')}>
+                  Ko‘rsatish ({jevChecks})
+                </button>
+              )}
+              <button className={TB_GHOST} onClick={() => setJevOpen(false)}>
+                Yopish
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
+        )}
+
+        {/* 4 KPI cards — each one is also a filter */}
+        <div className="fp-kpi-grid">
+          <KpiCard on={filter === 'all'} onClick={() => setFilter('all')} title="1. Jami hisoblangan fond" chip={<span className="fp-chip fp-chip-neutral">{lines.length} xodim</span>} value={som(sum.payable)} tone="text-au-ink">
+            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-au-muted">
+              <span>
+                Maosh: <b className="text-au-ink">{som(sum.base)}</b>
+              </span>
+              <span>·</span>
+              <span className="font-semibold text-au-ok">Bonus: {signed(sum.kpi + sum.bonuses)}</span>
+              <span>·</span>
+              <span className="font-semibold text-au-bad">Ushlanma: {signed(sum.deductions)}</span>
+            </div>
+          </KpiCard>
+          <KpiCard on={filter === 'settled'} onClick={() => setFilter('settled')} title="2. Jami to‘lab berildi" chip={<span className="fp-chip fp-chip-ok">{paidPct}% bajarildi</span>} value={som(sum.paid)} tone="text-au-ok">
+            <div className="fp-kpi-bar">
+              <i style={{ width: `${paidPct}%`, background: 'var(--au-ok)' }} />
+            </div>
+          </KpiCard>
+          <KpiCard on={filter === 'owed'} onClick={() => setFilter('owed')} title="3. To‘lanishi kerak (Qoldiq)" chip={<span className="fp-chip fp-chip-accent">{owedCount} xodimga</span>} value={som(owed)} tone="text-au-accent-text">
+            <span className="truncate text-[11px] text-au-muted">
+              {owedCount > 0
+                ? lines
+                    .filter((l) => owedOf(l) > 0)
+                    .sort((a, b) => owedOf(b) - owedOf(a))
+                    .slice(0, 3)
+                    .map((l) => `${l.name.split(' ')[0]} (${som(owedOf(l))})`)
+                    .join(' · ')
+                : 'Hech kim oldida qarz yo‘q'}
+            </span>
+          </KpiCard>
+          <KpiCard on={filter === 'over'} onClick={() => setFilter('over')} title="4. Berilgan avanslar" chip={<span className="fp-chip fp-chip-info">{advCount} xodimda</span>} value={som(advTotal)} tone="text-au-info">
+            <span className="truncate text-[11px] text-au-muted">
+              {overCount > 0 ? `Ortiqcha ${som(overTotal)} — keyingi oy oyligidan ushlanadi` : 'Shu oy oyligidan ushlanadi'}
+            </span>
+          </KpiCard>
+        </div>
+      </section>
 
       {drifted.length > 0 && (
         <Banner tone="info" icon={<History className="size-4" />}>
@@ -375,154 +519,304 @@ export function PayRunConsole({
         </Banner>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        {/* Table */}
-        <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col')} style={{ ['--i' as string]: 2 }}>
-          <div className="flex flex-wrap items-center gap-2 border-b border-au-line p-3">
-            <label className="relative min-w-48 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-au-muted" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Xodimni qidirish" className={cn(INPUT, 'h-9 pl-8')} />
-            </label>
-            <div className="flex flex-wrap gap-1">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Staff table */}
+        <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col gap-3 p-4')} style={{ ['--i' as string]: 2 }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-au-muted" />
+                <input
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Xodim yoki lavozim izlash..."
+                  className="h-8 w-56 rounded-au-ctl border border-au-line bg-au-card-2 pr-2.5 pl-8 text-xs text-au-ink placeholder:text-au-muted focus:border-au-accent focus:outline-none"
+                />
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="h-8 rounded-au-ctl border border-au-line bg-au-card-2 px-2.5 text-xs font-medium text-au-ink focus:border-au-accent focus:outline-none"
+              >
+                <option value="all">Barcha lavozimlar ({lines.length})</option>
+                {roles.map((r) => (
+                  <option key={r} value={r}>
+                    {roleNames[r] ?? r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
               {(
                 [
-                  ['all', `Hammasi ${lines.length}`],
-                  ['flags', `Ogohlantirish ${lines.filter((l) => l.flags.length).length}`],
-                  ['owed', `Qoldig‘i bor ${lines.filter((l) => l.remaining > 0).length}`],
-                  ['over', `Ortiqcha ${lines.filter((l) => l.remaining < 0).length}`],
-                  ...(Object.keys(jev).length ? [['jev', `Jev: tekshirish ${Object.values(jev).filter((v) => v.verdict === 'check').length}`]] : []),
+                  ['all', `Hammasi (${lines.length})`],
+                  ['owed', `To‘lanishi kerak (${owedCount})`],
+                  ['over', `Avans olganlar (${lines.filter((l) => overOf(l) > 0 || l.advances > 0).length})`],
+                  ['settled', `✓ To‘liq yopilgan (${settledCount})`],
+                  ...(flaggedCount ? [['flags', `Tekshirish (${flaggedCount})`]] : []),
+                  ...(Object.keys(jev).length ? [['jev', `Jev (${jevChecks})`]] : []),
                 ] as [Filter, string][]
               ).map(([k, n]) => (
                 <button
                   key={k}
                   onClick={() => setFilter(k)}
-                  className={cn('h-8 rounded-full px-3 text-xs font-semibold transition', filter === k ? 'bg-au-ink text-au-card' : 'bg-au-card-2 text-au-muted hover:text-au-ink')}
+                  className={cn('h-8 rounded-full px-3 text-xs font-semibold transition', filter === k ? 'bg-au-ink text-au-card shadow-sm' : 'bg-au-card-2 text-au-muted hover:text-au-ink')}
                 >
                   {n}
                 </button>
               ))}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+
+          <div className="overflow-x-auto rounded-lg border border-au-line">
+            <table className="fp-table w-full min-w-[880px] text-sm">
               <thead>
-                <tr className="text-left text-[11px] font-bold tracking-wide text-au-muted uppercase">
-                  <th className="px-3 py-2.5">Xodim</th>
-                  <th className="px-3 py-2.5 text-right">Maosh</th>
-                  <th className="px-3 py-2.5 text-right">KPI</th>
-                  <th className="px-3 py-2.5 text-right">Bonus</th>
-                  <th className="px-3 py-2.5 text-right">Ushlanma</th>
-                  <th className="px-3 py-2.5 text-right">To‘lanadi</th>
-                  <th className="px-3 py-2.5 text-right">To‘langan</th>
-                  <th className="px-3 py-2.5 text-right">Qoldiq</th>
-                  <th className="px-3 py-2.5">Holat</th>
+                <tr className="border-b border-au-line bg-au-card-2 text-left text-[11px] font-bold tracking-wider text-au-muted uppercase">
+                  {sortTh('name', 'Xodim', false)}
+                  {sortTh('base', 'Asosiy maosh')}
+                  {sortTh('adj', 'Bonus / Jarima')}
+                  {sortTh('payable', 'Jami hisoblangan')}
+                  {sortTh('paid', 'To‘langan')}
+                  {sortTh('remaining', 'Qoldiq / Avans')}
+                  <th className="px-3 py-2.5">Holat va tezkor amal</th>
                 </tr>
               </thead>
               <tbody>
-                {shown.map((l, i) => (
-                  <tr
-                    key={l.staffId}
-                    onClick={() => setOpenId(l.staffId)}
-                    style={{ ['--i' as string]: Math.min(i, 15) }}
-                    className="ms-rise cursor-pointer border-t border-au-line transition hover:bg-au-card-2"
-                  >
-                    <td className="px-3 py-2.5">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-au-ink">{l.name}</span>
-                        <span className="text-[11px] text-au-muted">{roleNames[l.role] ?? l.role}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{l.base ? som(l.base) : <span className="text-au-bad">—</span>}</td>
-                    <td className={cn('px-3 py-2.5 text-right tabular-nums', l.kpi > 0 ? 'text-au-ok' : l.kpi < 0 ? 'text-au-bad' : 'text-au-muted')}>{signed(l.kpi)}</td>
-                    <td className="px-3 py-2.5 text-right text-au-ok tabular-nums">{l.bonuses ? `+${som(l.bonuses)}` : <span className="text-au-muted">—</span>}</td>
-                    <td className="px-3 py-2.5 text-right text-au-bad tabular-nums">{l.deductions ? `−${som(Math.abs(l.deductions))}` : <span className="text-au-muted">—</span>}</td>
-                    <td className="px-3 py-2.5 text-right font-bold tabular-nums">
-                      {som(l.payable)}
-                      {l.delta !== null && Math.abs(l.delta) >= 0.05 && (
-                        <span className={cn('ml-1 text-[10px] font-semibold', l.delta > 0 ? 'text-au-ok' : 'text-au-bad')}>
-                          {l.delta > 0 ? '▲' : '▼'}
-                          {Math.round(Math.abs(l.delta) * 100)}%
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{som(l.paid)}</td>
-                    <td className={cn('px-3 py-2.5 text-right font-semibold tabular-nums', l.remaining > 0 ? 'text-au-accent-text' : l.remaining < 0 ? 'text-au-bad' : 'text-au-muted')}>
-                      {som(l.remaining)}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex flex-wrap gap-1">
-                        {jev[l.staffId] && (
-                          <span className={jev[l.staffId].verdict === 'check' ? CHIP_BAD : CHIP_OK} title={`Jev ishonchi ${Math.round(jev[l.staffId].confidence * 100)}%`}>
-                            <Bot className="size-3" /> {jev[l.staffId].verdict === 'check' ? 'Tekshiring' : 'OK'}
+                {shown.map((l, i) => {
+                  const plus = l.kpi + l.bonuses;
+                  return (
+                    <tr
+                      key={l.staffId}
+                      onClick={() => setOpenId(l.staffId)}
+                      style={{ ['--i' as string]: Math.min(i, 15) }}
+                      className="ms-rise cursor-pointer border-t border-au-line"
+                    >
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="fp-avatar">{initials(l.name)}</span>
+                          <div className="flex min-w-0 flex-col">
+                            <span className="truncate font-semibold text-au-ink">{l.name}</span>
+                            <span className="truncate text-[11px] text-au-muted">{roleNames[l.role] ?? l.role}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+                        {l.base ? som(l.base) : <span className="text-au-bad">—</span>}
+                        {l.delta !== null && Math.abs(l.delta) >= 0.05 && (
+                          <span className={cn('ml-1 text-[10px] font-semibold', l.delta > 0 ? 'text-au-ok' : 'text-au-bad')}>
+                            {l.delta > 0 ? '▲' : '▼'}
+                            {Math.round(Math.abs(l.delta) * 100)}%
                           </span>
                         )}
-                        {l.flags.slice(0, 2).map((f) => (
-                          <span key={f} className={FLAG_META[f].blocking ? CHIP_BAD : CHIP_NEUTRAL}>
-                            {FLAG_META[f].n}
-                          </span>
-                        ))}
-                        {l.flags.length > 2 && <span className={CHIP_NEUTRAL}>+{l.flags.length - 2}</span>}
-                        {!l.flags.length && !jev[l.staffId] && (l.remaining === 0 && l.payable > 0 ? <span className={CHIP_OK}>To‘langan</span> : <span className={CHIP_NEUTRAL}>Tayyor</span>)}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+                        <div className="flex flex-col items-end leading-tight">
+                          {plus !== 0 && <span className={cn('font-semibold', plus > 0 ? 'text-au-ok' : 'text-au-bad')}>{signed(plus)}</span>}
+                          {l.deductions < 0 && <span className={cn('text-au-bad', plus !== 0 ? 'text-[11px]' : 'font-semibold')}>{signed(l.deductions)}</span>}
+                          {plus === 0 && l.deductions === 0 && <span className="text-au-muted">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-right font-bold whitespace-nowrap text-au-ink tabular-nums">{som(l.payable)}</td>
+                      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+                        <div className="flex flex-col items-end leading-tight">
+                          <span className="font-semibold text-au-ink">{som(l.paid)}</span>
+                          {l.advances > 0 ? (
+                            <span className="text-[10px] text-au-info">shundan avans: {som(l.advances)}</span>
+                          ) : (
+                            <span className="text-[10px] text-au-muted">{l.payments.length} ta to‘lov</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+                        <div className="flex flex-col items-end leading-tight">
+                          {owedOf(l) > 0 ? (
+                            <>
+                              <span className="font-bold text-au-accent-text">{som(owedOf(l))}</span>
+                              <span className="text-[10px] text-au-muted">To‘lanishi kerak</span>
+                            </>
+                          ) : overOf(l) > 0 ? (
+                            <>
+                              <span className="font-bold text-au-info">+{som(overOf(l))}</span>
+                              <span className="text-[10px] text-au-info">Ortiqcha / avans</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className={cn('font-semibold', l.paid > 0 ? 'text-au-ok' : 'text-au-muted')}>0</span>
+                              <span className="text-[10px] text-au-muted">{l.paid > 0 ? 'To‘liq yopilgan' : 'To‘lov yo‘q'}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex flex-wrap gap-1">
+                            {jev[l.staffId] && (
+                              <span className={cn('fp-chip', jev[l.staffId].verdict === 'check' ? 'fp-chip-bad' : 'fp-chip-ok')} title={`Jev ishonchi ${Math.round(jev[l.staffId].confidence * 100)}%`}>
+                                <Bot className="size-3" /> {jev[l.staffId].verdict === 'check' ? 'Tekshiring' : 'OK'}
+                              </span>
+                            )}
+                            {l.flags.slice(0, 2).map((f) => (
+                              <span key={f} className={cn('fp-chip', FLAG_META[f].blocking ? 'fp-chip-bad' : 'fp-chip-accent')}>
+                                {FLAG_META[f].n}
+                              </span>
+                            ))}
+                            {l.flags.length > 2 && <span className="fp-chip fp-chip-neutral">+{l.flags.length - 2}</span>}
+                            {!l.flags.length &&
+                              (owedOf(l) > 0 ? (
+                                <span className="fp-chip fp-chip-accent">To‘lov kutilmoqda</span>
+                              ) : overOf(l) > 0 ? (
+                                <span className="fp-chip fp-chip-info">Avans berilgan</span>
+                              ) : l.paid > 0 ? (
+                                <span className="fp-chip fp-chip-ok">✓ To‘langan</span>
+                              ) : (
+                                <span className="fp-chip fp-chip-neutral">Tayyor</span>
+                              ))}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            {!locked && owedOf(l) > 0 ? (
+                              <button
+                                disabled={busy}
+                                onClick={() => quickPay(l)}
+                                title="Qoldiqni 1-klikda to‘lash"
+                                className="inline-flex items-center gap-1 rounded-md bg-au-ok px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                              >
+                                ✓ To‘lash
+                              </button>
+                            ) : (
+                              <button
+                                disabled={busy}
+                                onClick={() => setGiveFor(l.staffId)}
+                                title="Xodimga avans berish"
+                                className="inline-flex items-center gap-1 rounded-md border border-au-info/30 bg-au-info-soft px-2 py-1 text-[11px] font-semibold text-au-info hover:opacity-90 disabled:opacity-50"
+                              >
+                                + Avans
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setOpenId(l.staffId)}
+                              className="inline-flex items-center rounded-md border border-au-line bg-au-card px-2 py-1 text-[11px] font-semibold text-au-ink hover:bg-au-card-2"
+                            >
+                              Batafsil
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-au-line bg-au-card-2 font-bold">
-                  <td className="px-3 py-2.5">{filtered ? `Jami (${shown.length})` : 'Jami'}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.base)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{signed(shownTotals.kpi)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">+{som(shownTotals.bonuses)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">−{som(Math.abs(shownTotals.deductions))}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.payable)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.paid)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{som(shownTotals.remaining)}</td>
-                  <td />
+                  <td className="px-3 py-3">Jami ({shown.length} xodim)</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{som(shownTotals.base)}</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+                    <span className={shownTotals.kpi + shownTotals.bonuses + shownTotals.deductions >= 0 ? 'text-au-ok' : 'text-au-bad'}>
+                      {signed(shownTotals.kpi + shownTotals.bonuses + shownTotals.deductions)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">{som(shownTotals.payable)}</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap text-au-ok tabular-nums">{som(shownTotals.paid)}</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap tabular-nums">
+                    <div className="flex flex-col items-end leading-tight">
+                      <span className="text-au-accent-text">Qoldiq: {som(shownOwed)}</span>
+                      {shownOver > 0 && <span className="text-[11px] font-semibold text-au-info">Ortiqcha: +{som(shownOver)}</span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <span className="fp-chip fp-chip-ok">
+                      {shownTotals.payable > 0 ? Math.min(100, Math.round((shownTotals.paid / shownTotals.payable) * 100)) : 0}% to‘langan
+                    </span>
+                  </td>
                 </tr>
               </tfoot>
             </table>
-            {!shown.length && <p className="p-6 text-center text-sm text-au-muted">Bu filtr bo‘yicha xodim yo‘q</p>}
+            {!shown.length && (
+              <p className="p-6 text-center text-sm text-au-muted">
+                Tanlangan filtr bo‘yicha xodimlar topilmadi.{' '}
+                <button
+                  className="font-semibold text-au-accent-text underline"
+                  onClick={() => {
+                    setFilter('all');
+                    setRole('all');
+                    setQ('');
+                  }}
+                >
+                  Filtrlarni tozalash
+                </button>
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-au-muted">
+            <span>
+              Qatordagi <b>«✓ To‘lash»</b> yoki <b>«+ Avans»</b> 1 klikda ishlaydi. Xodim ustiga bosib batafsil oynani oching.
+            </span>
+            <span className="font-mono">Valyuta: UZS (so‘m)</span>
           </div>
         </section>
 
         {/* Right rail */}
         <aside className="flex min-w-0 flex-col gap-4">
-          <Panel title="Tasdiqlashdan oldin" icon={<ShieldAlert className="size-4" />} i={3}>
-            {flagCounts.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm text-au-ok">
-                <CheckCircle2 className="size-4" /> Hamma tekshiruvlar o‘tdi
+          <Panel title="Tekshirish va tasdiqlash" right={<span className="text-[11px] text-au-muted">1 klikda ko‘rish</span>}>
+            {flagGroups.length === 0 ? (
+              <p className="flex items-center gap-2 rounded-lg border border-au-ok/30 bg-au-ok-soft p-3 text-xs font-semibold text-au-ok">
+                <CheckCircle2 className="size-4 shrink-0" /> Barcha tekshiruvlar o‘tdi — oyni qulflashga tayyor.
               </p>
             ) : (
               <ul className="flex flex-col gap-2">
-                {flagCounts.map(([f, ls]) => (
-                  <li key={f}>
-                    <button onClick={() => setFilter('flags')} className="flex w-full items-center justify-between gap-2 text-left text-sm">
-                      <span className="flex items-center gap-1.5">
-                        <AlertTriangle className={cn('size-3.5', FLAG_META[f].blocking ? 'text-au-bad' : 'text-au-muted')} />
-                        {FLAG_META[f].n}
-                      </span>
-                      <span className={FLAG_META[f].blocking ? CHIP_BAD : CHIP_NEUTRAL}>{ls.length}</span>
-                    </button>
-                    <p className="mt-0.5 truncate pl-5 text-[11px] text-au-muted">{ls.map((l) => l.name).join(', ')}</p>
-                  </li>
-                ))}
+                {flagGroups.map(([f, ls]) => {
+                  const key = `flag:${f}` as Filter;
+                  return (
+                    <li key={f} className={cn('rounded-lg border p-2.5 transition', filter === key ? 'border-au-accent bg-au-accent-soft/40' : 'border-au-line bg-au-card-2/50')}>
+                      <button onClick={() => setFilter(filter === key ? 'all' : key)} className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-au-ink">
+                        <span className="flex items-center gap-1.5">
+                          <AlertTriangle className={cn('size-3.5 shrink-0', FLAG_META[f].blocking ? 'text-au-bad' : 'text-au-accent-text')} />
+                          {FLAG_META[f].n}
+                        </span>
+                        <span className={cn('fp-chip', FLAG_META[f].blocking ? 'fp-chip-bad' : 'fp-chip-accent')}>{ls.length}</span>
+                      </button>
+                      <div className="mt-1">
+                        {ls.slice(0, 6).map((l) => (
+                          <div key={l.staffId} className="mt-1.5 flex items-center justify-between gap-2 border-t border-au-line/60 pt-1.5">
+                            <span className="truncate text-[11px] font-medium text-au-ink">
+                              {l.name}
+                              {f === 'variance' && l.delta !== null ? ` (${l.delta > 0 ? '+' : ''}${Math.round(l.delta * 100)}%)` : ''}
+                            </span>
+                            <button
+                              onClick={() => setOpenId(l.staffId)}
+                              className="shrink-0 rounded bg-au-accent px-2 py-0.5 text-[10px] font-semibold text-au-accent-ink hover:opacity-90"
+                            >
+                              Ochish
+                            </button>
+                          </div>
+                        ))}
+                        {ls.length > 6 && <p className="mt-1 text-[11px] text-au-muted">+{ls.length - 6} ta</p>}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Panel>
 
-          <Panel title={`Avans so‘rovlari${pendingAdv.length ? ` · ${pendingAdv.length}` : ''}`} icon={<Wallet className="size-4" />} i={4}>
+          <Panel title="Avans so‘rovlari" right={<span className={cn('fp-chip', pendingAdv.length ? 'fp-chip-info' : 'fp-chip-neutral')}>{pendingAdv.length}</span>}>
             {pendingAdv.length === 0 ? (
-              <p className="text-sm text-au-muted">Kutilayotgan so‘rov yo‘q</p>
+              <p className="text-xs text-au-muted">Kutilayotgan avans so‘rovlari yo‘q.</p>
             ) : (
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-2">
                 {pendingAdv.map((a) => (
                   <AdvanceItem key={a.id} a={a} busy={busy} onDecide={decide} />
                 ))}
               </ul>
             )}
+            <button
+              onClick={() => setGiveFor('')}
+              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-au-ctl border border-dashed border-au-line bg-au-card-2 px-3 text-xs font-semibold text-au-ink hover:border-au-accent"
+            >
+              <HandCoins className="size-3.5" /> Xodimga avans berish
+            </button>
             {advances.some((a) => a.status !== 'pending') && (
-              <details className="mt-2 text-xs text-au-muted">
+              <details className="text-xs text-au-muted">
                 <summary className="cursor-pointer font-semibold">Oxirgi qarorlar</summary>
                 <ul className="mt-2 flex flex-col gap-1">
                   {advances
@@ -531,7 +825,7 @@ export function PayRunConsole({
                     .map((a) => (
                       <li key={a.id} className="flex justify-between gap-2">
                         <span className="truncate">{a.staff_name}</span>
-                        <span className={a.status === 'approved' ? 'text-au-ok' : 'text-au-muted'}>
+                        <span className={cn('shrink-0', a.status === 'approved' ? 'text-au-ok' : 'text-au-muted')}>
                           {som(a.amount)} · {a.status === 'approved' ? 'tasdiqlangan' : a.status === 'rejected' ? 'rad etilgan' : 'bekor qilingan'}
                         </span>
                       </li>
@@ -541,29 +835,31 @@ export function PayRunConsole({
             )}
           </Panel>
 
-          <Panel title="12 oy: fond va to‘lovlar" icon={<Banknote className="size-4" />} i={5}>
+          <Panel title="12 oy: fond va to‘lovlar">
             <MonthBars points={history} current={period} />
           </Panel>
 
-          <NotePanel period={period} initial={run.note ?? ''} />
-
-          <Panel title="Jurnal" icon={<History className="size-4" />} i={7}>
-            {log.length === 0 ? (
-              <p className="text-sm text-au-muted">Hali harakat yo‘q</p>
-            ) : (
-              <ol className="flex flex-col gap-2 text-xs">
-                {log.slice(0, 12).map((e) => (
-                  <li key={e.id} className="flex flex-col border-l-2 border-au-line pl-2">
-                    <span className="font-semibold text-au-ink">{logLabel(e)}</span>
-                    <span className="text-au-muted">
-                      {e.actor ?? 'Tizim'} · {e.at.slice(0, 16).replace('T', ' ')}
-                      {typeof e.detail.reason === 'string' && e.detail.reason ? ` · “${e.detail.reason}”` : ''}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Panel>
+          <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')}>
+            <NotePanel period={period} initial={run.note ?? ''} />
+            <div className="flex flex-col gap-1.5 border-t border-au-line pt-2.5">
+              <span className="text-xs font-bold tracking-wider text-au-muted uppercase">Jurnal (oxirgi amallar)</span>
+              {log.length === 0 ? (
+                <p className="text-xs text-au-muted">Hali harakat yo‘q</p>
+              ) : (
+                <ol className="flex max-h-48 flex-col gap-2 overflow-y-auto pr-1 text-xs">
+                  {log.slice(0, 12).map((e) => (
+                    <li key={e.id} className="flex flex-col border-l-2 border-au-accent/60 py-0.5 pl-2.5">
+                      <span className="font-semibold text-au-ink">{logLabel(e)}</span>
+                      <span className="text-[11px] text-au-muted">
+                        {e.actor ?? 'Tizim'} · {e.at.slice(0, 16).replace('T', ' ')}
+                        {typeof e.detail.reason === 'string' && e.detail.reason ? ` · “${e.detail.reason}”` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </section>
         </aside>
       </div>
 
@@ -580,7 +876,169 @@ export function PayRunConsole({
           />
         )}
       </Sheet>
+
+      <GiveAdvanceDialog
+        open={giveFor !== null}
+        onClose={() => setGiveFor(null)}
+        lines={lines}
+        staffId={giveFor ?? ''}
+        period={period}
+        locked={locked}
+        onDone={() => router.refresh()}
+      />
     </div>
+  );
+}
+
+function KpiCard({
+  on,
+  onClick,
+  title,
+  chip,
+  value,
+  tone,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  title: string;
+  chip: ReactNode;
+  value: string;
+  tone: string;
+  children: ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} className={cn('fp-kpi-card', on && 'is-active')}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-au-muted">{title}</span>
+        {chip}
+      </div>
+      {/* Full number, never truncated: wraps on narrow cards instead. */}
+      <span className={cn('text-xl leading-tight font-bold break-words tabular-nums sm:text-2xl', tone)}>
+        <CountUp value={value} /> <small className="text-xs font-normal text-au-muted">so‘m</small>
+      </span>
+      {children}
+    </button>
+  );
+}
+
+/** CEO hands an advance directly (not from a request): an 'advance' payment
+ * row in the chosen month. A locked month refuses it, so a later month is
+ * offered then. */
+function GiveAdvanceDialog({
+  open,
+  onClose,
+  lines,
+  staffId,
+  period,
+  locked,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lines: PayLine[];
+  staffId: string;
+  period: string;
+  locked: boolean;
+  onDone: () => void;
+}) {
+  const [busy, start] = useTransition();
+  const [who, setWho] = useState(staffId);
+  const [amount, setAmount] = useState('');
+  const [why, setWhy] = useState('');
+  const months = [0, 1, 2].map((n) => shiftMonth(period, n)).filter((m) => !(locked && m === period));
+  const [per, setPer] = useState(months[0]);
+  const [seen, setSeen] = useState(open);
+  // Re-seed the form each time the dialog opens (a row's "+ Avans" picks
+  // that person).
+  if (open !== seen) {
+    setSeen(open);
+    if (open) {
+      setWho(staffId);
+      setAmount('');
+      setWhy('');
+      setPer(months[0]);
+    }
+  }
+  const num = Number(amount.replace(/\s/g, '').replace(',', '.'));
+  const line = lines.find((l) => l.staffId === who);
+
+  const save = () =>
+    start(async () => {
+      const fd = new FormData();
+      fd.set('staffId', who);
+      fd.set('title', why.trim() || 'Avans');
+      fd.set('amount', String(num));
+      fd.set('kind', 'advance');
+      fd.set('period', per);
+      const res = await addFinanceEntryAction(undefined, fd);
+      if (res?.error) return void toast.error(errText(res.error));
+      toast.success(`Avans berildi: ${som(num)} so‘m · ${monthLabel(per)}`);
+      onClose();
+      onDone();
+    });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-au-line bg-au-card text-au-ink sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold">Xodimga avans berish</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
+            Xodim
+            <select value={who} onChange={(e) => setWho(e.target.value)} className={cn(INPUT, 'h-9 text-sm')}>
+              <option value="">Tanlang…</option>
+              {lines.map((l) => (
+                <option key={l.staffId} value={l.staffId}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {line && (
+            <p className="text-[11px] text-au-muted">
+              Hisoblangan {som(line.payable)} · to‘langan {som(line.paid)} · qoldiq {som(line.remaining)} so‘m
+            </p>
+          )}
+          <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
+            Summa, so‘m
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="500 000" className={cn(INPUT, 'h-9 tabular-nums')} />
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[200_000, 500_000, 1_000_000].map((v) => (
+              <button key={v} type="button" onClick={() => setAmount(String(v))} className="h-7 rounded-full border border-au-line bg-au-card px-2.5 text-[11px] font-semibold hover:border-au-accent hover:bg-au-accent-soft">
+                {som(v)}
+              </button>
+            ))}
+            {line && line.remaining > 0 && (
+              <button type="button" onClick={() => setAmount(String(line.remaining))} className="h-7 rounded-full border border-au-line bg-au-card px-2.5 text-[11px] font-semibold hover:border-au-accent hover:bg-au-accent-soft">
+                Qoldiq: {som(line.remaining)}
+              </button>
+            )}
+          </div>
+          <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
+            Qaysi oy oyligidan ushlansin
+            <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(INPUT, 'h-9 text-sm')}>
+              {months.map((m) => (
+                <option key={m} value={m}>
+                  {monthLabel(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Sabab (ixtiyoriy)" className={cn(INPUT, 'h-9')} />
+          <div className="flex justify-end gap-2 pt-1">
+            <button className={BTN_GHOST} onClick={onClose}>
+              Bekor
+            </button>
+            <button className={cn(BTN, 'bg-au-info text-white hover:opacity-90')} disabled={busy || !who || !(num > 0)} onClick={save}>
+              Avans berish
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -607,13 +1065,13 @@ function logLabel(e: PayRunLogEntry) {
   return `${PAY_RUN_STEP[a]?.n ?? a} → ${PAY_RUN_STEP[b]?.n ?? b}`;
 }
 
-function Panel({ title, icon, i, children }: { title: string; icon: ReactNode; i: number; children: ReactNode }) {
+function Panel({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
   return (
-    <section style={{ ['--i' as string]: i }} className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')}>
-      <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-        <span className="text-au-muted">{icon}</span>
-        {title}
-      </h3>
+    <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-2.5 p-4')}>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xs font-bold tracking-wider text-au-muted uppercase">{title}</h2>
+        {right}
+      </div>
       {children}
     </section>
   );
@@ -692,24 +1150,36 @@ function NotePanel({ period, initial }: { period: string; initial: string }) {
   const [busy, start] = useTransition();
   const dirty = note !== initial;
   return (
-    <Panel title="Oy bo‘yicha izoh" icon={<NotebookPen className="size-4" />} i={6}>
-      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Masalan: bayram bonusi, yangi xodimlar…" className={cn(INPUT, 'resize-y py-2 text-sm')} />
-      {dirty && (
-        <button
-          className={cn(BTN_PRIMARY, 'h-8 self-end text-xs')}
-          disabled={busy}
-          onClick={() =>
-            start(async () => {
-              const res = await savePayRunNoteAction({ period, note });
-              if (res.error !== undefined) toast.error(errText(res.error));
-              else toast.success('Izoh saqlandi');
-            })
-          }
-        >
-          Saqlash
-        </button>
-      )}
-    </Panel>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <label htmlFor="fp-month-note" className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-au-muted uppercase">
+          <NotebookPen className="size-3.5" /> Oy bo‘yicha izoh
+        </label>
+        {dirty && (
+          <button
+            className="rounded bg-au-accent px-2 py-0.5 text-[11px] font-semibold text-au-accent-ink disabled:opacity-50"
+            disabled={busy}
+            onClick={() =>
+              start(async () => {
+                const res = await savePayRunNoteAction({ period, note });
+                if (res.error !== undefined) toast.error(errText(res.error));
+                else toast.success('Izoh saqlandi');
+              })
+            }
+          >
+            Saqlash
+          </button>
+        )}
+      </div>
+      <textarea
+        id="fp-month-note"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        placeholder={`${monthLabel(period)} bo‘yicha eslatma…`}
+        className="w-full resize-y rounded-au-ctl border border-au-line bg-au-card-2 p-2 text-xs text-au-ink placeholder:text-au-muted focus:border-au-accent focus:outline-none"
+      />
+    </div>
   );
 }
 

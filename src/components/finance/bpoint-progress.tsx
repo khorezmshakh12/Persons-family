@@ -6,7 +6,10 @@ import { SURFACE_CARD } from '@/lib/glass';
 import { formatUZS } from '@/lib/format-currency';
 import { cn } from '@/lib/utils';
 
-/** B-nuqta sari: xodimning yig‘ilib boruvchi yillik topgani maqsad chizig‘iga qarab ko‘tariladi. */
+/** B-nuqta sari: the year's cumulative earnings (bars) against the planned
+ * path to the B-nuqta (dashed step, target × month/12) and the B-nuqta line
+ * itself. All 12 months are drawn so the plan is visible ahead of today;
+ * a month that has not come yet has `cumulative: null`. */
 export function BpointProgress({
   year,
   target,
@@ -14,8 +17,10 @@ export function BpointProgress({
 }: {
   year: number;
   target: number;
-  months: { label: string; cumulative: number; pct: number }[];
+  months: { label: string; cumulative: number | null }[];
 }): JSX.Element {
+  const elapsed = months.filter((m) => m.cumulative !== null);
+  const last = elapsed.length - 1;
   const [hover, setHover] = useState<number | null>(null);
 
   const Header = (
@@ -25,45 +30,52 @@ export function BpointProgress({
       </span>
       <div className="flex-1">
         <h2 className="text-base font-bold text-au-ink">B-nuqta sari</h2>
-        <p className="text-xs text-au-muted">Yig‘ilib boruvchi yillik topgani · {year}</p>
+        <p className="text-xs text-au-muted">Yig‘ilib boruvchi topgan vs reja · {year}</p>
       </div>
     </div>
   );
 
-  if (target <= 0 || months.length === 0) {
+  if (target <= 0) {
     return (
       <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-5')}>
         {Header}
-        <p className="text-sm text-au-muted">
-          B-nuqta belgilanmagan — grafik uchun avval maqsadni kiriting.
-        </p>
+        <p className="text-sm text-au-muted">B-nuqta belgilanmagan — grafik uchun avval maqsadni kiriting.</p>
       </section>
     );
   }
 
-  const last = months.length - 1;
-  const focus = hover ?? last;
+  const plannedAt = (i: number) => Math.round((target * (i + 1)) / 12);
+  // Scale to whatever is highest — an over-achiever's bars must not be cut
+  // off, and the B-nuqta line must sit at its true height.
+  const top = Math.max(target, ...elapsed.map((m) => m.cumulative ?? 0)) * 1.08;
+  const h = (v: number) => `${Math.min(100, Math.max(0, (v / top) * 100))}%`;
+  const focus = hover ?? Math.max(0, last);
   const f = months[focus];
-  const latest = months[last];
-  const remaining = Math.max(0, target - latest.cumulative);
-  const barH = (v: number) => `${Math.min(100, Math.max(0, (v / target) * 100))}%`;
+  const fPct = f.cumulative !== null ? Math.round((f.cumulative / target) * 100) : null;
+  const latest = last >= 0 ? (months[last].cumulative ?? 0) : 0;
+  const remaining = Math.max(0, target - latest);
 
   return (
     <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-5')}>
       {Header}
 
-      <div className="flex h-5 items-baseline justify-between text-xs">
+      <div className="flex min-h-5 flex-wrap items-baseline justify-between gap-x-2 text-xs">
         <span className="font-semibold text-au-ink">{f.label}</span>
         <span className="text-au-muted tabular-nums">
-          {formatUZS(f.cumulative)} · <b className="text-au-ink">{f.pct}%</b> B-nuqtadan
+          {f.cumulative !== null ? (
+            <>
+              topildi {formatUZS(f.cumulative)} · <b className="text-au-ink">{fPct}%</b> ·{' '}
+            </>
+          ) : null}
+          reja {formatUZS(plannedAt(focus))}
         </span>
       </div>
 
-      <div className="relative h-32 pt-5">
-        {/* B-nuqta maqsad chizig‘i — plot ustidagi alohida marker */}
-        <div className="pointer-events-none absolute inset-x-0 top-5 z-10">
+      <div className="relative h-36">
+        {/* B-nuqta line at its real height */}
+        <div className="pointer-events-none absolute inset-x-0 z-10" style={{ bottom: h(target) }}>
           <div className="border-t-2 border-dashed border-au-accent" />
-          <span className="mt-1 inline-block rounded-au-ctl bg-au-accent-soft px-1.5 py-0.5 text-[9px] font-semibold text-au-accent-text">
+          <span className="absolute right-0 bottom-0.5 rounded-au-ctl bg-au-accent-soft px-1.5 py-0.5 text-[9px] font-semibold text-au-accent-text">
             B-nuqta · {formatUZS(target)}
           </span>
         </div>
@@ -75,40 +87,52 @@ export function BpointProgress({
               type="button"
               onMouseEnter={() => setHover(i)}
               onFocus={() => setHover(i)}
-              aria-label={`${m.label}: ${m.cumulative}, ${m.pct}% B-nuqtadan`}
-              className="relative flex h-full flex-1 items-end"
+              aria-label={`${m.label}: reja ${plannedAt(i)}${m.cumulative !== null ? `, topildi ${m.cumulative}` : ''}`}
+              className={cn('relative flex h-full flex-1 items-end rounded-[3px]', focus === i && 'bg-au-accent/5')}
             >
-              {i === last && (
+              {/* planned path to the B-nuqta */}
+              <span className="absolute inset-x-0 bottom-0 rounded-t-[3px] border border-dashed border-au-muted/50 bg-au-ink/[0.04]" style={{ height: h(plannedAt(i)) }} />
+              {m.cumulative !== null && (
                 <span
-                  className="absolute inset-x-0 z-10 -translate-y-1 text-center text-[9px] font-semibold tabular-nums text-au-accent-text"
-                  style={{ bottom: barH(m.cumulative) }}
-                >
-                  {m.pct}%
-                </span>
+                  style={{ height: h(m.cumulative), ['--i' as string]: i }}
+                  className={cn(
+                    'ms-grow-y relative mx-[15%] w-[70%] rounded-t-[3px] transition-colors',
+                    m.cumulative >= plannedAt(i) ? 'bg-au-ok' : i === last ? 'bg-au-accent' : 'bg-au-accent/55',
+                  )}
+                />
               )}
-              <span
-                style={{ height: barH(m.cumulative), ['--i' as string]: i }}
-                className={cn(
-                  'ms-grow-y relative w-full rounded-t-[3px] transition-colors',
-                  i === last ? 'bg-au-accent' : focus === i ? 'bg-au-accent/40' : 'bg-au-ink/30',
-                )}
-              />
             </button>
           ))}
         </div>
       </div>
 
       <div className="flex gap-1 text-center text-[9px] text-au-muted">
-        {months.map((m) => (
-          <span key={m.label} className="flex-1">
+        {months.map((m, i) => (
+          <span key={m.label} className={cn('flex-1', i === last && 'font-bold text-au-accent-text')}>
             {m.label}
           </span>
         ))}
       </div>
 
-      <div className="flex justify-between text-xs text-au-muted">
-        <span>Shu yil topildi: <b className="text-au-ink">{formatUZS(latest.cumulative)}</b></span>
-        <span>Qoldi: <b className="text-au-ink">{formatUZS(remaining)}</b></span>
+      <div className="flex flex-wrap items-center gap-3 text-[10px] text-au-muted">
+        <span className="inline-flex items-center gap-1">
+          <i className="size-2 rounded-xs border border-dashed border-au-muted" /> Reja (B-nuqta ÷ 12)
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <i className="size-2 rounded-xs bg-au-accent" /> Topildi
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <i className="size-2 rounded-xs bg-au-ok" /> Rejadan oldinda
+        </span>
+      </div>
+
+      <div className="flex flex-wrap justify-between gap-x-3 text-xs text-au-muted">
+        <span>
+          Shu yil topildi: <b className="text-au-ink tabular-nums">{formatUZS(latest)}</b>
+        </span>
+        <span>
+          Qoldi: <b className="text-au-ink tabular-nums">{formatUZS(remaining)}</b>
+        </span>
       </div>
     </section>
   );

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { canSeeFor } from '@/lib/permissions';
+import { can, canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 
@@ -41,8 +41,8 @@ export default async function AccountingPage() {
 
   return (
     <>
-      <div className="px-4 pt-1 sm:px-7">
-        <FinanceTabs />
+      <div className="mx-auto w-full max-w-[1440px] px-4 pt-1 sm:px-6">
+        <FinanceTabs meId={profile.id} payroll={can(profile.role, 'finance.viewAll')} accounting />
       </div>
       <AccountingWorkspace books={books} today={tashkentDayKey()} courseGroups={[...courseGroups]} seatCap={seatCap} />
     </>

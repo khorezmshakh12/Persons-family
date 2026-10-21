@@ -23,6 +23,7 @@ export async function setBpointAction(input: { staffId?: string; amount: number 
       values (${staffId}, ${year}, ${amount}, ${note}, ${user.id}, now())
       on conflict (user_id, year) do update set
         amount = excluded.amount, note = excluded.note, updated_by = excluded.updated_by, updated_at = now()`;
+    revalidatePath('/[locale]/finance', 'page');
     revalidatePath('/[locale]/finance/[staffId]', 'page');
     revalidatePath('/[locale]/dashboard', 'page');
     return { ok: true };

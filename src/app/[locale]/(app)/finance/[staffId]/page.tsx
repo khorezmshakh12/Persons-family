@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
@@ -14,8 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { type FinanceEntry } from '@/components/finance/finance-entries-list';
 import { SalarySection } from '@/components/salary/salary-section';
 import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap-section';
-import { can } from '@/lib/permissions';
-import { PayStatement } from '@/components/finance/pay-statement';
+import { can, canSeeFor } from '@/lib/permissions';
+import { FinanceTabs } from '@/components/finance/finance-tabs';
+import { AdvancePanel, PayHistoryCard, PayStatementCard } from '@/components/finance/pay-statement';
 import { loadAdvances, loadPayHistory, loadPayLines, loadPayRun } from '@/lib/pay-run-data';
 
 export const dynamic = 'force-dynamic';
@@ -103,55 +105,63 @@ export async function FinanceDetailContent({
     if (mi >= 0 && mi < 12) byMonth[mi] += Number(e.amount) || 0;
   }
   const bTarget = bpoint?.amount ?? 0;
-  let cum = 0;
-  const bMonths = [] as { label: string; cumulative: number; pct: number }[];
-  for (let i = 0; i < upToMonth; i++) {
+  // All 12 months, so the planned path to the B-nuqta shows ahead of today;
+  // months not reached yet carry no cumulative.
+  const bMonths: { label: string; cumulative: number | null }[] = [];
+  for (let i = 0, cum = 0; i < 12; i++) {
     cum += byMonth[i];
-    bMonths.push({ label: SHORT_UZ[i], cumulative: Math.round(cum), pct: bTarget > 0 ? Math.round((cum / bTarget) * 100) : 0 });
+    bMonths.push({ label: SHORT_UZ[i], cumulative: i < upToMonth ? Math.round(cum) : null });
   }
+  const line = lines[0] ?? null;
+  const roleName = roleLabel(tStaff, target.role);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-4 pt-1 pb-8 sm:px-7">
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-3 pt-1 pb-10 sm:px-6">
+      <FinanceTabs meId={user!.id} payroll={can(profile!.role, 'finance.viewAll')} accounting={canSeeFor(profile!, 'accounting')} />
+
       {/* Header: who + month navigator */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="animate-fade-in-up flex items-center gap-4">
-          <Avatar className="size-14 border border-au-line">
+      <div className="animate-fade-in-up flex flex-wrap items-center justify-between gap-4 rounded-au-card border border-au-line bg-au-card p-4 sm:p-5">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <Avatar className="size-12 border border-au-line">
             <AvatarImage src={avatarSrc ?? undefined} alt="" />
-            <AvatarFallback className="text-lg">
+            <AvatarFallback className="text-base">
               {target.first_name[0]}
               {target.last_name[0]}
             </AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-col">
-            <h1 className="truncate text-[26px] leading-8 font-bold tracking-tight text-au-ink">
-              {target.first_name} {target.last_name}
-            </h1>
-            <span className="text-sm text-au-muted">{roleLabel(tStaff, target.role)}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-bold text-au-ink">
+                {target.first_name} {target.last_name}
+              </h1>
+              <span className="fp-chip fp-chip-accent">{roleName}</span>
+            </div>
+            <span className="text-xs text-au-muted">Shaxsiy hisob varaqasi, avanslar va B-nuqta {bYear} daromad xaritasi</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link
             href={monthHref(-1)}
-            className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
+            className="inline-flex size-8 items-center justify-center rounded-au-ctl border border-au-line bg-au-card-2 text-au-ink transition hover:bg-au-accent-soft"
             aria-label="Oldingi oy"
           >
-            ‹
+            <ChevronLeft className="size-4" />
           </Link>
           <span className="min-w-32 text-center text-base font-bold text-au-ink">{monthLabel(month)}</span>
           <Link
             href={monthHref(1)}
-            className="rounded-full border border-au-line bg-au-card px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-ink"
+            className="inline-flex size-8 items-center justify-center rounded-au-ctl border border-au-line bg-au-card-2 text-au-ink transition hover:bg-au-accent-soft"
             aria-label="Keyingi oy"
           >
-            ›
+            <ChevronRight className="size-4" />
           </Link>
         </div>
       </div>
 
-      {/* Wide two-column layout: pay this month on the left, B-point goals on the right */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
-          <PayStatement line={lines[0] ?? null} period={period} status={run.status} history={history} advances={advances} isSelf={isSelf} />
+      {/* Left 7: statement + ledger; right 5: B-nuqta, advance, 12 months */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="flex min-w-0 flex-col gap-5 lg:col-span-7">
+          <PayStatementCard line={line} period={period} status={run.status} />
           <div style={{ animationDelay: '70ms' }} className="animate-fade-in-up">
             <SalarySection
               staffId={staffId}
@@ -164,13 +174,14 @@ export async function FinanceDetailContent({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-6 lg:col-span-5">
+        <div className="flex min-w-0 flex-col gap-5 lg:col-span-5">
           <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
             <BpointCard
               year={bYear}
               amount={bTarget}
               note={bpoint?.note ?? null}
               earnedYtd={earnedYtd}
+              monthsElapsed={Math.max(1, upToMonth)}
               canEdit={isSelf || isCeo}
               staffId={staffId}
             />
@@ -178,12 +189,14 @@ export async function FinanceDetailContent({
           <div style={{ animationDelay: '180ms' }} className="animate-fade-in-up">
             <BpointProgress year={bYear} target={bTarget} months={bMonths} />
           </div>
+          {isSelf && advances && <AdvancePanel advances={advances} />}
+          <PayHistoryCard history={history} period={period} />
         </div>
       </div>
 
       {/* Income roadmap spans the full width */}
       <div style={{ animationDelay: '210ms' }} className="animate-fade-in-up">
-        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} />
+        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} bpoint={bTarget} bpointYear={bYear} />
       </div>
     </div>
   );

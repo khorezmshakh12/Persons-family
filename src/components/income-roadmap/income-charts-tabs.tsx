@@ -21,6 +21,10 @@ import { useChartAnimation } from '@/lib/use-enter-progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
+/** Axis ticks: 12 500 000 → "12.5 mln", so long sums fit the axis. */
+const compact = (v: number) =>
+  v >= 1e9 ? `${+(v / 1e9).toFixed(1)} mlrd` : v >= 1e6 ? `${+(v / 1e6).toFixed(1)} mln` : v >= 1e3 ? `${Math.round(v / 1e3)} ming` : String(Math.round(v));
+
 const MILESTONE_COLORS: Record<string, string> = {
   planned: '#94a3b8',
   in_progress: '#38bdf8',
@@ -139,10 +143,13 @@ export function IncomeChartsTabs({
   months,
   targetYearEndIncome,
   milestones,
+  bpoint = 0,
 }: {
   months: IncomeRoadmapMonth[];
   targetYearEndIncome: number;
   milestones: IncomeRoadmapMilestone[];
+  /** Yearly B-nuqta; 0 when none is set for the shown year. */
+  bpoint?: number;
 }) {
   const t = useTranslations('incomeRoadmap');
   const format = useFormatter();
@@ -168,22 +175,22 @@ export function IncomeChartsTabs({
 
   // Y-axis domain calculation
   const maxMonthlyVal = useMemo(() => {
-    let max = targetYearEndIncome;
+    let max = Math.max(targetYearEndIncome, bpoint / 12);
     for (const m of months) {
       if (m.planned > max) max = m.planned;
       if (m.actual !== null && m.actual > max) max = m.actual;
     }
     return max * 1.1;
-  }, [months, targetYearEndIncome]);
+  }, [months, targetYearEndIncome, bpoint]);
 
   const maxCumulativeVal = useMemo(() => {
-    let max = 0;
+    let max = bpoint;
     for (const m of months) {
       if (m.cumulativePlanned > max) max = m.cumulativePlanned;
       if (m.actual !== null && m.cumulativeActual > max) max = m.cumulativeActual;
     }
     return (max || 1) * 1.08;
-  }, [months]);
+  }, [months, bpoint]);
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-au-line bg-au-card-2 p-4 shadow-sm">
@@ -212,6 +219,12 @@ export function IncomeChartsTabs({
                 {tab === 'monthly' ? t('planned') : t('cumulativePlanned')}
               </span>
             </div>
+            {bpoint > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-0.5 w-3 border-t-2 border-dashed border-au-accent" />
+                <span className="font-medium text-au-accent-text">B-nuqta</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
               <span className="text-emerald-700 font-medium">
@@ -225,7 +238,7 @@ export function IncomeChartsTabs({
         <TabsContent value="monthly" className="mt-3 outline-none">
           <div className="h-72 w-full" aria-label={t('chartAriaMonthly')}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="var(--au-line)" vertical={false} />
                 <XAxis
                   dataKey="monthLabel"
@@ -239,8 +252,9 @@ export function IncomeChartsTabs({
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
+                  width={56}
                   domain={[0, maxMonthlyVal]}
-                  tickFormatter={(val: number) => formatUZS(val)}
+                  tickFormatter={compact}
                 />
                 <Tooltip content={<CustomMonthlyTooltip t={t} />} />
 
@@ -248,8 +262,21 @@ export function IncomeChartsTabs({
                 {targetYearEndIncome > 0 && (
                   <ReferenceLine
                     y={targetYearEndIncome}
-                    stroke="rgba(12, 122, 63, 0.4)"
+                    stroke="var(--au-ok)"
+                    strokeOpacity={0.5}
                     strokeDasharray="3 3"
+                    label={{ value: t('targetYearEndIncome'), position: 'insideTopLeft', fontSize: 10, fill: 'var(--au-ok)' }}
+                  />
+                )}
+
+                {/* B-nuqta spread over the year: what each month must bring */}
+                {bpoint > 0 && (
+                  <ReferenceLine
+                    y={bpoint / 12}
+                    stroke="var(--au-accent)"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    label={{ value: `B-nuqta ÷ 12 · ${compact(bpoint / 12)}`, position: 'insideTopRight', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
                   />
                 )}
 
@@ -312,7 +339,7 @@ export function IncomeChartsTabs({
         <TabsContent value="cumulative" className="mt-3 outline-none">
           <div className="h-72 w-full" aria-label={t('chartAriaCumulative')}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="actualIncomeGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--au-ok)" stopOpacity={0.4} />
@@ -332,10 +359,22 @@ export function IncomeChartsTabs({
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
+                  width={56}
                   domain={[0, maxCumulativeVal]}
-                  tickFormatter={(val: number) => formatUZS(val)}
+                  tickFormatter={compact}
                 />
                 <Tooltip content={<CustomCumulativeTooltip t={t} />} />
+
+                {/* B-nuqta: where the cumulative plan must arrive by December */}
+                {bpoint > 0 && (
+                  <ReferenceLine
+                    y={bpoint}
+                    stroke="var(--au-accent)"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    label={{ value: `B-nuqta · ${formatUZS(bpoint)}`, position: 'insideTopLeft', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
+                  />
+                )}
 
                 {/* Cumulative Planned Line */}
                 <Line

@@ -16,10 +16,15 @@ export async function IncomeRoadmapSection({
   staffId,
   canManage,
   year,
+  bpoint = 0,
+  bpointYear,
 }: {
   staffId: string;
   canManage: boolean;
   year?: number;
+  /** The staff member's B-nuqta (yearly target) — drawn on the charts of its year. */
+  bpoint?: number;
+  bpointYear?: number;
 }) {
   const t = await getTranslations('incomeRoadmap');
 
@@ -100,6 +105,7 @@ export async function IncomeRoadmapSection({
             months={months}
             targetYearEndIncome={roadmap.targetYearEndIncome}
             milestones={milestones}
+            bpoint={shownYear === bpointYear ? bpoint : 0}
           />
 
           {/* 5.5 12-month Grid */}
