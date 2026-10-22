@@ -9,6 +9,7 @@ import { KpiSection } from '@/components/kpi/kpi-section';
 import { SelfDevelopmentSection } from '@/components/profile/self-development-section';
 import { SalaryMissionsList } from './salary-missions-list';
 import { SalaryTotal } from './salary-total';
+import type { PayLine } from '@/lib/pay-run';
 
 /** Consolidates everything money/performance-related for one employee under
  * a single "Salary" section on /finance/[id]: the Salary ledger itself
@@ -23,6 +24,7 @@ export async function SalarySection({
   isAdmin,
   entries,
   month,
+  line,
 }: {
   staffId: string;
   isSelf: boolean;
@@ -31,13 +33,15 @@ export async function SalarySection({
   entries: FinanceEntry[];
   /** YYYY-MM the page is showing. */
   month: string;
+  /** The month's pay line from the engine — the only source of its totals. */
+  line: PayLine | null;
 }) {
   const t = await getTranslations('salary');
-  // Payments and earnings are different money: a month's salary payment
-  // already includes its bonuses, so the two are never summed together.
-  const isPayment = (e: FinanceEntry) => e.kind === 'salary' || e.kind === 'advance';
-  const adjustments = entries.filter((e) => !isPayment(e)).reduce((s, e) => s + e.amount, 0);
-  const paid = entries.filter(isPayment).reduce((s, e) => s + e.amount, 0);
+  // This month only, from the pay engine: everything on top of the base
+  // (KPI, bonus, rag‘bat, jarima, self-development, carry, advance shares)
+  // and what was paid out for this month. Payments are never added to pay.
+  const adjustments = line ? line.payable - line.base : 0;
+  const paid = line?.paid ?? 0;
 
   return (
     <div className={cn(GLASS_CARD, 'flex flex-col gap-6 p-6')}>
@@ -72,7 +76,7 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-au-line pt-4">
-        <KpiSection staffId={staffId} canManage={isCeo && !isSelf} />
+        <KpiSection staffId={staffId} canManage={isCeo && !isSelf} month={`${month}-01`} />
       </div>
 
       <div className="border-t border-au-line pt-4">
@@ -80,11 +84,11 @@ export async function SalarySection({
       </div>
 
       <div className="border-t border-au-line pt-4">
-        <SalaryMissionsList staffId={staffId} />
+        <SalaryMissionsList staffId={staffId} month={month} />
       </div>
 
       <div className="border-t border-au-line pt-4">
-        <SalaryTotal staffId={staffId} isCeo={isCeo && !isSelf} />
+        <SalaryTotal staffId={staffId} isCeo={isCeo && !isSelf} month={month} payable={line?.payable ?? 0} />
       </div>
     </div>
   );

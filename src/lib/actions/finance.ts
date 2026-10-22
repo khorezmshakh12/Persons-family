@@ -56,6 +56,9 @@ const addEntrySchema = z.object({
   period: z.string().regex(PERIOD_RE).optional().or(z.literal('')),
   /** Cash box (acct_accounts.cash_box) a salary / advance payment left from. */
   method: z.string().regex(/^\d{4}$/).optional().or(z.literal('')),
+  /** Cancels one system component ('perf:<id>', 'ms:<id>', 'sd:<id>', 'fe:<id>'):
+   * written as a correction that points at it, so exactly that one is cancelled. */
+  reversalOf: z.string().regex(/^(fe|perf|sd|ms):[0-9a-f-]{36}$/).optional().or(z.literal('')),
 });
 
 export async function addFinanceEntryAction(
@@ -88,13 +91,15 @@ export async function addFinanceEntryAction(
   const method = isPayment && parsed.data.method ? parsed.data.method : null;
   if (method && !(await isCashBox(method).catch(() => false))) return { error: 'invalidInput' };
 
+  const reversalOf = parsed.data.reversalOf || null;
   let entryId: string | undefined;
   try {
     [{ id: entryId }] = await sql<{ id: string }[]>`
-      insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, method)
+      insert into finance_entries (staff_id, title, amount, note, created_by, kind, period, method, source, reversal_of)
       values (
         ${parsed.data.staffId}, ${parsed.data.title}, ${amount},
-        ${parsed.data.note || null}, ${adminId}, ${kind}, ${period}, ${method}
+        ${parsed.data.note || (reversalOf ? 'Bekor qilindi' : null)}, ${adminId}, ${kind}, ${period}, ${method},
+        ${reversalOf ? 'correction' : 'manual'}, ${reversalOf}
       )
       returning id
     `;
@@ -236,7 +241,7 @@ export async function updateFinanceEntryAction(
         period = coalesce(${newPeriod}::date, fe.period),
         method = case when fe.kind in ('salary', 'advance') then coalesce(${newMethod}, fe.method) else fe.method end
       from (select id, staff_id, title, amount, period from finance_entries where id = ${parsed.data.entryId}) old
-      where fe.id = old.id and fe.source in ('manual', 'advance', 'payrun', 'reimburse')
+      where fe.id = old.id and fe.source in ('manual', 'advance', 'payrun', 'reimburse') and fe.group_id is null
       returning old.staff_id, old.title, old.amount, to_char(old.period, 'YYYY-MM-DD') as period, to_char(fe.period, 'YYYY-MM-DD') as new_period, fe.kind::text as kind
     `;
   } catch (error) {
@@ -244,8 +249,8 @@ export async function updateFinanceEntryAction(
     return { error: lockedOr(error, 'updateFailed') };
   }
   if (!before) {
-    const [exists] = await sql`select 1 from finance_entries where id = ${parsed.data.entryId}`.catch(() => []);
-    return { error: exists ? 'systemEntry' : 'notFound' };
+    const [exists] = await sql<{ grouped: boolean }[]>`select group_id is not null as grouped from finance_entries where id = ${parsed.data.entryId}`.catch(() => []);
+    return { error: exists ? (exists.grouped ? 'groupedAdvance' : 'systemEntry') : 'notFound' };
   }
 
   logSystemAction(
@@ -283,19 +288,26 @@ export async function deleteFinanceEntryAction(
 
   type Gone = { staff_id: string; title: string; amount: number; source: string; kind: string; period: string };
   let gone: Gone | undefined;
+  const touched = new Set<string>();
   try {
     gone = await sql.begin(async (tx) => {
-      const [row] = await tx<Gone[]>`
+      // A split advance goes as a whole (cash + every month's share), so no
+      // half of it is left behind as a stray bonus or cut.
+      const rows = await tx<(Gone & { id: string })[]>`
         delete from finance_entries
-        where id = ${parsed.data.entryId} and source in ('manual', 'advance', 'payrun', 'reimburse')
-        returning staff_id, title, amount, source, kind::text as kind, to_char(period, 'YYYY-MM-DD') as period
+        where (id = ${parsed.data.entryId}
+            or group_id = (select group_id from finance_entries where id = ${parsed.data.entryId} and group_id is not null))
+          and (source in ('manual', 'advance', 'payrun', 'reimburse') or (source = 'correction' and reversal_of is not null))
+        returning staff_id, title, amount, source, kind::text as kind, to_char(period, 'YYYY-MM-DD') as period, id
       `;
+      const row = rows.find((r) => r.id === parsed.data.entryId) ?? rows[0];
+      for (const r of rows) if (r.period && r.period !== row?.period) touched.add(r.period);
       // A withdrawn advance must not stay "Tasdiqlangan" on the staff side.
       if (row?.source === 'advance')
         await tx`
           update advance_requests set status = 'cancelled', finance_entry_id = null,
             decision_note = coalesce(decision_note || ' · ', '') || 'To‘lov yozuvi o‘chirildi'
-          where finance_entry_id = ${parsed.data.entryId}
+          where finance_entry_id = any(${rows.map((r) => r.id)}::uuid[])
         `;
       // …nor a withdrawn reimbursement "Tasdiqlangan".
       if (row?.source === 'reimburse')
@@ -322,7 +334,7 @@ export async function deleteFinanceEntryAction(
   await logEntry(gone.period, adminId, 'entry.delete', { staffId: gone.staff_id, title: gone.title, amount: gone.amount });
   if (gone.kind === 'salary' || gone.kind === 'advance') {
     const per = gone.period;
-    after(() => syncPayCash(per));
+    after(() => syncPayCash(per, ...touched));
   }
   // The add sent the staff member a Telegram note for these kinds — say it
   // was withdrawn so they don't count on money that isn't coming.
@@ -446,7 +458,8 @@ export async function addAdvanceInstallmentsAction(input: z.input<typeof install
   const share = Math.floor(amount / v.months);
   const last = amount - share * (v.months - 1);
   const title = v.title || `Avans · ${monthLabel(v.period)}`;
-  const base = { staff_id: v.staffId, source: 'advance', created_by: g.id };
+  // One group: deleting any of these rows removes the whole advance.
+  const base = { staff_id: v.staffId, source: 'advance', created_by: g.id, group_id: crypto.randomUUID() };
   const rows = [
     { ...base, title, amount, kind: 'advance', period: v.period, method, note: `${v.months} oyga bo‘lib ushlanadi` },
     { ...base, title: `Avans: ${v.months - 1} oyga o‘tkazildi`, amount: amount - share, kind: 'adjustment', period: v.period, method: null, note: `1/${v.months} ulush shu oyda` },

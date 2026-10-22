@@ -15,7 +15,7 @@ export async function BonusesPunishmentsCard({
 }: {
   staffId: string;
   canManage: boolean;
-  /** YYYY-MM — only that Tashkent month (Finance is per month). */
+  /** YYYY-MM — only that payroll month (performance_entries.period). */
   month?: string;
 }) {
   const t = await getTranslations('profile.bonusesPunishments');
@@ -34,7 +34,7 @@ export async function BonusesPunishmentsCard({
     from performance_entries pe
     left join staff_warnings w on w.id = pe.warning_id
     where pe.staff_id = ${staffId}
-      ${month ? sql`and to_char(pe.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') = ${month}` : sql``}
+      ${month ? sql`and pe.period = ${`${month}-01`}` : sql``}
     order by pe.created_at desc
   `;
 
@@ -48,7 +48,7 @@ export async function BonusesPunishmentsCard({
         <h2 className="font-heading text-lg font-semibold text-au-ink">
           {t('title')}
         </h2>
-        {canManage && <AddPerformanceEntryDialog staffId={staffId} />}
+        {canManage && <AddPerformanceEntryDialog staffId={staffId} month={month} />}
       </div>
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-medium text-au-ink">{t('bonusesTitle')}</h3>

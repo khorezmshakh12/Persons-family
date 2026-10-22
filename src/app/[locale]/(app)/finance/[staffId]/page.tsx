@@ -1,7 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
-import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
 import { BpointCard } from '@/components/finance/bpoint-card';
 import { BpointProgress } from '@/components/finance/bpoint-progress';
 import { notFound } from 'next/navigation';
@@ -18,7 +17,7 @@ import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap
 import { can, canSeeFor } from '@/lib/permissions';
 import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { AdvancePanel, PayHistoryCard, PayStatementCard } from '@/components/finance/pay-statement';
-import { loadAdvances, loadMyPayments, loadPayHistory, loadPayLines, loadReimbursements } from '@/lib/pay-run-data';
+import { loadAdvances, loadMyPayments, loadPayByMonth, loadPayHistory, loadPayLines, loadReimbursements } from '@/lib/pay-run-data';
 import { MyPaymentsPanel, ReimbursePanel } from '@/components/finance/my-money';
 
 export const dynamic = 'force-dynamic';
@@ -75,8 +74,7 @@ export async function FinanceDetailContent({
   const [entries, lines, history, advances, myPayments, reimbursements] = await Promise.all([
     sql<FinanceEntry[]>`
       select id, title, amount, note, kind, source, created_at from finance_entries
-      where staff_id = ${staffId}
-        and coalesce(to_char(period, 'YYYY-MM'), to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM')) = ${month}
+      where staff_id = ${staffId} and period = ${period}
       order by created_at desc
     `,
     loadPayLines(period, staffId),
@@ -86,26 +84,20 @@ export async function FinanceDetailContent({
     isSelf ? loadReimbursements(staffId).catch(() => []) : Promise.resolve([]),
   ]);
 
-  // B-nuqta (yillik maosh maqsadi) + shu yilgi topilgan (netEarnings).
-  const bYear = tashkentYmd().year;
-  const [bpRows, earnEntries] = await Promise.all([
+  // B-nuqta (yillik maosh maqsadi): topilgan = har oyning hisoblangan oyligi
+  // (pay run payable) yanvardan joriy oygacha, oyma-oy — bir oyning summasi
+  // boshqa oyga aralashmaydi (finance audit 2026-10-22).
+  const nowYmd = tashkentYmd();
+  const bYear = nowYmd.year;
+  const upToMonth = nowYmd.month;
+  const [bpRows, ytd] = await Promise.all([
     sql<{ amount: number; note: string | null }[]>`select amount, note from staff_bpoint where user_id = ${staffId} and year = ${bYear}`,
-    getNetEarningEntries(staffId),
+    loadPayByMonth(`${bYear}-01-01`, `${bYear}-${String(upToMonth).padStart(2, '0')}-01`, staffId),
   ]);
   const bpoint = bpRows[0] ?? null;
-  const earnedYtd = netEarnings(earnEntries.filter((e) => (e.at ?? '') >= `${bYear}-01-01`));
-
-  // B-nuqta sari: shu yilning har oyi uchun kümülyativ topilgan va maqsadga
-  // nisbatan foiz (grafik joriy oygacha ko'rsatadi).
-  const nowYmd = tashkentYmd();
-  const upToMonth = bYear < nowYmd.year ? 12 : bYear > nowYmd.year ? 0 : nowYmd.month;
   const byMonth = new Array(12).fill(0) as number[];
-  for (const e of earnEntries) {
-    const at = e.at ?? '';
-    if (at.slice(0, 4) !== String(bYear)) continue;
-    const mi = Number(at.slice(5, 7)) - 1;
-    if (mi >= 0 && mi < 12) byMonth[mi] += Number(e.amount) || 0;
-  }
+  for (const m of ytd) byMonth[Number(m.period.slice(5, 7)) - 1] = m.planned;
+  const earnedYtd = byMonth.reduce((a, v) => a + v, 0);
   const bTarget = bpoint?.amount ?? 0;
   // All 12 months, so the planned path to the B-nuqta shows ahead of today;
   // months not reached yet carry no cumulative.
@@ -173,6 +165,7 @@ export async function FinanceDetailContent({
               isAdmin={isAdmin}
               entries={(entries ?? []) as FinanceEntry[]}
               month={month}
+              line={line}
             />
           </div>
         </div>

@@ -41,6 +41,7 @@ export type AdvanceRequest = {
   created_at: string;
 };
 
+/** `planned` = the month's computed pay (payable); `paid` = paid out for that month. */
 export type MonthPoint = { period: string; planned: number; paid: number };
 
 const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.trim() || 'Xodim';
@@ -50,9 +51,10 @@ const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.tri
 type Db = typeof sql;
 
 async function loadInputs(period: string, staffId?: string, db: Db = sql): Promise<Omit<PayInput, 'prevPayable'>[]> {
-  // Dated movements (rag‘bat/jarima, missions) are read two months back: one
-  // created after its own month was approved rolls forward into this one
-  // (effectivePeriod), so an approved month never moves.
+  // Rag‘bat/jarima belong to the month chosen when they were entered
+  // (performance_entries.period). Missions carry no month of their own, so
+  // they are read two months back and placed by approval date
+  // (effectivePeriod — a month approved before the mission rolls forward).
   const from = tashkentMidnight(shiftMonth(period, -2)).toISOString();
   const to = tashkentMidnight(shiftMonth(period, 1)).toISOString();
   const only = staffId ? sql`and p.id = ${staffId}` : sql``;
@@ -77,7 +79,7 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       select id, user_id, bonus_amount, ceo_score from self_development where month = ${period} ${onlyCol('user_id')}`,
     db<{ id: string; staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
       select id, staff_id, entry_type, amount, reason, created_at from performance_entries
-      where created_at >= ${from} and created_at < ${to} ${onlyCol('staff_id')}`,
+      where period = ${period} ${onlyCol('staff_id')}`,
     db<{ id: string; staff_id: string; bonus_amount: number; at: string | null }[]>`
       select id, staff_id, bonus_amount, coalesce(approved_at, created_at) as at from missions
       where status = 'approved' and bonus_amount is not null
@@ -106,7 +108,7 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
   // are the only ones that can cancel this month's components.
   const reversedRefs = new Set(entries.flatMap((e) => (e.reversal_of ? [e.reversal_of] : [])));
   const ref = (r: string) => ({ ref: r, reversed: reversedRefs.has(r) || undefined });
-  const perf = inThisRun(perfRows, (r) => r.created_at);
+  const perf = perfRows.map((row) => ({ row, from: null as string | null }));
   const missions = inThisRun(missionRows, (r) => r.at);
 
   const gross = new Map(salaries.map((s) => [s.staff_id, s.gross]));
@@ -135,6 +137,8 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       }
       const kind =
         e.source === 'carry' ? 'carry'
+        // Split-advance shares (the cash itself is an 'advance' payment above).
+        : e.source === 'advance' ? 'advshift'
         : e.source === 'correction' ? 'correction'
         : e.source === 'kpi' || e.title.startsWith('KPI ·') ? 'kpi'
         : e.kind === 'penalty' ? 'penalty'
@@ -217,26 +221,29 @@ export async function loadAdvances(staffId?: string): Promise<AdvanceRequest[]> 
   return rows.map(({ first_name, last_name, ...r }) => ({ ...r, staff_name: name(first_name, last_name) }));
 }
 
-/** Last 12 months: planned salary fund vs paid out (team, or one person). */
+/**
+ * Each month's computed pay (payable, from the engine) and what was paid out
+ * for it, from `first` through `last` — team-wide or one person. Months are
+ * computed one after another (each is ~9 queries) to stay gentle on the pool.
+ * Yearly and multi-month figures are sums of these, never a raw ledger sum,
+ * so no month leaks into another.
+ */
+export async function loadPayByMonth(first: string, last: string, staffId?: string): Promise<MonthPoint[]> {
+  const out: MonthPoint[] = [];
+  for (let p = first; p <= last; p = shiftMonth(p, 1)) {
+    const lines = (await loadInputs(p, staffId)).map((i) => computeLine({ ...i, prevPayable: null }));
+    out.push({
+      period: p,
+      planned: lines.reduce((t, l) => t + l.payable, 0),
+      paid: lines.reduce((t, l) => t + l.paid, 0),
+    });
+  }
+  return out;
+}
+
+/** Last 12 months: computed pay (payable) vs paid out (team, or one person). */
 export async function loadPayHistory(period: string, staffId?: string): Promise<MonthPoint[]> {
-  const first = shiftMonth(period, -11);
-  const [planned, paid] = await Promise.all([
-    sql<{ period: string; v: number }[]>`
-      select period::text as period, sum(gross_amount) as v from salary_months
-      where period >= ${first} and period <= ${period} ${staffId ? sql`and staff_id = ${staffId}` : sql``}
-      group by period`,
-    sql<{ period: string; v: number }[]>`
-      select period::text as period, sum(amount) as v from finance_entries
-      where kind in ('salary', 'advance') and period >= ${first} and period <= ${period}
-        ${staffId ? sql`and staff_id = ${staffId}` : sql``}
-      group by period`,
-  ]);
-  const pl = new Map(planned.map((r) => [r.period.slice(0, 10), Number(r.v)]));
-  const pd = new Map(paid.map((r) => [r.period.slice(0, 10), Number(r.v)]));
-  return Array.from({ length: 12 }, (_, i) => {
-    const p = shiftMonth(first, i);
-    return { period: p, planned: Math.round(pl.get(p) ?? 0), paid: Math.round(pd.get(p) ?? 0) };
-  });
+  return loadPayByMonth(shiftMonth(period, -11), period, staffId);
 }
 
 /** What this person added to the ledger by hand in the last 24 hours —
