@@ -5,7 +5,6 @@ import type { PayGrade } from '@/lib/billing';
 
 export const som = (v: number) => `${formatUZS(Math.round(v))} so‘m`;
 export const dmy = (k: string) => `${k.slice(8, 10)}.${k.slice(5, 7)}.${k.slice(0, 4)}`;
-export const hm = (ts: string) => ts.slice(11, 16);
 
 export const METHODS: Record<string, string> = {
   cash: 'Naqd',
@@ -67,3 +66,17 @@ export const errText = (e: string) =>
           : e === 'notFound'
             ? 'O‘quvchi topilmadi'
             : "Saqlab bo'lmadi";
+
+/** A Postgres timestamptz text (any offset) as a Date. */
+export const tsDate = (s: string) => new Date(s.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));
+const TK = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+/** «22.10.2026 16:30» in Tashkent time. */
+export const when = (s: string) => {
+  const p = Object.fromEntries(TK.formatToParts(tsDate(s)).map((x) => [x.type, x.value]));
+  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute}`;
+};
+/** «5 daq oldin», «3 soat oldin», «2 kun oldin». */
+export const ago = (s: string, now = Date.now()) => {
+  const m = Math.max(0, Math.round((now - tsDate(s).getTime()) / 60000));
+  return m < 60 ? `${m} daq oldin` : m < 1440 ? `${Math.round(m / 60)} soat oldin` : `${Math.round(m / 1440)} kun oldin`;
+};

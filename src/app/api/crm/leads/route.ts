@@ -39,8 +39,8 @@ export async function POST(req: Request) {
         sectionId = s?.id ?? null;
       }
       const [l] = await tx<{ id: string }[]>`
-        insert into crm_leads (section_id, name, phone, course_id, note, source, status, branch, trial_date, trial_time, trial_note, created_by)
-        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${branch}, ${trialDate}, ${trialTime}, ${trialNote}, ${me.id})
+        insert into crm_leads (section_id, name, phone, course_id, note, source, status, branch, trial_date, trial_time, trial_note, created_by, owner_id, first_contact_at)
+        values (${sectionId}, ${name || null}, ${phone || null}, ${courseId}, ${body.note ?? null}, ${source}, 'open', ${branch}, ${trialDate}, ${trialTime}, ${trialNote}, ${me.id}, ${me.id}, now())
         returning id`;
       return l.id;
     });

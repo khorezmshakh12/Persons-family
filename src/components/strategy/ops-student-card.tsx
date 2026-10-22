@@ -20,9 +20,11 @@ import {
   updateStudentTermsAction,
   type StudentCard,
 } from '@/lib/actions/students';
+import { addStudentNoteAction, editStudentNoteAction, getStudentNotesAction, type StudentNote } from '@/lib/actions/sales';
 import { playSound, toast } from './suite-shell';
+import { CommentList } from './ops-lead-card';
 import type { OpsData } from './operations-workspace';
-import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, hm, som } from './ops-students-meta';
+import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, som, when } from './ops-students-meta';
 
 type Pane = 'pay' | 'msg' | 'terms' | 'adj' | 'freeze' | 'out' | 'call' | null;
 const KIND_UZ: Record<string, string> = { father: 'ota', mother: 'ona', guardian: 'vasiy', student: 'o‘quvchi', other: 'boshqa' };
@@ -36,6 +38,8 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   const [failed, setFailed] = useState(false);
   const [pane, setPane] = useState<Pane>((initial as Pane) ?? null);
   const [tick, setTick] = useState(0);
+  const [notes, setNotes] = useState<StudentNote[] | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
   const today = data.today.day;
   const canEdit = data.canEdit;
 
@@ -46,6 +50,11 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
       if (!live) return;
       if (r.card) setCard(r.card);
       else setFailed(true);
+    });
+    getStudentNotesAction(s.id).then((r) => {
+      if (!live) return;
+      setNotes(r.notes ?? []);
+      setMeId(r.meId ?? null);
     });
     return () => {
       live = false;
@@ -178,6 +187,33 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
           {pane === 'call' && <CallPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'out' && <OutPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
 
+          <CommentList
+            items={notes}
+            meId={meId}
+            canEdit={canEdit}
+            placeholder="Izoh yozing… (masalan: onasi to‘lovni 20-sanagacha kechiktirishni so‘radi)"
+            onAdd={async (body) => {
+              const r = await addStudentNoteAction({ studentId: s.id, body });
+              if (r.error) {
+                fail(r.error);
+                return false;
+              }
+              toast.success('Izoh qo‘shildi');
+              setTick((t) => t + 1);
+              return true;
+            }}
+            onEdit={async (id, body) => {
+              const r = await editStudentNoteAction({ id, body });
+              if (r.error) {
+                toast.error(r.error === 'forbidden' ? 'Faqat o‘zingiz yozgan izohni tahrirlay olasiz' : errText(r.error));
+                return false;
+              }
+              toast.success('Izoh tahrirlandi');
+              setTick((t) => t + 1);
+              return true;
+            }}
+          />
+
           {!card ? (
             <div className="sx-empty">{failed ? 'Kartani yuklab bo‘lmadi' : 'Yuklanmoqda…'}</div>
           ) : (
@@ -235,7 +271,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                         <span className={cn('sx-pl', m.sent ? 'ok' : 'bad')}>{m.sent ? 'yetkazildi' : 'yetmadi'}</span>
                         <span className="flex-1" />
                         <span className="text-xs text-au-faint">
-                          {m.actor} · {dmy(m.at)} {hm(m.at)}
+                          {m.actor} · {when(m.at)}
                         </span>
                       </div>
                       <div className="mt-1 whitespace-pre-line text-xs leading-relaxed text-au-muted">{m.body}</div>
@@ -254,7 +290,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                         {c.promised && <span className="text-au-muted"> · va’da {dmy(c.promised)}</span>}
                         {c.note && <span className="text-au-muted"> · {c.note}</span>}
                         <span className="block text-xs text-au-faint">
-                          {c.actor} · {dmy(c.at)} {hm(c.at)}
+                          {c.actor} · {when(c.at)}
                         </span>
                       </li>
                     ))}
@@ -271,7 +307,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                     <li key={l.id} className="border-b border-au-line py-2 text-sm text-au-ink">
                       {l.text}
                       <span className="block text-xs text-au-faint">
-                        {l.actor} · {dmy(l.at)} {hm(l.at)}
+                        {l.actor} · {when(l.at)}
                       </span>
                     </li>
                   ))}
