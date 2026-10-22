@@ -1,38 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { CalendarRange, Filter, Gauge, LayoutDashboard, Pencil, Plus, Trash2, UsersRound } from 'lucide-react';
-import { useRouter } from '@/i18n/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarRange, Gauge, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Books } from '@/lib/accounting-data';
-import { tashkentDayKey } from '@/lib/time';
-import { deleteLeadAction, saveLeadAction } from '@/lib/actions/operations';
-import { ask, SectionHead, SuiteShell, SuiteTabs, playSound, toast, type PaletteItem } from './suite-shell';
-import { HBars } from './charts';
-import { SC_KEYS, type OpsPlan, type ScKey } from '@/lib/ops-plan';
-import { OpsTop, PlanFunnel, PlanModal, RoomRegister, SlotModal, buildModel, type Cell, type Cohort, type OpsModel } from './operations-plan';
-import {
-  IntakeHeat,
-  IntakeTrend,
-  QuickIntake,
-  SlotFinderBar,
-  UnscheduledGroups,
-  usePlaceGroup,
-  type Finder,
-} from './operations-extras';
+import { SectionHead, SuiteShell, SuiteTabs, playSound, type PaletteItem } from './suite-shell';
+import type { OpsPlan } from '@/lib/ops-plan';
+import { RoomRegister, SlotModal, buildModel, type Cell, type Cohort, type OpsModel } from './operations-plan';
+import { SlotFinderBar, UnscheduledGroups, usePlaceGroup, type Finder } from './operations-extras';
 import { ScheduleTimeline, type TimelineMode } from './ops-schedule-timeline';
-import { CapacityDemand, IntakeAnalytics, OpsOverview, TeachersOps } from './ops-hq';
+import { CapacityDemand, OpsOverview, TeachersOps } from './ops-hq';
 import './strategy.css';
 import './suite.css';
 
-export type Stage = 'new' | 'contacted' | 'trial' | 'enrolled' | 'lost';
-export type Source = 'instagram' | 'meta' | 'telegram' | 'google' | 'referral' | 'walkin' | 'website' | 'other';
 export type OpsData = {
   groups: { id: string; name: string; course: string; schedule_type: 'odd' | 'even' | null; time: string; room: string; teacher: string; enrolled: number | null; teacher_id: string | null; duration: number }[];
-  leads: { id: string; name: string; phone: string; source: Source; course: string; stage: Stage; note: string; created_at: string; enrolled_at: string | null; ai_intent?: number | null; ai_hot?: number | null }[];
+  /** CRM leads (crm_leads) — only what demand needs: when, and for which course. */
+  leads: { id: string; course: string; created_at: string }[];
   staff: { id: string; name: string; role: string }[];
-  metrics: { id: string; staff_id: string; name: string; weight_percentage: number }[];
-  entries: { metric_id: string; month: string; target_value: number; actual_value: number | null }[];
   rooms: { code: string; title: string; capacity: number; note: string; features?: string[] }[];
   holds: { id: string; room: string; time: string; cohort: 'odd' | 'even'; kind: 'trial' | 'buffer'; title: string }[];
   plan: OpsPlan;
@@ -43,56 +27,22 @@ export type OpsData = {
 };
 export type LogPlace = { room: string | null; time: string | null; cohort: 'odd' | 'even' | null; duration: number };
 
-// Operation HQ v2 (2026-10-08): overview, schedule timeline, capacity &
-// demand, teachers, intake analytics. Growth/KPI still live in Strategy OKR.
-type Tab = 'ov' | 'sched' | 'cap' | 'tch' | 'fun';
+// Operation HQ v3 (2026-10-22): three tabs. Leads live in CRM, the growth plan
+// in the Strategy forecast; teacher load sits under Jadval › O'qituvchilar.
+type Tab = 'ov' | 'sched' | 'cap';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { v: 'ov', n: 'Boshqaruv', Icon: LayoutDashboard },
   { v: 'sched', n: 'Jadval', Icon: CalendarRange },
-  { v: 'cap', n: 'Quvvat va talab', Icon: Gauge },
-  { v: 'tch', n: 'O‘qituvchilar', Icon: UsersRound },
-  { v: 'fun', n: 'Kelganlar', Icon: Filter },
-];
-const STAGES: { k: Stage; n: string; c: string }[] = [
-  { k: 'new', n: 'Yangi', c: '#b9b2a6' },
-  { k: 'contacted', n: "Bog'lanildi", c: '#2477c9' },
-  { k: 'trial', n: 'Sinov darsi', c: '#ff9f1c' },
-  { k: 'enrolled', n: "O'qishga yozildi", c: '#139a52' },
-  { k: 'lost', n: "Yo'qotildi", c: '#c7322b' },
-];
-const SOURCES: { k: Source; n: string; c: string }[] = [
-  { k: 'instagram', n: 'Instagram', c: '#e8567a' },
-  { k: 'telegram', n: 'Telegram', c: '#2477c9' },
-  { k: 'referral', n: 'Tavsiya', c: '#139a52' },
-  { k: 'meta', n: 'Meta reklama', c: '#1877f2' },
-  { k: 'google', n: 'Google', c: '#34a853' },
-  { k: 'walkin', n: 'O‘zi keldi', c: '#ff9f1c' },
-  { k: 'website', n: 'Veb-sayt', c: '#7a5af8' },
-  { k: 'other', n: 'Boshqa', c: '#b9b2a6' },
+  { v: 'cap', n: 'Xonalar va quvvat', Icon: Gauge },
 ];
 const KEY = 'persons-ops-tab';
-const SC_KEY = 'persons-ops-sc';
-const pct = (v: number) => `${Math.round(v * 100)}%`;
-/** Tashkent 'YYYY-MM-DD' of a timestamptz string (the raw value is UTC, so
- * `.slice()` on it put 00:00–05:00 Tashkent on the previous day / month). */
-const tzDay = (s: string) => tashkentDayKey(new Date(s));
 
-export function OperationsWorkspace({ data, books, today }: { data: OpsData; books: Books; today: string }) {
+export function OperationsWorkspace({ data, crm }: { data: OpsData; crm?: React.ReactNode }) {
   const [tab, setTab] = useState<Tab>('ov');
   const [cohort, setCohort] = useState<Cohort>('odd');
   const [mode, setMode] = useState<TimelineMode>('room');
   const [focus, setFocus] = useState<string | null>(null);
-  const [sc, setSc] = useState<ScKey>('average');
-  const [planOpen, setPlanOpen] = useState(false);
-  const m = useMemo(() => buildModel(data, books, today, sc), [data, books, today, sc]);
-  const pickSc = (v: ScKey) => {
-    setSc(v);
-    playSound('tick');
-    try {
-      localStorage.setItem(SC_KEY, v);
-    } catch {}
-  };
-  const openPlan = () => setPlanOpen(true);
+  const m = useMemo(() => buildModel(data), [data]);
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current) return;
@@ -100,8 +50,6 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
     try {
       const v = localStorage.getItem(KEY) as Tab | null;
       if (v && TABS.some((t) => t.v === v)) setTab(v);
-      const c = localStorage.getItem(SC_KEY) as ScKey | null;
-      if (c && SC_KEYS.includes(c)) setSc(c);
     } catch {}
   }, []);
   const go = (v: string) => {
@@ -118,7 +66,7 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
     setMode('room');
     go(v);
   };
-  // 1–5 switch tabs.
+  // 1–3 switch tabs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -134,16 +82,14 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
   }, []);
   const scheduled = data.groups.filter((g) => g.room && g.time && g.schedule_type);
   const items: PaletteItem[] = [
-    { g: 'Amallar', t: "Yangi lid qo'shish", run: () => go('fun') },
-    { g: 'Amallar', t: 'Reja sozlamalari', run: openPlan },
-    ...data.leads.slice(0, 50).map((l) => ({ g: 'Lidlar', t: l.name, sub: STAGES.find((s) => s.k === l.stage)?.n, run: () => go('fun') })),
+    { g: 'Amallar', t: 'O‘qituvchilar yuklamasi', run: () => { setMode('teacher'); go('sched'); } },
     ...data.groups.map((g) => ({ g: 'Guruhlar', t: g.name, sub: [g.room, g.time].filter(Boolean).join(' · '), run: () => go('cap') })),
   ];
   return (
     <SuiteShell section="ops" tabs={TABS} onTab={go} items={items}>
       <div className="px-4 sm:px-7">
         <SectionHead
-          crumb="Operatsiya HQ · guruhlar, lidlar, KPI"
+          crumb="Operatsiya HQ · jadval, xonalar, o‘qituvchilar"
           title="Operatsiya"
           em="HQ"
           pill={`${data.groups.length} guruh · ${scheduled.length} tasi jadvalda`}
@@ -152,8 +98,13 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
       </div>
       <section className="px-4 pb-10 sm:px-7">
         <div key={tab} className="sx-fade">
-          {tab === 'ov' && <OpsOverview data={data} capOf={m.cap} rooms={m.rooms} onGo={goGroup} />}
-          {(tab === 'sched' || tab === 'tch') && (
+          {tab === 'ov' && (
+            <div className="flex flex-col gap-[18px]">
+              {crm}
+              <OpsOverview data={data} capOf={m.cap} rooms={m.rooms} onGo={goGroup} />
+            </div>
+          )}
+          {tab === 'sched' && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="sx-seg">
                 {(['odd', 'even'] as Cohort[]).map((c) => (
@@ -162,48 +113,35 @@ export function OperationsWorkspace({ data, books, today }: { data: OpsData; boo
                   </button>
                 ))}
               </div>
-              {tab === 'sched' && (
-                <div className="sx-seg">
-                  {(
-                    [
-                      ['room', 'Xonalar'],
-                      ['teacher', 'O‘qituvchilar'],
-                      ['course', 'Kurslar'],
-                    ] as [TimelineMode, string][]
-                  ).map(([k, n]) => (
-                    <button key={k} className={cn(mode === k && 'on')} onClick={() => setMode(k)}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="sx-seg">
+                {(
+                  [
+                    ['room', 'Xonalar'],
+                    ['teacher', 'O‘qituvchilar'],
+                    ['course', 'Kurslar'],
+                  ] as [TimelineMode, string][]
+                ).map(([k, n]) => (
+                  <button key={k} className={cn(mode === k && 'on')} onClick={() => setMode(k)}>
+                    {n}
+                  </button>
+                ))}
+              </div>
               <small className="text-xs text-au-faint">Sudrang · 15 daqiqaga yopishadi · D — qoralama · Ctrl+Z — bekor qilish</small>
             </div>
           )}
-          {tab === 'sched' && <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode={mode} focusId={focus} readOnlyRows={mode !== 'room'} />}
+          {tab === 'sched' && (
+            <div className="flex flex-col gap-[18px]">
+              <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode={mode} focusId={focus} readOnlyRows={mode !== 'room'} />
+              {mode === 'teacher' && <TeachersOps data={data} cohort={cohort} />}
+            </div>
+          )}
           {tab === 'cap' && (
             <div className="flex flex-col gap-[18px]">
               <CapacityDemand data={data} capOf={m.cap} rooms={m.rooms} />
               <Rooms data={data} m={m} />
             </div>
           )}
-          {tab === 'tch' && (
-            <div className="flex flex-col gap-[18px]">
-              <ScheduleTimeline data={data} capOf={m.cap} cohort={cohort} mode="teacher" readOnlyRows />
-              <TeachersOps data={data} cohort={cohort} />
-            </div>
-          )}
-          {tab === 'fun' && (
-            <div className="flex flex-col gap-[18px]">
-              <IntakeAnalytics data={data} />
-              <div className="sx-grid">
-                <OpsTop m={m} onSc={pickSc} onPlan={openPlan} />
-              </div>
-              <Funnel leads={data.leads} m={m} onPlan={openPlan} />
-            </div>
-          )}
         </div>
-        {planOpen && <PlanModal plan={data.plan} leads={data.leads} onClose={() => setPlanOpen(false)} />}
       </section>
     </SuiteShell>
   );
@@ -469,279 +407,3 @@ function Rooms({ data, m }: { data: OpsData; m: OpsModel }) {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ funnel */
-function Funnel({ leads, m, onPlan }: { leads: OpsData['leads']; m: OpsModel; onPlan: () => void }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const empty = { name: '', phone: '', source: 'instagram' as Source, course: '', stage: 'new' as Stage, note: '' };
-  const [f, setF] = useState(empty);
-  const [editId, setEditId] = useState<string | null>(null);
-  const formRef = useRef<HTMLDivElement>(null);
-  const [filter, setFilter] = useState<Stage | 'all'>('all');
-  const save = (input: Parameters<typeof saveLeadAction>[0], ok?: string, after?: () => void) =>
-    start(async () => {
-      const r = await saveLeadAction(input);
-      if (r.error) toast.error(r.error === 'forbidden' ? "Ruxsat yo'q" : r.error === 'invalidInput' ? "Ma'lumot noto'g'ri" : r.error === 'notFound' ? 'Topilmadi — sahifani yangilang' : "Saqlab bo'lmadi");
-      else {
-        if (ok) toast.success(ok);
-        after?.();
-        router.refresh();
-      }
-    });
-  const count = (k: Stage) => leads.filter((l) => l.stage === k).length;
-  // Funnel = leads that reached at least this stage (lost counted separately).
-  const order: Stage[] = ['new', 'contacted', 'trial', 'enrolled'];
-  const reached = (k: Stage) => leads.filter((l) => l.stage !== 'lost' && order.indexOf(l.stage) >= order.indexOf(k)).length;
-  const total = leads.length;
-  const enrolled = count('enrolled');
-  const days = leads
-    .filter((l) => l.enrolled_at)
-    .map((l) => (Date.parse(l.enrolled_at!) - Date.parse(l.created_at)) / 864e5);
-  const list = leads.filter((l) => filter === 'all' || l.stage === filter);
-  return (
-    <div className="sx-grid">
-      <QuickIntake />
-      <IntakeTrend leads={leads} today={m.today} pacePerMonth={m.leadsPerMonth} />
-      <IntakeHeat leads={leads} today={m.today} />
-      <PlanFunnel key={`${m.sc}-${JSON.stringify(m.plan.scenarios[m.sc])}`} m={m} onPlan={onPlan} />
-      <div className="sx-card sx-stat dark s3">
-        <div className="l">Jami lidlar</div>
-        <div className="v">{total}</div>
-      </div>
-      <div className="sx-card sx-stat s3">
-        <div className="l">Konversiya (lid → o‘quvchi)</div>
-        <div className="v">{total ? pct(enrolled / total) : '—'}</div>
-        <div className="d">{enrolled} ta yozildi</div>
-      </div>
-      <div className="sx-card sx-stat s3">
-        <div className="l">O‘rtacha yozilish muddati</div>
-        <div className="v">{days.length ? `${(days.reduce((a, b) => a + b, 0) / days.length).toFixed(1)} kun` : '—'}</div>
-      </div>
-      <div className="sx-card sx-stat s3">
-        <div className="l">Yo‘qotilgan</div>
-        <div className="v" style={{ color: count('lost') ? 'var(--au-bad)' : undefined }}>{count('lost')}</div>
-        <div className="d">{total ? pct(count('lost') / total) : ''}</div>
-      </div>
-      <div className="sx-card s7">
-        <div className="sx-h">
-          <h3>Voronka</h3>
-          <small>har bosqichga yetganlar</small>
-        </div>
-        <div className="sx-funnel">
-          {order.map((k, i) => {
-            const s = STAGES.find((x) => x.k === k)!;
-            const v = reached(k);
-            const prev = i ? reached(order[i - 1]) : v;
-            return (
-              <div key={k} className="st">
-                <span className="font-semibold">{s.n}</span>
-                <div className="tr">
-                  <i style={{ width: `${reached('new') ? Math.max(6, (v / reached('new')) * 100) : 0}%`, background: s.c, animationDelay: `${i * 90}ms` }}>{v}</i>
-                </div>
-                <span className="text-right text-xs text-au-muted">{i && prev ? `${pct(v / prev)} o‘tdi` : ''}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="sx-card s5">
-        <div className="sx-h">
-          <h3>Manbalar</h3>
-          <small>lid va konversiya</small>
-        </div>
-        {total === 0 ? (
-          <div className="sx-empty">Lidlar yo‘q</div>
-        ) : (
-          <HBars
-            fmt={(v) => `${v}`}
-            rows={SOURCES.map((s) => {
-              const L = leads.filter((l) => l.source === s.k);
-              const e = L.filter((l) => l.stage === 'enrolled').length;
-              return { n: s.n, v: L.length, c: s.c, sub: L.length ? `${pct(e / L.length)} yozildi` : undefined };
-            }).filter((r) => r.v > 0)}
-          />
-        )}
-      </div>
-      <div className="sx-card s12" ref={formRef}>
-        <div className="sx-h">
-          <h3>{editId ? 'Yozuvni tahrirlash' : 'Batafsil yozuv'}</h3>
-          {editId && <small>o‘zgartiring va «Saqlash»ni bosing</small>}
-        </div>
-        <div className="sx-form">
-          <label className="min-w-[180px] flex-1">
-            Ism (ixtiyoriy)
-            <input className="sx-inp" maxLength={120} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          </label>
-          <label>
-            Telefon
-            <input className="sx-inp !w-[150px]" maxLength={40} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-          </label>
-          <label>
-            Manba
-            <select className="sx-inp !w-[140px]" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value as Source })}>
-              {SOURCES.map((s) => (
-                <option key={s.k} value={s.k}>
-                  {s.n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Kurs
-            <input className="sx-inp !w-[150px]" maxLength={120} value={f.course} onChange={(e) => setF({ ...f, course: e.target.value })} />
-          </label>
-          <label>
-            Bosqich
-            <select className="sx-inp !w-[160px]" value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value as Stage })}>
-              {STAGES.map((s) => (
-                <option key={s.k} value={s.k}>
-                  {s.n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="min-w-[200px] flex-1">
-            Izoh
-            <input className="sx-inp" maxLength={1000} value={f.note} placeholder="Masalan: kechqurun qo‘ng‘iroq qilish" onChange={(e) => setF({ ...f, note: e.target.value })} />
-          </label>
-          <button
-            className="sx-btn primary"
-            disabled={pending}
-            onClick={() =>
-              save({ ...f, id: editId ?? undefined }, editId ? 'Lid saqlandi' : "Lid qo'shildi", () => {
-                setF(empty);
-                setEditId(null);
-              })
-            }
-          >
-            {editId ? 'Saqlash' : <><Plus className="size-4" /> Qo‘shish</>}
-          </button>
-          {editId && (
-            <button className="sx-btn" onClick={() => { setEditId(null); setF(empty); }}>
-              Bekor qilish
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="sx-card s12">
-        <div className="sx-h">
-          <h3>Lidlar</h3>
-          <span className="sp" />
-          <div className="flex flex-wrap gap-1">
-            <button className={cn('sx-chipb', filter === 'all' && 'on')} onClick={() => setFilter('all')}>
-              Hammasi · {total}
-            </button>
-            {STAGES.map((s) => (
-              <button key={s.k} className={cn('sx-chipb', filter === s.k && 'on')} onClick={() => setFilter(s.k)}>
-                {s.n} · {count(s.k)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="sx-tw">
-          <table className="sx-tbl">
-            <thead>
-              <tr>
-                <th className="l">Ism</th>
-                <th className="l">Telefon</th>
-                <th className="l">Manba</th>
-                <th className="l">Kurs</th>
-                <th className="l">Sana</th>
-                <th className="l">AI baho</th>
-                <th className="l">Bosqich</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {list.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="l">
-                    <div className="sx-empty">{filter === 'all' ? 'Hali lid yo‘q — yuqoridagi «Yangi lid» formasidan qo‘shing.' : 'Bu bosqichda lid yo‘q'}</div>
-                  </td>
-                </tr>
-              )}
-              {list.map((l, i) => (
-                <tr key={l.id} style={{ animationDelay: `${Math.min(i, 20) * 20}ms` }}>
-                  <td className="l">
-                    <b>{l.name}</b>
-                    {l.note && <div className="max-w-[260px] truncate text-xs text-au-muted" title={l.note}>{l.note}</div>}
-                  </td>
-                  <td className="l">{l.phone}</td>
-                  <td className="l">{SOURCES.find((s) => s.k === l.source)?.n}</td>
-                  <td className="l">{l.course}</td>
-                  <td className="l">{tzDay(l.created_at).split('-').reverse().join('.')}</td>
-                  <td className="l">
-                    {l.ai_intent == null ? (
-                      <span className="text-au-faint">—</span>
-                    ) : (
-                      <span className={cn('sx-pl', l.ai_intent >= 2 ? 'ok' : l.ai_intent >= 1 ? 'warn' : 'mute')} title="TypeSafe AI: yozilish ehtimoli">
-                        {['Past', "O'rta", 'Yuqori', 'Juda yuqori'][Math.max(0, Math.min(3, Math.round(l.ai_intent)))]}
-                        {(l.ai_hot ?? 0) >= 0.6 ? ' · bugun qo‘ng‘iroq' : ''}
-                      </span>
-                    )}
-                  </td>
-                  <td className="l">
-                    <select
-                      className="sx-inp !h-[30px] !w-[160px]"
-                      value={l.stage}
-                      disabled={pending}
-                      style={{ color: STAGES.find((s) => s.k === l.stage)?.c, fontWeight: 700 }}
-                      onChange={(e) =>
-                        save(
-                          { id: l.id, name: l.name, phone: l.phone, source: l.source, course: l.course, stage: e.target.value as Stage, note: l.note },
-                          `«${l.name}» → ${STAGES.find((s) => s.k === e.target.value)?.n}`,
-                        )
-                      }
-                    >
-                      {STAGES.map((s) => (
-                        <option key={s.k} value={s.k}>
-                          {s.n}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <span className="inline-flex items-center gap-1">
-                    <button
-                      className="sx-btn sm"
-                      aria-label="Tahrirlash"
-                      onClick={() => {
-                        setEditId(l.id);
-                        setF({ name: l.name, phone: l.phone, source: l.source, course: l.course, stage: l.stage, note: l.note ?? '' });
-                        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      className="sx-btn sm text-au-bad"
-                      aria-label="O'chirish"
-                      disabled={pending}
-                      onClick={async () =>
-                        (await ask(`«${l.name}» lidi o'chirilsinmi?`)) &&
-                        start(async () => {
-                          const r = await deleteLeadAction(l.id);
-                          if (r.error) toast.error("O'chirib bo'lmadi");
-                          else {
-                            toast.success("Lid o'chirildi");
-                            router.refresh();
-                          }
-                        })
-                      }
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ growth */

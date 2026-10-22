@@ -17,14 +17,13 @@ import {
   type Cohort,
   type SchedGroup,
 } from '@/lib/ops-schedule';
-import { Chart, HBars } from './charts';
+import { Chart } from './charts';
 import { CountUp } from '@/components/motion/count-up';
 import { playSound, toast } from './suite-shell';
 import { courseColor, toSched } from './ops-schedule-timeline';
 import type { OpsData } from './operations-workspace';
 
 const COH: Record<Cohort, string> = { odd: 'Toq', even: 'Juft' };
-const MON = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
 const tz = (s: string) => tashkentDayKey(new Date(s));
 const OPEN = 8 * 60;
 const CLOSE = 21 * 60;
@@ -495,139 +494,3 @@ function AvailabilityEditor({ data, teachers, cohort }: { data: OpsData; teacher
     </div>
   );
 }
-
-/* ================================================================ intake */
-
-export function IntakeAnalytics({ data }: { data: OpsData }) {
-  const today = tashkentDayKey();
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const [y, m] = today.slice(0, 7).split('-').map(Number);
-    return new Date(Date.UTC(y, m - 12 + i, 1)).toISOString().slice(0, 7);
-  });
-  const byMonth = (ym: string) => data.leads.filter((l) => tz(l.created_at).startsWith(ym));
-  const arrivals = months.map((m) => byMonth(m).length);
-  const enrolled = months.map((m) => byMonth(m).filter((l) => l.stage === 'enrolled').length);
-  const cur = byMonth(months[11]);
-  const conv = cur.length ? Math.round((cur.filter((l) => l.stage === 'enrolled').length / cur.length) * 100) : null;
-  const srcRows = ['instagram', 'meta', 'telegram', 'google', 'referral', 'walkin', 'website', 'other'].map((k) => {
-    const L = data.leads.filter((l) => l.source === k && Date.parse(l.created_at) >= Date.parse(`${months[9]}-01T00:00:00Z`));
-    const e = L.filter((l) => l.stage === 'enrolled').length;
-    return { k, n: L.length, conv: L.length ? Math.round((e / L.length) * 100) : 0 };
-  });
-  const SRC_N: Record<string, [string, string]> = {
-    instagram: ['Instagram', '#e8567a'],
-    telegram: ['Telegram', '#2477c9'],
-    referral: ['Tavsiya', '#139a52'],
-    walkin: ['O‘zi keldi', '#ff9f1c'],
-    meta: ['Meta reklama', '#1877f2'],
-    google: ['Google', '#34a853'],
-    website: ['Veb-sayt', '#7a5af8'],
-    other: ['Boshqa', '#b9b2a6'],
-  };
-  const bestSrc = [...srcRows].filter((s) => s.n >= 3).sort((a, b) => b.conv - a.conv)[0];
-  const courseRows = Object.entries(
-    data.leads
-      .filter((l) => l.course && Date.parse(l.created_at) >= Date.parse(`${months[9]}-01T00:00:00Z`))
-      .reduce<Record<string, number>>((a, l) => ({ ...a, [l.course]: (a[l.course] ?? 0) + 1 }), {}),
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-
-  // Weekly cohorts: of each week's arrivals, how many reached trial / enrolled.
-  const weeks = Array.from({ length: 8 }, (_, i) => {
-    const end = Date.parse(`${today}T00:00:00Z`) - i * 7 * 864e5;
-    const start = end - 7 * 864e5;
-    const L = data.leads.filter((l) => {
-      const t = Date.parse(l.created_at);
-      return t >= start && t < end + 864e5;
-    });
-    const trial = L.filter((l) => l.stage === 'trial' || l.stage === 'enrolled').length;
-    const enr = L.filter((l) => l.stage === 'enrolled').length;
-    return { label: new Date(start).toISOString().slice(5, 10).split('-').reverse().join('.'), n: L.length, trial, enr };
-  });
-
-  return (
-    <div className="sx-grid">
-      <Kpi i={0} l="Bu oy kelganlar" v={String(cur.length)} d={`o‘tgan oy ${arrivals[10]}`} tone={cur.length >= arrivals[10] ? 'ok' : undefined} />
-      <Kpi i={1} l="12 oyda" v={String(arrivals.reduce((a, b) => a + b, 0))} d={`o‘rtacha ${Math.round(arrivals.reduce((a, b) => a + b, 0) / 12)} / oy`} />
-      <Kpi i={2} l="Konversiya · bu oy" v={conv === null ? '—' : `${conv}%`} d="kelgan → yozildi" />
-      <Kpi i={3} l="Eng samarali manba" v={bestSrc ? SRC_N[bestSrc.k][0] : '—'} d={bestSrc ? `${bestSrc.conv}% yoziladi · 3 oy` : 'ma’lumot kam'} />
-      <Kpi i={4} l="Eng ko‘p so‘ralgan" v={courseRows[0]?.[0] ?? '—'} d={courseRows[0] ? `${courseRows[0][1]} kishi · 3 oy` : ''} />
-      <Kpi i={5} l="Mavsum cho‘qqisi" v={arrivals.some(Boolean) ? MON[Number(months[arrivals.indexOf(Math.max(...arrivals))].slice(5, 7)) - 1] : '—'} d="oxirgi 12 oy" />
-
-      <div className="sx-card s8">
-        <div className="sx-h">
-          <h3>12 oylik dinamika</h3>
-          <small>kelganlar va yozilganlar</small>
-        </div>
-        <Chart
-          labels={months.map((m) => MON[Number(m.slice(5, 7)) - 1])}
-          series={[
-            { n: 'Kelganlar', c: 'var(--au-chart-4)', v: arrivals },
-            { n: 'Yozildi', c: 'var(--au-ok)', v: enrolled, kind: 'line' },
-          ]}
-          height={230}
-          fmt={(v) => String(Math.round(v))}
-        />
-      </div>
-      <div className="sx-card s4">
-        <div className="sx-h">
-          <h3>Manbalar</h3>
-          <small>3 oy · soni va konversiya</small>
-        </div>
-        <HBars
-          fmt={(v) => `${v}`}
-          rows={srcRows.filter((s) => s.n).map((s) => ({ n: SRC_N[s.k][0], v: s.n, c: SRC_N[s.k][1], sub: `${s.conv}% yozildi` }))}
-        />
-      </div>
-      <div className="sx-card s5">
-        <div className="sx-h">
-          <h3>Kurslar bo‘yicha talab</h3>
-          <small>3 oy</small>
-        </div>
-        {courseRows.length === 0 ? (
-          <div className="sx-empty">Kelganlarda kurs ko‘rsatilmagan</div>
-        ) : (
-          <HBars fmt={(v) => `${v}`} rows={courseRows.map(([c, n]) => ({ n: c, v: n, c: courseColor(c) }))} />
-        )}
-      </div>
-      <div className="sx-card s7">
-        <div className="sx-h">
-          <h3>Haftalik kohortlar</h3>
-          <small>har hafta kelganlarning qanchasi sinov va yozilishga yetdi</small>
-        </div>
-        <table className="sx-tbl">
-          <thead>
-            <tr>
-              <th className="l">Hafta</th>
-              <th>Kelgan</th>
-              <th className="l">Sinov</th>
-              <th className="l">Yozildi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map((w) => (
-              <tr key={w.label}>
-                <td className="l">{w.label}</td>
-                <td>
-                  <b>{w.n}</b>
-                </td>
-                {[w.trial, w.enr].map((v, j) => (
-                  <td key={j} className="l">
-                    <span className="inline-flex w-full items-center gap-2">
-                      <span className="h-2 flex-1 overflow-hidden rounded-full bg-au-card-2">
-                        <span className="ms-fill block h-full rounded-full" style={{ width: `${w.n ? (v / w.n) * 100 : 0}%`, background: j ? 'var(--au-ok)' : 'var(--au-info)' }} />
-                      </span>
-                      <span className="w-9 text-right text-xs tabular-nums">{w.n ? `${Math.round((v / w.n) * 100)}%` : '—'}</span>
-                    </span>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-

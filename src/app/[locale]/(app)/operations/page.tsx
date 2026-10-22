@@ -3,9 +3,6 @@ import { canFor, canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 
-import { tashkentDayKey } from '@/lib/time';
-import { loadBooks } from '@/lib/accounting-data';
-import { addMonths } from '@/lib/accounting';
 import { parsePlan } from '@/lib/ops-plan';
 import { OperationsWorkspace, type OpsData } from '@/components/strategy/operations-workspace';
 import { OpsCrmSummary } from '@/components/operations/ops-crm-summary';
@@ -16,7 +13,7 @@ export default async function OperationsPage() {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'operations')) notFound();
 
-  const [groups, leads, staff, metrics, entries, books, planRows, rooms, holds, availability, log] = await Promise.all([
+  const [groups, leads, staff, planRows, rooms, holds, availability, log] = await Promise.all([
     sql<OpsData['groups']>`
       select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type,
              coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
@@ -25,17 +22,15 @@ export default async function OperationsPage() {
       from groups g left join profiles p on p.id = g.teacher_id
       left join ops_group_enrollment e on e.group_id = g.id
       order by g.name`,
+    // Demand comes from the CRM leads (one source with CRM › Lidlar and the
+    // Telegram bot); the overview needs this month, last month and 90 days.
     sql<OpsData['leads']>`
-      select id, name, phone, source, course, stage, note, created_at, enrolled_at, ai_intent, ai_hot
-      from ops_leads order by created_at desc`,
+      select l.id, coalesce(c.name, '') as course, l.created_at::text as created_at
+      from crm_leads l left join crm_courses c on c.id = l.course_id
+      where l.created_at >= now() - interval '100 days'`.catch(() => []),
     sql<OpsData['staff']>`
       select id, first_name || ' ' || last_name as name, role::text as role
       from profiles where is_active = true`,
-    sql<OpsData['metrics']>`select id, staff_id, name, weight_percentage from kpi_metrics`,
-    sql<OpsData['entries']>`
-      select metric_id, left(month::text, 7) as month, target_value, actual_value
-      from kpi_entries where left(month::text, 7) >= ${addMonths(tashkentDayKey().slice(0, 7), -13)}`,
-    loadBooks(),
     sql<{ value: unknown }[]>`select value from ops_settings where key = 'plan'`,
     sql<OpsData['rooms']>`select code, title, capacity, note, coalesce(features, '{}') as features from ops_rooms order by sort, code`,
     sql<OpsData['holds']>`select id, room, slot_time as time, cohort, kind, title from ops_slot_holds`,
@@ -51,8 +46,6 @@ export default async function OperationsPage() {
     groups: [...groups],
     leads: [...leads],
     staff: [...staff],
-    metrics: [...metrics],
-    entries: [...entries],
     rooms: [...rooms],
     holds: [...holds],
     plan: parsePlan(planRows[0]?.value),
@@ -61,12 +54,5 @@ export default async function OperationsPage() {
     meId: profile.id,
     canEdit: canFor(profile, 'operations.edit'),
   };
-  return (
-    <>
-      <div className="mx-auto w-full max-w-[1440px] px-4 pt-4 sm:px-7">
-        <OpsCrmSummary />
-      </div>
-      <OperationsWorkspace data={data} books={books} today={tashkentDayKey()} />
-    </>
-  );
+  return <OperationsWorkspace data={data} crm={<OpsCrmSummary />} />;
 }
