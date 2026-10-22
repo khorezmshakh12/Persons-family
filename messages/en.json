@@ -205,7 +205,8 @@
       "financist": "Financist",
       "operations_manager": "Operations Manager",
       "sales_manager": "Sales Manager",
-      "event_manager": "Event Manager"
+      "event_manager": "Event Manager",
+      "office_manager": "Office Manager"
     },
     "status": {
       "active": "Active",

@@ -23,6 +23,7 @@ export const ROLES = [
   'financist',
   'operations_manager',
   'admin_manager',
+  'office_manager',
   'sales_manager',
   'event_manager',
   'project_manager',
@@ -53,6 +54,7 @@ export const ROLE_DEPT: Record<Role, Department> = {
   financist: 'fin',
   operations_manager: 'ops',
   admin_manager: 'hr',
+  office_manager: 'ops',
   project_manager: 'ops',
   it_developer: 'ops',
 };
@@ -71,6 +73,7 @@ export const MANAGES: Record<Role, Role[]> = {
   operations_manager: ['admin_manager', 'it_developer', 'project_manager'],
   project_manager: ['it_developer'],
   admin_manager: [],
+  office_manager: [],
   financist: [],
   sales_manager: [],
   event_manager: [],
@@ -144,6 +147,8 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
     ...LEADERSHIP,
     'operations_manager',
     'admin_manager',
+    // Office Manager — full Operation HQ incl. O'quvchilar (owner, 2026-10-22).
+    'office_manager',
     'commercial_director',
     'sales_manager',
     'academic_director',
