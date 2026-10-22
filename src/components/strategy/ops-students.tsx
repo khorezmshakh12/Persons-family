@@ -119,7 +119,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
   return (
     <div className="flex flex-col gap-[18px]">
       {/* Oxirgi amallar */}
-      <div className="sx-card">
+      <div className="sx-card px-5 py-[18px]">
         <div className="sx-h">
           <h3>Oxirgi amallar</h3>
           <small>kim, qachon, nima qildi</small>
@@ -169,7 +169,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
       </div>
 
       {/* Ro'yxat */}
-      <div className="sx-card">
+      <div className="sx-card px-5 py-[18px]">
         <div className="sx-h flex-wrap gap-2">
           <h3>O‘quvchilar</h3>
           <small>{rows.length} ta</small>
@@ -212,7 +212,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
           <div className="sx-empty">{d.rows.length ? 'Hech kim topilmadi' : 'CRM’da o‘quvchi yo‘q'}</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="sx-tbl min-w-[980px]">
+            <table className="sx-tbl lt min-w-[980px]">
               <thead>
                 {filter === 'archive' ? (
                   <tr>
@@ -268,7 +268,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
       </div>
 
       {/* Qarzdorga qo'ng'iroq */}
-      <div className="sx-card">
+      <div className="sx-card px-5 py-[18px]">
         <div className="sx-h">
           <h3>Qo‘ng‘iroq qilish kerak</h3>
           <small>qarzi {d.settings.callAfterDays} kundan oshganlar · {callList.length} ta</small>
@@ -508,7 +508,7 @@ function Stats({ data }: { data: OpsData }) {
         {todayK.length === 0 ? (
           <div className="sx-empty">Bugun to‘lov qabul qilinmagan</div>
         ) : (
-          <table className="sx-tbl">
+          <table className="sx-tbl lt">
             <tbody>
               {todayK.map((k) => (
                 <tr key={`${k.actor}-${k.method}`}>

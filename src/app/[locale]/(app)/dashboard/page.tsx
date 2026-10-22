@@ -10,6 +10,7 @@ import { loadChecklist } from '@/lib/checklist-data';
 import { loadProgressBoard } from '@/lib/progress-board-data';
 import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
 import { GoalsCard } from '@/components/dashboard/goals-card';
+import { StudentRemindersCard, type StudentReminder } from '@/components/dashboard/student-reminders-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
 import { tashkentDayKey, tashkentYmd, tashkentMonthKey } from '@/lib/time';
 import { Link } from '@/i18n/navigation';
@@ -338,6 +339,18 @@ async function BpointReminderSection({ userId }: { userId: string }) {
   );
 }
 
+// O'quvchi izohidan eslatmalar: the viewer's own reminders due today or earlier, until read.
+async function StudentRemindersSection({ userId }: { userId: string }) {
+  const today = tashkentDayKey();
+  const rows = await sql<Omit<StudentReminder, 'overdue'>[]>`
+    select n.id, s.full_name as "studentName", n.body, n.remind_at::text as "remindAt"
+    from crm_student_notes n join crm_students s on s.id = n.student_id
+    where n.created_by = ${userId} and n.remind_at is not null and n.remind_at <= ${today} and n.remind_done_at is null
+    order by n.remind_at limit 20
+  `.catch(() => []);
+  return <StudentRemindersCard items={rows.map((r) => ({ ...r, overdue: r.remindAt < today }))} />;
+}
+
 async function NewsSliderSection() {
   const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
   const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
@@ -383,6 +396,9 @@ export default async function DashboardPage() {
         <div className="flex min-w-0 flex-col gap-[18px] xl:col-span-8">
           <Reveal fallback={<HeroAndKpiSkeleton />}>
             <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
+          </Reveal>
+          <Reveal fallback={null}>
+            <StudentRemindersSection userId={user!.id} />
           </Reveal>
           {/* Replaces the KPI / self-development reminder banners: every
               deadline and approval queue in one actionable list. */}

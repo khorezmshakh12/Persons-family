@@ -124,7 +124,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
         </div>
       </div>
 
-      <div className="sx-card flex flex-col gap-3">
+      <div className="sx-card flex flex-col gap-3 px-5 py-[18px]">
         <div className="flex flex-wrap items-center gap-2">
           {data.canEdit && (
             <button className="sx-btn primary" onClick={() => setModal('add')}>
@@ -470,7 +470,7 @@ function SalesStats({ data }: { data: OpsData }) {
         {d.stats.sources.length === 0 ? (
           <div className="sx-empty">30 kunda lid yo‘q</div>
         ) : (
-          <table className="sx-tbl">
+          <table className="sx-tbl lt">
             <tbody>
               {d.stats.sources.map((s) => (
                 <tr key={s.source}>
