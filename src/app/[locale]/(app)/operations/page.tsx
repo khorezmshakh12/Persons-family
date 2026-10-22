@@ -7,6 +7,7 @@ import { parsePlan } from '@/lib/ops-plan';
 import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
 import { isTeacherRole, weekdayParity } from '@/lib/teacher-schedule';
 import { OperationsWorkspace, type OpsData } from '@/components/strategy/operations-workspace';
+import { emptyStudentsData, loadStudentsData } from '@/lib/ops-students';
 import { OpsCrmSummary } from '@/components/operations/ops-crm-summary';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export default async function OperationsPage() {
   const day = tashkentDayKey();
   const month = tashkentMonthKey();
   const seePay = canFor(profile, 'finance.viewAll');
-  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs, crm, salaries, calendar] = await Promise.all([
+  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs, crm, salaries, calendar, students] = await Promise.all([
     sql<OpsData['groups']>`
       select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type,
              coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
@@ -73,6 +74,8 @@ export default async function OperationsPage() {
       select id, day::text as day, kind, title, group_id, time, room from ops_calendar
       where day between ${addDaysToKey(day, -7)} and ${addDaysToKey(day, 60)}
       order by day, time nulls first`.catch(() => []),
+    // O'quvchilar: every CRM student with billing, grade and history.
+    loadStudentsData().catch(() => emptyStudentsData(day)),
   ]);
 
   // One source for head counts: a group the CRM knows by name takes its
@@ -100,6 +103,7 @@ export default async function OperationsPage() {
     }),
     salaries: seePay ? Object.fromEntries(salaries.map((r) => [r.id, r.salary])) : null,
     calendar: [...calendar],
+    students,
     today: {
       day,
       cohort: weekdayParity(day),
