@@ -551,3 +551,62 @@ export async function deleteCalendarEventAction(id: string): Promise<Result> {
   revalidatePath('/[locale]/operations', 'page');
   return {};
 }
+
+const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const billingSchema = z.object({
+  enrollmentId: z.string().uuid(),
+  fee: z.coerce.number().min(0).max(100_000_000),
+  activation: dayKey,
+});
+
+/** O'quvchilar: monthly fee and activation date (= billing day) of one enrollment. Applies from the next charge. */
+export async function saveEnrollmentBillingAction(input: z.input<typeof billingSchema>): Promise<Result> {
+  try {
+    await requireCap('operations.edit');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = billingSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const res = await sql`
+      update crm_enrollments set tariff_amount = ${v.fee}, activation_date = ${v.activation}, updated_at = now()
+      where id = ${v.enrollmentId} and status in ('active', 'frozen')`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+const billingSettingsSchema = z.object({
+  enabled: z.boolean(),
+  startDate: dayKey,
+  remindDays: z.coerce.number().int().min(0).max(10),
+});
+
+/** O'quvchilar: auto-charge on/off, from which date, reminder lead time. */
+export async function saveBillingSettingsAction(input: z.input<typeof billingSettingsSchema>): Promise<Result> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = billingSettingsSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    await sql`
+      insert into crm_billing_settings (id, enabled, start_date, remind_days, updated_by, updated_at)
+      values (true, ${v.enabled}, ${v.startDate}, ${v.remindDays}, ${by}, now())
+      on conflict (id) do update set enabled = excluded.enabled, start_date = excluded.start_date,
+        remind_days = excluded.remind_days, updated_by = excluded.updated_by, updated_at = now()`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}

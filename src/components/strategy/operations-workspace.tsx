@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarRange, Gauge, LayoutDashboard } from 'lucide-react';
+import { CalendarRange, Gauge, LayoutDashboard, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, type PaletteItem } from './suite-shell';
 import type { OpsPlan } from '@/lib/ops-plan';
@@ -12,6 +12,7 @@ import { CapacityDemand, OpsOverview, TeachersOps } from './ops-hq';
 import { TodayOps } from './ops-today';
 import { OpsCalendar } from './ops-calendar';
 import { GroupProfit, SeatShowcase } from './ops-money';
+import { OpsStudents } from './ops-students';
 import './strategy.css';
 import './suite.css';
 
@@ -32,6 +33,17 @@ export type OpsData = {
   /** Teacher monthly salaries — only for viewers allowed to see pay. */
   salaries: Record<string, number> | null;
   calendar: { id: string; day: string; kind: 'holiday' | 'exam' | 'makeup' | 'event'; title: string; group_id: string | null; time: string | null; room: string | null }[];
+  /** O'quvchilar: CRM students, balance < 0 = debt; enrollments carry the monthly fee and billing day. */
+  students: {
+    id: string;
+    name: string;
+    status: 'active' | 'frozen' | 'archived';
+    balance: number;
+    phone: string;
+    tg: boolean;
+    enrollments: { id: string; group: string; fee: number; activation: string; status: 'active' | 'frozen' }[];
+  }[];
+  billing: { enabled: boolean; startDate: string; remindDays: number };
   /** Bugun: today's cohort, HR › Davomat marks and substitutes. */
   today: {
     day: string;
@@ -45,9 +57,10 @@ export type LogPlace = { room: string | null; time: string | null; cohort: 'odd'
 
 // Operation HQ v3 (2026-10-22): three tabs, Bugun first. Leads live in CRM, the growth plan
 // in the Strategy forecast; teacher load sits under Jadval › O'qituvchilar.
-type Tab = 'ov' | 'sched' | 'cap';
+type Tab = 'ov' | 'stu' | 'sched' | 'cap';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { v: 'ov', n: 'Bugun', Icon: LayoutDashboard },
+  { v: 'stu', n: 'O‘quvchilar', Icon: Users },
   { v: 'sched', n: 'Jadval', Icon: CalendarRange },
   { v: 'cap', n: 'Xonalar va quvvat', Icon: Gauge },
 ];
@@ -82,7 +95,7 @@ export function OperationsWorkspace({ data, crm }: { data: OpsData; crm?: React.
     setMode('room');
     go(v);
   };
-  // 1–3 switch tabs.
+  // 1–4 switch tabs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -124,6 +137,7 @@ export function OperationsWorkspace({ data, crm }: { data: OpsData; crm?: React.
               </div>
             </div>
           )}
+          {tab === 'stu' && <OpsStudents data={data} />}
           {tab === 'sched' && (
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="sx-seg">
