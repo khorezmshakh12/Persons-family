@@ -10,6 +10,8 @@ import { SlotFinderBar, UnscheduledGroups, usePlaceGroup, type Finder } from './
 import { ScheduleTimeline, type TimelineMode } from './ops-schedule-timeline';
 import { CapacityDemand, OpsOverview, TeachersOps } from './ops-hq';
 import { TodayOps } from './ops-today';
+import { OpsCalendar } from './ops-calendar';
+import { GroupProfit, SeatShowcase } from './ops-money';
 import './strategy.css';
 import './suite.css';
 
@@ -25,6 +27,11 @@ export type OpsData = {
   log: { id: string; group_id: string; group_name: string; before: LogPlace; after: LogPlace; at: string; actor: string }[];
   meId: string;
   canEdit: boolean;
+  /** CRM money per schedule group matched by name (this month). */
+  money: { groupId: string; students: number; expected: number; paid: number }[];
+  /** Teacher monthly salaries — only for viewers allowed to see pay. */
+  salaries: Record<string, number> | null;
+  calendar: { id: string; day: string; kind: 'holiday' | 'exam' | 'makeup' | 'event'; title: string; group_id: string | null; time: string | null; room: string | null }[];
   /** Bugun: today's cohort, HR › Davomat marks and substitutes. */
   today: {
     day: string;
@@ -112,6 +119,9 @@ export function OperationsWorkspace({ data, crm }: { data: OpsData; crm?: React.
               <TodayOps data={data} capOf={m.cap} rooms={m.rooms} />
               {crm}
               <OpsOverview data={data} capOf={m.cap} rooms={m.rooms} onGo={goGroup} />
+              <div className="sx-grid">
+                <OpsCalendar data={data} />
+              </div>
             </div>
           )}
           {tab === 'sched' && (
@@ -148,6 +158,10 @@ export function OperationsWorkspace({ data, crm }: { data: OpsData; crm?: React.
           {tab === 'cap' && (
             <div className="flex flex-col gap-[18px]">
               <CapacityDemand data={data} capOf={m.cap} rooms={m.rooms} />
+              <div className="sx-grid">
+                <SeatShowcase data={data} capOf={m.cap} />
+                <GroupProfit data={data} capOf={m.cap} />
+              </div>
               <Rooms data={data} m={m} />
             </div>
           )}

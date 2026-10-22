@@ -4,7 +4,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 
 import { parsePlan } from '@/lib/ops-plan';
-import { tashkentDayKey } from '@/lib/time';
+import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
 import { isTeacherRole, weekdayParity } from '@/lib/teacher-schedule';
 import { OperationsWorkspace, type OpsData } from '@/components/strategy/operations-workspace';
 import { OpsCrmSummary } from '@/components/operations/ops-crm-summary';
@@ -16,7 +16,9 @@ export default async function OperationsPage() {
   if (!profile || !canSeeFor(profile, 'operations')) notFound();
 
   const day = tashkentDayKey();
-  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs] = await Promise.all([
+  const month = tashkentMonthKey();
+  const seePay = canFor(profile, 'finance.viewAll');
+  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs, crm, salaries, calendar] = await Promise.all([
     sql<OpsData['groups']>`
       select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type,
              coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
@@ -46,10 +48,43 @@ export default async function OperationsPage() {
     sql<OpsData['today']['attendance']>`
       select profile_id, status, coalesce(check_in, '') as check_in from staff_attendance where day = ${day}`.catch(() => []),
     sql<OpsData['today']['subs']>`select group_id, teacher_id from ops_substitutions where day = ${day}`.catch(() => []),
+    // CRM per group name: active students, their monthly tariffs, and what
+    // was paid this month — matched to the schedule's groups by name.
+    sql<{ key: string; students: number; expected: number; paid: number }[]>`
+      with st as (
+        select lower(trim(g.name)) as k,
+          count(e.id) filter (where e.status = 'active')::int as students,
+          coalesce(sum(e.tariff_amount) filter (where e.status = 'active'), 0)::numeric as expected
+        from crm_groups g left join crm_enrollments e on e.group_id = g.id
+        group by 1
+      ), pd as (
+        select lower(trim(g.name)) as k, sum(case when p.is_refund then -p.amount else p.amount end)::numeric as paid
+        from crm_payments p join crm_enrollments e on e.id = p.enrollment_id join crm_groups g on g.id = e.group_id
+        where to_char(p.paid_at, 'YYYY-MM') = ${month}
+        group by 1
+      )
+      select st.k as key, st.students, st.expected, coalesce(pd.paid, 0)::numeric as paid
+      from st left join pd on pd.k = st.k`.catch(() => []),
+    // Teacher pay is only read for those who may see salaries.
+    seePay
+      ? sql<{ id: string; salary: number }[]>`select id, monthly_salary as salary from profiles where is_active and monthly_salary > 0`.catch(() => [])
+      : Promise.resolve([] as { id: string; salary: number }[]),
+    sql<OpsData['calendar']>`
+      select id, day::text as day, kind, title, group_id, time, room from ops_calendar
+      where day between ${addDaysToKey(day, -7)} and ${addDaysToKey(day, 60)}
+      order by day, time nulls first`.catch(() => []),
   ]);
 
+  // One source for head counts: a group the CRM knows by name takes its
+  // active-student count from there (the manual number stays as fallback).
+  const byKey = new Map(crm.map((c) => [c.key, c]));
+  const crmOf = (name: string) => byKey.get(name.trim().toLowerCase());
+
   const data: OpsData = {
-    groups: [...groups],
+    groups: groups.map((g) => {
+      const c = crmOf(g.name);
+      return c ? { ...g, enrolled: c.students } : g;
+    }),
     leads: [...leads],
     staff: [...staff],
     rooms: [...rooms],
@@ -59,6 +94,12 @@ export default async function OperationsPage() {
     log: [...log],
     meId: profile.id,
     canEdit: canFor(profile, 'operations.edit'),
+    money: groups.flatMap((g) => {
+      const c = crmOf(g.name);
+      return c ? [{ groupId: g.id, students: c.students, expected: c.expected, paid: c.paid }] : [];
+    }),
+    salaries: seePay ? Object.fromEntries(salaries.map((r) => [r.id, r.salary])) : null,
+    calendar: [...calendar],
     today: {
       day,
       cohort: weekdayParity(day),
