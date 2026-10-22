@@ -157,6 +157,8 @@ export async function assignPunishmentAction(
   );
 
   revalidatePath('/[locale]/self-development', 'page');
+  revalidatePath('/[locale]/finance', 'page');
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
   return {};
 }
 

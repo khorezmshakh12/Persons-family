@@ -5,7 +5,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { can } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { tashkentYmd } from '@/lib/time';
-import { getNetEarningEntries, netEarnings } from '@/lib/finance-net';
+import { loadPayByMonth } from '@/lib/pay-run-data';
 
 // B-nuqta (yillik maosh maqsadi) ni o'rnatish. O'z B-nuqtasini har kim
 // qo'yadi; boshqaniki uchun finance.manage (CEO) kerak.
@@ -37,7 +37,8 @@ export async function setBpointAction(input: { staffId?: string; amount: number 
 export type BpointSnapshot = { year: number; target: number; earned: number; monthsElapsed: number };
 
 /** One person's B-nuqta progress for the payroll card: this year's target
- * and what they earned so far (the same netEarnings the profile page uses).
+ * and what they earned so far: each month's computed pay (pay engine),
+ * January through this month — the same figure /finance/[staffId] shows.
  * Loaded on demand — one person at a time — to keep the pay run page light. */
 export async function getBpointSnapshotAction(staffId: string): Promise<BpointSnapshot | { error: string }> {
   const { user, profile } = await getAuthState();
@@ -45,11 +46,11 @@ export async function getBpointSnapshotAction(staffId: string): Promise<BpointSn
   if (staffId !== user.id && !can(profile.role, 'finance.viewAll')) return { error: 'forbidden' };
   const { year, month } = tashkentYmd();
   try {
-    const [[row], entries] = await Promise.all([
+    const [[row], months] = await Promise.all([
       sql<{ amount: number }[]>`select amount from staff_bpoint where user_id = ${staffId} and year = ${year}`,
-      getNetEarningEntries(staffId),
+      loadPayByMonth(`${year}-01-01`, `${year}-${String(month).padStart(2, '0')}-01`, staffId),
     ]);
-    const earned = netEarnings(entries.filter((e) => (e.at ?? '') >= `${year}-01-01`));
+    const earned = months.reduce((a, m) => a + m.planned, 0);
     return { year, target: row?.amount ?? 0, earned, monthsElapsed: month };
   } catch (e) {
     console.error('[bpoint] snapshot failed', e);

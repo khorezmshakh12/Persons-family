@@ -31,7 +31,7 @@ export type FinanceEntry = {
   note: string | null;
   kind: 'adjustment' | 'salary' | 'advance' | 'penalty';
   /** Who wrote it: a hand entry, or a workflow (KPI, pay run, advance, correction). */
-  source: 'manual' | 'kpi' | 'payrun' | 'advance' | 'correction' | 'carry';
+  source: 'manual' | 'kpi' | 'payrun' | 'advance' | 'correction' | 'carry' | 'reimburse';
   created_at: string;
 };
 
@@ -41,7 +41,8 @@ const SOURCE_LABEL: Partial<Record<FinanceEntry['source'], string>> = {
   payrun: 'Oylik jarayoni',
   advance: 'Avans',
   correction: 'Tuzatish',
-  carry: 'Ortiqcha to‘lov',
+  carry: 'O‘tgan oy ortiqchasi',
+  reimburse: 'Xarajat qoplash',
 };
 
 export function FinanceEntriesList({
@@ -128,9 +129,9 @@ export function FinanceEntriesList({
               <span className="text-au-muted text-xs">
                 {format.dateTime(new Date(entry.created_at), { dateStyle: 'medium' })}
               </span>
-              {isAdmin && (entry.source === 'manual' || entry.source === 'advance') && (
+              {isAdmin && (entry.source === 'manual' || entry.source === 'advance' || entry.source === 'payrun' || entry.source === 'reimburse') && (
                 <>
-                  {entry.source === 'manual' && (
+                  {entry.source !== 'advance' && (
                     <button
                       type="button"
                       onClick={() => {

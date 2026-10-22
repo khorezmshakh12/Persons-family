@@ -97,7 +97,7 @@ test('effectivePeriod: rolls past every month approved before the movement', () 
   assert.equal(effectivePeriod('2026-09-15T00:00:00Z', locks), '2026-11-01');
 });
 
-test('carry: last month’s overpayment is a deduction, reported apart from earnings cuts', () => {
+test('carry: last month’s overpayment is held back, apart from earnings cuts', () => {
   const l = computeLine(
     input({
       components: [
@@ -107,11 +107,30 @@ test('carry: last month’s overpayment is a deduction, reported apart from earn
       ],
     }),
   );
-  assert.equal(l.deductions, -500_000);
+  assert.equal(l.deductions, -100_000);
   assert.equal(l.carry, -400_000);
   assert.equal(l.payable, 4_500_000);
   // Accrued pay for the books = payable − carry.
   assert.equal(l.payable - l.carry, 4_900_000);
+});
+
+test('split advance: shifts are bookkeeping, not bonus or jarima', () => {
+  // 900k advance over 3 months, paid in month 1: this month gives back 600k.
+  const m1 = computeLine(
+    input({
+      components: [
+        { kind: 'base', title: '', amount: 5_000_000 },
+        { kind: 'advshift', title: 'Avans: 2 oyga o‘tkazildi', amount: 600_000 },
+      ],
+      payments: [{ id: 'a', kind: 'advance', title: 'Avans', amount: 900_000, at: null }],
+    }),
+  );
+  assert.equal(m1.bonuses, 0);
+  assert.equal(m1.advanceShift, 600_000);
+  assert.equal(m1.remaining, 5_000_000 - 300_000);
+  const m2 = computeLine(input({ components: [{ kind: 'base', title: '', amount: 5_000_000 }, { kind: 'advshift', title: 'Avans qaytarish 2/3', amount: -300_000 }] }));
+  assert.equal(m2.deductions, 0);
+  assert.equal(m2.payable, 4_700_000);
 });
 
 test('a pending advance blocks approval', () => {

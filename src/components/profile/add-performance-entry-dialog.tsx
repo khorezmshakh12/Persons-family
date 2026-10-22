@@ -28,7 +28,16 @@ import {
 /** CEO-only. A focused extraction of ManageStaffPerformanceDialog's entry
  * form (same addPerformanceEntryAction) without its Tier section, which
  * belongs to /self-development, not this page. */
-export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
+const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+const shiftYm = (ym: string, d: number) => {
+  const [y, m] = ym.split('-').map(Number);
+  const t = y * 12 + (m - 1) + d;
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, '0')}`;
+};
+
+/** `month` (YYYY-MM): the payroll month shown on the page — the default for
+ * which month's pay the bonus / jarima belongs to. */
+export function AddPerformanceEntryDialog({ staffId, month }: { staffId: string; month?: string }) {
   const t = useTranslations('performance');
   const tCommon = useTranslations('common');
   const [open, setOpen] = useState(false);
@@ -95,6 +104,21 @@ export function AddPerformanceEntryDialog({ staffId }: { staffId: string }) {
               />
             </div>
           </div>
+          {month && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="period">Qaysi oy oyligiga</Label>
+              <select id="period" name="period" defaultValue={month} className="h-9 rounded-md border border-au-line bg-au-card px-3 text-sm text-au-ink">
+                {[-2, -1, 0, 1].map((d) => {
+                  const ym = shiftYm(month, d);
+                  return (
+                    <option key={ym} value={ym}>
+                      {MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} {ym.slice(0, 4)}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="reason">{t('reason')}</Label>
             <Textarea id="reason" name="reason" required minLength={3} maxLength={500} placeholder={t('reasonPlaceholder')} />

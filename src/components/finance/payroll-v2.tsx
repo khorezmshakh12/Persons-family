@@ -94,6 +94,7 @@ const ERR: Record<string, string> = {
   pastMonth: 'O‘tib ketgan oyni tanlab bo‘lmaydi',
   nothingOwed: 'To‘lanadigan qoldiq yo‘q',
   systemEntry: 'Bu yozuvni tizim yaratgan — uni o‘z bo‘limida o‘zgartiring',
+  groupedAdvance: 'Bo‘lib ushlanadigan avans bir butun — o‘chirib, qaytadan kiriting',
   alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
   reasonRequired: 'Sababini yozing',
   aiDisabled: 'Jev ulanmagan',
@@ -709,6 +710,8 @@ export function PayrollV2({
             { header: 'KPI', key: 'kpi' },
             { header: 'Bonus', key: 'bonuses' },
             { header: 'Ushlanma', key: 'deductions' },
+            { header: 'O‘tgan oy ortiqchasi', key: 'carry' },
+            { header: 'Avans ulushi', key: 'advanceShift' },
             { header: 'Hisoblangan', key: 'payable' },
             { header: 'To‘langan', key: 'paid' },
             { header: 'Qoldiq', key: 'remaining' },
@@ -869,18 +872,18 @@ function BulkBar({
   );
 }
 
-/** This year's fund: what the months so far planned (or paid, if more),
- * plus the current month's fund for every month left — a straight-line
+/** This year's fund: each earlier month's computed pay (one month each,
+ * never mixed), plus this month's for every month left — a straight-line
  * year-end estimate. */
 function YearForecast({ history, period, payable }: { history: MonthPoint[]; period: string; payable: number }) {
   const year = period.slice(0, 4);
   const left = 12 - Number(period.slice(5, 7)) + 1;
-  const before = history.filter((p) => p.period.startsWith(year) && p.period < period).reduce((t, p) => t + Math.max(p.planned, p.paid), 0);
+  const before = history.filter((p) => p.period.startsWith(year) && p.period < period).reduce((t, p) => t + p.planned, 0);
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-au-card-2 px-3.5 py-2.5 text-sm">
       <span className="text-au-muted">
         {year} yil oxirigacha fond (prognoz)
-        <span className="block text-[11px]">O‘tgan oylar + shu oy fondi × {left} oy</span>
+        <span className="block text-[11px]">O‘tgan oylar hisoblangani + shu oy × {left} oy</span>
       </span>
       <b className="text-au-ink tabular-nums">{som(before + payable * left)}</b>
     </div>
@@ -1055,11 +1058,14 @@ function StaffPanel({
       fd.set('amount', String(-c.amount));
       fd.set('kind', 'adjustment');
       fd.set('period', period);
+      // Points at exactly this component, so a twin with the same title stays.
+      if (c.ref) fd.set('reversalOf', c.ref);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
       done(`«${c.title}» bekor qilindi`, res?.entryId, `«${c.title}» bekor qilish`);
     });
-  const cancelled = new Set(line.components.filter((c) => c.title.startsWith('Bekor: ')).map((c) => c.title.slice(7)));
+  // Older cancels were matched by title only (before reversal_of was written).
+  const cancelled = new Set(line.components.filter((c) => c.kind !== 'correction' && c.title.startsWith('Bekor: ')).map((c) => c.title.slice(7)));
 
   const editable = (source?: string) => !!source && EDITABLE_SOURCES.has(source);
   const extras = line.components.filter((c) => c.kind !== 'base');
@@ -1071,12 +1077,16 @@ function StaffPanel({
   const bPlan = bp ? (bp.target * bp.monthsElapsed) / 12 : 0;
   const left = bp ? 12 - bp.monthsElapsed : 0;
 
-  const rowBtns = (id: string, t: string, amt: number, src?: string) =>
+  // A split-advance share is part of one whole: it can only be removed
+  // together with the advance (server deletes the group), not edited alone.
+  const rowBtns = (id: string, t: string, amt: number, src?: string, whole = false) =>
     editable(src) && (
       <>
-        <button className={ICON_BTN} onClick={() => setEdit({ id, title: t, value: String(Math.abs(amt)) })} aria-label="Tahrirlash">
-          <Pencil className="size-4" />
-        </button>
+        {!whole && (
+          <button className={ICON_BTN} onClick={() => setEdit({ id, title: t, value: String(Math.abs(amt)) })} aria-label="Tahrirlash">
+            <Pencil className="size-4" />
+          </button>
+        )}
         <button className={ICON_BTN} disabled={busy} onClick={() => onUndo(id, `«${t}» ${som(Math.abs(amt))} so‘m`)} aria-label="O‘chirish">
           <Trash2 className="size-4" />
         </button>
@@ -1176,7 +1186,7 @@ function StaffPanel({
               </span>
               <span className="flex shrink-0 items-center gap-0.5">
                 <span className={cn('mr-1 font-bold tabular-nums', c.amount >= 0 ? 'text-au-ok' : 'text-au-bad', c.reversed && 'line-through opacity-60')}>{signed(c.amount)}</span>
-                {c.entryId && rowBtns(c.entryId, c.title, c.amount, c.source)}
+                {c.entryId && rowBtns(c.entryId, c.title, c.amount, c.source, c.kind === 'advshift')}
                 {!editable(c.source) && !c.reversed && REVERSIBLE.has(c.kind) && !cancelled.has(c.title) && (
                   <button className={ICON_BTN} disabled={busy} onClick={() => cancel(c)} aria-label="Bekor qilish" title="Teskari yozuv bilan bekor qilish">
                     <Undo2 className="size-4" />
