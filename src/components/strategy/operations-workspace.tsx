@@ -13,6 +13,7 @@ import { TodayOps } from './ops-today';
 import { OpsCalendar } from './ops-calendar';
 import { GroupProfit, SeatShowcase } from './ops-money';
 import { OpsStudents } from './ops-students';
+import type { StudentsData } from '@/lib/ops-students';
 import './strategy.css';
 import './suite.css';
 
@@ -33,17 +34,8 @@ export type OpsData = {
   /** Teacher monthly salaries — only for viewers allowed to see pay. */
   salaries: Record<string, number> | null;
   calendar: { id: string; day: string; kind: 'holiday' | 'exam' | 'makeup' | 'event'; title: string; group_id: string | null; time: string | null; room: string | null }[];
-  /** O'quvchilar: CRM students, balance < 0 = debt; enrollments carry the monthly fee and billing day. */
-  students: {
-    id: string;
-    name: string;
-    status: 'active' | 'frozen' | 'archived';
-    balance: number;
-    phone: string;
-    tg: boolean;
-    enrollments: { id: string; group: string; fee: number; activation: string; status: 'active' | 'frozen' }[];
-  }[];
-  billing: { enabled: boolean; startDate: string; remindDays: number };
+  /** O'quvchilar: every CRM student with billing, grade, log, templates and stats. */
+  students: StudentsData;
   /** Bugun: today's cohort, HR › Davomat marks and substitutes. */
   today: {
     day: string;

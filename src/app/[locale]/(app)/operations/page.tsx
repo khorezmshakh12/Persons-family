@@ -7,6 +7,7 @@ import { parsePlan } from '@/lib/ops-plan';
 import { addDaysToKey, tashkentDayKey, tashkentMonthKey } from '@/lib/time';
 import { isTeacherRole, weekdayParity } from '@/lib/teacher-schedule';
 import { OperationsWorkspace, type OpsData } from '@/components/strategy/operations-workspace';
+import { emptyStudentsData, loadStudentsData } from '@/lib/ops-students';
 import { OpsCrmSummary } from '@/components/operations/ops-crm-summary';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export default async function OperationsPage() {
   const day = tashkentDayKey();
   const month = tashkentMonthKey();
   const seePay = canFor(profile, 'finance.viewAll');
-  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs, crm, salaries, calendar, students, billing] = await Promise.all([
+  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs, crm, salaries, calendar, students] = await Promise.all([
     sql<OpsData['groups']>`
       select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type,
              coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
@@ -73,20 +74,8 @@ export default async function OperationsPage() {
       select id, day::text as day, kind, title, group_id, time, room from ops_calendar
       where day between ${addDaysToKey(day, -7)} and ${addDaysToKey(day, 60)}
       order by day, time nulls first`.catch(() => []),
-    // O'quvchilar: every CRM student with a phone, balance and open enrollments.
-    sql<OpsData['students']>`
-      select s.id, s.full_name as name, s.status, s.balance,
-        coalesce((select c.phone from crm_contacts c where c.student_id = s.id and coalesce(c.phone, '') <> ''
-          order by c.is_primary desc, c.created_at limit 1), '') as phone,
-        exists (select 1 from crm_contacts c where c.student_id = s.id and c.telegram_chat_id is not null) as tg,
-        coalesce((select json_agg(json_build_object('id', e.id, 'group', g.name, 'fee', e.tariff_amount,
-            'activation', e.activation_date::text, 'status', e.status) order by e.activation_date)
-          from crm_enrollments e join crm_groups g on g.id = e.group_id
-          where e.student_id = s.id and e.status in ('active', 'frozen')), '[]'::json) as enrollments
-      from crm_students s where s.archived_at is null
-      order by s.full_name`.catch(() => []),
-    sql<OpsData['billing'][]>`
-      select enabled, start_date::text as "startDate", remind_days as "remindDays" from crm_billing_settings where id`.catch(() => []),
+    // O'quvchilar: every CRM student with billing, grade and history.
+    loadStudentsData().catch(() => emptyStudentsData(day)),
   ]);
 
   // One source for head counts: a group the CRM knows by name takes its
@@ -114,8 +103,7 @@ export default async function OperationsPage() {
     }),
     salaries: seePay ? Object.fromEntries(salaries.map((r) => [r.id, r.salary])) : null,
     calendar: [...calendar],
-    students: students.map((s) => ({ ...s, enrollments: s.enrollments.map((e) => ({ ...e, fee: Number(e.fee) })) })),
-    billing: billing[0] ?? { enabled: false, startDate: day, remindDays: 3 },
+    students,
     today: {
       day,
       cohort: weekdayParity(day),
