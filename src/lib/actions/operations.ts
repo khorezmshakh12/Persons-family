@@ -8,6 +8,7 @@ import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
+import { tashkentDayKey } from '@/lib/time';
 import { can } from '@/lib/permissions';
 import { DEFAULT_DURATION, isBlocking, issuesFor, scheduleIssues, type Availability, type SchedGroup } from '@/lib/ops-schedule';
 
@@ -471,6 +472,31 @@ export async function setTeacherAvailabilityAction(teacherId: string, cohort: 'o
       if (p.data.length)
         await tx`insert into ops_teacher_availability ${tx(p.data.map((w) => ({ teacher_id: teacherId, cohort, start_time: w.start, end_time: w.end })))}`;
     });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+/** Bugun: put a substitute teacher on a group for today, or clear it (null). */
+export async function setSubstituteAction(groupId: string, teacherId: string | null): Promise<Result> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const uuid = z.string().uuid();
+  if (!uuid.safeParse(groupId).success || (teacherId !== null && !uuid.safeParse(teacherId).success)) return { error: 'invalidInput' };
+  const day = tashkentDayKey();
+  try {
+    if (teacherId === null) await sql`delete from ops_substitutions where day = ${day} and group_id = ${groupId}`;
+    else
+      await sql`
+        insert into ops_substitutions (day, group_id, teacher_id, created_by)
+        values (${day}, ${groupId}, ${teacherId}, ${by})
+        on conflict (day, group_id) do update set teacher_id = excluded.teacher_id, created_by = excluded.created_by, created_at = now()`;
   } catch {
     return { error: 'updateFailed' };
   }

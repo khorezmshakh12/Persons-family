@@ -4,6 +4,8 @@ import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 
 import { parsePlan } from '@/lib/ops-plan';
+import { tashkentDayKey } from '@/lib/time';
+import { isTeacherRole, weekdayParity } from '@/lib/teacher-schedule';
 import { OperationsWorkspace, type OpsData } from '@/components/strategy/operations-workspace';
 import { OpsCrmSummary } from '@/components/operations/ops-crm-summary';
 
@@ -13,7 +15,8 @@ export default async function OperationsPage() {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'operations')) notFound();
 
-  const [groups, leads, staff, planRows, rooms, holds, availability, log] = await Promise.all([
+  const day = tashkentDayKey();
+  const [groups, leads, staff, planRows, rooms, holds, availability, log, attendance, subs] = await Promise.all([
     sql<OpsData['groups']>`
       select g.id, g.name, coalesce(g.course_name, '') as course, g.schedule_type,
              coalesce(g.configuration->>'time', '') as time, coalesce(trim(g.configuration->>'room'), '') as room,
@@ -40,6 +43,9 @@ export default async function OperationsPage() {
         coalesce(p.first_name || ' ' || p.last_name, '') as actor
       from ops_schedule_log l join groups g on g.id = l.group_id left join profiles p on p.id = l.actor
       order by l.created_at desc limit 40`.catch(() => []),
+    sql<OpsData['today']['attendance']>`
+      select profile_id, status, coalesce(check_in, '') as check_in from staff_attendance where day = ${day}`.catch(() => []),
+    sql<OpsData['today']['subs']>`select group_id, teacher_id from ops_substitutions where day = ${day}`.catch(() => []),
   ]);
 
   const data: OpsData = {
@@ -53,6 +59,13 @@ export default async function OperationsPage() {
     log: [...log],
     meId: profile.id,
     canEdit: canFor(profile, 'operations.edit'),
+    today: {
+      day,
+      cohort: weekdayParity(day),
+      attendance: [...attendance],
+      subs: [...subs],
+      teacherIds: staff.filter((s) => isTeacherRole(s.role)).map((s) => s.id),
+    },
   };
   return <OperationsWorkspace data={data} crm={<OpsCrmSummary />} />;
 }
