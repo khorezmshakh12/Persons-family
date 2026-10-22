@@ -9,6 +9,7 @@ import { fmtMin, isScheduled, overlaps, toMin, type SchedGroup } from '@/lib/ops
 import { playSound, toast } from './suite-shell';
 import { courseColor, toSched } from './ops-schedule-timeline';
 import type { OpsData } from './operations-workspace';
+import { KIND } from './ops-calendar';
 
 type Att = OpsData['today']['attendance'][number];
 const nowMinutes = () => Math.floor(((Date.now() + TASHKENT_OFFSET_MS) % 864e5) / 6e4);
@@ -103,15 +104,29 @@ export function TodayOps({ data, capOf, rooms }: { data: OpsData; capOf: (r: str
   const live = lessons.filter((g) => phase(g) === 'live').length;
   const done = lessons.filter((g) => phase(g) === 'done').length;
 
-  if (!today.cohort)
+  const events = data.calendar.filter((e) => e.day === today.day);
+  const holiday = events.find((e) => e.kind === 'holiday');
+  if (!today.cohort || holiday)
     return (
       <div className="sx-card">
-        <div className="sx-empty">Bugun yakshanba — darslar yo‘q.</div>
+        <div className="sx-empty">{holiday ? `Bugun ${holiday.title} — darslar yo‘q.` : 'Bugun yakshanba — darslar yo‘q.'}</div>
       </div>
     );
 
   return (
     <div className="sx-grid">
+      {events.length > 0 && (
+        <div className="sx-card s12 flex flex-wrap items-center gap-2 !py-3">
+          <b className="text-sm text-au-ink">Bugun kalendarda:</b>
+          {events.map((e) => (
+            <span key={e.id} className={cn('sx-pl', KIND[e.kind].tone)}>
+              {KIND[e.kind].n} · {e.title}
+              {e.time ? ` · ${e.time}` : ''}
+              {e.room ? ` · ${e.room}` : ''}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="sx-card sx-stat dark s3">
         <div className="l">Bugungi darslar</div>
         <div className="v">{lessons.length}</div>

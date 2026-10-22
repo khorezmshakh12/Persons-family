@@ -503,3 +503,51 @@ export async function setSubstituteAction(groupId: string, teacherId: string | n
   revalidatePath('/[locale]/operations', 'page');
   return {};
 }
+
+const calendarSchema = z.object({
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: z.enum(['holiday', 'exam', 'makeup', 'event']),
+  title: z.string().trim().min(1).max(200),
+  groupId: z.string().uuid().nullable().default(null),
+  time: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
+  room: z.string().trim().max(40).nullable().default(null),
+});
+
+/** Kalendar: add a holiday / exam / make-up lesson / event. */
+export async function addCalendarEventAction(input: z.input<typeof calendarSchema>): Promise<Result> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = calendarSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    await sql`
+      insert into ops_calendar (day, kind, title, group_id, time, room, created_by)
+      values (${v.day}, ${v.kind}, ${v.title}, ${v.groupId}, ${v.time}, ${v.room || null}, ${by})`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+export async function deleteCalendarEventAction(id: string): Promise<Result> {
+  try {
+    await requireCap('operations.edit');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`delete from ops_calendar where id = ${id}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
