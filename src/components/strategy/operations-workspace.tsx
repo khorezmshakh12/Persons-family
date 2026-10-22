@@ -9,6 +9,7 @@ import { RoomRegister, SlotModal, buildModel, type Cell, type Cohort, type OpsMo
 import { SlotFinderBar, UnscheduledGroups, usePlaceGroup, type Finder } from './operations-extras';
 import { ScheduleTimeline, type TimelineMode } from './ops-schedule-timeline';
 import { CapacityDemand, OpsOverview, TeachersOps } from './ops-hq';
+import { TodayOps } from './ops-today';
 import './strategy.css';
 import './suite.css';
 
@@ -24,14 +25,22 @@ export type OpsData = {
   log: { id: string; group_id: string; group_name: string; before: LogPlace; after: LogPlace; at: string; actor: string }[];
   meId: string;
   canEdit: boolean;
+  /** Bugun: today's cohort, HR › Davomat marks and substitutes. */
+  today: {
+    day: string;
+    cohort: 'odd' | 'even' | null;
+    attendance: { profile_id: string; status: 'office' | 'late' | 'remote' | 'left' | 'absent'; check_in: string }[];
+    subs: { group_id: string; teacher_id: string }[];
+    teacherIds: string[];
+  };
 };
 export type LogPlace = { room: string | null; time: string | null; cohort: 'odd' | 'even' | null; duration: number };
 
-// Operation HQ v3 (2026-10-22): three tabs. Leads live in CRM, the growth plan
+// Operation HQ v3 (2026-10-22): three tabs, Bugun first. Leads live in CRM, the growth plan
 // in the Strategy forecast; teacher load sits under Jadval › O'qituvchilar.
 type Tab = 'ov' | 'sched' | 'cap';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { v: 'ov', n: 'Boshqaruv', Icon: LayoutDashboard },
+  { v: 'ov', n: 'Bugun', Icon: LayoutDashboard },
   { v: 'sched', n: 'Jadval', Icon: CalendarRange },
   { v: 'cap', n: 'Xonalar va quvvat', Icon: Gauge },
 ];
@@ -100,6 +109,7 @@ export function OperationsWorkspace({ data, crm }: { data: OpsData; crm?: React.
         <div key={tab} className="sx-fade">
           {tab === 'ov' && (
             <div className="flex flex-col gap-[18px]">
+              <TodayOps data={data} capOf={m.cap} rooms={m.rooms} />
               {crm}
               <OpsOverview data={data} capOf={m.cap} rooms={m.rooms} onGo={goGroup} />
             </div>
