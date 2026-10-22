@@ -192,18 +192,19 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
             meId={meId}
             canEdit={canEdit}
             placeholder="Izoh yozing… (masalan: onasi to‘lovni 20-sanagacha kechiktirishni so‘radi)"
-            onAdd={async (body) => {
-              const r = await addStudentNoteAction({ studentId: s.id, body });
+            reminderFrom={today}
+            onAdd={async (body, remindAt) => {
+              const r = await addStudentNoteAction({ studentId: s.id, body, remindAt });
               if (r.error) {
                 fail(r.error);
                 return false;
               }
-              toast.success('Izoh qo‘shildi');
+              toast.success(remindAt ? `Izoh qo‘shildi — ${dmy(remindAt)} kuni dashboard’da eslatadi` : 'Izoh qo‘shildi');
               setTick((t) => t + 1);
               return true;
             }}
-            onEdit={async (id, body) => {
-              const r = await editStudentNoteAction({ id, body });
+            onEdit={async (id, body, remindAt) => {
+              const r = await editStudentNoteAction({ id, body, remindAt });
               if (r.error) {
                 toast.error(r.error === 'forbidden' ? 'Faqat o‘zingiz yozgan izohni tahrirlay olasiz' : errText(r.error));
                 return false;
