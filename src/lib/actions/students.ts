@@ -137,7 +137,7 @@ export async function recordPaymentAction(input: z.input<typeof paymentSchema>):
   let sent: number | undefined;
   if (v.notify) {
     const [tpl] = await sql<{ id: string; name: string; body: string }[]>`
-      select id, name, body from crm_message_templates where trigger = 'paid' order by sort limit 1`;
+      select id, name, body from crm_message_templates where audience = 'student' and trigger = 'paid' order by sort limit 1`;
     const vars = tpl && (await studentVars(v.studentId, { tolandi: som(v.amount) }));
     if (tpl && vars) sent = (await deliver(v.studentId, tpl.id, tpl.name, renderMessage(tpl.body, vars), me.id, name)).sent;
   }
@@ -379,36 +379,40 @@ export async function logDebtCallAction(input: z.input<typeof callSchema>): Prom
 // Templates and settings
 // ---------------------------------------------------------------------------
 
-const templatesSchema = z
-  .array(
+const templatesSchema = z.object({
+  audience: z.enum(['student', 'lead']).default('student'),
+  list: z
+    .array(
     z.object({
       id: uuid.nullable(),
       name: z.string().trim().min(1).max(120),
       body: z.string().trim().min(1).max(3000),
       trigger: z.enum(['before', 'due', 'paid', 'none']),
     }),
-  )
-  .max(40);
+    )
+    .max(40),
+});
 
-/** Xabar shablonlari: the list as edited — new rows added, missing rows deleted. */
+/** Xabar shablonlari (o'quvchi yoki lid): the list as edited — new rows added, missing rows deleted. */
 export async function saveTemplatesAction(input: z.input<typeof templatesSchema>): Promise<Result> {
   const me = await requireEditor();
   if ('error' in me) return me;
   const p = templatesSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
-  const list = p.data;
+  const { audience, list } = p.data;
   try {
     await sql.begin(async (tx) => {
       const keep = list.flatMap((t) => (t.id ? [t.id] : []));
-      await tx`delete from crm_message_templates where not (id = any(${keep}::uuid[]))`;
+      await tx`delete from crm_message_templates where audience = ${audience} and not (id = any(${keep}::uuid[]))`;
       for (const [i, t] of list.entries()) {
         if (t.id)
           await tx`update crm_message_templates set name = ${t.name}, body = ${t.body}, trigger = ${t.trigger}, sort = ${i},
-            updated_by = ${me.id}, updated_at = now() where id = ${t.id}`;
+            updated_by = ${me.id}, updated_at = now() where id = ${t.id} and audience = ${audience}`;
         else
-          await tx`insert into crm_message_templates (name, body, trigger, sort, updated_by) values (${t.name}, ${t.body}, ${t.trigger}, ${i}, ${me.id})`;
+          await tx`insert into crm_message_templates (name, body, trigger, sort, audience, updated_by)
+            values (${t.name}, ${t.body}, ${t.trigger}, ${i}, ${audience}, ${me.id})`;
       }
-      await tx`insert into crm_student_log (kind, text, actor) values ('settings', ${`Xabar shablonlari yangilandi (${list.length} ta)`}, ${me.id})`;
+      await tx`insert into crm_student_log (kind, text, actor) values ('settings', ${`${audience === 'lead' ? 'Lid' : 'O‘quvchi'} xabar shablonlari yangilandi (${list.length} ta)`}, ${me.id})`;
     });
   } catch {
     return { error: 'updateFailed' };

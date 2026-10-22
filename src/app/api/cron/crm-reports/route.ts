@@ -10,20 +10,24 @@ import { addDaysToKey, tashkentDayKey } from '@/lib/time';
 // O'quvchilar to'lov hisobotlari (owner, 2026-10-22), xodimlar botidan:
 //   ?kind=due      09:00 — Office Manager: to'lovga N kun (remind_days, 3) qolganlar;
 //   ?kind=overdue  21:00 — CEO, COO: to'lovi call_after_days (7) kundan ko'p kechikkanlar;
-//   ?kind=daily    22:00 — CEO, COO, Office Manager: kunlik moliyaviy hisobot.
+//   ?kind=daily    22:00 — CEO, COO, Office Manager: kunlik moliyaviy hisobot;
+//   ?kind=sales    dushanba 09:30 — CEO, COO: haftalik sotuv hisoboti.
 //
 // Cloud Scheduler (Asia/Tashkent), each with --headers="Authorization=Bearer <CRON_SECRET>":
 //   crm-report-due      "0 9 * * *"   …/staff/api/cron/crm-reports?kind=due
 //   crm-report-overdue  "0 21 * * *"  …/staff/api/cron/crm-reports?kind=overdue
 //   crm-report-daily    "0 22 * * *"  …/staff/api/cron/crm-reports?kind=daily
+//   crm-report-sales    "30 9 * * 1"  …/staff/api/cron/crm-reports?kind=sales
 
-const KINDS = ['due', 'overdue', 'daily'] as const;
+const KINDS = ['due', 'overdue', 'daily', 'sales'] as const;
 type Kind = (typeof KINDS)[number];
 const TO: Record<Kind, string[]> = {
   due: ['office_manager'],
   overdue: ['ceo', 'coo'],
   daily: ['ceo', 'coo', 'office_manager'],
+  sales: ['ceo', 'coo'],
 };
+const SOURCE_UZ: Record<string, string> = { telegram: 'Telegram bot', insta: 'Instagram', ref: 'Tavsiya', walk: 'O‘zi keldi', call: 'Qo‘ng‘iroq', site: 'Sayt', other: 'Boshqa' };
 const MAX_LINES = 18; // keeps a report under Telegram's 4,096-character limit
 const WEEKDAYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
 const METHODS: Record<string, string> = { cash: 'Naqd', card: 'Karta', click: 'Click', payme: 'Payme', uzum: 'Uzum', transfer: 'O‘tkazma', online: 'Onlayn', other: 'Boshqa' };
@@ -159,13 +163,62 @@ async function dailyReport(today: string): Promise<string> {
   ].join('\n');
 }
 
+async function salesReport(today: string): Promise<string> {
+  const from = addDaysToKey(today, -7);
+  const [[t], sources, lost, stages, owners] = await Promise.all([
+    sql<{ leads: number; fast: number; contacted: number; trials: number; won: number; lost: number }[]>`
+      select count(*)::int as leads,
+        count(*) filter (where first_contact_at <= created_at + interval '15 minutes')::int as fast,
+        count(*) filter (where first_contact_at is not null)::int as contacted,
+        count(*) filter (where trial_date is not null)::int as trials,
+        count(*) filter (where converted_student_id is not null or status = 'won')::int as won,
+        count(*) filter (where status = 'lost')::int as lost
+      from crm_leads where (created_at at time zone 'Asia/Tashkent')::date > ${from}`,
+    sql<{ source: string; n: number; won: number }[]>`
+      select coalesce(nullif(source, ''), 'other') as source, count(*)::int as n,
+        count(*) filter (where converted_student_id is not null or status = 'won')::int as won
+      from crm_leads where (created_at at time zone 'Asia/Tashkent')::date > ${from} group by 1 order by 2 desc`,
+    sql<{ reason: string; n: number }[]>`
+      select lost_reason as reason, count(*)::int as n from crm_leads
+      where lost_reason is not null and (stage_at at time zone 'Asia/Tashkent')::date > ${from} group by 1 order by 2 desc`,
+    sql<{ name: string; n: number }[]>`
+      select coalesce(s.name, 'Telegram') as name, count(*)::int as n
+      from crm_leads l left join crm_lead_sections s on s.id = l.section_id
+      where l.archived_at is null and l.status = 'open' group by s.name, s.sort order by s.sort nulls first`,
+    sql<{ name: string; n: number; won: number }[]>`
+      select p.first_name || ' ' || p.last_name as name, count(*)::int as n,
+        count(*) filter (where l.converted_student_id is not null or l.status = 'won')::int as won
+      from crm_leads l join profiles p on p.id = l.owner_id
+      where (l.created_at at time zone 'Asia/Tashkent')::date > ${from} group by 1 order by 3 desc, 2 desc limit 5`,
+  ]);
+  const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+  return [
+    `📈 <b>Haftalik sotuv hisoboti</b>`,
+    `${dmy(addDaysToKey(from, 1))} — ${dmy(today)}`,
+    '',
+    `<b>Natija</b>`,
+    `• Yangi lidlar: <b>${t.leads}</b>`,
+    `• 15 daqiqada bog‘lanilgan: ${t.fast} (${pct(t.fast, t.leads)}) · umuman bog‘lanilgan: ${pct(t.contacted, t.leads)}`,
+    `• Sinov darsiga yozilgan: ${t.trials}`,
+    `• O‘quvchi bo‘ldi: <b>${t.won}</b> (${pct(t.won, t.leads)}) · rad etdi: ${t.lost}`,
+    '',
+    `<b>Manbalar</b>`,
+    ...(sources.length ? sources.map((s) => `• ${SOURCE_UZ[s.source] ?? e(s.source)}: ${s.n} lid → ${s.won} o‘quvchi (${pct(s.won, s.n)})`) : ['• Lid kelmadi']),
+    '',
+    `<b>Ochiq voronka (hozir)</b>`,
+    ...(stages.length ? stages.map((s) => `• ${e(s.name)}: ${s.n}`) : ['• Ochiq lid yo‘q']),
+    ...(lost.length ? ['', `<b>Rad etish sabablari</b>`, ...lost.map((r) => `• ${e(r.reason)}: ${r.n}`)] : []),
+    ...(owners.length ? ['', `<b>Xodimlar</b>`, ...owners.map((o) => `• ${e(o.name)}: ${o.n} lid → ${o.won} o‘quvchi`)] : []),
+  ].join('\n');
+}
+
 async function handle(req: NextRequest): Promise<Response> {
   const expected = process.env.CRON_SECRET;
   if (!expected || req.headers.get('authorization') !== `Bearer ${expected}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const kind = req.nextUrl.searchParams.get('kind') as Kind | null;
-  if (!kind || !KINDS.includes(kind)) return NextResponse.json({ error: 'kind must be due | overdue | daily' }, { status: 400 });
+  if (!kind || !KINDS.includes(kind)) return NextResponse.json({ error: 'kind must be due | overdue | daily | sales' }, { status: 400 });
 
   const today = tashkentDayKey();
   const to = await recipients(TO[kind]);
@@ -173,6 +226,7 @@ async function handle(req: NextRequest): Promise<Response> {
 
   let text: string | null;
   if (kind === 'daily') text = await dailyReport(today);
+  else if (kind === 'sales') text = await salesReport(today);
   else {
     const d = await loadStudentsData();
     text = kind === 'due' ? dueReport(d.rows, today, d.settings.remindDays || 3) : overdueReport(d.rows, today, d.settings.callAfterDays);

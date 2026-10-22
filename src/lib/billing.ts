@@ -111,7 +111,7 @@ export function gradeOf(
   return { grade, onTime: delays.filter((d) => d <= 3).length, total: delays.length, avgDelay, openDays: firstOpen ? Math.max(0, daysBetween(firstOpen, today)) : 0 };
 }
 
-/** Fills {ism} {ota_ona} {summa} {sana} {qarz} {tolandi} {havola} in a message template. */
+/** Fills {ism} {ota_ona} {summa} {sana} {qarz} {tolandi} {havola} (students) and {kurs} {sinov_sana} {sinov_vaqt} (leads). */
 export function fillTemplate(body: string, vars: Record<string, string>): string {
-  return body.replace(/\{(ism|ota_ona|summa|sana|qarz|tolandi|havola)\}/g, (_, k: string) => vars[k] ?? '');
+  return body.replace(/\{(ism|ota_ona|summa|sana|qarz|tolandi|havola|kurs|sinov_sana|sinov_vaqt)\}/g, (_, k: string) => vars[k] ?? '');
 }

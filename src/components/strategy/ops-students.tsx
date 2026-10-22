@@ -8,7 +8,7 @@ import { daysBetween, nextDueDate } from '@/lib/billing';
 import type { StudentRow } from '@/lib/ops-students';
 import { playSound } from './suite-shell';
 import type { OpsData } from './operations-workspace';
-import { CALLS, GRADE, METHODS, dmy, fixFor, hm, som } from './ops-students-meta';
+import { CALLS, GRADE, METHODS, dmy, fixFor, som, when } from './ops-students-meta';
 import { StudentCardDrawer } from './ops-student-card';
 import { BillingSettingsModal, LogModal, TemplatesModal } from './ops-student-admin';
 
@@ -283,7 +283,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
                   <b className="text-au-ink">{s.name}</b> <span className="tabular-nums text-sm font-bold text-au-bad">−{formatUZS(-s.balance)}</span>
                   <div className="text-xs text-au-faint">
                     {s.grade.openDays} kundan beri · {s.parent || s.phone || 'telefon yo‘q'}
-                    {s.lastCall && ` · oxirgi: ${CALLS[s.lastCall.result]} ${dmy(s.lastCall.at)}${s.lastCall.promised ? ` (va’da ${dmy(s.lastCall.promised)})` : ''}`}
+                    {s.lastCall && ` · oxirgi: ${CALLS[s.lastCall.result]} ${when(s.lastCall.at).slice(0, 10)}${s.lastCall.promised ? ` (va’da ${dmy(s.lastCall.promised)})` : ''}`}
                   </div>
                 </div>
                 <button className="sx-btn sm" onClick={() => openCard(s.id, 'call')}>
@@ -319,7 +319,7 @@ export function LogItem({ l, onOpen }: { l: OpsData['students']['log'][number]; 
       <span className="min-w-0 text-[13px] leading-snug text-au-ink">
         {l.text}
         <span className="block text-xs text-au-faint">
-          {l.actor} · {dmy(l.at)} {hm(l.at)}
+          {l.actor} · {when(l.at)}
         </span>
       </span>
     </li>

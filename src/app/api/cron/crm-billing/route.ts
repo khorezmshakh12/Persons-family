@@ -92,7 +92,7 @@ async function handle(req: NextRequest): Promise<Response> {
 
   // 3) Reminders from the «before» and «due» templates.
   const templates = await sql<{ id: string; name: string; body: string; trigger: 'before' | 'due' }[]>`
-    select id, name, body, trigger from crm_message_templates where trigger in ('before', 'due') order by sort`;
+    select id, name, body, trigger from crm_message_templates where audience = 'student' and trigger in ('before', 'due') order by sort`;
   let reminders = 0;
   if (templates.length) {
     const linked = new Set(

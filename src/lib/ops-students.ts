@@ -119,7 +119,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
         from crm_student_log l left join crm_students s on s.id = l.student_id left join profiles p on p.id = l.actor
         order by l.created_at desc limit 60
       ) x order by at desc`,
-    sql<MessageTemplate[]>`select id, name, body, trigger from crm_message_templates order by sort, name`,
+    sql<MessageTemplate[]>`select id, name, body, trigger from crm_message_templates where audience = 'student' order by sort, name`,
     sql<BillingSettings[]>`
       select enabled, start_date::text as "startDate", remind_days as "remindDays", pay_link as "payLink", call_after_days as "callAfterDays"
       from crm_billing_settings where id`,

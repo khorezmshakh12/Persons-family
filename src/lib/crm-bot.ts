@@ -1,5 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
+import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 
 // CRM Telegram lid-boti mantiqi. Xodim botidan (TELEGRAM_BOT_TOKEN) alohida —
 // o'z tokeni CRM_BOT_TOKEN. Token/secret keyin env/secret orqali beriladi;
@@ -59,6 +60,37 @@ const REMOVE_KB = { remove_keyboard: true };
 
 const last9 = (phone: string) => phone.replace(/\D/g, '').slice(-9);
 const looksLikePhone = (t: string) => t.replace(/\D/g, '').length >= 7;
+
+// Sales team for bot leads: Office and Sales managers (primary or extra position).
+const SALES_ROLES = ['office_manager', 'sales_manager'];
+
+/** Round-robin owner: the sales person who got a bot lead longest ago (none if no team). */
+const nextOwner = () => sql<{ id: string }[]>`
+  select p.id from profiles p
+  where p.is_active and (p.role::text = any(${SALES_ROLES}) or exists (
+    select 1 from profile_roles r where r.user_id = p.id and r.role::text = any(${SALES_ROLES})))
+  order by (select max(l.created_at) from crm_leads l where l.owner_id = p.id and l.source = 'telegram') asc nulls first, p.created_at
+  limit 1`;
+
+/** Speed-to-lead: tell the owner (or the whole sales team) on the staff bot right away. */
+async function notifyNewLead(leadId: string, name: string, phone: string) {
+  const [owner] = await sql<{ telegram_id: number | null }[]>`
+    select p.telegram_id from crm_leads l join profiles p on p.id = l.owner_id where l.id = ${leadId}`;
+  const ids = owner?.telegram_id
+    ? [owner.telegram_id]
+    : (
+        await sql<{ telegram_id: number }[]>`
+          select distinct p.telegram_id from profiles p where p.is_active and p.telegram_id is not null
+            and (p.role::text = any(${SALES_ROLES}) or exists (select 1 from profile_roles r where r.user_id = p.id and r.role::text = any(${SALES_ROLES})))`
+      ).map((r) => r.telegram_id);
+  if (!ids.length) return;
+  await sendTelegramManyAs(
+    'report',
+    ids,
+    `🆕 <b>Yangi lid — Telegram bot</b>\n${escapeTelegramText(name)} · ${escapeTelegramText(phone)}\n\n15 daqiqa ichida bog‘laning: Operation HQ › Sales › Telegram.`,
+    { record: false },
+  );
+}
 
 async function welcome(chatId: number) {
   await sql`
@@ -134,10 +166,28 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
           REMOVE_KB,
         );
       } else {
-        // section_id = null → CRM taxtasidagi «So'rovlar» (taqsimlanmagan) ustuniga tushadi.
-        await sql`
-          insert into crm_leads (section_id, name, phone, source, status, branch, telegram_chat_id, telegram_username)
-          values (null, ${name}, ${phone}, 'telegram', 'open', 'persons_lc', ${chatId}, ${username})`;
+        // A lead already on the board with this phone (added by a manager) is
+        // linked to this chat instead of opening a duplicate (owner, 2026-10-22).
+        const [known] = l9
+          ? await sql<{ id: string }[]>`
+              select id from crm_leads
+              where archived_at is null and right(regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g'), 9) = ${l9}
+              order by created_at desc limit 1`
+          : [];
+        if (known) {
+          await sql`update crm_leads set telegram_chat_id = ${chatId}, telegram_username = ${username},
+            name = coalesce(nullif(name, ''), ${name}), updated_at = now() where id = ${known.id}`;
+          await sql`insert into crm_lead_log (lead_id, text) values (${known.id}, 'Telegram botga ulandi (telefon raqami orqali)')`;
+        } else {
+          // section_id = null → Operation HQ › Sales'dagi «Telegram» ustuni (CRM'da «So'rovlar»).
+          const [owner] = await nextOwner();
+          const [lead] = await sql<{ id: string }[]>`
+            insert into crm_leads (section_id, name, phone, source, status, branch, telegram_chat_id, telegram_username, owner_id)
+            values (null, ${name}, ${phone}, 'telegram', 'open', 'persons_lc', ${chatId}, ${username}, ${owner?.id ?? null})
+            returning id`;
+          await sql`insert into crm_lead_log (lead_id, text) values (${lead.id}, 'Telegram botda /start bosib ro‘yxatdan o‘tdi')`;
+          await notifyNewLead(lead.id, name, phone).catch((e) => console.error('[crm-bot] notify failed', e));
+        }
         await send(chatId, '✅ Arizangiz qabul qilindi!\nTez orada menejerlarimiz siz bilan bog‘lanadi.', REMOVE_KB);
       }
       await sql`update crm_bot_sessions set step = 'done', updated_at = now() where chat_id = ${chatId}`;

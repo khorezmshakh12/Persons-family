@@ -55,7 +55,7 @@ export async function loadCrmData(branchArg?: string) {
         select l.id, l.name, l.phone, l.section_id, c.name as course, l.note, l.source, l.created_at, l.converted_student_id,
                l.telegram_chat_id, l.telegram_username, l.trial_date, l.trial_time, l.trial_note
         from crm_leads l left join crm_courses c on c.id = l.course_id
-        where (${brAll} or l.branch = ${br})
+        where l.archived_at is null and (${brAll} or l.branch = ${br})
         order by l.created_at desc`,
       sql<Row[]>`select id, name, sort from crm_lead_sections where archived_at is null order by sort`,
       sql<Row[]>`select a.student_id, a.group_id, a.att_date, a.present, a.is_late from crm_attendance a join crm_students s on s.id = a.student_id where (${brAll} or s.branch = ${br})`,
