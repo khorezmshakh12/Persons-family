@@ -205,7 +205,8 @@
       "financist": "Финансист",
       "operations_manager": "Операционный менеджер",
       "sales_manager": "Менеджер отдела продаж",
-      "event_manager": "Ивент-менеджер"
+      "event_manager": "Ивент-менеджер",
+      "office_manager": "Офис-менеджер"
     },
     "status": {
       "active": "Активен",

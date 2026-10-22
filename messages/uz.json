@@ -205,7 +205,8 @@
       "financist": "Moliyachi",
       "operations_manager": "Operatsion menejer",
       "sales_manager": "Sotuv bo'limi menejeri",
-      "event_manager": "Tadbirlar menejeri"
+      "event_manager": "Tadbirlar menejeri",
+      "office_manager": "Ofis menejeri"
     },
     "status": {
       "active": "Faol",
