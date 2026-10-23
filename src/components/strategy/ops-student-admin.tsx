@@ -10,6 +10,9 @@ import type { OpsData } from './operations-workspace';
 import { TRIGGERS, VARS, dmy, errText } from './ops-students-meta';
 import { LogItem } from './ops-students';
 
+const LEAD_SAMPLE = { ism: 'Aziza', kurs: 'IELTS', sinov_sana: '25.11.2026', sinov_vaqt: '16:00' };
+const LEAD_VARS = ['{ism}', '{kurs}', '{sinov_sana}', '{sinov_vaqt}'];
+const LEAD_TRIGGERS: Record<string, string> = { before: 'Avto: sinov darsidan 1 kun oldin', none: 'Faqat qo‘lda' };
 const SAMPLE = {
   ism: 'Aziza Karimova',
   ota_ona: 'Nilufar',
@@ -39,14 +42,15 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
 
 type Draft = { key: string; id: string | null; name: string; body: string; trigger: 'before' | 'due' | 'paid' | 'none' };
 
-/** Ota-onaga xabar shablonlari: add, edit, delete; variables are filled per student when sent. */
-export function TemplatesModal({ data, onClose }: { data: OpsData; onClose: () => void }) {
+/** Xabar shablonlari (o'quvchi yoki lid): add, edit, delete; variables are filled per person when sent. */
+export function TemplatesModal({ data, onClose, audience = 'student' }: { data: OpsData; onClose: () => void; audience?: 'student' | 'lead' }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const triggers: Record<string, string> = TRIGGERS;
-  const vars = VARS;
-  const sample: Record<string, string> = SAMPLE;
-  const [list, setList] = useState<Draft[]>(data.students.templates.map((t) => ({ ...t, key: t.id })));
+  const lead = audience === 'lead';
+  const triggers = lead ? LEAD_TRIGGERS : TRIGGERS;
+  const vars = lead ? LEAD_VARS : VARS;
+  const sample: Record<string, string> = lead ? LEAD_SAMPLE : SAMPLE;
+  const [list, setList] = useState<Draft[]>((lead ? data.sales.templates : data.students.templates).map((t) => ({ ...t, key: t.id })));
   const set = (key: string, patch: Partial<Draft>) => setList((l) => l.map((t) => (t.key === key ? { ...t, ...patch } : t)));
   const insert = (key: string, v: string) => {
     const el = document.getElementById(`tpl-${key}`) as HTMLTextAreaElement | null;
@@ -58,7 +62,7 @@ export function TemplatesModal({ data, onClose }: { data: OpsData; onClose: () =
   };
   const save = () =>
     start(async () => {
-      const r = await saveTemplatesAction({ audience: 'student', list: list.map(({ id, name, body, trigger }) => ({ id, name, body, trigger })) });
+      const r = await saveTemplatesAction({ audience, list: list.map(({ id, name, body, trigger }) => ({ id, name, body, trigger })) });
       if (r.error) {
         playSound('err');
         toast.error(errText(r.error));
@@ -71,10 +75,16 @@ export function TemplatesModal({ data, onClose }: { data: OpsData; onClose: () =
     });
   const canEdit = data.canEdit;
   return (
-    <Modal title="Ota-onaga xabar shablonlari" onClose={onClose} wide>
+    <Modal title={lead ? 'Lidlarga xabar shablonlari' : 'Ota-onaga xabar shablonlari'} onClose={onClose} wide>
       <p className="mb-3 text-sm leading-relaxed text-au-muted">
-        Qavs ichidagi so‘zlar xabar ketayotganda o‘quvchi ma’lumoti bilan almashadi. «Avto» shablonlar o‘z vaqtida o‘zi ketadi: to‘lovdan{' '}
-        {data.students.settings.remindDays} kun oldin, to‘lov kuni va to‘lov qabul qilinganda (chek).
+        {lead ? (
+          <>Qavs ichidagi so‘zlar xabar ketayotganda lid ma’lumoti bilan almashadi. «Avto» shablon sinov darsidan 1 kun oldin Telegrami bor lidga o‘zi ketadi.</>
+        ) : (
+          <>
+            Qavs ichidagi so‘zlar xabar ketayotganda o‘quvchi ma’lumoti bilan almashadi. «Avto» shablonlar o‘z vaqtida o‘zi ketadi: to‘lovdan{' '}
+            {data.students.settings.remindDays} kun oldin, to‘lov kuni va to‘lov qabul qilinganda (chek).
+          </>
+        )}
       </p>
       <div className="flex flex-col gap-3">
         {list.map((t) => (
@@ -139,7 +149,7 @@ export function TemplatesModal({ data, onClose }: { data: OpsData; onClose: () =
           <button
             className="sx-btn"
             onClick={() =>
-              setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: 'Yangi shablon', body: 'Assalomu alaykum, {ota_ona}! {ism} bo‘yicha ', trigger: 'none' }])
+              setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: 'Yangi shablon', body: lead ? 'Assalomu alaykum, {ism}! ' : 'Assalomu alaykum, {ota_ona}! {ism} bo‘yicha ', trigger: 'none' }])
             }
           >
             <Plus className="size-4" /> Yangi shablon
