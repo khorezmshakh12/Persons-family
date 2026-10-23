@@ -14,6 +14,14 @@ export type StudentRow = {
   phone: string;
   parent: string;
   status: 'active' | 'frozen' | 'archived';
+  /**
+   * Faol o'quvchi — automatic, never set by hand: a monthly fee is set, at
+   * least one real payment came in, and not frozen or archived. A student made
+   * from a lead stays «faol emas» until the first payment.
+   */
+  active: boolean;
+  /** Why not faol (only when status is 'active'): no fee yet, or no payment yet. */
+  inactiveWhy: '' | 'nofee' | 'nopay';
   balance: number;
   tg: boolean;
   /** Fee before discount (student's own, else the active enrollments' tariffs). */
@@ -71,7 +79,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
   const today = tashkentDayKey();
   const month = tashkentMonthKey();
   const from = addDaysToKey(today, -245);
-  const [students, charges, payments, attendance, calls, log, templates, settings, reasons, kassa] = await Promise.all([
+  const [students, charges, payments, attendance, calls, log, templates, settings, reasons, kassa, payers] = await Promise.all([
     sql<{
       id: string; name: string; status: StudentRow['status']; balance: number; monthly_fee: number | null; billing_start: string | null;
       discount_pct: number; discount_reason: string | null; installments: number; frozen_until: string | null; archived_at: string | null;
@@ -132,6 +140,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
       from crm_payments y left join profiles p on p.id = y.created_by
       where y.paid_at >= ${`${month}-01`}
       group by 1, 2, 3 order by 4 desc`,
+    sql<{ sid: string }[]>`select distinct student_id as sid from crm_payments where student_id is not null and not is_refund and amount > 0`,
   ]);
 
   const byStudent = <T extends { sid: string }>(rows: readonly T[]) => {
@@ -143,18 +152,23 @@ export async function loadStudentsData(): Promise<StudentsData> {
   const pay = byStudent(payments);
   const att = new Map(attendance.map((a) => [a.sid, a]));
   const call = new Map(calls.map((c) => [c.sid, c]));
+  const paidEver = new Set(payers.map((p) => p.sid));
 
   const rows: StudentRow[] = students.map((s) => {
     const feeBase = s.monthly_fee ?? s.enr_fee;
     const fee = feeAfterDiscount(feeBase, s.discount_pct);
     const pays = pay.get(s.id) ?? [];
     const a = att.get(s.id);
+    const status = s.archived_at ? 'archived' : s.status;
+    const inactiveWhy = status !== 'active' ? '' : fee <= 0 ? 'nofee' : paidEver.has(s.id) ? '' : 'nopay';
     return {
       id: s.id,
       name: s.name,
       phone: s.phone,
       parent: s.parent,
-      status: s.archived_at ? 'archived' : s.status,
+      status,
+      active: status === 'active' && inactiveWhy === '',
+      inactiveWhy,
       balance: s.balance,
       tg: s.tg,
       feeBase,

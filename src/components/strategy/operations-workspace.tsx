@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { KanbanSquare, LayoutDashboard, Users } from 'lucide-react';
+import { BarChart3, Users } from 'lucide-react';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, type PaletteItem } from './suite-shell';
 import type { StudentsData } from '@/lib/ops-students';
-import type { SalesData } from '@/lib/ops-sales';
+import type { OpsStatsData } from '@/lib/ops-stats';
 import { OpsStudents } from './ops-students';
-import { OpsSales } from './ops-sales';
-import { TodayWork } from './ops-today-work';
+import { OpsStats } from './ops-stats';
 import './strategy.css';
 import './suite.css';
 
@@ -17,22 +16,20 @@ export type OpsData = {
   today: { day: string };
   /** O'quvchilar: every CRM student with billing, grade, log, templates and stats. */
   students: StudentsData;
-  /** Sales: the CRM leads as a kanban. */
-  sales: SalesData;
+  /** Statistika: kunlik, haftalik, oylik. */
+  stats: OpsStatsData;
 };
 
-// Operation HQ (2026-10-22): Bugun (today's work), O'quvchilar, Sales.
-type Tab = 'ov' | 'stu' | 'sales';
+// Operation HQ (2026-10-23): Statistika (kunlik · haftalik · oylik) and O'quvchilar.
+type Tab = 'ov' | 'stu';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { v: 'ov', n: 'Bugun', Icon: LayoutDashboard },
+  { v: 'ov', n: 'Statistika', Icon: BarChart3 },
   { v: 'stu', n: 'O‘quvchilar', Icon: Users },
-  { v: 'sales', n: 'Sales', Icon: KanbanSquare },
 ];
 const KEY = 'persons-ops-tab';
 
 export function OperationsWorkspace({ data }: { data: OpsData }) {
   const [tab, setTab] = useState<Tab>('ov');
-  const [openLead, setOpenLead] = useState<string | null>(null);
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current) return;
@@ -48,7 +45,7 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
       localStorage.setItem(KEY, v);
     } catch {}
   };
-  // 1–3 switch tabs.
+  // 1–2 switch tabs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -62,31 +59,24 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  const lead = (id: string) => {
-    setOpenLead(id);
-    go('sales');
-  };
   const items: PaletteItem[] = [
-    ...data.sales.leads.map((l) => ({ g: 'Lidlar', t: l.name || l.phone, sub: l.phone, run: () => lead(l.id) })),
     ...data.students.rows.map((s) => ({ g: 'O‘quvchilar', t: s.name, sub: s.phone, run: () => go('stu') })),
   ];
-  const openLeads = data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length;
   return (
     <SuiteShell section="ops" tabs={TABS} onTab={go} items={items}>
       <div className="px-4 sm:px-7">
         <SectionHead
-          crumb="Operatsiya HQ · o‘quvchilar, to‘lovlar, sotuv"
+          crumb="Operatsiya HQ · o‘quvchilar, to‘lovlar, statistika"
           title="Operatsiya"
           em="HQ"
-          pill={`${data.students.rows.filter((s) => s.status !== 'archived').length} o‘quvchi · ${openLeads} ochiq lid`}
+          pill={`${data.students.rows.filter((s) => s.active).length} faol o‘quvchi`}
         />
         <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">
         <div key={tab} className="sx-fade">
-          {tab === 'ov' && <TodayWork data={data} onTab={go} onLead={lead} />}
+          {tab === 'ov' && <OpsStats data={data} />}
           {tab === 'stu' && <OpsStudents data={data} />}
-          {tab === 'sales' && <OpsSales data={data} openId={openLead} onOpenChange={setOpenLead} />}
         </div>
       </section>
     </SuiteShell>

@@ -65,7 +65,9 @@ export const errText = (e: string) =>
           ? 'Telegram’ga yuborib bo‘lmadi'
           : e === 'notFound'
             ? 'O‘quvchi topilmadi'
-            : "Saqlab bo'lmadi";
+            : e === 'hasPayments'
+              ? 'To‘lovi bor o‘quvchini o‘chirib bo‘lmaydi — arxivlang'
+              : "Saqlab bo'lmadi";
 
 /** A Postgres timestamptz text (any offset) as a Date. */
 export const tsDate = (s: string) => new Date(s.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));

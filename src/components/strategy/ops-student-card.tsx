@@ -9,6 +9,7 @@ import { daysBetween, nextDueDate } from '@/lib/billing';
 import type { StudentRow } from '@/lib/ops-students';
 import {
   archiveStudentAction,
+  deleteStudentAction,
   freezeStudentAction,
   getStudentCardAction,
   logDebtCallAction,
@@ -17,16 +18,17 @@ import {
   recordPaymentAction,
   restoreStudentAction,
   sendStudentMessageAction,
+  updateStudentInfoAction,
   updateStudentTermsAction,
   type StudentCard,
 } from '@/lib/actions/students';
-import { addStudentNoteAction, editStudentNoteAction, getStudentNotesAction, type StudentNote } from '@/lib/actions/sales';
+import { addStudentNoteAction, editStudentNoteAction, getStudentNotesAction, type StudentNote } from '@/lib/actions/student-notes';
 import { playSound, toast } from './suite-shell';
-import { CommentList } from './ops-lead-card';
+import { CommentList } from './ops-comments';
 import type { OpsData } from './operations-workspace';
 import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, som, when } from './ops-students-meta';
 
-type Pane = 'pay' | 'msg' | 'terms' | 'adj' | 'freeze' | 'out' | 'call' | null;
+type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'freeze' | 'out' | 'del' | 'call' | null;
 const KIND_UZ: Record<string, string> = { father: 'ota', mother: 'ona', guardian: 'vasiy', student: 'o‘quvchi', other: 'boshqa' };
 const digits = (v: string) => v.replace(/\D/g, '');
 const grouped = (v: string) => (digits(v) ? formatUZS(Number(digits(v))) : '');
@@ -148,7 +150,12 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
           {canEdit && (
             <div className="flex flex-wrap gap-2">
               {archived ? (
-                <RestoreButton id={s.id} onDone={() => done('Arxivdan qaytarildi')} onFail={fail} />
+                <>
+                  <RestoreButton id={s.id} onDone={() => done('Arxivdan qaytarildi')} onFail={fail} />
+                  <PaneBtn p="del" cur={pane} set={setPane} danger>
+                    🗑 O‘chirish
+                  </PaneBtn>
+                </>
               ) : (
                 <>
                   <PaneBtn p="pay" cur={pane} set={setPane} primary>
@@ -156,6 +163,9 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                   </PaneBtn>
                   <PaneBtn p="msg" cur={pane} set={setPane}>
                     ✉ Xabar yuborish
+                  </PaneBtn>
+                  <PaneBtn p="info" cur={pane} set={setPane}>
+                    ✎ Tahrirlash
                   </PaneBtn>
                   <PaneBtn p="terms" cur={pane} set={setPane}>
                     ✎ Summa, sana, chegirma
@@ -174,6 +184,9 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                   <PaneBtn p="out" cur={pane} set={setPane} danger>
                     Chiqarish
                   </PaneBtn>
+                  <PaneBtn p="del" cur={pane} set={setPane} danger>
+                    🗑 O‘chirish
+                  </PaneBtn>
                 </>
               )}
             </div>
@@ -181,11 +194,25 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
 
           {pane === 'pay' && <PayPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'msg' && <MsgPane s={s} data={data} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
+          {pane === 'info' && card && <InfoPane s={s} card={card} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'terms' && <TermsPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'adj' && <AdjPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'freeze' && <FreezePane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'call' && <CallPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'out' && <OutPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
+          {pane === 'del' && (
+            <DeletePane
+              s={s}
+              onDone={() => {
+                playSound('ok');
+                toast.success('O‘quvchi o‘chirildi');
+                router.refresh();
+                onClose();
+              }}
+              onFail={fail}
+              onCancel={() => setPane(null)}
+            />
+          )}
 
           <CommentList
             items={notes}
@@ -658,6 +685,65 @@ function OutPane({ s, onDone, onFail, onCancel }: PaneProps) {
         <input id="out-n" className="sx-inp" maxLength={500} placeholder="Masalan: 3 haftadan beri darsga kelmayapti" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <Actions pending={pending || !reason} ok={ok} okText="Chiqarish va arxivlash" onCancel={onCancel} danger />
+    </Panel>
+  );
+}
+
+function InfoPane({ s, card, onDone, onFail, onCancel }: { s: StudentRow; card: StudentCard; onDone: (m: string) => void; onFail: (e: string) => void; onCancel: () => void }) {
+  const [pending, start] = useTransition();
+  const own = card.contacts.find((c) => c.kind === 'student');
+  const par = card.contacts.find((c) => c.kind !== 'student');
+  const [name, setName] = useState(s.name);
+  const [phone, setPhone] = useState(own?.phone ?? '');
+  const [parentName, setParentName] = useState(par?.name ?? '');
+  const [parentPhone, setParentPhone] = useState(par?.phone ?? '');
+  const ok = () =>
+    start(async () => {
+      const r = await updateStudentInfoAction({ studentId: s.id, name, phone, parentName, parentPhone });
+      if (r.error) return onFail(r.error);
+      onDone('Saqlandi');
+    });
+  return (
+    <Panel title="O‘quvchini tahrirlash">
+      <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
+        <Field label="Ism familiya">
+          <input id="info-name" className="sx-inp" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Telefon">
+          <input id="info-phone" className="sx-inp" inputMode="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </Field>
+        <Field label="Ota-ona ismi">
+          <input id="info-pname" className="sx-inp" maxLength={120} value={parentName} onChange={(e) => setParentName(e.target.value)} />
+        </Field>
+        <Field label="Ota-ona telefoni">
+          <input id="info-pphone" className="sx-inp" inputMode="tel" maxLength={30} value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} />
+        </Field>
+      </div>
+      <div className="text-xs text-au-faint">Oylik summa va aktiv sana — «Summa, sana, chegirma» bo‘limida. Telegram ulanishi saqlanib qoladi.</div>
+      <Actions pending={pending || name.trim().length < 2} ok={ok} okText="Saqlash" onCancel={onCancel} />
+    </Panel>
+  );
+}
+
+function DeletePane({ s, onDone, onFail, onCancel }: { s: StudentRow; onDone: () => void; onFail: (e: string) => void; onCancel: () => void }) {
+  const [pending, start] = useTransition();
+  const [confirm, setConfirm] = useState('');
+  const ok = () =>
+    start(async () => {
+      const r = await deleteStudentAction(s.id);
+      if (r.error) return onFail(r.error);
+      onDone();
+    });
+  return (
+    <Panel title="O‘quvchini o‘chirish" danger>
+      <div className="text-sm text-au-muted">
+        O‘quvchi, uning kontaktlari, abonementlari, yechimlari va izohlari butunlay o‘chiriladi — qaytarib bo‘lmaydi. To‘lovi bor o‘quvchini o‘chirib bo‘lmaydi (kassa
+        hisobotlari buziladi) — uni «Chiqarish» bilan arxivlang.
+      </div>
+      <Field label="Tasdiqlash uchun ismini yozing">
+        <input id="del-confirm" className="sx-inp" autoComplete="off" placeholder={s.name} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+      </Field>
+      <Actions pending={pending || confirm.trim() !== s.name.trim()} ok={ok} okText="Butunlay o‘chirish" onCancel={onCancel} danger />
     </Panel>
   );
 }

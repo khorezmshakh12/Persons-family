@@ -54,7 +54,7 @@ async function recipients(roles: string[]) {
 
 function dueReport(rows: StudentRow[], today: string, days: number): string | null {
   const target = addDaysToKey(today, days);
-  const due = rows.filter((s) => s.status === 'active' && s.fee > 0 && s.start && nextDueDate(s.start, today) === target).sort((a, b) => a.name.localeCompare(b.name));
+  const due = rows.filter((s) => s.active && s.start && nextDueDate(s.start, today) === target).sort((a, b) => a.name.localeCompare(b.name));
   if (!due.length) return null;
   const total = due.reduce((a, s) => a + s.fee + Math.max(0, -s.balance), 0);
   const noTg = due.filter((s) => !s.tg).length;
@@ -97,7 +97,7 @@ function overdueReport(rows: StudentRow[], today: string, after: number): string
 async function dailyReport(today: string): Promise<string> {
   const d = await loadStudentsData();
   const live = d.rows.filter((s) => s.status !== 'archived');
-  const billed = live.filter((s) => s.status === 'active' && s.fee > 0);
+  const billed = live.filter((s) => s.active);
   const [charged, msgs, calls, left, back] = await Promise.all([
     sql<{ n: number; sum: number }[]>`
       select count(*)::int as n, coalesce(sum(amount), 0) as sum from crm_charges

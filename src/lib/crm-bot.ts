@@ -87,7 +87,7 @@ async function notifyNewLead(leadId: string, name: string, phone: string) {
   await sendTelegramManyAs(
     'report',
     ids,
-    `🆕 <b>Yangi lid — Telegram bot</b>\n${escapeTelegramText(name)} · ${escapeTelegramText(phone)}\n\n15 daqiqa ichida bog‘laning: Operation HQ › Sales › Telegram.`,
+    `🆕 <b>Yangi lid — Telegram bot</b>\n${escapeTelegramText(name)} · ${escapeTelegramText(phone)}\n\n15 daqiqa ichida bog‘laning: CRM of Persons › Lidlar.`,
     { record: false },
   );
 }
@@ -148,6 +148,7 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
     const phone = session.phone ?? '';
     const l9 = last9(phone);
     const username = msg.from?.username ?? null;
+    const greeting = `Hurmatli <b>${escapeTelegramText(name)}</b>, sizni oilamizdan ko‘rib turganimizdan xursandmiz! 🎉\nBu bot orqali sizga markazimiz yangiliklari va xabarlari borib turadi.`;
     try {
       // Telefon mavjud o'quvchi/ota-ona kontaktiga mos kelsa — biriktiramiz.
       const [match] = l9
@@ -162,7 +163,7 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
           where student_id = ${match.student_id} and right(regexp_replace(phone, '[^0-9]', '', 'g'), 9) = ${l9}`;
         await send(
           chatId,
-          `✅ Siz <b>${match.full_name}</b> ning vakili sifatida ulandingiz.\nMarkazdan davomat, to‘lov va e’lonlar shu yerga keladi.`,
+          `${greeting}\n\n✅ Siz <b>${escapeTelegramText(match.full_name)}</b> ning vakili sifatida ulandingiz.\nMarkazdan davomat, to‘lov va e’lonlar shu yerga keladi.`,
           REMOVE_KB,
         );
       } else {
@@ -179,7 +180,7 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
             name = coalesce(nullif(name, ''), ${name}), updated_at = now() where id = ${known.id}`;
           await sql`insert into crm_lead_log (lead_id, text) values (${known.id}, 'Telegram botga ulandi (telefon raqami orqali)')`;
         } else {
-          // section_id = null → Operation HQ › Sales'dagi «Telegram» ustuni (CRM'da «So'rovlar»).
+          // section_id = null → CRM of Persons › Lidlar'dagi «So'rovlar» ustuni.
           const [owner] = await nextOwner();
           const [lead] = await sql<{ id: string }[]>`
             insert into crm_leads (section_id, name, phone, source, status, branch, telegram_chat_id, telegram_username, owner_id)
@@ -188,7 +189,7 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
           await sql`insert into crm_lead_log (lead_id, text) values (${lead.id}, 'Telegram botda /start bosib ro‘yxatdan o‘tdi')`;
           await notifyNewLead(lead.id, name, phone).catch((e) => console.error('[crm-bot] notify failed', e));
         }
-        await send(chatId, '✅ Arizangiz qabul qilindi!\nTez orada menejerlarimiz siz bilan bog‘lanadi.', REMOVE_KB);
+        await send(chatId, `${greeting}\n\n✅ Arizangiz qabul qilindi!\nTez orada menejerlarimiz siz bilan bog‘lanadi.`, REMOVE_KB);
       }
       await sql`update crm_bot_sessions set step = 'done', updated_at = now() where chat_id = ${chatId}`;
     } catch (e) {
