@@ -300,6 +300,87 @@ export async function restoreStudentAction(studentId: string): Promise<Result> {
   return {};
 }
 
+const infoSchema = z.object({
+  studentId: uuid,
+  name: z.string().trim().min(2).max(120),
+  phone: z.string().trim().max(30).default(''),
+  parentName: z.string().trim().max(120).default(''),
+  parentPhone: z.string().trim().max(30).default(''),
+});
+
+/**
+ * Tahrirlash: name, the student's phone and the main parent. Contacts are
+ * updated in place so a parent's Telegram link survives a phone fix.
+ */
+export async function updateStudentInfoAction(input: z.input<typeof infoSchema>): Promise<Result> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  const p = infoSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const done = await sql.begin(async (tx) => {
+      const [old] = await tx<{ name: string }[]>`select full_name as name from crm_students where id = ${v.studentId} for update`;
+      if (!old) return false;
+      const changes: string[] = [];
+      if (old.name !== v.name) {
+        await tx`update crm_students set full_name = ${v.name}, updated_at = now() where id = ${v.studentId}`;
+        changes.push(`ism «${old.name}» → «${v.name}»`);
+      }
+      const [own] = await tx<{ id: string; phone: string | null }[]>`
+        select id, phone from crm_contacts where student_id = ${v.studentId} and kind = 'student' order by is_primary desc, created_at limit 1`;
+      if ((own?.phone ?? '') !== v.phone) {
+        if (own) await tx`update crm_contacts set phone = ${v.phone || null} where id = ${own.id}`;
+        else if (v.phone) await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${v.studentId}, 'student', ${v.phone}, true)`;
+        changes.push(`telefon ${own?.phone || '—'} → ${v.phone || '—'}`);
+      }
+      const [par] = await tx<{ id: string; name: string | null; phone: string | null }[]>`
+        select id, name, phone from crm_contacts where student_id = ${v.studentId} and kind <> 'student' order by is_primary desc, created_at limit 1`;
+      if ((par?.name ?? '') !== v.parentName || (par?.phone ?? '') !== v.parentPhone) {
+        if (par) await tx`update crm_contacts set name = ${v.parentName || null}, phone = ${v.parentPhone || null} where id = ${par.id}`;
+        else if (v.parentName || v.parentPhone)
+          await tx`insert into crm_contacts (student_id, kind, name, phone, is_primary) values (${v.studentId}, 'guardian', ${v.parentName || null}, ${v.parentPhone || null}, true)`;
+        changes.push(`ota-ona ${[par?.name, par?.phone].filter(Boolean).join(' ') || '—'} → ${[v.parentName, v.parentPhone].filter(Boolean).join(' ') || '—'}`);
+      }
+      if (changes.length)
+        await tx`insert into crm_student_log (student_id, kind, text, actor) values (${v.studentId}, 'edit', ${`${v.name} — ${changes.join(', ')}`}, ${me.id})`;
+      return true;
+    });
+    if (!done) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
+/**
+ * O'chirish: removes the student with contacts, enrollments, charges, notes
+ * and messages. A student with any payment is refused (`hasPayments`) — the
+ * cash and finance reports need those rows; archive them instead.
+ */
+export async function deleteStudentAction(studentId: string): Promise<Result> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  if (!uuid.safeParse(studentId).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql.begin(async (tx) => {
+      const [s] = await tx<{ name: string }[]>`select full_name as name from crm_students where id = ${studentId} for update`;
+      if (!s) return 'notFound';
+      const [paid] = await tx`select 1 from crm_payments where student_id = ${studentId} limit 1`;
+      if (paid) return 'hasPayments';
+      await tx`delete from crm_students where id = ${studentId}`;
+      await tx`insert into crm_student_log (student_id, kind, text, actor) values (null, 'archive', ${`${s.name} — butunlay o‘chirildi`}, ${me.id})`;
+      return null;
+    });
+    if (res) return { error: res };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
 // ---------------------------------------------------------------------------
 // Messages and calls
 // ---------------------------------------------------------------------------

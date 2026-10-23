@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Download, Mail, Phone, Search, Settings2 } from 'lucide-react';
+import { AlertTriangle, Download, Mail, Pencil, Phone, Search, Settings2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { daysBetween, nextDueDate } from '@/lib/billing';
@@ -12,9 +12,10 @@ import { CALLS, GRADE, METHODS, dmy, fixFor, som, when } from './ops-students-me
 import { StudentCardDrawer } from './ops-student-card';
 import { BillingSettingsModal, LogModal, TemplatesModal } from './ops-student-admin';
 
-type Filter = 'active' | 'debt' | 'frozen' | 'risk' | 'notg' | 'archive';
+type Filter = 'active' | 'inactive' | 'debt' | 'frozen' | 'risk' | 'notg' | 'archive';
 const FILTERS: [Filter, string][] = [
   ['active', 'Faol'],
+  ['inactive', 'Faol emas'],
   ['debt', 'Qarzdorlar'],
   ['frozen', 'Muzlatilgan'],
   ['risk', 'Ketish xavfi'],
@@ -42,6 +43,9 @@ const LOG_ICON: Record<string, [string, string]> = {
 };
 
 const isLive = (s: StudentRow) => s.status !== 'archived';
+/** Not archived, not frozen, but no monthly fee or no payment yet — so not «faol». */
+const isPending = (s: StudentRow) => s.status === 'active' && !s.active;
+const WHY: Record<string, string> = { nofee: 'Oylik summa biriktirilmagan', nopay: 'Hali to‘lov qilmagan' };
 
 /**
  * Operation HQ › O'quvchilar (2026-10-23): every CRM student — phone, debt (red)
@@ -60,7 +64,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
   const [modal, setModal] = useState<'tpl' | 'settings' | 'log' | null>(null);
 
   const live = d.rows.filter(isLive);
-  const billed = live.filter((s) => s.status === 'active' && s.fee > 0);
+  const billed = live.filter((s) => s.active);
   const debtors = live.filter((s) => s.balance < 0);
   const debt = debtors.reduce((a, s) => a - s.balance, 0);
   const month = d.stats.month;
@@ -76,6 +80,8 @@ export function OpsStudents({ data }: { data: OpsData }) {
       if (filter === 'archive') return !isLive(s);
       if (!isLive(s)) return false;
       if (grade !== 'all' && s.grade.grade !== grade) return false;
+      if (filter === 'active') return s.active;
+      if (filter === 'inactive') return isPending(s);
       if (filter === 'debt') return s.balance < 0;
       if (filter === 'frozen') return s.status === 'frozen';
       if (filter === 'risk') return s.risk;
@@ -142,9 +148,9 @@ export function OpsStudents({ data }: { data: OpsData }) {
       <div className="sx-grid">
         <div className="sx-card sx-stat dark s3">
           <div className="l">Faol o‘quvchilar</div>
-          <div className="v">{live.length}</div>
+          <div className="v">{billed.length}</div>
           <div className="d">
-            {live.filter((s) => s.status === 'frozen').length} muzlatilgan · {d.rows.length - live.length} arxivda
+            {live.filter(isPending).length} faol emas · {live.filter((s) => s.status === 'frozen').length} muzlatilgan · {d.rows.length - live.length} arxivda
           </div>
         </div>
         <div className="sx-card sx-stat s3">
@@ -232,6 +238,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
                     <th className="text-right">Oylik to‘lov</th>
                     <th>Aktiv bo‘lgan sana</th>
                     <th>Keyingi to‘lov</th>
+                    {data.canEdit && <th className="w-[84px]" />}
                   </tr>
                 )}
               </thead>
@@ -250,7 +257,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
                       <td className="text-right">{s.balance < 0 ? <b className="tabular-nums text-au-bad">{formatUZS(-s.balance)}</b> : '—'}</td>
                     </tr>
                   ) : (
-                    <Row key={s.id} s={s} today={today} onOpen={() => openCard(s.id)} />
+                    <Row key={s.id} s={s} today={today} canEdit={data.canEdit} onOpen={(pane) => openCard(s.id, pane)} />
                   ),
                 )}
               </tbody>
@@ -264,7 +271,10 @@ export function OpsStudents({ data }: { data: OpsData }) {
             </button>
           </div>
         )}
-        <div className="mt-2 text-xs text-au-faint">Qatorni bosing — o‘quvchi kartasi: barcha to‘lov va yechimlar, xabarlar, kim nima qilgani.</div>
+        <div className="mt-2 text-xs text-au-faint">
+          Qatorni bosing — o‘quvchi kartasi: barcha to‘lov va yechimlar, xabarlar, kim nima qilgani. Faol o‘quvchi avtomatik: oylik summa biriktirilgan va kamida
+          bitta to‘lov qilgan; muzlatilgan o‘quvchi faol hisoblanmaydi.
+        </div>
       </div>
 
       {/* Qarzdorga qo'ng'iroq */}
@@ -326,12 +336,12 @@ export function LogItem({ l, onOpen }: { l: OpsData['students']['log'][number]; 
   );
 }
 
-function Row({ s, today, onOpen }: { s: StudentRow; today: string; onOpen: () => void }) {
+function Row({ s, today, canEdit, onOpen }: { s: StudentRow; today: string; canEdit: boolean; onOpen: (pane?: string) => void }) {
   const g = GRADE[s.grade.grade];
   const next = s.start && s.status === 'active' ? nextDueDate(s.start, today) : null;
   const left = next ? daysBetween(today, next) : 0;
   return (
-    <tr className="cursor-pointer hover:bg-au-card-2" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+    <tr className="cursor-pointer hover:bg-au-card-2" tabIndex={0} onClick={() => onOpen()} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
       <td>
         <b className="text-au-ink">{s.name}</b>
         <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
@@ -345,7 +355,9 @@ function Row({ s, today, onOpen }: { s: StudentRow; today: string; onOpen: () =>
       </td>
       <td className="whitespace-nowrap tabular-nums text-au-muted">{s.phone || '—'}</td>
       <td className="whitespace-nowrap">
-        {s.balance < 0 ? (
+        {isPending(s) ? (
+          <span className="sx-pl warn">Faol emas · {WHY[s.inactiveWhy]}</span>
+        ) : s.balance < 0 ? (
           <b className="tabular-nums text-au-bad">−{som(-s.balance)}</b>
         ) : s.status === 'frozen' ? (
           <span className="sx-pl info">Muzlatilgan</span>
@@ -399,6 +411,18 @@ function Row({ s, today, onOpen }: { s: StudentRow; today: string; onOpen: () =>
           '—'
         )}
       </td>
+      {canEdit && (
+        <td onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-end gap-1.5">
+            <button className="sx-btn sm" title="Tahrirlash" aria-label="Tahrirlash" onClick={() => onOpen('info')}>
+              <Pencil className="size-3.5" />
+            </button>
+            <button className="sx-btn sm" title="O‘chirish" aria-label="O‘chirish" onClick={() => onOpen('del')}>
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
+        </td>
+      )}
     </tr>
   );
 }
@@ -425,7 +449,7 @@ function Bars({ items, tone }: { items: { k: string; v: number; label: string; h
 function Stats({ data }: { data: OpsData }) {
   const d = data.students;
   const live = d.rows.filter(isLive);
-  const billed = live.filter((s) => s.status === 'active' && s.fee > 0);
+  const billed = live.filter((s) => s.active);
   const expected = billed.reduce((a, s) => a + s.fee, 0);
   const paid = billed.filter((s) => s.paidThisMonth).length;
   const pct = expected ? Math.min(100, Math.round((d.stats.collected / expected) * 100)) : 0;
