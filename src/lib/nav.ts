@@ -102,7 +102,6 @@ const NAV_SORT: NavItem['key'][] = [
   'attendance',
   'lessonPlans',
   'operations',
-  'sales',
   'materials',
   'crmPersons',
   'strategy',
@@ -140,7 +139,6 @@ export const NAV_ITEMS: NavItem[] = [
   // SECTION_ROLES, the CEO's per-person ACL in Core can narrow them — passed
   // in as `coreViews`, see coreViews() in lib/core-state.ts. (Inbox removed
   // by the owner 2026-10-05; /inbox now redirects to the Dashboard.)
-  { key: 'sales', href: '/sales' },
   { key: 'hr', href: '/hr', core: 'hr' },
   { key: 'report', href: '/report' },
   { key: 'platform', href: '/platform', core: 'settings' },

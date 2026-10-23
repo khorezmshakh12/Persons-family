@@ -78,8 +78,9 @@ test('the sidebar shows exactly the sections a role may open', () => {
   for (const role of ROLES) {
     const keys = navItemsForRole(role, { materialsLinked: true, coreViews }).map((i) => i.key).sort();
     // Telegram is a Platform tab (v8-B): listed on its own only for roles
-    // that can't open Platform.
-    const expected = ALL_SECTIONS.filter((s) => canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
+    // that can't open Platform. The Sales page was removed (2026-10-23);
+    // its section key still gates lead access, but has no nav entry.
+    const expected = ALL_SECTIONS.filter((s) => s !== 'sales' && canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
     assert.deepEqual(keys, expected, role);
   }
 });
