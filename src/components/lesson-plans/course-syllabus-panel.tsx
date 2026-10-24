@@ -9,22 +9,20 @@ export type SyllabusRow = { pos: number | null; type: string; topic: string | nu
 const TYPE_LABEL: Record<string, string> = {
   lesson: 'Dars',
   progress_test: 'Progress test',
-  midterm: 'Oraliq imtihon',
-  month_test: 'Oylik test',
-  final_test: 'Yakuniy test',
+  midterm: 'Middle Exam',
+  final_test: 'Level Up Exam',
 };
 const TYPE_CLS: Record<string, string> = {
   lesson: 'border-au-line text-au-muted',
   progress_test: 'border-au-accent/40 text-au-accent-text bg-au-accent-soft',
   midterm: 'border-indigo-400/50 text-indigo-700 bg-indigo-50 dark:text-indigo-300 dark:bg-indigo-500/10',
-  month_test: 'border-amber-400/50 text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10',
   final_test: 'border-au-bad/40 text-au-bad bg-au-bad/5',
 };
 
-/** Kurs rejasi (3 oy · 36 dars) — standart shablon: oraliq imtihon 18,
- * progress test 7/13/19/25/31, oylik test 12/24, yakuniy 36. Guruh sahifasi
- * ochilganda avtomatik to'ldiriladi; ustoz o'zgartira oladi. CSV («dars#,mavzu»)
- * orqali mavzu yuklanadi. */
+/** Kurs rejasi (3 oy · 36 dars) — shablon lib/syllabus-template.ts'da:
+ * progress test 7/14/25/32, Middle Exam 18, Level Up Exam 36, qolgan 30 tasi
+ * grammar dars. Imtihon kunlari Materials'dan avtomatik to'ldiriladi, grammar
+ * darslarni ustoz yozadi. CSV («dars#,mavzu») orqali mavzu yuklanadi. */
 export function CourseSyllabusPanel({ groupId, canManage, rows }: { groupId: string; canManage: boolean; rows: SyllabusRow[] }) {
   const [csv, setCsv] = useState('');
   const [msg, setMsg] = useState('');
@@ -48,7 +46,7 @@ export function CourseSyllabusPanel({ groupId, canManage, rows }: { groupId: str
     <div className="flex flex-col gap-3 rounded-au-card border border-au-line bg-au-card p-5">
       <div>
         <h3 className="text-base font-bold text-au-ink">Kurs rejasi · 3 oy · 36 dars</h3>
-        <p className="text-sm text-au-muted">Oraliq imtihon 18 · progress test 7/13/19/25/31 · oylik test 12/24 · yakuniy 36. Guruh ochilganda avtomatik to‘ldiriladi, ustoz o‘zgartira oladi.</p>
+        <p className="text-sm text-au-muted">30 ta grammar dars · progress test 7/14/25/32 · Middle Exam 18 · Level Up Exam 36. Imtihon kunlari Materials’dagi imtihon bilan avtomatik to‘ldiriladi, qolgan darslarni ustoz yozadi.</p>
       </div>
 
       {canManage && (

@@ -3,12 +3,14 @@ import { Link } from '@/i18n/navigation';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD, GLASS_INTERACTIVE } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { courseLevel } from '@/lib/course-levels';
 
 export type GroupCardData = {
   id: string;
   name: string;
   course_name: string | null;
   schedule_type: 'odd' | 'even' | null;
+  level: string | null;
   teacher: { first_name: string; last_name: string } | null;
 };
 
@@ -42,7 +44,10 @@ export async function GroupCard({
         )}
       </div>
       <div className="flex flex-col gap-1 text-sm text-au-muted">
-        <span>{group.course_name || t('noCourseName')}</span>
+        <span>
+          {courseLevel(group.level)?.label ?? t('levelNotSet')}
+          {group.course_name ? ` · ${group.course_name}` : ''}
+        </span>
         <span className="text-xs text-au-muted">
           {group.teacher ? `${group.teacher.first_name} ${group.teacher.last_name}` : '—'}
         </span>
