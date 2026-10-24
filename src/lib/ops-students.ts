@@ -15,13 +15,15 @@ export type StudentRow = {
   parent: string;
   status: 'active' | 'frozen' | 'archived';
   /**
-   * Faol o'quvchi — automatic, never set by hand: a monthly fee is set, at
-   * least one real payment came in, and not frozen or archived. A student made
-   * from a lead stays «faol emas» until the first payment.
+   * Faol o'quvchi: a monthly fee is set, at least one real payment came in
+   * (or the student was marked as paid in another CRM), and not frozen or
+   * archived. A student made from a lead stays «faol emas» until the first payment.
    */
   active: boolean;
   /** Why not faol (only when status is 'active'): no fee yet, or no payment yet. */
   inactiveWhy: '' | 'nofee' | 'nopay';
+  /** Qo'lda faol: paid in another CRM, no payment recorded here. */
+  paidElsewhere: { source: string; at: string; by: string } | null;
   balance: number;
   tg: boolean;
   /** Fee before discount (student's own, else the active enrollments' tariffs). */
@@ -85,6 +87,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
       discount_pct: number; discount_reason: string | null; installments: number; frozen_until: string | null; archived_at: string | null;
       leave_reason: string | null; leave_note: string | null; archived_by: string; phone: string; parent: string; tg: boolean;
       enr_fee: number; enr_start: string | null;
+      pe_at: string | null; pe_source: string | null; pe_by: string;
     }[]>`
       select s.id, s.full_name as name, s.status, s.balance, s.monthly_fee, s.billing_start::text as billing_start,
         s.discount_pct, s.discount_reason, s.installments, s.frozen_until::text as frozen_until,
@@ -96,9 +99,12 @@ export async function loadStudentsData(): Promise<StudentsData> {
           from crm_contacts c where c.student_id = s.id and c.kind <> 'student'
           order by c.is_primary desc, c.created_at limit 1), '') as parent,
         exists (select 1 from crm_contacts c where c.student_id = s.id and c.telegram_chat_id is not null) as tg,
-        coalesce(en.fee, 0) as enr_fee, en.start as enr_start
+        coalesce(en.fee, 0) as enr_fee, en.start as enr_start,
+        to_char(s.paid_elsewhere_at at time zone 'Asia/Tashkent', 'YYYY-MM-DD') as pe_at, s.paid_elsewhere_source as pe_source,
+        coalesce(pb.first_name || ' ' || pb.last_name, '') as pe_by
       from crm_students s
       left join profiles p on p.id = s.archived_by
+      left join profiles pb on pb.id = s.paid_elsewhere_by
       left join lateral (
         select sum(e.tariff_amount) as fee, min(e.activation_date)::text as start
         from crm_enrollments e where e.student_id = s.id and e.status = 'active'
@@ -160,7 +166,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
     const pays = pay.get(s.id) ?? [];
     const a = att.get(s.id);
     const status = s.archived_at ? 'archived' : s.status;
-    const inactiveWhy = status !== 'active' ? '' : fee <= 0 ? 'nofee' : paidEver.has(s.id) ? '' : 'nopay';
+    const inactiveWhy = status !== 'active' ? '' : fee <= 0 ? 'nofee' : paidEver.has(s.id) || s.pe_at ? '' : 'nopay';
     return {
       id: s.id,
       name: s.name,
@@ -169,6 +175,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
       status,
       active: status === 'active' && inactiveWhy === '',
       inactiveWhy,
+      paidElsewhere: s.pe_at ? { source: s.pe_source ?? '', at: s.pe_at, by: s.pe_by } : null,
       balance: s.balance,
       tg: s.tg,
       feeBase,

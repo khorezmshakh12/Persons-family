@@ -219,6 +219,72 @@ export async function updateStudentTermsAction(input: z.input<typeof termsSchema
   return {};
 }
 
+const paidElsewhereSchema = z.object({
+  studentIds: z.array(uuid).min(1).max(500),
+  source: z.string().trim().min(1).max(60),
+  note: z.string().trim().max(300).default(''),
+  /** Oylik summa for the students that have none yet; required when any of them has none. */
+  fee: money.nullable().default(null),
+});
+
+/**
+ * Qo'lda faol: the students paid in another CRM, so they count as having paid
+ * (faol) without a payment here — nothing goes to the kassa or the balance.
+ */
+export async function markPaidElsewhereAction(input: z.input<typeof paidElsewhereSchema>): Promise<Result & { done?: number }> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  const p = paidElsewhereSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  const tail = `qo‘lda faol qilindi (${v.source}${v.note ? `, ${v.note}` : ''})`;
+  try {
+    const list = await sql<{ id: string; name: string; fee: number }[]>`
+      select s.id, s.full_name as name,
+        coalesce(s.monthly_fee, (select sum(e.tariff_amount) from crm_enrollments e where e.student_id = s.id and e.status = 'active'), 0) as fee
+      from crm_students s
+      where s.id = any(${v.studentIds}) and s.archived_at is null and s.status = 'active' and s.paid_elsewhere_at is null`;
+    if (!list.length) return { error: 'notFound' };
+    if (!v.fee && list.some((s) => s.fee <= 0)) return { error: 'feeRequired' };
+    await sql.begin(async (tx) => {
+      for (const s of list) {
+        const setFee = s.fee <= 0 && v.fee ? v.fee : null;
+        await tx`
+          update crm_students set paid_elsewhere_at = now(), paid_elsewhere_source = ${v.source}, paid_elsewhere_by = ${me.id},
+            monthly_fee = coalesce(${setFee}::bigint, monthly_fee), updated_at = now()
+          where id = ${s.id}`;
+        await tx`insert into crm_student_log (student_id, kind, text, actor)
+          values (${s.id}, 'edit', ${`${s.name} — ${tail}${setFee ? `, oylik ${formatUZS(setFee)}` : ''}`}, ${me.id})`;
+      }
+    });
+    refresh();
+    return { done: list.length };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+}
+
+export async function unmarkPaidElsewhereAction(studentId: string): Promise<Result> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  if (!uuid.safeParse(studentId).success) return { error: 'invalidInput' };
+  try {
+    const name = await nameOf(studentId);
+    if (!name) return { error: 'notFound' };
+    await sql.begin(async (tx) => {
+      const res = await tx`
+        update crm_students set paid_elsewhere_at = null, paid_elsewhere_source = null, paid_elsewhere_by = null, updated_at = now()
+        where id = ${studentId} and paid_elsewhere_at is not null`;
+      if (res.count === 0) throw new Error('notFound');
+      await tx`insert into crm_student_log (student_id, kind, text, actor) values (${studentId}, 'edit', ${`${name} — qo‘lda faollik bekor qilindi`}, ${me.id})`;
+    });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
 const freezeSchema = z.object({ studentId: uuid, until: dayKey.nullable() });
 
 /** Muzlatish until a date (no charges meanwhile); `until: null` unfreezes now. */
