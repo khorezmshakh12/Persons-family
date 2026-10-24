@@ -4,7 +4,16 @@ import { CircleAlert, GraduationCap, ListTodo, Map, Star, SquareCheckBig, Target
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { NewsSliderView } from '@/components/dashboard/news-slider';
+import { DashboardChecklist } from '@/components/checklist/dashboard-checklist';
+import { DashboardProgress } from '@/components/checklist/progress-board';
+import { loadChecklist } from '@/lib/checklist-data';
+import { loadProgressBoard } from '@/lib/progress-board-data';
+import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
+import { GoalsCard } from '@/components/dashboard/goals-card';
+import { StudentRemindersCard, type StudentReminder } from '@/components/dashboard/student-reminders-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
+import { tashkentDayKey, tashkentYmd, tashkentMonthKey } from '@/lib/time';
+import { Link } from '@/i18n/navigation';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
@@ -261,6 +270,87 @@ async function MonthTop3Section({ viewerId }: { viewerId: string }) {
   return top ? <MonthTop3 stacked month={top.month} people={top.people} viewerId={viewerId} /> : null;
 }
 
+async function GoalsSection({ userId }: { userId: string }) {
+  const dayK = tashkentDayKey();
+  const monthK = tashkentMonthKey();
+  const d = new Date(`${dayK}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); // dushanba
+  const weekK = d.toISOString().slice(0, 10);
+  // An unfinished goal never disappears: it carries over until it is done.
+  const rows = await sql<{ id: string; scope: 'day' | 'week' | 'month'; title: string; done: boolean; carried: string | null }[]>`
+    select id, scope, title, done,
+      case when period_key <> case scope when 'day' then ${dayK} when 'week' then ${weekK} else ${monthK} end then period_key end as carried
+    from goals
+    where user_id = ${userId} and (
+      (scope = 'day' and (period_key = ${dayK} or (not done and period_key < ${dayK}))) or
+      (scope = 'week' and (period_key = ${weekK} or (not done and period_key < ${weekK}))) or
+      (scope = 'month' and (period_key = ${monthK} or (not done and period_key < ${monthK}))))
+    order by created_at
+  `.catch(() => []);
+  return <GoalsCard periodKeys={{ day: dayK, week: weekK, month: monthK }} goals={rows} />;
+}
+
+// Rol bo'yicha kunlik checklist (checklist_templates). Ustozlarda bugun dars
+// bo'lmasa — ko'rsatilmaydi (lesson-plan bilan integratsiya).
+async function RoleChecklistSection({ userId, role }: { userId: string; role: string }) {
+  const gateTeacher = isTeacherRole(role);
+  const [data, lessonToday] = await Promise.all([
+    loadChecklist(userId, role),
+    gateTeacher ? teacherHasLessonOn(userId, tashkentDayKey()) : Promise.resolve(true),
+  ]);
+  const noLessonToday = gateTeacher && !lessonToday;
+  const items = data.daily.map((r) => ({ id: r.id, title: r.title, done: r.done }));
+  const doneCount = items.filter((i) => i.done).length;
+  return (
+    <DashboardChecklist
+      items={noLessonToday ? [] : items}
+      total={noLessonToday ? 0 : items.length}
+      doneCount={noLessonToday ? 0 : doneCount}
+      noLessonToday={noLessonToday}
+      href="/task-tracker"
+    />
+  );
+}
+
+// Checklist + maqsadlar statistikasi (eski Task Tracker uslubida) — dashboard
+// oxirida, to'liq kenglikda. To'liq jadval /task-tracker bo'limida.
+async function ProgressSection({ userId, role }: { userId: string; role: string }) {
+  const data = await loadProgressBoard(userId, role);
+  return <DashboardProgress data={data} />;
+}
+
+async function BpointReminderSection({ userId }: { userId: string }) {
+  const yr = tashkentYmd().year;
+  const rows = await sql<{ amount: number }[]>`select amount from staff_bpoint where user_id = ${userId} and year = ${yr}`.catch(() => []);
+  if (rows[0] && rows[0].amount > 0) return null; // belgilangan — eslatma kerak emas
+  return (
+    <Link
+      href={`/finance/${userId}`}
+      className={cn(SURFACE_CARD, 'flex items-center gap-3 p-4 transition-colors hover:bg-au-card-2')}
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-au-accent-soft text-au-accent-text">
+        <Target className="size-4" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-sm font-bold text-au-ink">B-nuqtangizni belgilang</span>
+        <span className="text-xs text-au-muted">{yr}-yil maosh maqsadingizni kiriting →</span>
+      </span>
+    </Link>
+  );
+}
+
+// O'quvchi izohidan eslatmalar: the viewer's own reminders due today or earlier, until read.
+async function StudentRemindersSection({ userId }: { userId: string }) {
+  const today = tashkentDayKey();
+  const rows = await sql<Omit<StudentReminder, 'overdue'>[]>`
+    select n.id, s.full_name as "studentName", n.body, n.remind_at::text as "remindAt"
+    from crm_student_notes n join crm_students s on s.id = n.student_id
+    where n.created_by = ${userId} and n.remind_at is not null and n.remind_at <= ${today} and n.remind_done_at is null
+    order by n.remind_at limit 20
+  `.catch(() => []);
+  return <StudentRemindersCard items={rows.map((r) => ({ ...r, overdue: r.remindAt < today }))} />;
+}
+
 async function NewsSliderSection() {
   const [t, format] = await Promise.all([getTranslations('dashboard'), getFormatter()]);
   const news = await sql<{ id: string; title: string; content: string; created_at: string }[]>`
@@ -294,6 +384,7 @@ async function ActivitySection({ viewer }: { viewer: Viewer }) {
 // blocking on the slowest of several independent database queries.
 export default async function DashboardPage() {
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   const isCeo = can(profile!.role, 'company.overview');
 
   const viewer: Viewer = { userId: user!.id, role: profile!.role as StaffRole };
@@ -305,6 +396,9 @@ export default async function DashboardPage() {
         <div className="flex min-w-0 flex-col gap-[18px] xl:col-span-8">
           <Reveal fallback={<HeroAndKpiSkeleton />}>
             <HeroAndKpis viewer={viewer} firstName={profile!.first_name} />
+          </Reveal>
+          <Reveal fallback={null}>
+            <StudentRemindersSection userId={user!.id} />
           </Reveal>
           {/* Replaces the KPI / self-development reminder banners: every
               deadline and approval queue in one actionable list. */}
@@ -336,6 +430,15 @@ export default async function DashboardPage() {
             under this month's leaderboard, news under the star rating
             (owner, 2026-10-04 / 10-06). */}
         <aside className="grid min-w-0 grid-cols-1 gap-[18px] lg:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
+          <Reveal fallback={null}>
+            <BpointReminderSection userId={user!.id} />
+          </Reveal>
+          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
+            <RoleChecklistSection userId={user!.id} role={viewer.role} />
+          </Reveal>
+          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
+            <GoalsSection userId={user!.id} />
+          </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
             <LeaderboardSection userId={user!.id} compact={!isCeo} />
           </Reveal>
@@ -352,6 +455,11 @@ export default async function DashboardPage() {
           everyone else their own scores. */}
       <Reveal fallback={<GlassCardSkeleton />}>
         {isCeo ? <TeacherProgressChartSection delayMs={0} /> : <TeacherSelfDevelopmentCard userId={user!.id} delayMs={180} />}
+      </Reveal>
+
+      {/* Checklist va maqsadlar statistikasi — eng pastda (owner, 2026-10-21). */}
+      <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
+        <ProgressSection userId={user!.id} role={viewer.role} />
       </Reveal>
     </div>
   );

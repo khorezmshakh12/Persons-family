@@ -261,7 +261,7 @@ function NetCard({ M, prev, H }: { M: Row; prev: Row; H: Row[] }) {
   const d = M.npm !== null && prev.npm !== null ? M.npm - prev.npm : null;
   return (
     <div className={`sx-card sx-stat dark s5 fn-np ${M.NP < 0 ? 'neg' : ''}`}>
-      <MH n={2} t="Sof biznes foydasi" en="Operating margin" fx="((Yalpi foyda − Marketing − Ma'muriy − Boshqa operatsion) / Tushum) × 100" />
+      <MH n={2} t="Sof biznes foydasi" en="Net profit margin" fx="((Yalpi foyda − Marketing − Ma'muriy − Boshqa operatsion − Soliq) / Tushum) × 100" />
       <div className="fn-npmain">
         <div className="v">{pc(M.npm)}</div>
         <div>
@@ -622,6 +622,30 @@ export function AnalyticsView({ books, fin, today }: { books: BooksLite; fin: Fi
   const avgU = avg(H.map((h) => h.util));
   const avgCac = avg(H.map((h) => h.cac));
   const lossMonths = H.filter((h) => h.R || h.fixed || h.D).filter((h) => h.NP < 0).length;
+  // Prognoz: trailing seriyaga chiziqli trend (eng kichik kvadratlar) — kelgusi
+  // 3 oyni proyeksiya qiladi. BI hozirgacha faqat orqaga qarardi.
+  const nextYm = (ym: string, k: number) => {
+    let [yy, mm] = ym.split('-').map(Number);
+    mm += k;
+    yy += Math.floor((mm - 1) / 12);
+    mm = ((mm - 1) % 12) + 1;
+    return `${yy}-${String(mm).padStart(2, '0')}`;
+  };
+  const projNext = (vals: number[], k: number) => {
+    const ys = vals.filter((v) => Number.isFinite(v));
+    const nn = ys.length;
+    if (nn < 2) return [] as number[];
+    let sxp = 0, syp = 0, sxx = 0, sxy = 0;
+    ys.forEach((yv, i) => { sxp += i; syp += yv; sxx += i * i; sxy += i * yv; });
+    const b = (nn * sxy - sxp * syp) / (nn * sxx - sxp * sxp || 1);
+    const a = (syp - b * sxp) / nn;
+    return Array.from({ length: k }, (_, j) => Math.round(a + b * (nn + j)));
+  };
+  const fcNetV = projNext(H.map((h) => h.net), 3);
+  const fcRevV = projNext(H.map((h) => h.R), 3);
+  const fcLabels = [1, 2, 3].map((k) => mon3(nextYm(cur.ym, k)));
+  const connect = (vals: number[], fc: number[]) => [...vals.map((v, i) => (i === vals.length - 1 ? v : NaN)), ...fc];
+  const fcTotalNet = fcNetV.reduce((a, b) => a + b, 0);
   const dl = (a: number | null, b: number | null, inv = false, u = 'p.p.') => {
     if (a === null || b === null) return <span className="text-au-faint">o‘tgan oy: —</span>;
     const d = a - b;
@@ -763,6 +787,30 @@ export function AnalyticsView({ books, fin, today }: { books: BooksLite; fin: Fi
           ]}
         />
       </div>
+      {fcNetV.length === 3 && (
+        <div className="sx-card s12">
+          <div className="sx-h">
+            <h3>Prognoz · kelgusi 3 oy</h3>
+            <small>trend bo‘yicha · uzuq chiziq = proyeksiya</small>
+          </div>
+          <div className="fn-trc">
+            <b>{fmtMln(fcTotalNet)}</b>
+            <span className={fcTotalNet >= 0 ? 'pos' : 'neg'}>
+              {fcLabels[0]}–{fcLabels[2]} kutilayotgan sof foyda
+            </span>
+          </div>
+          <Chart
+            labels={[...labels, ...fcLabels]}
+            fmt={fmtMln}
+            series={[
+              { n: 'Tushum', c: '#ff9f1c', v: [...H.map((m) => m.R), NaN, NaN, NaN], kind: 'line' },
+              { n: 'Tushum (prognoz)', c: '#ff9f1c', v: connect(H.map((m) => m.R), fcRevV), kind: 'line', dash: true },
+              { n: 'Sof foyda', c: '#139a52', v: [...H.map((m) => m.net), NaN, NaN, NaN], kind: 'line' },
+              { n: 'Sof foyda (prognoz)', c: '#139a52', v: connect(H.map((m) => m.net), fcNetV), kind: 'line', dash: true },
+            ]}
+          />
+        </div>
+      )}
       <div className="sx-card s12">
         <MH t="Oylik moliyaviy jadval" en="mln so‘m · rang — sof marja" />
         <div className="overflow-x-auto">

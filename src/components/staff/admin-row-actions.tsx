@@ -3,8 +3,8 @@
 import { useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Crown, Loader2, Power, Trash2 } from 'lucide-react';
-import { deleteAdminAction, toggleAdminActiveAction, transferCeoRoleAction } from '@/lib/actions/admin-management';
+import { Loader2, Power, Trash2 } from 'lucide-react';
+import { deleteAdminAction, toggleAdminActiveAction } from '@/lib/actions/admin-management';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -31,7 +31,6 @@ export function AdminRowActions({
   const tCommon = useTranslations('common');
   const [isTogglePending, startToggleTransition] = useTransition();
   const [isDeletePending, startDeleteTransition] = useTransition();
-  const [isTransferPending, startTransferTransition] = useTransition();
 
   function idFormData() {
     const formData = new FormData();
@@ -51,13 +50,6 @@ export function AdminRowActions({
       const result = await deleteAdminAction(undefined, idFormData());
       if (result?.error) toast.error(t(`adminManagement.errors.${result.error}`));
       else if (result?.archived) toast.info(t('deletedArchived'));
-    });
-  }
-
-  function handleTransfer() {
-    startTransferTransition(async () => {
-      const result = await transferCeoRoleAction(undefined, idFormData());
-      if (result?.error) toast.error(t(`adminManagement.errors.${result.error}`));
     });
   }
 
@@ -105,41 +97,6 @@ export function AdminRowActions({
               className="bg-red-600 hover:bg-red-700"
             >
               {isDeletePending ? tCommon('loading') : t('adminManagement.confirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog>
-        <AlertDialogTrigger
-          render={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-amber-400/30 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
-            />
-          }
-        >
-          <Crown className="size-4" />
-          {t('adminManagement.transferCeo')}
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('adminManagement.confirmTransferTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('adminManagement.confirmTransferDescription', { name: adminName })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              type="button"
-              disabled={isTransferPending}
-              onClick={handleTransfer}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              {isTransferPending ? tCommon('loading') : t('adminManagement.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

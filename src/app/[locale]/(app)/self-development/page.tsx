@@ -55,6 +55,7 @@ export default async function SelfDevelopmentPage({
   const tp = await getTranslations('performance');
   const { teacher } = await searchParams;
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
   const isCeo = can(profile!.role, 'selfDev.review');
   const isAdmin = isCeo;
 

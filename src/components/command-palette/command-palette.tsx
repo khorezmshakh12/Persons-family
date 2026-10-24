@@ -202,9 +202,14 @@ export function CommandPalette({ pages = [], actions = [] }: { pages?: { href: s
       loop
       value={selected}
       onValueChange={setSelected}
-      className="fixed top-[15vh] left-1/2 z-100 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 animate-in zoom-in-95 duration-150 motion-reduce:animate-none"
-      overlayClassName="fixed inset-0 z-100 bg-black/50 animate-in fade-in-0"
-      contentClassName="overflow-hidden rounded-au-card border border-au-line bg-au-card text-au-ink shadow-au-card"
+      // cmdk puts `contentClassName` on the dialog panel and `className` on the
+      // Command inside it. Positioning must live on the panel: when it sat on
+      // the inner Command, that element went `fixed` out of the panel, the
+      // panel collapsed to nothing, and the results floated over the page
+      // with no surface behind them.
+      className="flex flex-col"
+      overlayClassName="fixed inset-0 z-100 bg-black/50 animate-in fade-in-0 motion-reduce:animate-none"
+      contentClassName="fixed top-[15vh] left-1/2 z-101 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-au-card border border-au-line bg-au-card text-au-ink shadow-au-card animate-in zoom-in-95 duration-150 focus:outline-none motion-reduce:animate-none"
     >
       <div className="flex items-center gap-3 border-b border-au-line px-4 py-3">
         {isPending ? (

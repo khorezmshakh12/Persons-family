@@ -11,16 +11,16 @@ export type DmRequestStatus = 'pending' | 'accepted';
 export async function startDmConversation(
   me: string,
   otherUserId: string,
+  /** The caller's ACTIVE role (getAuthState's profile.role) — the stored
+   * one misses a switched-to CEO position. */
+  myRole: string,
 ): Promise<{ id: string; requestStatus: DmRequestStatus }> {
   if (me === otherUserId) throw new Error('Cannot start a conversation with yourself');
 
-  const [[myProfile], [otherProfile]] = await Promise.all([
-    sql<{ role: string }[]>`select role from profiles where id = ${me}`,
-    sql<{ role: string }[]>`select role from profiles where id = ${otherUserId}`,
-  ]);
+  const [otherProfile] = await sql<{ role: string }[]>`select role from profiles where id = ${otherUserId}`;
   if (!otherProfile) throw new Error('Recipient not found');
 
-  const bypass = can(myProfile?.role, 'chat.moderate') || can(otherProfile.role, 'chat.moderate');
+  const bypass = can(myRole, 'chat.moderate') || can(otherProfile.role, 'chat.moderate');
   const [p1, p2] = [me, otherUserId].sort();
 
   return sql.begin(async (tx) => {

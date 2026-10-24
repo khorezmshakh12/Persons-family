@@ -80,7 +80,7 @@ async function handle(req: NextRequest): Promise<Response> {
     .filter((n) => Number.isFinite(n) && n !== 0);
 
   const [ceoProfiles, groupChats] = await Promise.all([
-    sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where role = 'ceo'`,
+    sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where (role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo'))`,
     pinnedChatIds.length > 0
       ? Promise.resolve(pinnedChatIds.map((chat_id) => ({ chat_id })))
       : sql<{ chat_id: number }[]>`select chat_id from telegram_group_chats`,

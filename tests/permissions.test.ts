@@ -14,7 +14,9 @@ import {
   ROLES,
   SECTION_ROLES,
   can,
+  canFor,
   canSee,
+  canSeeFor,
   type Role,
   type SectionKey,
 } from '../src/lib/permissions';
@@ -37,18 +39,20 @@ const EXPECTED: Record<Role, SectionKey[]> = {
   // Owner, 2026-09-30: Market closed to all but CEO / COO / IT Developer;
   // monthly report removed; Strategy = CEO, COO, PM; Accounting = CEO only;
   // Platform settings = CEO, COO. Reports (Hisobotlar) reopened for CEO + COO
-  // as a native page (owner, 2026-10-09).
-  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'platform', 'telegramSetup', 'market', 'report'],
-  coo: ['sales', 'staff', 'strategy', 'operations', 'perforce', 'platform', 'telegramSetup', 'market', 'report'],
+  // as a native page (owner, 2026-10-09). Attendance (Davomat) = CEO, COO,
+  // Admin Manager (owner, 2026-10-14).
+  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance', 'crmPersons'],
+  coo: ['sales', 'staff', 'strategy', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance', 'crmPersons'],
   commercial_director: ['sales', 'operations'],
   academic_director: ['lessonPlans', 'operations'],
   financist: ['sales'],
-  operations_manager: ['operations', 'perforce'],
-  admin_manager: ['staff', 'operations'],
+  operations_manager: ['operations'],
+  admin_manager: ['staff', 'operations', 'attendance'],
+  office_manager: ['operations'],
   sales_manager: ['sales', 'operations'],
   event_manager: ['operations'],
-  project_manager: ['strategy', 'operations', 'perforce'],
-  it_developer: ['staff', 'operations', 'perforce', 'telegramSetup', 'market'],
+  project_manager: ['strategy', 'operations'],
+  it_developer: ['staff', 'operations', 'telegramSetup', 'market'],
   head_teacher: ['lessonPlans'],
   teacher: ['lessonPlans'],
   assistant: ['lessonPlans'],
@@ -74,10 +78,20 @@ test('the sidebar shows exactly the sections a role may open', () => {
   for (const role of ROLES) {
     const keys = navItemsForRole(role, { materialsLinked: true, coreViews }).map((i) => i.key).sort();
     // Telegram is a Platform tab (v8-B): listed on its own only for roles
-    // that can't open Platform.
-    const expected = ALL_SECTIONS.filter((s) => canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
+    // that can't open Platform. The Sales page was removed (2026-10-23);
+    // its section key still gates lead access, but has no nav entry.
+    const expected = ALL_SECTIONS.filter((s) => s !== 'sales' && canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
     assert.deepEqual(keys, expected, role);
   }
+});
+
+test('working as CEO ignores per-person closes set for another position', () => {
+  const closed = { section_overrides: { finance: false, strategy: false, accounting: false } };
+  for (const s of ['finance', 'strategy', 'accounting'] as SectionKey[]) {
+    assert.equal(canSeeFor({ role: 'ceo', ...closed }, s), canSee('ceo', s), s);
+    assert.equal(canSeeFor({ role: 'it_developer', ...closed }, s), false, s);
+  }
+  assert.equal(canFor({ role: 'ceo', ...closed }, 'strategy.edit'), can('ceo', 'strategy.edit'));
 });
 
 test('unknown / stale roles fail closed', () => {
@@ -186,13 +200,10 @@ test('every restricted page guards with the matrix', () => {
     [`${app}strategy/page.tsx`, /canSeeFor\(profile, 'strategy'\)/],
     [`${app}accounting/page.tsx`, /canSeeFor\(profile, 'accounting'\)/],
     [`${app}operations/page.tsx`, /canSeeFor\(profile, 'operations'\)/],
-    [`${app}perforce/page.tsx`, /canSeeFor\(profile, 'perforce'\)/],
     [`${app}market/page.tsx`, /canSeeFor\(profile, 'market'\)/],
     ['src/components/core/core-section.tsx', /coreViews\(profile!?\)\)\.includes\(view\)/],
     ['src/app/api/core/app/route.ts', /coreViews\(profile\)\)\.includes\(view\)/],
-    ['src/app/[locale]/(full)/task-tracker/page.tsx', /canSeeFor\(profile, 'taskTracker'\)/],
-    ['src/app/api/task-tracker/app/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
-    ['src/app/api/task-tracker/state/route.ts', /canSeeFor\(profile, 'taskTracker'\)/],
+    [`${app}task-tracker/page.tsx`, /canSeeFor\(profile, 'taskTracker'\)/],
   ];
   for (const [file, re] of guards) assert.match(read(file), re, file);
 });
@@ -203,7 +214,6 @@ test('workspace Server Actions gate on their own capability', () => {
     // Finance inputs default to strategy.finance (CEO, COO); node links stay on strategy.edit.
     ['strategy-finance.ts', "cap: 'strategy.edit' | 'strategy.finance' = 'strategy.finance'"],
     ['operations.ts', "requireCap('operations.edit')"],
-    ['perforce.ts', "requireCap('perforce.edit')"],
     ['accounting.ts', "cap: 'accounting.edit' | 'strategy.finance' = 'accounting.edit'"],
     ['finance.ts', "requireCap('finance.manage')"],
     ['contracts.ts', "requireCap('contracts.manage')"],

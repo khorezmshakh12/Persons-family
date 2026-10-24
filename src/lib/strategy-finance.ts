@@ -44,14 +44,17 @@ export const capacityOf = (s: Pick<FinSettings, 'rooms' | 'seats' | 'shifts'>) =
  * come from the course tariffs when given (current month), otherwise from
  * the ledger divided by the month's head-count (history). */
 export function finMetrics(
-  s: Pick<Statements, 'revenue' | 'cogs' | 'selling' | 'admin' | 'other'>,
+  // `tax` is optional so legacy callers/tests keep working; when a full
+  // statements object is passed (monthlySeries), NP is after-tax so the one
+  // "Sof foyda" everywhere equals statements.net (was pre-tax = operating).
+  s: Pick<Statements, 'revenue' | 'cogs' | 'selling' | 'admin' | 'other'> & { tax?: number },
   input: { students: number | null; newStudents: number | null; capacity: number; courses?: Course[] },
 ) {
   const R = s.revenue;
   const D = s.cogs;
   const GP = R - D;
   const fixed = s.selling + s.admin + s.other;
-  const NP = GP - fixed;
+  const NP = GP - fixed - (s.tax ?? 0);
   const N = input.students;
   const tariff = (input.courses ?? []).filter((c) => c.students > 0);
   const tN = tariff.reduce((a, c) => a + c.students, 0);

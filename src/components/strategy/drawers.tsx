@@ -228,6 +228,14 @@ export function TaskDrawer({
           </div>
         )}
         {!isNew && <DepsField api={api} taskId={task!.id} />}
+        <div className="dr-sec">Missiya</div>
+        <input
+          className="sx-inp"
+          value={d.mission ?? ''}
+          maxLength={300}
+          placeholder="Bu vazifaning maqsadi — nega qilinyapti?"
+          onChange={(e) => set({ mission: e.target.value })}
+        />
         <div className="dr-sec">Tavsif</div>
         <textarea
           className="sx-inp min-h-[110px]"

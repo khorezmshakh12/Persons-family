@@ -8,9 +8,10 @@ import { ManageMetricDialog } from './manage-metric-dialog';
 import { MetricRow } from './metric-row';
 import { KpiScoreChart } from './kpi-score-chart';
 
-export async function KpiSection({ staffId, canManage }: { staffId: string; canManage: boolean }) {
+export async function KpiSection({ staffId, canManage, month: picked }: { staffId: string; canManage: boolean; month?: string }) {
   const t = await getTranslations('kpi');
-  const month = firstOfCurrentMonth();
+  // The month the page is showing (YYYY-MM-01); the current one elsewhere.
+  const month = picked ?? firstOfCurrentMonth();
 
   const metrics = await sql<{ id: string; name: string; weight_percentage: number }[]>`
     select id, name, weight_percentage from kpi_metrics

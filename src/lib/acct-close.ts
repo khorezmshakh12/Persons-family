@@ -21,38 +21,36 @@ export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {
   const month = `${ym}-01`;
   const [y, m] = ym.split('-').map(Number);
   const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-  const [[period], [run], posted, [depr], [tax], cash, [entries], log] = await Promise.all([
+  const [[period], posted, [depr], [tax], cash, [entries], log] = await Promise.all([
     sql<{ closed_at: string | null; budget_review: boolean; first_name: string | null; last_name: string | null }[]>`
       select a.closed_at, a.budget_review, p.first_name, p.last_name
       from acct_periods a left join profiles p on p.id = a.closed_by where a.month = ${month}`,
-    sql<{ status: string }[]>`select status from pay_runs where period = ${month}`,
     sql<{ code: string; amount: number }[]>`
       select source as code, sum(amount) as amount from acct_entries where source like ${`payroll:${ym}:%`} group by source`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where source = ${`depr:${ym}`}`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where source = ${`tax:${ym}`}`,
-    sql<{ code: string; bal: number }[]>`
-      select a.code,
+    sql<{ code: string; name: string; bal: number }[]>`
+      select a.code, a.name,
         coalesce((select amount from acct_opening o where o.code = a.code), 0)
         + coalesce((select sum(amount) from acct_entries e where e.debit = a.code and e.entry_date < ${next}), 0)
         - coalesce((select sum(amount) from acct_entries e where e.credit = a.code and e.entry_date < ${next}), 0) as bal
-      from acct_accounts a where a.code in ('5010', '5110')`,
+      from acct_accounts a where a.cash_box order by a.sort, a.code`,
     sql<{ n: number }[]>`select count(*)::int as n from acct_entries where entry_date >= ${month} and entry_date < ${next}`,
     sql<{ action: string; reason: string | null; created_at: string; first_name: string | null; last_name: string | null }[]>`
       select l.action, l.reason, l.created_at, p.first_name, p.last_name
       from acct_period_log l left join profiles p on p.id = l.actor where l.month = ${month} order by l.created_at desc limit 20`,
   ]);
 
-  // Payroll: the accrual posted to the books vs the approved pay run.
+  // Payroll: the accrual posted to the books vs the pay run (the payroll
+  // month has no lock since 2026-10-21, so only the amounts are compared).
   const lines = (await loadPayLines(month)).filter(isRelevant);
   const payable = lines.reduce((a, l) => a + Math.max(0, l.payable), 0);
   // Only the gross accrual (payroll:YM:accr-*) — social tax is an expense
   // on top of pay and must not count against the pay run.
   const accrued = posted.filter((r) => /:accr-/.test(r.code)).reduce((a, r) => a + Number(r.amount), 0);
-  const runOk = run?.status === 'approved' || run?.status === 'paid';
   const diff = Math.abs(accrued - payable);
 
   const checks: CloseCheck[] = [
-    { key: 'payrun', n: 'Oylik jarayoni tasdiqlangan', ok: runOk, detail: run ? `holat: ${run.status}` : 'oylik jarayoni boshlanmagan', blocking: true, href: `/finance?period=${month}` },
     {
       key: 'payroll',
       n: 'Ish haqi jurnalga o‘tkazilgan va Moliya bilan mos',
@@ -67,7 +65,7 @@ export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {
     { key: 'tax', n: 'Aylanma soliq hisoblangan', ok: tax.n > 0, detail: tax.n ? 'yozilgan' : '“Soliq” bo‘limida hisoblang', blocking: false },
     ...cash.map((c) => ({
       key: `cash-${c.code}`,
-      n: c.code === '5010' ? 'Kassa qoldig‘i manfiy emas' : 'Bank qoldig‘i manfiy emas',
+      n: `${c.name}: qoldiq manfiy emas`,
       ok: Number(c.bal) >= 0,
       detail: `oy oxiri: ${som(Number(c.bal))} so‘m`,
       blocking: true,

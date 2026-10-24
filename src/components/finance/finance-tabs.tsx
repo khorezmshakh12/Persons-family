@@ -1,37 +1,57 @@
 'use client';
 
-import { BookOpenCheck, Wallet } from 'lucide-react';
+import { BookOpenCheck, Target, Wallet } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
-/** Finance and Hisob-kitob are one section (owner, 2026-10-05): payroll on
- * /finance, the books on /accounting — switched here instead of two
- * sidebar entries. Rendered only for people who can open both. */
-export function FinanceTabs({ className }: { className?: string }) {
+/** Finance is one section with three views (owner design, 2026-10-21):
+ * payroll on /finance, the books on /accounting, and the viewer's own pay +
+ * B-nuqta on /finance/<own id>. Only the views the viewer may open show. */
+export function FinanceTabs({
+  meId,
+  payroll,
+  accounting,
+  className,
+}: {
+  meId: string;
+  payroll: boolean;
+  accounting: boolean;
+  className?: string;
+}) {
   const pathname = usePathname();
+  const mine = `/finance/${meId}`;
   const tabs = [
-    { href: '/finance', n: 'Ish haqi', Icon: Wallet },
-    { href: '/accounting', n: 'Hisob-kitob', Icon: BookOpenCheck },
-  ] as const;
+    payroll && {
+      href: '/finance',
+      n: 'Ish haqi va Avanslar',
+      Icon: Wallet,
+      on: pathname === '/finance' || (pathname.startsWith('/finance/') && pathname !== mine),
+    },
+    accounting && { href: '/accounting', n: 'Hisob-kitob', Icon: BookOpenCheck, on: pathname.startsWith('/accounting') },
+    {
+      href: payroll ? mine : '/finance',
+      n: 'Mening moliyam & B-nuqta',
+      Icon: Target,
+      on: pathname === mine || (!payroll && pathname === '/finance'),
+    },
+  ].filter((t) => !!t);
+  if (tabs.length < 2) return null;
   return (
-    <nav aria-label="Moliya bo‘limlari" className={cn('inline-flex gap-1 rounded-au-ctl border border-au-line bg-au-card-2 p-1', className)}>
-      {tabs.map(({ href, n, Icon }) => {
-        const on = pathname === href || pathname.startsWith(`${href}/`);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={on ? 'page' : undefined}
-            className={cn(
-              'inline-flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-[13px] font-semibold transition-colors',
-              on ? 'bg-au-card text-au-ink shadow-au-card' : 'text-au-muted hover:text-au-ink',
-            )}
-          >
-            <Icon className="size-4" />
-            {n}
-          </Link>
-        );
-      })}
+    <nav aria-label="Moliya bo‘limlari" className={cn('flex flex-wrap items-center gap-1.5 border-b border-au-line pb-2.5', className)}>
+      {tabs.map(({ href, n, Icon, on }) => (
+        <Link
+          key={href}
+          href={href}
+          aria-current={on ? 'page' : undefined}
+          className={cn(
+            'inline-flex h-8 items-center gap-1.5 rounded-au-ctl px-3 text-xs font-semibold transition',
+            on ? 'bg-au-ink text-au-card' : 'bg-au-card-2 text-au-muted hover:text-au-ink',
+          )}
+        >
+          <Icon className="size-3.5" />
+          {n}
+        </Link>
+      ))}
     </nav>
   );
 }

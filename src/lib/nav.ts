@@ -26,10 +26,11 @@ export type NavItem = {
     | 'strategy'
     | 'accounting'
     | 'operations'
-    | 'perforce'
+    | 'attendance'
     | 'profile'
     | 'settings'
     | 'materials'
+    | 'crmPersons'
     | 'kpi';
   href: string;
   /** Points at a different app on the shared gateway (see
@@ -66,13 +67,14 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   // Jamoa — people and the teaching floor.
   staff: 'team',
   hr: 'team',
+  attendance: 'team',
   lessonPlans: 'team',
   operations: 'team',
   sales: 'team',
   materials: 'team',
+  crmPersons: 'team',
   // Boshqaruv — direction, projects, numbers.
   strategy: 'manage',
-  perforce: 'manage',
   report: 'manage',
   finance: 'manage',
   accounting: 'manage',
@@ -97,12 +99,12 @@ const NAV_SORT: NavItem['key'][] = [
   'profile',
   'staff',
   'hr',
+  'attendance',
   'lessonPlans',
   'operations',
-  'sales',
   'materials',
+  'crmPersons',
   'strategy',
-  'perforce',
   'report',
   'finance',
   'accounting',
@@ -121,7 +123,6 @@ export const LESSON_PLAN_ROLES: StaffRole[] = [...SECTION_ROLES.lessonPlans];
 export const STRATEGY_ROLES: StaffRole[] = [...SECTION_ROLES.strategy];
 export const ACCOUNTING_ROLES: StaffRole[] = [...SECTION_ROLES.accounting];
 export const OPERATIONS_ROLES: StaffRole[] = [...SECTION_ROLES.operations];
-export const PERFORCE_ROLES: StaffRole[] = [...SECTION_ROLES.perforce];
 export const MARKET_ROLES: StaffRole[] = [...SECTION_ROLES.market];
 
 /** Who gets the first-visit intro and the new UI motion (nav/button/logo
@@ -138,7 +139,6 @@ export const NAV_ITEMS: NavItem[] = [
   // SECTION_ROLES, the CEO's per-person ACL in Core can narrow them — passed
   // in as `coreViews`, see coreViews() in lib/core-state.ts. (Inbox removed
   // by the owner 2026-10-05; /inbox now redirects to the Dashboard.)
-  { key: 'sales', href: '/sales' },
   { key: 'hr', href: '/hr', core: 'hr' },
   { key: 'report', href: '/report' },
   { key: 'platform', href: '/platform', core: 'settings' },
@@ -146,6 +146,10 @@ export const NAV_ITEMS: NavItem[] = [
   // clicking it doesn't drop the employee on Materials' login screen — see
   // src/app/api/sso/materials/route.ts.
   { key: 'materials', href: '/staff/api/sso/materials', external: true },
+  // CRM of Persons — the full student CRM served, auth- and role-gated, by
+  // src/app/api/crm/route.ts. external:true → a plain full-page <a> (like
+  // Materials), so it opens as its own page rather than an in-app route.
+  { key: 'crmPersons', href: '/staff/api/crm', external: true },
   { key: 'staff', href: '/staff' },
   { key: 'chat', href: '/chat' },
   // Any staff member can report an issue and see the ones they raised;
@@ -153,7 +157,8 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'issues', href: '/issues' },
   { key: 'lessonPlans', href: '/lesson-plans' },
   { key: 'tasks', href: '/tasks' },
-  // Task Tracker: each employee's private weekly task/habit sheet (src/tracker).
+  // Checklist: each employee's role-based daily/weekly/monthly checklist
+  // (native page, src/app/[locale]/(app)/task-tracker).
   { key: 'taskTracker', href: '/task-tracker' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
@@ -163,7 +168,8 @@ export const NAV_ITEMS: NavItem[] = [
   // from the Finance page's «Hisob-kitob» tab, not the sidebar.
   { key: 'accounting', href: '/accounting', folded: true },
   { key: 'operations', href: '/operations' },
-  { key: 'perforce', href: '/perforce' },
+  // Davomat lives in HR as its own tab (owner, 2026-10-14).
+  { key: 'attendance', href: '/hr?tab=attendance', folded: true },
   // Persons Market — curation is the 'market.manage' capability.
   { key: 'market', href: '/market' },
   // My KPI: monthly plan in three scenarios, CEO approval + grading → salary.

@@ -15,6 +15,7 @@ import {
 } from '@/lib/lesson-generation';
 import { currentMonthKey } from '@/lib/lesson-months';
 import { can } from '@/lib/permissions';
+import { COURSE_LEVEL_SLUGS } from '@/lib/course-levels';
 
 export type GroupActionState = { error?: string; groupId?: string } | undefined;
 
@@ -35,6 +36,7 @@ const groupSchema = z.object({
   assignedTaId: z.union([z.string().uuid(), z.literal('none'), z.literal('')]).optional(),
   scheduleType: z.union([z.enum(['odd', 'even']), z.literal('none'), z.literal('')]).optional(),
   courseName: z.string().trim().max(200).optional().or(z.literal('')),
+  level: z.union([z.enum(COURSE_LEVEL_SLUGS), z.literal('none'), z.literal('')]).optional(),
   ...configurationSchema.shape,
 });
 
@@ -42,6 +44,10 @@ const GROUP_LIMIT_PER_TEACHER = 50;
 
 function normalizeScheduleType(value: string | undefined): 'odd' | 'even' | null {
   return value === 'odd' || value === 'even' ? value : null;
+}
+
+function normalizeLevel(value: string | undefined): string | null {
+  return value && value !== 'none' ? value : null;
 }
 
 function buildConfiguration(data: z.infer<typeof configurationSchema>) {
@@ -101,10 +107,10 @@ export async function createGroupAction(
   let groupId: string;
   try {
     const [created] = await sql<{ id: string }[]>`
-      insert into groups (teacher_id, name, assigned_ta_id, schedule_type, course_name, configuration)
+      insert into groups (teacher_id, name, assigned_ta_id, schedule_type, course_name, level, configuration)
       values (
         ${user.id}, ${parsed.data.name}, ${assignedTaId}, ${normalizeScheduleType(parsed.data.scheduleType)},
-        ${parsed.data.courseName || null}, ${sql.json(buildConfiguration(parsed.data))}
+        ${parsed.data.courseName || null}, ${normalizeLevel(parsed.data.level)}, ${sql.json(buildConfiguration(parsed.data))}
       )
       returning id
     `;
@@ -216,6 +222,7 @@ export async function updateGroupAction(
         assigned_ta_id = ${assignedTaId},
         schedule_type = ${scheduleType},
         course_name = ${parsed.data.courseName || null},
+        level = ${normalizeLevel(parsed.data.level)},
         configuration = ${sql.json(buildConfiguration(parsed.data))}
       from previous p
       where g.id = p.id and (${isCeo} or g.teacher_id = ${user.id})

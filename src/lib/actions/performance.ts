@@ -71,7 +71,18 @@ const addEntrySchema = z.object({
   // Every bonus, penalty and manual star change must say why — the person
   // it lands on reads it, and an unexplained deduction is a complaint.
   reason: z.string().trim().min(3).max(500),
+  /** Payroll month it belongs to ('YYYY-MM' or 'YYYY-MM-01'); blank = this month. */
+  period: z
+    .string()
+    .regex(/^\d{4}-\d{2}(-01)?$/)
+    .optional()
+    .or(z.literal('')),
 });
+
+const finance = () => {
+  revalidatePath('/[locale]/finance', 'page');
+  revalidatePath('/[locale]/finance/[staffId]', 'page');
+};
 
 export async function addPerformanceEntryAction(
   _prevState: PerformanceActionState,
@@ -91,8 +102,9 @@ export async function addPerformanceEntryAction(
 
   try {
     await sql`
-      insert into performance_entries (staff_id, entry_type, amount, reason, created_by)
-      values (${parsed.data.staffId}, ${parsed.data.entryType}, ${parsed.data.amount}, ${parsed.data.reason || null}, ${adminId})
+      insert into performance_entries (staff_id, entry_type, amount, reason, created_by, period)
+      values (${parsed.data.staffId}, ${parsed.data.entryType}, ${parsed.data.amount}, ${parsed.data.reason || null}, ${adminId},
+        ${parsed.data.period ? `${parsed.data.period.slice(0, 7)}-01` : null})
     `;
   } catch {
     return { error: 'updateFailed' };
@@ -122,6 +134,7 @@ export async function addPerformanceEntryAction(
   });
 
   revalidatePath('/[locale]/performance', 'page');
+  finance();
   return {};
 }
 

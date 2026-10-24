@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' });
+const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
 
 /** HH:mm in Asia/Tashkent, ticking every 20s. Server renders the initial
  * value, so there is no empty flash before hydration. */

@@ -1,14 +1,15 @@
 'use client';
 
-import { COMPONENT_LABEL, monthLabel, type PayLine } from '@/lib/pay-run';
+import { COMPONENT_LABEL, monthLabel, payState, type PayLine } from '@/lib/pay-run';
 
 /** jsPDF's built-in fonts are Latin-1: swap the Uzbek ‘ ’ and the minus sign
  * for plain ASCII so nothing renders as a box. */
 const latin = (s: string) => s.replace(/[‘’ʻʼ`]/g, "'").replace(/−/g, '-').replace(/[–—]/g, '-').replace(/·/g, '-');
 const money = (n: number) => `${n < 0 ? '-' : ''}${Math.abs(Math.round(n)).toLocaleString('en-US').replace(/,/g, ' ')} so'm`;
 
-/** One payslip per line, one page each — a single person or the whole run. */
-export async function downloadPayslips(lines: PayLine[], period: string, status: string) {
+/** One payslip per line, one page each — a single person or the whole run.
+ * Each page is labelled with that person's own state (To‘langan, Qisman…). */
+export async function downloadPayslips(lines: PayLine[], period: string) {
   if (!lines.length) return;
   const { default: jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
@@ -22,7 +23,7 @@ export async function downloadPayslips(lines: PayLine[], period: string, status:
     doc.text('Persons Education', 14, 12);
     doc.setFontSize(10);
     doc.text(latin(`Hisob varaqasi - ${monthLabel(period)}`), 14, 19);
-    doc.text(latin(status), 196, 19, { align: 'right' });
+    doc.text(latin(payState(l)), 196, 19, { align: 'right' });
 
     doc.setTextColor(20);
     doc.setFontSize(13);

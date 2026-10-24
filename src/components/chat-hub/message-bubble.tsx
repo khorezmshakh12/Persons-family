@@ -223,7 +223,7 @@ function MessageBubbleComponent({
             {/* Time + read ticks inside the bubble, bottom-right (Telegram). */}
             <span className="ch-meta -mb-0.5 flex items-center justify-end gap-1 self-end text-[11px] leading-none">
               {(editedAt ?? message.edited_at) && <span className="italic opacity-80">tahrirlangan ·</span>}
-              {format.dateTime(new Date(message.created_at), { hour: '2-digit', minute: '2-digit' })}
+              {format.dateTime(new Date(message.created_at), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}
               {isOwn && !isOptimistic && (
                 <span aria-label={message.is_read ? t('readReceipt.read') : t('readReceipt.unread')}>
                   {message.is_read ? <CheckCheck className="ch-read size-3.5" /> : <Check className="size-3.5" />}

@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 // router under Next 16.
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { user } = await getAuthState();
+  if (!user) return null; // layout redirects to /login
   const { tab } = await searchParams;
   return <ProfileDetailContent id={user!.id} tab={tab} hrefBase="/profile" />;
 }

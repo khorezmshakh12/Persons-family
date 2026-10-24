@@ -21,6 +21,7 @@ const taskSchema = z
     title: z.string().trim().min(1).max(300),
     description: z.string().max(5000).default(''),
     workstream: z.enum(['aka', 'it', 'mkt', 'fil', 'mol', 'hr']),
+    mission: z.string().trim().max(300).nullable().optional(),
     assigneeId: z.string().uuid().nullable(),
     startDate: ymd,
     endDate: ymd,
@@ -33,7 +34,7 @@ const taskSchema = z
   .refine((v) => v.endDate >= v.startDate, { message: 'endBeforeStart' });
 
 const TASK_COLUMNS = sql`
-  id, space_id, title, description, workstream, assignee_id, start_date, end_date,
+  id, space_id, title, description, workstream, mission, assignee_id, start_date, end_date,
   status, priority, progress, roadmap_id, roadmap_node
 `;
 
@@ -58,7 +59,7 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
     const rows = v.id
       ? await sql<StrategyTask[]>`
           update strategy_tasks set
-            title = ${v.title}, description = ${v.description}, workstream = ${v.workstream},
+            title = ${v.title}, description = ${v.description}, workstream = ${v.workstream}, mission = ${v.mission ?? null},
             assignee_id = ${v.assigneeId}, start_date = ${v.startDate}, end_date = ${v.endDate},
             status = ${v.status}, priority = ${v.priority}, progress = ${progress}, updated_at = now(),
             ${v.roadmapId !== undefined ? sql`roadmap_id = ${v.roadmapId}, roadmap_node = ${v.roadmapId ? (v.roadmapNode ?? null) : null},` : sql``}
@@ -66,9 +67,9 @@ export async function saveStrategyTaskAction(input: z.input<typeof taskSchema>):
           where id = ${v.id} and space_id = ${v.spaceId}
           returning ${TASK_COLUMNS}`
       : await sql<StrategyTask[]>`
-          insert into strategy_tasks (space_id, title, description, workstream, assignee_id, start_date, end_date,
+          insert into strategy_tasks (space_id, title, description, workstream, mission, assignee_id, start_date, end_date,
             status, priority, progress, roadmap_id, roadmap_node, created_by, done_at)
-          values (${v.spaceId}, ${v.title}, ${v.description}, ${v.workstream}, ${v.assigneeId}, ${v.startDate},
+          values (${v.spaceId}, ${v.title}, ${v.description}, ${v.workstream}, ${v.mission ?? null}, ${v.assigneeId}, ${v.startDate},
             ${v.endDate}, ${v.status}, ${v.priority}, ${progress}, ${v.roadmapId ?? null}, ${v.roadmapNode ?? null},
             ${profileId}, ${v.status === 'done' ? sql`now()` : null})
           returning ${TASK_COLUMNS}`;
@@ -260,7 +261,6 @@ export async function updateStrategySpaceAction(input: z.input<typeof spaceUpdat
   }
   logSystemAction('strategy.space.update', `Strategy space "${v.name}"`);
   revalidatePath('/[locale]/strategy', 'page');
-  revalidatePath('/[locale]/perforce', 'page');
   return {};
 }
 
@@ -280,7 +280,6 @@ export async function deleteStrategySpaceAction(id: string): Promise<Result> {
     return { error: 'updateFailed' };
   }
   revalidatePath('/[locale]/strategy', 'page');
-  revalidatePath('/[locale]/perforce', 'page');
   return {};
 }
 

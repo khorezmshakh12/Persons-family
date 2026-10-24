@@ -23,6 +23,7 @@ export const ROLES = [
   'financist',
   'operations_manager',
   'admin_manager',
+  'office_manager',
   'sales_manager',
   'event_manager',
   'project_manager',
@@ -53,6 +54,7 @@ export const ROLE_DEPT: Record<Role, Department> = {
   financist: 'fin',
   operations_manager: 'ops',
   admin_manager: 'hr',
+  office_manager: 'ops',
   project_manager: 'ops',
   it_developer: 'ops',
 };
@@ -71,6 +73,7 @@ export const MANAGES: Record<Role, Role[]> = {
   operations_manager: ['admin_manager', 'it_developer', 'project_manager'],
   project_manager: ['it_developer'],
   admin_manager: [],
+  office_manager: [],
   financist: [],
   sales_manager: [],
   event_manager: [],
@@ -101,11 +104,12 @@ export type SectionKey =
   | 'strategy'
   | 'accounting'
   | 'operations'
-  | 'perforce'
+  | 'attendance'
   | 'telegramSetup'
   | 'profile'
   | 'settings'
   | 'materials'
+  | 'crmPersons'
   | 'kpi';
 
 export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
@@ -143,6 +147,8 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
     ...LEADERSHIP,
     'operations_manager',
     'admin_manager',
+    // Office Manager — full Operation HQ incl. O'quvchilar (owner, 2026-10-22).
+    'office_manager',
     'commercial_director',
     'sales_manager',
     'academic_director',
@@ -150,8 +156,12 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
     'project_manager',
     'it_developer',
   ],
-  perforce: [...LEADERSHIP, 'operations_manager', 'project_manager', 'it_developer'],
   platform: LEADERSHIP,
+  // Xodimlar davomati — only these three mark attendance (owner, 2026-10-14).
+  attendance: ['ceo', 'coo', 'admin_manager'],
+  // CRM of Persons — the full student CRM (persons.schoolup.uz clone). Student
+  // PII, so CEO and COO only (owner, 2026-10-15; Admin Manager removed same day).
+  crmPersons: ['ceo', 'coo'],
   telegramSetup: ['ceo', 'coo', 'it_developer'],
 };
 
@@ -178,7 +188,7 @@ export type Capability =
   | 'strategy.finance' // Strategy › Moliya / Tahlil / budget (company books, no per-person pay)
   | 'accounting.edit'
   | 'operations.edit'
-  | 'perforce.edit';
+  | 'checklist.manage';
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -208,7 +218,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'kpi.review': ['ceo'],
   'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
-  'perforce.edit': SECTION_ROLES.perforce,
+  // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
+  'checklist.manage': ['ceo', 'coo'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
@@ -270,6 +281,9 @@ export function canSeeFor(
   section: SectionKey,
 ): boolean {
   if (!p) return false;
+  // Working as CEO (primary or switched-to position) means every CEO
+  // section — a per-person close set for another position must not follow.
+  if (p.role === 'ceo') return canSee(p.role, section);
   const o = p.section_overrides?.[section];
   return typeof o === 'boolean' ? o : canSee(p.role, section);
 }
@@ -279,7 +293,6 @@ export function canSeeFor(
 export const CAP_SECTION: Partial<Record<Capability, SectionKey>> = {
   'strategy.edit': 'strategy',
   'operations.edit': 'operations',
-  'perforce.edit': 'perforce',
 };
 
 export function canFor(
@@ -287,6 +300,7 @@ export function canFor(
   cap: Capability,
 ): boolean {
   if (!p) return false;
+  if (p.role === 'ceo') return can(p.role, cap);
   const sec = CAP_SECTION[cap];
   const o = sec ? p.section_overrides?.[sec] : undefined;
   return typeof o === 'boolean' ? o : can(p.role, cap);
@@ -297,6 +311,6 @@ export function canFor(
  * are not switchable (no lock-outs); financial ones only by the CEO. */
 export const OVERRIDABLE_SECTIONS: SectionKey[] = [
   'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker', 'finance', 'hr', 'sales',
-  'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'perforce', 'market', 'telegramSetup', 'materials',
+  'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'market', 'telegramSetup', 'materials',
 ];
 export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];

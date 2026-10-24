@@ -64,6 +64,27 @@
   --au-shadow-btn: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
   --au-shadow-pop: 0 12px 30px -12px rgba(255, 159, 28, 0.9);
 
+  /* Progress boards (checklist / goals statistics). They follow the
+     Aurora palette — and so every theme — through these aliases
+     (owner, 2026-10-22: "saytga mosla"). */
+  --qp-bg: var(--au-card-2);
+  --qp-card: var(--au-card);
+  --qp-card-2: var(--au-card-2);
+  --qp-track: var(--au-ring-track);
+  --qp-line: var(--au-line);
+  --qp-ink: var(--au-ink);
+  --qp-muted: var(--au-muted);
+  --qp-dim: var(--au-faint);
+  --qp-mint: var(--au-ok);
+  --qp-mint-ink: var(--au-card);
+  --qp-mint-soft: var(--au-ok-soft);
+  --qp-cyan: var(--au-info);
+  --qp-cyan-soft: var(--au-info-soft);
+  --qp-yellow: var(--au-accent-text);
+  --qp-yellow-soft: var(--au-accent-soft);
+  --qp-red: var(--au-bad);
+  --qp-red-soft: var(--au-bad-soft);
+
   /* Type */
   --au-font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --au-font-display: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
@@ -99,6 +120,23 @@
   --shadow-au-card-hover: var(--au-shadow-card-hover);
   --shadow-au-btn: var(--au-shadow-btn);
   --font-display: var(--au-font-display);
+  --color-qp-bg: var(--qp-bg);
+  --color-qp-card: var(--qp-card);
+  --color-qp-card-2: var(--qp-card-2);
+  --color-qp-track: var(--qp-track);
+  --color-qp-line: var(--qp-line);
+  --color-qp-ink: var(--qp-ink);
+  --color-qp-muted: var(--qp-muted);
+  --color-qp-dim: var(--qp-dim);
+  --color-qp-mint: var(--qp-mint);
+  --color-qp-mint-ink: var(--qp-mint-ink);
+  --color-qp-mint-soft: var(--qp-mint-soft);
+  --color-qp-cyan: var(--qp-cyan);
+  --color-qp-cyan-soft: var(--qp-cyan-soft);
+  --color-qp-yellow: var(--qp-yellow);
+  --color-qp-yellow-soft: var(--qp-yellow-soft);
+  --color-qp-red: var(--qp-red);
+  --color-qp-red-soft: var(--qp-red-soft);
 }
 
 @utility bg-au-hero {
@@ -127,4 +165,12 @@
 /* Thin, warm scrollbars to match the light surfaces */
 * {
   scrollbar-color: var(--au-line) transparent;
+}
+
+/* Progress boards: a non-working day cell (Sunday, or no lesson). */
+.qp-hatch {
+  background: repeating-linear-gradient(135deg, var(--qp-card) 0 4px, var(--qp-card-2) 4px 8px);
+}
+.qp-glow {
+  box-shadow: 0 2px 8px -2px var(--au-ok-soft);
 }

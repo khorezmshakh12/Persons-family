@@ -48,7 +48,7 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
   const [tasks, milestones, okr, deps, portfolio] = space
     ? await Promise.all([
         sql<StrategyTask[]>`
-          select id, space_id, title, description, workstream, assignee_id, start_date, end_date,
+          select id, space_id, title, description, workstream, mission, assignee_id, start_date, end_date,
                  status, priority, progress, roadmap_id, roadmap_node
           from strategy_tasks where space_id = ${space.id} order by start_date, created_at`,
         sql<StrategyMilestone[]>`

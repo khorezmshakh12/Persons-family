@@ -85,7 +85,6 @@ const SECTION_LABEL: [SectionKey, string][] = [
   ['finance', 'Moliya'],
   ['accounting', 'Buxgalteriya'],
   ['strategy', 'Strategiya'],
-  ['perforce', 'Perforce'],
   ['market', 'Market'],
   ['materials', 'Materiallar'],
   ['telegramSetup', 'Telegram sozlash'],
@@ -126,7 +125,7 @@ function ago(iso: string | null, now: number): string {
 const fmtDate = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso)) : '—';
 const fmtDateTime = (iso: string) =>
-  new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(iso));
 const dayKey = (iso: string) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 
@@ -1162,7 +1161,7 @@ function Audit({ audit, nameOf, onOpen, idsIn }: { audit: AuditEntry[]; nameOf: 
                 return (
                   <li key={e.id} className="flex flex-wrap items-center gap-3 py-2.5">
                     <span className="w-12 shrink-0 text-xs text-au-faint tabular-nums">
-                      {new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' }).format(new Date(e.at))}
+                      {new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(e.at))}
                     </span>
                     <span className={meta.tone}>{meta.n}</span>
                     <span className="min-w-0 flex-1 truncate text-sm text-au-ink">{nameOf(e.description)}</span>

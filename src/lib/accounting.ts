@@ -2,6 +2,8 @@
 // every figure the UI shows is derived the same way and unit-tested
 // (tests/accounting.test.ts). Money is in so'm; dates are 'YYYY-MM-DD'.
 
+import { isCashCode } from './accounting-cash';
+
 export type AccType = 'A' | 'CA' | 'L' | 'E' | 'R' | 'X';
 export type Account = { code: string; name: string; type: AccType };
 export type Entry = {
@@ -203,7 +205,7 @@ export function statements(
   const fixedNet = r2(bal('0100') - bal('0200'));
   const inventory = bal('2910');
   const receivables = bal('4010');
-  const cash = r2(bal('5010') + bal('5110'));
+  const cash = r2(accounts.filter((a) => isCashCode(a.code)).reduce((t, a) => t + bal(a.code), 0));
   const currentAssets = r2(inventory + receivables + cash);
   const assets = r2(fixedNet + currentAssets);
   const payables = bal('6010');
@@ -309,7 +311,9 @@ export function payrollTaxes(rows: PayrollRow[], t: TaxSettings) {
 
 export type Posting = { debit: string; credit: string; amount: number; description: string; source: string };
 
-/** The journal rows a month's payroll produces. Zero lines are dropped. */
+/** The journal rows a month's payroll accrual produces. Zero lines are
+ * dropped. Payments are not here: each one is posted on its own, from the
+ * cash box it left (lib/pay-cash.ts syncPayCash). */
 export function payrollPostings(ym: string, rows: PayrollRow[], t: TaxSettings): Posting[] {
   const p = payrollTaxes(rows, t);
   const s = (k: string) => `payroll:${ym}:${k}`;
@@ -319,7 +323,6 @@ export function payrollPostings(ym: string, rows: PayrollRow[], t: TaxSettings):
     { debit: '6710', credit: '6410', amount: p.pit, description: `JShDS ${t.pit}% ushlab qolindi`, source: s('pit') },
     { debit: '9130', credit: '6520', amount: p.socialTeach, description: `Ijtimoiy soliq ${t.social}% — o'qituvchilar`, source: s('soc-teach') },
     { debit: '9420', credit: '6520', amount: p.socialAdmin, description: `Ijtimoiy soliq ${t.social}% — ma'muriyat`, source: s('soc-admin') },
-    { debit: '6710', credit: '5110', amount: p.paid, description: "Ish haqi to'landi (to'lovlar bo'yicha)", source: s('paid') },
   ].filter((x) => x.amount > 0);
 }
 
@@ -342,7 +345,7 @@ export function courseEconomics(c: Course) {
   return { revenue, direct, contribution, margin: revenue > 0 ? contribution / revenue : 0, breakEven };
 }
 
-/** Weekly cash movement (5010 + 5110) for the `n` weeks ending on the week
+/** Weekly cash movement (every cash box) for the `n` weeks ending on the week
  * that contains `today` (weeks start Monday). */
 export function cashWeeks(
   accounts: Account[],
@@ -351,7 +354,7 @@ export function cashWeeks(
   today: string,
   n = 13,
 ) {
-  const CASH = new Set(['5010', '5110']);
+  const CASH = new Set(accounts.map((a) => a.code).filter(isCashCode));
   const day = (s: string) => Math.round(Date.parse(`${s}T00:00:00Z`) / 864e5);
   const iso = (d: number) => new Date(d * 864e5).toISOString().slice(0, 10);
   const t = day(today);
@@ -360,7 +363,7 @@ export function cashWeeks(
   const firstStart = lastStart - (n - 1) * 7;
   const start = iso(firstStart);
   const L = ledger(accounts, opening, entries, start, start);
-  let balance = r2((L['5010']?.openingPeriod ?? 0) + (L['5110']?.openingPeriod ?? 0));
+  let balance = r2([...CASH].reduce((t, c) => t + (L[c]?.openingPeriod ?? 0), 0));
   const weeks = Array.from({ length: n }, (_, i) => ({ from: iso(firstStart + i * 7), to: iso(firstStart + i * 7 + 6), inflow: 0, outflow: 0, closing: 0 }));
   for (const e of entries) {
     const d = day(e.entry_date);

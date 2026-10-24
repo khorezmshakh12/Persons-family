@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { remindRiskReviews } from '@/lib/perforce-reminders';
 import { pruneNotifications } from '@/lib/notifications';
 import { withCronLog } from '@/lib/cron-log';
 import { sql } from '@/lib/db/client';
@@ -61,7 +60,7 @@ async function handle(req: NextRequest): Promise<Response> {
   if (day === 1 && (await claim(thisMonth, 'digest'))) {
     const rows = await missing(thisMonth);
     const ceos = await sql<{ telegram_id: number | null }[]>`
-      select telegram_id from profiles where is_active and role = 'ceo' and telegram_id is not null`;
+      select telegram_id from profiles where is_active and (role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo')) and telegram_id is not null`;
     const text = rows.length
       ? `📋 <b>${monthName(thisMonth)}</b> KPI rejasini topshirmaganlar (${rows.length}):\n` +
         rows.map((r) => `• ${escapeTelegramText(`${r.first_name} ${r.last_name}`)}`).join('\n')
@@ -116,14 +115,9 @@ async function handle(req: NextRequest): Promise<Response> {
     sent.push('okr_checkin');
   }
 
-  // Perforce: risks whose review date has come (once a week per risk).
-  const riskNudges = await remindRiskReviews().catch((error) => {
-    console.error('remindRiskReviews failed', error instanceof Error ? error.message : error);
-    return 0;
-  });
   // Bildirishnomalar: 90-day retention.
   const pruned = await pruneNotifications().catch(() => 0);
-  return NextResponse.json({ ok: true, sent, riskNudges, pruned });
+  return NextResponse.json({ ok: true, sent, pruned });
 }
 
 export const GET = withCronLog('kpi-reminders', handle);

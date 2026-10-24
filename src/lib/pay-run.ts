@@ -4,9 +4,16 @@
  * breakdown drawer, the pre-approval checks, the payslip) is derived here so
  * no two views can disagree. Tested in tests/pay-run.test.ts.
  *
- *   payable   = base + kpi + bonuses + deductions        (deductions ≤ 0)
+ *   payable   = base + kpi + bonuses + deductions + carry + advanceShift
  *   paid      = salary payments + advances for the month
  *   remaining = payable − paid                            (< 0 = overpaid)
+ *
+ * Every amount belongs to exactly one month (its `period`); nothing from
+ * another month is summed in. Two rows are bookkeeping, not earnings, and
+ * stay out of bonuses/deductions (finance audit 2026-10-22):
+ *   carry        — last month's overpayment held back now (≤ 0);
+ *   advanceShift — a split advance: this month gives back all but its share
+ *                  (> 0), each later month holds back one share (< 0).
  */
 
 import { startOfTashkentMonthKey } from './time';
@@ -14,14 +21,7 @@ import { startOfTashkentMonthKey } from './time';
 export const PAY_RUN_STATUSES = ['draft', 'review', 'approved', 'paid'] as const;
 export type PayRunStatus = (typeof PAY_RUN_STATUSES)[number];
 
-export const PAY_RUN_STEP: Record<PayRunStatus, { n: string; hint: string }> = {
-  draft: { n: 'Hisoblash', hint: 'Maosh, KPI, bonus va ushlanmalar yig‘ilmoqda' },
-  review: { n: 'Tekshirish', hint: 'Ogohlantirishlarni ko‘rib chiqing' },
-  approved: { n: 'Tasdiqlangan', hint: 'Oy qulflangan — faqat tuzatish yozuvi bilan o‘zgaradi' },
-  paid: { n: 'To‘langan', hint: 'To‘lovlar qayd etilgan' },
-};
-
-export type ComponentKind = 'base' | 'kpi' | 'selfdev' | 'perf' | 'mission' | 'adjustment' | 'penalty' | 'correction' | 'carry';
+export type ComponentKind = 'base' | 'kpi' | 'selfdev' | 'perf' | 'mission' | 'adjustment' | 'penalty' | 'correction' | 'carry' | 'advshift';
 
 export const COMPONENT_LABEL: Record<ComponentKind, string> = {
   base: 'Asosiy maosh',
@@ -31,8 +31,9 @@ export const COMPONENT_LABEL: Record<ComponentKind, string> = {
   mission: 'Missiya bonusi',
   adjustment: 'Qo‘lda tuzatish',
   penalty: 'Jarima',
-  correction: 'Tuzatish yozuvi (qulflangan oy)',
+  correction: 'Tuzatish yozuvi',
   carry: 'O‘tgan oy ortiqcha to‘lovi',
+  advshift: 'Avansni bo‘lib ushlash',
 };
 
 /** Components a correction may cancel in one click (see reversal_of). */
@@ -43,8 +44,10 @@ export type PayComponent = {
   title: string;
   amount: number;
   at?: string | null;
-  /** finance_entries id when the component is a ledger row (editable). */
+  /** finance_entries id when the component is a ledger row. */
   entryId?: string;
+  /** finance_entries.source of that row — decides whether it can be edited. */
+  source?: string;
   /** Stable key of the source row ('fe:<id>', 'perf:<id>', 'sd:<id>',
    * 'ms:<id>') — what a reversal correction points at. */
   ref?: string;
@@ -52,7 +55,22 @@ export type PayComponent = {
   reversed?: boolean;
 };
 
-export type Payment = { id: string; kind: 'salary' | 'advance'; title: string; amount: number; at: string | null };
+export type Payment = {
+  id: string;
+  kind: 'salary' | 'advance';
+  title: string;
+  amount: number;
+  at: string | null;
+  source?: string;
+  /** Cash box code it left from (null: before methods existed). */
+  method?: string | null;
+  /** The staff member's answer: "Oldim" or a flagged problem. */
+  receipt?: { status: 'received' | 'disputed'; note: string } | null;
+};
+
+/** Ledger rows a person may edit or delete while the month is open; the
+ * rest belong to a workflow (KPI grade, correction, carry) and change there. */
+export const EDITABLE_SOURCES: ReadonlySet<string> = new Set(['manual', 'advance', 'payrun', 'reimburse']);
 
 export type PayFlag = 'noBase' | 'kpiPending' | 'selfDevPending' | 'variance' | 'overpaid' | 'negative' | 'advancePending';
 
@@ -85,9 +103,11 @@ export type PayLine = PayInput & {
   kpi: number;
   bonuses: number;
   deductions: number;
-  /** Part of `deductions` that recovers last month's overpayment — not a
-   * cut in earnings (accounting books payable − carry as accrued pay). */
+  /** Last month's overpayment held back this month (≤ 0) — not a cut in
+   * earnings, so not in `deductions` (accounting books payable − carry). */
   carry: number;
+  /** Split-advance bookkeeping for this month (see header); not earnings. */
+  advanceShift: number;
   payable: number;
   paid: number;
   advances: number;
@@ -107,14 +127,16 @@ export function computeLine(input: PayInput): PayLine {
   let bonuses = 0;
   let deductions = 0;
   let carry = 0;
+  let advanceShift = 0;
   for (const c of input.components) {
     if (c.kind === 'carry') carry += c.amount;
-    if (c.kind === 'base') base += c.amount;
+    else if (c.kind === 'advshift') advanceShift += c.amount;
+    else if (c.kind === 'base') base += c.amount;
     else if (c.kind === 'kpi') kpi += c.amount;
     else if (c.amount >= 0) bonuses += c.amount;
     else deductions += c.amount;
   }
-  const payable = round(base + kpi + bonuses + deductions);
+  const payable = round(base + kpi + bonuses + deductions + carry + advanceShift);
   const advances = round(input.payments.filter((p) => p.kind === 'advance').reduce((s, p) => s + p.amount, 0));
   const paid = round(input.payments.reduce((s, p) => s + p.amount, 0));
   const remaining = payable - paid;
@@ -136,6 +158,7 @@ export function computeLine(input: PayInput): PayLine {
     bonuses: round(bonuses),
     deductions: round(deductions),
     carry: round(carry),
+    advanceShift: round(advanceShift),
     payable,
     paid,
     advances,
@@ -145,15 +168,17 @@ export function computeLine(input: PayInput): PayLine {
   };
 }
 
-export type PayTotals = { base: number; kpi: number; bonuses: number; deductions: number; payable: number; paid: number; remaining: number };
+export type PayTotals = { base: number; kpi: number; bonuses: number; deductions: number; carry: number; advanceShift: number; payable: number; paid: number; remaining: number };
 
 export function totals(lines: PayLine[]): PayTotals {
-  const t: PayTotals = { base: 0, kpi: 0, bonuses: 0, deductions: 0, payable: 0, paid: 0, remaining: 0 };
+  const t: PayTotals = { base: 0, kpi: 0, bonuses: 0, deductions: 0, carry: 0, advanceShift: 0, payable: 0, paid: 0, remaining: 0 };
   for (const l of lines) {
     t.base += l.base;
     t.kpi += l.kpi;
     t.bonuses += l.bonuses;
     t.deductions += l.deductions;
+    t.carry += l.carry;
+    t.advanceShift += l.advanceShift;
     t.payable += l.payable;
     t.paid += l.paid;
     t.remaining += l.remaining;
@@ -167,15 +192,16 @@ export function isRelevant(l: PayLine): boolean {
   return l.base > 0 || l.components.length > 0 || l.payments.length > 0;
 }
 
-export function blockers(lines: PayLine[]): PayLine[] {
-  return lines.filter((l) => isRelevant(l) && l.flags.some((f) => FLAG_META[f].blocking));
+/** A person's month in one word, from their line alone (no month lock
+ * since 2026-10-21 — the run itself has no state worth showing). */
+export function payState(l: Pick<PayLine, 'remaining' | 'paid'>): string {
+  if (l.remaining < 0) return 'Ortiqcha to‘langan';
+  if (l.remaining === 0) return 'To‘langan';
+  return l.paid > 0 ? 'Qisman to‘langan' : 'To‘lanmagan';
 }
 
-/** Allowed moves of the run. Going back (reopen) always needs a reason. */
-export function canMove(from: PayRunStatus, to: PayRunStatus): boolean {
-  const i = PAY_RUN_STATUSES.indexOf(from);
-  const j = PAY_RUN_STATUSES.indexOf(to);
-  return Math.abs(i - j) === 1;
+export function blockers(lines: PayLine[]): PayLine[] {
+  return lines.filter((l) => isRelevant(l) && l.flags.some((f) => FLAG_META[f].blocking));
 }
 
 export type SnapshotLine = { staffId: string; payable: number; carry?: number };

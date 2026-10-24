@@ -2,27 +2,20 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, Clock3, FileDown, HandCoins, Lock, Undo2 } from 'lucide-react';
+import { FileDown, HandCoins, Undo2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
-import { CARD_TITLE, CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
+import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { cancelAdvanceAction, requestAdvanceAction } from '@/lib/actions/pay-run';
-import { COMPONENT_LABEL, PAY_RUN_STEP, type PayLine, type PayRunStatus } from '@/lib/pay-run';
+import { COMPONENT_LABEL, monthLabel, type PayLine } from '@/lib/pay-run';
 import type { AdvanceRequest, MonthPoint } from '@/lib/pay-run-data';
 import { downloadPayslips } from './payslip';
 import { MonthBars } from './month-bars';
 
 const som = (n: number) => formatUZS(Math.round(n));
 const signed = (n: number) => `${n >= 0 ? '+' : '−'}${formatUZS(Math.abs(Math.round(n)))}`;
-
-const STATUS_CHIP: Record<PayRunStatus, { n: string; cls: string; Icon: typeof Clock3 }> = {
-  draft: { n: 'Hisoblanmoqda', cls: CHIP_NEUTRAL, Icon: Clock3 },
-  review: { n: 'Tekshirilmoqda', cls: CHIP_INFO, Icon: Clock3 },
-  approved: { n: 'Tasdiqlangan', cls: CHIP_OK, Icon: Lock },
-  paid: { n: 'To‘langan', cls: CHIP_OK, Icon: CheckCircle2 },
-};
 
 const ADV_ERR: Record<string, string> = {
   alreadyPending: 'Sizda ko‘rib chiqilayotgan so‘rov bor',
@@ -37,110 +30,143 @@ const ADV_ERR: Record<string, string> = {
 export function PayStatement({
   line,
   period,
-  status,
   history,
   advances,
   isSelf,
 }: {
   line: PayLine | null;
   period: string;
-  status: PayRunStatus;
   history: MonthPoint[];
   advances: AdvanceRequest[] | null;
   isSelf: boolean;
 }) {
-  const chip = STATUS_CHIP[status];
-  const pct = line && line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-4 p-5')}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-au-muted">To‘lanadi</span>
-            <span className="text-3xl font-bold tracking-tight tabular-nums">
-              <CountUp value={som(line?.payable ?? 0)} /> <span className="text-base font-semibold text-au-muted">so‘m</span>
-            </span>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className={chip.cls}>
-              <chip.Icon className="size-3" /> {chip.n}
-            </span>
-            {line && (
-              <button
-                onClick={() => downloadPayslips([line], period, PAY_RUN_STEP[status].n)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-au-muted hover:text-au-ink"
-              >
-                <FileDown className="size-3.5" /> Hisob varaqasi (PDF)
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <div className="h-2 overflow-hidden rounded-full bg-au-card-2">
-            <i className="ms-fill block h-full rounded-full bg-au-ok" style={{ width: `${pct}%` }} />
-          </div>
-          <div className="flex justify-between text-xs text-au-muted">
-            <span>
-              To‘langan <b className="text-au-ink tabular-nums">{som(line?.paid ?? 0)}</b>
-            </span>
-            <span>
-              Qoldiq{' '}
-              <b className={cn('tabular-nums', (line?.remaining ?? 0) > 0 ? 'text-au-accent-text' : (line?.remaining ?? 0) < 0 ? 'text-au-bad' : 'text-au-ink')}>
-                {som(line?.remaining ?? 0)}
-              </b>
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-bold tracking-wide text-au-muted uppercase">Qayerdan yig‘ildi</h3>
-          {!line || line.components.length === 0 ? (
-            <p className="text-sm text-au-muted">Bu oy uchun hali hisob yo‘q</p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-au-line rounded-au-ctl border border-au-line">
-              {line.components.map((c, i) => (
-                <li key={i} style={{ ['--i' as string]: i }} className="ms-rise flex items-center justify-between gap-3 px-3 py-2">
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-sm font-semibold">{COMPONENT_LABEL[c.kind]}</span>
-                    {c.kind !== 'base' && <span className="truncate text-[11px] text-au-muted">{c.title}</span>}
-                  </div>
-                  <span className={cn('shrink-0 font-bold tabular-nums', c.kind === 'base' ? '' : c.amount >= 0 ? 'text-au-ok' : 'text-au-bad')}>
-                    {c.kind === 'base' ? som(c.amount) : signed(c.amount)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {line && line.payments.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <h3 className="text-xs font-bold tracking-wide text-au-muted uppercase">To‘lovlar</h3>
-            {line.payments.map((p) => (
-              <div key={p.id} className="flex justify-between text-sm">
-                <span>
-                  {p.kind === 'advance' ? 'Avans' : 'Oylik'} <span className="text-[11px] text-au-muted">{p.at?.slice(0, 10)}</span>
-                </span>
-                <span className="tabular-nums">{som(p.amount)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
+      <PayStatementCard line={line} period={period} />
       <aside className="flex flex-col gap-4">
-        <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 1 }}>
-          <h3 className={CARD_TITLE}>12 oy</h3>
-          <MonthBars points={history} current={period} />
-        </section>
+        <PayHistoryCard history={history} period={period} />
         {isSelf && advances && <AdvancePanel advances={advances} />}
       </aside>
     </div>
   );
 }
 
-function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
+export function PayHistoryCard({ history, period }: { history: MonthPoint[]; period: string }) {
+  return (
+    <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 1 }}>
+      <h3 className="text-xs font-bold tracking-wider text-au-muted uppercase">12 oy: fond va to‘lovlar</h3>
+      <MonthBars points={history} current={period} />
+    </section>
+  );
+}
+
+/** The owner-design statement card: status, three headline boxes, then every
+ * component and payment of the month as one list. */
+export function PayStatementCard({ line, period }: { line: PayLine | null; period: string }) {
+  const remaining = line?.remaining ?? 0;
+  const owed = Math.max(0, remaining);
+  const over = Math.max(0, -remaining);
+  const pct = line && line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
+  const box3 =
+    owed > 0
+      ? { n: 'Oylik qoldig‘i (olinishi kerak)', v: `${som(owed)} so‘m`, tone: 'text-au-accent-text' }
+      : over > 0
+        ? { n: 'Ortiqcha / avans (keyingi oydan)', v: `+${som(over)} so‘m`, tone: 'text-au-info' }
+        : { n: 'Joriy balans', v: '0 so‘m', tone: 'text-au-ok' };
+  return (
+    <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col gap-4 p-5')}>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-au-line pb-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-bold text-au-ink">Oylik va avans hisob varaqasi ({monthLabel(period)})</h3>
+          <p className="text-xs text-au-muted">Hisoblangan oylik, bonus/jarima va olingan to‘lovlar tafsiloti</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {owed > 0 ? (
+            <span className="fp-chip fp-chip-accent">To‘lanishi kerak: {som(owed)}</span>
+          ) : over > 0 ? (
+            <span className="fp-chip fp-chip-info">Avans olgan: +{som(over)}</span>
+          ) : line && line.paid > 0 ? (
+            <span className="fp-chip fp-chip-ok">✓ To‘liq to‘langan</span>
+          ) : null}
+          {line && (
+            <button
+              onClick={() => downloadPayslips([line], period)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-xs font-semibold text-au-ink hover:bg-au-card-2"
+            >
+              <FileDown className="size-3.5" /> Kvitansiya PDF
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
+          <span className="block text-[11px] text-au-muted">Hisoblangan oylik</span>
+          <b className="text-base break-words tabular-nums">
+            <CountUp value={som(line?.payable ?? 0)} /> so‘m
+          </b>
+        </div>
+        <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
+          <span className="block text-[11px] text-au-muted">Jami olingan (to‘langan)</span>
+          <b className="text-base break-words text-au-ok tabular-nums">{som(line?.paid ?? 0)} so‘m</b>
+        </div>
+        <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
+          <span className="block text-[11px] text-au-muted">{box3.n}</span>
+          <b className={cn('text-base break-words tabular-nums', box3.tone)}>{box3.v}</b>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <div className="fp-kpi-bar h-2">
+          <i style={{ width: `${pct}%`, background: 'var(--au-ok)' }} />
+        </div>
+        <span className="text-[11px] text-au-muted">{pct}% to‘langan</span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h4 className="text-xs font-bold tracking-wider text-au-muted uppercase">{monthLabel(period)} — barcha yozuvlar va to‘lovlar</h4>
+        {!line || (line.components.length === 0 && line.payments.length === 0) ? (
+          <p className="text-sm text-au-muted">Bu oy uchun hali hisob yo‘q</p>
+        ) : (
+          <>
+            {line.components.map((c, i) => (
+              <div
+                key={`c${i}`}
+                style={{ ['--i' as string]: i }}
+                className="ms-rise flex items-center justify-between gap-3 rounded-lg border border-au-line bg-au-card-2/50 px-3.5 py-2.5 text-xs"
+              >
+                <div className="flex min-w-0 flex-col">
+                  <span className="font-semibold text-au-ink">{COMPONENT_LABEL[c.kind]}</span>
+                  <span className="truncate text-[11px] text-au-muted">
+                    {c.kind !== 'base' ? c.title : 'Hisoblangan'}
+                    {c.at ? ` · ${c.at.slice(0, 10)}` : ''}
+                  </span>
+                </div>
+                <span className={cn('shrink-0 font-bold tabular-nums', c.kind === 'base' ? 'text-au-ink' : c.amount >= 0 ? 'text-au-ok' : 'text-au-bad')}>
+                  {c.kind === 'base' ? som(c.amount) : signed(c.amount)} so‘m
+                </span>
+              </div>
+            ))}
+            {line.payments.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-au-line bg-au-card-2/50 px-3.5 py-2.5 text-xs">
+                <div className="flex min-w-0 flex-col">
+                  <span className="flex items-center gap-1.5 font-semibold text-au-ink">
+                    <span className="truncate">{p.title || (p.kind === 'advance' ? 'Avans' : 'Oylik')}</span>
+                    <span className={cn('fp-chip h-4 px-1.5 text-[10px]', p.kind === 'advance' ? 'fp-chip-info' : 'fp-chip-ok')}>{p.kind === 'advance' ? 'Avans' : 'Oylik'}</span>
+                  </span>
+                  <span className="text-[11px] text-au-muted">To‘lov{p.at ? ` · ${p.at.slice(0, 10)}` : ''}</span>
+                </div>
+                <span className={cn('shrink-0 font-bold tabular-nums', p.kind === 'advance' ? 'text-au-info' : 'text-au-ok')}>+{som(p.amount)} so‘m</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -170,9 +196,10 @@ function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
 
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 2 }}>
-      <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-        <HandCoins className="size-4 text-au-muted" /> Avans
+      <h3 className="flex items-center gap-2 text-sm font-bold text-au-ink">
+        <HandCoins className="size-4 text-au-info" /> Tezkor avans so‘rovi
       </h3>
+      <p className="text-xs text-au-muted">So‘rov «Ish haqi» bo‘limidagi avans so‘rovlari ro‘yxatiga tushadi.</p>
       {pending ? (
         <div className="flex flex-col gap-1.5 rounded-au-ctl bg-au-info-soft p-3 text-sm">
           <span>

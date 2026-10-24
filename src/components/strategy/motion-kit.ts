@@ -5,7 +5,7 @@ import { useEffect, type RefObject } from 'react';
 /* =====================================================================
    Motion kit — the prototype's "MOTION PRO" layer, delegated.
    Works purely through CSS classes + observers on the suite root, so it
-   applies to /strategy, /accounting, /operations and /perforce without
+   applies to /strategy, /accounting and /operations without
    touching their components. Never hides real UI: every entrance is
    transform/blur-only (or a brief partial fade on chart marks), classes
    are removed on animationend with a timeout fallback, and nothing runs

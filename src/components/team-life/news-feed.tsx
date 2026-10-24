@@ -24,6 +24,26 @@ const BTN =
 const BTN_GHOST = cn(BTN, 'border border-au-line bg-au-card text-au-ink hover:bg-au-card-2');
 const BTN_PRIMARY = cn(BTN, 'bg-au-primary text-au-primary-ink hover:opacity-90');
 const EMOJI = ['👍', '❤️', '🎉', '👏', '🙏'];
+
+// Links in an announcement's text (https://…, www.…, t.me/…) become
+// clickable; trailing punctuation stays outside the link.
+const LINK_RE = /((?:https?:\/\/|www\.|t\.me\/)[^\s<>"]+)/gi;
+function Linkified({ text }: { text: string }) {
+  return text.split(LINK_RE).map((part, i) => {
+    if (i % 2 === 0) return part;
+    const url = part.replace(/[.,;:!?)\]'»"]+$/, '');
+    const tail = part.slice(url.length);
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    return (
+      <span key={i}>
+        <a href={href} target="_blank" rel="noopener noreferrer" className="font-medium break-all text-au-accent-text underline underline-offset-2 hover:opacity-80">
+          {url}
+        </a>
+        {tail}
+      </span>
+    );
+  });
+}
 const AUD: [string, string][] = [
   ['all', 'Hamma'],
   ['top', 'Rahbariyat'],
@@ -205,7 +225,9 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
             // eslint-disable-next-line @next/next/no-img-element -- external https image chosen by the author
             <img src={n.image_url} alt="" className="max-h-80 w-full rounded-au-ctl object-cover" />
           )}
-          <p className="text-sm whitespace-pre-wrap">{n.content}</p>
+          <p className="text-sm break-words whitespace-pre-wrap">
+            <Linkified text={n.content} />
+          </p>
 
           {n.must_ack && !n.acked && !n.scheduled && (
             <button className={cn(BTN, 'h-10 w-full bg-au-bad text-sm text-white sm:w-fit')} disabled={busy} onClick={() => ack(n)}>

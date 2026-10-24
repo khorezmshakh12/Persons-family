@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { Books } from '@/lib/accounting-data';
 import { addMonths, fmtMln, fmtNum, ledger, monthEnd, monthlySeries, monthStart, statements } from '@/lib/accounting';
 import { cashForecast } from '@/lib/accounting-ma';
-import { CASH_ACC, templateDoc } from '@/lib/accounting-cash';
+import { isCashCode, templateDoc } from '@/lib/accounting-cash';
 import { getClosePeriodAction } from '@/lib/actions/accounting';
 import type { ClosePeriod } from '@/lib/acct-close';
 import { Chart } from './charts';
@@ -59,7 +59,7 @@ export function AccountingOverview({ books, ym, today, go }: { books: Books; ym:
   // Only ever show the status of the month actually asked for.
   const close = loaded?.ym === prevYm ? loaded.period : null;
 
-  const isCash = (c: string) => (CASH_ACC as readonly string[]).includes(c);
+  const isCash = isCashCode;
   const inMonth = (d: string) => d >= monthStart(ym) && d <= monthEnd(ym);
   const noReceipt = books.entries.filter((e) => inMonth(e.entry_date) && !e.source && isCash(e.credit) && !isCash(e.debit) && !e.receipt_path);
   const L = ledger(books.accounts, books.opening, books.entries, monthStart(ym), monthEnd(ym));

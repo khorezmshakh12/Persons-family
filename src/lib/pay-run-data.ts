@@ -41,6 +41,7 @@ export type AdvanceRequest = {
   created_at: string;
 };
 
+/** `planned` = the month's computed pay (payable); `paid` = paid out for that month. */
 export type MonthPoint = { period: string; planned: number; paid: number };
 
 const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.trim() || 'Xodim';
@@ -50,9 +51,10 @@ const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.tri
 type Db = typeof sql;
 
 async function loadInputs(period: string, staffId?: string, db: Db = sql): Promise<Omit<PayInput, 'prevPayable'>[]> {
-  // Dated movements (rag‘bat/jarima, missions) are read two months back: one
-  // created after its own month was approved rolls forward into this one
-  // (effectivePeriod), so an approved month never moves.
+  // Rag‘bat/jarima belong to the month chosen when they were entered
+  // (performance_entries.period). Missions carry no month of their own, so
+  // they are read two months back and placed by approval date
+  // (effectivePeriod — a month approved before the mission rolls forward).
   const from = tashkentMidnight(shiftMonth(period, -2)).toISOString();
   const to = tashkentMidnight(shiftMonth(period, 1)).toISOString();
   const only = staffId ? sql`and p.id = ${staffId}` : sql``;
@@ -68,14 +70,16 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
       order by p.first_name, p.last_name`,
     db<{ staff_id: string; gross: number }[]>`
       select staff_id, gross_amount as gross from salary_months where period = ${period} ${onlyCol('staff_id')}`,
-    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null }[]>`
-      select id, staff_id, title, amount, kind, source, reversal_of, created_at from finance_entries
-      where period = ${period} ${onlyCol('staff_id')} order by created_at`,
+    db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null; method: string | null; r_status: 'received' | 'disputed' | null; r_note: string | null }[]>`
+      select fe.id, fe.staff_id, fe.title, fe.amount, fe.kind, fe.source, fe.reversal_of, fe.created_at, fe.method,
+        r.status as r_status, r.note as r_note
+      from finance_entries fe left join pay_receipts r on r.entry_id = fe.id
+      where fe.period = ${period} ${onlyCol('fe.staff_id')} order by fe.created_at`,
     db<{ user_id: string; bonus_amount: number | null; ceo_score: number | null; id: string }[]>`
       select id, user_id, bonus_amount, ceo_score from self_development where month = ${period} ${onlyCol('user_id')}`,
     db<{ id: string; staff_id: string; entry_type: string; amount: number; reason: string | null; created_at: string }[]>`
       select id, staff_id, entry_type, amount, reason, created_at from performance_entries
-      where created_at >= ${from} and created_at < ${to} ${onlyCol('staff_id')}`,
+      where period = ${period} ${onlyCol('staff_id')}`,
     db<{ id: string; staff_id: string; bonus_amount: number; at: string | null }[]>`
       select id, staff_id, bonus_amount, coalesce(approved_at, created_at) as at from missions
       where status = 'approved' and bonus_amount is not null
@@ -104,7 +108,7 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
   // are the only ones that can cancel this month's components.
   const reversedRefs = new Set(entries.flatMap((e) => (e.reversal_of ? [e.reversal_of] : [])));
   const ref = (r: string) => ({ ref: r, reversed: reversedRefs.has(r) || undefined });
-  const perf = inThisRun(perfRows, (r) => r.created_at);
+  const perf = perfRows.map((row) => ({ row, from: null as string | null }));
   const missions = inThisRun(missionRows, (r) => r.at);
 
   const gross = new Map(salaries.map((s) => [s.staff_id, s.gross]));
@@ -119,16 +123,27 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
     for (const e of entries) {
       if (e.staff_id !== p.id) continue;
       if (e.kind === 'salary' || e.kind === 'advance') {
-        payments.push({ id: e.id, kind: e.kind, title: e.title, amount: e.amount, at: e.created_at });
+        payments.push({
+          id: e.id,
+          kind: e.kind,
+          title: e.title,
+          amount: e.amount,
+          at: e.created_at,
+          source: e.source,
+          method: e.method,
+          receipt: e.r_status ? { status: e.r_status, note: e.r_note ?? '' } : null,
+        });
         continue;
       }
       const kind =
         e.source === 'carry' ? 'carry'
+        // Split-advance shares (the cash itself is an 'advance' payment above).
+        : e.source === 'advance' ? 'advshift'
         : e.source === 'correction' ? 'correction'
         : e.source === 'kpi' || e.title.startsWith('KPI ·') ? 'kpi'
         : e.kind === 'penalty' ? 'penalty'
         : 'adjustment';
-      components.push({ kind, title: e.title, amount: e.amount, at: e.created_at, entryId: e.id, ...ref(`fe:${e.id}`) });
+      components.push({ kind, title: e.title, amount: e.amount, at: e.created_at, entryId: e.id, source: e.source, ...ref(`fe:${e.id}`) });
     }
     let selfDevPending = false;
     for (const s of selfDev) {
@@ -206,24 +221,101 @@ export async function loadAdvances(staffId?: string): Promise<AdvanceRequest[]> 
   return rows.map(({ first_name, last_name, ...r }) => ({ ...r, staff_name: name(first_name, last_name) }));
 }
 
-/** Last 12 months: planned salary fund vs paid out (team, or one person). */
+/**
+ * Each month's computed pay (payable, from the engine) and what was paid out
+ * for it, from `first` through `last` — team-wide or one person. Months are
+ * computed one after another (each is ~9 queries) to stay gentle on the pool.
+ * Yearly and multi-month figures are sums of these, never a raw ledger sum,
+ * so no month leaks into another.
+ */
+export async function loadPayByMonth(first: string, last: string, staffId?: string): Promise<MonthPoint[]> {
+  const out: MonthPoint[] = [];
+  for (let p = first; p <= last; p = shiftMonth(p, 1)) {
+    const lines = (await loadInputs(p, staffId)).map((i) => computeLine({ ...i, prevPayable: null }));
+    out.push({
+      period: p,
+      planned: lines.reduce((t, l) => t + l.payable, 0),
+      paid: lines.reduce((t, l) => t + l.paid, 0),
+    });
+  }
+  return out;
+}
+
+/** Last 12 months: computed pay (payable) vs paid out (team, or one person). */
 export async function loadPayHistory(period: string, staffId?: string): Promise<MonthPoint[]> {
-  const first = shiftMonth(period, -11);
-  const [planned, paid] = await Promise.all([
-    sql<{ period: string; v: number }[]>`
-      select period::text as period, sum(gross_amount) as v from salary_months
-      where period >= ${first} and period <= ${period} ${staffId ? sql`and staff_id = ${staffId}` : sql``}
-      group by period`,
-    sql<{ period: string; v: number }[]>`
-      select period::text as period, sum(amount) as v from finance_entries
-      where kind in ('salary', 'advance') and period >= ${first} and period <= ${period}
-        ${staffId ? sql`and staff_id = ${staffId}` : sql``}
-      group by period`,
-  ]);
-  const pl = new Map(planned.map((r) => [r.period.slice(0, 10), Number(r.v)]));
-  const pd = new Map(paid.map((r) => [r.period.slice(0, 10), Number(r.v)]));
-  return Array.from({ length: 12 }, (_, i) => {
-    const p = shiftMonth(first, i);
-    return { period: p, planned: Math.round(pl.get(p) ?? 0), paid: Math.round(pd.get(p) ?? 0) };
-  });
+  return loadPayByMonth(shiftMonth(period, -11), period, staffId);
+}
+
+/** What this person added to the ledger by hand in the last 24 hours —
+ * the "Oxirgi amallar" undo list on the pay run console. */
+export type RecentEntry = { id: string; staffName: string; title: string; amount: number; kind: string; period: string | null; at: string };
+
+export async function loadMyRecentEntries(userId: string): Promise<RecentEntry[]> {
+  const rows = await sql<{ id: string; title: string; amount: number; kind: string; period: string | null; created_at: string; first_name: string | null; last_name: string | null }[]>`
+    select e.id, e.title, e.amount, e.kind::text as kind, to_char(e.period, 'YYYY-MM-DD') as period, e.created_at, p.first_name, p.last_name
+    from finance_entries e join profiles p on p.id = e.staff_id
+    where e.created_by = ${userId} and e.source in ('manual', 'advance') and e.created_at > now() - interval '24 hours'
+    order by e.created_at desc limit 8`;
+  return rows.map((r) => ({ id: r.id, staffName: name(r.first_name, r.last_name), title: r.title, amount: r.amount, kind: r.kind, period: r.period, at: r.created_at }));
+}
+
+/** Out-of-pocket spending a staff member asked to get back. */
+export type Reimbursement = {
+  id: string;
+  staff_id: string;
+  staff_name: string;
+  amount: number;
+  title: string;
+  note: string;
+  spent_on: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  period: string | null;
+  decision_note: string;
+  created_at: string;
+};
+
+export async function loadReimbursements(staffId?: string): Promise<Reimbursement[]> {
+  const rows = await sql<(Omit<Reimbursement, 'staff_name'> & { first_name: string | null; last_name: string | null })[]>`
+    select r.id, r.staff_id, r.amount, r.title, r.note, to_char(r.spent_on, 'YYYY-MM-DD') as spent_on, r.status,
+      to_char(r.period, 'YYYY-MM-DD') as period, r.decision_note, r.created_at, p.first_name, p.last_name
+    from reimbursements r join profiles p on p.id = r.staff_id
+    where ${staffId ? sql`r.staff_id = ${staffId}` : sql`r.status = 'pending'`}
+    order by (r.status = 'pending') desc, r.created_at desc
+    limit 50`;
+  return rows.map(({ first_name, last_name, ...r }) => ({ ...r, staff_name: name(first_name, last_name) }));
+}
+
+/** A staff member's latest payments with their "Oldim" answer. */
+export type MyPayment = {
+  id: string;
+  title: string;
+  kind: 'salary' | 'advance';
+  amount: number;
+  period: string | null;
+  at: string;
+  method: string | null;
+  receipt: 'received' | 'disputed' | null;
+  receiptNote: string;
+};
+
+export async function loadMyPayments(staffId: string): Promise<MyPayment[]> {
+  const rows = await sql<{ id: string; title: string; kind: 'salary' | 'advance'; amount: number; period: string | null; created_at: string; method: string | null; status: 'received' | 'disputed' | null; note: string | null }[]>`
+    select fe.id, fe.title, fe.kind::text as kind, fe.amount, to_char(fe.period, 'YYYY-MM-DD') as period, fe.created_at,
+      a.name as method, r.status, r.note
+    from finance_entries fe
+      left join pay_receipts r on r.entry_id = fe.id
+      left join acct_accounts a on a.code = fe.method
+    where fe.staff_id = ${staffId} and fe.kind in ('salary', 'advance') and fe.amount > 0
+    order by fe.created_at desc limit 12`;
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    kind: r.kind,
+    amount: r.amount,
+    period: r.period,
+    at: r.created_at,
+    method: r.method,
+    receipt: r.status,
+    receiptNote: r.note ?? '',
+  }));
 }

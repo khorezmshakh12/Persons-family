@@ -145,7 +145,7 @@ const FLOW: { s: Stage; n: string }[] = [
 ];
 
 const dt = (iso: string) =>
-  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tashkent' });
+  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', timeZone: 'Asia/Tashkent' });
 
 /** "YYYY-MM-DDTHH:mm" in Tashkent, `days` from now at 18:00. */
 function tashkentInput(nowMs: number, days: number): string {
@@ -1158,6 +1158,7 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [anon, setAnon] = useState(false);
+  const [it, setIt] = useState(false);
   const [assignee, setAssignee] = useState('');
   const [pending, start] = useTransition();
   const [recording, setRecording] = useState(false);
@@ -1230,6 +1231,7 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
       fd.set('kind', kind);
       fd.set('priority', priority);
       fd.set('anonymous', kind === 'idea' && anon ? 'on' : 'off');
+      fd.set('it', it && kind !== 'idea' ? 'on' : 'off');
       if (manager && assignee) fd.set('assignedTo', assignee);
       if (voicePath && !(kind === 'idea' && anon)) fd.set('voiceUrl', voicePath);
       const res = await createIssueAction(undefined, fd);
@@ -1305,6 +1307,22 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+          {kind !== 'idea' && (
+            <div className="flex flex-col gap-1.5">
+              <label className={cn(SURFACE_INSET, 'flex cursor-pointer items-start gap-3 p-3')}>
+                <input type="checkbox" checked={it} onChange={(e) => setIt(e.target.checked)} className="mt-0.5 size-4 accent-au-primary" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">💻 IT / sayt muammosi</span>
+                  <span className="text-xs text-au-muted">Belgilansa, murojaat to‘g‘ridan-to‘g‘ri IT dasturchiga boradi.</span>
+                </span>
+              </label>
+              {it && (
+                <p className="rounded-au-ctl border border-au-line bg-au-card-2 px-3 py-2 text-xs text-au-ink">
+                  ⚠️ Bu yerga <b>faqat IT / sayt (dastur) muammosi</b>ni yozing — masalan tizim xatosi, sahifa ochilmasligi, kirish/hisob muammosi. Boshqa muammolar uchun bu belgini olib tashlang.
+                </p>
+              )}
             </div>
           )}
           {kind === 'idea' && (

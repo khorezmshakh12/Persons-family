@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import type { CashTemplate } from '@/lib/accounting-cash';
+import { boxKind, type CashBox, type CashCatRow, type CashTemplate } from '@/lib/accounting-cash';
 import { DEFAULT_TAX, type Account, type Asset, type Course, type Entry, type TaxSettings } from '@/lib/accounting';
 
 export type Books = {
@@ -15,11 +15,15 @@ export type Books = {
   planStudents: Record<string, number>;
   /** Monthly recurring cash movements (Kirim-chiqim › Shablonlar). */
   templates: CashTemplate[];
+  /** Kassa / bank / karta accounts (acct_accounts.cash_box), in chart order. */
+  boxes: CashBox[];
+  /** Kirim-chiqim categories (acct_cash_cats), hidden ones included. */
+  cats: CashCatRow[];
 };
 
 /** Everything Hisob-kitob and the Strategy Moliya/Tahlil tabs compute from. */
 export async function loadBooks(): Promise<Books> {
-  const [accounts, opening, entries, assets, courses, tax, budget, plan, templates] = await Promise.all([
+  const [accounts, opening, entries, assets, courses, tax, budget, plan, templates, boxes, cats] = await Promise.all([
     sql<Account[]>`select code, name, type from acct_accounts order by sort, code`,
     sql<{ code: string; amount: number }[]>`select code, amount from acct_opening`,
     sql<Entry[]>`
@@ -31,6 +35,8 @@ export async function loadBooks(): Promise<Books> {
     sql<{ period: string; code: string; amount: number }[]>`select period, code, amount from acct_budget`,
     sql<{ value: Record<string, number> }[]>`select value from acct_settings where key = 'plan_students'`,
     sql<CashTemplate[]>`select id, cat, method, amount, note, day, active, to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as "from" from acct_templates order by day, created_at`,
+    sql<{ code: string; name: string }[]>`select code, name from acct_accounts where cash_box order by sort, code`,
+    sql<CashCatRow[]>`select k, n, dir, acc, sort, active from acct_cash_cats order by sort, n`,
   ]);
   return {
     accounts: [...accounts],
@@ -42,5 +48,7 @@ export async function loadBooks(): Promise<Books> {
     budget: budget.map((b) => ({ ...b, period: b.period.slice(0, 7) })),
     planStudents: plan[0]?.value ?? {},
     templates: [...templates],
+    boxes: boxes.map((b) => ({ code: b.code, name: b.name, kind: boxKind(b.code) })),
+    cats: [...cats],
   };
 }

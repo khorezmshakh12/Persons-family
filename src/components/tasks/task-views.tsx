@@ -233,7 +233,7 @@ export function TaskListView({ tasks, isAdmin, onOpen }: { tasks: Task[]; isAdmi
                   </td>
                 )}
                 <td className={cn('px-3 py-2.5 whitespace-nowrap tabular-nums', task.is_overdue && lane !== 'done' ? 'font-semibold text-au-bad' : 'text-au-muted')}>
-                  {format.dateTime(new Date(task.deadline), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {format.dateTime(new Date(task.deadline), { day: 'numeric', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}
                 </td>
                 <td className="px-3 py-2.5">
                   <span className={cn('inline-flex h-6 items-center rounded-md px-2 text-xs font-semibold', LANE_CHIP[lane])}>{t(`columns.${lane}`)}</span>

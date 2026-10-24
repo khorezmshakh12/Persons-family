@@ -66,7 +66,7 @@ const ERR: Record<string, string> = {
   notYet: 'Bu oy hali boshlanmagan',
   forbidden: "Ruxsat yo'q",
   invalidInput: "Ma'lumot noto'g'ri",
-  periodLocked: 'Bu oyning oyligi tasdiqlangan — avval Moliya › Oylik jarayonida oyni qayta oching',
+  periodLocked: 'Saqlab bo‘lmadi — qayta urinib ko‘ring',
 };
 const errText = (c: string) => ERR[c] ?? "Saqlab bo'lmadi, qayta urinib ko'ring";
 
@@ -546,7 +546,7 @@ function AuditTrail({ plan }: { plan: KpiPlan }) {
       <ol className="mt-2 grid gap-1.5 border-l-2 border-au-line pl-3">
         {plan.audit.map((a, i) => (
           <li key={i} className="text-xs text-au-muted">
-            <b className="text-au-ink">{new Date(a.at).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b>
+            <b className="text-au-ink">{new Date(a.at).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })}</b>
             {' · '}
             {a.actor ?? '—'}:{' '}
             {a.action === 'review'

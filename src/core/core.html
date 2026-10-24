@@ -711,7 +711,7 @@ html[data-theme=dark] .cm2.ceo>div{background:#f3efe9;color:#17161a}html[data-th
 /* =====================================================================
    PERSONS STAFF CORE v2 — faqat xodimlar uchun ish platformasi.
    Yagona ma'lumot manbai: S (localStorage). Har bir raqam S dan hisoblanadi — hech qayerda qo'lda yozilgan raqam yo'q.
-   Bo'limlar: Dashboard · Vazifalar · Inbox · Sotuv (Lead Intelligence) · HR · Perforce · Operation HQ · Strategiya · Hisobot · Sozlamalar
+   Bo'limlar: Dashboard · Vazifalar · Inbox · Sotuv (Lead Intelligence) · HR · Operation HQ · Strategiya · Hisobot · Sozlamalar
    ===================================================================== */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -766,21 +766,20 @@ const subtree=k=>{ const out=[]; const walk=x=>teamOf(x).forEach(y=>{ out.push(y
 const isMgr=k=>isCEO(k)||teamOf(k).length>0;
 /* ---------- rollar / ruxsatlar ---------- */
 const ROLES=[['AU','Founder — hamma narsa + sozlamalar'],['AQ','CEO — hammasini ko\'radi va tasdiqlaydi'],['SR','Tijorat direktori'],['UT','Sotuv menejeri'],['DK','Marketolog'],['MK','Yo\'nalish rahbari (o\'qituvchi)'],['MQ','HR menejer'],['RK','COO'],['KI','Moliya direktori']];
-const NAV=[{g:'Asosiy'},{v:'home',n:'Dashboard'},{v:'tasks',n:'Vazifalar'},{v:'inbox',n:'Inbox · Tasdiqlar'},{g:'Bo\'limlar'},{v:'sales',n:'Sotuv · Lead Intelligence',d:'com'},{v:'hr',n:'HR · Xodimlar',d:'hr'},{v:'perforce',n:'Persons Perforce',d:'ops'},{v:'ops',n:'Operation HQ',d:'ops'},{g:'Boshqaruv'},{v:'strategy',n:'Strategiya'},{v:'report',n:'Oylik hisobot'},{v:'settings',n:'Sozlamalar · Ma\'lumotlar'}];
+const NAV=[{g:'Asosiy'},{v:'home',n:'Dashboard'},{v:'tasks',n:'Vazifalar'},{v:'inbox',n:'Inbox · Tasdiqlar'},{g:'Bo\'limlar'},{v:'sales',n:'Sotuv · Lead Intelligence',d:'com'},{v:'hr',n:'HR · Xodimlar',d:'hr'},{v:'ops',n:'Operation HQ',d:'ops'},{g:'Boshqaruv'},{v:'strategy',n:'Strategiya'},{v:'report',n:'Oylik hisobot'},{v:'settings',n:'Sozlamalar · Ma\'lumotlar'}];
 const ALL_V=NAV.filter(x=>x.v).map(x=>x.v);
 function defAccess(k){ const e=P[k]; if(!e) return ['home','tasks','inbox'];
   if(e.top) return ALL_V.slice();
   const base=['home','tasks','inbox','hr'];
-  if(e.d==='com') base.push('sales'); if(e.d==='ops'||e.r==='COO') base.push('perforce','ops');
+  if(e.d==='com') base.push('sales'); if(e.d==='ops'||e.r==='COO') base.push('ops');
   if(e.d==='hr') base.push('ops','strategy','report'); if(e.d==='fin') base.push('sales','strategy','report');
-  if(e.d==='acad') base.push('perforce');
   if(e.boss==='AQ') base.push('strategy','report'); return [...new Set(base)]; }
 const can=v=>{ const a=(S.acl&&S.acl[S.me])||defAccess(S.me); return a.includes(v); };
 const NAME=Object.fromEntries(NAV.filter(x=>x.v).map(x=>[x.v,x.n]));
 const IC={home:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   tasks:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',sales:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
   inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1z"/>',
-  hr:'<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 3a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',perforce:'<path d="M12 2l10 5-10 5L2 7z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>',
+  hr:'<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 3a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
   ops:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',strategy:'<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>',
   report:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',check:'<path d="M5 12l5 5L20 7"/>',x:'<path d="M18 6L6 18M6 6l12 12"/>',edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.7a2 2 0 0 1 1.7 2z"/>',dl:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',up:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',star:'<path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',msg:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'};
@@ -1046,7 +1045,7 @@ function switchRole(k){ if(k===S.me) return; S.me=k; $('#isl').classList.remove(
   toast(`${P[k].n} sifatida ko'rilmoqda`); }
 function go(v){ if(!can(v)) return toast('Bu bo\'lim sizning lavozimingiz uchun yopiq'); S.view=v; save(); closeDrawer(true); render(); }
 function render(soft){ const nav=S.view!==lastV&&!soft; if(!PAGES[S.view]||!can(S.view)) S.view='home';
-  const paint=()=>{ const v=$('#view'), sc=v.scrollTop; v.className='view'+(['strategy','perforce','ops'].includes(S.view)?' full':''); v.innerHTML='';
+  const paint=()=>{ const v=$('#view'), sc=v.scrollTop; v.className='view'+(['strategy','ops'].includes(S.view)?' full':''); v.innerHTML='';
     const inner=document.createElement('div'); if(v.classList.contains('full')) inner.style.height='100%'; v.appendChild(inner);
     try{ PAGES[S.view](inner); }catch(e){ console.error(e); inner.innerHTML=`<div class="card pad s12"><div class="empty"><b>Sahifa xatosi</b><small>${esc(e.message)}</small></div></div>`; }
     $('#crumb').textContent=NAME[S.view]; drawSide(); cdAll(); fxOn(inner); monthBind(inner); inner.querySelectorAll('[data-go]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); go(b.dataset.go); }); decorate(inner);
@@ -1370,7 +1369,7 @@ function staffDrawer(k){ const e=P[k]; if(!e) return; const me=S.me, ceo=isCEO(m
   if(q('#eOff')) q('#eOff').onclick=()=>ask(e.active===0?'Qayta faollashtirilsinmi?':'Ishdan bo\'shatilsinmi?',e.n+(e.active===0?'':' · tarix saqlanadi, menyu va KPI xaritasidan chiqadi'),e.active===0?'Faollashtirish':'Bo\'shatish',()=>{ e.active=e.active===0?1:0; if(!e.active) e.left=Date.now(); log(`${e.n} ${e.active?'qayta faollashtirildi':'ishdan bo\'shatildi'}`); save(); closeDrawer(); render(true); },e.active!==0); }
 
 /* =====================================================================
-   OYLIK HISOBOT · SOZLAMALAR (maqsad, me'yor, ruxsat, ma'lumot import/eksport) · AUDIT · EMBED (Perforce, Ops, Strategiya)
+   OYLIK HISOBOT · SOZLAMALAR (maqsad, me'yor, ruxsat, ma'lumot import/eksport) · AUDIT · EMBED (Ops, Strategiya)
    ===================================================================== */
 PAGES.report=el=>{ const m=S.month, c=salesCalc({m}), pc0=salesCalc({m:shiftM(m,-1)}), tg=tgtOf(m), ev=evalAll(m), [a,b]=mRange(m), T=S.tasks.filter(t=>(t.st==='done'&&t.doneAt>=a&&t.doneAt<b)||(t.st!=='done'&&t.created<b)), done=T.filter(t=>t.st==='done'), ot=done.length?done.filter(t=>t.doneAt<=t.due).length/done.length*100:0;
   const d=(x,y,inv)=>{ if(!y) return ''; const p=(x-y)/y*100, up=p>=0; return `<em class="${(up!==!!inv)?'pos':'neg'}">${up?'▲':'▼'} ${Math.abs(p).toFixed(0)}%</em>`; };
@@ -1418,18 +1417,17 @@ PAGES.settings=el=>{ const me=S.me, tab=S.stTab||'cfg', ceo=isCEO(me); if(!ceo) 
     const lq=$('#lq'); lq.oninput=()=>{ clearTimeout(window._lq); window._lq=setTimeout(()=>{ S.lq=lq.value; render(true); setTimeout(()=>{ const e=$('#lq'); if(e){ e.focus(); e.setSelectionRange(e.value.length,e.value.length); } },0); },300); };
     $('#logCsv').onclick=()=>csv([['Vaqt','Kim','Harakat'],...S.log.map(x=>[fmtDT(x.at),P[x.by]?P[x.by].n:x.by,x.t])],'audit.csv'); } };
 
-/* ---------- Perforce va Operation HQ — Strategiya saytidagi to'liq ishlaydigan modullar (fayl ichida) ---------- */
+/* ---------- Operation HQ — Strategiya saytidagi to'liq ishlaydigan modullar (fayl ichida) ---------- */
 function embedPage(el,title,sub,tabs2,def){ const cur=S['em_'+title]||def;
   el.innerHTML=`<div class="sframe"><div class="sfh"><div><b>${title}</b><br><small>${sub}</small></div><div class="seg" id="emT">${tabs2.map(t=>`<button data-v="${t[0]}" class="${cur===t[0]?'on':''}">${t[1]}</button>`).join('')}</div><span class="sp"></span><button class="btn s sm" id="emO">${SI('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>')}Yangi oynada</button></div><div class="ifw"><iframe id="emF" title="${title}"></iframe></div></div>`;
   const doc=STRAT_HTML.replace('<head>',`<head><\script>window.__EMBED=1;window.__START=${JSON.stringify(cur)};window.__THEME=${JSON.stringify(document.documentElement.dataset.theme||'light')};<\/script>`);
   const fr=$('#emF'); fr.srcdoc=doc;
   el.querySelectorAll('#emT button').forEach(b=>b.onclick=()=>{ S['em_'+title]=b.dataset.v; save(); el.querySelectorAll('#emT button').forEach(x=>x.classList.toggle('on',x===b)); fr.contentWindow.postMessage({go:b.dataset.v},'*'); });
   $('#emO').onclick=()=>{ const w=open('','_blank'); w.document.write(STRAT_HTML.replace('<head>',`<head><\script>window.__START=${JSON.stringify(cur)};<\/script>`)); w.document.close(); }; }
-PAGES.perforce=el=>embedPage(el,'Persons Perforce','P4 Plan · ALM · Depot — loyihalar, sprintlar, sifat',[['pf_port','Portfel'],['pf_back','Backlog'],['pf_sprint','Sprint'],['pf_sched','Gantt'],['pf_alm','ALM · Sifat'],['pf_depot','Depot'],['pf_rep','Hisobotlar']],'pf_port');
 PAGES.ops=el=>embedPage(el,'Operation HQ','xonalar matritsasi · lid voronkasi · o\'sish · bo\'limlar KPI',[['ops_cap','Xonalar'],['ops_fun','Voronka'],['ops_gro','O\'sish'],['ops_kpi','Bo\'limlar KPI']],'ops_cap');
 PAGES.strategy=el=>embedPage(el,'Strategiya','roadmap · mind map · board · moliya · hisob-kitob',[['dash','Dashboard'],['roadmap','Roadmap'],['mind','Mind map'],['board','Board'],['gantt','Gantt'],['fin','Moliya'],['ma_cost','Hisob-kitob']],'dash');
 
-const STRAT_HTML=""; /* strategy/ops/perforce open the site's own pages (see core bridge) */
+const STRAT_HTML=""; /* strategy/ops open the site's own pages (see core bridge) */
 
 /* =====================================================================
    MOTION + QIDIRUV + ISHGA TUSHIRISH
@@ -1489,7 +1487,7 @@ document.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key.toLowe
 $('#rst').onclick=()=>{ if(!can('settings')) return toast('Ma\'lumotlar boshqaruvi faqat CEO uchun'); S.stTab='data'; go('settings'); };
 $('#bell').onclick=()=>go('inbox');
 /* har daqiqada: follow-up va muddat signallari qayta hisoblanadi */
-setInterval(()=>{ if(!DR&&!document.querySelector('.dm-bg')&&!['strategy','perforce','ops'].includes(S.view)&&!document.activeElement.closest('input,textarea,select')) render(true); },120000);
+setInterval(()=>{ if(!DR&&!document.querySelector('.dm-bg')&&!['strategy','ops'].includes(S.view)&&!document.activeElement.closest('input,textarea,select')) render(true); },120000);
 if(!NAME[S.view]||!can(S.view)) S.view='home';
 render();
 if(!RM) $$('.side .brand,.side .who,#nav>*').forEach((e,i)=>once(e,'rs',i));

@@ -32,6 +32,7 @@ export default async function LessonPlansPage({
   // Role gating for this whole section happens in lesson-plans/layout.tsx —
   // see its comment for why that redirect can't live here.
   const { profile } = await getAuthState();
+  if (!profile) return null; // layout redirects to /login
 
   const isTeacher = profile!.role === 'teacher';
   const isAssistant = profile!.role === 'assistant';

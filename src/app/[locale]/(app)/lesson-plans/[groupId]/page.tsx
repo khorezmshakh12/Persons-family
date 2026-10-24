@@ -12,6 +12,7 @@ import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-di
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { ResyncScheduleButton } from '@/components/lesson-plans/resync-schedule-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
+import { CourseSyllabusSection } from '@/components/lesson-plans/course-syllabus-section';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,8 @@ import {
   GlassCourseLessonsSkeleton,
 } from '@/components/skeletons/glass-skeletons';
 import { can } from '@/lib/permissions';
+import { courseLevel } from '@/lib/course-levels';
+import { ensureSyllabusTagged } from '@/lib/syllabus';
 
 const EditGroupDialog = nextDynamic(() =>
   import('@/components/lesson-plans/edit-group-dialog').then((mod) => mod.EditGroupDialog),
@@ -39,6 +42,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   // Role gating for this whole section happens in lesson-plans/layout.tsx —
   // see its comment for why that redirect can't live here.
   const { user, profile } = await getAuthState();
+  if (!user || !profile) return null; // layout redirects to /login
 
   const [groupRow] = await sql<
     {
@@ -49,12 +53,13 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
       configuration: GroupConfiguration;
       course_name: string | null;
       schedule_type: 'odd' | 'even' | null;
+      level: string | null;
       teacher_first_name: string;
       teacher_last_name: string;
       teacher_avatar_url: string | null;
     }[]
   >`
-    select g.id, g.name, g.teacher_id, g.assigned_ta_id, g.configuration, g.course_name, g.schedule_type,
+    select g.id, g.name, g.teacher_id, g.assigned_ta_id, g.configuration, g.course_name, g.schedule_type, g.level,
       t.first_name as teacher_first_name, t.last_name as teacher_last_name, t.avatar_url as teacher_avatar_url
     from groups g
     join profiles t on t.id = g.teacher_id
@@ -71,6 +76,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
     configuration: groupRow.configuration,
     course_name: groupRow.course_name,
     schedule_type: groupRow.schedule_type,
+    level: groupRow.level,
     teacher: {
       first_name: groupRow.teacher_first_name,
       last_name: groupRow.teacher_last_name,
@@ -118,6 +124,12 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const canViewGroupChat = isOwnerTeacher || isAssignedTa || isCeo;
   const canPostGroupChat = isOwnerTeacher || isAssignedTa;
 
+  // Imtihon kunlari (progress / middle / level up) ikkala bo'lim render
+  // bo'lishidan oldin to'ldirilgan bo'lsin — aks holda birinchi ochilishda
+  // lessons jadvali hali bo'sh holatni ko'rsatadi.
+  await ensureSyllabusTagged(group.id);
+  const level = courseLevel(group.level);
+
   const configuration = group.configuration as GroupConfiguration;
 
   // Which month counts as "now" is decided here, once, in Tashkent time, and
@@ -154,6 +166,11 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             <Badge variant="tint" tint="slate" className="px-4 py-1.5 text-sm font-bold">
               {t('groupLabel')}: {group.name}
             </Badge>
+            {level && (
+              <Badge variant="tint" tint="blue" className="px-3 py-1.5 text-sm font-semibold">
+                {t('level')}: {level.label}
+              </Badge>
+            )}
             {group.teacher && (
               <span className="flex items-center gap-2 rounded-full border border-au-line bg-au-card py-1 pr-4 pl-1.5 text-sm font-medium text-au-ink">
                 <Avatar className="size-7 border border-au-line">
@@ -177,6 +194,7 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
                 assistants={assistants}
                 courseName={group.course_name}
                 scheduleType={group.schedule_type}
+                level={group.level}
               />
               {group.schedule_type && <ResyncScheduleButton groupId={group.id} />}
               <DeleteGroupButton groupId={group.id} />
@@ -195,6 +213,10 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             .join(' · ') || t('noConfiguration')}
         </p>
       </div>
+
+      <Suspense fallback={<GlassCardSkeleton />}>
+        <CourseSyllabusSection groupId={group.id} canManage={canEditLessonContent || isCeo} />
+      </Suspense>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-xl font-bold tracking-tight text-au-ink">{t('courseLessons.title')}</h2>

@@ -14,6 +14,8 @@ export type StrategyTask = {
   title: string;
   description: string;
   workstream: Workstream;
+  /** Bu vazifaning o'z missiyasi / maqsadi (nega qilinyapti). */
+  mission: string | null;
   assignee_id: string | null;
   start_date: string;
   end_date: string;

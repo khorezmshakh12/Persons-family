@@ -1,6 +1,6 @@
 /* Strategy suite chrome: section bar, ⌘K palette, sound toggle, ripple,
    progress bar, card spotlight, and the shared table / form / stat pieces
-   used by Hisob-kitob, Operatsiya HQ and Perforce. Transform-only entrances. */
+   used by Hisob-kitob and Operatsiya HQ. Transform-only entrances. */
 
 .sx-topbar {
   position: fixed;
@@ -1470,4 +1470,26 @@ body:has([data-motion='on'] .sx-suite) [data-sonner-toast] [data-icon] {
   .sx-suite button, .sx-suite .sx-pager { display: none !important; }
   .sx-suite .sx-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
   .sx-suite .sx-fade, .sx-suite [style*='animation'] { animation: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+/* Text tables (Operation HQ › O'quvchilar, Sales): left-aligned, wrapping,
+   with room at the card edges; numeric cells opt into text-right. */
+.sx-tbl.lt th,
+.sx-tbl.lt td {
+  text-align: left;
+  white-space: normal;
+  vertical-align: middle;
+  padding: 10px 12px;
+}
+.sx-tbl.lt th:first-child,
+.sx-tbl.lt td:first-child {
+  padding-left: 14px;
+}
+.sx-tbl.lt th:last-child,
+.sx-tbl.lt td:last-child {
+  padding-right: 14px;
+}
+.sx-tbl.lt th.text-right,
+.sx-tbl.lt td.text-right {
+  text-align: right;
 }

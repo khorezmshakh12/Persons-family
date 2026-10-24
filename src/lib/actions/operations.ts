@@ -8,6 +8,7 @@ import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
+import { tashkentDayKey } from '@/lib/time';
 import { can } from '@/lib/permissions';
 import { DEFAULT_DURATION, isBlocking, issuesFor, scheduleIssues, type Availability, type SchedGroup } from '@/lib/ops-schedule';
 
@@ -471,6 +472,79 @@ export async function setTeacherAvailabilityAction(teacherId: string, cohort: 'o
       if (p.data.length)
         await tx`insert into ops_teacher_availability ${tx(p.data.map((w) => ({ teacher_id: teacherId, cohort, start_time: w.start, end_time: w.end })))}`;
     });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+/** Bugun: put a substitute teacher on a group for today, or clear it (null). */
+export async function setSubstituteAction(groupId: string, teacherId: string | null): Promise<Result> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const uuid = z.string().uuid();
+  if (!uuid.safeParse(groupId).success || (teacherId !== null && !uuid.safeParse(teacherId).success)) return { error: 'invalidInput' };
+  const day = tashkentDayKey();
+  try {
+    if (teacherId === null) await sql`delete from ops_substitutions where day = ${day} and group_id = ${groupId}`;
+    else
+      await sql`
+        insert into ops_substitutions (day, group_id, teacher_id, created_by)
+        values (${day}, ${groupId}, ${teacherId}, ${by})
+        on conflict (day, group_id) do update set teacher_id = excluded.teacher_id, created_by = excluded.created_by, created_at = now()`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+const calendarSchema = z.object({
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: z.enum(['holiday', 'exam', 'makeup', 'event']),
+  title: z.string().trim().min(1).max(200),
+  groupId: z.string().uuid().nullable().default(null),
+  time: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
+  room: z.string().trim().max(40).nullable().default(null),
+});
+
+/** Kalendar: add a holiday / exam / make-up lesson / event. */
+export async function addCalendarEventAction(input: z.input<typeof calendarSchema>): Promise<Result> {
+  let by: string;
+  try {
+    ({ profile: { id: by } } = await requireCap('operations.edit'));
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = calendarSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    await sql`
+      insert into ops_calendar (day, kind, title, group_id, time, room, created_by)
+      values (${v.day}, ${v.kind}, ${v.title}, ${v.groupId}, ${v.time}, ${v.room || null}, ${by})`;
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/operations', 'page');
+  return {};
+}
+
+export async function deleteCalendarEventAction(id: string): Promise<Result> {
+  try {
+    await requireCap('operations.edit');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`delete from ops_calendar where id = ${id}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch {
     return { error: 'updateFailed' };
   }
