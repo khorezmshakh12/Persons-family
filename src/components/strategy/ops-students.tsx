@@ -1,16 +1,18 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { AlertTriangle, Download, Mail, Pencil, Phone, Search, Settings2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
+import { useRouter } from '@/i18n/navigation';
+import { unmarkPaidElsewhereAction } from '@/lib/actions/students';
 import { daysBetween, nextDueDate } from '@/lib/billing';
 import type { StudentRow } from '@/lib/ops-students';
-import { playSound } from './suite-shell';
+import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
-import { CALLS, GRADE, METHODS, dmy, fixFor, som, when } from './ops-students-meta';
+import { CALLS, GRADE, METHODS, dmy, errText, fixFor, som, when } from './ops-students-meta';
 import { StudentCardDrawer } from './ops-student-card';
-import { BillingSettingsModal, LogModal, TemplatesModal } from './ops-student-admin';
+import { BillingSettingsModal, LogModal, PaidElsewhereModal, TemplatesModal } from './ops-student-admin';
 
 type Filter = 'active' | 'inactive' | 'debt' | 'frozen' | 'risk' | 'notg' | 'archive';
 const FILTERS: [Filter, string][] = [
@@ -62,6 +64,10 @@ export function OpsStudents({ data }: { data: OpsData }) {
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<{ id: string; pane?: string } | null>(null);
   const [modal, setModal] = useState<'tpl' | 'settings' | 'log' | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [faol, setFaol] = useState<StudentRow[] | null>(null);
+  const router = useRouter();
+  const [undoing, startUndo] = useTransition();
 
   const live = d.rows.filter(isLive);
   const billed = live.filter((s) => s.active);
@@ -89,6 +95,28 @@ export function OpsStudents({ data }: { data: OpsData }) {
       return true;
     });
   }, [d.rows, q, filter, grade]);
+
+  const pick = filter !== 'archive' && data.canEdit;
+  const pickable = rows.filter(isPending);
+  const toggle = (id: string) =>
+    setSel((x) => {
+      const n = new Set(x);
+      if (!n.delete(id)) n.add(id);
+      return n;
+    });
+  const chosen = d.rows.filter((s) => sel.has(s.id) && isPending(s));
+  const undoFaol = (s: StudentRow) =>
+    startUndo(async () => {
+      const r = await unmarkPaidElsewhereAction(s.id);
+      if (r.error) {
+        playSound('err');
+        toast.error(errText(r.error));
+        return;
+      }
+      playSound('ok');
+      toast.success('Faollik bekor qilindi');
+      router.refresh();
+    });
 
   const callList = live
     .filter((s) => s.balance < 0 && s.grade.openDays >= d.settings.callAfterDays)
@@ -194,7 +222,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="sx-seg">
             {FILTERS.map(([k, n]) => (
-              <button key={k} className={cn(filter === k && 'on')} onClick={() => { setFilter(k); setLimit(PAGE); }}>
+              <button key={k} className={cn(filter === k && 'on')} onClick={() => { setFilter(k); setLimit(PAGE); setSel(new Set()); }}>
                 {n}
               </button>
             ))}
@@ -231,6 +259,19 @@ export function OpsStudents({ data }: { data: OpsData }) {
                   </tr>
                 ) : (
                   <tr>
+                    {pick && (
+                      <th className="w-[34px]">
+                        {pickable.length > 0 && (
+                          <input
+                            id="ops-stu-all"
+                            type="checkbox"
+                            aria-label="Faol emaslarni tanlash"
+                            checked={pickable.every((s) => sel.has(s.id))}
+                            onChange={(e) => setSel(e.target.checked ? new Set(pickable.map((s) => s.id)) : new Set())}
+                          />
+                        )}
+                      </th>
+                    )}
                     <th>Ism familiya</th>
                     <th>Telefon</th>
                     <th>Holat</th>
@@ -238,7 +279,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
                     <th className="text-right">Oylik to‘lov</th>
                     <th>Aktiv bo‘lgan sana</th>
                     <th>Keyingi to‘lov</th>
-                    {data.canEdit && <th className="w-[84px]" />}
+                    {data.canEdit && <th className="w-[120px]" />}
                   </tr>
                 )}
               </thead>
@@ -257,11 +298,32 @@ export function OpsStudents({ data }: { data: OpsData }) {
                       <td className="text-right">{s.balance < 0 ? <b className="tabular-nums text-au-bad">{formatUZS(-s.balance)}</b> : '—'}</td>
                     </tr>
                   ) : (
-                    <Row key={s.id} s={s} today={today} canEdit={data.canEdit} onOpen={(pane) => openCard(s.id, pane)} />
+                    <Row
+                      key={s.id}
+                      s={s}
+                      today={today}
+                      canEdit={data.canEdit}
+                      onOpen={(pane) => openCard(s.id, pane)}
+                      pick={pick ? { on: sel.has(s.id), toggle: () => toggle(s.id) } : undefined}
+                      onFaol={() => setFaol([s])}
+                      onUndo={undoing ? undefined : () => undoFaol(s)}
+                    />
                   ),
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {chosen.length > 0 && (
+          <div className="sticky bottom-3 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-au-ink px-4 py-2.5 text-sm text-au-card">
+            <span>{chosen.length} ta tanlandi</span>
+            <span className="flex-1" />
+            <button className="sx-btn sm" onClick={() => setSel(new Set())}>
+              Bekor
+            </button>
+            <button className="sx-btn sm primary" onClick={() => setFaol(chosen)}>
+              Tanlanganlarni faol qilish
+            </button>
           </div>
         )}
         {rows.length > limit && (
@@ -273,7 +335,8 @@ export function OpsStudents({ data }: { data: OpsData }) {
         )}
         <div className="mt-2 text-xs text-au-faint">
           Qatorni bosing — o‘quvchi kartasi: barcha to‘lov va yechimlar, xabarlar, kim nima qilgani. Faol o‘quvchi avtomatik: oylik summa biriktirilgan va kamida
-          bitta to‘lov qilgan; muzlatilgan o‘quvchi faol hisoblanmaydi.
+          bitta to‘lov qilgan; muzlatilgan o‘quvchi faol hisoblanmaydi. Boshqa CRM’da to‘lagan o‘quvchini «Faol qilish» tugmasi bilan
+          qo‘lda faol qiling.
         </div>
       </div>
 
@@ -313,6 +376,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
       )}
       {modal === 'tpl' && <TemplatesModal data={data} onClose={() => setModal(null)} />}
       {modal === 'settings' && <BillingSettingsModal data={data} onClose={() => setModal(null)} />}
+      {faol && <PaidElsewhereModal students={faol} onClose={() => setFaol(null)} onDone={() => { setFaol(null); setSel(new Set()); }} />}
       {modal === 'log' && <LogModal data={data} onClose={() => setModal(null)} onOpen={(id) => { setModal(null); openCard(id); }} />}
     </div>
   );
@@ -336,12 +400,33 @@ export function LogItem({ l, onOpen }: { l: OpsData['students']['log'][number]; 
   );
 }
 
-function Row({ s, today, canEdit, onOpen }: { s: StudentRow; today: string; canEdit: boolean; onOpen: (pane?: string) => void }) {
+function Row({
+  s,
+  today,
+  canEdit,
+  onOpen,
+  pick,
+  onFaol,
+  onUndo,
+}: {
+  s: StudentRow;
+  today: string;
+  canEdit: boolean;
+  onOpen: (pane?: string) => void;
+  pick?: { on: boolean; toggle: () => void };
+  onFaol: () => void;
+  onUndo?: () => void;
+}) {
   const g = GRADE[s.grade.grade];
   const next = s.start && s.status === 'active' ? nextDueDate(s.start, today) : null;
   const left = next ? daysBetween(today, next) : 0;
   return (
-    <tr className="cursor-pointer hover:bg-au-card-2" tabIndex={0} onClick={() => onOpen()} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+    <tr className={cn('cursor-pointer hover:bg-au-card-2', pick?.on && 'bg-au-card-2')} tabIndex={0} onClick={() => onOpen()} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+      {pick && (
+        <td onClick={(e) => e.stopPropagation()}>
+          {isPending(s) && <input type="checkbox" aria-label={`${s.name}ni tanlash`} checked={pick.on} onChange={pick.toggle} />}
+        </td>
+      )}
       <td>
         <b className="text-au-ink">{s.name}</b>
         <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
@@ -363,6 +448,11 @@ function Row({ s, today, canEdit, onOpen }: { s: StudentRow; today: string; canE
           <span className="sx-pl info">Muzlatilgan</span>
         ) : (
           <span className="sx-pl ok">Aktiv{s.balance > 0 ? ` · +${formatUZS(s.balance)}` : ''}</span>
+        )}
+        {s.paidElsewhere && (
+          <div className="mt-1 text-xs text-au-faint" title={`${dmy(s.paidElsewhere.at)}${s.paidElsewhere.by ? ` · ${s.paidElsewhere.by}` : ''}`}>
+            qo‘lda faol · {s.paidElsewhere.source}
+          </div>
         )}
       </td>
       <td>
@@ -414,6 +504,16 @@ function Row({ s, today, canEdit, onOpen }: { s: StudentRow; today: string; canE
       {canEdit && (
         <td onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-end gap-1.5">
+            {isPending(s) && (
+              <button className="sx-btn sm primary" title="Boshqa CRM’da to‘lagan — faol qilish" onClick={onFaol}>
+                Faol qilish
+              </button>
+            )}
+            {s.paidElsewhere && (
+              <button className="sx-btn sm" title="Qo‘lda faollikni bekor qilish" disabled={!onUndo} onClick={onUndo}>
+                Bekor qilish
+              </button>
+            )}
             <button className="sx-btn sm" title="Tahrirlash" aria-label="Tahrirlash" onClick={() => onOpen('info')}>
               <Pencil className="size-3.5" />
             </button>

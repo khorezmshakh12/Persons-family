@@ -4,7 +4,9 @@ import { useState, useTransition } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { fillTemplate } from '@/lib/billing';
-import { saveBillingSettingsAction, saveTemplatesAction } from '@/lib/actions/students';
+import { markPaidElsewhereAction, saveBillingSettingsAction, saveTemplatesAction } from '@/lib/actions/students';
+import { formatUZS } from '@/lib/format-currency';
+import type { StudentRow } from '@/lib/ops-students';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
 import { TRIGGERS, VARS, dmy, errText } from './ops-students-meta';
@@ -165,6 +167,85 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
 }
 
 /** Avto-yechim sozlamasi. */
+const PAID_SOURCES = ['Boshqa CRM', 'Naqd, eski daftar', 'Boshqa'];
+
+/** Qo'lda faol: one or many students who paid in another CRM. No payment is recorded here. */
+export function PaidElsewhereModal({ students, onClose, onDone }: { students: StudentRow[]; onClose: () => void; onDone: () => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [fee, setFee] = useState('');
+  const [source, setSource] = useState(PAID_SOURCES[0]);
+  const [note, setNote] = useState('');
+  const one = students.length === 1;
+  const noFee = students.filter((s) => s.fee <= 0).length;
+  const save = () =>
+    start(async () => {
+      const amount = Number(fee.replace(/\D/g, '')) || null;
+      const r = await markPaidElsewhereAction({ studentIds: students.map((s) => s.id), source, note, fee: amount });
+      if (r.error) {
+        playSound('err');
+        toast.error(errText(r.error));
+        return;
+      }
+      playSound('ok');
+      toast.success(one ? `${students[0].name} faol qilindi` : `${r.done ?? students.length} ta o‘quvchi faol qilindi`);
+      router.refresh();
+      onDone();
+    });
+  return (
+    <Modal title={one ? `${students[0].name}ni faol qilish` : `${students.length} ta o‘quvchini faol qilish`} onClose={onClose}>
+      <p className="mb-3 text-sm leading-relaxed text-au-muted">
+        Boshqa CRM’da to‘lov qilgan o‘quvchi. To‘lov bu yerga yozilmaydi va kassaga qo‘shilmaydi, faqat o‘quvchi faol deb belgilanadi.
+      </p>
+      <div className="flex flex-col gap-3">
+        {!one && (
+          <ul className="flex max-h-[150px] flex-col gap-1 overflow-auto rounded-xl border border-au-line px-3 py-2 text-sm">
+            {students.map((s) => (
+              <li key={s.id}>
+                <span className="text-au-ink">{s.name}</span>{' '}
+                <span className="text-au-faint">· {s.fee > 0 ? `${formatUZS(s.fee)} so‘m` : 'oylik summa yo‘q'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {noFee > 0 && (
+          <>
+            {!one && (
+              <div className="rounded-xl bg-au-accent-soft px-3 py-2 text-xs text-au-accent-text">
+                {noFee} ta o‘quvchida oylik summa yo‘q. Quyidagi summa faqat ularga yoziladi.
+              </div>
+            )}
+            <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
+              {one ? 'Oylik to‘lov (so‘m), majburiy' : 'Summasi yo‘qlar uchun oylik to‘lov (so‘m)'}
+              <input id="pe-fee" className="sx-inp" inputMode="numeric" placeholder="masalan 600 000" value={fee} onChange={(e) => setFee(e.target.value)} />
+            </label>
+          </>
+        )}
+        <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
+          Qayerda to‘lagan
+          <select id="pe-src" className="sx-inp" value={source} onChange={(e) => setSource(e.target.value)}>
+            {PAID_SOURCES.map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
+          Izoh (ixtiyoriy)
+          <input id="pe-note" className="sx-inp" maxLength={300} placeholder="masalan: oktabr uchun to‘lagan" value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <button className="sx-btn" onClick={onClose}>
+          Bekor
+        </button>
+        <button className="sx-btn primary" disabled={pending || (noFee > 0 && !Number(fee.replace(/\D/g, '')))} onClick={save}>
+          Faol qilish
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 export function BillingSettingsModal({ data, onClose }: { data: OpsData; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();

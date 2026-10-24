@@ -50,8 +50,8 @@ async function handle(req: NextRequest): Promise<Response> {
       coalesce(s.billing_start, (select min(e.activation_date) from crm_enrollments e where e.student_id = s.id and e.status = 'active'))::text as start
     from crm_students s
     where s.archived_at is null and s.status = 'active'
-      -- faol = kamida bitta to'lov qilgan (liddan kelgan o'quvchi birinchi to'lovgacha yechilmaydi)
-      and exists (select 1 from crm_payments y where y.student_id = s.id and not y.is_refund and y.amount > 0)`;
+      -- faol = kamida bitta to'lov qilgan yoki qo'lda faol (boshqa CRM'da to'lagan) (liddan kelgan o'quvchi birinchi to'lovgacha yechilmaydi)
+      and (s.paid_elsewhere_at is not null or exists (select 1 from crm_payments y where y.student_id = s.id and not y.is_refund and y.amount > 0))`;
 
   // 2) Charges. A charge without a period key near this due date (enroll's
   // first charge, an import) already covers the period's first part.

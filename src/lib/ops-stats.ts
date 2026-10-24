@@ -123,7 +123,7 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
       select
         count(*) filter (where s.status = 'active'
           and coalesce(s.monthly_fee, (select sum(e.tariff_amount) from crm_enrollments e where e.student_id = s.id and e.status = 'active'), 0) > 0
-          and exists (select 1 from crm_payments p where p.student_id = s.id and not p.is_refund and p.amount > 0))::int as active,
+          and (s.paid_elsewhere_at is not null or exists (select 1 from crm_payments p where p.student_id = s.id and not p.is_refund and p.amount > 0)))::int as active,
         count(*) filter (where s.status = 'frozen')::int as frozen,
         count(*) filter (where s.balance < 0)::int as debtors,
         coalesce(sum(-s.balance) filter (where s.balance < 0), 0) as debt
