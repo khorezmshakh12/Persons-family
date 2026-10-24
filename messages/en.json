@@ -483,6 +483,8 @@
     "noConfiguration": "No details set yet.",
     "courseName": "Course name",
     "noCourseName": "No course name set",
+    "level": "Level",
+    "levelNotSet": "Level not set",
     "scheduleType": {
       "label": "Days",
       "notSet": "Not set",

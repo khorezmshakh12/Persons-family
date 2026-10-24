@@ -1,13 +1,11 @@
 import { sql } from '@/lib/db/client';
-import { ensureSyllabusTagged } from '@/lib/syllabus';
 import { CourseSyllabusPanel, type SyllabusRow } from './course-syllabus-panel';
 
 /** Loads the group's 36-lesson syllabus (position, type, topic) and renders
  * the panel. Self-fetching so it streams behind its own Suspense boundary.
- * Auto-tags the plan the first time a group is opened so the 3-month template
- * (with its exams) is already filled in — no manual "Rejani belgilash" click. */
+ * The group page runs ensureSyllabusTagged first, so the 3-month template
+ * (with its exams filled in) is already there — no manual click needed. */
 export async function CourseSyllabusSection({ groupId, canManage }: { groupId: string; canManage: boolean }) {
-  await ensureSyllabusTagged(groupId);
   const rows = await sql<SyllabusRow[]>`
     select syllabus_position as pos, lesson_type as type, topic from course_lessons
     where group_id = ${groupId}

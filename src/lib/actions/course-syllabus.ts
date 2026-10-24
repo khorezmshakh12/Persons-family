@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getAuthState } from '@/lib/auth/session';
 import { can } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
-import { lessonTypeForPosition } from '@/lib/syllabus';
+import { ensureSyllabusTagged, lessonTypeForPosition } from '@/lib/syllabus';
 
 type Result = { error: string } | { ok: true; count?: number };
 
@@ -29,6 +29,7 @@ export async function tagSyllabusAction(groupId: string): Promise<Result> {
       const pos = i + 1;
       await sql`update course_lessons set syllabus_position = ${pos}, lesson_type = ${lessonTypeForPosition(pos)} where id = ${lessons[i].id}`;
     }
+    await ensureSyllabusTagged(groupId); // imtihon kunlarini to'ldiradi
     revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
     return { ok: true, count: lessons.length };
   } catch (e) {

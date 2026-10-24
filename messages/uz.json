@@ -483,6 +483,8 @@
     "noConfiguration": "Hali ma'lumot kiritilmagan.",
     "courseName": "Kurs nomi",
     "noCourseName": "Kurs nomi kiritilmagan",
+    "level": "Daraja",
+    "levelNotSet": "Daraja tanlanmagan",
     "scheduleType": {
       "label": "Kunlar",
       "notSet": "Kiritilmagan",

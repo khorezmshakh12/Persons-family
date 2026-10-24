@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { TaSelectField, type AssistantOption } from './ta-select-field';
+import { LevelSelectField } from './level-select-field';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,7 @@ export function CreateGroupDialog({ assistants }: { assistants: AssistantOption[
             <Label htmlFor="name">{t('groupName')}</Label>
             <Input id="name" name="name" required maxLength={200} placeholder="Matematika A" />
           </div>
+          <LevelSelectField />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="courseName">{t('courseName')}</Label>

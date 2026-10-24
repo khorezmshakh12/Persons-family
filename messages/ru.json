@@ -483,6 +483,8 @@
     "noConfiguration": "Данные ещё не заданы.",
     "courseName": "Название курса",
     "noCourseName": "Название курса не задано",
+    "level": "Уровень",
+    "levelNotSet": "Уровень не задан",
     "scheduleType": {
       "label": "Дни",
       "notSet": "Не задано",

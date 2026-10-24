@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { TaSelectField, type AssistantOption } from './ta-select-field';
+import { LevelSelectField } from './level-select-field';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ export function EditGroupDialog({
   assistants,
   courseName,
   scheduleType,
+  level,
 }: {
   groupId: string;
   name: string;
@@ -42,6 +44,7 @@ export function EditGroupDialog({
   assistants: AssistantOption[];
   courseName: string | null;
   scheduleType: 'odd' | 'even' | null;
+  level: string | null;
 }) {
   const t = useTranslations('lessonPlans');
   const tCommon = useTranslations('common');
@@ -73,6 +76,7 @@ export function EditGroupDialog({
             <Label htmlFor="name">{t('groupName')}</Label>
             <Input id="name" name="name" required maxLength={200} defaultValue={name} />
           </div>
+          <LevelSelectField defaultValue={level} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="courseName">{t('courseName')}</Label>
