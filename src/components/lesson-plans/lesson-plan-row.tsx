@@ -15,7 +15,7 @@ import { LessonPlanTextField } from './lesson-plan-text-field';
 import { LessonProcedureTable } from './lesson-procedure-table';
 import { MoveLessonDialog } from './move-lesson-dialog';
 import type { CourseLessonRow } from './course-lessons-table';
-import { EXAM_LABEL } from '@/lib/syllabus-template';
+import { EXAM_LABEL, coursePosLabel } from '@/lib/syllabus-template';
 
 const EXAM_NAME: Record<string, string> = EXAM_LABEL;
 const EXAM_CLS: Record<string, string> = {
@@ -124,7 +124,7 @@ export function LessonPlanRow({
                       EXAM_CLS[lesson.lesson_type] ?? 'border-au-line text-au-muted',
                     )}
                   >
-                    {lesson.syllabus_position}-dars{EXAM_NAME[lesson.lesson_type] ? ` · ${EXAM_NAME[lesson.lesson_type]}` : ''}
+                    {coursePosLabel(lesson.syllabus_position)}{EXAM_NAME[lesson.lesson_type] ? ` · ${EXAM_NAME[lesson.lesson_type]}` : ''}
                   </span>
                 )}
                 {lesson.movedFromDate && (

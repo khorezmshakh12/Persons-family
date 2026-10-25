@@ -10,6 +10,7 @@ import { logSystemAction } from '@/lib/audit-log';
 import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
 import {
   countKeptOffScheduleSlots,
+  ensureCourseSlots,
   generateLessonSlotsForMonth,
   pruneOffScheduleBlankSlots,
 } from '@/lib/lesson-generation';
@@ -126,19 +127,14 @@ export async function createGroupAction(
   // got ported to Cloud SQL, so every group created since that migration
   // silently had no lesson plan slots at all until this call.
   //
-  // Next month is seeded here too: the monthly generation cron only runs at
-  // the turn of the month, so a group created on e.g. the 28th would have
-  // had a handful of slots left in the current month and then nothing at all
-  // until the *following* month's run — one full month of blank lesson
-  // plans. Both calls are independent and idempotent (generateLessonSlots-
-  // ForMonth's own `where not exists` guard), so the cron re-running over
-  // next month later is a no-op rather than a duplicate.
-  for (const [year, month] of openMonths()) {
-    try {
-      await generateLessonSlotsForMonth(groupId, year, month);
-    } catch (error) {
-      console.error('generateLessonSlotsForMonth failed for new group', groupId, year, month, error);
-    }
+  // The whole 3-month course (36 lessons from today, on the group's own
+  // weekdays) is seeded at once, so the teacher sees every lesson and exam
+  // day up front. Idempotent (`where not exists` per date), so the monthly
+  // cron running over the same dates later is a no-op.
+  try {
+    await ensureCourseSlots(groupId, tashkentDayKey());
+  } catch (error) {
+    console.error('ensureCourseSlots failed for new group', groupId, error);
   }
 
   // Keeps group_chat_meta/{groupId} in sync so the group's Firestore-backed
@@ -254,6 +250,20 @@ export async function updateGroupAction(
       } catch (error) {
         console.error('lesson slot reconcile failed for group', parsed.data.id, year, month, error);
       }
+    }
+    // The 3-month course seeds slots past the two open months too — prune
+    // those as well, then top the course back up on the new weekdays.
+    try {
+      const [[y2, m2]] = openMonths().slice(1);
+      const later = await sql<{ y: number; m: number }[]>`
+        select distinct extract(year from lesson_date)::int as y, extract(month from lesson_date)::int as m
+        from course_lessons
+        where group_id = ${parsed.data.id} and lesson_date >= make_date(${y2}, ${m2}, 1) + interval '1 month'
+      `;
+      for (const { y, m } of later) await pruneOffScheduleBlankSlots(parsed.data.id, y, m);
+      await ensureCourseSlots(parsed.data.id, tashkentDayKey());
+    } catch (error) {
+      console.error('course slot reconcile failed for group', parsed.data.id, error);
     }
   }
 

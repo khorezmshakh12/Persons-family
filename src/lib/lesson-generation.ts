@@ -202,3 +202,59 @@ export async function getAllGroupIds(): Promise<string[]> {
   const rows = await sql<{ id: string }[]>`select id from groups`;
   return rows.map((r) => r.id);
 }
+
+/**
+ * Guruhning joriy 3 oylik kursi (36 dars) uchun slotlar bo'lishini
+ * ta'minlaydi: kurs `syllabus_from` sanasidan boshlanadi, har bir dars kuni
+ * (ko'chirib yuborilgani hisobga olinmaydi) bitta dars. Bugungacha N ta dars
+ * o'tgan bo'lsa, N+1-dars tushadigan kursning oxirigacha (36, 72, …) slot
+ * yaratiladi — Level Up'dan keyin keyingi 3 oy o'zi qo'shiladi. Yangi slotlar
+ * mavjud oxirgi darsdan keyingi kunlardan, guruh jadvali bo'yicha (Du/Chor/Ju
+ * yoki Se/Pay/Sha, yakshanba yo'q) qo'yiladi. Idempotent.
+ *
+ * Returns how many rows were actually created.
+ */
+export async function ensureCourseSlots(groupId: string, today: string): Promise<number> {
+  const [group] = await sql<{ schedule_type: 'odd' | 'even' | null; syllabus_from: string | null }[]>`
+    select schedule_type, syllabus_from::text as syllabus_from from groups where id = ${groupId}
+  `;
+  if (!group?.syllabus_from) return 0;
+  const start = group.syllabus_from;
+
+  const [{ total, done, lastDate }] = await sql<{ total: number; done: number; lastDate: string | null }[]>`
+    select count(*)::int as total,
+      count(*) filter (where lesson_date <= ${today}::date)::int as done,
+      max(lesson_date)::text as "lastDate"
+    from course_lessons
+    where group_id = ${groupId} and lesson_date >= ${start}::date and moved_to_lesson_id is null
+  `;
+  const target = (Math.floor(done / 36) + 1) * 36;
+  let need = target - total;
+  if (need <= 0) return 0;
+
+  const dateKeys: string[] = [];
+  const cursor = new Date(`${lastDate && lastDate >= start ? lastDate : start}T00:00:00Z`);
+  if (lastDate && lastDate >= start) cursor.setUTCDate(cursor.getUTCDate() + 1);
+  while (need > 0) {
+    const key = cursor.toISOString().slice(0, 10);
+    if (!isSunday(key) && (!group.schedule_type || weekdayParity(key) === group.schedule_type)) {
+      dateKeys.push(key);
+      need -= 1;
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  const [{ maxNumber }] = await sql<{ maxNumber: number }[]>`
+    select coalesce(max(lesson_number), 0)::int as "maxNumber" from course_lessons where group_id = ${groupId}
+  `;
+  const created = await sql<{ id: string }[]>`
+    insert into course_lessons (group_id, lesson_number, lesson_date)
+    select ${groupId}, ${maxNumber} + row_number() over (order by d), d
+    from unnest(${dateKeys}::date[]) as d
+    where not exists (
+      select 1 from course_lessons cl where cl.group_id = ${groupId} and cl.lesson_date = d
+    )
+    returning id
+  `;
+  return created.length;
+}

@@ -6,6 +6,7 @@ import { sql, toJson } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import type { LessonAttachment } from '@/lib/lesson-materials';
+import { examPlanFor } from '@/lib/syllabus-template';
 import { currentMonthKey, isPastMonth } from '@/lib/lesson-months';
 import { can } from '@/lib/permissions';
 import { filledFields } from '@/lib/lesson-plan-status';
@@ -463,11 +464,20 @@ export async function moveLessonPlanAction(_prevState: LessonActionState, formDa
   if (!origin.topic?.trim()) return { error: 'nothingToMove' };
   if (origin.lesson_date === targetDate) return { error: 'moveSameDate' };
 
-  let [destination] = await sql<{ id: string; topic: string | null; moved_from_lesson_id: string | null }[]>`
-    select id, topic, moved_from_lesson_id from course_lessons
-    where group_id = ${origin.group_id} and lesson_date = ${targetDate}
+  let [destination] = await sql<
+    { id: string; topic: string | null; moved_from_lesson_id: string | null; syllabus_position: number | null; level: string | null }[]
+  >`
+    select cl.id, cl.topic, cl.moved_from_lesson_id, cl.syllabus_position, g.level
+    from course_lessons cl join groups g on g.id = cl.group_id
+    where cl.group_id = ${origin.group_id} and cl.lesson_date = ${targetDate}
   `;
-  if (destination && (destination.topic?.trim() || destination.moved_from_lesson_id)) {
+  // Avtomatik imtihon kuni (ustoz hali tegmagan) band hisoblanmaydi: dars
+  // shu kunga surilsa, imtihon ham keyingi darsga suriladi (lib/syllabus.ts).
+  const autoExam =
+    destination?.syllabus_position != null &&
+    !destination.moved_from_lesson_id &&
+    destination.topic === examPlanFor(destination.syllabus_position, destination.level)?.topic;
+  if (destination && !autoExam && (destination.topic?.trim() || destination.moved_from_lesson_id)) {
     return { error: 'dateTaken', errorParams: { date: targetDate } };
   }
   // generateLessonSlotsForMonth only pre-creates a row on the group's own
@@ -479,10 +489,12 @@ export async function moveLessonPlanAction(_prevState: LessonActionState, formDa
     const [{ maxNumber }] = await sql<{ maxNumber: number }[]>`
       select coalesce(max(lesson_number), 0)::int as "maxNumber" from course_lessons where group_id = ${origin.group_id}
     `;
-    [destination] = await sql<{ id: string; topic: string | null; moved_from_lesson_id: string | null }[]>`
+    [destination] = await sql<
+      { id: string; topic: string | null; moved_from_lesson_id: string | null; syllabus_position: number | null; level: string | null }[]
+    >`
       insert into course_lessons (group_id, lesson_number, lesson_date)
       values (${origin.group_id}, ${maxNumber + 1}, ${targetDate})
-      returning id, topic, moved_from_lesson_id
+      returning id, topic, moved_from_lesson_id, syllabus_position, null::text as level
     `;
   }
 
