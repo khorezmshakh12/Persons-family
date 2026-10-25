@@ -41,8 +41,8 @@ const EXPECTED: Record<Role, SectionKey[]> = {
   // Platform settings = CEO, COO. Reports (Hisobotlar) reopened for CEO + COO
   // as a native page (owner, 2026-10-09). Attendance (Davomat) = CEO, COO,
   // Admin Manager (owner, 2026-10-14).
-  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance', 'crmPersons'],
-  coo: ['sales', 'staff', 'strategy', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance', 'crmPersons'],
+  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance'],
+  coo: ['sales', 'staff', 'strategy', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance'],
   commercial_director: ['sales', 'operations'],
   academic_director: ['lessonPlans', 'operations'],
   financist: ['sales'],
