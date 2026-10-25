@@ -1,47 +1,48 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import { examPlanFor, lessonTypeForPosition } from '@/lib/syllabus-template';
-
-export { lessonTypeForPosition };
+import { escapeTelegramText, notifyUsers } from '@/lib/telegram';
+import { EXAM_LABEL, examPlanFor, grammarLessonsBefore, planAssignments } from '@/lib/syllabus-template';
 
 /**
- * Guruh rejasini 36 darslik shablonga moslaydi (sahifa har ochilganda,
- * idempotent):
- *   1. Hali raqamlanmagan darslarni (oylik cron keyin qo'shgan slotlar ham)
- *      sana tartibida mavjud oxirgi pozitsiyadan davom ettirib raqamlaydi.
- *      Allaqachon raqamlanganlari o'zgarmaydi.
- *   2. Har pozitsiyaning turini shablondan qayta qo'yadi (eski shablon:
- *      oylik test va h.k. — yangisiga o'tadi).
- *   3. Imtihon kunlarining (progress / middle / level up) bo'sh maydonlarini
- *      avtomatik to'ldiradi. Ustoz yozgan narsaning ustiga yozmaydi.
- * Xatolik sahifa renderini buzmasligi uchun try/catch ichida.
+ * Course lessons jadvalidagi darslarni 36 darslik shablon bo'yicha sanaydi
+ * (idempotent; guruh sahifasi ochilganda va ustoz mavzu yozganda chaqiriladi):
+ *   - hisob guruhning `syllabus_from` sanasidan keyin ustoz lesson plan
+ *     (mavzu) yozgan birinchi darsdan boshlanadi;
+ *   - har bir to'ldirilgan dars keyingi grammar pozitsiyani oladi;
+ *   - imtihon pozitsiyasiga yetganda (7, 14, 18, 25, 32, 36) keyingi dars
+ *     imtihon bo'ladi: bo'sh maydonlari Materials'dan to'ldiriladi va
+ *     ustoz + yordamchiga xabar boradi («7-darsda Progress Test olishingiz kerak»).
+ * Belgilangan pozitsiyalar keyin o'zgarmaydi. Xatolik sahifani buzmaydi.
  */
-export async function ensureSyllabusTagged(groupId: string): Promise<void> {
+export async function syncCourseSchedule(groupId: string): Promise<void> {
   try {
-    const [{ maxPos }] = await sql<{ maxPos: number }[]>`
-      select coalesce(max(syllabus_position), 0)::int as "maxPos" from course_lessons where group_id = ${groupId}
+    const [group] = await sql<
+      { name: string; level: string | null; teacher_id: string; assigned_ta_id: string | null; syllabus_from: string | null }[]
+    >`
+      select name, level, teacher_id, assigned_ta_id, syllabus_from::text as syllabus_from from groups where id = ${groupId}
     `;
-    const untagged = await sql<{ id: string }[]>`
-      select id from course_lessons where group_id = ${groupId} and syllabus_position is null
-      order by lesson_date asc nulls last, lesson_number asc
-    `;
-    for (let i = 0; i < untagged.length; i++) {
-      await sql`update course_lessons set syllabus_position = ${maxPos + i + 1} where id = ${untagged[i].id}`;
-    }
+    if (!group) return;
 
-    const rows = await sql<{ id: string; pos: number; type: string }[]>`
-      select id, syllabus_position as pos, lesson_type as type from course_lessons
-      where group_id = ${groupId} and syllabus_position is not null
+    const rows = await sql<{ id: string; date: string; filled: boolean; pos: number | null }[]>`
+      select id, lesson_date::text as date, coalesce(trim(topic), '') <> '' as filled, syllabus_position as pos
+      from course_lessons
+      where group_id = ${groupId}
+        and lesson_date is not null
+        and (${group.syllabus_from}::date is null or lesson_date >= ${group.syllabus_from}::date)
+        and moved_to_lesson_id is null
+      order by lesson_date asc, lesson_number asc
     `;
-    for (const r of rows) {
-      const type = lessonTypeForPosition(r.pos);
-      if (type !== r.type) await sql`update course_lessons set lesson_type = ${type} where id = ${r.id}`;
-    }
 
-    const [group] = await sql<{ level: string | null }[]>`select level from groups where id = ${groupId}`;
-    for (const r of rows) {
-      const plan = examPlanFor(r.pos, group?.level ?? null);
-      if (!plan) continue;
+    for (const a of planAssignments(rows)) {
+      // `syllabus_position is null` — ikki parallel chaqiruv bitta darsni ikki
+      // marta belgilamasin (va xabar ikki marta ketmasin).
+      const res = await sql`
+        update course_lessons set syllabus_position = ${a.pos}, lesson_type = ${a.type}
+        where id = ${a.id} and syllabus_position is null
+      `;
+      if (res.count === 0 || a.type === 'lesson') continue;
+
+      const plan = examPlanFor(a.pos, group.level)!;
       await sql`
         update course_lessons set
           topic = coalesce(nullif(trim(topic), ''), ${plan.topic}),
@@ -50,15 +51,20 @@ export async function ensureSyllabusTagged(groupId: string): Promise<void> {
           homework = coalesce(nullif(trim(homework), ''), ${plan.homework}),
           procedure = case when coalesce(procedure::jsonb, '[]'::jsonb) = '[]'::jsonb
             then ${sql.json(plan.procedure)} else procedure end
-        where id = ${r.id}
-          and moved_to_lesson_id is null
-          and (nullif(trim(topic), '') is null or nullif(trim(aim), '') is null
-            or (${plan.materials}::text is not null and nullif(trim(materials), '') is null)
-            or nullif(trim(homework), '') is null
-            or coalesce(procedure::jsonb, '[]'::jsonb) = '[]'::jsonb)
+        where id = ${a.id}
       `;
+
+      const date = rows.find((r) => r.id === a.id)?.date ?? '';
+      await notifyUsers(
+        'lesson',
+        [group.teacher_id, group.assigned_ta_id],
+        `📘 <b>${escapeTelegramText(group.name)}: ${a.pos}-dars — ${plan.topic}</b>\n` +
+          `${grammarLessonsBefore(a.pos)} ta dars lesson plani to‘ldirildi. ${a.pos}-darsda (${date}) ${EXAM_LABEL[a.type]} olishingiz kerak. ` +
+          `Lesson plani Materials’dagi imtihon bilan avtomatik to‘ldirildi.`,
+        { href: `/lesson-plans/${groupId}` },
+      );
     }
   } catch (e) {
-    console.error('[syllabus] auto-tag failed', e);
+    console.error('[syllabus] sync failed', e);
   }
 }

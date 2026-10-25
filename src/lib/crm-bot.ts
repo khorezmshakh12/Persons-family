@@ -92,6 +92,28 @@ async function notifyNewLead(leadId: string, name: string, phone: string) {
   );
 }
 
+/**
+ * A phone that is already a student's or parent's contact only connects
+ * Telegram — never a lead (owner, 2026-10-24). Every matching contact is
+ * linked, so a parent of two children gets both. Returns the students' names.
+ */
+async function connectKnown(chatId: number, phone: string, username: string | null): Promise<string[]> {
+  const l9 = last9(phone);
+  if (!l9) return [];
+  const rows = await sql<{ name: string }[]>`
+    with hit as (
+      update crm_contacts c set telegram_chat_id = ${chatId}, telegram_username = ${username}
+      from crm_students s
+      where s.id = c.student_id and s.archived_at is null and right(regexp_replace(coalesce(c.phone, ''), '[^0-9]', '', 'g'), 9) = ${l9}
+      returning s.full_name as name
+    )
+    select distinct name from hit order by name`;
+  return rows.map((r) => r.name);
+}
+
+const connectedText = (names: string[]) =>
+  `✅ Siz <b>${names.map(escapeTelegramText).join(', ')}</b> ning vakili sifatida ulandingiz.\nMarkazdan davomat, to‘lov va e’lonlar shu yerga keladi.`;
+
 async function welcome(chatId: number) {
   await sql`
     insert into crm_bot_sessions (chat_id, step, phone, updated_at)
@@ -134,6 +156,18 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
       await send(chatId, 'Iltimos, telefon raqamingizni pastdagi tugma orqali yuboring yoki yozib qoldiring.', CONTACT_KB);
       return;
     }
+    try {
+      const names = await connectKnown(chatId, phone, msg.from?.username ?? null);
+      if (names.length) {
+        await sql`update crm_bot_sessions set step = 'done', phone = ${phone}, updated_at = now() where chat_id = ${chatId}`;
+        await send(chatId, `Sizni oilamizdan ko‘rib turganimizdan xursandmiz! 🎉\n\n${connectedText(names)}`, REMOVE_KB);
+        return;
+      }
+    } catch (e) {
+      console.error('[crm-bot] connect failed', e);
+      await send(chatId, 'Kechirasiz, texnik xatolik yuz berdi. Birozdan so‘ng qayta urinib ko‘ring.');
+      return;
+    }
     await sql`update crm_bot_sessions set step = 'await_name', phone = ${phone}, updated_at = now() where chat_id = ${chatId}`;
     await send(chatId, 'Rahmat! ✅\nEndi ism va familyangizni yozing (masalan: <b>Ali Valiyev</b>).', REMOVE_KB);
     return;
@@ -150,22 +184,10 @@ export async function handleBotUpdate(update: TgUpdate): Promise<void> {
     const username = msg.from?.username ?? null;
     const greeting = `Hurmatli <b>${escapeTelegramText(name)}</b>, sizni oilamizdan ko‘rib turganimizdan xursandmiz! 🎉\nBu bot orqali sizga markazimiz yangiliklari va xabarlari borib turadi.`;
     try {
-      // Telefon mavjud o'quvchi/ota-ona kontaktiga mos kelsa — biriktiramiz.
-      const [match] = l9
-        ? await sql<{ student_id: string; full_name: string }[]>`
-            select c.student_id, s.full_name from crm_contacts c
-            join crm_students s on s.id = c.student_id
-            where s.archived_at is null and right(regexp_replace(c.phone, '[^0-9]', '', 'g'), 9) = ${l9}
-            order by (c.kind = 'guardian') desc limit 1`
-        : [];
-      if (match) {
-        await sql`update crm_contacts set telegram_chat_id = ${chatId}, telegram_username = ${username}
-          where student_id = ${match.student_id} and right(regexp_replace(phone, '[^0-9]', '', 'g'), 9) = ${l9}`;
-        await send(
-          chatId,
-          `${greeting}\n\n✅ Siz <b>${escapeTelegramText(match.full_name)}</b> ning vakili sifatida ulandingiz.\nMarkazdan davomat, to‘lov va e’lonlar shu yerga keladi.`,
-          REMOVE_KB,
-        );
+      // Added as a student/parent between the two steps: still only connect.
+      const names = await connectKnown(chatId, phone, username);
+      if (names.length) {
+        await send(chatId, `${greeting}\n\n${connectedText(names)}`, REMOVE_KB);
       } else {
         // A lead already on the board with this phone (added by a manager) is
         // linked to this chat instead of opening a duplicate (owner, 2026-10-22).

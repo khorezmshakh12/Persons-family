@@ -14,6 +14,7 @@ import {
   pruneOffScheduleBlankSlots,
 } from '@/lib/lesson-generation';
 import { currentMonthKey } from '@/lib/lesson-months';
+import { tashkentDayKey } from '@/lib/time';
 import { can } from '@/lib/permissions';
 import { COURSE_LEVEL_SLUGS } from '@/lib/course-levels';
 
@@ -107,10 +108,10 @@ export async function createGroupAction(
   let groupId: string;
   try {
     const [created] = await sql<{ id: string }[]>`
-      insert into groups (teacher_id, name, assigned_ta_id, schedule_type, course_name, level, configuration)
+      insert into groups (teacher_id, name, assigned_ta_id, schedule_type, course_name, level, syllabus_from, configuration)
       values (
         ${user.id}, ${parsed.data.name}, ${assignedTaId}, ${normalizeScheduleType(parsed.data.scheduleType)},
-        ${parsed.data.courseName || null}, ${normalizeLevel(parsed.data.level)}, ${sql.json(buildConfiguration(parsed.data))}
+        ${parsed.data.courseName || null}, ${normalizeLevel(parsed.data.level)}, ${tashkentDayKey()}, ${sql.json(buildConfiguration(parsed.data))}
       )
       returning id
     `;
