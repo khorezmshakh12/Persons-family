@@ -31,6 +31,9 @@ export type CourseLessonRow = {
   /** Set when this row received another lesson's content via a move. */
   movedFromDate: string | null;
   moveReason: string | null;
+  /** Kursdagi o'rni (lib/syllabus.ts) — sanalmagan dars uchun null. */
+  syllabus_position: number | null;
+  lesson_type: string;
 };
 
 const MONTH_NAMES = [

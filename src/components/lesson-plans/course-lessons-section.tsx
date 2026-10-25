@@ -45,11 +45,14 @@ export async function CourseLessonsSection({
       movedToDate: string | null;
       movedFromDate: string | null;
       moveReason: string | null;
+      syllabus_position: number | null;
+      lesson_type: string;
     }[]
   >`
     select cl.id, cl.lesson_number, cl.lesson_date, cl.topic, cl.game_link, cl.aim, cl.language_focus,
       cl.anticipated_problems, cl.materials, cl.homework, cl.procedure, cl.attachments,
-      moved_to.lesson_date as "movedToDate", moved_from.lesson_date as "movedFromDate", cl.move_reason as "moveReason"
+      moved_to.lesson_date as "movedToDate", moved_from.lesson_date as "movedFromDate", cl.move_reason as "moveReason",
+      cl.syllabus_position, cl.lesson_type
     from course_lessons cl
     left join course_lessons moved_to on moved_to.id = cl.moved_to_lesson_id
     left join course_lessons moved_from on moved_from.id = cl.moved_from_lesson_id
@@ -120,6 +123,8 @@ export async function CourseLessonsSection({
       movedToDate: l.movedToDate,
       movedFromDate: l.movedFromDate,
       moveReason: l.moveReason,
+      syllabus_position: l.syllabus_position,
+      lesson_type: l.lesson_type,
     };
   });
 

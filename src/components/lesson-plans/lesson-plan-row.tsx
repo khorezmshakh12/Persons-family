@@ -15,6 +15,14 @@ import { LessonPlanTextField } from './lesson-plan-text-field';
 import { LessonProcedureTable } from './lesson-procedure-table';
 import { MoveLessonDialog } from './move-lesson-dialog';
 import type { CourseLessonRow } from './course-lessons-table';
+import { EXAM_LABEL } from '@/lib/syllabus-template';
+
+const EXAM_NAME: Record<string, string> = EXAM_LABEL;
+const EXAM_CLS: Record<string, string> = {
+  progress_test: 'border-au-accent/40 bg-au-accent-soft text-au-accent-text',
+  midterm: 'border-indigo-400/50 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300',
+  final_test: 'border-au-bad/40 bg-au-bad/5 text-au-bad',
+};
 
 function PlanFieldBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -109,6 +117,16 @@ export function LessonPlanRow({
           ) : (
             <div className="flex items-start gap-1">
               <div className="flex flex-col gap-1">
+                {lesson.syllabus_position !== null && (
+                  <span
+                    className={cn(
+                      'self-start rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                      EXAM_CLS[lesson.lesson_type] ?? 'border-au-line text-au-muted',
+                    )}
+                  >
+                    {lesson.syllabus_position}-dars{EXAM_NAME[lesson.lesson_type] ? ` · ${EXAM_NAME[lesson.lesson_type]}` : ''}
+                  </span>
+                )}
                 {lesson.movedFromDate && (
                   <p className="text-[10px] text-au-muted italic">
                     {t('courseLessons.movedFromNote', { date: lesson.movedFromDate })}

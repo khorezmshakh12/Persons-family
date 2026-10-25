@@ -12,7 +12,6 @@ import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-di
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { ResyncScheduleButton } from '@/components/lesson-plans/resync-schedule-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
-import { CourseSyllabusSection } from '@/components/lesson-plans/course-syllabus-section';
 import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +23,7 @@ import {
 } from '@/components/skeletons/glass-skeletons';
 import { can } from '@/lib/permissions';
 import { courseLevel } from '@/lib/course-levels';
-import { ensureSyllabusTagged } from '@/lib/syllabus';
+import { syncCourseSchedule } from '@/lib/syllabus';
 
 const EditGroupDialog = nextDynamic(() =>
   import('@/components/lesson-plans/edit-group-dialog').then((mod) => mod.EditGroupDialog),
@@ -124,10 +123,10 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const canViewGroupChat = isOwnerTeacher || isAssignedTa || isCeo;
   const canPostGroupChat = isOwnerTeacher || isAssignedTa;
 
-  // Imtihon kunlari (progress / middle / level up) ikkala bo'lim render
-  // bo'lishidan oldin to'ldirilgan bo'lsin — aks holda birinchi ochilishda
-  // lessons jadvali hali bo'sh holatni ko'rsatadi.
-  await ensureSyllabusTagged(group.id);
+  // Imtihon kunlari (progress / middle / level up) lessons jadvali render
+  // bo'lishidan oldin belgilangan bo'lsin (oylik cron yangi slot qo'shgan
+  // bo'lsa ham shu yerda ushlanadi).
+  await syncCourseSchedule(group.id);
   const level = courseLevel(group.level);
 
   const configuration = group.configuration as GroupConfiguration;
@@ -213,10 +212,6 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
             .join(' · ') || t('noConfiguration')}
         </p>
       </div>
-
-      <Suspense fallback={<GlassCardSkeleton />}>
-        <CourseSyllabusSection groupId={group.id} canManage={canEditLessonContent || isCeo} />
-      </Suspense>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-xl font-bold tracking-tight text-au-ink">{t('courseLessons.title')}</h2>

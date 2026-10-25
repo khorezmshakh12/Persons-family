@@ -30,6 +30,50 @@ export function lessonTypeForPosition(pos: number): LessonType {
   return 'lesson';
 }
 
+/** Kursdagi pozitsiya: ustoz lesson plan yozgan har bir dars (sana tartibida)
+ * bitta grammar pozitsiyani oladi; imtihon pozitsiyasiga yetganda keyingi
+ * dars (bo'sh bo'lsa ham) imtihon bo'ladi. Masalan 6 ta dars to'ldirilgach,
+ * 7-dars Progress Test 1. */
+export type PlanRow = { id: string; filled: boolean; pos: number | null };
+export type PlanAssignment = { id: string; pos: number; type: LessonType };
+
+/** `rows` — guruhning hisobga olinadigan darslari, sana tartibida. Avval
+ * belgilangan pozitsiyalar o'zgarmaydi; hisob oxirgi belgilangan darsdan
+ * keyin davom etadi. To'ldirilmagan grammar slot sanalmaydi (o'tkazib
+ * yuboriladi), lekin imtihon kelganda u slot imtihon bo'ladi. */
+export function planAssignments(rows: PlanRow[]): PlanAssignment[] {
+  let lastIdx = -1;
+  let next = 1;
+  rows.forEach((r, i) => {
+    if (r.pos !== null && r.pos + 1 >= next) {
+      next = r.pos + 1;
+      lastIdx = i;
+    }
+  });
+  const out: PlanAssignment[] = [];
+  for (const r of rows.slice(lastIdx + 1)) {
+    if (r.pos !== null) continue;
+    const type = lessonTypeForPosition(next);
+    if (type === 'lesson' && !r.filled) continue;
+    out.push({ id: r.id, pos: next, type });
+    next += 1;
+  }
+  return out;
+}
+
+/** Imtihongacha nechta grammar dars o'tilgan (xabar matni uchun). */
+export function grammarLessonsBefore(pos: number): number {
+  let n = 0;
+  for (let q = 1; q < pos; q++) if (lessonTypeForPosition(q) === 'lesson') n += 1;
+  return n;
+}
+
+export const EXAM_LABEL: Record<Exclude<LessonType, 'lesson'>, string> = {
+  progress_test: 'Progress Test',
+  midterm: 'Middle Exam',
+  final_test: 'Level Up Exam',
+};
+
 const MATERIALS_EXAM_BASE = 'https://www.persons-staffs.uz/materials/level-exam/take';
 
 export type ExamPlan = {
