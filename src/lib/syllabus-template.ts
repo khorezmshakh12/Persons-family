@@ -22,6 +22,12 @@ function cyclePos(pos: number): number {
   return ((pos - 1) % COURSE_LENGTH) + 1;
 }
 
+/** «7-dars» yoki ikkinchi kursdan boshlab «2-kurs · 7-dars». */
+export function coursePosLabel(pos: number): string {
+  const course = Math.floor((pos - 1) / COURSE_LENGTH) + 1;
+  return course > 1 ? `${course}-kurs · ${cyclePos(pos)}-dars` : `${cyclePos(pos)}-dars`;
+}
+
 export function lessonTypeForPosition(pos: number): LessonType {
   const p = cyclePos(pos);
   if (p === 36) return 'final_test';
@@ -30,41 +36,28 @@ export function lessonTypeForPosition(pos: number): LessonType {
   return 'lesson';
 }
 
-/** Kursdagi pozitsiya: ustoz lesson plan yozgan har bir dars (sana tartibida)
- * bitta grammar pozitsiyani oladi; imtihon pozitsiyasiga yetganda keyingi
- * dars (bo'sh bo'lsa ham) imtihon bo'ladi. Masalan 6 ta dars to'ldirilgach,
- * 7-dars Progress Test 1. */
-export type PlanRow = { id: string; filled: boolean; pos: number | null };
-export type PlanAssignment = { id: string; pos: number; type: LessonType };
+/** Kursdagi pozitsiya jadval bo'yicha: kurs boshlangan kundan har bir dars
+ * kuni (sana tartibida) navbatdagi raqamni oladi — 1, 2, … 36, keyin keyingi
+ * kurs 37 … 72. Ko'chirib yuborilgan dars (`moved_to`) bu ro'yxatga kirmaydi,
+ * shuning uchun dars kechiksa undan keyingi imtihonlar ham bir dars suriladi.
+ * `rows` — hisobga olinadigan darslar, sana tartibida. */
+export type PlanRow = { id: string; date: string; filled: boolean };
+export type PlanAssignment = { id: string; date: string; filled: boolean; pos: number; type: LessonType };
 
-/** `rows` — guruhning hisobga olinadigan darslari, sana tartibida. Avval
- * belgilangan pozitsiyalar o'zgarmaydi; hisob oxirgi belgilangan darsdan
- * keyin davom etadi. To'ldirilmagan grammar slot sanalmaydi (o'tkazib
- * yuboriladi), lekin imtihon kelganda u slot imtihon bo'ladi. */
-export function planAssignments(rows: PlanRow[]): PlanAssignment[] {
-  let lastIdx = -1;
-  let next = 1;
-  rows.forEach((r, i) => {
-    if (r.pos !== null && r.pos + 1 >= next) {
-      next = r.pos + 1;
-      lastIdx = i;
-    }
-  });
-  const out: PlanAssignment[] = [];
-  for (const r of rows.slice(lastIdx + 1)) {
-    if (r.pos !== null) continue;
-    const type = lessonTypeForPosition(next);
-    if (type === 'lesson' && !r.filled) continue;
-    out.push({ id: r.id, pos: next, type });
-    next += 1;
-  }
-  return out;
+export function planPositions(rows: PlanRow[]): PlanAssignment[] {
+  return rows.map((r, i) => ({ ...r, pos: i + 1, type: lessonTypeForPosition(i + 1) }));
 }
 
-/** Imtihongacha nechta grammar dars o'tilgan (xabar matni uchun). */
+/** «6-dars yozildi → 7-darsda Progress Test» xabari kerak bo'lgan imtihonlar:
+ * oldingi dars lesson plani yozilgan, imtihon kuni bugun yoki keyin. */
+export function examsToAnnounce(plan: PlanAssignment[], today: string): PlanAssignment[] {
+  return plan.filter((a, i) => a.type !== 'lesson' && i > 0 && plan[i - 1].filled && a.date >= today);
+}
+
+/** Joriy kursda imtihongacha nechta grammar dars o'tilgan (xabar matni uchun). */
 export function grammarLessonsBefore(pos: number): number {
   let n = 0;
-  for (let q = 1; q < pos; q++) if (lessonTypeForPosition(q) === 'lesson') n += 1;
+  for (let q = 1; q < cyclePos(pos); q++) if (lessonTypeForPosition(q) === 'lesson') n += 1;
   return n;
 }
 
