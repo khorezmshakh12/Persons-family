@@ -87,7 +87,7 @@ export function CommandPalette({ pages = [], actions = [] }: { pages?: { href: s
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.repeat) return;
-      const key = e.key.toLowerCase();
+      const key = e.key?.toLowerCase();
       // Ctrl+/ is a fallback for Ctrl+K, which some Chromium builds reserve
       // as an address-bar shortcut and intercept before page JS ever sees it.
       if ((e.metaKey || e.ctrlKey) && (key === 'k' || key === '/')) {

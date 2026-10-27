@@ -9,7 +9,7 @@ import type { TeamStatRow } from '@/lib/checklist-stats';
  * the old tracker's summary table. Completed rows float to the top; off-lesson
  * teachers sink to the bottom with a "dars yo'q" note instead of a false 0%. */
 export async function TeamChecklistTable({ rows }: { rows: TeamStatRow[] }) {
-  const tRoles = await getTranslations('roles');
+  const tRoles = await getTranslations('staff.roles');
   const roleLabel = (r: string) => ((ROLES as readonly string[]).includes(r) ? tRoles(r) : r);
 
   const sorted = [...rows].sort((a, b) => {
