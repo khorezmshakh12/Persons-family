@@ -33,7 +33,7 @@ export default async function TaskTrackerPage({
   // ko'rib turganda ham) — jamoa jadvali faqat CEO/COO uchun.
   const [data, tRoles, lessonToday, board, teamRows] = await Promise.all([
     loadChecklist(profile.id, effectiveRole),
-    getTranslations('roles'),
+    getTranslations('staff.roles'),
     gateTeacher ? teacherHasLessonOn(profile.id, tashkentDayKey()) : Promise.resolve(true),
     loadProgressBoard(profile.id, profile.role),
     canManage ? loadTeamChecklistStats() : Promise.resolve([]),

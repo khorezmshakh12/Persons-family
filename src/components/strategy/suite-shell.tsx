@@ -200,7 +200,7 @@ export function SuiteShell({
   useEffect(() => {
     const kd = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement | null)?.closest?.('input,textarea,select,[contenteditable="true"]');
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key?.toLowerCase() === 'k') {
         e.preventDefault();
         setCk(true);
         return;

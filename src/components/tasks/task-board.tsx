@@ -390,7 +390,7 @@ export function TaskBoard({
       if (document.querySelector('[role="dialog"]')) return;
       const cards = [...document.querySelectorAll<HTMLElement>('[data-task-card]')];
       const focused = target?.closest<HTMLElement>('[data-task-card]') ?? null;
-      const key = e.key.toLowerCase();
+      const key = e.key?.toLowerCase();
       if (key === 'c') {
         e.preventDefault();
         window.dispatchEvent(new Event('tasks:new'));

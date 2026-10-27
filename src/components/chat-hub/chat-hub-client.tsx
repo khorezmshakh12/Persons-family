@@ -493,7 +493,7 @@ export function ChatHubClient({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       const typing = !!t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
-      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') || (!typing && e.key === '/')) {
+      if (((e.ctrlKey || e.metaKey) && e.key?.toLowerCase() === 'f') || (!typing && e.key === '/')) {
         e.preventDefault();
         setSearchOpen(true);
       }
