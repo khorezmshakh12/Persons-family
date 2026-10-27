@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { daysBetween, nextDueDate } from '@/lib/billing';
+import { addDaysToKey } from '@/lib/time';
 import type { StudentRow } from '@/lib/ops-students';
 import {
   archiveStudentAction,
@@ -192,7 +193,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
             </div>
           )}
 
-          {pane === 'pay' && <PayPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
+          {pane === 'pay' && <PayPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'msg' && <MsgPane s={s} data={data} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'info' && card && <InfoPane s={s} card={card} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'terms' && <TermsPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
@@ -403,16 +404,17 @@ function Actions({ pending, ok, okText, onCancel, danger }: { pending: boolean; 
   );
 }
 
-function PayPane({ s, onDone, onFail, onCancel }: PaneProps) {
+function PayPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
   const [pending, start] = useTransition();
   const [amount, setAmount] = useState(grouped(String(Math.max(-s.balance, s.fee))));
   const [method, setMethod] = useState<(typeof PAY_METHODS)[number]>('cash');
+  const [paidAt, setPaidAt] = useState(today);
   const [note, setNote] = useState('');
   const [notify, setNotify] = useState(s.tg);
   const idem = useRef(crypto.randomUUID());
   const ok = () =>
     start(async () => {
-      const r = await recordPaymentAction({ studentId: s.id, amount: Number(digits(amount)), method, note, notify, idem: idem.current });
+      const r = await recordPaymentAction({ studentId: s.id, amount: Number(digits(amount)), method, paidAt, note, notify, idem: idem.current });
       if (r.error) return onFail(r.error);
       idem.current = crypto.randomUUID();
       onDone(`${som(Number(digits(amount)))} qabul qilindi${notify ? (r.sent ? ' · ota-onaga chek ketdi' : ' · chek yuborilmadi') : ''}`);
@@ -433,6 +435,9 @@ function PayPane({ s, onDone, onFail, onCancel }: PaneProps) {
           </select>
         </Field>
       </div>
+      <Field label="Sana">
+        <input id="pay-date" type="date" className="sx-inp !w-[170px]" min={addDaysToKey(today, -60)} max={today} value={paidAt} onChange={(e) => setPaidAt(e.target.value || today)} />
+      </Field>
       <Field label="Izoh">
         <input id="pay-note" className="sx-inp" maxLength={300} placeholder="Ixtiyoriy" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
