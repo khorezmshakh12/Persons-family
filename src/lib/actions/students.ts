@@ -8,7 +8,7 @@ import { canSeeFor } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
 import { renderMessage, sendToStudentContacts, studentVars } from '@/lib/student-messages';
-import { tashkentDayKey } from '@/lib/time';
+import { addDaysToKey, tashkentDayKey } from '@/lib/time';
 
 // Operation HQ › O'quvchilar (2026-10-23): every write on a CRM student's
 // billing goes through here and leaves a crm_student_log row (who, what).
@@ -104,10 +104,14 @@ const paymentSchema = z.object({
   studentId: uuid,
   amount: money,
   method: z.enum(PAY_METHODS),
+  paidAt: dayKey.optional(),
   note: z.string().trim().max(300).default(''),
   notify: z.boolean().default(false),
   idem: z.string().min(8).max(64),
 });
+
+/** How far back a forgotten payment may be dated. */
+const PAY_BACKDATE_DAYS = 60;
 
 /** To'lov qabul qilish; optionally sends the «paid» template to the parents (chek). */
 export async function recordPaymentAction(input: z.input<typeof paymentSchema>): Promise<Result & { sent?: number }> {
@@ -116,18 +120,22 @@ export async function recordPaymentAction(input: z.input<typeof paymentSchema>):
   const p = paymentSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
+  const today = tashkentDayKey();
+  const paidAt = v.paidAt ?? today;
+  if (paidAt > today || paidAt < addDaysToKey(today, -PAY_BACKDATE_DAYS)) return { error: 'invalidInput' };
   const name = await nameOf(v.studentId);
   if (!name) return { error: 'notFound' };
+  const late = paidAt === today ? '' : ` (${paidAt.split('-').reverse().join('.')} sanasi bilan)`;
   try {
     const ok = await sql.begin(async (tx) => {
       const [row] = await tx`
         insert into crm_payments (student_id, amount, method, paid_at, note, idem_key, created_by)
-        values (${v.studentId}, ${v.amount}, ${v.method}, ${tashkentDayKey()}, ${v.note || null}, ${v.idem}, ${me.id})
+        values (${v.studentId}, ${v.amount}, ${v.method}, ${paidAt}, ${v.note || null}, ${v.idem}, ${me.id})
         on conflict (idem_key) do nothing returning id`;
       if (!row) return false;
       await tx`update crm_students set balance = balance + ${v.amount}, updated_at = now() where id = ${v.studentId}`;
       await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
-        values (${v.studentId}, 'pay', ${`${name} — ${som(v.amount)} to‘lov qabul qilindi`}, ${v.amount}, ${me.id})`;
+        values (${v.studentId}, 'pay', ${`${name} — ${som(v.amount)} to‘lov qabul qilindi${late}`}, ${v.amount}, ${me.id})`;
       return true;
     });
     if (!ok) return {};
