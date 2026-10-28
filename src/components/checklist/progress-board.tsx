@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, Check, Flame, Plus, RotateCw } from 'lucide-react';
+import { ArrowRight, Check, Flame, Pencil, Plus, RotateCw, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { toggleTemplateTickAction } from '@/lib/actions/checklist-templates';
-import { addGoalAction, toggleGoalAction } from '@/lib/actions/goals';
+import { addGoalAction, deleteGoalAction, editGoalAction, toggleGoalAction } from '@/lib/actions/goals';
+import { GoalEditor } from '@/components/dashboard/goal-editor';
 import {
   checklistDay,
   checklistStreak,
@@ -88,16 +89,59 @@ function useBoard(data: ProgressBoardData) {
     });
   };
 
+  const dueOf = (scope: GoalScope) => (scope === 'day' ? data.today : scope === 'week' ? addDays(data.periodKeys.week, 6) : data.days[data.days.length - 1].key);
+
   const addGoal = (scope: GoalScope, title: string) =>
     start(async () => {
       const periodKey = data.periodKeys[scope];
       const res = await addGoalAction(scope, periodKey, title);
       if ('error' in res || !res.id) return void toast.error('Qo‘shib bo‘lmadi');
-      const dueDay = scope === 'day' ? data.today : scope === 'week' ? addDays(periodKey, 6) : data.days[data.days.length - 1].key;
-      setGoals((p) => [...p, { id: res.id!, scope, title, periodKey, startDay: data.today, dueDay, doneDay: null }]);
+      setGoals((p) => [...p, { id: res.id!, scope, title, periodKey, startDay: data.today, dueDay: dueOf(scope), doneDay: null }]);
     });
 
-  return { ticks, goals, tick, toggleGoal, addGoal };
+  /** New text, or a move to another period (it lands in that period's current key). */
+  const editGoal = (id: string, title: string, scope: GoalScope) => {
+    const old = goals.find((g) => g.id === id);
+    if (!old || (old.title === title && old.scope === scope)) return;
+    const moved = scope !== old.scope;
+    setGoals((p) => p.map((g) => (g.id === id ? { ...g, title, ...(moved ? { scope, periodKey: data.periodKeys[scope], dueDay: dueOf(scope) } : {}) } : g)));
+    start(async () => {
+      const res = await (moved ? editGoalAction(id, title, scope, data.periodKeys[scope]) : editGoalAction(id, title));
+      if ('error' in res) {
+        setGoals((p) => p.map((g) => (g.id === id ? old : g)));
+        toast.error('Saqlab bo‘lmadi');
+      }
+    });
+  };
+
+  // Deleted at once; «Qaytarish» puts the same goal back as a new row.
+  const deleteGoal = (id: string) => {
+    const old = goals.find((g) => g.id === id);
+    if (!old) return;
+    setGoals((p) => p.filter((g) => g.id !== id));
+    start(async () => {
+      const res = await deleteGoalAction(id);
+      if ('error' in res) {
+        setGoals((p) => [...p, old]);
+        return void toast.error('O‘chirib bo‘lmadi');
+      }
+      toast.success('Maqsad o‘chirildi', {
+        duration: 5000,
+        action: {
+          label: 'Qaytarish',
+          onClick: () =>
+            start(async () => {
+              const r = await addGoalAction(old.scope, old.periodKey, old.title);
+              if (!('ok' in r) || !r.id) return void toast.error('Qaytarib bo‘lmadi');
+              if (old.doneDay) await toggleGoalAction(r.id, true);
+              setGoals((p) => [...p, { ...old, id: r.id! }]);
+            }),
+        },
+      });
+    });
+  };
+
+  return { ticks, goals, tick, toggleGoal, addGoal, editGoal, deleteGoal };
 }
 
 /* ------------------------------------------------------------ small parts */
@@ -673,7 +717,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                 </button>
               ))}
             </div>
-            <GoalList goals={list} periodKey={data.periodKeys[scope]} onToggle={board.toggleGoal} />
+            <GoalList goals={list} periodKey={data.periodKeys[scope]} board={board} />
             <div className="flex gap-2">
               <input
                 value={draft}
@@ -765,29 +809,51 @@ function LeftBehind({ goals, today, onToggle }: { goals: BoardGoal[]; today: str
   );
 }
 
-function GoalList({ goals, periodKey, onToggle }: { goals: BoardGoal[]; periodKey: string; onToggle: (id: string) => void }) {
+function GoalList({ goals, periodKey, board }: { goals: BoardGoal[]; periodKey: string; board: Board }) {
+  const [editing, setEditing] = useState<string | null>(null);
   if (!goals.length) return <p className="text-xs text-qp-muted">Bu davr uchun maqsad yo‘q.</p>;
   return (
     <ul className="flex flex-col gap-2">
       {goals.map((g) => (
-        <li key={g.id} className="flex items-start gap-2.5 rounded-xl bg-qp-card-2 px-3 py-2.5">
+        <li key={g.id} className="group flex items-start gap-2.5 rounded-xl bg-qp-card-2 px-3 py-2.5">
           <button
             type="button"
-            onClick={() => onToggle(g.id)}
+            onClick={() => board.toggleGoal(g.id)}
             aria-pressed={!!g.doneDay}
             aria-label="Bajarildi deb belgilash"
             className={cn('grid size-[22px] shrink-0 place-items-center rounded-[7px] border-[1.5px]', g.doneDay ? 'border-qp-mint bg-qp-mint text-qp-mint-ink' : 'border-qp-muted/50')}
           >
             {g.doneDay && <Check className="size-3.5" strokeWidth={3.5} />}
           </button>
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className={cn('text-[13px] font-semibold', g.doneDay && 'text-qp-muted line-through')}>{g.title}</span>
-            {g.periodKey < periodKey && (
-              <span className={cn(MONO, 'inline-flex items-center gap-1 text-[10px] text-qp-yellow')}>
-                <RotateCw className="size-3" /> {g.scope === 'month' ? g.periodKey : dayLabel(g.periodKey)} dan ko‘chdi
+          {editing === g.id ? (
+            <GoalEditor
+              tone="qp"
+              title={g.title}
+              scope={g.scope}
+              onSave={(t, s) => {
+                setEditing(null);
+                board.editGoal(g.id, t, s);
+              }}
+              onCancel={() => setEditing(null)}
+            />
+          ) : (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5" onDoubleClick={() => setEditing(g.id)}>
+                <span className={cn('text-[13px] font-semibold', g.doneDay && 'text-qp-muted line-through')}>{g.title}</span>
+                {g.periodKey < periodKey && (
+                  <span className={cn(MONO, 'inline-flex items-center gap-1 text-[10px] text-qp-yellow')}>
+                    <RotateCw className="size-3" /> {g.scope === 'month' ? g.periodKey : dayLabel(g.periodKey)} dan ko‘chdi
+                  </span>
+                )}
               </span>
-            )}
-          </span>
+              <button type="button" onClick={() => setEditing(g.id)} aria-label="Tahrirlash" className="shrink-0 rounded-md p-1 text-qp-muted hover:text-qp-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
+                <Pencil className="size-3.5" />
+              </button>
+              <button type="button" onClick={() => board.deleteGoal(g.id)} aria-label="O‘chirish" className="shrink-0 rounded-md p-1 text-qp-muted hover:text-qp-red sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
+                <X className="size-3.5" />
+              </button>
+            </>
+          )}
         </li>
       ))}
     </ul>
@@ -862,7 +928,7 @@ export function DashboardProgress({ data }: { data: ProgressBoardData }) {
         </div>
         <div className={cn(TILE, 'flex flex-[1_1_300px] flex-col gap-2')}>
           <span className="text-sm font-bold">Bugungi maqsadlar</span>
-          <GoalList goals={todays} periodKey={today} onToggle={board.toggleGoal} />
+          <GoalList goals={todays} periodKey={today} board={board} />
           <span className="text-[11px] text-qp-muted">Bajarilmagan maqsad ertaga ham shu yerda turadi.</span>
         </div>
       </div>

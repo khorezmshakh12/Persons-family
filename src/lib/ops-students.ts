@@ -13,6 +13,15 @@ export type StudentRow = {
   name: string;
   phone: string;
   parent: string;
+  /** «Ism · telefon» of the father / mother contact, or ''. */
+  father: string;
+  mother: string;
+  /** Without the @, or ''. */
+  tgUsername: string;
+  /** First active enrollment's start (guruhga qo'shilgan sana). */
+  groupSince: string | null;
+  /** First real payment, or the paid-elsewhere day (faol bo'lgan sana). */
+  activeSince: string | null;
   status: 'active' | 'frozen' | 'archived';
   /**
    * Faol o'quvchi: a monthly fee is set, at least one real payment came in
@@ -88,6 +97,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
       leave_reason: string | null; leave_note: string | null; archived_by: string; phone: string; parent: string; tg: boolean;
       enr_fee: number; enr_start: string | null;
       pe_at: string | null; pe_source: string | null; pe_by: string;
+      father: string; mother: string; tgu: string; first_paid: string | null;
     }[]>`
       select s.id, s.full_name as name, s.status, s.balance, s.monthly_fee, s.billing_start::text as billing_start,
         s.discount_pct, s.discount_reason, s.installments, s.frozen_until::text as frozen_until,
@@ -99,6 +109,15 @@ export async function loadStudentsData(): Promise<StudentsData> {
           from crm_contacts c where c.student_id = s.id and c.kind <> 'student'
           order by c.is_primary desc, c.created_at limit 1), '') as parent,
         exists (select 1 from crm_contacts c where c.student_id = s.id and c.telegram_chat_id is not null) as tg,
+        coalesce((select concat_ws(' · ', nullif(c.name, ''), nullif(c.phone, '')) from crm_contacts c
+          where c.student_id = s.id and c.kind = 'father' order by c.is_primary desc, c.created_at limit 1), '') as father,
+        coalesce((select concat_ws(' · ', nullif(c.name, ''), nullif(c.phone, '')) from crm_contacts c
+          where c.student_id = s.id and c.kind = 'mother' order by c.is_primary desc, c.created_at limit 1), '') as mother,
+        coalesce((select c.telegram_username from crm_contacts c where c.student_id = s.id and coalesce(c.telegram_username, '') <> ''
+          order by (c.kind = 'student') desc, c.created_at limit 1),
+          (select l.telegram_username from crm_leads l where l.converted_student_id = s.id and coalesce(l.telegram_username, '') <> '' limit 1), '') as tgu,
+        (select min(y.paid_at) from crm_payments y where y.student_id = s.id and not y.is_refund and y.amount > 0
+          and not exists (select 1 from crm_payments r where r.reverses = y.id))::text as first_paid,
         coalesce(en.fee, 0) as enr_fee, en.start as enr_start,
         to_char(s.paid_elsewhere_at at time zone 'Asia/Tashkent', 'YYYY-MM-DD') as pe_at, s.paid_elsewhere_source as pe_source,
         coalesce(pb.first_name || ' ' || pb.last_name, '') as pe_by
@@ -146,7 +165,8 @@ export async function loadStudentsData(): Promise<StudentsData> {
       from crm_payments y left join profiles p on p.id = y.created_by
       where y.paid_at >= ${`${month}-01`}
       group by 1, 2, 3 order by 4 desc`,
-    sql<{ sid: string }[]>`select distinct student_id as sid from crm_payments where student_id is not null and not is_refund and amount > 0`,
+    sql<{ sid: string }[]>`select distinct y.student_id as sid from crm_payments y where y.student_id is not null and not y.is_refund and y.amount > 0
+      and not exists (select 1 from crm_payments r where r.reverses = y.id)`,
   ]);
 
   const byStudent = <T extends { sid: string }>(rows: readonly T[]) => {
@@ -172,6 +192,11 @@ export async function loadStudentsData(): Promise<StudentsData> {
       name: s.name,
       phone: s.phone,
       parent: s.parent,
+      father: s.father,
+      mother: s.mother,
+      tgUsername: s.tgu,
+      groupSince: s.enr_start,
+      activeSince: [s.first_paid, s.pe_at].filter((x): x is string => !!x).sort()[0] ?? null,
       status,
       active: status === 'active' && inactiveWhy === '',
       inactiveWhy,

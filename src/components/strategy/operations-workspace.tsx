@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { BarChart3, KanbanSquare, Users } from 'lucide-react';
+import { BarChart3, KanbanSquare, Users, Wallet } from 'lucide-react';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, type PaletteItem } from './suite-shell';
 import type { StudentsData } from '@/lib/ops-students';
 import type { OpsStatsData } from '@/lib/ops-stats';
 import type { SalesData } from '@/lib/ops-sales';
 import { OpsStudents } from './ops-students';
 import { OpsStats } from './ops-stats';
+import { OpsPayments } from './ops-payments';
 import { OpsSales } from './ops-sales';
 import './strategy.css';
 import './suite.css';
@@ -24,11 +25,12 @@ export type OpsData = {
   sales: SalesData;
 };
 
-// Operation HQ (2026-10-23): Statistika (kunlik · haftalik · oylik), O'quvchilar, Sales.
-type Tab = 'ov' | 'stu' | 'sales';
+// Operation HQ (2026-10-23): Statistika (kunlik · haftalik · oylik), O'quvchilar, To'lovlar (2026-10-28), Sales.
+type Tab = 'ov' | 'stu' | 'pay' | 'sales';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
   { v: 'ov', n: 'Statistika', Icon: BarChart3 },
   { v: 'stu', n: 'O‘quvchilar', Icon: Users },
+  { v: 'pay', n: 'To‘lovlar', Icon: Wallet },
   { v: 'sales', n: 'Sales', Icon: KanbanSquare },
 ];
 const KEY = 'persons-ops-tab';
@@ -51,7 +53,7 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
       localStorage.setItem(KEY, v);
     } catch {}
   };
-  // 1–3 switch tabs.
+  // 1–4 switch tabs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -88,6 +90,7 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
         <div key={tab} className="sx-fade">
           {tab === 'ov' && <OpsStats data={data} />}
           {tab === 'stu' && <OpsStudents data={data} />}
+          {tab === 'pay' && <OpsPayments data={data} />}
           {tab === 'sales' && <OpsSales data={data} openId={openLead} onOpenChange={setOpenLead} />}
         </div>
       </section>

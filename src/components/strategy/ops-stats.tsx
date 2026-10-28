@@ -6,6 +6,7 @@ import { formatUZS } from '@/lib/format-currency';
 import type { OpsMetrics, OpsPeriodKey } from '@/lib/ops-stats';
 import type { OpsData } from './operations-workspace';
 import { METHODS, dmy, som } from './ops-students-meta';
+import { OpsHealth } from './ops-health';
 
 const PERIODS: [OpsPeriodKey, string, string][] = [
   ['day', 'Kunlik', 'kecha'],
@@ -147,6 +148,8 @@ export function OpsStats({ data }: { data: OpsData }) {
           })}
         </div>
       </div>
+
+      <OpsHealth month={`${today.slice(0, 7)}-01`} />
     </div>
   );
 }

@@ -122,7 +122,7 @@ const FILTERS: [Filter, string][] = [
   ['all', 'Hammasi'],
   ['owed', 'Qarzdor'],
   ['done', 'To‘langan'],
-  ['over', 'Ortiqcha'],
+  ['over', 'Avans berilgan'],
   ['flags', 'Ogohlantirish'],
 ];
 
@@ -130,7 +130,7 @@ const owedOf = (l: PayLine) => Math.max(0, l.remaining);
 const overOf = (l: PayLine) => Math.max(0, -l.remaining);
 
 function lineState(l: PayLine): { n: string; cls: string } {
-  if (l.remaining < 0) return { n: 'Ortiqcha', cls: 'bg-au-bad-soft text-au-bad' };
+  if (l.remaining < 0) return { n: 'Keyingi oyga avans', cls: 'bg-au-info-soft text-au-info' };
   if (l.remaining === 0) return { n: 'To‘langan', cls: 'bg-au-ok-soft text-au-ok' };
   if (l.paid > 0) return { n: 'Qisman', cls: 'bg-au-accent-soft text-au-accent-text' };
   return { n: 'To‘lanmagan', cls: 'bg-au-card-2 text-au-muted' };
@@ -290,7 +290,7 @@ export function PayrollV2({
       const res = await payAllRemainingAction({ period, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(
-        `${res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : 'Hisob-kitob yangilandi'}${res.carried ? ` · ${res.carried} xodimning ortiqchasi keyingi oydan ushlanadi` : ''}`,
+        `${res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : 'Hisob-kitob yangilandi'}${res.carried ? ` · ${res.carried} xodimga berilgan avans keyingi oydan ushlanadi` : ''}`,
       );
       refresh();
     });
@@ -366,7 +366,7 @@ export function PayrollV2({
     { n: 'Hisoblangan fond', v: sum.payable, hint: 'Maosh + KPI + bonus − jarima', dot: 'bg-au-ink' },
     { n: 'To‘langan', v: sum.paid, hint: `${paidPct}% fonddan to‘landi`, dot: 'bg-au-ok' },
     { n: 'Qolgan qarz', v: owed, hint: `${owedCount} xodimga to‘lanishi kerak`, dot: 'bg-au-accent' },
-    { n: 'Ortiqcha to‘langan', v: over, hint: 'Keyingi oy oyligidan ushlanadi', dot: 'bg-au-bad' },
+    { n: 'Keyingi oy uchun avans', v: over, hint: 'Oldindan berildi · keyingi oy oyligidan ushlanadi', dot: 'bg-au-info' },
   ];
   const monthLog = log.filter((e) => !(e.detail as { staffId?: string }).staffId).slice(0, 8);
 
@@ -379,8 +379,9 @@ export function PayrollV2({
             <ChevronLeft className="size-5" />
           </Link>
           <div className="min-w-40 text-center">
-            <div className="text-[11px] font-bold tracking-widest text-au-muted uppercase">Oylik</div>
-            <h1 className="text-xl font-extrabold text-au-ink sm:text-2xl">{monthLabel(period)}</h1>
+            <div className="text-[11px] font-bold tracking-widest text-au-muted uppercase">Ish oyi</div>
+            <h1 className="text-xl font-extrabold text-au-ink sm:text-2xl">{monthLabel(period).split(' ')[0]} ishi</h1>
+            <div className="text-xs text-au-faint">to‘lov oyi: {monthLabel(shiftMonth(period, 1))}</div>
           </div>
           <Link href={`/finance?period=${shiftMonth(period, 1)}`} className={cn(ICON_BTN, 'size-11 border border-au-line')} aria-label="Keyingi oy">
             <ChevronRight className="size-5" />
@@ -408,7 +409,7 @@ export function PayrollV2({
           )}
           {toSettle && (
             <button className={BTN_OK} disabled={busy} onClick={payAll}>
-              <Check className="size-4" /> {owedCount ? `Hammaga qoldiqni to‘lash (${owedCount} kishi)` : 'Ortiqchani keyingi oyga o‘tkazish'}
+              <Check className="size-4" /> {owedCount ? `Hammaga qoldiqni to‘lash (${owedCount} kishi)` : 'Avansni keyingi oyga o‘tkazish'}
             </button>
           )}
         </div>
@@ -710,7 +711,7 @@ export function PayrollV2({
             { header: 'KPI', key: 'kpi' },
             { header: 'Bonus', key: 'bonuses' },
             { header: 'Ushlanma', key: 'deductions' },
-            { header: 'O‘tgan oy ortiqchasi', key: 'carry' },
+            { header: 'O‘tgan oyda berilgan avans', key: 'carry' },
             { header: 'Avans ulushi', key: 'advanceShift' },
             { header: 'Hisoblangan', key: 'payable' },
             { header: 'To‘langan', key: 'paid' },
@@ -1229,7 +1230,7 @@ function StaffPanel({
         ))}
         <div className="h-px bg-au-line" />
         <div className="flex items-center justify-between text-base font-extrabold">
-          <span className="text-au-ink">{line.remaining > 0 ? 'Qoldiq (to‘lanadi)' : line.remaining < 0 ? 'Ortiqcha to‘langan' : 'Hisob yopilgan'}</span>
+          <span className="text-au-ink">{line.remaining > 0 ? 'Qoldiq (to‘lanadi)' : line.remaining < 0 ? 'Keyingi oy uchun avans' : 'Hisob yopilgan'}</span>
           <span className={cn('tabular-nums', line.remaining > 0 ? 'text-au-accent-text' : line.remaining < 0 ? 'text-au-bad' : 'text-au-ok')}>
             {som(Math.abs(line.remaining))}
           </span>

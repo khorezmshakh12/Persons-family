@@ -123,11 +123,16 @@ export function OpsStudents({ data }: { data: OpsData }) {
     .sort((a, b) => a.balance - b.balance);
 
   const exportCsv = () => {
-    const head = ['Ism familiya', 'Telefon', 'Ota-ona', 'Holat', 'Balans', 'Oylik to‘lov', 'Chegirma %', 'Aktiv bo‘lgan sana', 'Keyingi to‘lov', 'Baho'];
+    const head = ['Ism familiya', 'Telefon', 'Telegram', 'Otasi', 'Onasi', 'Ota-ona / vasiy', 'Guruhga qo‘shilgan', 'Faol bo‘lgan', 'Holat', 'Balans', 'Oylik to‘lov', 'Chegirma %', 'Hisob boshlangan sana', 'Keyingi to‘lov', 'Baho'];
     const lines = rows.map((s) => [
       s.name,
       s.phone,
+      s.tgUsername ? `@${s.tgUsername}` : '',
+      s.father,
+      s.mother,
       s.parent,
+      s.groupSince ?? '',
+      s.activeSince ?? '',
       s.status === 'archived' ? `Arxiv: ${s.leaveReason}` : s.balance < 0 ? 'Qarzdor' : s.status === 'frozen' ? 'Muzlatilgan' : 'Aktiv',
       String(Math.round(s.balance)),
       String(s.fee),
@@ -277,7 +282,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
                     <th>Holat</th>
                     <th>To‘lov bahosi</th>
                     <th className="text-right">Oylik to‘lov</th>
-                    <th>Aktiv bo‘lgan sana</th>
+                    <th>Sanalar</th>
                     <th>Keyingi to‘lov</th>
                     {data.canEdit && <th className="w-[120px]" />}
                   </tr>
@@ -437,8 +442,14 @@ function Row({
           )}
           {!s.tg && <span className="sx-pl mute" title="Ota-ona Telegram botga ulanmagan — eslatma bormaydi">TG yo‘q</span>}
         </span>
+        {s.tgUsername && <div className="text-xs text-au-faint">@{s.tgUsername}</div>}
       </td>
-      <td className="whitespace-nowrap tabular-nums text-au-muted">{s.phone || '—'}</td>
+      <td className="whitespace-nowrap tabular-nums text-au-muted">
+        {s.phone || '—'}
+        {s.father && <div className="text-xs text-au-faint">Ota: {s.father}</div>}
+        {s.mother && <div className="text-xs text-au-faint">Ona: {s.mother}</div>}
+        {!s.father && !s.mother && s.parent && <div className="text-xs text-au-faint">{s.parent}</div>}
+      </td>
       <td className="whitespace-nowrap">
         {isPending(s) ? (
           <span className="sx-pl warn">Faol emas · {WHY[s.inactiveWhy]}</span>
@@ -486,6 +497,8 @@ function Row({
         ) : (
           <span className="text-xs text-au-faint">Kiritilmagan</span>
         )}
+        <div className="text-xs text-au-faint">Guruhga: {s.groupSince ? dmy(s.groupSince) : '—'}</div>
+        <div className="text-xs text-au-faint">Faol: {s.activeSince ? dmy(s.activeSince) : '—'}</div>
       </td>
       <td>
         {s.status === 'frozen' ? (

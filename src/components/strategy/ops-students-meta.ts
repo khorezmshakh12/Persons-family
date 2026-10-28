@@ -69,7 +69,9 @@ export const errText = (e: string) =>
               ? 'To‘lovi bor o‘quvchini o‘chirib bo‘lmaydi — arxivlang'
               : e === 'feeRequired'
                 ? 'Oylik summani kiriting'
-                : "Saqlab bo'lmadi";
+                : e === 'paymentLocked'
+                  ? 'Bu to‘lov bekor qilingan yoki qaytarish yozuvi, uni o‘zgartirib bo‘lmaydi'
+                  : "Saqlab bo'lmadi";
 
 /** A Postgres timestamptz text (any offset) as a Date. */
 export const tsDate = (s: string) => new Date(s.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));

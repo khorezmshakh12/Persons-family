@@ -8,6 +8,7 @@ import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { PayrollV2 } from '@/components/finance/payroll-v2';
 import { loadAdvances, loadMyRecentEntries, loadPayHistory, loadPayLines, loadPayRun, loadPayRunLog, loadReimbursements } from '@/lib/pay-run-data';
 import { loadCashBoxes } from '@/lib/pay-cash';
+import { isRelevant, shiftMonth } from '@/lib/pay-run';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +23,17 @@ export default async function FinancePage({
   const isAdmin = can(profile!.role, 'finance.viewAll');
 
   if (isAdmin) {
-    // `?period=` is user-supplied — normalised (or replaced with the current
-    // Tashkent month) before it reaches a query.
-    const period = resolvePeriod((await searchParams)?.period);
+    // `?period=` is user-supplied — normalised before it reaches a query.
+    // Pay belongs to the month worked and is paid in the next one (owner,
+    // 2026-10-28), so with no month chosen the page opens last month while
+    // anyone is still owed for it, else this month (advances).
+    const raw = (await searchParams)?.period;
+    let period = resolvePeriod(raw);
+    if (!raw) {
+      const prev = shiftMonth(period, -1);
+      const owed = await loadPayLines(prev).then((ls) => ls.some((l) => isRelevant(l) && l.remaining > 0)).catch(() => false);
+      if (owed) period = prev;
+    }
     const [lines, run, log, advances, history, recent, boxes, reimbursements] = await Promise.all([
       loadPayLines(period),
       loadPayRun(period),

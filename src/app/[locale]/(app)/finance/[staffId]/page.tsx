@@ -101,10 +101,10 @@ export async function FinanceDetailContent({
   const bTarget = bpoint?.amount ?? 0;
   // All 12 months, so the planned path to the B-nuqta shows ahead of today;
   // months not reached yet carry no cumulative.
-  const bMonths: { label: string; cumulative: number | null }[] = [];
+  const bMonths: { label: string; cumulative: number | null; amount: number | null }[] = [];
   for (let i = 0, cum = 0; i < 12; i++) {
     cum += byMonth[i];
-    bMonths.push({ label: SHORT_UZ[i], cumulative: i < upToMonth ? Math.round(cum) : null });
+    bMonths.push({ label: SHORT_UZ[i], cumulative: i < upToMonth ? Math.round(cum) : null, amount: i < upToMonth ? Math.round(byMonth[i]) : null });
   }
   const line = lines[0] ?? null;
   const roleName = roleLabel(tStaff, target.role);
