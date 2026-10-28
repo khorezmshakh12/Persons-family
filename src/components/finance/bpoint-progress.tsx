@@ -9,7 +9,9 @@ import { cn } from '@/lib/utils';
 /** B-nuqta sari: the year's cumulative earnings (bars) against the planned
  * path to the B-nuqta (dashed step, target × month/12) and the B-nuqta line
  * itself. All 12 months are drawn so the plan is visible ahead of today;
- * a month that has not come yet has `cumulative: null`. */
+ * a month that has not come yet has `cumulative: null`. Pay differs month
+ * to month (it follows what the person brought in), so each month's own
+ * amount is shown too, with what every remaining month needs. */
 export function BpointProgress({
   year,
   target,
@@ -17,7 +19,7 @@ export function BpointProgress({
 }: {
   year: number;
   target: number;
-  months: { label: string; cumulative: number | null }[];
+  months: { label: string; cumulative: number | null; amount: number | null }[];
 }): JSX.Element {
   const elapsed = months.filter((m) => m.cumulative !== null);
   const last = elapsed.length - 1;
@@ -54,6 +56,10 @@ export function BpointProgress({
   const fPct = f.cumulative !== null ? Math.round((f.cumulative / target) * 100) : null;
   const latest = last >= 0 ? (months[last].cumulative ?? 0) : 0;
   const remaining = Math.max(0, target - latest);
+  const monthsLeft = 11 - Math.max(0, last);
+  const avg = last >= 0 ? Math.round(latest / (last + 1)) : 0;
+  const need = monthsLeft > 0 ? Math.round(remaining / monthsLeft) : remaining;
+  const best = elapsed.reduce((b, m, i) => ((m.amount ?? 0) > (elapsed[b]?.amount ?? 0) ? i : b), 0);
 
   return (
     <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-5')}>
@@ -64,7 +70,7 @@ export function BpointProgress({
         <span className="text-au-muted tabular-nums">
           {f.cumulative !== null ? (
             <>
-              topildi {formatUZS(f.cumulative)} · <b className="text-au-ink">{fPct}%</b> ·{' '}
+              shu oy {formatUZS(f.amount ?? 0)} · jami {formatUZS(f.cumulative)} · <b className="text-au-ink">{fPct}%</b> ·{' '}
             </>
           ) : null}
           reja {formatUZS(plannedAt(focus))}
@@ -126,12 +132,33 @@ export function BpointProgress({
         </span>
       </div>
 
-      <div className="flex flex-wrap justify-between gap-x-3 text-xs text-au-muted">
+      {/* Each month on its own: pay goes up and down with results */}
+      <div className="flex gap-1 text-center text-[9px] tabular-nums text-au-muted" aria-label="Har oy topilgan">
+        {months.map((m, i) => (
+          <span key={m.label} className={cn('flex-1 truncate', i === best && m.amount ? 'font-bold text-au-ok' : '')} title={m.amount !== null ? formatUZS(m.amount) : undefined}>
+            {m.amount !== null ? (m.amount >= 1_000_000 ? `${(m.amount / 1_000_000).toFixed(1)}m` : m.amount ? `${Math.round(m.amount / 1000)}k` : '0') : ''}
+          </span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-au-muted">
         <span>
           Shu yil topildi: <b className="text-au-ink tabular-nums">{formatUZS(latest)}</b>
         </span>
-        <span>
+        <span className="text-right">
           Qoldi: <b className="text-au-ink tabular-nums">{formatUZS(remaining)}</b>
+        </span>
+        <span>
+          O‘rtacha oyiga: <b className="text-au-ink tabular-nums">{formatUZS(avg)}</b>
+        </span>
+        <span className="text-right">
+          {remaining === 0 ? (
+            <b className="text-au-ok">B-nuqtaga yetildi</b>
+          ) : (
+            <>
+              {monthsLeft > 0 ? `Qolgan ${monthsLeft} oyda oyiga` : 'Kerak'}: <b className={cn('tabular-nums', need > avg ? 'text-au-bad' : 'text-au-ok')}>{formatUZS(need)}</b>
+            </>
+          )}
         </span>
       </div>
     </section>

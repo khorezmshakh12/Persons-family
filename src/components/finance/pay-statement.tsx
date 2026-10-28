@@ -71,7 +71,7 @@ export function PayStatementCard({ line, period }: { line: PayLine | null; perio
     owed > 0
       ? { n: 'Oylik qoldig‘i (olinishi kerak)', v: `${som(owed)} so‘m`, tone: 'text-au-accent-text' }
       : over > 0
-        ? { n: 'Ortiqcha / avans (keyingi oydan)', v: `+${som(over)} so‘m`, tone: 'text-au-info' }
+        ? { n: 'Keyingi oy uchun avans', v: `+${som(over)} so‘m`, tone: 'text-au-info' }
         : { n: 'Joriy balans', v: '0 so‘m', tone: 'text-au-ok' };
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col gap-4 p-5')}>

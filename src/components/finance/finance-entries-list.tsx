@@ -41,7 +41,7 @@ const SOURCE_LABEL: Partial<Record<FinanceEntry['source'], string>> = {
   payrun: 'Oylik jarayoni',
   advance: 'Avans',
   correction: 'Tuzatish',
-  carry: 'O‘tgan oy ortiqchasi',
+  carry: 'O‘tgan oyda berilgan avans',
   reimburse: 'Xarajat qoplash',
 };
 

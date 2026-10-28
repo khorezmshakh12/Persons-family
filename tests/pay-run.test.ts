@@ -63,7 +63,7 @@ test('payState: one word from the line alone (no month lock)', () => {
   assert.equal(payState({ remaining: 100, paid: 0 }), 'To‘lanmagan');
   assert.equal(payState({ remaining: 100, paid: 50 }), 'Qisman to‘langan');
   assert.equal(payState({ remaining: 0, paid: 150 }), 'To‘langan');
-  assert.equal(payState({ remaining: -20, paid: 170 }), 'Ortiqcha to‘langan');
+  assert.equal(payState({ remaining: -20, paid: 170 }), 'Keyingi oyga avans');
 });
 
 test('totals, drift and month shifting', () => {

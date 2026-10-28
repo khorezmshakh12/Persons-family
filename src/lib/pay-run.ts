@@ -6,12 +6,12 @@
  *
  *   payable   = base + kpi + bonuses + deductions + carry + advanceShift
  *   paid      = salary payments + advances for the month
- *   remaining = payable − paid                            (< 0 = overpaid)
+ *   remaining = payable − paid       (< 0 = paid ahead: an advance on next month)
  *
  * Every amount belongs to exactly one month (its `period`); nothing from
  * another month is summed in. Two rows are bookkeeping, not earnings, and
  * stay out of bonuses/deductions (finance audit 2026-10-22):
- *   carry        — last month's overpayment held back now (≤ 0);
+ *   carry        — last month's advance on this month, held back now (≤ 0);
  *   advanceShift — a split advance: this month gives back all but its share
  *                  (> 0), each later month holds back one share (< 0).
  */
@@ -32,7 +32,7 @@ export const COMPONENT_LABEL: Record<ComponentKind, string> = {
   adjustment: 'Qo‘lda tuzatish',
   penalty: 'Jarima',
   correction: 'Tuzatish yozuvi',
-  carry: 'O‘tgan oy ortiqcha to‘lovi',
+  carry: 'O‘tgan oyda berilgan avans',
   advshift: 'Avansni bo‘lib ushlash',
 };
 
@@ -80,7 +80,7 @@ export const FLAG_META: Record<PayFlag, { n: string; blocking: boolean }> = {
   kpiPending: { n: 'KPI baholanmagan', blocking: false },
   selfDevPending: { n: 'O‘zini rivojlantirish baholanmagan', blocking: false },
   variance: { n: 'O‘tgan oydan keskin farq', blocking: false },
-  overpaid: { n: 'Ortiqcha to‘langan', blocking: false },
+  overpaid: { n: 'Keyingi oy uchun avans berilgan', blocking: false },
   // Blocking: an advance decided after approval could not be written into
   // the locked month, so it is settled first.
   advancePending: { n: 'Avans so‘rovi kutilmoqda', blocking: true },
@@ -195,7 +195,7 @@ export function isRelevant(l: PayLine): boolean {
 /** A person's month in one word, from their line alone (no month lock
  * since 2026-10-21 — the run itself has no state worth showing). */
 export function payState(l: Pick<PayLine, 'remaining' | 'paid'>): string {
-  if (l.remaining < 0) return 'Ortiqcha to‘langan';
+  if (l.remaining < 0) return 'Keyingi oyga avans';
   if (l.remaining === 0) return 'To‘langan';
   return l.paid > 0 ? 'Qisman to‘langan' : 'To‘lanmagan';
 }

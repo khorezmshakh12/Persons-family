@@ -26,11 +26,12 @@ import {
 import { addStudentNoteAction, editStudentNoteAction, getStudentNotesAction, type StudentNote } from '@/lib/actions/student-notes';
 import { playSound, toast } from './suite-shell';
 import { CommentList } from './ops-comments';
+import { PaymentEditor } from './ops-payments';
 import type { OpsData } from './operations-workspace';
 import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, som, when } from './ops-students-meta';
 
 type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'freeze' | 'out' | 'del' | 'call' | null;
-const KIND_UZ: Record<string, string> = { father: 'ota', mother: 'ona', guardian: 'vasiy', student: 'o‘quvchi', other: 'boshqa' };
+const PARENT_LABEL: Record<string, string> = { father: 'Otasi', mother: 'Onasi', guardian: 'Ota-ona / vasiy', other: 'Boshqa kontakt' };
 const digits = (v: string) => v.replace(/\D/g, '');
 const grouped = (v: string) => (digits(v) ? formatUZS(Number(digits(v))) : '');
 
@@ -43,6 +44,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   const [tick, setTick] = useState(0);
   const [notes, setNotes] = useState<StudentNote[] | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
+  const [editPay, setEditPay] = useState<string | null>(null);
   const today = data.today.day;
   const canEdit = data.canEdit;
 
@@ -137,14 +139,25 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
             <Kv k="Oylik to‘lov" sub={[s.feeOwn ? 'qo‘lda kiritilgan' : 'guruh tariflaridan', s.discountPct ? `chegirma ${s.discountPct}%${s.discountReason ? ` (${s.discountReason})` : ''}` : '', s.installments === 2 ? '2 qismda' : ''].filter(Boolean).join(' · ')}>
               {s.fee ? som(s.fee) : '—'}
             </Kv>
-            <Kv k="Aktiv bo‘lgan sana" sub={s.start ? `har oy ${Number(s.start.slice(8, 10))}-sanada yechiladi` : undefined}>
+            <Kv k="Hisob boshlangan sana" sub={s.start ? `har oy ${Number(s.start.slice(8, 10))}-sanada yechiladi` : undefined}>
               {s.start ? dmy(s.start) : '—'}
             </Kv>
-            {(card?.contacts ?? []).map((c, i) => (
-              <Kv key={i} k={c.kind === 'student' ? 'Telefon' : `Ota-ona (${KIND_UZ[c.kind] ?? c.kind})`} sub={c.tg ? 'Telegram botga ulangan' : 'Telegram yo‘q'}>
-                {[c.name, c.phone].filter(Boolean).join(' · ') || '—'}
+            {card && (
+              <Kv k="Telefon" sub={card.contacts.find((c) => c.kind === 'student')?.tg ? 'Telegram botga ulangan' : undefined}>
+                {card.contacts.find((c) => c.kind === 'student')?.phone || '—'}
               </Kv>
-            ))}
+            )}
+            {card && <Kv k="Telegram username">{card.tgUsername ? `@${card.tgUsername}` : '—'}</Kv>}
+            {card &&
+              (['father', 'mother', 'guardian', 'other'] as const).flatMap((kind) =>
+                card.contacts
+                  .filter((c) => c.kind === kind)
+                  .map((c, i) => (
+                    <Kv key={`${kind}-${i}`} k={PARENT_LABEL[kind]} sub={c.tg ? 'Telegram botga ulangan · eslatmalar boradi' : 'Telegram ulanmagan'}>
+                      {[c.name, c.phone].filter(Boolean).join(' · ') || '—'}
+                    </Kv>
+                  )),
+              )}
             {card?.birthday && <Kv k="Tug‘ilgan kun">{dmy(card.birthday)}</Kv>}
           </div>
 
@@ -192,6 +205,8 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
               )}
             </div>
           )}
+
+          {card && <Dates d={card.dates} />}
 
           {pane === 'pay' && <PayPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'msg' && <MsgPane s={s} data={data} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
@@ -269,6 +284,18 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                           {dmy(e.date)} · {e.actor}
                           {e.note ? ` · ${e.note}` : ''}
                         </span>
+                        {e.cancelled && <span className="block text-xs font-semibold text-au-bad">Bekor qilingan</span>}
+                        {e.edit && <span className="block text-xs text-au-info">✎ {e.edit}</span>}
+                        {canEdit && e.type === 'pay' && e.amount > 0 && !e.cancelled && !e.isCancel && (
+                          <button className="mt-1 text-xs font-semibold text-au-accent-text hover:underline" onClick={() => setEditPay(editPay === e.id ? null : e.id)}>
+                            {editPay === e.id ? 'Yopish' : 'Tahrirlash'}
+                          </button>
+                        )}
+                        {editPay === e.id && (
+                          <span className="mt-2 block">
+                            <PaymentEditor payment={{ id: e.id, amount: e.amount, method: e.kind, date: e.date }} today={today} onDone={(m) => { setEditPay(null); done(m); }} onFail={fail} onCancel={() => setEditPay(null)} />
+                          </span>
+                        )}
                       </span>
                       <span className="text-right">
                         <b className={cn('block tabular-nums', e.type === 'pay' && e.amount > 0 ? 'text-au-ok' : 'text-au-bad')}>
@@ -353,6 +380,34 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
         </div>
       </aside>
     </>
+  );
+}
+
+/** Lid → o‘quvchi → guruh → faol, oldest first. */
+function Dates({ d }: { d: StudentCard['dates'] }) {
+  const items = [
+    d.lead && { at: d.lead.at.slice(0, 10), t: 'Lid sifatida keldi', sub: d.lead.source },
+    { at: d.created.at.slice(0, 10), t: 'O‘quvchi qilib qo‘shildi', sub: d.created.by },
+    ...d.groups.map((g) => ({ at: g.since, t: 'Guruhga qo‘shildi', sub: `${g.name}${g.status === 'active' ? '' : ` · ${g.status === 'frozen' ? 'muzlatilgan' : 'chiqqan'}`}` })),
+    d.active ? { at: d.active.at, t: 'Faol bo‘ldi', sub: d.active.how } : { at: '', t: 'Hali faol emas', sub: 'birinchi to‘lov kutilmoqda' },
+  ].filter((x): x is { at: string; t: string; sub: string } => !!x);
+  items.sort((a, b) => (a.at || '9999').localeCompare(b.at || '9999'));
+  return (
+    <div className="flex flex-col gap-2">
+      <Sec>Sanalar</Sec>
+      <ol className="ml-1.5 border-l-2 border-au-line">
+        {items.map((x, i) => (
+          <li key={i} className="relative pb-2.5 pl-4 last:pb-0">
+            <span className={cn('absolute -left-[7px] top-1 size-3 rounded-full border-2 bg-au-card', x.at ? 'border-au-accent' : 'border-au-faint')} />
+            <b className="block text-sm text-au-ink">{x.t}</b>
+            <span className="text-xs text-au-faint">
+              {x.at ? dmy(x.at) : '—'}
+              {x.sub ? ` · ${x.sub}` : ''}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -694,20 +749,43 @@ function OutPane({ s, onDone, onFail, onCancel }: PaneProps) {
   );
 }
 
+type Person = { name: string; phone: string };
+
 function InfoPane({ s, card, onDone, onFail, onCancel }: { s: StudentRow; card: StudentCard; onDone: (m: string) => void; onFail: (e: string) => void; onCancel: () => void }) {
   const [pending, start] = useTransition();
   const own = card.contacts.find((c) => c.kind === 'student');
-  const par = card.contacts.find((c) => c.kind !== 'student');
+  const slot = (kind: string): Person => {
+    const c = card.contacts.find((x) => x.kind === kind);
+    return { name: c?.name ?? '', phone: c?.phone ?? '' };
+  };
   const [name, setName] = useState(s.name);
   const [phone, setPhone] = useState(own?.phone ?? '');
-  const [parentName, setParentName] = useState(par?.name ?? '');
-  const [parentPhone, setParentPhone] = useState(par?.phone ?? '');
+  const [tg, setTg] = useState(own?.tgUsername ? `@${own.tgUsername}` : '');
+  const [father, setFather] = useState(slot('father'));
+  const [mother, setMother] = useState(slot('mother'));
+  const [guardian, setGuardian] = useState(slot('guardian'));
+  const tgOk = /^@?[A-Za-z0-9_]{3,32}$/.test(tg.trim()) || !tg.trim();
+  // An imported «ota-ona» number can be moved into the father's or mother's slot.
+  const move = (to: 'father' | 'mother') => {
+    (to === 'father' ? setFather : setMother)((p) => ({ name: p.name || guardian.name, phone: p.phone || guardian.phone }));
+    setGuardian({ name: '', phone: '' });
+  };
   const ok = () =>
     start(async () => {
-      const r = await updateStudentInfoAction({ studentId: s.id, name, phone, parentName, parentPhone });
+      const r = await updateStudentInfoAction({ studentId: s.id, name, phone, tgUsername: tg, father, mother, guardian });
       if (r.error) return onFail(r.error);
       onDone('Saqlandi');
     });
+  const row = (label: string, id: string, v: Person, set: (p: Person) => void) => (
+    <>
+      <Field label={`${label} ismi`}>
+        <input id={`info-${id}-n`} className="sx-inp" maxLength={120} value={v.name} onChange={(e) => set({ ...v, name: e.target.value })} />
+      </Field>
+      <Field label={`${label} telefoni`}>
+        <input id={`info-${id}-p`} className="sx-inp" inputMode="tel" maxLength={30} value={v.phone} onChange={(e) => set({ ...v, phone: e.target.value })} />
+      </Field>
+    </>
+  );
   return (
     <Panel title="O‘quvchini tahrirlash">
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
@@ -717,15 +795,26 @@ function InfoPane({ s, card, onDone, onFail, onCancel }: { s: StudentRow; card: 
         <Field label="Telefon">
           <input id="info-phone" className="sx-inp" inputMode="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
-        <Field label="Ota-ona ismi">
-          <input id="info-pname" className="sx-inp" maxLength={120} value={parentName} onChange={(e) => setParentName(e.target.value)} />
+        <Field label="Telegram username" className="col-span-2 max-[480px]:col-span-1">
+          <input id="info-tg" className={cn('sx-inp', !tgOk && 'border-au-bad')} maxLength={40} placeholder="@username" value={tg} onChange={(e) => setTg(e.target.value)} />
         </Field>
-        <Field label="Ota-ona telefoni">
-          <input id="info-pphone" className="sx-inp" inputMode="tel" maxLength={30} value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} />
-        </Field>
+        {row('Otasining', 'father', father, setFather)}
+        {row('Onasining', 'mother', mother, setMother)}
+        {row('Vasiy / ota-ona', 'guardian', guardian, setGuardian)}
       </div>
-      <div className="text-xs text-au-faint">Oylik summa va aktiv sana — «Summa, sana, chegirma» bo‘limida. Telegram ulanishi saqlanib qoladi.</div>
-      <Actions pending={pending || name.trim().length < 2} ok={ok} okText="Saqlash" onCancel={onCancel} />
+      {(guardian.name || guardian.phone) && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-au-muted">
+          «Vasiy / ota-ona» raqami kimniki?
+          <button type="button" className="sx-btn sm" onClick={() => move('father')}>
+            Otasiniki
+          </button>
+          <button type="button" className="sx-btn sm" onClick={() => move('mother')}>
+            Onasiniki
+          </button>
+        </div>
+      )}
+      <div className="text-xs text-au-faint">Bo‘sh qoldirilgan ota-ona o‘chiriladi (Telegram’ga ulangan bo‘lsa, ulanish saqlanadi). Har bir o‘zgarish tarixga yoziladi.</div>
+      <Actions pending={pending || name.trim().length < 2 || !tgOk} ok={ok} okText="Saqlash" onCancel={onCancel} />
     </Panel>
   );
 }

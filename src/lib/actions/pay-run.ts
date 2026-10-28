@@ -68,9 +68,9 @@ async function settleCarry(tx: Tx, per: string, lines: PayLine[], actor: string)
       insert into finance_entries ${tx(
         over.map((l) => ({
           staff_id: l.staffId,
-          title: `Ortiqcha to‘lov · ${monthLabel(per)}`,
+          title: `Avans · ${monthLabel(per)}da oldindan berilgan`,
           amount: l.remaining,
-          note: 'Avtomatik: o‘tgan oy ortiqcha to‘langan summa ushlab qolinadi',
+          note: 'Avtomatik: o‘tgan oyda shu oy uchun oldindan berilgan avans ushlab qolinadi',
           created_by: actor,
           kind: 'adjustment',
           period: shiftMonth(per, 1),

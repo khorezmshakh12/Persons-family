@@ -21,6 +21,7 @@ export async function addGoalAction(scope: string, periodKey: string, title: str
     const [row] = await sql<{ id: string }[]>`
       insert into goals (user_id, scope, period_key, title) values (${user.id}, ${scope}, ${periodKey}, ${t}) returning id`;
     revalidatePath('/[locale]/dashboard', 'page');
+    revalidatePath('/[locale]/task-tracker', 'page');
     return { ok: true, id: row.id };
   } catch (e) {
     console.error('[goals] add failed', e);
@@ -49,11 +50,39 @@ export async function deleteGoalAction(id: string): Promise<GoalResult> {
   if (!user || !profile) return { error: 'auth' };
   if (!id) return { error: 'empty' };
   try {
-    await sql`delete from goals where id = ${id} and user_id = ${user.id}`;
+    const res = await sql`delete from goals where id = ${id} and user_id = ${user.id}`;
+    if (res.count === 0) return { error: 'notFound' };
     revalidatePath('/[locale]/dashboard', 'page');
+    revalidatePath('/[locale]/task-tracker', 'page');
     return { ok: true };
   } catch (e) {
     console.error('[goals] delete failed', e);
+    return { error: 'failed' };
+  }
+}
+
+/**
+ * Tahrirlash: new text, and optionally another period (kunlik → haftalik…).
+ * Moving a goal puts it in the current period of the new scope.
+ */
+export async function editGoalAction(id: string, title: string, scope?: string, periodKey?: string): Promise<GoalResult> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'auth' };
+  if (!id) return { error: 'empty' };
+  const t = (title ?? '').trim();
+  if (!t) return { error: 'empty' };
+  if (t.length > 160) return { error: 'tooLong' };
+  if (scope !== undefined && (!SCOPES.includes(scope) || !periodKey || !/^\d{4}-\d{2}(-\d{2})?$/.test(periodKey))) return { error: 'scope' };
+  try {
+    const res = scope
+      ? await sql`update goals set title = ${t}, scope = ${scope}, period_key = ${periodKey!} where id = ${id} and user_id = ${user.id}`
+      : await sql`update goals set title = ${t} where id = ${id} and user_id = ${user.id}`;
+    if (res.count === 0) return { error: 'notFound' };
+    revalidatePath('/[locale]/dashboard', 'page');
+    revalidatePath('/[locale]/task-tracker', 'page');
+    return { ok: true };
+  } catch (e) {
+    console.error('[goals] edit failed', e);
     return { error: 'failed' };
   }
 }

@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import type { TransactionSql } from 'postgres';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
@@ -21,6 +22,7 @@ const uuid = z.string().uuid();
 const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const money = z.coerce.number().int().min(1).max(1_000_000_000);
 const PAY_METHODS = ['cash', 'card', 'click', 'payme', 'uzum', 'transfer', 'other'] as const;
+const PAY_LABEL: Record<string, string> = { cash: 'Naqd', card: 'Karta', click: 'Click', payme: 'Payme', uzum: 'Uzum', transfer: 'O‘tkazma', online: 'Onlayn', other: 'Boshqa' };
 
 const refresh = () => revalidatePath('/[locale]/operations', 'page');
 
@@ -42,9 +44,33 @@ async function nameOf(studentId: string): Promise<string | null> {
 // Read: one student's card
 // ---------------------------------------------------------------------------
 
-export type CardLedger = { id: string; type: 'charge' | 'pay'; date: string; amount: number; kind: string; note: string; actor: string; at: string };
+export type CardLedger = {
+  id: string;
+  type: 'charge' | 'pay';
+  date: string;
+  amount: number;
+  kind: string;
+  note: string;
+  actor: string;
+  at: string;
+  /** Payments only: the last correction ("Naqd → Click · Umida T.") and whether it was cancelled. */
+  edit: string | null;
+  cancelled: boolean;
+  isCancel: boolean;
+};
+/** Key dates of the student's path, oldest first. */
+export type CardDates = {
+  lead: { at: string; source: string } | null;
+  created: { at: string; by: string };
+  groups: { name: string; since: string; status: string }[];
+  /** First real payment, or the «paid in another CRM» mark. */
+  active: { at: string; how: string } | null;
+};
 export type StudentCard = {
-  contacts: { kind: string; name: string; phone: string; tg: boolean }[];
+  contacts: { kind: string; name: string; phone: string; tg: boolean; tgUsername: string }[];
+  /** The student's own Telegram username, else one from a contact or the lead. */
+  tgUsername: string;
+  dates: CardDates;
   birthday: string | null;
   note: string;
   ledger: CardLedger[];
@@ -58,21 +84,27 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
   if (!profile || !canSeeFor(profile, 'operations')) return { error: 'forbidden' };
   if (!uuid.safeParse(studentId).success) return { error: 'invalidInput' };
   try {
-    const [[stu], contacts, ledger, messages, log, calls] = await Promise.all([
-      sql<{ birthday: string | null; note: string }[]>`select birthday::text as birthday, note from crm_students where id = ${studentId}`,
+    const [[stu], contacts, ledger, messages, log, calls, [lead], groups, [first]] = await Promise.all([
+      sql<{ birthday: string | null; note: string; created: string; by: string; pe_at: string | null; pe_source: string | null }[]>`
+        select s.birthday::text as birthday, s.note, (s.created_at at time zone 'Asia/Tashkent')::date::text as created,
+          coalesce(p.first_name || ' ' || p.last_name, 'Import') as by,
+          (s.paid_elsewhere_at at time zone 'Asia/Tashkent')::date::text as pe_at, s.paid_elsewhere_source as pe_source
+        from crm_students s left join profiles p on p.id = s.created_by where s.id = ${studentId}`,
       sql<StudentCard['contacts']>`
-        select kind, coalesce(name, '') as name, coalesce(phone, '') as phone, telegram_chat_id is not null as tg
+        select kind, coalesce(name, '') as name, coalesce(phone, '') as phone, telegram_chat_id is not null as tg,
+          coalesce(telegram_username, '') as "tgUsername"
         from crm_contacts where student_id = ${studentId} order by (kind = 'student') desc, is_primary desc, created_at`,
       sql<CardLedger[]>`
         select * from (
           select c.id, 'charge' as type, c.due_date::text as date, c.amount, c.source as kind, coalesce(c.note, '') as note,
             coalesce(p.first_name || ' ' || p.last_name, case c.source when 'auto' then 'Avto-yechim' when 'import' then 'Import' else 'CRM' end) as actor,
-            c.created_at::text as at
+            c.created_at::text as at, null as edit, false as cancelled, false as "isCancel"
           from crm_charges c left join crm_enrollments e on e.id = c.enrollment_id left join profiles p on p.id = c.created_by
           where coalesce(c.student_id, e.student_id) = ${studentId}
           union all
           select y.id, 'pay', y.paid_at::text, case when y.is_refund then -y.amount else y.amount end, y.method, coalesce(y.note, ''),
-            coalesce(p.first_name || ' ' || p.last_name, 'Import'), y.created_at::text
+            coalesce(p.first_name || ' ' || p.last_name, 'Import'), y.created_at::text,
+            y.edit_note, exists (select 1 from crm_payments r where r.reverses = y.id), y.reverses is not null
           from crm_payments y left join profiles p on p.id = y.created_by
           where y.student_id = ${studentId}
         ) x order by date desc, at desc limit 300`,
@@ -88,9 +120,40 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
         select c.id, c.result, c.promised_date::text as promised, c.note, coalesce(p.first_name || ' ' || p.last_name, '') as actor, c.created_at::text as at
         from crm_debt_calls c left join profiles p on p.id = c.actor
         where c.student_id = ${studentId} order by c.created_at desc limit 50`,
+      sql<{ at: string; source: string; tgu: string | null }[]>`
+        select (created_at at time zone 'Asia/Tashkent')::date::text as at, coalesce(nullif(source, ''), 'Lid') as source, telegram_username as tgu
+        from crm_leads where converted_student_id = ${studentId} order by created_at limit 1`,
+      sql<CardDates['groups']>`
+        select g.name, e.activation_date::text as since, e.status
+        from crm_enrollments e join crm_groups g on g.id = e.group_id
+        where e.student_id = ${studentId} order by e.activation_date`,
+      sql<{ at: string; amount: number; method: string }[]>`
+        select paid_at::text as at, amount, method from crm_payments
+        where student_id = ${studentId} and not is_refund and amount > 0 and reverses is null
+          and not exists (select 1 from crm_payments r where r.reverses = crm_payments.id)
+        order by paid_at, created_at limit 1`,
     ]);
     if (!stu) return { error: 'notFound' };
-    return { card: { contacts: [...contacts], birthday: stu.birthday, note: stu.note, ledger: [...ledger], messages: [...messages], log: [...log], calls: [...calls] } };
+    const active =
+      first && (!stu.pe_at || first.at <= stu.pe_at)
+        ? { at: first.at, how: `birinchi to‘lov ${som(first.amount)} (${PAY_LABEL[first.method] ?? first.method})` }
+        : stu.pe_at
+          ? { at: stu.pe_at, how: `boshqa CRM’da to‘lagan${stu.pe_source ? ` · ${stu.pe_source}` : ''}` }
+          : null;
+    const tgUsername = contacts.find((c) => c.kind === 'student' && c.tgUsername)?.tgUsername || contacts.find((c) => c.tgUsername)?.tgUsername || lead?.tgu || '';
+    return {
+      card: {
+        contacts: [...contacts],
+        tgUsername,
+        dates: { lead: lead ? { at: lead.at, source: lead.source } : null, created: { at: stu.created, by: stu.by }, groups: [...groups], active },
+        birthday: stu.birthday,
+        note: stu.note,
+        ledger: [...ledger],
+        messages: [...messages],
+        log: [...log],
+        calls: [...calls],
+      },
+    };
   } catch {
     return { error: 'loadFailed' };
   }
@@ -151,6 +214,147 @@ export async function recordPaymentAction(input: z.input<typeof paymentSchema>):
   }
   refresh();
   return { sent };
+}
+
+const payEditSchema = z.object({
+  paymentId: uuid,
+  method: z.enum(PAY_METHODS),
+  amount: money,
+  paidAt: dayKey,
+  reason: z.string().trim().min(3).max(300),
+});
+
+/** How far back a corrected payment date may go. */
+const PAY_EDIT_DAYS = 400;
+
+/**
+ * To'lovni tahrirlash: method (Naqd → Click), amount or date of a payment
+ * already recorded. The balance moves by the difference; the row keeps who
+ * changed it last and the log keeps every old → new. A refund or a cancelled
+ * payment cannot be edited.
+ */
+export async function updatePaymentAction(input: z.input<typeof payEditSchema>): Promise<Result> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  const p = payEditSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  const today = tashkentDayKey();
+  if (v.paidAt > today || v.paidAt < addDaysToKey(today, -PAY_EDIT_DAYS)) return { error: 'invalidInput' };
+  try {
+    const res = await sql.begin(async (tx) => {
+      const [old] = await tx<{ student_id: string | null; amount: number; method: string; paid_at: string; is_refund: boolean; reverses: string | null; name: string; cancelled: boolean }[]>`
+        select y.student_id, y.amount, y.method, y.paid_at::text as paid_at, y.is_refund, y.reverses, coalesce(s.full_name, '') as name,
+          exists (select 1 from crm_payments r where r.reverses = y.id) as cancelled
+        from crm_payments y left join crm_students s on s.id = y.student_id where y.id = ${v.paymentId} for update of y`;
+      if (!old || !old.student_id) return 'notFound';
+      if (old.is_refund || old.reverses || old.cancelled) return 'locked';
+      const changes: string[] = [];
+      if (old.method !== v.method) changes.push(`${PAY_LABEL[old.method] ?? old.method} → ${PAY_LABEL[v.method]}`);
+      if (old.amount !== v.amount) changes.push(`${som(old.amount)} → ${som(v.amount)}`);
+      if (old.paid_at !== v.paidAt) changes.push(`${dmy(old.paid_at)} → ${dmy(v.paidAt)}`);
+      if (!changes.length) return 'same';
+      const summary = changes.join(', ');
+      await tx`update crm_payments set method = ${v.method}, amount = ${v.amount}, paid_at = ${v.paidAt},
+        edited_at = now(), edited_by = ${me.id}, edit_note = ${`${summary} · ${v.reason}`} where id = ${v.paymentId}`;
+      if (old.amount !== v.amount)
+        await tx`update crm_students set balance = balance + ${v.amount - old.amount}, updated_at = now() where id = ${old.student_id}`;
+      await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
+        values (${old.student_id}, 'payedit', ${`${old.name} — to‘lov tahrirlandi: ${summary}. Sabab: ${v.reason}`}, ${v.amount - old.amount}, ${me.id})`;
+      return 'ok';
+    });
+    if (res === 'notFound') return { error: 'notFound' };
+    if (res === 'locked') return { error: 'paymentLocked' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
+const payCancelSchema = z.object({ paymentId: uuid, reason: z.string().trim().min(3).max(300) });
+
+/**
+ * To'lovni bekor qilish: nothing is deleted. A refund row (`reverses`) takes
+ * the amount back out today, so cash, stats and the balance all net it, and
+ * the original stays in the history marked «bekor qilingan».
+ */
+export async function cancelPaymentAction(input: z.input<typeof payCancelSchema>): Promise<Result> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  const p = payCancelSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const res = await sql.begin(async (tx) => {
+      const [old] = await tx<{ student_id: string | null; amount: number; method: string; paid_at: string; is_refund: boolean; reverses: string | null; name: string }[]>`
+        select y.student_id, y.amount, y.method, y.paid_at::text as paid_at, y.is_refund, y.reverses, coalesce(s.full_name, '') as name
+        from crm_payments y left join crm_students s on s.id = y.student_id where y.id = ${v.paymentId} for update of y`;
+      if (!old || !old.student_id) return 'notFound';
+      if (old.is_refund || old.reverses) return 'locked';
+      const [row] = await tx`
+        insert into crm_payments (student_id, amount, method, paid_at, is_refund, note, reverses, created_by)
+        values (${old.student_id}, ${old.amount}, ${old.method}, ${tashkentDayKey()}, true,
+          ${`Bekor qilindi: ${dmy(old.paid_at)} dagi to‘lov · ${v.reason}`}, ${v.paymentId}, ${me.id})
+        on conflict do nothing returning id`;
+      if (!row) return 'locked';
+      await tx`update crm_students set balance = balance - ${old.amount}, updated_at = now() where id = ${old.student_id}`;
+      await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
+        values (${old.student_id}, 'paycancel', ${`${old.name} — ${dmy(old.paid_at)} dagi ${som(old.amount)} (${PAY_LABEL[old.method] ?? old.method}) to‘lov bekor qilindi. Sabab: ${v.reason}`}, ${-old.amount}, ${me.id})`;
+      return 'ok';
+    });
+    if (res === 'notFound') return { error: 'notFound' };
+    if (res === 'locked') return { error: 'paymentLocked' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
+export type PaymentRow = {
+  id: string;
+  studentId: string | null;
+  student: string;
+  date: string;
+  amount: number;
+  method: string;
+  actor: string;
+  note: string;
+  edit: string | null;
+  editedBy: string;
+  editedAt: string | null;
+  cancelled: boolean;
+  isCancel: boolean;
+  refund: boolean;
+};
+
+const payListSchema = z.object({ from: dayKey, to: dayKey });
+
+/** To'lovlar tahlili: every payment between two days (inclusive), newest first. */
+export async function listPaymentsAction(input: z.input<typeof payListSchema>): Promise<{ rows?: PaymentRow[]; error?: string }> {
+  const { profile } = await getAuthState();
+  if (!profile || !canSeeFor(profile, 'operations')) return { error: 'forbidden' };
+  const p = payListSchema.safeParse(input);
+  if (!p.success || p.data.from > p.data.to) return { error: 'invalidInput' };
+  try {
+    const rows = await sql<PaymentRow[]>`
+      select y.id, y.student_id as "studentId", coalesce(s.full_name, '—') as student, y.paid_at::text as date, y.amount, y.method,
+        coalesce(pc.first_name || ' ' || pc.last_name, 'Import') as actor,
+        coalesce(y.note, '') as note, y.edit_note as edit, coalesce(pe.first_name || ' ' || pe.last_name, '') as "editedBy",
+        y.edited_at::text as "editedAt",
+        exists (select 1 from crm_payments r where r.reverses = y.id) as cancelled, y.reverses is not null as "isCancel", y.is_refund as refund
+      from crm_payments y
+      left join crm_students s on s.id = y.student_id
+      left join profiles pc on pc.id = y.created_by
+      left join profiles pe on pe.id = y.edited_by
+      where y.paid_at between ${p.data.from} and ${p.data.to}
+      order by y.paid_at desc, y.created_at desc
+      limit 2000`;
+    return { rows: [...rows] };
+  } catch {
+    return { error: 'loadFailed' };
+  }
 }
 
 const chargeSchema = z.object({ studentId: uuid, amount: money, reason: z.string().trim().min(1).max(200) });
@@ -374,17 +578,51 @@ export async function restoreStudentAction(studentId: string): Promise<Result> {
   return {};
 }
 
+const person = z.object({ name: z.string().trim().max(120).default(''), phone: z.string().trim().max(30).default('') });
 const infoSchema = z.object({
   studentId: uuid,
   name: z.string().trim().min(2).max(120),
   phone: z.string().trim().max(30).default(''),
-  parentName: z.string().trim().max(120).default(''),
-  parentPhone: z.string().trim().max(30).default(''),
+  /** Without the @; empty clears it. */
+  tgUsername: z
+    .string()
+    .trim()
+    .max(40)
+    .transform((v) => v.replace(/^@+/, ''))
+    .refine((v) => v === '' || /^[A-Za-z0-9_]{3,32}$/.test(v))
+    .default(''),
+  father: person.default({ name: '', phone: '' }),
+  mother: person.default({ name: '', phone: '' }),
+  guardian: person.default({ name: '', phone: '' }),
 });
 
+type Tx = TransactionSql<{}>; // eslint-disable-line @typescript-eslint/no-empty-object-type
+const PARENT_UZ = { father: 'otasi', mother: 'onasi', guardian: 'vasiy' } as const;
+
 /**
- * Tahrirlash: name, the student's phone and the main parent. Contacts are
- * updated in place so a parent's Telegram link survives a phone fix.
+ * One parent slot (the first contact of that kind). Updated in place so a
+ * Telegram link survives a phone fix; emptied → removed, unless the parent is
+ * linked to the bot (then only the name and phone are cleared).
+ */
+async function saveParent(tx: Tx, studentId: string, kind: keyof typeof PARENT_UZ, v: { name: string; phone: string }): Promise<string | null> {
+  const [row] = await tx<{ id: string; name: string | null; phone: string | null; tg: boolean }[]>`
+    select id, name, phone, telegram_chat_id is not null as tg from crm_contacts
+    where student_id = ${studentId} and kind = ${kind} order by is_primary desc, created_at limit 1`;
+  if ((row?.name ?? '') === v.name && (row?.phone ?? '') === v.phone) return null;
+  const was = [row?.name, row?.phone].filter(Boolean).join(' ');
+  const now = [v.name, v.phone].filter(Boolean).join(' ');
+  if (row && !now && !row.tg) await tx`delete from crm_contacts where id = ${row.id}`;
+  else if (row) await tx`update crm_contacts set name = ${v.name || null}, phone = ${v.phone || null} where id = ${row.id}`;
+  else if (now) {
+    const [{ any }] = await tx<{ any: boolean }[]>`select exists (select 1 from crm_contacts where student_id = ${studentId} and kind <> 'student' and is_primary) as any`;
+    await tx`insert into crm_contacts (student_id, kind, name, phone, is_primary) values (${studentId}, ${kind}, ${v.name || null}, ${v.phone || null}, ${!any})`;
+  }
+  return `${PARENT_UZ[kind]} ${was || '—'} → ${now || '—'}`;
+}
+
+/**
+ * Tahrirlash: name, the student's phone and Telegram username, and the father,
+ * mother and guardian each in their own slot. Every change is logged old → new.
  */
 export async function updateStudentInfoAction(input: z.input<typeof infoSchema>): Promise<Result> {
   const me = await requireEditor();
@@ -401,20 +639,22 @@ export async function updateStudentInfoAction(input: z.input<typeof infoSchema>)
         await tx`update crm_students set full_name = ${v.name}, updated_at = now() where id = ${v.studentId}`;
         changes.push(`ism «${old.name}» → «${v.name}»`);
       }
-      const [own] = await tx<{ id: string; phone: string | null }[]>`
-        select id, phone from crm_contacts where student_id = ${v.studentId} and kind = 'student' order by is_primary desc, created_at limit 1`;
-      if ((own?.phone ?? '') !== v.phone) {
-        if (own) await tx`update crm_contacts set phone = ${v.phone || null} where id = ${own.id}`;
-        else if (v.phone) await tx`insert into crm_contacts (student_id, kind, phone, is_primary) values (${v.studentId}, 'student', ${v.phone}, true)`;
-        changes.push(`telefon ${own?.phone || '—'} → ${v.phone || '—'}`);
+      const [own] = await tx<{ id: string; phone: string | null; tgu: string | null }[]>`
+        select id, phone, telegram_username as tgu from crm_contacts
+        where student_id = ${v.studentId} and kind = 'student' order by is_primary desc, created_at limit 1`;
+      const phoneChanged = (own?.phone ?? '') !== v.phone;
+      const tguChanged = (own?.tgu ?? '') !== v.tgUsername;
+      if (phoneChanged || tguChanged) {
+        if (own) await tx`update crm_contacts set phone = ${v.phone || null}, telegram_username = ${v.tgUsername || null} where id = ${own.id}`;
+        else if (v.phone || v.tgUsername)
+          await tx`insert into crm_contacts (student_id, kind, phone, telegram_username, is_primary)
+            values (${v.studentId}, 'student', ${v.phone || null}, ${v.tgUsername || null}, true)`;
+        if (phoneChanged) changes.push(`telefon ${own?.phone || '—'} → ${v.phone || '—'}`);
+        if (tguChanged) changes.push(`Telegram ${own?.tgu ? `@${own.tgu}` : '—'} → ${v.tgUsername ? `@${v.tgUsername}` : '—'}`);
       }
-      const [par] = await tx<{ id: string; name: string | null; phone: string | null }[]>`
-        select id, name, phone from crm_contacts where student_id = ${v.studentId} and kind <> 'student' order by is_primary desc, created_at limit 1`;
-      if ((par?.name ?? '') !== v.parentName || (par?.phone ?? '') !== v.parentPhone) {
-        if (par) await tx`update crm_contacts set name = ${v.parentName || null}, phone = ${v.parentPhone || null} where id = ${par.id}`;
-        else if (v.parentName || v.parentPhone)
-          await tx`insert into crm_contacts (student_id, kind, name, phone, is_primary) values (${v.studentId}, 'guardian', ${v.parentName || null}, ${v.parentPhone || null}, true)`;
-        changes.push(`ota-ona ${[par?.name, par?.phone].filter(Boolean).join(' ') || '—'} → ${[v.parentName, v.parentPhone].filter(Boolean).join(' ') || '—'}`);
+      for (const kind of ['father', 'mother', 'guardian'] as const) {
+        const c = await saveParent(tx, v.studentId, kind, v[kind]);
+        if (c) changes.push(c);
       }
       if (changes.length)
         await tx`insert into crm_student_log (student_id, kind, text, actor) values (${v.studentId}, 'edit', ${`${v.name} — ${changes.join(', ')}`}, ${me.id})`;

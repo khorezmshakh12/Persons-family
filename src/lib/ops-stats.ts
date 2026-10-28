@@ -99,8 +99,10 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
       from jsonb_to_recordset(${spans}::jsonb) as r(k text, a date, b date)`,
     sql<{ k: string; n: number }[]>`
       with f as (
-        select student_id, min(paid_at) as first_paid from crm_payments
-        where student_id is not null and not is_refund and amount > 0 group by student_id
+        select y.student_id, min(y.paid_at) as first_paid from crm_payments y
+        where y.student_id is not null and not y.is_refund and y.amount > 0
+          and not exists (select 1 from crm_payments r where r.reverses = y.id)
+        group by y.student_id
       )
       select r.k, count(f.student_id)::int as n
       from jsonb_to_recordset(${spans}::jsonb) as r(k text, a date, b date)
@@ -123,7 +125,7 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
       select
         count(*) filter (where s.status = 'active'
           and coalesce(s.monthly_fee, (select sum(e.tariff_amount) from crm_enrollments e where e.student_id = s.id and e.status = 'active'), 0) > 0
-          and (s.paid_elsewhere_at is not null or exists (select 1 from crm_payments p where p.student_id = s.id and not p.is_refund and p.amount > 0)))::int as active,
+          and (s.paid_elsewhere_at is not null or exists (select 1 from crm_payments p where p.student_id = s.id and not p.is_refund and p.amount > 0 and not exists (select 1 from crm_payments r where r.reverses = p.id))))::int as active,
         count(*) filter (where s.status = 'frozen')::int as frozen,
         count(*) filter (where s.balance < 0)::int as debtors,
         coalesce(sum(-s.balance) filter (where s.balance < 0), 0) as debt

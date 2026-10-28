@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Check, Plus, Target, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Check, Pencil, Plus, Target, X } from 'lucide-react';
 import { SURFACE_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
-import { addGoalAction, deleteGoalAction, toggleGoalAction } from '@/lib/actions/goals';
+import { addGoalAction, deleteGoalAction, editGoalAction, toggleGoalAction } from '@/lib/actions/goals';
+import { GoalEditor } from './goal-editor';
 
 type Scope = 'day' | 'week' | 'month';
 /** `carried`: the earlier period key of an unfinished goal brought forward. */
@@ -21,6 +23,7 @@ export function GoalsCard({ periodKeys, goals: initial }: { periodKeys: Record<S
   const [scope, setScope] = useState<Scope>('day');
   const [goals, setGoals] = useState<Goal[]>(initial);
   const [title, setTitle] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
   const [, start] = useTransition();
   const list = goals.filter((g) => g.scope === scope);
 
@@ -38,9 +41,44 @@ export function GoalsCard({ periodKeys, goals: initial }: { periodKeys: Record<S
       if ('ok' in res && res.id) setGoals((p) => [...p, { id: res.id!, scope, title: t, done: false }]);
     });
   };
+  const edit = (id: string, t: string, to: Scope) => {
+    const old = goals.find((g) => g.id === id);
+    setEditing(null);
+    if (!old || (old.title === t && old.scope === to)) return;
+    setGoals((p) => p.map((g) => (g.id === id ? { ...g, title: t, scope: to, carried: to === g.scope ? g.carried : null } : g)));
+    start(async () => {
+      const res = await (to === old.scope ? editGoalAction(id, t) : editGoalAction(id, t, to, periodKeys[to]));
+      if ('error' in res) {
+        setGoals((p) => p.map((g) => (g.id === id ? old : g)));
+        toast.error('Saqlab bo‘lmadi');
+      }
+    });
+  };
+  // Deleted at once; «Qaytarish» puts the same goal back as a new row.
   const del = (id: string) => {
+    const old = goals.find((g) => g.id === id);
+    if (!old) return;
     setGoals((p) => p.filter((g) => g.id !== id));
-    start(() => void deleteGoalAction(id));
+    start(async () => {
+      const res = await deleteGoalAction(id);
+      if ('error' in res) {
+        setGoals((p) => [...p, old]);
+        return void toast.error('O‘chirib bo‘lmadi');
+      }
+      toast.success('Maqsad o‘chirildi', {
+        duration: 5000,
+        action: {
+          label: 'Qaytarish',
+          onClick: () =>
+            start(async () => {
+              const r = await addGoalAction(old.scope, periodKeys[old.scope], old.title);
+              if (!('ok' in r) || !r.id) return void toast.error('Qaytarib bo‘lmadi');
+              if (old.done) await toggleGoalAction(r.id, true);
+              setGoals((p) => [...p, { ...old, id: r.id!, carried: null }]);
+            }),
+        },
+      });
+    });
   };
 
   return (
@@ -74,13 +112,22 @@ export function GoalsCard({ periodKeys, goals: initial }: { periodKeys: Record<S
             >
               {g.done && <Check className="size-3.5" strokeWidth={3} />}
             </button>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className={cn('text-sm', g.done ? 'text-au-faint line-through' : 'text-au-ink')}>{g.title}</span>
-              {g.carried && <span className="text-[11px] text-au-accent-text">↻ {g.carried} dan ko‘chdi</span>}
-            </span>
-            <button type="button" onClick={() => del(g.id)} aria-label="O'chirish" className="shrink-0 rounded-md p-1 text-au-faint opacity-0 transition hover:text-au-bad group-hover:opacity-100 focus-visible:opacity-100">
-              <X className="size-3.5" />
-            </button>
+            {editing === g.id ? (
+              <GoalEditor title={g.title} scope={g.scope} onSave={(t, to) => edit(g.id, t, to)} onCancel={() => setEditing(null)} />
+            ) : (
+              <>
+                <span className="flex min-w-0 flex-1 flex-col" onDoubleClick={() => setEditing(g.id)}>
+                  <span className={cn('text-sm', g.done ? 'text-au-faint line-through' : 'text-au-ink')}>{g.title}</span>
+                  {g.carried && <span className="text-[11px] text-au-accent-text">↻ {g.carried} dan ko‘chdi</span>}
+                </span>
+                <button type="button" onClick={() => setEditing(g.id)} aria-label="Tahrirlash" className="shrink-0 rounded-md p-1 text-au-faint transition hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
+                  <Pencil className="size-3.5" />
+                </button>
+                <button type="button" onClick={() => del(g.id)} aria-label="O‘chirish" className="shrink-0 rounded-md p-1 text-au-faint transition hover:text-au-bad sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
+                  <X className="size-3.5" />
+                </button>
+              </>
+            )}
           </li>
         ))}
         {list.length === 0 && <li className="text-xs text-au-muted">Bu davr uchun maqsad yo‘q.</li>}
