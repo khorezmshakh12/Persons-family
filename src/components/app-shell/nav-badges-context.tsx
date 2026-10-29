@@ -55,9 +55,14 @@ export function NavBadgesProvider({
     // rather than a per-user write, so it bumps the shared
     // board_signals/company_news doc instead — everyone listens to that one
     // too, on top of their own uid doc.
+    // A failed refresh just keeps the current dots; the next signal retries.
     const refresh = async () => {
-      const nextKeys = await getNavBadgesAction();
-      if (!cancelled) setKeys(new Set(nextKeys));
+      try {
+        const nextKeys = await getNavBadgesAction();
+        if (!cancelled) setKeys(new Set(nextKeys));
+      } catch (error) {
+        console.error('nav badges refresh failed', error);
+      }
     };
 
     // Firebase (client SDK) is dynamically imported here rather than at

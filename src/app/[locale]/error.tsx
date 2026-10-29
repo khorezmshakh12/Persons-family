@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
-import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
+import { isChunkLoadError, isNetworkError, reloadOnceForChunkError, retryOnNetworkError } from '@/lib/chunk-error';
 import { reportClientError } from '@/components/app-shell/error-reporter';
 
 export default function Error({
@@ -31,7 +31,10 @@ export default function Error({
     // alone re-renders the same stale bundle and fails the same way, so
     // reload the page outright instead of showing the generic error card.
     if (isChunkLoadError(error)) reloadOnceForChunkError();
-  }, [error]);
+    // A background server action that lost its network request — retry the
+    // render quietly instead of taking the whole page down.
+    else if (isNetworkError(error)) return retryOnNetworkError(reset);
+  }, [error, reset]);
 
   return (
     // Opaque dark ground on purpose: this boundary sits above the (app)
