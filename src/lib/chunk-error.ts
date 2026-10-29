@@ -51,6 +51,36 @@ export function reloadOnceForChunkError(): boolean {
  * incident (after the next deploy) still gets its one automatic reload
  * instead of being silently skipped because a past incident used it up. */
 export function clearChunkErrorGuard(): void {
+  networkRetries = 0;
   if (typeof window === 'undefined') return;
   window.sessionStorage.removeItem(RELOAD_GUARD_KEY);
+}
+
+/**
+ * A server action whose request never reached the server (Wi-Fi blip,
+ * laptop waking from sleep, an extension blocking the POST) rejects with a
+ * bare network TypeError, and Next lands it on the nearest error boundary —
+ * the whole page turned into "Something went wrong" over one background
+ * badge refresh. Nothing in the render itself is broken, so re-rendering
+ * (the boundary's `reset`) is the fix.
+ */
+export function isNetworkError(error: Error): boolean {
+  return (
+    error.name === 'TypeError' &&
+    /^(Failed to fetch|NetworkError when attempting to fetch resource\.?|Load failed|Network request failed)$/i.test(
+      error.message,
+    )
+  );
+}
+
+const MAX_NETWORK_RETRIES = 3;
+let networkRetries = 0;
+
+/** Re-renders the failed segment after a short pause, up to a few times
+ * until the next successful navigation; after that the error card shows. */
+export function retryOnNetworkError(reset: () => void): (() => void) | undefined {
+  if (networkRetries >= MAX_NETWORK_RETRIES) return undefined;
+  networkRetries += 1;
+  const timer = window.setTimeout(reset, 1500 * networkRetries);
+  return () => window.clearTimeout(timer);
 }

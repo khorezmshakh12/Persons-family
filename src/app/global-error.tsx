@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { isChunkLoadError, reloadOnceForChunkError } from '@/lib/chunk-error';
+import { isChunkLoadError, isNetworkError, reloadOnceForChunkError, retryOnNetworkError } from '@/lib/chunk-error';
 
 // Only fires if the ROOT layout itself throws (before next-intl/theme
 // providers even mount), so this can't use next-intl, the design-system
@@ -21,7 +21,8 @@ export default function GlobalError({
     // boundary (src/app/[locale]/error.tsx) — reload outright rather than
     // show "Something went wrong" for what a fresh load fixes instantly.
     if (isChunkLoadError(error)) reloadOnceForChunkError();
-  }, [error]);
+    else if (isNetworkError(error)) return retryOnNetworkError(reset);
+  }, [error, reset]);
 
   return (
     <html lang="en">

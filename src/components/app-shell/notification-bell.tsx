@@ -143,7 +143,14 @@ export function NotificationBell({
   // nav_badge_signals doc (bumped by every notification write) or the shared
   // lesson-plan signal changes, and on every open.
   const resync = useCallback(async () => {
-    const data = await getNotificationBellDataAction();
+    let data;
+    try {
+      data = await getNotificationBellDataAction();
+    } catch (error) {
+      // Keep what's shown; the next signal or open retries.
+      console.error('notification bell resync failed', error);
+      return;
+    }
     setUnreadChats(data.unreadChats);
     setFeed(data.feed);
     setUnseenTasks(data.unseenTasks);
