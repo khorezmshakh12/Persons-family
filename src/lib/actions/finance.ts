@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -113,11 +113,11 @@ export async function addFinanceEntryAction(
     `Added ${kind} entry "${parsed.data.title}" (${amount}) for staff ${parsed.data.staffId} [${period}]`,
   );
   await logEntry(period, adminId, 'entry.add', { staffId: parsed.data.staffId, kind, title: parsed.data.title, amount });
-  if (isPayment) after(() => syncPayCash(period));
+  if (isPayment) await settle(() => syncPayCash(period));
 
   // Notify the staff member (salary / advance / penalty) once the response
   // is sent — a Telegram hiccup can never fail or slow the save.
-  if (kind !== 'adjustment') after(async () => {
+  if (kind !== 'adjustment') await settle(async () => {
     try {
       const [staff] = await sql<{ telegram_id: number | null; first_name: string | null; last_name: string | null }[]>`
         select telegram_id, first_name, last_name from profiles where id = ${parsed.data.staffId}
@@ -265,7 +265,7 @@ export async function updateFinanceEntryAction(
     movedTo: before.new_period !== before.period ? before.new_period : undefined,
   });
   const b = before;
-  if (b.kind === 'salary' || b.kind === 'advance') after(() => syncPayCash(b.period, b.new_period));
+  if (b.kind === 'salary' || b.kind === 'advance') await settle(() => syncPayCash(b.period, b.new_period));
   revalidateFinance();
   return {};
 }
@@ -334,12 +334,12 @@ export async function deleteFinanceEntryAction(
   await logEntry(gone.period, adminId, 'entry.delete', { staffId: gone.staff_id, title: gone.title, amount: gone.amount });
   if (gone.kind === 'salary' || gone.kind === 'advance') {
     const per = gone.period;
-    after(() => syncPayCash(per, ...touched));
+    await settle(() => syncPayCash(per, ...touched));
   }
   // The add sent the staff member a Telegram note for these kinds — say it
   // was withdrawn so they don't count on money that isn't coming.
   const g = gone;
-  if (g.kind !== 'adjustment') after(async () => {
+  if (g.kind !== 'adjustment') await settle(async () => {
     try {
       const [staff] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${g.staff_id}`;
       if (staff?.telegram_id)
@@ -483,7 +483,7 @@ export async function addAdvanceInstallmentsAction(input: z.input<typeof install
   }
   await logEntry(v.period, g.id, 'entry.add', { staffId: v.staffId, kind: 'advance', title: `${title} (${v.months} oyga)`, amount });
   logSystemAction('finance.advance_split', `Advance ${amount} for staff ${v.staffId} from ${v.period} over ${v.months} months`);
-  after(() => syncPayCash(v.period));
+  await settle(() => syncPayCash(v.period));
   revalidateFinance();
   return { ids, count: ids.length };
 }

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
@@ -73,7 +73,7 @@ export async function submitSelfDevelopmentAction(
   }
 
   // Jev's rubric suggestion for the CEO — never blocks the submit.
-  after(() => suggestSelfDevRubric(id));
+  await settle(() => suggestSelfDevRubric(id));
   revalidatePath('/[locale]/self-development', 'page');
   return { success: true };
 }

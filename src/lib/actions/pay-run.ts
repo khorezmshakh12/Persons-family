@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import type { TransactionSql } from 'postgres';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
@@ -137,7 +137,7 @@ export async function payAllRemainingAction(input: z.input<typeof payAllSchema>)
   }
 
   logSystemAction('payroll.pay_all', `Pay run ${per}: paid ${paidLines.length} staff, ${carried} overpayment(s) carried`);
-  after(async () => {
+  await settle(async () => {
     for (const l of paidLines)
       await notifyStaff(
         l.staffId,
@@ -206,7 +206,7 @@ export async function requestAdvanceAction(input: z.input<typeof requestSchema>)
   } catch {
     return { error: 'updateFailed' };
   }
-  after(async () => {
+  await settle(async () => {
     const who = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
     await notifyUsers(
       'pay',
@@ -301,7 +301,7 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
   }
   const r = req as { staff_id: string; amount: number } | null;
   if (r)
-    after(() =>
+    await settle(() =>
       notifyStaff(
         r.staff_id,
         v.approve
@@ -309,7 +309,7 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
           : `❌ <b>Avans rad etildi</b>\n<b>Sabab:</b> ${escapeTelegramText(v.note)}`,
       ).catch(() => {}),
     );
-  if (v.approve) after(() => syncPayCash(per));
+  if (v.approve) await settle(() => syncPayCash(per));
   logSystemAction('payroll.advance', `Advance ${v.id} ${v.approve ? 'approved' : 'rejected'}`);
   return done();
 }
@@ -337,7 +337,7 @@ export async function requestReimbursementAction(input: z.input<typeof reimburse
   } catch {
     return { error: 'updateFailed' };
   }
-  after(async () => {
+  await settle(async () => {
     const who = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
     await notifyUsers(
       'pay',
@@ -415,7 +415,7 @@ export async function decideReimbursementAction(input: z.input<typeof decideReim
   }
   const r = req as { staff_id: string; amount: number; title: string } | null;
   if (r)
-    after(() =>
+    await settle(() =>
       notifyStaff(
         r.staff_id,
         v.approve
@@ -458,7 +458,7 @@ export async function confirmPaymentAction(input: z.input<typeof receiptSchema>)
   }
   if (p.data.status === 'disputed') {
     const t = pay;
-    after(async () => {
+    await settle(async () => {
       const who = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
       await notifyUsers(
         'pay',
