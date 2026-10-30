@@ -16,6 +16,9 @@ let reloading = false;
 let leaving = false;
 
 const STALE_BUILD = /Server Action .* was not found|Failed to find Server Action/;
+const BROKEN_IDB = /Database is closing|Database deleted by request|Internal error opening backing store|IndexedDB/i;
+/** Bump to make every browser drop its Firebase IndexedDB once more. */
+const LOCAL_DATA_VERSION = '2026-10-31';
 const NETWORK = /^(TypeError: )?(Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?|network error)$/i;
 
 /** Reload once (at most every 2 minutes, so a real bug can't loop) to pick
@@ -42,6 +45,43 @@ function handledAsStaleBuild(message: string): boolean {
   return STALE_BUILD.test(message) && reloadForNewBuild();
 }
 
+/** Firebase's own IndexedDB (auth persistence + Firestore cache) can end up
+ * wedged in a normal profile while incognito — which starts empty — works.
+ * Only those databases are dropped: Materials shares this origin and keeps
+ * exam drafts in localStorage, and theme/background prefs live there too.
+ * Firebase rebuilds them on the next load (ensureRealtimeSignedIn re-mints
+ * its token), so a reload afterwards is all it takes. */
+async function resetFirebaseStorage(): Promise<void> {
+  const names = (await indexedDB.databases?.())?.map((d) => d.name ?? '') ?? [];
+  const targets = names.filter((n) => /^(firebase|firestore\/)/.test(n));
+  if (!targets.length) targets.push('firebaseLocalStorageDb', 'firebase-heartbeat-database');
+  await Promise.all(
+    targets.map(
+      (name) =>
+        new Promise<void>((resolve) => {
+          const req = indexedDB.deleteDatabase(name);
+          // "blocked" = an open connection; the reload closes it and the
+          // queued delete then completes.
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        }),
+    ),
+  );
+}
+
+function handledAsBrokenStorage(message: string): boolean {
+  if (!BROKEN_IDB.test(message) || reloading) return false;
+  try {
+    const last = Number(sessionStorage.getItem('idb-reset') ?? 0);
+    if (Date.now() - last < 120_000) return false;
+    sessionStorage.setItem('idb-reset', String(Date.now()));
+  } catch {
+    return false;
+  }
+  reloading = true;
+  void resetFirebaseStorage().finally(() => location.reload());
+  return true;
+}
+
 /** A dropped connection — offline, the tab leaving, or a reload cutting a
  * request short — says nothing about our code. */
 function isNoise(message: string): boolean {
@@ -51,7 +91,7 @@ function isNoise(message: string): boolean {
 }
 
 export function reportClientError(message: string, stack?: string) {
-  if (handledAsStaleBuild(message) || isNoise(message)) return;
+  if (handledAsStaleBuild(message) || handledAsBrokenStorage(message) || isNoise(message)) return;
   try {
     const body = JSON.stringify({ message, stack, path: location.pathname });
     if (!navigator.sendBeacon?.(ENDPOINT, new Blob([body], { type: 'application/json' }))) {
@@ -85,6 +125,17 @@ async function checkForNewBuild() {
 
 export function ErrorReporter() {
   useEffect(() => {
+    // One-time reset per browser, so nobody has to clear site data by hand.
+    try {
+      if (localStorage.getItem('local-data-version') !== LOCAL_DATA_VERSION) {
+        localStorage.setItem('local-data-version', LOCAL_DATA_VERSION);
+        reloading = true;
+        void resetFirebaseStorage().finally(() => location.reload());
+        return;
+      }
+    } catch {
+      /* storage unavailable — nothing to reset */
+    }
     const seen = new Set<string>();
     const send = (message: string, stack?: string) => {
       if (!message || seen.has(message) || seen.size >= MAX_PER_PAGE) return;

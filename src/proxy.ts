@@ -12,7 +12,7 @@ const handleI18nRouting = createIntlMiddleware(routing);
 // the cookie then suppresses it on every later request. This is what lets
 // users past a stale page (e.g. a maintenance 503 that a browser cached
 // with `retry-after`) without being told to clear the cache by hand.
-const CACHE_BUST_VERSION = '2026-09-01';
+const CACHE_BUST_VERSION = '2026-10-31';
 
 function stampCache(request: NextRequest, response: NextResponse): NextResponse {
   // Navigation HTML is user-specific and session-gated — it must never be
