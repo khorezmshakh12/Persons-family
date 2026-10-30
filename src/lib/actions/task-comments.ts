@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
@@ -117,7 +117,7 @@ export async function createTaskCommentAction(
   await bumpBoardSignal('tasks');
 
   // Notify participants about the new comment, after the response is sent.
-  after(async () => {
+  await settle(async () => {
     try {
       const [taskRow] = await sql<{ title: string }[]>`select title from tasks where id = ${parsed.data.taskId}`;
       if (taskRow) await notifyTaskComment(parsed.data.taskId, user.id, parsed.data.body, taskRow.title);

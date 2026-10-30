@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { authErrorCode, requireCap, ForbiddenError, SessionExpiredError } from '@/lib/auth/require-admin';
 import { can, canSeeFor } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
@@ -239,7 +239,7 @@ export async function updateMarketItemAction(
   } catch {
     return { error: 'updateFailed' };
   }
-  if (restocked) after(() => notifyWishlistRestock(itemId));
+  if (restocked) await settle(() => notifyWishlistRestock(itemId));
 
   logSystemAction('market.item.update', `Updated market item ${itemId}`);
   revalidateMarket();
@@ -328,7 +328,7 @@ export async function adjustMarketItemStockAction(
   } catch {
     return { error: 'updateFailed' };
   }
-  if (restocked) after(() => notifyWishlistRestock(itemId));
+  if (restocked) await settle(() => notifyWishlistRestock(itemId));
 
   logSystemAction('market.item.stock', `Adjusted market item ${itemId} stock by ${delta}`);
   revalidateMarket();
@@ -578,7 +578,7 @@ export async function decideMarketOrderAction(
 
   // `after` so the Telegram round-trip runs once the response is on its way —
   // on Cloud Run a bare floating promise can be frozen with the instance.
-  after(() =>
+  await settle(() =>
     notifyOrderDecided({
       status,
       itemName: decided.itemName,
@@ -960,7 +960,7 @@ export async function setMarketOrderFulfilledAction(orderId: string, fulfilled: 
   if (!row) return { error: 'invalidTransition' };
   const r = row;
   if (fulfilled)
-    after(async () => {
+    await settle(async () => {
       const [p] = await sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where id = ${r.user_id}`;
       if (p?.telegram_id) await sendTelegramAs('stars', p.telegram_id, `🎁 <b>${escapeTelegramText(r.name)}</b> sizga topshirildi. Yoqimli foydalaning!`).catch(() => {});
     });

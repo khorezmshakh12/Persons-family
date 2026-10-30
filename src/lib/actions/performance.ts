@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
@@ -116,7 +116,7 @@ export async function addPerformanceEntryAction(
   );
 
   // Notify the staff member after the response is sent.
-  after(async () => {
+  await settle(async () => {
   try {
     const [staff] = await sql<{ telegram_id: number | null; first_name: string | null; last_name: string | null }[]>`
       select telegram_id, first_name, last_name from profiles where id = ${parsed.data.staffId}

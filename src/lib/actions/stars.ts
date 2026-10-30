@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { getFormatter } from 'next-intl/server';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
@@ -116,7 +116,7 @@ export async function awardStarsAction(
     await bumpNavBadgeSignal(userId);
     // See staff-chats.ts's `after()` comment — a bare un-awaited send can be
     // torn down with the request before it finishes.
-    after(() => notifyStarsDeducted({ amount, reason, recipientTelegramId: target.telegram_id }));
+    await settle(() => notifyStarsDeducted({ amount, reason, recipientTelegramId: target.telegram_id }));
   }
 
   logSystemAction(

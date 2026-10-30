@@ -3,7 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
@@ -84,7 +84,7 @@ export async function saveEventAction(input: z.input<typeof eventSchema>): Promi
           returning id`;
     if (!row) return { error: 'notFound' };
     if (v.notify && !v.id)
-      after(async () => {
+      await settle(async () => {
         const staff = await sql<{ telegram_id: number }[]>`select telegram_id from profiles where is_active and telegram_id is not null`;
         await sendTelegramManyAs('news', 
           staff.map((s) => s.telegram_id),
@@ -168,8 +168,8 @@ export async function saveNewsAction(input: z.input<typeof newsSchema>): Promise
           returning id`;
     if (!row) return { error: 'notFound' };
     if (!v.id) {
-      after(() => sql`insert into company_news_reads (news_id, user_id) values (${row.id}, ${g.id}) on conflict do nothing`);
-      after(() => broadcastNews(row.id));
+      await settle(() => sql`insert into company_news_reads (news_id, user_id) values (${row.id}, ${g.id}) on conflict do nothing`);
+      await settle(() => broadcastNews(row.id));
     }
     await bumpSignal('board_signals/company_news');
     logSystemAction('news.save', `${v.id ? 'Edited' : 'Published'} "${v.title}"`);

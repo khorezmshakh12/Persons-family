@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
@@ -68,9 +68,9 @@ export async function createNewsAction(
   // show up as "unread" for them on the sidebar dot. `after()` here too —
   // see staff-chats.ts's comment: Vercel can tear down a bare un-awaited
   // call before it finishes.
-  after(() => sql`insert into company_news_reads (news_id, user_id) values (${inserted.id}, ${actingUserId})`);
+  await settle(() => sql`insert into company_news_reads (news_id, user_id) values (${inserted.id}, ${actingUserId})`);
 
-  after(() => notifyCompanyNews({ title: parsed.data.title }));
+  await settle(() => notifyCompanyNews({ title: parsed.data.title }));
 
   revalidatePath('/[locale]/company-news', 'page');
   revalidatePath('/[locale]/dashboard', 'page');

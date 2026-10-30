@@ -57,12 +57,13 @@ steps:
       - '${_SERVICE}'
       - --source=.
       - --region=${_REGION}
-      # Keep CPU allocated during the post-response drain so `after()` and
-      # other fire-and-forget work in Server Actions (Telegram notifications
-      # for task/issue assignment, warnings, star changes, chat) actually
-      # finishes. Cloud Run's default throttles CPU to ~0 the instant the
-      # response is sent, which silently kills those in-flight sends.
-      - --no-cpu-throttling
+      # Request-based billing: CPU is throttled to ~0 once a response is
+      # sent. Instance-based billing (--no-cpu-throttling) was ~80% of the
+      # GCP bill. Server Actions therefore run their Telegram sends / syncs
+      # inline via `settle()` (src/lib/settle.ts) instead of `after()`.
+      # Explicit flag, not just omitted: `run deploy` keeps the old setting
+      # when a flag is left out.
+      - --cpu-throttling
       - --quiet
 
   - id: smoke

@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { bumpNavBadgeSignal, bumpSignal } from '@/lib/gcp/firestoreAdmin';
@@ -183,7 +183,7 @@ export async function sendChannelMessageAction(input: z.input<typeof sendSchema>
 
   if (!scheduled) {
     await signal(c.id);
-    after(() => notifyMentions({ channelName: c.name, senderName: `${profile.first_name} ${profile.last_name}`, body: p.data.body, mentions }));
+    await settle(() => notifyMentions({ channelName: c.name, senderName: `${profile.first_name} ${profile.last_name}`, body: p.data.body, mentions }));
   }
   return { message };
 }
@@ -310,7 +310,7 @@ export async function createChannelGroupAction(input: z.input<typeof groupSchema
     console.error('createChannelGroupAction failed', error instanceof Error ? error.message : error);
     return { error: 'createFailed' };
   }
-  after(() => Promise.allSettled(ids.filter((x) => x !== user.id).map((x) => bumpNavBadgeSignal(x))));
+  await settle(() => Promise.allSettled(ids.filter((x) => x !== user.id).map((x) => bumpNavBadgeSignal(x))));
   return { id };
 }
 

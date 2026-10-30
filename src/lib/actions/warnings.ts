@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { getFormatter } from 'next-intl/server';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
@@ -71,7 +71,7 @@ export async function issueWarningAction(
   `;
   // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
   // un-awaited fire-and-forget call before its Telegram send finishes.
-  after(() =>
+  await settle(() =>
     notifyWarningIssued({ reason: parsed.data.reason, recipientTelegramId: recipient?.telegram_id ?? null }),
   );
 

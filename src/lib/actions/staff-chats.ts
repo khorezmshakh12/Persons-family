@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
@@ -210,7 +210,7 @@ export async function sendStaffChatAction(
   // Telegram's API was starting but never finishing). `after` registers the
   // work with the platform's `waitUntil` so the function stays alive until
   // it actually completes.
-  after(() =>
+  await settle(() =>
     notifyNewChatMessage({
       senderName: `${profile.first_name} ${profile.last_name}`,
       messageText: parsed.data.messageText || null,

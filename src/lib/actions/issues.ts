@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { triageIssue } from '@/lib/ai-triage';
 import { revalidatePath } from 'next/cache';
 import { getFormatter } from 'next-intl/server';
@@ -165,6 +166,9 @@ export async function createIssueAction(_prev: IssueActionState, formData: FormD
     return { error: 'createFailed' };
   }
   await logEvent(id, anonymous ? null : v.userId, 'created');
+  // AI triage stays best-effort after the response (it can take seconds);
+  // under CPU throttling it may stall, and the hourly ai-triage cron picks
+  // up anything it missed.
   after(async () => {
     if (await triageIssue(id)) await bumpBoardSignal('issues');
   });
@@ -737,7 +741,7 @@ export async function updateIssueAction(_prev: IssueActionState, formData: FormD
     return { error: 'updateFailed' };
   }
   const editedId = parsed.data.id;
-  after(async () => {
+  await settle(async () => {
     if (await triageIssue(editedId)) await bumpBoardSignal('issues');
   });
   await changed();

@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
@@ -102,7 +102,7 @@ export async function sendStaffChatMessageAction(
   // See staff-chats.ts's identical `after()` comment — a bare un-awaited
   // call here can get killed mid-flight by Vercel before the Telegram send
   // finishes.
-  after(() =>
+  await settle(() =>
     notifyGroupChatMessage({
       conversationId: parsed.data.conversationId,
       senderId: user.id,
