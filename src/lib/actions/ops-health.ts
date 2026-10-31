@@ -1,7 +1,8 @@
 'use server';
 
 import { getAuthState } from '@/lib/auth/session';
-import { canSeeFor } from '@/lib/permissions';
+import { canSeeOpsMoney } from '@/lib/permissions';
+import { REAL_PAYMENT } from '@/lib/ops-students';
 import { sql } from '@/lib/db/client';
 import { feeAfterDiscount } from '@/lib/billing';
 import { computeHealth, monthEnd, shiftMonthKey, type Health, type HealthStudent } from '@/lib/ops-health';
@@ -12,7 +13,7 @@ import { startOfTashkentMonthKey, tashkentDayKey } from '@/lib/time';
 
 export async function getOpsHealthAction(month?: string): Promise<{ health?: Health; error?: string }> {
   const { profile } = await getAuthState();
-  if (!profile || !canSeeFor(profile, 'operations')) return { error: 'forbidden' };
+  if (!profile || !canSeeOpsMoney(profile)) return { error: 'forbidden' };
   const today = tashkentDayKey();
   const cur = startOfTashkentMonthKey();
   const m = month && /^\d{4}-\d{2}-01$/.test(month) && month <= cur && month >= '2024-01-01' ? month : cur;
@@ -53,13 +54,13 @@ export async function getOpsHealthAction(month?: string): Promise<{ health?: Hea
         from crm_groups g where g.status = 'active' and g.archived_at is null`,
       sql<{ month: string; amount: number }[]>`
         select date_trunc('month', paid_at)::date::text as month, sum(case when is_refund then -amount else amount end) as amount
-        from crm_payments where paid_at between ${from} and ${to} group by 1`,
+        from crm_payments y where paid_at between ${from} and ${to} and ${REAL_PAYMENT()} group by 1`,
       sql<{ present: number; marked: number }[]>`
         select count(*) filter (where present)::int as present, count(*)::int as marked
         from crm_attendance where att_date between ${m} and ${to} and not is_trial`.catch(() => [{ present: 0, marked: 0 }]),
       sql<{ total: number; students: number }[]>`
         select coalesce(sum(case when is_refund then -amount else amount end), 0) as total, count(distinct student_id)::int as students
-        from crm_payments where student_id is not null`,
+        from crm_payments y where student_id is not null and ${REAL_PAYMENT()}`,
     ]);
     const health = computeHealth({
       month: m,

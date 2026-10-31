@@ -178,6 +178,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
         )}
       </div>
 
+      {data.money && (
       <div className="sx-grid">
         <div className="sx-card sx-stat dark s3">
           <div className="l">Faol o‘quvchilar</div>
@@ -206,6 +207,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
           <div className="d">{live.filter((s) => s.risk).length} ta ketish xavfida</div>
         </div>
       </div>
+      )}
 
       {/* Ro'yxat */}
       <div className="sx-card px-5 py-[18px]">
@@ -374,7 +376,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
         {callList.length > 12 && <div className="mt-2 text-xs text-au-faint">Yana {callList.length - 12} ta — «Qarzdorlar» filtrida.</div>}
       </div>
 
-      <Stats data={data} />
+      {data.money && <Stats data={data} />}
 
       {current && open && (
         <StudentCardDrawer key={current.id} s={current} data={data} pane={open.pane} onClose={() => setOpen(null)} />

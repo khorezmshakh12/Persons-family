@@ -55,7 +55,9 @@ export const REASONS: { n: string; fix: string }[] = [
 export const fixFor = (reason: string) => REASONS.find((r) => r.n === reason)?.fix ?? REASONS[REASONS.length - 1].fix;
 
 export const errText = (e: string) =>
-  e === 'invalidInput'
+  e === 'tooMuch'
+    ? 'Summa qarzdan katta — balans 0 dan oshmaydi'
+    : e === 'invalidInput'
     ? 'Maydonlarni tekshiring'
     : e === 'forbidden'
       ? "Ruxsat yo'q"

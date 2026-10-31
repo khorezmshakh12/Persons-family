@@ -11,6 +11,7 @@ import type { StudentRow } from '@/lib/ops-students';
 import {
   archiveStudentAction,
   deleteStudentAction,
+  fixStudentBalanceAction,
   freezeStudentAction,
   getStudentCardAction,
   logDebtCallAction,
@@ -30,7 +31,7 @@ import { PaymentEditor } from './ops-payments';
 import type { OpsData } from './operations-workspace';
 import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, som, when } from './ops-students-meta';
 
-type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'freeze' | 'out' | 'del' | 'call' | null;
+type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'fix' | 'freeze' | 'out' | 'del' | 'call' | null;
 const PARENT_LABEL: Record<string, string> = { father: 'Otasi', mother: 'Onasi', guardian: 'Ota-ona / vasiy', other: 'Boshqa kontakt' };
 const digits = (v: string) => v.replace(/\D/g, '');
 const grouped = (v: string) => (digits(v) ? formatUZS(Number(digits(v))) : '');
@@ -87,13 +88,19 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   const g = GRADE[s.grade.grade];
   const archived = s.status === 'archived';
   const next = s.start && s.status === 'active' ? nextDueDate(s.start, today) : null;
-  const opening = card ? s.balance - card.ledger.reduce((a, e) => a + (e.type === 'pay' ? e.amount : -e.amount), 0) : 0;
+  const signed = (e: StudentCard['ledger'][number]) => (e.type === 'charge' ? -e.amount : e.amount);
+  const opening = card ? s.balance - card.ledger.reduce((a, e) => a + signed(e), 0) : 0;
   let run = s.balance;
   const ledger = (card?.ledger ?? []).map((e) => {
     const row = { ...e, after: run };
-    run -= e.type === 'pay' ? e.amount : -e.amount;
+    run -= signed(e);
     return row;
   });
+  const fixBtn = data.canFixBalance && s.balance < 0 && (
+    <PaneBtn p="fix" cur={pane} set={setPane}>
+      ⟲ Balansni tuzatish
+    </PaneBtn>
+  );
 
   return (
     <>
@@ -166,6 +173,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
               {archived ? (
                 <>
                   <RestoreButton id={s.id} onDone={() => done('Arxivdan qaytarildi')} onFail={fail} />
+                  {fixBtn}
                   <PaneBtn p="del" cur={pane} set={setPane} danger>
                     🗑 O‘chirish
                   </PaneBtn>
@@ -187,6 +195,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                   <PaneBtn p="adj" cur={pane} set={setPane}>
                     − Qo‘lda yechish
                   </PaneBtn>
+                  {fixBtn}
                   <PaneBtn p="freeze" cur={pane} set={setPane}>
                     ❄ {s.status === 'frozen' ? 'Muzlatishni bekor qilish' : 'Muzlatish'}
                   </PaneBtn>
@@ -213,6 +222,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
           {pane === 'info' && card && <InfoPane s={s} card={card} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'terms' && <TermsPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'adj' && <AdjPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
+          {pane === 'fix' && <FixPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'freeze' && <FreezePane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'call' && <CallPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'out' && <OutPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
@@ -263,16 +273,20 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
           ) : (
             <>
               <Sec>To‘lov va yechimlar</Sec>
-              {ledger.length === 0 ? (
+              {!data.money ? (
+                <div className="text-sm text-au-faint">To‘lovlar tarixi sizga ko‘rinmaydi — yuqorida oylik va qarz bor.</div>
+              ) : ledger.length === 0 ? (
                 <div className="text-sm text-au-faint">Hali yozuv yo‘q</div>
               ) : (
                 <ul className="flex flex-col">
                   {ledger.map((e) => (
                     <li key={`${e.type}-${e.id}`} className="grid grid-cols-[14px_1fr_auto] items-start gap-2.5 border-b border-au-line py-2.5">
-                      <span className={cn('mt-1.5 size-2.5 rounded-full', e.type === 'pay' ? 'bg-au-ok' : 'bg-au-bad')} />
+                      <span className={cn('mt-1.5 size-2.5 rounded-full', e.type === 'pay' ? 'bg-au-ok' : e.type === 'fix' ? 'bg-au-info' : 'bg-au-bad')} />
                       <span className="min-w-0">
                         <b className="text-sm text-au-ink">
-                          {e.type === 'pay'
+                          {e.type === 'fix'
+                            ? 'Balans tuzatildi'
+                            : e.type === 'pay'
                             ? e.amount < 0
                               ? 'Qaytarildi'
                               : `To‘lov · ${METHODS[e.kind] ?? e.kind}`
@@ -284,6 +298,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                           {dmy(e.date)} · {e.actor}
                           {e.note ? ` · ${e.note}` : ''}
                         </span>
+                        {e.type === 'fix' && <span className="block text-xs text-au-info">To‘lov emas — tushum va statistikaga kirmaydi</span>}
                         {e.cancelled && <span className="block text-xs font-semibold text-au-bad">Bekor qilingan</span>}
                         {e.edit && <span className="block text-xs text-au-info">✎ {e.edit}</span>}
                         {canEdit && e.type === 'pay' && e.amount > 0 && !e.cancelled && !e.isCancel && (
@@ -298,8 +313,8 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                         )}
                       </span>
                       <span className="text-right">
-                        <b className={cn('block tabular-nums', e.type === 'pay' && e.amount > 0 ? 'text-au-ok' : 'text-au-bad')}>
-                          {e.type === 'pay' && e.amount > 0 ? '+' : '−'}
+                        <b className={cn('block tabular-nums', e.type === 'fix' ? 'text-au-info' : e.type === 'pay' && e.amount > 0 ? 'text-au-ok' : 'text-au-bad')}>
+                          {signed(e) > 0 ? '+' : '−'}
                           {formatUZS(Math.abs(e.amount))}
                         </b>
                         <span className="text-[11px] tabular-nums text-au-faint">
@@ -648,6 +663,46 @@ function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
         </Field>
       )}
       <Actions pending={pending || !digits(amount)} ok={ok} okText="Yechish" onCancel={onCancel} />
+    </Panel>
+  );
+}
+
+/** Balansni tuzatish: takes a wrong minus off — never past 0, reason required. */
+function FixPane({ s, onDone, onFail, onCancel }: PaneProps) {
+  const [pending, start] = useTransition();
+  const max = Math.round(-s.balance);
+  const [amount, setAmount] = useState(grouped(String(max)));
+  const [reason, setReason] = useState('SchoolUp importidagi xato minus');
+  const [other, setOther] = useState('');
+  const n = Number(digits(amount));
+  const why = reason === 'Boshqa' ? other.trim() : reason;
+  const ok = () =>
+    start(async () => {
+      const r = await fixStudentBalanceAction({ studentId: s.id, amount: n, reason: why });
+      if (r.error) return onFail(r.error);
+      onDone(`Balans tuzatildi: +${som(n)}`);
+    });
+  return (
+    <Panel title="Ortiqcha minusni olib tashlash">
+      <p className="text-xs text-au-muted">To‘lov emas: tushum, kassa, to‘lovlar soni va faollikka kirmaydi. Faqat balans o‘zgaradi, tarixda kim qilgani qoladi.</p>
+      <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
+        <Field label={`Summa (eng ko‘pi ${formatUZS(max)})`}>
+          <input id="fix-amt" className="sx-inp tabular-nums" inputMode="numeric" value={amount} onChange={(e) => setAmount(grouped(e.target.value))} />
+        </Field>
+        <Field label="Sabab">
+          <select id="fix-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
+            {['SchoolUp importidagi xato minus', 'Ikki marta yechilgan oylik', 'Ortiqcha qo‘lda yechilgan', 'Boshqa'].map((r) => (
+              <option key={r}>{r}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      {reason === 'Boshqa' && (
+        <Field label="Izoh (majburiy)">
+          <input id="fix-o" className="sx-inp" maxLength={200} value={other} onChange={(e) => setOther(e.target.value)} />
+        </Field>
+      )}
+      <Actions pending={pending || n <= 0 || n > max || !why} ok={ok} okText="Tuzatish" onCancel={onCancel} />
     </Panel>
   );
 }

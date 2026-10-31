@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { canFor, canSeeFor } from '@/lib/permissions';
+import { canFor, canSeeFor, canSeeOpsMoney } from '@/lib/permissions';
 import { getAuthState } from '@/lib/auth/session';
 import { tashkentDayKey } from '@/lib/time';
 import { emptyStudentsData, loadStudentsData } from '@/lib/ops-students';
@@ -16,14 +16,18 @@ export default async function OperationsPage() {
   if (!profile || !canSeeFor(profile, 'operations')) notFound();
 
   const day = tashkentDayKey();
+  // Sales manager: students and leads, but no money figures (owner, 2026-10-31).
+  const money = canSeeOpsMoney(profile);
   const [students, stats, sales] = await Promise.all([
-    loadStudentsData().catch(() => emptyStudentsData(day)),
-    loadOpsStats().catch(() => emptyOpsStats(day)),
+    loadStudentsData({ money }).catch(() => emptyStudentsData(day)),
+    money ? loadOpsStats().catch(() => emptyOpsStats(day)) : emptyOpsStats(day),
     loadSalesData().catch(() => emptySalesData()),
   ]);
   const data: OpsData = {
     meId: profile.id,
     canEdit: canFor(profile, 'operations.edit'),
+    money,
+    canFixBalance: canFor(profile, 'operations.balanceFix'),
     today: { day },
     students,
     stats,

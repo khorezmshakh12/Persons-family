@@ -16,6 +16,10 @@ import './suite.css';
 export type OpsData = {
   meId: string;
   canEdit: boolean;
+  /** Sees money figures (Statistika, To'lovlar, kassa). False for the Sales manager. */
+  money: boolean;
+  /** May take a wrong minus off a student's balance (CEO, COO, Office Manager). */
+  canFixBalance: boolean;
   today: { day: string };
   /** O'quvchilar: every CRM student with billing, grade, log, templates and stats. */
   students: StudentsData;
@@ -34,9 +38,12 @@ const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string 
   { v: 'sales', n: 'Sales', Icon: KanbanSquare },
 ];
 const KEY = 'persons-ops-tab';
+// Sales manager: no Statistika / To'lovlar (owner, 2026-10-31). Module-level so the reference is stable.
+const SALES_TABS = TABS.filter((t) => t.v !== 'ov' && t.v !== 'pay');
 
 export function OperationsWorkspace({ data }: { data: OpsData }) {
-  const [tab, setTab] = useState<Tab>('ov');
+  const tabs = data.money ? TABS : SALES_TABS;
+  const [tab, setTab] = useState<Tab>(tabs[0].v);
   const [openLead, setOpenLead] = useState<string | null>(null);
   const restored = useRef(false);
   useEffect(() => {
@@ -44,9 +51,9 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
     restored.current = true;
     try {
       const v = localStorage.getItem(KEY) as Tab | null;
-      if (v && TABS.some((t) => t.v === v)) setTab(v);
+      if (v && tabs.some((t) => t.v === v)) setTab(v);
     } catch {}
-  }, []);
+  }, [tabs]);
   const go = (v: string) => {
     setTab(v as Tab);
     try {
@@ -59,14 +66,14 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
       const t = e.target as HTMLElement | null;
       if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       const i = Number(e.key) - 1;
-      if (i >= 0 && i < TABS.length) {
+      if (i >= 0 && i < tabs.length) {
         playSound('nav');
-        go(TABS[i].v);
+        go(tabs[i].v);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [tabs]);
   const lead = (id: string) => {
     setOpenLead(id);
     go('sales');
@@ -76,21 +83,21 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
     ...data.students.rows.map((s) => ({ g: 'O‘quvchilar', t: s.name, sub: s.phone, run: () => go('stu') })),
   ];
   return (
-    <SuiteShell section="ops" tabs={TABS} onTab={go} items={items}>
+    <SuiteShell section="ops" tabs={tabs} onTab={go} items={items}>
       <div className="px-4 sm:px-7">
         <SectionHead
           crumb="Operatsiya HQ · o‘quvchilar, to‘lovlar, sotuv, statistika"
           title="Operatsiya"
           em="HQ"
-          pill={`${data.students.rows.filter((s) => s.active).length} faol o‘quvchi · ${data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length} ochiq lid`}
+          pill={`${data.money ? `${data.students.rows.filter((s) => s.active).length} faol o‘quvchi · ` : ''}${data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length} ochiq lid`}
         />
-        <SuiteTabs tabs={TABS} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
+        <SuiteTabs tabs={tabs} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
       <section className="px-4 pb-10 sm:px-7">
         <div key={tab} className="sx-fade">
-          {tab === 'ov' && <OpsStats data={data} />}
+          {tab === 'ov' && data.money && <OpsStats data={data} />}
           {tab === 'stu' && <OpsStudents data={data} />}
-          {tab === 'pay' && <OpsPayments data={data} />}
+          {tab === 'pay' && data.money && <OpsPayments data={data} />}
           {tab === 'sales' && <OpsSales data={data} openId={openLead} onOpenChange={setOpenLead} />}
         </div>
       </section>
