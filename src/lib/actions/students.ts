@@ -5,7 +5,7 @@ import type { TransactionSql } from 'postgres';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { canSeeFor } from '@/lib/permissions';
+import { canSeeFor, canSeeOpsMoney } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
 import { renderMessage, sendToStudentContacts, studentVars } from '@/lib/student-messages';
@@ -46,7 +46,8 @@ async function nameOf(studentId: string): Promise<string | null> {
 
 export type CardLedger = {
   id: string;
-  type: 'charge' | 'pay';
+  /** fix = «Balansni tuzatish»: raises the balance, not a payment. */
+  type: 'charge' | 'pay' | 'fix';
   date: string;
   amount: number;
   kind: string;
@@ -82,6 +83,8 @@ export type StudentCard = {
 export async function getStudentCardAction(studentId: string): Promise<{ card?: StudentCard; error?: string }> {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'operations')) return { error: 'forbidden' };
+  // Sales manager: fee and debt only — no payment/charge lines (owner, 2026-10-31).
+  const money = canSeeOpsMoney(profile);
   if (!uuid.safeParse(studentId).success) return { error: 'invalidInput' };
   try {
     const [[stu], contacts, ledger, messages, log, calls, [lead], groups, [first]] = await Promise.all([
@@ -107,7 +110,12 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
             y.edit_note, exists (select 1 from crm_payments r where r.reverses = y.id), y.reverses is not null
           from crm_payments y left join profiles p on p.id = y.created_by
           where y.student_id = ${studentId}
-        ) x order by date desc, at desc limit 300`,
+          union all
+          select f.id, 'fix', (f.created_at at time zone 'Asia/Tashkent')::date::text, f.amount, 'fix', f.reason,
+            coalesce(p.first_name || ' ' || p.last_name, ''), f.created_at::text, null, false, false
+          from crm_balance_fixes f left join profiles p on p.id = f.created_by
+          where f.student_id = ${studentId}
+        ) x where ${money} order by date desc, at desc limit 300`,
       sql<StudentCard['messages']>`
         select m.id, m.title, m.body, m.sent, m.recipients, coalesce(p.first_name || ' ' || p.last_name, 'Avto') as actor, m.created_at::text as at
         from crm_student_messages m left join profiles p on p.id = m.actor
@@ -115,7 +123,9 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
       sql<StudentCard['log']>`
         select l.id, l.kind, l.text, coalesce(p.first_name || ' ' || p.last_name, 'Avto') as actor, l.created_at::text as at
         from crm_student_log l left join profiles p on p.id = l.actor
-        where l.student_id = ${studentId} order by l.created_at desc limit 200`,
+        where l.student_id = ${studentId}
+          and ${money ? sql`true` : sql`l.amount is null and l.kind not in ('pay', 'charge', 'payedit', 'paycancel', 'fix')`}
+        order by l.created_at desc limit 200`,
       sql<StudentCard['calls']>`
         select c.id, c.result, c.promised_date::text as promised, c.note, coalesce(p.first_name || ' ' || p.last_name, '') as actor, c.created_at::text as at
         from crm_debt_calls c left join profiles p on p.id = c.actor
@@ -136,7 +146,7 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
     if (!stu) return { error: 'notFound' };
     const active =
       first && (!stu.pe_at || first.at <= stu.pe_at)
-        ? { at: first.at, how: `birinchi to‘lov ${som(first.amount)} (${PAY_LABEL[first.method] ?? first.method})` }
+        ? { at: first.at, how: money ? `birinchi to‘lov ${som(first.amount)} (${PAY_LABEL[first.method] ?? first.method})` : 'birinchi to‘lov' }
         : stu.pe_at
           ? { at: stu.pe_at, how: `boshqa CRM’da to‘lagan${stu.pe_source ? ` · ${stu.pe_source}` : ''}` }
           : null;
@@ -334,7 +344,7 @@ const payListSchema = z.object({ from: dayKey, to: dayKey });
 /** To'lovlar tahlili: every payment between two days (inclusive), newest first. */
 export async function listPaymentsAction(input: z.input<typeof payListSchema>): Promise<{ rows?: PaymentRow[]; error?: string }> {
   const { profile } = await getAuthState();
-  if (!profile || !canSeeFor(profile, 'operations')) return { error: 'forbidden' };
+  if (!profile || !canSeeOpsMoney(profile)) return { error: 'forbidden' };
   const p = payListSchema.safeParse(input);
   if (!p.success || p.data.from > p.data.to) return { error: 'invalidInput' };
   try {
@@ -378,6 +388,44 @@ export async function manualChargeAction(input: z.input<typeof chargeSchema>): P
       await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
         values (${v.studentId}, 'charge', ${`${name} — ${som(v.amount)} qo‘lda yechildi (${v.reason})`}, ${v.amount}, ${me.id})`;
     });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
+const fixSchema = z.object({ studentId: uuid, amount: money, reason: z.string().trim().min(1).max(200) });
+
+/**
+ * Balansni tuzatish (owner, 2026-10-31): takes a wrong minus off a student's
+ * balance — an import error, a charge taken twice. Not a payment: it is kept
+ * in crm_balance_fixes, so collected money, payment counts, charges and the
+ * faol rule never see it. It can bring the balance up to 0, not past it.
+ */
+export async function fixStudentBalanceAction(input: z.input<typeof fixSchema>): Promise<Result> {
+  let meId: string;
+  try {
+    meId = (await requireCap('operations.balanceFix')).profile.id;
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = fixSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const res = await sql.begin(async (tx) => {
+      const [s] = await tx<{ name: string; balance: number }[]>`
+        select full_name as name, balance from crm_students where id = ${v.studentId} for update`;
+      if (!s) return 'notFound';
+      if (v.amount > -s.balance) return 'tooMuch';
+      await tx`insert into crm_balance_fixes (student_id, amount, reason, created_by) values (${v.studentId}, ${v.amount}, ${v.reason}, ${meId})`;
+      await tx`update crm_students set balance = balance + ${v.amount}, updated_at = now() where id = ${v.studentId}`;
+      await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
+        values (${v.studentId}, 'fix', ${`${s.name} — balans tuzatildi: +${som(v.amount)} (${v.reason})`}, ${v.amount}, ${meId})`;
+      return 'ok';
+    });
+    if (res !== 'ok') return { error: res };
   } catch {
     return { error: 'updateFailed' };
   }

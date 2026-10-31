@@ -184,6 +184,7 @@ export type Capability =
   | 'strategy.finance' // Strategy › Moliya / Tahlil / budget (company books, no per-person pay)
   | 'accounting.edit'
   | 'operations.edit'
+  | 'operations.balanceFix' // Operation HQ › remove a wrong minus from a student's balance
   | 'checklist.manage';
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
@@ -214,6 +215,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'kpi.review': ['ceo'],
   'accounting.edit': ['ceo'],
   'operations.edit': SECTION_ROLES.operations,
+  // Balansni tuzatish — CEO, COO, Office Manager (owner, 2026-10-31).
+  'operations.balanceFix': ['ceo', 'coo', 'office_manager'],
   // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
   'checklist.manage': ['ceo', 'coo'],
 };
@@ -290,6 +293,15 @@ export const CAP_SECTION: Partial<Record<Capability, SectionKey>> = {
   'strategy.edit': 'strategy',
   'operations.edit': 'operations',
 };
+
+/**
+ * Operation HQ money figures (collected, payments, kassa, statistics). The
+ * Sales manager works the students and leads but sees only each student's
+ * monthly fee and debt (owner, 2026-10-31).
+ */
+export function canSeeOpsMoney(p: { role: string | null | undefined; section_overrides?: Record<string, boolean> | null } | null | undefined): boolean {
+  return !!p && p.role !== 'sales_manager' && canSeeFor(p, 'operations');
+}
 
 export function canFor(
   p: { role: string | null | undefined; section_overrides?: Record<string, boolean> | null } | null | undefined,

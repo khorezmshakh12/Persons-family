@@ -86,7 +86,19 @@ export const emptyStudentsData = (day: string): StudentsData => ({
   stats: { month: day.slice(0, 7), collected: 0, methods: [], kassa: [], reasons: [] },
 });
 
-export async function loadStudentsData(): Promise<StudentsData> {
+/** A payment that really happened: not cancelled and not the row that cancels
+ * one (a cancel is a mistake undone, so neither side is money in or out).
+ * `y` is the crm_payments alias. Shared by every Operation HQ figure. */
+export const REAL_PAYMENT = (alias = 'y') =>
+  sql`${sql(alias)}.reverses is null and not exists (select 1 from crm_payments r_ where r_.reverses = ${sql(alias)}.id)`;
+
+/**
+ * `money: false` (Sales manager) leaves out everything about money except each
+ * student's fee and balance: no collected/kassa figures, no payment or charge
+ * lines in the recent actions.
+ */
+export async function loadStudentsData(opts: { money?: boolean } = {}): Promise<StudentsData> {
+  const money = opts.money ?? true;
   const today = tashkentDayKey();
   const month = tashkentMonthKey();
   const from = addDaysToKey(today, -245);
@@ -134,8 +146,8 @@ export async function loadStudentsData(): Promise<StudentsData> {
       from crm_charges c left join crm_enrollments e on e.id = c.enrollment_id
       where c.due_date >= ${from} and c.status <> 'waived'`,
     sql<{ sid: string; date: string; amount: number }[]>`
-      select student_id as sid, paid_at::text as date, case when is_refund then -amount else amount end as amount
-      from crm_payments where student_id is not null and paid_at >= ${from}`,
+      select y.student_id as sid, y.paid_at::text as date, case when y.is_refund then -y.amount else y.amount end as amount
+      from crm_payments y where y.student_id is not null and y.paid_at >= ${from} and ${REAL_PAYMENT()}`,
     sql<{ sid: string; missed: number; marked: number }[]>`
       select student_id as sid, count(*) filter (where not present)::int as missed, count(*)::int as marked
       from (
@@ -150,6 +162,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
         select l.id, l.student_id as "studentId", coalesce(s.full_name, '') as name, l.kind, l.text,
           coalesce(p.first_name || ' ' || p.last_name, 'Avto') as actor, l.created_at::text as at
         from crm_student_log l left join crm_students s on s.id = l.student_id left join profiles p on p.id = l.actor
+        where ${money ? sql`true` : sql`l.amount is null and l.kind not in ('pay', 'charge', 'payedit', 'paycancel', 'fix')`}
         order by l.created_at desc limit 60
       ) x order by at desc`,
     sql<MessageTemplate[]>`select id, name, body, trigger from crm_message_templates where audience = 'student' order by sort, name`,
@@ -163,7 +176,7 @@ export async function loadStudentsData(): Promise<StudentsData> {
       select coalesce(p.first_name || ' ' || p.last_name, 'Import') as actor, y.method, (y.paid_at = ${today}) as today,
         sum(case when y.is_refund then -y.amount else y.amount end) as amount, count(*)::int as count
       from crm_payments y left join profiles p on p.id = y.created_by
-      where y.paid_at >= ${`${month}-01`}
+      where y.paid_at >= ${`${month}-01`} and ${REAL_PAYMENT()} and ${money}
       group by 1, 2, 3 order by 4 desc`,
     sql<{ sid: string }[]>`select distinct y.student_id as sid from crm_payments y where y.student_id is not null and not y.is_refund and y.amount > 0
       and not exists (select 1 from crm_payments r where r.reverses = y.id)`,

@@ -1,5 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
+import { REAL_PAYMENT } from '@/lib/ops-students';
 import {
   addDaysToKey,
   startOfPreviousTashkentMonthKey,
@@ -83,14 +84,14 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
       select r.k, coalesce(sum(case when p.is_refund then -p.amount else p.amount end), 0) as collected,
         count(p.id) filter (where not p.is_refund)::int as n
       from jsonb_to_recordset(${spans}::jsonb) as r(k text, a date, b date)
-      left join crm_payments p on p.paid_at between r.a and r.b
+      left join crm_payments p on p.paid_at between r.a and r.b and ${REAL_PAYMENT('p')}
       group by r.k`,
     sql<{ k: string; method: string; amount: number; n: number }[]>`
       select r.k, case when p.method in ('cash', 'card', 'click', 'payme', 'uzum', 'transfer', 'online') then p.method else 'other' end as method,
         sum(case when p.is_refund then -p.amount else p.amount end) as amount,
         count(*) filter (where not p.is_refund)::int as n
       from jsonb_to_recordset(${spans}::jsonb) as r(k text, a date, b date)
-      join crm_payments p on p.paid_at between r.a and r.b
+      join crm_payments p on p.paid_at between r.a and r.b and ${REAL_PAYMENT('p')}
       group by 1, 2`,
     sql<{ k: string; created: number; left: number }[]>`
       select r.k,
@@ -119,12 +120,13 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
       group by r.k`,
     sql<{ day: string; amount: number }[]>`
       select paid_at::text as day, sum(case when is_refund then -amount else amount end) as amount
-      from crm_payments where paid_at between ${seriesFrom} and ${day}
+      from crm_payments p where paid_at between ${seriesFrom} and ${day} and ${REAL_PAYMENT('p')}
       group by paid_at`,
     sql<{ active: number; frozen: number; debtors: number; debt: number }[]>`
       select
         count(*) filter (where s.status = 'active'
           and coalesce(s.monthly_fee, (select sum(e.tariff_amount) from crm_enrollments e where e.student_id = s.id and e.status = 'active'), 0) > 0
+          and s.discount_pct < 100
           and (s.paid_elsewhere_at is not null or exists (select 1 from crm_payments p where p.student_id = s.id and not p.is_refund and p.amount > 0 and not exists (select 1 from crm_payments r where r.reverses = p.id))))::int as active,
         count(*) filter (where s.status = 'frozen')::int as frozen,
         count(*) filter (where s.balance < 0)::int as debtors,

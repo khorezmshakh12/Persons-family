@@ -53,7 +53,9 @@ export function OpsPayments({ data }: { data: OpsData }) {
       (!onlyEdited || r.edit || r.cancelled || r.isCancel) &&
       (!q || r.student.toLowerCase().includes(q.toLowerCase())),
   );
-  const net = (r: PaymentRow) => (r.refund ? -r.amount : r.amount);
+  // A cancelled payment and the row that cancels it are a mistake undone:
+  // neither is money in or out, so both stay out of the totals.
+  const net = (r: PaymentRow) => (r.cancelled || r.isCancel ? 0 : r.refund ? -r.amount : r.amount);
   const total = list.reduce((a, r) => a + net(r), 0);
   const byMethod = new Map<string, number>();
   for (const r of list) byMethod.set(r.method, (byMethod.get(r.method) ?? 0) + net(r));
@@ -113,7 +115,7 @@ export function OpsPayments({ data }: { data: OpsData }) {
       <div className="sx-card sx-stat dark s3">
         <div className="l">Jami (sof)</div>
         <div className="v">{som(total)}</div>
-        <div className="d">{list.filter((r) => !r.refund).length} ta to‘lov</div>
+        <div className="d">{list.filter((r) => !r.refund && !r.cancelled).length} ta to‘lov</div>
       </div>
       {[...byMethod]
         .sort((a, b) => b[1] - a[1])
