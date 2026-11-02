@@ -41,7 +41,7 @@ export function escapeTelegramText(text: string): string {
  * triggered it" true without this function hiding *why* a send failed.
  * Uses the raw Bot API over fetch rather than the Telegraf client so it
  * has no dependency on the webhook bot instance being configured. */
-export async function sendTelegramMessage(chatId: string | number, text: string): Promise<void> {
+export async function sendTelegramMessage(chatId: string | number, text: string, replyMarkup?: object): Promise<void> {
   if (!token) {
     console.warn('Telegram bot not configured (TELEGRAM_BOT_TOKEN missing) — skipping notification.');
     return;
@@ -52,7 +52,7 @@ export async function sendTelegramMessage(chatId: string | number, text: string)
     res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
     });
     data = await res.json();
   } catch (error) {
@@ -153,7 +153,7 @@ async function blockedChats(chatIds: number[], kind: NotifyKind): Promise<Set<nu
  * callers whose event the bell already shows another way (new tasks,
  * warnings) or that recorded it themselves (notifyUsers). Chat is never
  * recorded — it has its own unread state. */
-export type SendOpts = { record?: boolean; href?: string | null; action?: boolean; ref?: string | null };
+export type SendOpts = { record?: boolean; href?: string | null; action?: boolean; ref?: string | null; replyMarkup?: object };
 
 function shouldRecord(kind: NotifyKind, opts?: SendOpts) {
   return kind !== 'chat' && opts?.record !== false;
@@ -164,7 +164,7 @@ export async function sendTelegramAs(kind: NotifyKind, chatId: string | number, 
   const id = Number(chatId);
   if (Number.isFinite(id) && shouldRecord(kind, opts)) await recordForChats([id], { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
   if (Number.isFinite(id) && (await blockedChats([id], kind)).has(id)) return;
-  await sendTelegramMessage(chatId, text);
+  await sendTelegramMessage(chatId, text, opts?.replyMarkup);
 }
 
 /** sendTelegramMessageToMany, honouring each recipient's preferences. */

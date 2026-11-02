@@ -88,7 +88,15 @@ export function TaskCommentsDrawer({
         authorAvatarUrl: null,
       });
     }
-    const result = await createTaskCommentAction(prevState, formData);
+    // A thrown action (network drop, new deploy) would otherwise reach the
+    // page's error boundary; here it is just a failed send.
+    let result: TaskCommentActionState;
+    try {
+      result = await createTaskCommentAction(prevState, formData);
+    } catch (error) {
+      console.error('task comment send failed', error);
+      result = { error: 'commentFailed' };
+    }
     if (result?.error) {
       toast.error(t(`errors.${result.error}`));
     } else {
@@ -110,7 +118,11 @@ export function TaskCommentsDrawer({
     // failure simply reappears on the next refresh.
     setComments((prev) => prev.filter((c) => c.id !== id));
     startDeleteTransition(async () => {
-      await deleteTaskCommentAction(formData);
+      try {
+        await deleteTaskCommentAction(formData);
+      } catch (error) {
+        console.error('task comment delete failed', error);
+      }
       await refresh();
     });
   }

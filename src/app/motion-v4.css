@@ -198,6 +198,18 @@ html[data-motion-level='off']::view-transition-old(*),
 html[data-motion-level='off']::view-transition-new(*) {
   animation: none !important;
 }
+/* A view transition paints every named element (task cards, the header…)
+ * in a layer above the whole page — including an open sheet or dialog. So
+ * while one is open, the transition is skipped outright: no snapshot of
+ * the old state, no animation, it ends on the next frame. This is what put
+ * task cards on top of the comments sheet after sending a comment. */
+html:has([role='dialog'], [role='alertdialog'])::view-transition-old(*) {
+  display: none !important;
+}
+html:has([role='dialog'], [role='alertdialog'])::view-transition-group(*),
+html:has([role='dialog'], [role='alertdialog'])::view-transition-new(*) {
+  animation: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),

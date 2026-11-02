@@ -44,6 +44,7 @@ export const KIND_HREF: Record<string, string> = {
   lesson: '/lesson-plans',
   report: '/report',
   chat: '/chat',
+  goals: '/dashboard',
 };
 
 /** Stores one notification per person and pings their bell. Never throws —
