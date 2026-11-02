@@ -1,5 +1,7 @@
 import { openAppKeyboard, telegramBot } from './telegram';
 import { sql } from './db/client';
+import { moveGoal, setGoalDone } from './goals-server';
+import { NEXT_LABEL, type GoalScope } from './goals';
 
 // Registered once at module load (the webhook route imports this module
 // purely for this side effect) rather than inside the request handler —
@@ -59,6 +61,29 @@ if (telegramBot) {
       `✅ Xush kelibsiz${profile ? `, ${profile.first_name}` : ''}! Telegram hisobingiz Persons Education platformasiga ulandi. Endi muhim bildirishnomalarni shu yerda olasiz.`,
       { reply_markup: openAppKeyboard() },
     );
+  });
+
+  // Goal reminder buttons: «✅ Bajarildi» (g:d:<id>) and «➡️ Ertaga»
+  // (g:n:<id>). The goal is looked up through the presser's own linked
+  // profile, so a forwarded message can't touch someone else's goal.
+  telegramBot.action(/^g:([dn]):([0-9a-f-]{36})$/, async (ctx) => {
+    const [, op, id] = ctx.match;
+    try {
+      const [p] = await sql<{ id: string }[]>`select id from profiles where telegram_id = ${ctx.from.id} and is_active = true limit 1`;
+      const [g] = p
+        ? await sql<{ title: string; scope: GoalScope }[]>`select title, scope from goals where id = ${id} and user_id = ${p.id}`
+        : [];
+      if (!p || !g) return void (await ctx.answerCbQuery('Maqsad topilmadi'));
+      const ok = op === 'd' ? await setGoalDone(p.id, id, true) : Boolean(await moveGoal(p.id, id, 'next'));
+      if (!ok) return void (await ctx.answerCbQuery('Allaqachon bajarilgan yoki o‘zgargan'));
+      const msg = op === 'd' ? '✅ Bajarildi' : `➡️ ${NEXT_LABEL[g.scope]} ko‘chirildi`;
+      await ctx.answerCbQuery(msg);
+      await ctx.editMessageReplyMarkup(undefined).catch(() => {});
+      await ctx.reply(`${msg}: «${g.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}»`, { parse_mode: 'HTML' });
+    } catch (error) {
+      console.error('goal button failed', error instanceof Error ? error.message : error);
+      await ctx.answerCbQuery('Xatolik, qayta urinib ko‘ring').catch(() => {});
+    }
   });
 
   // Registered after .start() so it only ever sees messages that aren't the

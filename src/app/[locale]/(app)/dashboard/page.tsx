@@ -10,9 +10,11 @@ import { loadChecklist } from '@/lib/checklist-data';
 import { loadProgressBoard } from '@/lib/progress-board-data';
 import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
 import { GoalsCard } from '@/components/dashboard/goals-card';
+import { nextPeriodKey, periodKeysFor } from '@/lib/goals';
+import { toGoalItem, type GoalRow } from '@/lib/goals-server';
 import { StudentRemindersCard, type StudentReminder } from '@/components/dashboard/student-reminders-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
-import { tashkentDayKey, tashkentYmd, tashkentMonthKey } from '@/lib/time';
+import { tashkentDayKey, tashkentYmd } from '@/lib/time';
 import { Link } from '@/i18n/navigation';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
@@ -271,23 +273,31 @@ async function MonthTop3Section({ viewerId }: { viewerId: string }) {
 }
 
 async function GoalsSection({ userId }: { userId: string }) {
-  const dayK = tashkentDayKey();
-  const monthK = tashkentMonthKey();
-  const d = new Date(`${dayK}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); // dushanba
-  const weekK = d.toISOString().slice(0, 10);
-  // An unfinished goal never disappears: it carries over until it is done.
-  const rows = await sql<{ id: string; scope: 'day' | 'week' | 'month'; title: string; done: boolean; carried: string | null }[]>`
-    select id, scope, title, done,
-      case when period_key <> case scope when 'day' then ${dayK} when 'week' then ${weekK} else ${monthK} end then period_key end as carried
+  const keys = periodKeysFor(tashkentDayKey());
+  const next = { day: nextPeriodKey('day', keys.day), week: nextPeriodKey('week', keys.week), month: nextPeriodKey('month', keys.month) };
+  // The nightly rollover moves unfinished goals forward; anything older and
+  // still open (the job hasn't run yet) is shown here too, as carried once.
+  // Goals moved by hand to the next period are listed below the card.
+  const rows = await sql<(GoalRow & { moved: boolean })[]>`
+    select id, scope, title, done, priority, moved_from, due_time,
+      to_char(due_date, 'YYYY-MM-DD') as due_date,
+      to_char(done_at at time zone 'Asia/Tashkent', 'HH24:MI') as done_at,
+      carry_count + (case when period_key < case scope when 'day' then ${keys.day} when 'week' then ${keys.week} else ${keys.month} end then 1 else 0 end) as carry_count,
+      (period_key = case scope when 'day' then ${next.day} when 'week' then ${next.week} else ${next.month} end) as moved
     from goals
     where user_id = ${userId} and (
-      (scope = 'day' and (period_key = ${dayK} or (not done and period_key < ${dayK}))) or
-      (scope = 'week' and (period_key = ${weekK} or (not done and period_key < ${weekK}))) or
-      (scope = 'month' and (period_key = ${monthK} or (not done and period_key < ${monthK}))))
+      (scope = 'day' and (period_key = ${keys.day} or (not done and period_key < ${keys.day}) or (period_key = ${next.day} and moved_from = ${keys.day}))) or
+      (scope = 'week' and (period_key = ${keys.week} or (not done and period_key < ${keys.week}) or (period_key = ${next.week} and moved_from = ${keys.week}))) or
+      (scope = 'month' and (period_key = ${keys.month} or (not done and period_key < ${keys.month}) or (period_key = ${next.month} and moved_from = ${keys.month}))))
     order by created_at
   `.catch(() => []);
-  return <GoalsCard periodKeys={{ day: dayK, week: weekK, month: monthK }} goals={rows} />;
+  return (
+    <GoalsCard
+      periodKeys={keys}
+      goals={rows.filter((r) => !r.moved).map(toGoalItem)}
+      moved={rows.filter((r) => r.moved).map(toGoalItem)}
+    />
+  );
 }
 
 // Rol bo'yicha kunlik checklist (checklist_templates). Ustozlarda bugun dars
