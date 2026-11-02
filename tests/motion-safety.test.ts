@@ -25,3 +25,14 @@ test('PageTransition keeps its wrapper animation-free (View Transitions only)', 
   const src = readFileSync('src/components/app-shell/page-transition.tsx', 'utf8');
   assert.ok(!/animate-|framer-motion|initial=\{/.test(src), 'page-transition.tsx must not animate its own wrapper');
 });
+
+// Sending a task comment once painted the task cards on top of the open
+// comments sheet: view-transition snapshots live above every layer. While a
+// dialog/sheet is open the transition must be skipped.
+test('view transitions are skipped while a dialog or sheet is open', () => {
+  const css = readFileSync('src/app/motion-v4.css', 'utf8');
+  assert.ok(
+    /html:has\(\[role='dialog'\], \[role='alertdialog'\]\)::view-transition-old\(\*\)\s*\{\s*display:\s*none/.test(css),
+    'motion-v4.css must hide view-transition snapshots while a dialog is open',
+  );
+});

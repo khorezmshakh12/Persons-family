@@ -114,7 +114,9 @@ export async function createTaskCommentAction(
   // in a different session — board_signals/tasks is what makes their card
   // pick the new comment up without a manual refresh (see TaskBoard's
   // onSnapshot subscription).
-  await bumpBoardSignal('tasks');
+  // The comment is already saved: a failed realtime ping must not turn
+  // that into an error (the client would resend and duplicate it).
+  await bumpBoardSignal('tasks').catch((e) => console.error('task comment signal failed', e));
 
   // Notify participants about the new comment, after the response is sent.
   after(async () => {
@@ -150,7 +152,9 @@ export async function deleteTaskCommentAction(formData: FormData): Promise<void>
     return;
   }
 
-  await bumpBoardSignal('tasks');
+  // The comment is already saved: a failed realtime ping must not turn
+  // that into an error (the client would resend and duplicate it).
+  await bumpBoardSignal('tasks').catch((e) => console.error('task comment signal failed', e));
 
   revalidatePath('/[locale]/tasks', 'page');
 }
