@@ -261,26 +261,26 @@ export function GoalsCard({
                       {g.priority && <span className="text-[13px] text-au-accent">★ </span>}
                       {g.title}
                     </span>
-                    {(chip || g.carry > 0 || (g.done && g.doneAt)) && (
-                      <span className="flex flex-wrap gap-1.5">
+                    {(!g.done || chip || (g.done && g.doneAt)) && (
+                      <span className="flex flex-wrap items-center gap-1.5">
                         {chip && <span className={cn(CHIP, TONE[chip.tone])}>{chip.text}</span>}
                         {g.carry > 0 && !g.done && (
                           <span className={cn('text-[11px] font-semibold', g.carry >= 3 ? 'text-au-bad' : 'text-au-accent-text')}>{carryLabel(g.scope, g.carry)}</span>
                         )}
                         {g.done && g.doneAt && <span className={cn(CHIP, TONE.neutral)}>{g.doneAt} da bajarildi</span>}
+                        {!g.done && (
+                          <button
+                            type="button"
+                            onClick={() => moveNext(g.id)}
+                            title={`${NEXT_LABEL[g.scope]} ko‘chirish`}
+                            className="whitespace-nowrap rounded-full border border-au-line bg-au-card px-2 py-px text-[11px] font-semibold text-au-muted transition hover:border-au-accent hover:text-au-accent-text"
+                          >
+                            → {NEXT_LABEL[g.scope]}
+                          </button>
+                        )}
                       </span>
                     )}
                   </span>
-                  {!g.done && (
-                    <button
-                      type="button"
-                      onClick={() => moveNext(g.id)}
-                      title={`${NEXT_LABEL[g.scope]} ko‘chirish`}
-                      className="shrink-0 whitespace-nowrap rounded-full border border-au-line bg-au-card px-2.5 py-[3px] text-[11.5px] font-semibold text-au-muted transition hover:border-au-accent hover:text-au-accent-text"
-                    >
-                      → {NEXT_LABEL[g.scope]}
-                    </button>
-                  )}
                   <button type="button" onClick={() => setEditing(g.id)} aria-label="Tahrirlash" className="shrink-0 rounded-md p-1 text-au-faint transition hover:text-au-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
                     <Pencil className="size-3.5" />
                   </button>
