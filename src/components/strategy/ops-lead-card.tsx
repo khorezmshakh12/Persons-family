@@ -22,7 +22,7 @@ import { ask, playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
 import { CommentList } from './ops-comments';
 import { ago, dmy, when } from './ops-students-meta';
-import { LOST_FIX, TELEGRAM_COL, columnOf, firstOpenStage, leadErr, sourceName } from './ops-sales-meta';
+import { LEVELS, LOST_FIX, PREF_DAYS, TELEGRAM_COL, columnOf, firstOpenStage, leadErr, sourceName } from './ops-sales-meta';
 
 type Pane = 'msg' | 'convert' | null;
 const digits = (v: string) => v.replace(/\D/g, '');
@@ -50,6 +50,9 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
     nextAt: l.nextAt ?? '',
     trialDate: l.trialDate ?? '',
     trialTime: l.trialTime,
+    level: l.level,
+    prefDays: l.prefDays,
+    prefTime: l.prefTime,
   });
   const [col, setCol] = useState(columnOf(l, first));
   const [lostReason, setLostReason] = useState('');
@@ -95,6 +98,9 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
         nextAt: f.nextAt || null,
         trialDate: f.trialDate || null,
         trialTime: f.trialTime || null,
+        level: f.level,
+        prefDays: f.prefDays as 'odd' | 'even' | 'daily' | 'weekend' | '',
+        prefTime: f.prefTime,
       });
       if (r.error) return void toast.error(leadErr(r.error));
       if (col !== columnOf(l, first)) {
@@ -190,6 +196,27 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
                   <option key={c} value={c} />
                 ))}
               </datalist>
+            </Field>
+            <Field label="Daraja">
+              <input id="ld-level" className="sx-inp" list="ld-levels" maxLength={40} disabled={!canEdit} value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} />
+              <datalist id="ld-levels">
+                {LEVELS.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Qulay kunlar">
+              <select id="ld-days" className="sx-inp" disabled={!canEdit} value={f.prefDays} onChange={(e) => setF({ ...f, prefDays: e.target.value })}>
+                <option value="">—</option>
+                {Object.entries(PREF_DAYS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Qulay vaqt">
+              <input id="ld-ptime" type="time" className="sx-inp" disabled={!canEdit} value={f.prefTime} onChange={(e) => setF({ ...f, prefTime: e.target.value })} />
             </Field>
             <Field label="Guruh">
               <select id="ld-group" className="sx-inp" disabled={!canEdit} value={f.groupId} onChange={(e) => setF({ ...f, groupId: e.target.value })}>

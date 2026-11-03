@@ -8,7 +8,7 @@ import { createLeadAction, restoreLeadAction, saveLeadGroupsAction, saveStagesAc
 import { toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
 import { when } from './ops-students-meta';
-import { GROUP_COLORS, GROUP_TONE, NEW_SOURCES, SOURCES, leadErr } from './ops-sales-meta';
+import { GROUP_COLORS, GROUP_TONE, LEVELS, NEW_SOURCES, PREF_DAYS, SOURCES, leadErr } from './ops-sales-meta';
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -37,7 +37,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose: () => void; onOpen: (id: string) => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [f, setF] = useState({ name: '', phone: '', age: '', course: '', groupId: '', source: 'insta' as (typeof NEW_SOURCES)[number] });
+  const [f, setF] = useState({ name: '', phone: '', age: '', course: '', groupId: '', level: '', prefDays: '' as '' | 'odd' | 'even' | 'daily' | 'weekend', prefTime: '', source: 'insta' as (typeof NEW_SOURCES)[number] });
   const [dup, setDup] = useState<{ id: string; name: string } | null>(null);
   const create = (force: boolean) =>
     start(async () => {
@@ -47,6 +47,9 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
         age: f.age ? Number(f.age) : null,
         course: f.course,
         groupId: f.groupId || null,
+        level: f.level,
+        prefDays: f.prefDays,
+        prefTime: f.prefTime,
         source: f.source,
         force,
       });
@@ -85,6 +88,27 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Daraja">
+          <input id="nl-level" className="sx-inp" list="nl-levels" maxLength={40} placeholder="Bilmayman" value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} />
+          <datalist id="nl-levels">
+            {LEVELS.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </Field>
+        <Field label="Qulay kunlar">
+          <select id="nl-days" className="sx-inp" value={f.prefDays} onChange={(e) => setF({ ...f, prefDays: e.target.value as typeof f.prefDays })}>
+            <option value="">—</option>
+            {Object.entries(PREF_DAYS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Qulay vaqt">
+          <input id="nl-ptime" type="time" className="sx-inp" value={f.prefTime} onChange={(e) => setF({ ...f, prefTime: e.target.value })} />
         </Field>
         <Field label="Manba">
           <select id="nl-src" className="sx-inp" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value as typeof f.source })}>

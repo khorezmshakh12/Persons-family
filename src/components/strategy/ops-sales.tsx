@@ -9,8 +9,9 @@ import { moveLeadAction } from '@/lib/actions/sales';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
 import { ago, tsDate } from './ops-students-meta';
-import { GROUP_TONE, LOST_FIX, TELEGRAM_COL, columnOf, daysInStage, firstOpenStage, isWaiting, leadErr, sourceName } from './ops-sales-meta';
+import { GROUP_TONE, LOST_FIX, PREF_DAYS, TELEGRAM_COL, columnOf, daysInStage, firstOpenStage, isOpenLead, isWaiting, leadErr, sourceName } from './ops-sales-meta';
 import { LeadDrawer } from './ops-lead-card';
+import { CallList, GroupBuilder } from './ops-sales-views';
 import { AddLeadModal, ArchiveModal, GroupsModal, StagesModal } from './ops-sales-admin';
 import { TemplatesModal } from './ops-student-admin';
 
@@ -33,6 +34,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
   const [lostAsk, setLostAsk] = useState<{ id: string; sectionId: string } | null>(null);
   const [modal, setModal] = useState<'add' | 'groups' | 'stages' | 'tpl' | 'archive' | null>(null);
   const [now] = useState(() => Date.now());
+  const [view, setView] = useState<'board' | 'bundle' | 'calls'>('board');
   const first = firstOpenStage(d);
 
   // Optimistic moves until the refreshed data arrives.
@@ -173,6 +175,30 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
         </div>
       </div>
 
+      <div className="inline-flex self-start rounded-au-ctl border border-au-line bg-au-card-2 p-0.5" role="tablist" aria-label="Ko‘rinish">
+        {(
+          [
+            ['board', 'Kanban'],
+            ['bundle', 'Guruh yig‘ish'],
+            ['calls', `Bugun qo‘ng‘iroq · ${leads.filter((l) => visible(l) && isOpenLead(l, d) && ((l.nextAt && l.nextAt <= today) || isWaiting(l, now))).length}`],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={view === k}
+            onClick={() => setView(k)}
+            className={cn('h-8 rounded-[7px] px-3.5 text-[13px] font-semibold', view === k ? 'bg-au-card text-au-ink shadow-au-card' : 'text-au-muted hover:text-au-ink')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'bundle' && <GroupBuilder data={data} leads={leads.filter(visible)} onOpen={onOpenChange} />}
+      {view === 'calls' && <CallList data={data} leads={leads.filter(visible)} onOpen={onOpenChange} />}
+
+      {view === 'board' && (
       <div className="flex items-start gap-3 overflow-x-auto pb-2">
         {cols.map((c) => {
           const list = leads.filter((l) => columnOf(l, first) === c.id && visible(l)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -208,6 +234,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
           );
         })}
       </div>
+      )}
       {drag.ghost}
 
       <SalesStats data={data} />
@@ -294,6 +321,8 @@ function LeadCardItem({
       <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs text-au-muted">
         {l.age != null && <span>{l.age} yosh</span>}
         {l.course && <span>{l.course}</span>}
+        {l.level && <span>{l.level}</span>}
+        {(l.prefDays || l.prefTime) && <span>{[PREF_DAYS[l.prefDays], l.prefTime].filter(Boolean).join(' ')}</span>}
         {l.phone && <span className="tabular-nums">{l.phone}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">

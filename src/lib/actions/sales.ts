@@ -55,6 +55,9 @@ const leadFields = {
   age: z.coerce.number().int().min(1).max(99).nullable(),
   course: z.string().trim().max(120).default(''),
   groupId: uuid.nullable(),
+  level: z.string().trim().max(40).default(''),
+  prefDays: z.enum(['odd', 'even', 'daily', 'weekend', '']).default(''),
+  prefTime: z.string().regex(/^\d{2}:\d{2}$/).or(z.literal('')).default(''),
 };
 const createSchema = z.object({ ...leadFields, source: z.enum(['insta', 'ref', 'walk', 'call', 'site', 'other']), force: z.boolean().default(false) });
 
@@ -74,8 +77,8 @@ export async function createLeadAction(input: z.input<typeof createSchema>): Pro
     }
     const [section, course] = await Promise.all([firstStage(), courseId(v.course, me.id)]);
     const [row] = await sql<{ id: string }[]>`
-      insert into crm_leads (section_id, name, phone, age, course_id, group_id, source, status, branch, owner_id, created_by, stage_at, first_contact_at)
-      values (${section}, ${v.name}, ${v.phone}, ${v.age}, ${course}, ${v.groupId}, ${v.source}, 'open', 'persons_lc', ${me.id}, ${me.id}, now(), now())
+      insert into crm_leads (section_id, name, phone, age, course_id, group_id, level, pref_days, pref_time, source, status, branch, owner_id, created_by, stage_at, first_contact_at)
+      values (${section}, ${v.name}, ${v.phone}, ${v.age}, ${course}, ${v.groupId}, ${v.level || null}, ${v.prefDays || null}, ${v.prefTime || null}, ${v.source}, 'open', 'persons_lc', ${me.id}, ${me.id}, now(), now())
       returning id`;
     await log(row.id, 'Lid qo‘shildi', me.id);
     refresh();
@@ -105,6 +108,7 @@ export async function updateLeadAction(input: z.input<typeof updateSchema>): Pro
     const course = await courseId(v.course, me.id);
     const res = await sql`
       update crm_leads set name = ${v.name}, phone = ${v.phone}, age = ${v.age}, course_id = ${course}, group_id = ${v.groupId},
+        level = ${v.level || null}, pref_days = ${v.prefDays || null}, pref_time = ${v.prefTime || null},
         owner_id = ${v.ownerId}, next_action = ${v.nextAction || null}, next_at = ${v.nextAt},
         trial_date = ${v.trialDate}, trial_time = ${v.trialTime},
         trial_reminded_for = case when trial_date is distinct from ${v.trialDate}::date then null else trial_reminded_for end,
@@ -384,4 +388,65 @@ export async function saveStagesAction(input: z.input<typeof stagesSchema>): Pro
   }
   refresh();
   return {};
+}
+
+// ---------------------------------------------------------------------------
+// «Guruh yig'ish»: bulk actions on a Kurs · Daraja · Kun · Vaqt bundle
+// ---------------------------------------------------------------------------
+
+const bulkTrialSchema = z.object({ ids: z.array(uuid).min(1).max(100), trialDate: dayKey, trialTime: z.string().regex(/^\d{2}:\d{2}$/) });
+
+/** Tanlangan lidlarni bir yo'la sinov darsiga yozish. */
+export async function bulkTrialAction(input: z.input<typeof bulkTrialSchema>): Promise<Result & { n?: number }> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  const p = bulkTrialSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const n = await sql.begin(async (tx) => {
+      const rows = await tx<{ id: string }[]>`
+        update crm_leads set trial_date = ${v.trialDate}, trial_time = ${v.trialTime},
+          trial_reminded_for = case when trial_date is distinct from ${v.trialDate}::date then null else trial_reminded_for end,
+          first_contact_at = coalesce(first_contact_at, now()), updated_at = now()
+        where id = any(${v.ids}::uuid[]) and archived_at is null and converted_student_id is null
+        returning id`;
+      for (const r of rows)
+        await tx`insert into crm_lead_log (lead_id, text, actor) values (${r.id}, ${`Sinov darsiga yozildi: ${v.trialDate} ${v.trialTime}`}, ${me.id})`;
+      return rows.length;
+    });
+    refresh();
+    return { n };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+}
+
+const bulkGroupSchema = z.object({ ids: z.array(uuid).min(1).max(100), name: z.string().trim().min(1).max(80) });
+
+/** To'plamni lid guruhi sifatida saqlash: shu nomli guruh (yo'q bo'lsa yaratiladi) va lidlar unga biriktiriladi. */
+export async function bulkGroupAction(input: z.input<typeof bulkGroupSchema>): Promise<Result & { n?: number }> {
+  const me = await requireEditor();
+  if ('error' in me) return me;
+  const p = bulkGroupSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  try {
+    const n = await sql.begin(async (tx) => {
+      let [g] = await tx<{ id: string }[]>`select id from crm_lead_groups where lower(name) = lower(${v.name}) limit 1`;
+      if (!g)
+        [g] = await tx<{ id: string }[]>`
+          insert into crm_lead_groups (name, color, sort, created_by)
+          values (${v.name}, 'g3', (select coalesce(max(sort), 0) + 1 from crm_lead_groups), ${me.id}) returning id`;
+      const rows = await tx<{ id: string }[]>`
+        update crm_leads set group_id = ${g.id}, updated_at = now()
+        where id = any(${v.ids}::uuid[]) and archived_at is null returning id`;
+      for (const r of rows) await tx`insert into crm_lead_log (lead_id, text, actor) values (${r.id}, ${`«${v.name}» guruhiga biriktirildi`}, ${me.id})`;
+      return rows.length;
+    });
+    refresh();
+    return { n };
+  } catch {
+    return { error: 'updateFailed' };
+  }
 }
