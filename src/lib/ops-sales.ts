@@ -29,6 +29,9 @@ export type SalesLead = {
   lostReason: string;
   trialDate: string | null;
   trialTime: string;
+  level: string;
+  prefDays: string;
+  prefTime: string;
   studentId: string | null;
   comments: number;
 };
@@ -68,7 +71,9 @@ export async function loadSalesData(): Promise<SalesData> {
         l.owner_id as "ownerId", coalesce(p.first_name || ' ' || p.last_name, '') as owner,
         l.created_at::text as "createdAt", l.stage_at::text as "stageAt", l.first_contact_at::text as "firstContactAt",
         coalesce(l.next_action, '') as "nextAction", l.next_at::text as "nextAt", coalesce(l.lost_reason, '') as "lostReason",
-        l.trial_date::text as "trialDate", coalesce(l.trial_time, '') as "trialTime", l.converted_student_id as "studentId",
+        l.trial_date::text as "trialDate", coalesce(l.trial_time, '') as "trialTime",
+        coalesce(l.level, '') as level, coalesce(l.pref_days, '') as "prefDays", coalesce(l.pref_time, '') as "prefTime",
+        l.converted_student_id as "studentId",
         (select count(*)::int from crm_lead_activities a where a.lead_id = l.id and a.kind = 'note') as comments
       from crm_leads l
       left join crm_courses c on c.id = l.course_id
