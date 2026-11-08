@@ -410,10 +410,10 @@ export default async function DashboardPage() {
           <Reveal fallback={null}>
             <StudentRemindersSection userId={user!.id} />
           </Reveal>
-          {/* Replaces the KPI / self-development reminder banners: every
-              deadline and approval queue in one actionable list. */}
-          <Reveal fallback={<CardSkeleton className="min-h-[180px]" />}>
-            <AttentionSection viewer={viewer} />
+          {/* Goals in the wide column, "needs attention" moved to the side
+              (owner, 2026-11-08). */}
+          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
+            <GoalsSection userId={user!.id} />
           </Reveal>
           {/* CEO dashboard trimmed (owner, 2026-10-06): no "completed tasks"
               chart / staff task feed; employee statistics live in HR. */}
@@ -446,8 +446,9 @@ export default async function DashboardPage() {
           <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
             <RoleChecklistSection userId={user!.id} role={viewer.role} />
           </Reveal>
-          <Reveal fallback={<CardSkeleton className="min-h-[220px]" />}>
-            <GoalsSection userId={user!.id} />
+          {/* Every deadline and approval queue in one actionable list. */}
+          <Reveal fallback={<CardSkeleton className="min-h-[180px]" />}>
+            <AttentionSection viewer={viewer} />
           </Reveal>
           <Reveal fallback={<CardSkeleton className="min-h-[520px]" />}>
             <LeaderboardSection userId={user!.id} compact={!isCeo} />

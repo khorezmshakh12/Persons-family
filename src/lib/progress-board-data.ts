@@ -44,8 +44,8 @@ export async function loadProgressBoard(userId: string, role: string): Promise<P
       : Promise.resolve([] as { schedule_type: string }[]),
     // Everything still open (it carries over) plus whatever was finished
     // from the first day on the board.
-    sql<{ id: string; scope: GoalScope; title: string; period_key: string; created_day: string; done_day: string | null }[]>`
-      select id, scope, title, period_key,
+    sql<{ id: string; scope: GoalScope; title: string; period_key: string; carry_count: number; created_day: string; done_day: string | null }[]>`
+      select id, scope, title, period_key, carry_count,
         to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM-DD') as created_day,
         case when done then to_char(coalesce(done_at, created_at) at time zone 'Asia/Tashkent', 'YYYY-MM-DD') end as done_day
       from goals
@@ -69,17 +69,24 @@ export async function loadProgressBoard(userId: string, role: string): Promise<P
   const due = (g: { scope: GoalScope; period_key: string }) =>
     g.scope === 'day' ? g.period_key : g.scope === 'week' ? addDaysToKey(g.period_key, 6) : lastDayOfMonth(g.period_key);
 
+  // The nightly rollover rewrites a carried goal's period_key to the current
+  // period, so on its own it would look new and never late — October's
+  // unfinished goals turning into November's. A carried goal is judged by
+  // the period it was created in (never later than where it sits now).
+  const createdKey = (scope: GoalScope, day: string) => (scope === 'day' ? day : scope === 'week' ? mondayOf(day) : day.slice(0, 7));
   const board: BoardGoal[] = goals
     .reverse()
     .map((g) => {
-      const start = periodStart(g);
+      const fromKey = createdKey(g.scope, g.created_day);
+      const orig = g.carry_count > 0 && fromKey < g.period_key ? { scope: g.scope, period_key: fromKey } : g;
+      const start = periodStart(orig);
       return {
         id: g.id,
         scope: g.scope,
         title: g.title,
         periodKey: g.period_key,
         startDay: g.created_day > start ? g.created_day : start,
-        dueDay: due(g),
+        dueDay: due(orig),
         doneDay: g.done_day,
       };
     })

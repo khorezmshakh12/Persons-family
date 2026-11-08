@@ -41,12 +41,12 @@ async function safe<T>(label: string, fn: () => Promise<T>): Promise<T | null> {
 
 /* ------------------------------------------------------------------ tasks */
 
-type TaskRow = { status: string; created_at: string; completed_at: string | null; deadline: string | null };
+type TaskRow = { status: string; created_at: string; completed_at: string | null; submitted_at: string | null; deadline: string | null };
 
 async function loadTaskRows(v: Viewer): Promise<TaskRow[]> {
   return isCompanyWide(v)
-    ? sql<TaskRow[]>`select status, created_at, completed_at, deadline from tasks`
-    : sql<TaskRow[]>`select status, created_at, completed_at, deadline from tasks where assigned_to = ${v.userId}`;
+    ? sql<TaskRow[]>`select status, created_at, completed_at, submitted_at, deadline from tasks`
+    : sql<TaskRow[]>`select status, created_at, completed_at, submitted_at, deadline from tasks where assigned_to = ${v.userId}`;
 }
 
 export type TaskStatusBreakdown = { done: number; inProgress: number; todo: number; overdue: number; total: number };
@@ -262,6 +262,23 @@ export type LeaderboardPerson = {
   prevMonth: number;
 };
 
+/** Stars *earned*, each dated to the period the work belongs to — the
+ * basis of every week/month star ranking. Market purchases and refunds are
+ * spending, not earning, so they never lower a month's score. A
+ * self-development award counts in the report's month (the CEO rates it
+ * early in the next one), a task award or penalty no later than when the
+ * work was handed in (or, for a missed task, its deadline). */
+const earnedStars = () => sql`
+  select st.user_id, st.delta, coalesce(
+    case st.source_type
+      when 'self_development' then (
+        select sd.month::timestamp at time zone 'Asia/Tashkent' from self_development sd where sd.id = st.source_id)
+      when 'task' then (
+        select least(st.created_at, coalesce(t.submitted_at, t.completed_at, t.deadline)) from tasks t where t.id = st.source_id)
+    end, st.created_at) as created_at
+  from star_transactions st
+  where st.source_type not in ('purchase', 'refund')`;
+
 export async function loadLeaderboard(): Promise<LeaderboardPerson[] | null> {
   return safe('leaderboard', async () => {
     const weekStart = tashkentMidnight(mondayKey()).toISOString();
@@ -289,7 +306,7 @@ export async function loadLeaderboard(): Promise<LeaderboardPerson[] | null> {
         coalesce(sum(st.delta) filter (where st.created_at >= ${monthStart}), 0)::int as month,
         coalesce(sum(st.delta) filter (where st.created_at >= ${prevMonthStart} and st.created_at < ${monthStart}), 0)::int as prev_month
       from profiles p
-      left join star_transactions st on st.user_id = p.id
+      left join (${earnedStars()}) st on st.user_id = p.id
       where p.is_active = true and p.role <> 'ceo'
       group by p.id
       order by p.first_name asc
@@ -469,7 +486,12 @@ export async function loadTasksDoneMonths(v: Viewer): Promise<MonthBar[] | null>
     const monthOf = (iso: string) => tashkentDayKey(new Date(iso)).slice(0, 7);
     const current = months[months.length - 1];
     return months.map((monthKey) => {
-      const complete = rows.filter((r) => r.status === 'done' && r.completed_at && monthOf(r.completed_at) === monthKey).length;
+      // Credit the month the work was handed in, not the (possibly later)
+      // approval: an October task approved on 2 November is October's.
+      const complete = rows.filter((r) => {
+        const at = r.submitted_at ?? r.completed_at;
+        return r.status === 'done' && at && monthOf(at) === monthKey;
+      }).length;
       const due = rows.filter((r) => r.deadline && monthOf(r.deadline) === monthKey).length;
       return { monthKey, complete, total: Math.max(due, complete), isCurrent: monthKey === current };
     });
@@ -763,7 +785,7 @@ export type MonthTopPerson = { id: string; name: string; avatarUrl: string | nul
 /** The three people who earned the most stars in the previous Tashkent
  * month — shown on everyone's dashboard for the whole following month.
  * Same population and metric as the leaderboard's "Oy" tab (active,
- * non-CEO, net stars within the month). Ties: whoever got there first. */
+ * non-CEO, net stars earned within the month). Ties: whoever got there first. */
 export async function loadLastMonthTop3(): Promise<{ month: string; people: MonthTopPerson[] } | null> {
   return safe('lastMonthTop3', async () => {
     const monthKey = startOfPreviousTashkentMonthKey();
@@ -771,7 +793,7 @@ export async function loadLastMonthTop3(): Promise<{ month: string; people: Mont
     const to = tashkentMidnight(startOfTashkentMonthKey()).toISOString();
     const rows = await sql<{ id: string; first_name: string; last_name: string; avatar_url: string | null; stars: number }[]>`
       select p.id, p.first_name, p.last_name, p.avatar_url, sum(st.delta)::int as stars
-      from star_transactions st
+      from (${earnedStars()}) st
       join profiles p on p.id = st.user_id
       where st.created_at >= ${from} and st.created_at < ${to}
         and p.is_active = true and p.role <> 'ceo'
