@@ -1073,10 +1073,11 @@ function StaffPanel({
   const pct = line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
 
   // B-nuqta: what the person earned this year vs the straight-line plan.
-  const preview = bp && (kind === 'bonus' || kind === 'penalty') && num > 0 && per.startsWith(String(bp.year)) ? ADD_KINDS[kind].sign * num : 0;
-  const bPct = bp && bp.target > 0 ? Math.round(((bp.earned + preview) / bp.target) * 100) : 0;
-  const bPlan = bp ? (bp.target * bp.monthsElapsed) / 12 : 0;
-  const left = bp ? 12 - bp.monthsElapsed : 0;
+  // B-nuqta = oylik maqsad: bonus/jarima faqat "hozir" ko'rsatilayotgan oy
+  // uchun qo'shilsa, o'sha oyning maoshini (va foizini) o'zgartiradi.
+  const preview = bp && (kind === 'bonus' || kind === 'penalty') && num > 0 && per === bp.currentPeriod ? ADD_KINDS[kind].sign * num : 0;
+  const bNow = bp ? Math.max(0, bp.current + preview) : 0;
+  const bPct = bp && bp.target > 0 ? Math.round((bNow / bp.target) * 100) : 0;
 
   // A split-advance share is part of one whole: it can only be removed
   // together with the advance (server deletes the group), not edited alone.
@@ -1308,20 +1309,26 @@ function StaffPanel({
           <>
             <div className="relative h-3 overflow-hidden rounded-full bg-au-card" role="img" aria-label={`B-nuqta ${bPct}%`}>
               <div className="absolute inset-y-0 left-0 rounded-full bg-au-accent" style={{ width: `${Math.min(100, bPct)}%` }} />
-              <div className="absolute inset-y-0 w-0.5 bg-au-ink" style={{ left: `${Math.min(100, Math.round((bPlan / bp.target) * 100))}%` }} title="Reja bo‘yicha shu vaqtgacha" />
+              {bp.start > 0 && (
+                <div className="absolute inset-y-0 w-0.5 bg-au-ink" style={{ left: `${Math.min(100, Math.round((bp.start / bp.target) * 100))}%` }} title="A-nuqta (boshlanish)" />
+              )}
             </div>
             <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-au-muted">
               <span>
-                Topildi <b className="text-au-ink tabular-nums">{som(bp.earned + preview)}</b> / {som(bp.target)}
+                Hozir <b className="text-au-ink tabular-nums">{som(bNow)}</b> / {som(bp.target)} so‘m oyiga
               </span>
-              <span className={cn('font-semibold', bp.earned + preview >= bPlan ? 'text-au-ok' : 'text-au-bad')}>
-                Rejadan {som(Math.abs(bp.earned + preview - bPlan))} {bp.earned + preview >= bPlan ? 'oldinda' : 'orqada'}
-              </span>
+              {bp.start > 0 && (
+                <span>
+                  A-nuqta <b className="text-au-ink tabular-nums">{som(bp.start)}</b>
+                </span>
+              )}
             </div>
             {preview !== 0 && <p className="text-xs font-semibold text-au-accent-text">Shu {ADD_KINDS[kind].n.toLowerCase()} bilan: {bPct}%</p>}
-            {left > 0 && bp.target > bp.earned && (
+            {bNow >= bp.target ? (
+              <p className="text-xs font-semibold text-au-ok">B-nuqtaga yetildi</p>
+            ) : (
               <p className="text-xs text-au-muted">
-                Maqsadga yetish uchun qolgan {left} oyda oyiga <b className="text-au-ink tabular-nums">{som((bp.target - bp.earned) / left)}</b> so‘m kerak
+                B-nuqtaga yetish uchun oylik yana <b className="text-au-ink tabular-nums">{som(bp.target - bNow)}</b> so‘m oshishi kerak
               </p>
             )}
           </>

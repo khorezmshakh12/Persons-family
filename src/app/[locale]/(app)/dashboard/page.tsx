@@ -343,7 +343,7 @@ async function BpointReminderSection({ userId }: { userId: string }) {
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="text-sm font-bold text-au-ink">B-nuqtangizni belgilang</span>
-        <span className="text-xs text-au-muted">{yr}-yil maosh maqsadingizni kiriting →</span>
+        <span className="text-xs text-au-muted">{yr}-yil uchun oylik maosh maqsadingizni kiriting →</span>
       </span>
     </Link>
   );

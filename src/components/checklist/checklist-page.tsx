@@ -67,12 +67,9 @@ export function ChecklistPage(props: {
     });
   };
 
+  // Boshqarish tabida rol almashtirish: tab saqlanadi, sahifa tepaga sakramaydi.
   function goRole(value: string) {
-    router.push(`${pathname}?role=${value}`);
-  }
-  function toggleManage() {
-    if (managing) router.push(`${pathname}?role=${role}`);
-    else router.push(`${pathname}?role=${role}&manage=1`);
+    router.replace(`${pathname}?tab=manage&role=${value}`, { scroll: false });
   }
 
   return (
@@ -80,7 +77,7 @@ export function ChecklistPage(props: {
       {/* Title row + manage picker */}
       <div className="flex flex-wrap items-center gap-2.5">
         <h2 className="flex-1 text-base font-bold text-au-ink">{roleLabel}</h2>
-        {canManage && (
+        {managing && canManage && (
           <div className="flex items-center gap-2">
             <div className="relative">
               <select
@@ -97,20 +94,6 @@ export function ChecklistPage(props: {
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-au-muted" />
             </div>
-            <button
-              type="button"
-              onClick={toggleManage}
-              aria-pressed={managing}
-              className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-au-ctl border px-3 text-sm font-semibold transition-colors',
-                managing
-                  ? 'border-au-accent bg-au-accent-soft text-au-accent-text'
-                  : 'border-au-line bg-au-card text-au-ink hover:bg-au-card-2',
-              )}
-            >
-              <Pencil className="size-3.5" />
-              {managing ? 'Ko‘rish' : 'Boshqarish'}
-            </button>
           </div>
         )}
       </div>

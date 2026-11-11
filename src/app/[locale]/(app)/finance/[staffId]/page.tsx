@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { BpointCard } from '@/components/finance/bpoint-card';
 import { BpointProgress } from '@/components/finance/bpoint-progress';
+import { bpointProgress } from '@/lib/bpoint';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -84,9 +85,10 @@ export async function FinanceDetailContent({
     isSelf ? loadReimbursements(staffId).catch(() => []) : Promise.resolve([]),
   ]);
 
-  // B-nuqta (yillik maosh maqsadi): topilgan = har oyning hisoblangan oyligi
-  // (pay run payable) yanvardan joriy oygacha, oyma-oy — bir oyning summasi
-  // boshqa oyga aralashmaydi (finance audit 2026-10-22).
+  // B-nuqta (oylik daromad maqsadi): har oyning o'z hisoblangan oyligi
+  // (pay run payable), yanvardan joriy oygacha — bir oyning summasi boshqa
+  // oyga aralashmaydi (finance audit 2026-10-22). A-nuqta = birinchi maoshli
+  // oy, "hozir" = oxirgi maoshli oy (src/lib/bpoint.ts).
   const nowYmd = tashkentYmd();
   const bYear = nowYmd.year;
   const upToMonth = nowYmd.month;
@@ -97,15 +99,10 @@ export async function FinanceDetailContent({
   const bpoint = bpRows[0] ?? null;
   const byMonth = new Array(12).fill(0) as number[];
   for (const m of ytd) byMonth[Number(m.period.slice(5, 7)) - 1] = m.planned;
-  const earnedYtd = byMonth.reduce((a, v) => a + v, 0);
   const bTarget = bpoint?.amount ?? 0;
-  // All 12 months, so the planned path to the B-nuqta shows ahead of today;
-  // months not reached yet carry no cumulative.
-  const bMonths: { label: string; cumulative: number | null; amount: number | null }[] = [];
-  for (let i = 0, cum = 0; i < 12; i++) {
-    cum += byMonth[i];
-    bMonths.push({ label: SHORT_UZ[i], cumulative: i < upToMonth ? Math.round(cum) : null, amount: i < upToMonth ? Math.round(byMonth[i]) : null });
-  }
+  const bProgress = bpointProgress(bTarget, byMonth, upToMonth - 1);
+  // All 12 months; months not reached yet carry no amount.
+  const bMonths = byMonth.map((v, i) => ({ label: SHORT_UZ[i], amount: i < upToMonth ? Math.round(v) : null }));
   const line = lines[0] ?? null;
   const roleName = roleLabel(tStaff, target.role);
 
@@ -174,16 +171,14 @@ export async function FinanceDetailContent({
           <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
             <BpointCard
               year={bYear}
-              amount={bTarget}
               note={bpoint?.note ?? null}
-              earnedYtd={earnedYtd}
-              monthsElapsed={Math.max(1, upToMonth)}
+              progress={bProgress}
               canEdit={isSelf || isCeo}
               staffId={staffId}
             />
           </div>
           <div style={{ animationDelay: '180ms' }} className="animate-fade-in-up">
-            <BpointProgress year={bYear} target={bTarget} months={bMonths} />
+            <BpointProgress year={bYear} progress={bProgress} months={bMonths} />
           </div>
           {isSelf && advances && <AdvancePanel advances={advances} />}
           {isSelf && <ReimbursePanel items={reimbursements} />}

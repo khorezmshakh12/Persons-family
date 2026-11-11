@@ -882,7 +882,7 @@ export function DashboardProgress({ data }: { data: ProgressBoardData }) {
           <span className={cn(MONO, 'text-[11px] tracking-[.16em] text-qp-mint')}>CHECKLIST VA MAQSADLAR</span>
           <h2 className="text-[22px] font-extrabold tracking-tight">Bugungi holat va oy dinamikasi</h2>
         </div>
-        <Link href="/task-tracker" className="inline-flex h-10 items-center gap-2 rounded-full border border-qp-mint/40 px-4 text-[13px] font-bold text-qp-mint hover:bg-qp-mint-soft">
+        <Link href="/task-tracker?tab=progress" className="inline-flex h-10 items-center gap-2 rounded-full border border-qp-mint/40 px-4 text-[13px] font-bold text-qp-mint hover:bg-qp-mint-soft">
           To‘liq statistika <ArrowRight className="size-4" />
         </Link>
       </header>
