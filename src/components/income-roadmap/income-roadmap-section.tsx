@@ -22,7 +22,7 @@ export async function IncomeRoadmapSection({
   staffId: string;
   canManage: boolean;
   year?: number;
-  /** The staff member's B-nuqta (yearly target) — drawn on the charts of its year. */
+  /** The staff member's B-nuqta (monthly target) — drawn on the charts of its year. */
   bpoint?: number;
   bpointYear?: number;
 }) {

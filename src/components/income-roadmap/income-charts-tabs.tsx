@@ -148,7 +148,7 @@ export function IncomeChartsTabs({
   months: IncomeRoadmapMonth[];
   targetYearEndIncome: number;
   milestones: IncomeRoadmapMilestone[];
-  /** Yearly B-nuqta; 0 when none is set for the shown year. */
+  /** Monthly B-nuqta (target monthly pay); 0 when none is set for the shown year. */
   bpoint?: number;
 }) {
   const t = useTranslations('incomeRoadmap');
@@ -175,7 +175,7 @@ export function IncomeChartsTabs({
 
   // Y-axis domain calculation
   const maxMonthlyVal = useMemo(() => {
-    let max = Math.max(targetYearEndIncome, bpoint / 12);
+    let max = Math.max(targetYearEndIncome, bpoint);
     for (const m of months) {
       if (m.planned > max) max = m.planned;
       if (m.actual !== null && m.actual > max) max = m.actual;
@@ -184,13 +184,13 @@ export function IncomeChartsTabs({
   }, [months, targetYearEndIncome, bpoint]);
 
   const maxCumulativeVal = useMemo(() => {
-    let max = bpoint;
+    let max = 0;
     for (const m of months) {
       if (m.cumulativePlanned > max) max = m.cumulativePlanned;
       if (m.actual !== null && m.cumulativeActual > max) max = m.cumulativeActual;
     }
     return (max || 1) * 1.08;
-  }, [months, bpoint]);
+  }, [months]);
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-au-line bg-au-card-2 p-4 shadow-sm">
@@ -219,7 +219,7 @@ export function IncomeChartsTabs({
                 {tab === 'monthly' ? t('planned') : t('cumulativePlanned')}
               </span>
             </div>
-            {bpoint > 0 && (
+            {bpoint > 0 && tab === 'monthly' && (
               <div className="flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-3 border-t-2 border-dashed border-au-accent" />
                 <span className="font-medium text-au-accent-text">B-nuqta</span>
@@ -269,14 +269,14 @@ export function IncomeChartsTabs({
                   />
                 )}
 
-                {/* B-nuqta spread over the year: what each month must bring */}
+                {/* B-nuqta: the monthly pay the person is aiming for */}
                 {bpoint > 0 && (
                   <ReferenceLine
-                    y={bpoint / 12}
+                    y={bpoint}
                     stroke="var(--au-accent)"
                     strokeWidth={2}
                     strokeDasharray="6 4"
-                    label={{ value: `B-nuqta ÷ 12 · ${compact(bpoint / 12)}`, position: 'insideTopRight', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
+                    label={{ value: `B-nuqta · ${compact(bpoint)}/oy`, position: 'insideTopRight', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
                   />
                 )}
 
@@ -364,17 +364,6 @@ export function IncomeChartsTabs({
                   tickFormatter={compact}
                 />
                 <Tooltip content={<CustomCumulativeTooltip t={t} />} />
-
-                {/* B-nuqta: where the cumulative plan must arrive by December */}
-                {bpoint > 0 && (
-                  <ReferenceLine
-                    y={bpoint}
-                    stroke="var(--au-accent)"
-                    strokeWidth={2}
-                    strokeDasharray="6 4"
-                    label={{ value: `B-nuqta · ${formatUZS(bpoint)}`, position: 'insideTopLeft', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
-                  />
-                )}
 
                 {/* Cumulative Planned Line */}
                 <Line
