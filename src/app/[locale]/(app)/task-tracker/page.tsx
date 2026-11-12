@@ -6,7 +6,7 @@ import { loadChecklist } from '@/lib/checklist-data';
 import { loadTeamChecklistStats } from '@/lib/checklist-stats';
 import { loadProgressBoard } from '@/lib/progress-board-data';
 import { isTeacherRole, teacherHasLessonOn } from '@/lib/teacher-schedule';
-import { tashkentDayKey, tashkentYmd } from '@/lib/time';
+import { tashkentDayKey } from '@/lib/time';
 import { ChecklistPage } from '@/components/checklist/checklist-page';
 import { ProgressBoard } from '@/components/checklist/progress-board';
 import { TeamChecklistTable } from '@/components/checklist/team-checklist-table';
@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export default async function TaskTrackerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string; manage?: string; tab?: string }>;
+  searchParams: Promise<{ role?: string; manage?: string; tab?: string; date?: string }>;
 }) {
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'taskTracker')) notFound();
@@ -33,6 +33,9 @@ export default async function TaskTrackerPage({
   // Boshqa rol faqat Boshqarish tabida tanlanadi; "Mening checklistim" doim o'z roli.
   const requested = managing && sp.role && (ROLES as readonly string[]).includes(sp.role) ? sp.role : null;
   const effectiveRole = requested ?? profile.role;
+  // Jamoa tabi: istalgan o'tgan sana (?date=YYYY-MM-DD), kelajak emas.
+  const today = tashkentDayKey();
+  const teamDay = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) && sp.date <= today ? sp.date : today;
 
   // Ustozlar uchun: bugun dars bo'lmasa kunlik checklist talab qilinmaydi.
   const gateTeacher = !managing && isTeacherRole(effectiveRole);
@@ -42,7 +45,7 @@ export default async function TaskTrackerPage({
     getTranslations('staff.roles'),
     gateTeacher && tab === 'mine' ? teacherHasLessonOn(profile.id, tashkentDayKey()) : Promise.resolve(true),
     tab === 'progress' ? loadProgressBoard(profile.id, profile.role) : Promise.resolve(null),
-    tab === 'team' ? loadTeamChecklistStats() : Promise.resolve([]),
+    tab === 'team' ? loadTeamChecklistStats(teamDay) : Promise.resolve([]),
   ]);
 
   const dailyLocked = gateTeacher && !lessonToday;
@@ -51,7 +54,7 @@ export default async function TaskTrackerPage({
   const roleLabelOf = (r: string) => ((ROLES as readonly string[]).includes(r) ? tRoles(r) : r);
   const roles = canManage ? ROLES.map((r) => ({ value: r, label: roleLabelOf(r) })) : [];
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabelOf(r)]));
-  const { year, month, day } = tashkentYmd();
+  const [year, month, day] = teamDay.split('-').map(Number);
   const periodLabel = `${day}-${MONTHS_UZ[month - 1]}, ${year}`;
 
   const checklist = finalData && (
@@ -74,7 +77,7 @@ export default async function TaskTrackerPage({
         panels={{
           mine: tab === 'mine' ? checklist : null,
           manage: managing ? checklist : null,
-          team: tab === 'team' ? <TeamChecklistTable rows={teamRows} roleLabels={roleLabels} periodLabel={periodLabel} /> : null,
+          team: tab === 'team' ? <TeamChecklistTable rows={teamRows} roleLabels={roleLabels} periodLabel={periodLabel} day={teamDay} today={today} /> : null,
           progress: board && <ProgressBoard data={board} roleLabel={roleLabelOf(profile.role)} />,
         }}
       />
