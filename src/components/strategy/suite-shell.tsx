@@ -82,7 +82,7 @@ export function ask(msg: string, opts: { ok?: string; danger?: boolean } = {}): 
   });
 }
 
-function AskHost() {
+export function AskHost() {
   const [req, setReq] = useState<AskReq | null>(null);
   const okRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {

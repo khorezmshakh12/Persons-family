@@ -190,7 +190,8 @@ export type Capability =
   | 'operations.edit'
   | 'operations.balanceFix' // Operation HQ › remove a wrong minus from a student's balance
   | 'checklist.manage'
-  | 'hr.manage'; // HR hub: barcha xodimlar profili, tuzilma, onboarding (oylik/moliya emas)
+  | 'hr.manage' // HR hub: barcha xodimlar profili, tuzilma, onboarding (oylik/moliya emas)
+  | 'growth.review'; // HR › Roadmap: topshirilgan roadmap'lar, bosqich tasdig'i
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -226,6 +227,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'checklist.manage': ['ceo', 'coo'],
   // HR hub boshqaruvi — staff.manage egalari + HR (owner, 2026-11-12).
   'hr.manage': [...LEADERSHIP, 'admin_manager', 'it_developer', 'hr_manager'],
+  // Xodim roadmap bosqichini faqat CEO tasdiqlaydi (owner, 2026-11-12).
+  'growth.review': ['ceo'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
