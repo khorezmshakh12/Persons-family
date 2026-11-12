@@ -205,7 +205,8 @@
       "operations_manager": "Operations Manager",
       "sales_manager": "Sales Manager",
       "event_manager": "Event Manager",
-      "office_manager": "Office Manager"
+      "office_manager": "Office Manager",
+      "hr_manager": "HR Manager (Human Resources Management)"
     },
     "status": {
       "active": "Active",

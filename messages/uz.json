@@ -205,7 +205,8 @@
       "operations_manager": "Operatsion menejer",
       "sales_manager": "Sotuv bo'limi menejeri",
       "event_manager": "Tadbirlar menejeri",
-      "office_manager": "Ofis menejeri"
+      "office_manager": "Ofis menejeri",
+      "hr_manager": "HR menejeri (Humans Research Management)"
     },
     "status": {
       "active": "Faol",

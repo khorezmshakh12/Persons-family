@@ -36,7 +36,7 @@ const DEPT_LABEL: Record<Department, string> = {
 export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; day?: string }> }) {
   const { tab: tabParam, day: dayParam } = await searchParams;
   const { profile } = await getAuthState();
-  const isManager = !!profile && can(profile.role, 'staff.manage');
+  const isManager = !!profile && can(profile.role, 'hr.manage');
   const overview = !!profile && can(profile.role, 'company.overview');
   // Davomat — CEO, COO and Admin Manager only (SECTION_ROLES.attendance).
   const marksAttendance = !!profile && canSeeFor(profile, 'attendance');

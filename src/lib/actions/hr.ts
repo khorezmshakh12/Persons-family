@@ -29,7 +29,7 @@ const employmentSchema = z.object({
 /** Hire date and probation end (tenure, anniversaries, probation reminders). */
 export async function updateEmploymentAction(input: z.input<typeof employmentSchema>): Promise<Result> {
   try {
-    await requireCap('staff.manage');
+    await requireCap('hr.manage');
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -51,7 +51,7 @@ export async function updateEmploymentAction(input: z.input<typeof employmentSch
 export async function startOnboardingAction(userId: string): Promise<Result> {
   let by: string;
   try {
-    ({ user: { id: by } } = await requireCap('staff.manage'));
+    ({ user: { id: by } } = await requireCap('hr.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -76,7 +76,7 @@ const addSchema = z.object({ userId: z.string().uuid(), title: z.string().trim()
 export async function addOnboardingItemAction(input: z.input<typeof addSchema>): Promise<Result> {
   let by: string;
   try {
-    ({ user: { id: by } } = await requireCap('staff.manage'));
+    ({ user: { id: by } } = await requireCap('hr.manage'));
   } catch (error) {
     return { error: authErrorCode(error) };
   }
@@ -99,7 +99,7 @@ export async function toggleOnboardingItemAction(itemId: string, done: boolean):
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
   if (!z.string().uuid().safeParse(itemId).success) return { error: 'invalidInput' };
-  const manager = can(profile.role, 'staff.manage');
+  const manager = can(profile.role, 'hr.manage');
   try {
     const res = await sql`
       update onboarding_items set done_at = ${done ? sql`now()` : null}, done_by = ${done ? user.id : null}

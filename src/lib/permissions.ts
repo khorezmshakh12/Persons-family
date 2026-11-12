@@ -24,6 +24,7 @@ export const ROLES = [
   'operations_manager',
   'admin_manager',
   'office_manager',
+  'hr_manager',
   'sales_manager',
   'event_manager',
   'project_manager',
@@ -55,6 +56,7 @@ export const ROLE_DEPT: Record<Role, Department> = {
   operations_manager: 'ops',
   admin_manager: 'hr',
   office_manager: 'ops',
+  hr_manager: 'hr',
   project_manager: 'ops',
   it_developer: 'ops',
 };
@@ -74,6 +76,7 @@ export const MANAGES: Record<Role, Role[]> = {
   project_manager: ['it_developer'],
   admin_manager: [],
   office_manager: [],
+  hr_manager: [],
   financist: [],
   sales_manager: [],
   event_manager: [],
@@ -157,7 +160,8 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   ],
   platform: LEADERSHIP,
   // Xodimlar davomati — only these three mark attendance (owner, 2026-10-14).
-  attendance: ['ceo', 'coo', 'admin_manager'],
+  // HR (Humans Research Management) ham davomat yuritadi (owner, 2026-11-12).
+  attendance: ['ceo', 'coo', 'admin_manager', 'hr_manager'],
   telegramSetup: ['ceo', 'coo', 'it_developer'],
 };
 
@@ -185,7 +189,8 @@ export type Capability =
   | 'accounting.edit'
   | 'operations.edit'
   | 'operations.balanceFix' // Operation HQ › remove a wrong minus from a student's balance
-  | 'checklist.manage';
+  | 'checklist.manage'
+  | 'hr.manage'; // HR hub: barcha xodimlar profili, tuzilma, onboarding (oylik/moliya emas)
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -219,6 +224,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'operations.balanceFix': ['ceo', 'coo', 'office_manager'],
   // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
   'checklist.manage': ['ceo', 'coo'],
+  // HR hub boshqaruvi — staff.manage egalari + HR (owner, 2026-11-12).
+  'hr.manage': [...LEADERSHIP, 'admin_manager', 'it_developer', 'hr_manager'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
