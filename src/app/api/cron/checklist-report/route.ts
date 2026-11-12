@@ -50,7 +50,13 @@ async function handle(req: NextRequest): Promise<Response> {
       select p.id, p.first_name, p.last_name, p.role,
         coalesce(tt.total, 0)::int as total,
         coalesce(dd.done, 0)::int as done
-      from profiles p
+      from (
+        -- Har bir lavozim (asosiy + profile_roles) alohida qator: belgi faol rol bo'yicha saqlanadi.
+        select id, first_name, last_name, role::text as role from profiles where is_active = true
+        union
+        select pr.id, pr.first_name, pr.last_name, r.role::text from profile_roles r
+        join profiles pr on pr.id = r.user_id and pr.is_active = true
+      ) p
       left join (
         select role, count(*) as total from checklist_templates
         where cadence = 'daily' and active group by role
@@ -62,7 +68,6 @@ async function handle(req: NextRequest): Promise<Response> {
         where k.period_key = ${yKey} and t.cadence = 'daily' and t.active
         group by t.role, k.user_id
       ) dd on dd.user_id = p.id and dd.role = p.role
-      where p.is_active = true
       order by p.first_name, p.last_name
     `.catch(() => []),
     sql<{ telegram_id: number | null }[]>`select telegram_id from profiles where (role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = profiles.id and r.role = 'ceo'))`,
