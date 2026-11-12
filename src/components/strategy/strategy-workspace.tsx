@@ -4,11 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import {
   CalendarRange,
   Columns3,
-  GitBranch,
   LayoutDashboard,
   List,
   Plus,
-  Route,
   Search,
   Clock,
   X,
@@ -16,7 +14,6 @@ import {
   LineChart,
   Settings2,
   Target,
-  Map as MapIcon,
   Hammer,
   Briefcase,
   Network,
@@ -95,15 +92,7 @@ const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: stri
       { v: 'tree', n: 'Daraxt', Icon: Network },
     ],
   },
-  {
-    g: 'plan',
-    n: 'Reja',
-    Icon: MapIcon,
-    views: [
-      { v: 'roadmap', n: 'Roadmap', Icon: Route },
-      { v: 'mind', n: 'Mind map', Icon: GitBranch },
-    ],
-  },
+  // Reja (Roadmap · Mind map) HR › Roadmap · Mind map'ga ko'chdi (owner, 2026-11-12).
   {
     g: 'exec',
     n: 'Ijro',

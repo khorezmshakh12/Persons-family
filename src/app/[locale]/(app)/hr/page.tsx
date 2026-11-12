@@ -10,9 +10,11 @@ import { loadEmployeeTaskStats } from '@/lib/aurora-dashboard';
 import { DAY_RE } from '@/lib/attendance';
 import { loadAttendanceRows } from '@/lib/attendance-data';
 import { loadHrPeople, loadOnboarding } from '@/lib/hr-data';
-import { can, canSeeFor, ROLES, ROLE_DEPT, type Department } from '@/lib/permissions';
+import { can, canFor, canSeeFor, ROLES, ROLE_DEPT, type Department } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { CareerRoadmap } from '@/components/hr/career-roadmap';
+import { GrowthWorkspace, type GrowthView } from '@/components/hr/growth-workspace';
+import { loadGrowthPlan, loadGrowthTeam } from '@/lib/hr-growth-data';
 import { roleLabel } from '@/lib/roles';
 import { tashkentDayKey } from '@/lib/time';
 import { cn } from '@/lib/utils';
@@ -33,19 +35,20 @@ const DEPT_LABEL: Record<Department, string> = {
  * hiring and the month-end bonus still run in Core (their data lives in
  * core_state), so they stay one tab away instead of being lost.
  */
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; day?: string }> }) {
-  const { tab: tabParam, day: dayParam } = await searchParams;
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; day?: string; v?: string; person?: string }> }) {
+  const { tab: tabParam, day: dayParam, v: viewParam, person: personParam } = await searchParams;
   const { profile } = await getAuthState();
-  const isManager = !!profile && can(profile.role, 'staff.manage');
+  const isManager = !!profile && can(profile.role, 'hr.manage');
   const overview = !!profile && can(profile.role, 'company.overview');
   // Davomat — CEO, COO and Admin Manager only (SECTION_ROLES.attendance).
   const marksAttendance = !!profile && canSeeFor(profile, 'attendance');
 
-  const allTabs: { k: HrTab | 'core' | 'attendance' | 'roadmap'; n: string }[] = isManager
+  const allTabs: { k: HrTab | 'core' | 'attendance' | 'roadmap' | 'growth'; n: string }[] = isManager
     ? [
         { k: 'people', n: 'Xodimlar' },
         { k: 'org', n: 'Tuzilma' },
         { k: 'roadmap', n: 'Rivojlanish' },
+        { k: 'growth', n: 'Roadmap · Mind map' },
         { k: 'onboarding', n: 'Onboarding' },
         { k: 'analytics', n: 'Tahlil' },
         { k: 'attendance', n: 'Davomat' },
@@ -54,16 +57,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     : [
         { k: 'people', n: 'Mening profilim' },
         { k: 'roadmap', n: 'Rivojlanish' },
+        { k: 'growth', n: 'Roadmap · Mind map' },
         { k: 'core', n: 'Ta’til va davomat' },
       ];
   const tabs = allTabs.filter((t) => t.k !== 'attendance' || marksAttendance);
-  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance' | 'roadmap';
+  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance' | 'roadmap' | 'growth';
   const today = tashkentDayKey();
   const day = dayParam && DAY_RE.test(dayParam) ? dayParam : today;
 
   const tStaff = await getTranslations('staff');
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabel(tStaff, r)]));
-  const native = tab !== 'core' && tab !== 'attendance' && tab !== 'roadmap';
+  const native = tab !== 'core' && tab !== 'attendance' && tab !== 'roadmap' && tab !== 'growth';
   const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
   const onboarding = !native ? [] : await loadOnboarding(people.map((p) => p.id));
   const attendance = tab === 'attendance' ? await loadAttendanceRows(day) : null;
@@ -83,6 +87,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         from position_requests pr join profiles p on p.id = pr.user_id
         where pr.status = 'pending' order by pr.created_at`.catch(() => [])
     : [];
+
+  // Roadmap · Mind map: o'z rejasi; CEO (growth.review) jamoanikini ham ko'radi.
+  const canReview = !!profile && canFor(profile, 'growth.review');
+  const growthPerson = tab === 'growth' && canReview && personParam && personParam !== profile?.id && /^[0-9a-f-]{36}$/.test(personParam) ? personParam : null;
+  const [growthMe, growthViewed, growthTeam] = tab === 'growth' && profile
+    ? await Promise.all([
+        loadGrowthPlan(profile.id),
+        growthPerson ? loadGrowthPlan(growthPerson, true) : Promise.resolve(null),
+        canReview ? loadGrowthTeam() : Promise.resolve(null),
+      ])
+    : [null, null, null];
 
   return (
     <div className="flex flex-col gap-5">
@@ -120,6 +135,18 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               requests={myRequests}
               isCeo={isCeoHeld}
               queue={roadmapQueue.map((q) => ({ id: q.id, name: q.name || '—', role: q.role, label: roleLabels[q.role] ?? q.role }))}
+            />
+          </div>
+        )}
+        {growthMe && (
+          <div className="-mx-4 pb-8 sm:-mx-7">
+            <GrowthWorkspace
+              key={`${growthViewed?.userId ?? growthMe.userId}`}
+              me={growthMe}
+              viewed={growthViewed}
+              team={growthTeam}
+              canReview={canReview}
+              initialView={(viewParam === 'mind' ? 'mind' : 'roadmap') as GrowthView}
             />
           </div>
         )}

@@ -205,7 +205,8 @@
       "operations_manager": "Операционный менеджер",
       "sales_manager": "Менеджер отдела продаж",
       "event_manager": "Ивент-менеджер",
-      "office_manager": "Офис-менеджер"
+      "office_manager": "Офис-менеджер",
+      "hr_manager": "HR-менеджер (управление персоналом)"
     },
     "status": {
       "active": "Активен",

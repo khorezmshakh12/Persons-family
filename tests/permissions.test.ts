@@ -49,6 +49,7 @@ const EXPECTED: Record<Role, SectionKey[]> = {
   operations_manager: ['operations'],
   admin_manager: ['staff', 'operations', 'attendance'],
   office_manager: ['operations'],
+  hr_manager: ['attendance'],
   sales_manager: ['sales', 'operations'],
   event_manager: ['operations'],
   project_manager: ['strategy', 'operations'],

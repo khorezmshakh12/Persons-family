@@ -52,6 +52,7 @@ const ROLE_TITLE: Record<string, string> = {
   financist: 'Moliyachi',
   operations_manager: 'Operatsion menejer',
   office_manager: 'Ofis menejeri',
+  hr_manager: 'HR menejeri',
   sales_manager: "Sotuv bo'limi menejeri",
   event_manager: 'Tadbirlar menejeri',
 };

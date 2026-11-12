@@ -117,6 +117,7 @@ export const KPI_TEMPLATES: Record<Role, Tpl[]> = {
   operations_manager: MANAGER,
   admin_manager: MANAGER,
   office_manager: MANAGER,
+  hr_manager: MANAGER,
   sales_manager: SALES,
   event_manager: EVENTS,
   project_manager: [{ title: 'Yopiladigan loyihalar (nomi bilan)', kind: 'projects', unit: 'ta' }, ...MANAGER.slice(2)],
