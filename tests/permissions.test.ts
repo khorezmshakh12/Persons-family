@@ -17,6 +17,10 @@ import {
   canFor,
   canSee,
   canSeeFor,
+  ACCESS_KEYS,
+  SECTION_FUNCTIONS,
+  isCeoOnlyAccessKey,
+  roleDefault,
   type Role,
   type SectionKey,
 } from '../src/lib/permissions';
@@ -93,6 +97,27 @@ test('working as CEO ignores per-person closes set for another position', () => 
     assert.equal(canSeeFor({ role: 'it_developer', ...closed }, s), false, s);
   }
   assert.equal(canFor({ role: 'ceo', ...closed }, 'strategy.edit'), can('ceo', 'strategy.edit'));
+});
+
+test('section access v2: function overrides (owner, 2026-11-13)', () => {
+  // A function key override opens / closes the capability itself.
+  assert.equal(canFor({ role: 'hr_manager', section_overrides: { 'selfDev.viewAll': true } }, 'selfDev.viewAll'), true);
+  assert.equal(canFor({ role: 'hr_manager' }, 'selfDev.viewAll'), false);
+  assert.equal(canFor({ role: 'coo', section_overrides: { 'checklist.manage': false } }, 'checklist.manage'), false);
+  // A function override wins over its section's override.
+  assert.equal(canFor({ role: 'teacher', section_overrides: { strategy: true, 'strategy.edit': false } }, 'strategy.edit'), false);
+  // Rating moves pay — only the CEO may hand it out.
+  assert.equal(isCeoOnlyAccessKey('selfDev.review'), true);
+  assert.equal(isCeoOnlyAccessKey('selfDev.viewAll'), false);
+  assert.equal(isCeoOnlyAccessKey('finance'), true);
+  // Every function key is storable and resolves a default.
+  for (const fs of Object.values(SECTION_FUNCTIONS))
+    for (const f of fs!) {
+      assert.ok(ACCESS_KEYS.includes(f.key), f.key);
+      assert.equal(typeof roleDefault('hr_manager', f.key), 'boolean');
+    }
+  assert.equal(roleDefault('hr_manager', 'attendance'), true);
+  assert.equal(roleDefault('hr_manager', 'selfDev.viewAll'), false);
 });
 
 test('unknown / stale roles fail closed', () => {

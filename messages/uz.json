@@ -1199,6 +1199,11 @@
         "done": "Yangiliklarga chiqarildi",
         "failed": "Chiqarib bo‘lmadi"
       }
+    },
+    "team": {
+      "title": "Jamoa hisobotlari",
+      "hint": "Oxirgi 3 oy, faqat o'qish uchun. CEO va COO hisobotlari ko'rinmaydi.",
+      "empty": "Hozircha jamoa hisoboti yo'q"
     }
   },
   "performance": {
@@ -2141,6 +2146,39 @@
         "invalidInput": "Noto'g'ri ma'lumot",
         "sessionExpired": "Sessiya tugagan — qayta kiring",
         "saveFailed": "Saqlab bo'lmadi, qayta urinib ko'ring"
+      },
+      "mode": "Rejim",
+      "byRole": "Rollar bo'yicha",
+      "byPerson": "Xodim bo'yicha",
+      "role": "Rol",
+      "hintRole": "Shu roldagi barcha xodimlarga ta'sir qiladi. Xodimga alohida qo'yilgan sozlama ustun turadi. «Faqat CEO» funksiyalarni faqat CEO o'zgartiradi.",
+      "byRoleOn": "Rol bo'yicha · ochiq",
+      "byRoleOff": "Rol bo'yicha · yopiq",
+      "functionsOf": "{section} funksiyalari",
+      "fnCount": "{n} funksiya",
+      "summary": "{who} hozir quyidagi funksiyalarga ega:",
+      "none": "hech biri",
+      "fn": {
+        "selfDev_viewAll": {
+          "name": "Hammaning hisobotini ko'rish",
+          "desc": "Xodimlarning oylik hisobotlari, faqat o'qish (CEO va COO'nikidan tashqari)"
+        },
+        "selfDev_review": {
+          "name": "Baholash · bonus · yulduz",
+          "desc": "Bahoga qarab bonus va yulduz beriladi"
+        },
+        "checklist_manage": {
+          "name": "Shablonlarni tahrirlash",
+          "desc": "Rol bo'yicha bandlarni qo'shish, o'chirish va jamoa statistikasi"
+        },
+        "attendance": {
+          "name": "Davomat yuritish",
+          "desc": "Xodimlar davomatini belgilash"
+        },
+        "growth_review": {
+          "name": "Roadmap bosqichini tasdiqlash",
+          "desc": "Xodim roadmap bosqichini yopish"
+        }
       }
     },
     "targets": {

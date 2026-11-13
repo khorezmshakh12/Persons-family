@@ -176,6 +176,7 @@ export type Capability =
   | 'contracts.manage'
   | 'kpi.manage'
   | 'selfDev.review' // rate monthly self-development reports
+  | 'selfDev.viewAll' // read everyone's self-development reports (CEO/COO's excluded)
   | 'issues.manage' // the full issues board
   | 'news.publish' // company news + platform announcements
   | 'market.manage' // Persons Market catalogue + order decisions
@@ -207,6 +208,9 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Everyone but the CEO submits a self-development report; reviewing
   // stays with the CEO.
   'selfDev.review': ['ceo'],
+  // Hammaning hisobotini faqat o'qish — rol/xodimga Section access orqali
+  // beriladi (HR, owner 2026-11-13).
+  'selfDev.viewAll': ['ceo'],
   'issues.manage': [...LEADERSHIP, 'operations_manager', 'it_developer'],
   'news.publish': [...LEADERSHIP, 'admin_manager', 'event_manager', 'commercial_director'],
   'market.manage': [...LEADERSHIP, 'admin_manager'],
@@ -319,6 +323,9 @@ export function canFor(
 ): boolean {
   if (!p) return false;
   if (p.role === 'ceo') return can(p.role, cap);
+  // Funksiya darajasidagi override (Section access › funksiyalar) avval.
+  const own = p.section_overrides?.[cap];
+  if (typeof own === 'boolean') return own;
   const sec = CAP_SECTION[cap];
   const o = sec ? p.section_overrides?.[sec] : undefined;
   return typeof o === 'boolean' ? o : can(p.role, cap);
@@ -332,3 +339,26 @@ export const OVERRIDABLE_SECTIONS: SectionKey[] = [
   'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'market', 'telegramSetup', 'materials',
 ];
 export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];
+
+/** Functions inside a section that Section access can open / close per role
+ * or per person (owner, 2026-11-13). A key is a Capability (checked with
+ * canFor) or a section-like key (checked with canSeeFor, e.g. attendance). */
+export type AccessFunction = { key: Capability | SectionKey; ceoOnly?: boolean };
+export const SECTION_FUNCTIONS: Partial<Record<SectionKey, AccessFunction[]>> = {
+  selfDevelopment: [{ key: 'selfDev.viewAll' }, { key: 'selfDev.review', ceoOnly: true }],
+  taskTracker: [{ key: 'checklist.manage' }],
+  hr: [{ key: 'attendance' }, { key: 'growth.review', ceoOnly: true }],
+};
+export const FUNCTION_KEYS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.map((f) => f.key));
+const CEO_ONLY_FUNCTIONS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.filter((f) => f.ceoOnly).map((f) => f.key));
+
+/** Every key Section access may store, and whether only the CEO may set it. */
+export const ACCESS_KEYS: string[] = [...OVERRIDABLE_SECTIONS, ...FUNCTION_KEYS];
+export function isCeoOnlyAccessKey(key: string): boolean {
+  return (CEO_ONLY_OVERRIDES as string[]).includes(key) || CEO_ONLY_FUNCTIONS.includes(key);
+}
+
+/** The code default (no override) of an access key for one role. */
+export function roleDefault(role: string, key: string): boolean {
+  return key in CAP_ROLES ? can(role, key as Capability) : canSee(role, key as SectionKey);
+}

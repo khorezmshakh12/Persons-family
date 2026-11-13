@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAuthState } from '@/lib/auth/session';
-import { can } from '@/lib/permissions';
+import { canFor } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { addDaysToKey, tashkentDayKey, tashkentWeekKey, tashkentMonthKey } from '@/lib/time';
 
@@ -54,7 +54,7 @@ export async function toggleTemplateTickAction(templateId: string, cadence: Cade
 export async function addTemplateAction(input: { role: string; cadence: Cadence; title: string; detail?: string }): Promise<ChecklistResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
-  if (!can(profile.role, 'checklist.manage')) return { error: 'forbidden' };
+  if (!canFor(profile, 'checklist.manage')) return { error: 'forbidden' };
   const role = (input.role ?? '').trim();
   const cadence = input.cadence;
   const title = (input.title ?? '').trim();
@@ -80,7 +80,7 @@ export async function addTemplateAction(input: { role: string; cadence: Cadence;
 export async function editTemplateAction(input: { id: string; title: string; detail?: string }): Promise<ChecklistResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
-  if (!can(profile.role, 'checklist.manage')) return { error: 'forbidden' };
+  if (!canFor(profile, 'checklist.manage')) return { error: 'forbidden' };
   const id = input.id;
   const title = (input.title ?? '').trim();
   const detail = (input.detail ?? '').trim();
@@ -101,7 +101,7 @@ export async function editTemplateAction(input: { id: string; title: string; det
 export async function deleteTemplateAction(id: string): Promise<ChecklistResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
-  if (!can(profile.role, 'checklist.manage')) return { error: 'forbidden' };
+  if (!canFor(profile, 'checklist.manage')) return { error: 'forbidden' };
   if (!id) return { error: 'badRequest' };
   try {
     await sql`delete from checklist_templates where id = ${id}`;
@@ -116,7 +116,7 @@ export async function deleteTemplateAction(id: string): Promise<ChecklistResult>
 export async function reorderTemplatesAction(ids: string[]): Promise<ChecklistResult> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
-  if (!can(profile.role, 'checklist.manage')) return { error: 'forbidden' };
+  if (!canFor(profile, 'checklist.manage')) return { error: 'forbidden' };
   if (!Array.isArray(ids) || ids.length === 0) return { error: 'badRequest' };
   try {
     await sql.begin(async (tx) => {

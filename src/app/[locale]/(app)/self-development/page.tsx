@@ -24,7 +24,7 @@ import {
 import { ExportButtons } from '@/components/export/export-buttons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { can } from '@/lib/permissions';
+import { can, canFor } from '@/lib/permissions';
 import { BgVideo } from '@/components/motion/bg-video';
 import { GoalForm } from '@/components/self-development/goal-form';
 import {
@@ -384,6 +384,27 @@ export default async function SelfDevelopmentPage({
 
   // This month at a glance: goal, days left, streak, latest rubric.
   const currentMonth = firstOfCurrentMonth();
+
+  // Read-only team reports (Section access › selfDev.viewAll, e.g. HR):
+  // last three months, CEO and COO excluded.
+  const viewAll = canFor(profile, 'selfDev.viewAll');
+  const teamSubs = viewAll
+    ? await sql<Submission[]>`
+        select
+          sd.id, sd.month, sd.achievements, sd.value_added, sd.ceo_rating, sd.ceo_score, null as bonus_amount, sd.user_id,
+          sd.kind, sd.hours, sd.evidence_url, sd.rubric, null as ai_rubric, g.goal,
+          null as star_award,
+          json_build_object('first_name', p.first_name, 'last_name', p.last_name, 'role', p.role, 'teacher_level', p.teacher_level) as author
+        from self_development sd
+        join profiles p on p.id = sd.user_id
+        left join self_dev_goals g on g.user_id = sd.user_id and g.month = sd.month
+        where sd.user_id <> ${user!.id}
+          and sd.month >= ${shiftMonth(currentMonth, -2)}
+          and p.role::text not in ('ceo', 'coo')
+          and not exists (select 1 from profile_roles r where r.user_id = p.id and r.role::text in ('ceo', 'coo'))
+        order by sd.month desc, p.first_name asc
+      `
+    : [];
   const [goalRow] = await sql<{ goal: string }[]>`
     select goal from self_dev_goals where user_id = ${user!.id} and month = ${currentMonth}`.catch(() => []);
   const { year, month, day } = tashkentYmd();
@@ -476,6 +497,36 @@ export default async function SelfDevelopmentPage({
               </div>
             )}
           </div>
+
+          {viewAll && (
+            <div className="flex flex-col gap-4">
+              <div>
+                <h2 className="font-heading text-au-ink text-lg font-semibold">{t('team.title')}</h2>
+                <p className="text-au-muted text-sm">{t('team.hint')}</p>
+              </div>
+              {teamSubs.length === 0 ? (
+                <p className="text-au-muted text-sm">{t('team.empty')}</p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <ExpandCollapseControls
+                    count={teamSubs.length}
+                    storageKeyPrefix="team-submission"
+                    itemIds={teamSubs.map((s) => s.id)}
+                  />
+                  {teamSubs.map((s, index) => (
+                    <SubmissionCard
+                      key={s.id}
+                      submission={s}
+                      isAdmin={false}
+                      showAuthor
+                      delayMs={Math.min(index, 10) * 60}
+                      storageKeyPrefix="team-submission"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <aside className="flex min-w-0 flex-col gap-4">
           <StreakCard streak={myStreak} months={last12} />

@@ -35,6 +35,7 @@ export async function SubmissionCard({
   defaultOpen = false,
   storageKeyPrefix = 'submission',
   canWithdraw = false,
+  showAuthor = false,
 }: {
   submission: Submission;
   /** Whoever can rate/score a submission at all — CEO-only. */
@@ -44,10 +45,12 @@ export async function SubmissionCard({
   storageKeyPrefix?: string;
   /** The author's own view: offer "take it back" while unevaluated. */
   canWithdraw?: boolean;
+  /** Read-only team view (selfDev.viewAll): name the author without rating tools. */
+  showAuthor?: boolean;
 }) {
   const t = await getTranslations('selfDevelopment');
 
-  const headerContent = isAdmin && submission.author ? (
+  const headerContent = (isAdmin || showAuthor) && submission.author ? (
     <span>
       {submission.author.first_name} {submission.author.last_name}
     </span>

@@ -1199,6 +1199,11 @@
         "done": "Published to news",
         "failed": "Could not publish"
       }
+    },
+    "team": {
+      "title": "Team reports",
+      "hint": "Last 3 months, read-only. CEO and COO reports are not shown.",
+      "empty": "No team reports yet"
     }
   },
   "performance": {
@@ -2141,6 +2146,39 @@
         "invalidInput": "Invalid input",
         "sessionExpired": "Session expired — sign in again",
         "saveFailed": "Couldn't save, try again"
+      },
+      "mode": "Mode",
+      "byRole": "By role",
+      "byPerson": "By person",
+      "role": "Role",
+      "hintRole": "Applies to everyone in this role. A person's own setting wins. CEO-only functions can be changed by the CEO only.",
+      "byRoleOn": "By role · on",
+      "byRoleOff": "By role · off",
+      "functionsOf": "{section} functions",
+      "fnCount": "{n} functions",
+      "summary": "{who} currently has these functions:",
+      "none": "none",
+      "fn": {
+        "selfDev_viewAll": {
+          "name": "See everyone's reports",
+          "desc": "Monthly reports of all staff, read-only (except CEO and COO)"
+        },
+        "selfDev_review": {
+          "name": "Rate · bonus · stars",
+          "desc": "The rating sets bonus and stars"
+        },
+        "checklist_manage": {
+          "name": "Edit templates",
+          "desc": "Add or remove items per role, plus team statistics"
+        },
+        "attendance": {
+          "name": "Keep attendance",
+          "desc": "Mark staff attendance"
+        },
+        "growth_review": {
+          "name": "Approve roadmap stages",
+          "desc": "Close a stage of an employee's roadmap"
+        }
       }
     },
     "targets": {

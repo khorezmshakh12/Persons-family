@@ -46,10 +46,23 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
   } else if (tab === 'roles') {
     body = <RolesManager people={[...people]} actorId={user!.id} actorRoles={held} />;
   } else if (tab === 'access') {
-    const rows = await sql<{ user_id: string; section: string; allow: boolean }[]>`select user_id, section, allow from section_access`;
+    const [rows, roleRows] = await Promise.all([
+      sql<{ user_id: string; section: string; allow: boolean }[]>`select user_id, section, allow from section_access`,
+      sql<{ role: string; key: string; allow: boolean }[]>`select role, key, allow from role_access`,
+    ]);
     const overrides: Record<string, Record<string, boolean>> = {};
     for (const r of rows) (overrides[r.user_id] ??= {})[r.section] = r.allow;
-    body = <SectionAccess people={[...people]} overrides={overrides} actorId={user!.id} actorIsCeo={held.includes('ceo')} />;
+    const roleOverrides: Record<string, Record<string, boolean>> = {};
+    for (const r of roleRows) (roleOverrides[r.role] ??= {})[r.key] = r.allow;
+    body = (
+      <SectionAccess
+        people={[...people]}
+        overrides={overrides}
+        roleOverrides={roleOverrides}
+        actorId={user!.id}
+        actorIsCeo={held.includes('ceo')}
+      />
+    );
   } else if (tab === 'health') {
     body = <HealthPanel h={await loadHealth()} />;
   } else if (tab === 'quality') {

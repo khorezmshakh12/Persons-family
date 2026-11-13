@@ -170,6 +170,10 @@ export function JournalPanel({ rows }: { rows: JournalRow[] }) {
                   <span className="text-sm">
                     <b>{r.target}</b>: «{r.key}» bo‘limi {SECTION_N[r.before ?? ''] ?? r.before} → <b>{SECTION_N[r.after ?? ''] ?? r.after}</b>
                   </span>
+                ) : r.kind === 'role_access' ? (
+                  <span className="text-sm">
+                    Rol <b>{r.key.split('|')[0]}</b>: «{r.key.split('|')[1]}» {SECTION_N[r.before ?? ''] ?? r.before} → <b>{SECTION_N[r.after ?? ''] ?? r.after}</b>
+                  </span>
                 ) : (
                   <span className="text-sm break-words">
                     <span className={cn(CHIP_NEUTRAL, 'mr-1.5')}>{r.kind}</span>
@@ -180,7 +184,7 @@ export function JournalPanel({ rows }: { rows: JournalRow[] }) {
                   {r.actor ?? 'Tizim'} · {fmt(r.at)}
                 </span>
               </div>
-              {r.kind === 'section_access' &&
+              {(r.kind === 'section_access' || r.kind === 'role_access') &&
                 (r.reverted ? (
                   <span className={CHIP_NEUTRAL}>Qaytarilgan</span>
                 ) : (
