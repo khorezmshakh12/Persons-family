@@ -1,7 +1,7 @@
 /** Telegram notification kinds a person can switch off (Sozlamalar ›
  * Bildirishnomalar). Client-safe. Messages sent without a kind (account,
  * security, direct admin notices) are always delivered. */
-export const NOTIFY_KINDS = ['task', 'chat', 'news', 'kpi', 'pay', 'issue', 'stars', 'lesson', 'report', 'goals'] as const;
+export const NOTIFY_KINDS = ['task', 'chat', 'news', 'kpi', 'pay', 'issue', 'stars', 'lesson', 'report', 'goals', 'checklist'] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
 
 export const NOTIFY_META: Record<NotifyKind, { n: string; hint: string; quiet: boolean }> = {
@@ -15,4 +15,5 @@ export const NOTIFY_META: Record<NotifyKind, { n: string; hint: string; quiet: b
   lesson: { n: 'Dars rejalari', hint: 'Reja tekshiruvi va izohlar', quiet: true },
   report: { n: 'Haftalik hisobotlar', hint: 'Dushanba xulosalari', quiet: true },
   goals: { n: 'Maqsadlar', hint: 'Kunlik hisobot (21:00) va muddat eslatmalari', quiet: false },
+  checklist: { n: 'Checklist feedback', hint: 'Checklistingizga yozilgan izohlar', quiet: true },
 };
