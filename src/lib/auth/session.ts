@@ -49,6 +49,8 @@ export interface Profile {
   roles?: StaffRole[];
   /** Per-person section overrides (Platform settings): section → open/closed. */
   section_overrides?: Record<string, boolean>;
+  /** Role-level overrides (role_access), every role: role → key → open/closed. */
+  role_overrides?: Record<string, Record<string, boolean>>;
 }
 
 
@@ -72,7 +74,10 @@ export const getAuthState = cache(async function getAuthState() {
 
   const [profile] = await sql<Profile[]>`
     select p.*, array(select r.role::text from profile_roles r where r.user_id = p.id order by r.role) as extra_roles,
-      (select coalesce(jsonb_object_agg(a.section, a.allow), '{}'::jsonb) from section_access a where a.user_id = p.id) as section_overrides
+      (select coalesce(jsonb_object_agg(a.section, a.allow), '{}'::jsonb) from section_access a where a.user_id = p.id) as section_overrides,
+      (select coalesce(jsonb_object_agg(x.role, x.keys), '{}'::jsonb) from (
+        select ra.role, jsonb_object_agg(ra.key, ra.allow) as keys from role_access ra group by ra.role
+      ) x) as role_overrides
     from profiles p where p.id = ${user.uid}
   `;
 
@@ -98,9 +103,12 @@ export const getAuthState = cache(async function getAuthState() {
   const held = [profile.role, ...((profile.extra_roles ?? []) as StaffRole[]).filter((r) => r !== profile.role)];
   const wanted = (await cookies()).get(ACTIVE_ROLE_COOKIE)?.value as StaffRole | undefined;
   const active = wanted && held.includes(wanted) ? wanted : profile.role;
+  // Section access v2: the active role's overrides, then the person's own win.
+  const roleOv = (profile.role_overrides ?? {})[active] ?? {};
+  const section_overrides = { ...roleOv, ...(profile.section_overrides ?? {}) };
   return {
     user,
-    profile: { ...profile, role: active, primary_role: profile.role, roles: held },
+    profile: { ...profile, role: active, primary_role: profile.role, roles: held, section_overrides },
     suspended: false,
     frozenReason: null as string | null,
   };

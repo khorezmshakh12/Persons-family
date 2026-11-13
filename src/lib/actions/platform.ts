@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getAuthState } from '@/lib/auth/session';
 import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
-import { CEO_ONLY_OVERRIDES, OVERRIDABLE_SECTIONS, canAssignRoles } from '@/lib/permissions';
+import { ACCESS_KEYS, ROLES, canAssignRoles, isCeoOnlyAccessKey } from '@/lib/permissions';
 
 export type PlatformActionState = { error?: string } | undefined;
 
@@ -20,7 +20,7 @@ async function requirePlatformAdmin() {
 
 const accessSchema = z.object({
   userId: z.string().uuid(),
-  section: z.enum(OVERRIDABLE_SECTIONS as [string, ...string[]]),
+  section: z.enum(ACCESS_KEYS as [string, ...string[]]),
   value: z.enum(['default', 'allow', 'deny']),
 });
 
@@ -31,7 +31,7 @@ export async function setSectionAccessAction(userId: string, section: string, va
   const parsed = accessSchema.safeParse({ userId, section, value });
   if (!parsed.success) return { error: 'invalidInput' };
   const isCeo = gate.held.includes('ceo');
-  if (!isCeo && (CEO_ONLY_OVERRIDES as string[]).includes(parsed.data.section)) return { error: 'ceoOnly' };
+  if (!isCeo && isCeoOnlyAccessKey(parsed.data.section)) return { error: 'ceoOnly' };
   try {
     const [target] = await sql<{ role: string; extra: string[] }[]>`
       select p.role::text as role, array(select r.role::text from profile_roles r where r.user_id = p.id) as extra
@@ -59,6 +59,47 @@ export async function setSectionAccessAction(userId: string, section: string, va
     logSystemAction('section_access', `${parsed.data.section}=${parsed.data.value} → ${parsed.data.userId}`);
   } catch (error) {
     console.error('setSectionAccessAction', error);
+    return { error: 'saveFailed' };
+  }
+  revalidatePath('/', 'layout');
+  return {};
+}
+
+const roleAccessSchema = z.object({
+  // CEO always has everything — a CEO role row would do nothing.
+  role: z.enum(ROLES as unknown as [string, ...string[]]).refine((r) => r !== 'ceo'),
+  key: z.enum(ACCESS_KEYS as [string, ...string[]]),
+  value: z.enum(['default', 'allow', 'deny']),
+});
+
+/** Open / close one section or function for everyone in a role, or back to
+ * the code default. A per-person override still wins over this. */
+export async function setRoleAccessAction(role: string, key: string, value: string): Promise<PlatformActionState> {
+  const gate = await requirePlatformAdmin();
+  if ('error' in gate) return gate;
+  const parsed = roleAccessSchema.safeParse({ role, key, value });
+  if (!parsed.success) return { error: 'invalidInput' };
+  const { role: r, key: k, value: v } = parsed.data;
+  if (!gate.held.includes('ceo') && isCeoOnlyAccessKey(k)) return { error: 'ceoOnly' };
+  try {
+    const [prev] = await sql<{ allow: boolean }[]>`select allow from role_access where role = ${r} and key = ${k}`;
+    const before = prev ? (prev.allow ? 'allow' : 'deny') : 'default';
+    if (before !== v)
+      await sql`
+        insert into platform_changes (actor, kind, target, key, before, after)
+        values (${gate.user.id}, 'role_access', null, ${`${r}|${k}`}, ${before}, ${v})`;
+    if (v === 'default') {
+      await sql`delete from role_access where role = ${r} and key = ${k}`;
+    } else {
+      await sql`
+        insert into role_access (role, key, allow, set_by)
+        values (${r}, ${k}, ${v === 'allow'}, ${gate.user.id})
+        on conflict (role, key) do update set allow = excluded.allow, set_by = excluded.set_by, set_at = now()
+      `;
+    }
+    logSystemAction('role_access', `${r}: ${k}=${v}`);
+  } catch (error) {
+    console.error('setRoleAccessAction', error);
     return { error: 'saveFailed' };
   }
   revalidatePath('/', 'layout');
@@ -114,9 +155,13 @@ export async function revertPlatformChangeAction(changeId: string): Promise<Plat
   if (!z.string().uuid().safeParse(changeId).success) return { error: 'invalidInput' };
   const [c] = await sql<{ kind: string; target: string; key: string; before: string; reverted_at: string | null }[]>`
     select kind, target, key, before, reverted_at from platform_changes where id = ${changeId}`;
-  if (!c || c.kind !== 'section_access') return { error: 'notFound' };
+  if (!c || (c.kind !== 'section_access' && c.kind !== 'role_access')) return { error: 'notFound' };
   if (c.reverted_at) return { error: 'alreadyReverted' };
-  const res = await setSectionAccessAction(c.target, c.key, c.before);
+  const [role, key] = c.key.split('|');
+  const res =
+    c.kind === 'role_access'
+      ? await setRoleAccessAction(role, key ?? '', c.before)
+      : await setSectionAccessAction(c.target, c.key, c.before);
   if (res?.error) return res;
   await sql`update platform_changes set reverted_at = now(), reverted_by = ${gate.user.id} where id = ${changeId}`;
   return {};

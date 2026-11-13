@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
-import { canSeeFor, can, ROLES } from '@/lib/permissions';
+import { canSeeFor, canFor, ROLES } from '@/lib/permissions';
 import { loadChecklist } from '@/lib/checklist-data';
 import { loadTeamChecklistStats } from '@/lib/checklist-stats';
 import { loadProgressBoard } from '@/lib/progress-board-data';
@@ -22,7 +22,7 @@ export default async function TaskTrackerPage({
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'taskTracker')) notFound();
 
-  const canManage = can(profile.role, 'checklist.manage');
+  const canManage = canFor(profile, 'checklist.manage');
   const sp = await searchParams;
   // Tablar: CEO/COO'ga Jamoa statistikasi va Boshqarish ham ko'rinadi.
   // Eski ?manage=1 havolalari Boshqarish tabiga tushadi.
@@ -40,13 +40,18 @@ export default async function TaskTrackerPage({
   // Ustozlar uchun: bugun dars bo'lmasa kunlik checklist talab qilinmaydi.
   const gateTeacher = !managing && isTeacherRole(effectiveRole);
   // Faqat ochiq tab ma'lumoti yuklanadi.
-  const [data, tRoles, lessonToday, board, teamRows] = await Promise.all([
+  const [data, tRoles, lessonToday, board, allTeamRows] = await Promise.all([
     tab === 'mine' || managing ? loadChecklist(profile.id, effectiveRole) : Promise.resolve(null),
     getTranslations('staff.roles'),
     gateTeacher && tab === 'mine' ? teacherHasLessonOn(profile.id, tashkentDayKey()) : Promise.resolve(true),
     tab === 'progress' ? loadProgressBoard(profile.id, profile.role) : Promise.resolve(null),
     tab === 'team' ? loadTeamChecklistStats(teamDay) : Promise.resolve([]),
   ]);
+
+  // CEO/COO bo'lmagan kuzatuvchi (masalan HR) CEO va COO checklistini ko'rmaydi.
+  const leaderIds = new Set(allTeamRows.filter((r) => r.role === 'ceo' || r.role === 'coo').map((r) => r.userId));
+  const teamRows =
+    profile.role === 'ceo' || profile.role === 'coo' ? allTeamRows : allTeamRows.filter((r) => !leaderIds.has(r.userId));
 
   const dailyLocked = gateTeacher && !lessonToday;
   const finalData = data && dailyLocked ? { ...data, daily: [] } : data;
