@@ -2169,7 +2169,7 @@
         },
         "checklist_manage": {
           "name": "Edit templates",
-          "desc": "Add or remove items per role, plus team statistics"
+          "desc": "Add or remove daily/weekly/monthly items per role"
         },
         "attendance": {
           "name": "Keep attendance",
@@ -2178,6 +2178,14 @@
         "growth_review": {
           "name": "Approve roadmap stages",
           "desc": "Close a stage of an employee's roadmap"
+        },
+        "checklist_monitor": {
+          "name": "Monitor the team",
+          "desc": "Each employee's items: done / not done (except CEO and COO)"
+        },
+        "checklist_feedback": {
+          "name": "Give feedback",
+          "desc": "Day note and item note; the employee is notified on the site and in Telegram"
         }
       }
     },

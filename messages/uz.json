@@ -2169,7 +2169,7 @@
         },
         "checklist_manage": {
           "name": "Shablonlarni tahrirlash",
-          "desc": "Rol bo'yicha bandlarni qo'shish, o'chirish va jamoa statistikasi"
+          "desc": "Rol bo'yicha kunlik/haftalik/oylik bandlarni qo'shish, o'chirish"
         },
         "attendance": {
           "name": "Davomat yuritish",
@@ -2178,6 +2178,14 @@
         "growth_review": {
           "name": "Roadmap bosqichini tasdiqlash",
           "desc": "Xodim roadmap bosqichini yopish"
+        },
+        "checklist_monitor": {
+          "name": "Jamoani kuzatish",
+          "desc": "Har bir xodimning bandlari: bajarildi / bajarilmadi (CEO va COO'nikidan tashqari)"
+        },
+        "checklist_feedback": {
+          "name": "Feedback berish",
+          "desc": "Kunlik izoh va bandga izoh; xodimga sayt + Telegram xabari boradi"
         }
       }
     },

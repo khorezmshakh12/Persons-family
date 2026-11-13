@@ -191,6 +191,8 @@ export type Capability =
   | 'operations.edit'
   | 'operations.balanceFix' // Operation HQ › remove a wrong minus from a student's balance
   | 'checklist.manage'
+  | 'checklist.monitor' // Jamoa tabi: har bir xodimning bandlari (CEO/COO'nikidan tashqari)
+  | 'checklist.feedback' // checklistga kunlik / bandga izoh, xodimga xabar boradi
   | 'hr.manage' // HR hub: barcha xodimlar profili, tuzilma, onboarding (oylik/moliya emas)
   | 'growth.review'; // HR › Roadmap: topshirilgan roadmap'lar, bosqich tasdig'i
 
@@ -229,6 +231,9 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'operations.balanceFix': ['ceo', 'coo', 'office_manager'],
   // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
   'checklist.manage': ['ceo', 'coo'],
+  // Kuzatish va feedback — CEO, COO; HR'ga Section access orqali (owner, 2026-11-13).
+  'checklist.monitor': ['ceo', 'coo'],
+  'checklist.feedback': ['ceo', 'coo'],
   // HR hub boshqaruvi — staff.manage egalari + HR (owner, 2026-11-12).
   'hr.manage': [...LEADERSHIP, 'admin_manager', 'it_developer', 'hr_manager'],
   // Xodim roadmap bosqichini faqat CEO tasdiqlaydi (owner, 2026-11-12).
@@ -346,7 +351,7 @@ export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'teleg
 export type AccessFunction = { key: Capability | SectionKey; ceoOnly?: boolean };
 export const SECTION_FUNCTIONS: Partial<Record<SectionKey, AccessFunction[]>> = {
   selfDevelopment: [{ key: 'selfDev.viewAll' }, { key: 'selfDev.review', ceoOnly: true }],
-  taskTracker: [{ key: 'checklist.manage' }],
+  taskTracker: [{ key: 'checklist.monitor' }, { key: 'checklist.feedback' }, { key: 'checklist.manage' }],
   hr: [{ key: 'attendance' }, { key: 'growth.review', ceoOnly: true }],
 };
 export const FUNCTION_KEYS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.map((f) => f.key));
@@ -356,6 +361,12 @@ const CEO_ONLY_FUNCTIONS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((f
 export const ACCESS_KEYS: string[] = [...OVERRIDABLE_SECTIONS, ...FUNCTION_KEYS];
 export function isCeoOnlyAccessKey(key: string): boolean {
   return (CEO_ONLY_OVERRIDES as string[]).includes(key) || CEO_ONLY_FUNCTIONS.includes(key);
+}
+
+/** CEO / COO — their own records (checklist, self-dev) stay hidden from
+ * other monitors such as HR (owner, 2026-11-13). */
+export function isLeadershipRole(role: string | null | undefined): boolean {
+  return !!role && (LEADERSHIP as readonly string[]).includes(role);
 }
 
 /** The code default (no override) of an access key for one role. */

@@ -1,7 +1,10 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, MessageSquarePlus, MessageSquareText, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { addChecklistFeedbackAction, deleteChecklistFeedbackAction } from '@/lib/actions/checklist-feedback';
+import type { ChecklistFeedback } from '@/lib/checklist-feedback';
 import { SURFACE_CARD, BTN_SECONDARY, INPUT } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
@@ -30,12 +33,19 @@ export function TeamChecklistTable({
   periodLabel,
   day,
   today,
+  feedback = [],
+  canFeedback = false,
+  viewerId,
 }: {
   rows: TeamStatRow[];
   roleLabels: Record<string, string>;
   periodLabel: string;
   day: string;
   today: string;
+  /** Notes left on this day (all authors). */
+  feedback?: ChecklistFeedback[];
+  canFeedback?: boolean;
+  viewerId?: string;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('daily');
   const [dir, setDir] = useState<1 | -1>(-1);
@@ -181,6 +191,12 @@ export function TeamChecklistTable({
                         >
                           {r.name}
                         </Link>
+                        {feedback.some((f) => f.userId === r.userId) && (
+                          <span className="inline-flex items-center gap-0.5 text-[11px] text-au-accent-text" title="Feedback bor">
+                            <MessageSquareText className="size-3" aria-hidden />
+                            {feedback.filter((f) => f.userId === r.userId).length}
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-au-muted">{roleLabel(r.role)}</td>
@@ -195,7 +211,15 @@ export function TeamChecklistTable({
                   {expanded && (
                     <tr className="border-b border-au-line bg-au-card-2/60">
                       <td colSpan={7} className="px-4 py-3">
-                        <ItemList items={r.items} dailyOff={!r.lesson} />
+                        <ItemList
+                          items={r.items}
+                          dailyOff={!r.lesson}
+                          userId={r.userId}
+                          day={day}
+                          feedback={feedback.filter((f) => f.userId === r.userId)}
+                          canFeedback={canFeedback}
+                          viewerId={viewerId}
+                        />
                       </td>
                     </tr>
                   )}
@@ -216,29 +240,165 @@ export function TeamChecklistTable({
   );
 }
 
-function ItemList({ items, dailyOff }: { items: TeamItem[]; dailyOff: boolean }) {
+function ItemList({
+  items,
+  dailyOff,
+  userId,
+  day,
+  feedback,
+  canFeedback,
+  viewerId,
+}: {
+  items: TeamItem[];
+  dailyOff: boolean;
+  userId: string;
+  day: string;
+  feedback: ChecklistFeedback[];
+  canFeedback: boolean;
+  viewerId?: string;
+}) {
+  const [itemOpen, setItemOpen] = useState<string | null>(null);
+  const itemIds = new Set(items.map((i) => i.id));
+  // Day notes, plus notes whose item was since deleted from the templates.
+  const dayNotes = feedback.filter((f) => !f.templateId || !itemIds.has(f.templateId));
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {(['daily', 'weekly', 'monthly'] as const).map((c) => {
-        const list = items.filter((i) => i.cadence === c);
-        return (
-          <div key={c} className="flex flex-col gap-1">
-            <div className="text-xs font-semibold text-au-muted">{CADENCE_LABEL[c]}</div>
-            {list.length === 0 && <span className="text-xs text-au-faint">—</span>}
-            {c === 'daily' && dailyOff && list.length > 0 && <span className="text-xs text-au-faint">Bu kuni dars yo‘q — talab qilinmaydi</span>}
-            {list.map((i) => (
-              <div key={i.id} className="flex items-start gap-1.5 text-sm">
-                {i.done ? (
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-au-ok" />
-                ) : (
-                  <X className="mt-0.5 size-3.5 shrink-0 text-au-bad" />
-                )}
-                <span className={i.done ? 'text-au-ink' : 'text-au-muted'}>{i.title}</span>
-              </div>
-            ))}
-          </div>
-        );
-      })}
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {(['daily', 'weekly', 'monthly'] as const).map((c) => {
+          const list = items.filter((i) => i.cadence === c);
+          return (
+            <div key={c} className="flex flex-col gap-1">
+              <div className="text-xs font-semibold text-au-muted">{CADENCE_LABEL[c]}</div>
+              {list.length === 0 && <span className="text-xs text-au-faint">—</span>}
+              {c === 'daily' && dailyOff && list.length > 0 && <span className="text-xs text-au-faint">Bu kuni dars yo‘q — talab qilinmaydi</span>}
+              {list.map((i) => {
+                const notes = feedback.filter((f) => f.templateId === i.id);
+                return (
+                  <div key={i.id} className="flex flex-col gap-1">
+                    <div className="flex items-start gap-1.5 text-sm">
+                      {i.done ? (
+                        <Check className="mt-0.5 size-3.5 shrink-0 text-au-ok" />
+                      ) : (
+                        <X className="mt-0.5 size-3.5 shrink-0 text-au-bad" />
+                      )}
+                      <span className={cn('flex-1', i.done ? 'text-au-ink' : 'text-au-muted')}>{i.title}</span>
+                      {canFeedback && (
+                        <button
+                          type="button"
+                          onClick={() => setItemOpen(itemOpen === i.id ? null : i.id)}
+                          className="shrink-0 rounded p-0.5 text-au-faint hover:bg-au-card hover:text-au-ink"
+                          aria-label={`«${i.title}» bandiga izoh`}
+                          aria-expanded={itemOpen === i.id}
+                        >
+                          <MessageSquarePlus className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {notes.length > 0 && <NoteList notes={notes} viewerId={viewerId} compact />}
+                    {canFeedback && itemOpen === i.id && (
+                      <NoteForm userId={userId} day={day} templateId={i.id} placeholder="Shu bandga izoh…" onDone={() => setItemOpen(null)} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+
+      {(canFeedback || dayNotes.length > 0) && (
+        <div className="flex flex-col gap-2 border-t border-au-line pt-3">
+          <div className="text-xs font-semibold text-au-muted">Kun bo‘yicha feedback</div>
+          {dayNotes.length > 0 && <NoteList notes={dayNotes} viewerId={viewerId} />}
+          {canFeedback && <NoteForm userId={userId} day={day} templateId={null} placeholder="Shu kungi checklist bo‘yicha izoh…" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NoteList({ notes, viewerId, compact }: { notes: ChecklistFeedback[]; viewerId?: string; compact?: boolean }) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
+  const remove = (id: string) =>
+    start(async () => {
+      const res = await deleteChecklistFeedbackAction(id);
+      if (res.error) return void toast.error('O‘chirib bo‘lmadi');
+      toast.success('Izoh o‘chirildi');
+      router.refresh();
+    });
+  return (
+    <ul className={cn('flex flex-col gap-1', compact && 'ml-5')}>
+      {notes.map((n) => (
+        <li key={n.id} className="flex items-start gap-2 rounded-au-ctl bg-au-card px-2.5 py-1.5 text-xs">
+          <span className="min-w-0 flex-1">
+            <b className="font-semibold text-au-ink">{n.authorName}:</b>{' '}
+            {n.itemTitle && !compact && <span className="text-au-muted">«{n.itemTitle}» — </span>}
+            <span className="whitespace-pre-wrap text-au-ink">{n.body}</span>
+          </span>
+          {n.authorId === viewerId && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => remove(n.id)}
+              className="shrink-0 text-au-faint hover:text-au-bad disabled:opacity-50"
+              aria-label="Izohni o‘chirish"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const FEEDBACK_ERR: Record<string, string> = {
+  forbidden: 'Bu xodimga feedback yozish huquqingiz yo‘q',
+  self: 'O‘zingizga feedback yozib bo‘lmaydi',
+  day: 'Bu sanaga izoh yozib bo‘lmaydi',
+  invalid: 'Matn 1–1000 belgi bo‘lsin',
+};
+
+function NoteForm({
+  userId,
+  day,
+  templateId,
+  placeholder,
+  onDone,
+}: {
+  userId: string;
+  day: string;
+  templateId: string | null;
+  placeholder: string;
+  onDone?: () => void;
+}) {
+  const router = useRouter();
+  const [text, setText] = useState('');
+  const [busy, start] = useTransition();
+  const send = () =>
+    start(async () => {
+      const res = await addChecklistFeedbackAction({ userId, day, templateId, body: text });
+      if (res.error) return void toast.error(FEEDBACK_ERR[res.error] ?? 'Saqlab bo‘lmadi');
+      toast.success('Feedback yuborildi');
+      setText('');
+      onDone?.();
+      router.refresh();
+    });
+  return (
+    <div className={cn('flex flex-col gap-1.5 sm:flex-row sm:items-start', templateId && 'ml-5')}>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={placeholder}
+        maxLength={1000}
+        rows={templateId ? 1 : 2}
+        aria-label={placeholder}
+        className={cn(INPUT, 'min-h-9 flex-1 resize-y py-1.5 text-sm')}
+      />
+      <button type="button" className={cn(BTN_SECONDARY, 'shrink-0')} disabled={busy || !text.trim()} onClick={send}>
+        {busy ? 'Yuborilmoqda…' : 'Yuborish'}
+      </button>
     </div>
   );
 }
