@@ -13,7 +13,7 @@ import { can } from '@/lib/permissions';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { NotificationsPanel, SecurityPanel } from '@/components/settings/settings-hub';
-import type { NotifyKind } from '@/lib/notify-kinds';
+import { NOTIFY_KINDS, type NotifyKind } from '@/lib/notify-kinds';
 export const dynamic = 'force-dynamic';
 
 const SECTIONS = ['profile', 'security', 'notifications', 'appearance', 'telegram', 'system'] as const;
@@ -73,7 +73,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     content = (
       <Card title="Bildirishnomalar" subtitle="Telegram’da qaysi xabarlar kelishini o‘zingiz tanlaysiz. Saytdagi belgilar o‘zgarmaydi.">
         <NotificationsPanel
-          initial={{ muted: (row?.muted ?? []) as NotifyKind[], quietFrom: row?.quiet_from ?? null, quietTo: row?.quiet_to ?? null }}
+          initial={{ muted: (row?.muted ?? []).filter((k): k is NotifyKind => (NOTIFY_KINDS as readonly string[]).includes(k)), quietFrom: row?.quiet_from ?? null, quietTo: row?.quiet_to ?? null }}
           telegram={profile!.telegram_id !== null}
         />
       </Card>

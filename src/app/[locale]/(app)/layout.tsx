@@ -50,7 +50,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const [
     activeProfiles,
-    unreadChatRows,
     feedRows,
     unseenTaskRows,
     unseenWarningRows,
@@ -61,11 +60,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ] = await Promise.all([
       sql<{ id: string; first_name: string; last_name: string; date_of_birth: string | null }[]>`
         select id, first_name, last_name, date_of_birth from profiles where is_active = true
-      `,
-      sql<{ id: string; sender_id: string; message_text: string | null; created_at: string }[]>`
-        select id, sender_id, message_text, created_at from staff_chats
-        where receiver_id = ${user!.id} and is_read = false
-        order by created_at desc limit 50
       `,
       loadFeed(user!.id),
       sql<{ id: string; title: string; created_at: string }[]>`
@@ -120,13 +114,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     activeProfiles.filter((p): p is typeof p & { date_of_birth: string } => p.date_of_birth !== null),
   );
   const birthdayNames = upcomingBirthdays.map((p) => `${p.first_name} ${p.last_name}`);
-  const profileNames = Object.fromEntries(activeProfiles.map((p) => [p.id, `${p.first_name} ${p.last_name}`]));
-  const initialUnreadChats = unreadChatRows.map((m) => ({
-    id: m.id,
-    senderId: m.sender_id,
-    messageText: m.message_text,
-    createdAt: m.created_at,
-  }));
   const initialUnseenTasks = unseenTaskRows.map((t) => ({
     id: t.id,
     title: t.title,
@@ -161,8 +148,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppShell
         profile={profile!}
         userId={user!.id}
-        profileNames={profileNames}
-        initialUnreadChats={initialUnreadChats}
         initialFeed={feedRows}
         initialUnseenTasks={initialUnseenTasks}
         initialUnseenWarnings={initialUnseenWarnings}

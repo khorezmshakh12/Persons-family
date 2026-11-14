@@ -95,7 +95,6 @@ export type SectionKey =
   | 'report'
   | 'platform'
   | 'staff'
-  | 'chat'
   | 'issues'
   | 'lessonPlans'
   | 'tasks'
@@ -120,7 +119,6 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   // Inbox (approvals) removed for everyone (owner, 2026-10-05).
   coreInbox: [],
   tasks: ALL,
-  chat: ALL,
   issues: ALL,
   companyNews: ALL,
   selfDevelopment: ALL,
@@ -182,7 +180,6 @@ export type Capability =
   | 'market.manage' // Persons Market catalogue + order decisions
   | 'academic.viewAll' // every group, lesson plan and calendar lesson
   | 'academic.manage' // groups & course lessons CRUD
-  | 'chat.moderate' // DM anyone, mark DM importance
   | 'core.sales.edit' // Core leads / spend / targets
   | 'strategy.edit'
   | 'kpi.review' // approve / grade My KPI plans (salary impact)
@@ -218,7 +215,6 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'market.manage': [...LEADERSHIP, 'admin_manager'],
   'academic.viewAll': [...LEADERSHIP, 'academic_director', 'head_teacher'],
   'academic.manage': ['ceo', 'academic_director'],
-  'chat.moderate': LEADERSHIP,
   'core.sales.edit': [...LEADERSHIP, 'commercial_director', 'sales_manager', 'mmd', 'financist'],
   'strategy.edit': SECTION_ROLES.strategy,
   // Owner, 2026-10-04: the COO sees and edits the strategy finance views too.
@@ -340,7 +336,7 @@ export function canFor(
  * person. Personal basics (dashboard, profile, settings) and Platform itself
  * are not switchable (no lock-outs); financial ones only by the CEO. */
 export const OVERRIDABLE_SECTIONS: SectionKey[] = [
-  'tasks', 'chat', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker', 'finance', 'hr', 'sales',
+  'tasks', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker', 'finance', 'hr', 'sales',
   'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'market', 'telegramSetup', 'materials',
 ];
 export const CEO_ONLY_OVERRIDES: SectionKey[] = ['accounting', 'finance', 'telegramSetup'];

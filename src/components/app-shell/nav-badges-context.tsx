@@ -7,7 +7,7 @@ import type { NavItem } from '@/lib/nav';
 const NavBadgesContext = createContext<NavItem['key'][]>([]);
 
 /**
- * Keeps the sidebar's "new" dots (tasks/issues/companyNews/chat/profile —
+ * Keeps the sidebar's "new" dots (tasks/issues/companyNews/profile —
  * profile's dot covers unseen warnings) live. The
  * (app) layout computes `initialKeys` once per navigation (it's the only
  * server-side signal Next.js gives us), which is why a task or issue
@@ -46,7 +46,7 @@ export function NavBadgesProvider({
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
-    // Every write path that touches tasks/issues/staff_chats/staff_warnings
+    // Every write path that touches tasks/issues/staff_warnings
     // for this user bumps nav_badge_signals/{uid} (see
     // lib/gcp/firestoreAdmin.ts's bumpNavBadgeSignal) — this just re-derives
     // the true set of active dots from Cloud SQL whenever that fires, same

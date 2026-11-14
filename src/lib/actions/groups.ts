@@ -7,7 +7,6 @@ import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
 import { logSystemAction } from '@/lib/audit-log';
-import { syncGroupChatMembers, deleteGroupChatMeta } from '@/lib/gcp/firestoreAdmin';
 import {
   countKeptOffScheduleSlots,
   ensureCourseSlots,
@@ -137,17 +136,12 @@ export async function createGroupAction(
     console.error('ensureCourseSlots failed for new group', groupId, error);
   }
 
-  // Keeps group_chat_meta/{groupId} in sync so the group's Firestore-backed
-  // teacher/TA chat thread knows who's allowed to read it (see
-  // firestore.rules + staff-chat.ts's sendStaffChatMessageAction).
-  await syncGroupChatMembers(groupId, user.id, assignedTaId);
-
   logSystemAction('group.create', `Created group "${parsed.data.name}"`);
 
   revalidatePath('/[locale]/lesson-plans', 'page');
 
   // Fire-and-forget — the group is already created either way.
-  // See staff-chats.ts's `after()` comment — the platform can tear down a
+  // The platform can tear down a
   // bare un-awaited fire-and-forget call before its Telegram send finishes.
   after(() => notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId }));
 
@@ -267,11 +261,6 @@ export async function updateGroupAction(
     }
   }
 
-  // assigned_ta_id may have just changed — re-sync the chat thread's
-  // membership so a newly-assigned TA can read/receive it immediately and
-  // a removed one loses access.
-  await syncGroupChatMembers(parsed.data.id, updated.teacher_id, assignedTaId);
-
   revalidatePath('/[locale]/lesson-plans', 'page');
   revalidatePath('/[locale]/lesson-plans/[groupId]', 'page');
   return {};
@@ -342,15 +331,13 @@ export async function deleteGroupAction(formData: FormData): Promise<void> {
 
   // Mirrors the old `groups_delete` policy
   // (`public.is_admin() or teacher_id = auth.uid()`, is_admin() now being
-  // CEO-only) — the chat metadata is only torn down if the row really was
-  // this caller's to delete.
+  // CEO-only).
   const isCeo = can(profile.role, 'academic.manage');
   const [deleted] = await sql<{ id: string }[]>`
     delete from groups where id = ${parsed.data.id} and (${isCeo} or teacher_id = ${user.id})
     returning id
   `;
   if (!deleted) return;
-  await deleteGroupChatMeta(parsed.data.id);
 
   revalidatePath('/[locale]/lesson-plans', 'page');
 }

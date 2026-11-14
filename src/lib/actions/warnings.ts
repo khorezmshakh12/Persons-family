@@ -69,7 +69,7 @@ export async function issueWarningAction(
   const [recipient] = await sql<{ telegram_id: number | null }[]>`
     select telegram_id from profiles where id = ${parsed.data.staffId}
   `;
-  // See staff-chats.ts's `after()` comment — Vercel can tear down a bare
+  // See the `after()` note in stars.ts — Vercel can tear down a bare
   // un-awaited fire-and-forget call before its Telegram send finishes.
   after(() =>
     notifyWarningIssued({ reason: parsed.data.reason, recipientTelegramId: recipient?.telegram_id ?? null }),

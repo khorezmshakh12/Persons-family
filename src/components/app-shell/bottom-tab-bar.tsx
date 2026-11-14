@@ -20,7 +20,6 @@ import { useNavBadgeKeys } from './nav-badges-context';
 const TAB_PRIORITY: NavItem['key'][] = [
   'dashboard',
   'tasks',
-  'chat',
   'market',
   'issues',
   'companyNews',

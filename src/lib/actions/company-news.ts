@@ -66,7 +66,7 @@ export async function createNewsAction(
 
   // The author already knows about their own post — no reason for it to
   // show up as "unread" for them on the sidebar dot. `after()` here too —
-  // see staff-chats.ts's comment: Vercel can tear down a bare un-awaited
+  // see the `after()` note in stars.ts: Vercel can tear down a bare un-awaited
   // call before it finishes.
   after(() => sql`insert into company_news_reads (news_id, user_id) values (${inserted.id}, ${actingUserId})`);
 

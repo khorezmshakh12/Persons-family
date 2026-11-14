@@ -114,7 +114,7 @@ export async function awardStarsAction(
       console.error('stars: warning insert failed', error instanceof Error ? error.message : error);
     }
     await bumpNavBadgeSignal(userId);
-    // See staff-chats.ts's `after()` comment — a bare un-awaited send can be
+    // after(): a bare un-awaited send can be
     // torn down with the request before it finishes.
     after(() => notifyStarsDeducted({ amount, reason, recipientTelegramId: target.telegram_id }));
   }

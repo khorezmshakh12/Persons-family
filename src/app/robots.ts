@@ -21,7 +21,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           `${BASE_PATH}/dashboard`,
           `${BASE_PATH}/staff`,
-          `${BASE_PATH}/chat`,
           `${BASE_PATH}/issues`,
           `${BASE_PATH}/tasks`,
           `${BASE_PATH}/lesson-plans`,

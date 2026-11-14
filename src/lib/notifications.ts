@@ -43,7 +43,6 @@ export const KIND_HREF: Record<string, string> = {
   stars: '/profile',
   lesson: '/lesson-plans',
   report: '/report',
-  chat: '/chat',
   goals: '/dashboard',
 };
 

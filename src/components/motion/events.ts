@@ -9,7 +9,7 @@
 export const CELEBRATE_EVENT = 'persons:celebrate';
 export const LIVE_EVENT = 'persons:live';
 
-export type LiveEventKind = 'chat' | 'task' | 'issue' | 'warning' | 'lessonPlan' | 'success' | 'info';
+export type LiveEventKind = 'task' | 'issue' | 'warning' | 'lessonPlan' | 'success' | 'info';
 
 export type LiveEventDetail = {
   kind: LiveEventKind;

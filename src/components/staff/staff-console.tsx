@@ -11,7 +11,6 @@ import {
   KeyRound,
   LayoutGrid,
   List,
-  MessageCircle,
   Search,
   Send,
   ShieldAlert,
@@ -74,7 +73,6 @@ const SECTION_LABEL: [SectionKey, string][] = [
   ['kpi', 'Mening KPI'],
   ['selfDevelopment', 'O‘z-o‘zini rivojlantirish'],
   ['taskTracker', 'Haftalik jadval'],
-  ['chat', 'Chat'],
   ['issues', 'Muammolar'],
   ['companyNews', 'Yangiliklar'],
   ['lessonPlans', 'Dars rejalari'],
@@ -737,11 +735,6 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
             <Link href="/hr?tab=people" onClick={onClose} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')}>
               <Users className="size-3" /> HR
             </Link>
-            {a.id !== currentUserId && (
-              <Link href={`/chat?with=${a.id}`} onClick={onClose} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')}>
-                <MessageCircle className="size-3" /> Chat
-              </Link>
-            )}
           </div>
         </div>
       </SheetHeader>

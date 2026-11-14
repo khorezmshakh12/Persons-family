@@ -12,7 +12,7 @@ import type { NavItem } from '@/lib/nav';
  * since a bulk "mark seen" can leave other unseen rows behind.
  */
 export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'][]> {
-  const [[tasks], [issues], [companyNews], [chat], [warnings]] = await Promise.all([
+  const [[tasks], [issues], [companyNews], [warnings]] = await Promise.all([
     sql<{ count: number }[]>`select count(*)::int from tasks where assigned_to = ${userId} and is_seen = false`,
     // Murojaatlar (v8): an issue given to me I haven't opened yet, or a fix
     // of mine waiting for my confirmation.
@@ -26,15 +26,6 @@ export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'
       where cn.created_at >= now() - interval '7 days' and cn.deleted_at is null and (cn.publish_at is null or cn.publish_at <= now())
         and not exists (select 1 from company_news_reads r where r.news_id = cn.id and r.user_id = ${userId})
     `,
-    // Unread DMs, plus unread @mentions in chat channels (Chat v2).
-    sql<{ count: number }[]>`
-      select (select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false)
-        + coalesce((select count(*)::int from chat_channel_messages x
-            left join chat_channel_members m on m.channel_id = x.channel_id and m.user_id = ${userId}
-            where ${userId} = any(x.mentions) and x.send_at <= now()
-              and x.send_at > coalesce(m.last_read_at, now() - interval '3 days')), 0) as count`.catch(() =>
-      sql<{ count: number }[]>`select count(*)::int from staff_chats where receiver_id = ${userId} and is_read = false`,
-    ),
     sql<{ count: number }[]>`select count(*)::int from staff_warnings where staff_id = ${userId} and is_seen = false`,
   ]);
 
@@ -42,7 +33,6 @@ export async function computeNavBadgeKeys(userId: string): Promise<NavItem['key'
   if (tasks.count > 0) keys.push('tasks');
   if (issues.count > 0) keys.push('issues');
   if (companyNews.count > 0) keys.push('companyNews');
-  if (chat.count > 0) keys.push('chat');
   if (warnings.count > 0) keys.push('profile');
   return keys;
 }

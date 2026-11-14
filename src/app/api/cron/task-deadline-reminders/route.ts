@@ -7,7 +7,6 @@ import { TASK_OPEN_STATUSES } from '@/lib/task-status';
 import { isDueForCreation, nextDue, type Every } from '@/lib/task-recurrence';
 import { tashkentDayKey, tashkentMidnight } from '@/lib/time';
 import { bumpBoardSignal, bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
-import { deliverScheduledChannelPosts } from '@/lib/chat-channels';
 import { deliverScheduledNews } from '@/lib/news-delivery';
 
 // Spec #4: nudge the assignee once, ~2 hours before a task's deadline.
@@ -70,11 +69,6 @@ async function handle(req: NextRequest): Promise<Response> {
     console.error('recurring tasks failed', error instanceof Error ? error.message : error);
     return -1;
   });
-  // Chat: scheduled channel posts that came due since the last run.
-  const scheduledPosts = await deliverScheduledChannelPosts().catch((error) => {
-    console.error('deliverScheduledChannelPosts failed', error instanceof Error ? error.message : error);
-    return 0;
-  });
   // News: scheduled company posts whose publish time has passed.
   const scheduledNews = await deliverScheduledNews().catch((error) => {
     console.error('deliverScheduledNews failed', error instanceof Error ? error.message : error);
@@ -83,7 +77,7 @@ async function handle(req: NextRequest): Promise<Response> {
   // Murojaatlar: passed response/resolve deadlines, unanswered fixes.
   const issueNudges = await remindIssueDeadlines();
   const issuesClosed = await autoCloseResolvedIssues();
-  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledPosts, scheduledNews, issueNudges, issuesClosed });
+  return NextResponse.json({ ok: true, candidates: due.length, sent, skipped, recurring, scheduledNews, issueNudges, issuesClosed });
 }
 
 /**

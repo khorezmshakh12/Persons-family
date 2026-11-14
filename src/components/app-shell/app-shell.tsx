@@ -15,7 +15,6 @@ import { ProfileProvider } from './profile-context';
 import { NavBadgesProvider } from './nav-badges-context';
 import {
   NotificationBell,
-  type UnreadChatItem,
   type FeedItem,
   type UnseenTaskItem,
   type UnseenWarningItem,
@@ -39,8 +38,6 @@ import type { NavItem } from '@/lib/nav';
 export async function AppShell({
   profile,
   userId,
-  profileNames,
-  initialUnreadChats,
   initialFeed,
   initialUnseenTasks,
   initialUnseenWarnings,
@@ -53,8 +50,6 @@ export async function AppShell({
 }: {
   profile: Profile;
   userId: string;
-  profileNames: Record<string, string>;
-  initialUnreadChats: UnreadChatItem[];
   initialFeed: FeedItem[];
   initialUnseenTasks: UnseenTaskItem[];
   initialUnseenWarnings: UnseenWarningItem[];
@@ -151,8 +146,6 @@ export async function AppShell({
                   {motion && <ThemeToggle />}
                   <NotificationBell
                     userId={userId}
-                    profileNames={profileNames}
-                    initialUnreadChats={initialUnreadChats}
                     initialFeed={initialFeed}
                     initialUnseenTasks={initialUnseenTasks}
                     initialUnseenWarnings={initialUnseenWarnings}
