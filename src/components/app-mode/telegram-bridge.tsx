@@ -28,7 +28,7 @@ export function TelegramBridge() {
     const onLive = (e: Event) => {
       const kind = (e as CustomEvent<{ kind?: string }>).detail?.kind;
       if (kind === 'warning') haptic('error');
-      else if (kind === 'task' || kind === 'chat') haptic('select');
+      else if (kind === 'task') haptic('select');
     };
     window.addEventListener(CELEBRATE_EVENT, onCelebrate);
     window.addEventListener(LIVE_EVENT, onLive);

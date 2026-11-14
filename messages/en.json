@@ -27,7 +27,6 @@
   "nav": {
     "dashboard": "Dashboard",
     "staff": "Staff",
-    "chat": "Chat",
     "issues": "Issues",
     "lessonPlans": "Lesson Plan Board",
     "tasks": "Tasks",
@@ -290,76 +289,6 @@
     "level": "Level",
     "levelKeep": "Leave unchanged",
     "levelCurrent": "Current level: {level}"
-  },
-  "chatHub": {
-    "individualChats": "Individual Chats",
-    "backToContacts": "Back to contacts",
-    "noStaff": "No other staff members yet.",
-    "readReceipt": {
-      "read": "Read",
-      "unread": "Delivered"
-    },
-    "placeholder": "Write a message...",
-    "send": "Send",
-    "delete": "Delete message",
-    "empty": "No messages yet. Start the conversation!",
-    "attach": "Attach image or video",
-    "emoji": "Insert emoji",
-    "recordVoice": "Record a voice message",
-    "stopRecording": "Stop recording",
-    "recording": "Recording...",
-    "reply": "Reply",
-    "cancelReply": "Cancel reply",
-    "addReaction": "Add reaction",
-    "originalMessageUnavailable": "Original message unavailable",
-    "mediaLabel": {
-      "image": "Photo",
-      "video": "Video",
-      "voice": "Voice message",
-      "none": "Message"
-    },
-    "errors": {
-      "forbidden": "You don't have permission to do this.",
-      "sessionExpired": "Your session expired — please refresh the page and log in again.",
-      "invalidMessage": "Message can't be empty.",
-      "sendFailed": "Could not send your message. Please try again.",
-      "invalidInput": "Please fill in all required fields.",
-      "fileTooLarge": "File must be under 50MB.",
-      "invalidFileType": "Please choose an image or video file.",
-      "uploadFailed": "Could not upload the file. Please try again.",
-      "micDenied": "Couldn't access your microphone. Check your browser permissions.",
-      "reactionFailed": "Could not update your reaction. Please try again.",
-      "updateFailed": "Could not update this chat's status. Please try again.",
-      "chatNotAccepted": "This chat hasn't been accepted yet.",
-      "requestFailed": "Could not do that. Please try again."
-    },
-    "importantChats": {
-      "title": "Important chats",
-      "subtitle": "Only conversations marked Important show here by default.",
-      "showAll": "Show all",
-      "showImportantOnly": "Show important only",
-      "empty": "No conversations here yet.",
-      "mark": "Mark important",
-      "unmark": "Unmark"
-    },
-    "selectContact": "Select a contact to start chatting.",
-    "requests": {
-      "title": "Chat requests",
-      "wantsToChat": "{name} wants to chat with you",
-      "accept": "Accept",
-      "decline": "Decline",
-      "pendingOutgoing": "Request pending",
-      "startPrompt": "You haven't chatted with {name} yet.",
-      "sendRequest": "Send chat request",
-      "sending": "Sending...",
-      "waitingForApproval": "Request sent to {name} — waiting for them to accept.",
-      "incomingPrompt": "{name} wants to start a chat with you."
-    },
-    "newMessage": "New message",
-    "typing": "typing…",
-    "search": "Search",
-    "online": "online",
-    "offline": "last seen recently"
   },
   "issues": {
     "title": "Issues",
@@ -664,20 +593,6 @@
       "missing": "Missing",
       "noClass": "no class"
     }
-  },
-  "staffChat": {
-    "placeholder": "Write a message...",
-    "send": "Send",
-    "delete": "Delete message",
-    "empty": "No messages yet. Start the conversation!",
-    "monitorOnly": "You can monitor this chat but not send messages.",
-    "errors": {
-      "forbidden": "You don't have permission to do this.",
-      "sessionExpired": "Your session expired — please refresh the page and log in again.",
-      "invalidMessage": "Message can't be empty.",
-      "sendFailed": "Could not send your message. Please try again."
-    },
-    "edit": "Edit"
   },
   "tasks": {
     "title": "Tasks",

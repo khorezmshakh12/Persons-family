@@ -8,7 +8,6 @@ import {
   markWarningsSeen,
   markCompanyNewsSeen,
   markLessonPlanAlertsSeen,
-  markConversationRead,
 } from '@/lib/db/queries/mark-seen';
 
 // Thin 'use server' wrappers around lib/db/queries/mark-seen.ts — the
@@ -51,9 +50,4 @@ export async function markCompanyNewsSeenAction(): Promise<boolean> {
 export async function markLessonPlanAlertsSeenAction(): Promise<boolean> {
   const { profile } = await getAuthState();
   return profile ? markLessonPlanAlertsSeen(profile.role) : false;
-}
-
-export async function markConversationReadAction(otherUserId: string): Promise<boolean> {
-  const { user } = await getAuthState();
-  return user ? markConversationRead(user.id, otherUserId) : false;
 }

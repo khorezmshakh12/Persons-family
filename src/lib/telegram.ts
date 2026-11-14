@@ -151,18 +151,17 @@ async function blockedChats(chatIds: number[], kind: NotifyKind): Promise<Set<nu
  * also lands in the bell (Bildirishnomalar markazi) — muted kinds and quiet
  * hours only silence Telegram, never the in-app record. `record: false` for
  * callers whose event the bell already shows another way (new tasks,
- * warnings) or that recorded it themselves (notifyUsers). Chat is never
- * recorded — it has its own unread state. */
+ * warnings) or that recorded it themselves (notifyUsers).*/
 export type SendOpts = { record?: boolean; href?: string | null; action?: boolean; ref?: string | null; replyMarkup?: object };
 
-function shouldRecord(kind: NotifyKind, opts?: SendOpts) {
-  return kind !== 'chat' && opts?.record !== false;
+function shouldRecord(opts?: SendOpts) {
+  return opts?.record !== false;
 }
 
 /** sendTelegramMessage, honouring the recipient's preferences for `kind`. */
 export async function sendTelegramAs(kind: NotifyKind, chatId: string | number, text: string, opts?: SendOpts): Promise<void> {
   const id = Number(chatId);
-  if (Number.isFinite(id) && shouldRecord(kind, opts)) await recordForChats([id], { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
+  if (Number.isFinite(id) && shouldRecord(opts)) await recordForChats([id], { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
   if (Number.isFinite(id) && (await blockedChats([id], kind)).has(id)) return;
   await sendTelegramMessage(chatId, text, opts?.replyMarkup);
 }
@@ -176,7 +175,7 @@ export async function sendTelegramManyAs(
 ): Promise<void> {
   const ids = chatIds.map((c) => (typeof c === 'string' ? Number(c) : c)).filter((c): c is number => typeof c === 'number' && Number.isFinite(c));
   const unique = [...new Set(ids)];
-  if (shouldRecord(kind, opts)) await recordForChats(unique, { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
+  if (shouldRecord(opts)) await recordForChats(unique, { kind, text, href: opts?.href, action: opts?.action, ref: opts?.ref });
   const blocked = await blockedChats(unique, kind);
   await sendTelegramMessageToMany(unique.filter((c) => !blocked.has(c)), text);
 }

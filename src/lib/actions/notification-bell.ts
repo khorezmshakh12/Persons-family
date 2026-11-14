@@ -3,7 +3,6 @@
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import type {
-  UnreadChatItem,
   UnseenTaskItem,
   UnseenWarningItem,
   UnseenLessonPlanAlertItem,
@@ -12,7 +11,6 @@ import { can } from '@/lib/permissions';
 import { loadFeed, type FeedItem } from '@/lib/notifications';
 
 export type NotificationBellData = {
-  unreadChats: UnreadChatItem[];
   /** Bildirishnomalar markazi (v8): the stored notifications, newest first. */
   feed: FeedItem[];
   unseenTasks: UnseenTaskItem[];
@@ -21,7 +19,6 @@ export type NotificationBellData = {
 };
 
 const EMPTY: NotificationBellData = {
-  unreadChats: [],
   feed: [],
   unseenTasks: [],
   unseenWarnings: [],
@@ -46,12 +43,7 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
   const { user, profile } = await getAuthState();
   if (!user) return EMPTY;
 
-  const [unreadChats, feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts] = await Promise.all([
-    sql<UnreadChatItem[]>`
-      select id, sender_id as "senderId", message_text as "messageText", created_at as "createdAt"
-      from staff_chats where receiver_id = ${user.id} and is_read = false
-      order by created_at desc limit 50
-    `,
+  const [feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts] = await Promise.all([
     loadFeed(user.id),
     sql<UnseenTaskItem[]>`
       select id, title, created_at as "createdAt" from tasks
@@ -72,7 +64,7 @@ export async function getNotificationBellDataAction(): Promise<NotificationBellD
       : [],
   ]);
 
-  return { unreadChats, feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts };
+  return { feed, unseenTasks, unseenWarnings, unseenLessonPlanAlerts };
 }
 
 /** Marks the given notifications (or all of mine) read. An "action needed"

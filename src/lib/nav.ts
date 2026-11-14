@@ -12,7 +12,6 @@ export type NavItem = {
     | 'report'
     | 'platform'
     | 'staff'
-    | 'chat'
     | 'issues'
     | 'lessonPlans'
     | 'tasks'
@@ -54,7 +53,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   // Kundalik — what everyone opens every day.
   dashboard: 'daily',
   tasks: 'daily',
-  chat: 'daily',
   issues: 'daily',
   companyNews: 'daily',
   taskTracker: 'daily',
@@ -88,7 +86,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
 const NAV_SORT: NavItem['key'][] = [
   'dashboard',
   'tasks',
-  'chat',
   'issues',
   'companyNews',
   'taskTracker',
@@ -144,7 +141,6 @@ export const NAV_ITEMS: NavItem[] = [
   // src/app/api/sso/materials/route.ts.
   { key: 'materials', href: '/staff/api/sso/materials', external: true },
   { key: 'staff', href: '/staff' },
-  { key: 'chat', href: '/chat' },
   // Any staff member can report an issue and see the ones they raised;
   // managing the board is the 'issues.manage' capability.
   { key: 'issues', href: '/issues' },

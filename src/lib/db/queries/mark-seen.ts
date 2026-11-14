@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import { bumpNavBadgeSignal, markChatMirrorRead } from '@/lib/gcp/firestoreAdmin';
+import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { can } from '@/lib/permissions';
 
 // Straight ports of the old security-definer RPCs (mark_tasks_seen etc.) —
@@ -65,18 +65,4 @@ export async function markLessonPlanAlertsSeen(callerRole: string): Promise<bool
   if (!can(callerRole, 'academic.viewAll')) return false;
   const res = await sql`update lesson_plan_compliance_alerts set is_seen = true where is_seen = false`;
   return res.count > 0;
-}
-
-export async function markConversationRead(userId: string, otherUserId: string): Promise<boolean> {
-  const res = await sql`
-    update staff_chats set is_read = true
-    where receiver_id = ${userId} and sender_id = ${otherUserId} and is_read = false
-  `;
-  if (res.count === 0) return false;
-  // Flips isRead on the mirrored Firestore docs too, so the sender's own
-  // open tab sees the read-receipt tick live instead of only on their next
-  // full resync.
-  await markChatMirrorRead(userId, otherUserId);
-  await bumpNavBadgeSignal(userId);
-  return true;
 }

@@ -12,7 +12,6 @@ import {
   LifeBuoy,
   ListChecks,
   Megaphone,
-  MessageCircle,
   Settings2,
   Star,
   Target,
@@ -24,7 +23,6 @@ import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Link } from '@/i18n/navigation';
 import { getNotificationBellDataAction, markNotificationsReadAction } from '@/lib/actions/notification-bell';
 import {
-  markConversationReadAction,
   markTasksSeenAction,
   markWarningsSeenAction,
   markLessonPlanAlertsSeenAction,
@@ -36,13 +34,6 @@ import { useNotificationChime } from './use-notification-chime';
 import { emitLiveEvent, type LiveEventKind } from '@/components/motion/events';
 
 export type { FeedItem };
-
-export type UnreadChatItem = {
-  id: string;
-  senderId: string;
-  messageText: string | null;
-  createdAt: string;
-};
 
 export type UnseenTaskItem = {
   id: string;
@@ -66,8 +57,8 @@ export type UnseenLessonPlanAlertItem = {
  * "Harakat kerak" (things waiting on me — approve, confirm, a new task),
  * "O‘qilmagan" and "Hammasi". Stored notifications (the `notifications`
  * table — every kinded Telegram send and every notifyUsers call lands there)
- * merge with the four live sources that keep their own read state: unread
- * DMs, unseen tasks, unseen warnings and the lesson-plan report. */
+ * merge with the three live sources that keep their own read state:
+ * unseen tasks, unseen warnings and the lesson-plan report. */
 
 type Row = {
   key: string;
@@ -82,7 +73,6 @@ type Row = {
 };
 
 const KIND_ICON: Record<string, ComponentType<{ className?: string }>> = {
-  chat: MessageCircle,
   task: ListChecks,
   issue: LifeBuoy,
   news: Megaphone,
@@ -94,7 +84,6 @@ const KIND_ICON: Record<string, ComponentType<{ className?: string }>> = {
   warning: AlertTriangle,
 };
 const KIND_TINT: Record<string, string> = {
-  chat: 'bg-au-info-soft text-au-info',
   task: 'bg-au-accent-soft text-au-accent-text',
   issue: 'bg-au-bad-soft text-au-bad',
   warning: 'bg-au-bad-soft text-au-bad',
@@ -102,7 +91,7 @@ const KIND_TINT: Record<string, string> = {
   stars: 'bg-au-accent-soft text-au-accent-text',
   kpi: 'bg-au-info-soft text-au-info',
 };
-const LIVE_KIND: Record<string, LiveEventKind> = { chat: 'chat', task: 'task', issue: 'issue', warning: 'warning', lesson: 'lessonPlan' };
+const LIVE_KIND: Record<string, LiveEventKind> = { task: 'task', issue: 'issue', warning: 'warning', lesson: 'lessonPlan' };
 
 type View = 'action' | 'unread' | 'all';
 const VIEWS: { v: View; n: string }[] = [
@@ -113,25 +102,20 @@ const VIEWS: { v: View; n: string }[] = [
 
 export function NotificationBell({
   userId,
-  initialUnreadChats,
   initialFeed,
   initialUnseenTasks,
   initialUnseenWarnings,
   initialUnseenLessonPlanAlerts,
-  profileNames,
 }: {
   userId: string;
-  initialUnreadChats: UnreadChatItem[];
   initialFeed: FeedItem[];
   initialUnseenTasks: UnseenTaskItem[];
   initialUnseenWarnings: UnseenWarningItem[];
   initialUnseenLessonPlanAlerts: UnseenLessonPlanAlertItem[];
-  profileNames: Record<string, string>;
 }) {
   const t = useTranslations('notifications');
   const format = useFormatter();
   const now = useNow({ updateInterval: 60_000 });
-  const [unreadChats, setUnreadChats] = useState(initialUnreadChats);
   const [feed, setFeed] = useState(initialFeed);
   const [unseenTasks, setUnseenTasks] = useState(initialUnseenTasks);
   const [unseenWarnings, setUnseenWarnings] = useState(initialUnseenWarnings);
@@ -151,7 +135,6 @@ export function NotificationBell({
       console.error('notification bell resync failed', error);
       return;
     }
-    setUnreadChats(data.unreadChats);
     setFeed(data.feed);
     setUnseenTasks(data.unseenTasks);
     setUnseenWarnings(data.unseenWarnings);
@@ -195,29 +178,6 @@ export function NotificationBell({
 
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
-    const lastBySender = new Map<string, UnreadChatItem>();
-    for (const m of unreadChats) {
-      const e = lastBySender.get(m.senderId);
-      if (!e || e.createdAt < m.createdAt) lastBySender.set(m.senderId, m);
-    }
-    for (const m of lastBySender.values()) {
-      const count = unreadChats.filter((c) => c.senderId === m.senderId).length;
-      out.push({
-        key: `chat:${m.senderId}`,
-        kind: 'chat',
-        title: profileNames[m.senderId] ?? t('unknownSender'),
-        body: `${count > 1 ? `${count} ta xabar · ` : ''}${m.messageText ?? t('mediaMessage')}`,
-        href: `/chat?with=${m.senderId}`,
-        at: m.createdAt,
-        unread: true,
-        action: false,
-        open: () => {
-          const removed = unreadChats.filter((c) => c.senderId === m.senderId);
-          setUnreadChats((prev) => prev.filter((c) => c.senderId !== m.senderId));
-          markConversationReadAction(m.senderId).catch(fail(() => setUnreadChats((prev) => [...removed, ...prev])));
-        },
-      });
-    }
     const clearTasks = () => {
       const removed = unseenTasks;
       setUnseenTasks([]);
@@ -266,7 +226,7 @@ export function NotificationBell({
         },
       });
     return out.sort((a, b) => (a.at < b.at ? 1 : -1));
-  }, [unreadChats, unseenTasks, unseenWarnings, unseenLessonPlanAlerts, feed, profileNames, userId, t, fail]);
+  }, [unseenTasks, unseenWarnings, unseenLessonPlanAlerts, feed, userId, t, fail]);
 
   const unreadCount = rows.filter((r) => r.unread).length;
   const actionCount = rows.filter((r) => r.action).length;

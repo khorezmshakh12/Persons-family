@@ -12,7 +12,6 @@ import {
   Gauge,
   KeyRound,
   Lock,
-  MessageCircle,
   NotebookPen,
   Pencil,
   Plus,
@@ -132,11 +131,6 @@ export function ProfileStrip({
           <span className="flex items-center gap-1.5 text-xs text-au-muted" title={card.completeness.missing.length ? `Yetishmaydi: ${card.completeness.missing.join(', ')}` : 'Profil to‘liq'}>
             <Ring pct={pct} /> Profil {pct}%
           </span>
-        )}
-        {!isSelf && (
-          <Link href={`/chat?with=${staffId}`} className={BTN_GHOST}>
-            <MessageCircle className="size-3.5" /> Xabar
-          </Link>
         )}
         {isLead && (
           <button className={BTN_GHOST} onClick={() => exportProfilePdf(name, positions, card, metrics)}>

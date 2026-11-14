@@ -8,14 +8,12 @@ import {
   ClipboardCheck,
   Info,
   ListTodo,
-  MessageCircle,
   TriangleAlert,
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { LIVE_EVENT, type LiveEventDetail, type LiveEventKind } from './events';
 
 const ICONS: Record<LiveEventKind, ComponentType<{ className?: string; strokeWidth?: number }>> = {
-  chat: MessageCircle,
   task: ListTodo,
   issue: AlertCircle,
   warning: TriangleAlert,

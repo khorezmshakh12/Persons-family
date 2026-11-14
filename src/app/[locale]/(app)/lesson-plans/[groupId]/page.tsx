@@ -12,15 +12,11 @@ import type { GroupConfiguration } from '@/components/lesson-plans/edit-group-di
 import { DeleteGroupButton } from '@/components/lesson-plans/delete-group-button';
 import { ResyncScheduleButton } from '@/components/lesson-plans/resync-schedule-button';
 import { CourseLessonsSection } from '@/components/lesson-plans/course-lessons-section';
-import { GroupStaffChatSnippet } from '@/components/lesson-plans/group-staff-chat-snippet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { GLASS_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
-import {
-  GlassCardSkeleton,
-  GlassCourseLessonsSkeleton,
-} from '@/components/skeletons/glass-skeletons';
+import { GlassCourseLessonsSkeleton } from '@/components/skeletons/glass-skeletons';
 import { can } from '@/lib/permissions';
 import { courseLevel } from '@/lib/course-levels';
 import { syncCourseSchedule } from '@/lib/syllabus';
@@ -32,9 +28,8 @@ const EditGroupDialog = nextDynamic(() =>
 export const dynamic = 'force-dynamic';
 
 // Only the group row itself (needed for the header + notFound/ownership
-// gate) blocks the initial render. The course lessons table and staff chat
-// snippet each fetch their own data and stream in behind independent
-// Suspense boundaries, so one slow section never holds up the other.
+// gate) blocks the initial render. The course lessons table fetches its own
+// data and streams in behind a Suspense boundary.
 export default async function GroupPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
   const t = await getTranslations('lessonPlans');
@@ -117,11 +112,6 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
   const canEditLessonContent = isOwnerTeacher;
   const canDeleteLessonFiles = isOwnerTeacher || isCeo;
   const canComment = isCeo || isHeadTeacher || isAssignedTa;
-  // Group staff chat: the owning teacher and assigned TA can read + post;
-  // the CEO reads only ("monitor"). A non-assigned assistant never reaches
-  // this branch (notFound() above already caught them).
-  const canViewGroupChat = isOwnerTeacher || isAssignedTa || isCeo;
-  const canPostGroupChat = isOwnerTeacher || isAssignedTa;
 
   // Imtihon kunlari (progress / middle / level up) lessons jadvali render
   // bo'lishidan oldin belgilangan bo'lsin (oylik cron yangi slot qo'shgan
@@ -227,12 +217,6 @@ export default async function GroupPage({ params }: { params: Promise<{ groupId:
           />
         </Suspense>
       </section>
-
-      {canViewGroupChat && (
-        <Suspense fallback={<GlassCardSkeleton />}>
-          <GroupStaffChatSnippet groupId={group.id} groupName={group.name} canPost={canPostGroupChat} />
-        </Suspense>
-      )}
     </div>
   );
 }
