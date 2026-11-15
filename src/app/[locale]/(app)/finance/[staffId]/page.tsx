@@ -98,7 +98,7 @@ export async function FinanceDetailContent({
   ]);
   const bpoint = bpRows[0] ?? null;
   const byMonth = new Array(12).fill(0) as number[];
-  for (const m of ytd) byMonth[Number(m.period.slice(5, 7)) - 1] = m.planned;
+  for (const m of ytd) byMonth[Number(m.period.slice(5, 7)) - 1] = m.earned;
   const bTarget = bpoint?.amount ?? 0;
   const bProgress = bpointProgress(bTarget, byMonth, upToMonth - 1);
   // All 12 months; months not reached yet carry no amount.
@@ -149,7 +149,23 @@ export async function FinanceDetailContent({
         </div>
       </div>
 
-      {/* Left 7: statement + ledger; right 5: B-nuqta, advance, 12 months */}
+      {/* B-nuqta first, full width (owner, 2026-11-16): target + A→B road | 12 months */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div style={{ animationDelay: '40ms' }} className="animate-fade-in-up">
+          <BpointCard
+            year={bYear}
+            note={bpoint?.note ?? null}
+            progress={bProgress}
+            canEdit={isSelf || isCeo}
+            staffId={staffId}
+          />
+        </div>
+        <div style={{ animationDelay: '80ms' }} className="animate-fade-in-up">
+          <BpointProgress year={bYear} progress={bProgress} months={bMonths} />
+        </div>
+      </div>
+
+      {/* Left 7: statement + ledger; right 5: advance, reimbursements, 12 months */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="flex min-w-0 flex-col gap-5 lg:col-span-7">
           <PayStatementCard line={line} period={period} />
@@ -168,18 +184,6 @@ export async function FinanceDetailContent({
         </div>
 
         <div className="flex min-w-0 flex-col gap-5 lg:col-span-5">
-          <div style={{ animationDelay: '140ms' }} className="animate-fade-in-up">
-            <BpointCard
-              year={bYear}
-              note={bpoint?.note ?? null}
-              progress={bProgress}
-              canEdit={isSelf || isCeo}
-              staffId={staffId}
-            />
-          </div>
-          <div style={{ animationDelay: '180ms' }} className="animate-fade-in-up">
-            <BpointProgress year={bYear} progress={bProgress} months={bMonths} />
-          </div>
           {isSelf && advances && <AdvancePanel advances={advances} />}
           {isSelf && <ReimbursePanel items={reimbursements} />}
           <PayHistoryCard history={history} period={period} />

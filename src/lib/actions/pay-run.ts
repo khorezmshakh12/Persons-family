@@ -192,7 +192,7 @@ export async function requestAdvanceAction(input: z.input<typeof requestSchema>)
       const [sal] = await tx<{ gross: number; taken: number }[]>`
         select gross_amount as gross,
           coalesce((select sum(amount) from finance_entries where staff_id = ${user.id} and period = ${per} and kind = 'advance'), 0) as taken
-        from salary_months where staff_id = ${user.id} and period = ${per}`;
+        from salary_months where staff_id = ${user.id} and period <= ${per} order by period desc limit 1`;
       // No salary set for the month means no ceiling to check against.
       if (!sal || sal.gross <= 0) return 'noSalary' as const;
       // Advances already paid this month count against the salary too.
@@ -272,7 +272,7 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
         const [sal] = await tx<{ gross: number; taken: number }[]>`
           select gross_amount as gross,
             coalesce((select sum(amount) from finance_entries where staff_id = ${r.staff_id} and period = ${per} and kind = 'advance'), 0) as taken
-          from salary_months where staff_id = ${r.staff_id} and period = ${per}`;
+          from salary_months where staff_id = ${r.staff_id} and period <= ${per} order by period desc limit 1`;
         // A future month may have no salary set yet — then there is no ceiling
         // to check (CEO's discretion). The current month still requires one.
         if (!sal || sal.gross <= 0) {

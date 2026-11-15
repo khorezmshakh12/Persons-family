@@ -2,7 +2,7 @@
  * Finance › Moliya — Monitor/index.html hisob mantig'i 1:1 (owner,
  * 2026-11-12). Sof, DB'siz; client va server birga ishlatadi.
  *
- *   netPayable = oylik (CEO) + bonus − jarima
+ *   netPayable = oylik (CEO) + bonus − jarima (+ avans hisobi: carry / bo'lib ushlash)
  *   totalPaid  = avans + oylik to'lov
  *   qolgan     = netPayable − totalPaid  (manfiy = ortiqcha to'lov)
  *
@@ -30,6 +30,9 @@ export type MonTx = {
   entryId: string | null;
   /** Comes from another section (KPI, rag'bat, missiya…) — read-only here. */
   auto: boolean;
+  /** Advance bookkeeping (carry / split advance), not a bonus or jarima:
+   * counts in netPayable, stays out of bonusTotal / penaltyTotal. */
+  shift?: boolean;
 };
 
 export type MonEmp = {
@@ -48,6 +51,8 @@ export type MonSummary = {
   baseSalary: number;
   bonusTotal: number;
   penaltyTotal: number;
+  /** Signed sum of `shift` rows (advance bookkeeping). */
+  shiftTotal: number;
   netPayable: number;
   avansTotal: number;
   salaryPayTotal: number;
@@ -122,6 +127,7 @@ export function calculateEmployeeMonthSummary(emp: MonEmp, txs: MonTx[], ym: str
   const baseSalary = getEmployeeSalaryForMonth(emp, ym);
   let bonusTotal = 0;
   let penaltyTotal = 0;
+  let shiftTotal = 0;
   let avansTotal = 0;
   let salaryPayTotal = 0;
   const periodTxs: MonTx[] = [];
@@ -129,12 +135,13 @@ export function calculateEmployeeMonthSummary(emp: MonEmp, txs: MonTx[], ym: str
     if (tx.staffId !== emp.id || tx.month !== ym) continue;
     const amt = toSafeIntegerAmount(tx.amount);
     periodTxs.push(tx);
-    if (tx.type === 'BONUS') bonusTotal += amt;
+    if (tx.shift && (tx.type === 'BONUS' || tx.type === 'PENALTY')) shiftTotal += tx.type === 'BONUS' ? amt : -amt;
+    else if (tx.type === 'BONUS') bonusTotal += amt;
     else if (tx.type === 'PENALTY') penaltyTotal += amt;
     else if (tx.type === 'AVANS') avansTotal += amt;
     else if (tx.type === 'SALARY_PAY') salaryPayTotal += amt;
   }
-  const netPayable = baseSalary + bonusTotal - penaltyTotal;
+  const netPayable = baseSalary + bonusTotal - penaltyTotal + shiftTotal;
   const totalPaid = avansTotal + salaryPayTotal;
   const rawDiff = netPayable - totalPaid;
   const remainingToPay = rawDiff > 0 ? rawDiff : 0;
@@ -153,6 +160,7 @@ export function calculateEmployeeMonthSummary(emp: MonEmp, txs: MonTx[], ym: str
     baseSalary,
     bonusTotal,
     penaltyTotal,
+    shiftTotal,
     netPayable,
     avansTotal,
     salaryPayTotal,

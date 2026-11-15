@@ -1229,14 +1229,14 @@ function HistoryDrawer({
             ) : (
               empTxs.map((tx) => {
                 const meta = OP_META[tx.type];
-                const colorCls = tx.type === 'BONUS' ? 'accent-pos' : tx.type === 'PENALTY' ? 'accent-neg' : '';
+                const colorCls = tx.shift ? '' : tx.type === 'BONUS' ? 'accent-pos' : tx.type === 'PENALTY' ? 'accent-neg' : '';
                 const prefix = tx.type === 'BONUS' ? '+' : tx.type === 'PENALTY' ? '−' : '';
                 return (
                   <div key={tx.id} className="tx-card">
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span className={`pill ${meta.pillCls}`} style={{ border: '1px solid var(--border-light)' }}>
-                          {meta.label}
+                          {tx.shift ? 'Avans hisobi' : meta.label}
                         </span>
                         <span className="tag num">{formatMonthUz(tx.month)} hisobiga</span>
                         {tx.auto && <span className="tag">avtomatik</span>}
