@@ -196,7 +196,13 @@ export function OverviewView({
             <div className="l">Shu oy daromadi</div>
             <div className="v tabular-nums">{money.cur.booked ? mln(money.cur.income) : '—'}</div>
             <div className="d">
-              {money.g === null ? 'o‘tgan oy bilan solishtirib bo‘lmaydi' : <span className={money.g >= 0 ? 'pos' : 'neg'}>{`${money.g >= 0 ? '▲' : '▼'} ${Math.abs(money.g)}% o‘tgan oyga nisbatan`}</span>}
+              {!money.cur.booked ? (
+                'bu oy hali to‘lov yozilmagan'
+              ) : money.g === null ? (
+                'o‘tgan oy bilan solishtirib bo‘lmaydi'
+              ) : (
+                <span className={money.g >= 0 ? 'pos' : 'neg'}>{`${money.g >= 0 ? '▲' : '▼'} ${Math.abs(money.g)}% o‘tgan oyga nisbatan`}</span>
+              )}
             </div>
           </button>
         ) : (
