@@ -85,7 +85,8 @@ test('the sidebar shows exactly the sections a role may open', () => {
     // Telegram is a Platform tab (v8-B): listed on its own only for roles
     // that can't open Platform. The Sales page was removed (2026-10-23);
     // its section key still gates lead access, but has no nav entry.
-    const expected = ALL_SECTIONS.filter((s) => s !== 'sales' && canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))).sort();
+    // Roadmap · Mind map (→ HR growth tab) is listed for everyone (2026-11-16).
+    const expected = [...ALL_SECTIONS.filter((s) => s !== 'sales' && canSee(role, s) && !(s === 'telegramSetup' && canSee(role, 'platform'))), 'roadmap'].sort();
     assert.deepEqual(keys, expected, role);
   }
 });

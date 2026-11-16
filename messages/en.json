@@ -2090,6 +2090,10 @@
           "name": "Keep attendance",
           "desc": "Mark staff attendance"
         },
+        "growth_viewAll": {
+          "name": "View all roadmaps and mind maps",
+          "desc": "See every employee's roadmap and mind map (no approving)"
+        },
         "growth_review": {
           "name": "Approve roadmap stages",
           "desc": "Close a stage of an employee's roadmap"

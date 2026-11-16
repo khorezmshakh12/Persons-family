@@ -191,7 +191,8 @@ export type Capability =
   | 'checklist.monitor' // Jamoa tabi: har bir xodimning bandlari (CEO/COO'nikidan tashqari)
   | 'checklist.feedback' // checklistga kunlik / bandga izoh, xodimga xabar boradi
   | 'hr.manage' // HR hub: barcha xodimlar profili, tuzilma, onboarding (oylik/moliya emas)
-  | 'growth.review'; // HR › Roadmap: topshirilgan roadmap'lar, bosqich tasdig'i
+  | 'growth.review' // HR › Roadmap: topshirilgan roadmap'lar, bosqich tasdig'i
+  | 'growth.viewAll'; // HR › Roadmap · Mind map: har bir xodimnikini ko'rish (tasdiqsiz)
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -234,6 +235,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'hr.manage': [...LEADERSHIP, 'admin_manager', 'it_developer', 'hr_manager'],
   // Xodim roadmap bosqichini faqat CEO tasdiqlaydi (owner, 2026-11-12).
   'growth.review': ['ceo'],
+  // Barcha xodim roadmap/mind map'ini ko'rish — CEO va HR (owner, 2026-11-16).
+  'growth.viewAll': ['ceo', 'hr_manager'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
@@ -348,7 +351,7 @@ export type AccessFunction = { key: Capability | SectionKey; ceoOnly?: boolean }
 export const SECTION_FUNCTIONS: Partial<Record<SectionKey, AccessFunction[]>> = {
   selfDevelopment: [{ key: 'selfDev.viewAll' }, { key: 'selfDev.review', ceoOnly: true }],
   taskTracker: [{ key: 'checklist.monitor' }, { key: 'checklist.feedback' }, { key: 'checklist.manage' }],
-  hr: [{ key: 'attendance' }, { key: 'growth.review', ceoOnly: true }],
+  hr: [{ key: 'attendance' }, { key: 'growth.viewAll' }, { key: 'growth.review', ceoOnly: true }],
 };
 export const FUNCTION_KEYS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.map((f) => f.key));
 const CEO_ONLY_FUNCTIONS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.filter((f) => f.ceoOnly).map((f) => f.key));
