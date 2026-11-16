@@ -41,8 +41,10 @@ export type AdvanceRequest = {
   created_at: string;
 };
 
-/** `planned` = the month's computed pay (payable); `paid` = paid out for that month. */
-export type MonthPoint = { period: string; planned: number; paid: number };
+/** `planned` = the month's computed pay (payable); `paid` = paid out for that
+ * month; `earned` = payable without advance bookkeeping (carry / split
+ * advance) — what the month really earned, used by B-nuqta. */
+export type MonthPoint = { period: string; planned: number; paid: number; earned: number };
 
 const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.trim() || 'Xodim';
 
@@ -69,7 +71,10 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
         ${only}
       order by p.first_name, p.last_name`,
     db<{ staff_id: string; gross: number }[]>`
-      select staff_id, gross_amount as gross from salary_months where period = ${period} ${onlyCol('staff_id')}`,
+      -- One rule everywhere (Monitor too): the month's own salary, else the
+      -- nearest earlier month's (owner, 2026-11-16 — single algorithm).
+      select distinct on (staff_id) staff_id, gross_amount as gross from salary_months
+      where period <= ${period} ${onlyCol('staff_id')} order by staff_id, period desc`,
     db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null; method: string | null; r_status: 'received' | 'disputed' | null; r_note: string | null }[]>`
       select fe.id, fe.staff_id, fe.title, fe.amount, fe.kind, fe.source, fe.reversal_of, fe.created_at, fe.method,
         r.status as r_status, r.note as r_note
@@ -236,6 +241,7 @@ export async function loadPayByMonth(first: string, last: string, staffId?: stri
       period: p,
       planned: lines.reduce((t, l) => t + l.payable, 0),
       paid: lines.reduce((t, l) => t + l.paid, 0),
+      earned: lines.reduce((t, l) => t + l.payable - l.carry - l.advanceShift, 0),
     });
   }
   return out;

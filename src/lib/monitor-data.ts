@@ -34,6 +34,7 @@ function lineTxs(line: PayLine, ym: string): MonTx[] {
       createdAt: day(c.at),
       entryId: c.entryId && c.source && EDITABLE_SOURCES.has(c.source) ? c.entryId : null,
       auto: !c.entryId || c.source !== 'manual',
+      shift: c.kind === 'carry' || c.kind === 'advshift' || undefined,
     });
   }
   for (const p of line.payments) {
@@ -112,6 +113,8 @@ export async function loadMonitor(month: string): Promise<MonitorData> {
         createdAt: day(e.created_at),
         entryId: EDITABLE_SOURCES.has(e.source) ? e.id : null,
         auto: e.source !== 'manual' && e.kind !== 'salary' && e.kind !== 'advance',
+        // Same split as the engine (pay-run-data): carry rows and split-advance shares.
+        shift: (e.kind !== 'salary' && e.kind !== 'advance' && (e.source === 'carry' || e.source === 'advance')) || undefined,
       })),
   ].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
 

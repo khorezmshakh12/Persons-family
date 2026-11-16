@@ -5,6 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { computeLine } from '../src/lib/pay-run';
 import { calculateEmployeeMonthSummary as sum, getEmployeeSalaryForMonth, getStatusText, shiftYearMonth, formatUZS, type MonEmp, type MonTx } from '../src/lib/monitor';
 
 const emp = (id: string, salaries: Record<string, number>, requested: Record<string, boolean> = {}): MonEmp => ({ id, firstName: 'A', lastName: 'B', role: 'r', salaries, requested });
@@ -44,4 +45,38 @@ test('helpers', () => {
   assert.equal(shiftYearMonth('2026-12', 1), '2027-01');
   assert.equal(formatUZS(-1234567), "−1 234 567 so'm");
   assert.equal(sum(emp('e', {}, { '2026-11': true }), [], '2026-11').avansRequested, true);
+});
+
+test('advance bookkeeping (carry / split advance) is in net, not in bonus or jarima', () => {
+  const e = emp('e', { '2026-11': 1_000_000 });
+  const hold = { ...tx('e', 'PENALTY', 300_000, '2026-11'), shift: true };
+  const s = sum(e, [hold, tx('e', 'BONUS', 50_000, '2026-11')], '2026-11');
+  assert.equal(s.penaltyTotal, 0);
+  assert.equal(s.bonusTotal, 50_000);
+  assert.equal(s.shiftTotal, -300_000);
+  assert.equal(s.netPayable, 750_000);
+});
+
+test('one algorithm: Monitor month = pay-run engine month', () => {
+  const comps = [
+    { kind: 'base' as const, title: 'b', amount: 4_000_000 },
+    { kind: 'kpi' as const, title: 'k', amount: 300_000 },
+    { kind: 'penalty' as const, title: 'j', amount: -100_000 },
+    { kind: 'carry' as const, title: 'c', amount: -500_000 },
+    { kind: 'advshift' as const, title: 'a', amount: 200_000 },
+  ];
+  const line = computeLine({
+    staffId: 'e', name: 'A', role: 'r', components: comps, prevPayable: null, kpiPending: false, selfDevPending: false, advancePending: false,
+    payments: [{ id: 'p1', kind: 'advance', title: 'a', amount: 1_000_000, at: null }, { id: 'p2', kind: 'salary', title: 's', amount: 2_000_000, at: null }],
+  });
+  const txs: MonTx[] = [
+    ...comps.filter((c) => c.kind !== 'base').map((c) => ({ ...tx('e', c.amount > 0 ? 'BONUS' : 'PENALTY', Math.abs(c.amount), '2026-11'), shift: c.kind === 'carry' || c.kind === 'advshift' })),
+    tx('e', 'AVANS', 1_000_000, '2026-11'),
+    tx('e', 'SALARY_PAY', 2_000_000, '2026-11'),
+  ];
+  const s = sum(emp('e', { '2026-11': 4_000_000 }), txs, '2026-11');
+  assert.equal(s.netPayable, line.payable);
+  assert.equal(s.totalPaid, line.paid);
+  assert.equal(s.rawDiff, line.remaining);
+  assert.equal(s.bonusTotal - s.penaltyTotal, line.kpi + line.bonuses + line.deductions);
 });
