@@ -822,9 +822,11 @@ export function TeamKpi({
   const byUser = useMemo(() => new Map(team.map((m) => [m.id, m])), [team]);
   const planOf = (uid: string, month: string) => plans.find((p) => p.user_id === uid && p.month === month);
   const order = { submitted: 0, returned: 1, approved: 2, draft: 3 } as const;
+  // Staff may also file the current month's plan (My KPI › Joriy oy) — those
+  // must reach this queue too, or the CEO never sees them.
   const nextPlans = plans
-    .filter((p) => p.month === nextMonth && p.status !== 'draft' && byUser.has(p.user_id))
-    .sort((a, b) => order[a.status] - order[b.status]);
+    .filter((p) => (p.month === nextMonth || (p.month === thisMonth && p.status !== 'approved')) && p.status !== 'draft' && byUser.has(p.user_id))
+    .sort((a, b) => order[a.status] - order[b.status] || a.month.localeCompare(b.month));
   const missingNext = team.filter((m) => {
     const p = planOf(m.id, nextMonth);
     return !p || p.status === 'draft';
@@ -886,7 +888,7 @@ export function TeamKpi({
                   key={p.id}
                   index={i}
                   member={m}
-                  meta={`${p.items.length} ko‘rsatkich${isLate(p) ? ' · kechikdi' : ''}`}
+                  meta={`${monthName(p.month)} · ${p.items.length} ko‘rsatkich${isLate(p) ? ' · kechikdi' : ''}`}
                   chip={<Chip className={STATUS_CHIP[p.status]}>{STATUS_LABEL[p.status]}</Chip>}
                   active={p.id === reviewPlan?.id}
                   onClick={() => setReviewSel(p.id)}
