@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { fmtMln, type Course } from '@/lib/accounting';
-import { saveCourseAction } from '@/lib/actions/accounting';
+import { deleteCourseAction, saveCourseAction } from '@/lib/actions/accounting';
 import { saveFinMonthAction, saveFinSettingsAction } from '@/lib/actions/strategy-finance';
 import { AGE, ageOf, capacityOf, debtSummary, type AgeKey, type FinInputs, type FinShift, type monthInputs } from '@/lib/strategy-finance';
 import { MONF } from '@/lib/strategy';
 import { formatUZS } from '@/lib/format-currency';
-import { toast } from './suite-shell';
+import { ask, toast } from './suite-shell';
 import type { BooksLite } from './view-finance';
 
 function errText(code: string) {
@@ -58,6 +58,13 @@ export function FinEditor({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [courses, setCourses] = useState(books.courses);
+  const [srcCourses, setSrcCourses] = useState(books.courses);
+  const [newName, setNewName] = useState('');
+  // After add/delete the server list changes — take it, keep other edits.
+  if (srcCourses !== books.courses) {
+    setSrcCourses(books.courses);
+    setCourses(books.courses);
+  }
   const [st, setSt] = useState(fin.settings);
   const m = {
     students: inp.students === null ? '' : String(inp.students),
@@ -79,6 +86,28 @@ export function FinEditor({
       });
       if (res.error) return void toast.error(errText(res.error));
       toast.success(`«${c.name}» saqlandi`);
+      router.refresh();
+    });
+  };
+
+  const addCourse = () => {
+    const name = newName.trim();
+    if (!name) return;
+    start(async () => {
+      const res = await saveCourseAction({ name, fee: 0, students: 0, teacherCost: 0, bookCost: 0 });
+      if (res.error) return void toast.error(errText(res.error));
+      toast.success(`«${name}» qo‘shildi`);
+      setNewName('');
+      router.refresh();
+    });
+  };
+
+  const removeCourse = async (c: Course) => {
+    if (!(await ask(`«${c.name}» kursi o‘chirilsinmi?`))) return;
+    start(async () => {
+      const res = await deleteCourseAction(c.id);
+      if (res.error) return void toast.error(errText(res.error));
+      toast.success(`«${c.name}» o‘chirildi`);
       router.refresh();
     });
   };
@@ -112,9 +141,7 @@ export function FinEditor({
         <div className="fn-edc">
           <h5>Kurslar · tushum va to‘g‘ridan-to‘g‘ri xarajat</h5>
           {courses.length === 0 ? (
-            <div className="sx-empty">
-              Kurs yo‘q — <Link href="/accounting">Hisob-kitob → Xarajat & marja</Link> bo‘limida qo‘shing
-            </div>
+            <div className="sx-empty">Kurs yo‘q — quyida qo‘shing</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="fn-crs">
@@ -125,6 +152,7 @@ export function FinEditor({
                     <th>Oylik to‘lov, so‘m</th>
                     <th>O‘qituvchi, so‘m/oy</th>
                     <th>Darslik, so‘m/o‘q.</th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
@@ -143,12 +171,31 @@ export function FinEditor({
                           />
                         </td>
                       ))}
+                      <td>
+                        <button className="sx-chipb" disabled={pending} onClick={() => removeCourse(c)} aria-label={`${c.name} kursini o‘chirish`}>
+                          ✕
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+          <div className="fn-addc">
+            <input
+              className="sx-inp"
+              placeholder="Yangi kurs nomi"
+              value={newName}
+              maxLength={120}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addCourse()}
+              aria-label="Yangi kurs nomi"
+            />
+            <button className="sx-btn sm" disabled={pending || !newName.trim()} onClick={addCourse}>
+              + Kurs
+            </button>
+          </div>
         </div>
         <div className="fn-edc">
           <h5>Doimiy xarajatlar · jurnaldan</h5>
