@@ -21,7 +21,7 @@ if git diff --name-only origin/main...HEAD -- supabase/migrations | grep -q .; t
 fi
 
 gcloud run deploy "$SERVICE" --source=. --region="$REGION" \
-  --no-traffic --tag="$TAG" --no-cpu-throttling --quiet
+  --no-traffic --tag="$TAG" --cpu-throttling --quiet
 
 gcloud run services describe "$SERVICE" --region="$REGION" \
   --format="value(status.traffic[].url)" | tr ';' '\n' | grep -- "$TAG---" | sed 's|$|/staff/uz/dashboard|'

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { getFormatter } from 'next-intl/server';
 import { ForbiddenError } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
@@ -288,7 +288,7 @@ export async function updateTaskAction(
 
   // Notify old assignee if reassigned
   if (reassigned) {
-    after(async () => {
+    await settle(async () => {
       try {
         await notifyTelegram(
           await telegramIdFor(existing.assigned_to),
@@ -751,7 +751,7 @@ export async function undoSubmitTaskAction(formData: FormData): Promise<UpdateTa
   await bumpBoardSignal('tasks');
   await bumpNavBadgeSignal(existing.assigned_by);
 
-  after(async () => {
+  await settle(async () => {
     try {
       const [ceoTelegramId, actorName] = await Promise.all([telegramIdFor(existing.assigned_by), displayNameFor(user.id)]);
       await notifyTelegram(
@@ -1410,7 +1410,7 @@ export async function deleteTaskAction(formData: FormData): Promise<DeleteTaskRe
 
   // Notify the assignee that their task has been deleted
   if (existing.assigned_to !== actingUserId) {
-    after(async () => {
+    await settle(async () => {
       try {
         await notifyTelegram(
           await telegramIdFor(existing.assigned_to),

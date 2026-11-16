@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { escapeTelegramText, sendTelegramManyAs } from '@/lib/telegram';
@@ -143,7 +143,7 @@ export async function createGroupAction(
   // Fire-and-forget — the group is already created either way.
   // The platform can tear down a
   // bare un-awaited fire-and-forget call before its Telegram send finishes.
-  after(() => notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId }));
+  await settle(() => notifyGroupCreated({ name: parsed.data.name, teacherProfile: profile, assignedTaId }));
 
   return { groupId };
 }

@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
+import { settle } from '@/lib/settle';
 import { scoreLead } from '@/lib/ai-triage';
 import { authErrorCode } from '@/lib/auth/require-admin';
 import { sql } from '@/lib/db/client';
@@ -62,7 +62,7 @@ export async function saveLeadAction(input: z.input<typeof leadSchema>): Promise
   // TypeSafe intent score after the response (best-effort, never blocks).
   if (leadId) {
     const id = leadId;
-    after(async () => {
+    await settle(async () => {
       await scoreLead(id);
     });
   }
