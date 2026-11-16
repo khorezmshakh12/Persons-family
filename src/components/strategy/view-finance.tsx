@@ -41,7 +41,11 @@ export type BooksLite = {
 };
 
 const monthName = (ym: string) => `${MONF[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
-const mon3 = (ym: string) => `${MONF[+ym.slice(5, 7) - 1].slice(0, 3)} ${ym.slice(2, 4)}`;
+// Iyun / Iyul share their first three letters — keep four for those two.
+const mon3 = (ym: string) => {
+  const n = MONF[+ym.slice(5, 7) - 1];
+  return `${n.startsWith('Iyu') ? n.slice(0, 4) : n.slice(0, 3)} ${ym.slice(2, 4)}`;
+};
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 /** Percent value (already ×100) or a dash. */
 export const pc = (v: number | null | undefined, d = 1) =>
@@ -396,7 +400,7 @@ function CacCard({ M, H, newS, newFromLeads }: { M: Row; H: Row[]; newS: number 
           Yangi o‘quvchi<b>{newS === null ? '—' : `${newS} ta`}</b>
         </div>
       </div>
-      <div className="fn-note">{newFromLeads ? 'Yangi o‘quvchilar — Operatsiya HQ lidlaridan (enrolled)' : 'Yangi o‘quvchilar — qo‘lda kiritilgan'}</div>
+      <div className="fn-note">{newFromLeads ? 'Yangi o‘quvchilar — Operatsiya HQ: shu oy birinchi to‘lov qilganlar' : 'Yangi o‘quvchilar — qo‘lda kiritilgan'}</div>
       <div className="fn-cach">
         <div className="hl">
           <span>So‘nggi 6 oy · CAC</span>
@@ -420,7 +424,9 @@ function CacCard({ M, H, newS, newFromLeads }: { M: Row; H: Row[]; newS: number 
 }
 
 function BreakEvenCard({ M, paid }: { M: Row; paid: number }) {
-  const bep = M.bep;
+  // No fixed costs booked this month: break-even is unknown, not "passed".
+  const noCost = !(M.fixed > 0);
+  const bep = noCost ? null : M.bep;
   const N = M.N ?? 0;
   const need = bep === null ? null : Math.max(0, bep - paid);
   const scale = Math.max(N, bep ?? 0, paid) * 1.06 || 1;
@@ -437,12 +443,14 @@ function BreakEvenCard({ M, paid }: { M: Row; paid: number }) {
         <div>
           <div className="fn-bev">
             {paid}
-            <span> / {bep === null ? '∞' : bep}</span>
+            <span> / {noCost ? '—' : bep === null ? '∞' : bep}</span>
           </div>
           <div className="fn-sub">bu oy to‘lov qilgan / kerakli o‘quvchi</div>
         </div>
         {M.fee === null ? (
           <div className="fn-msg need">O‘quvchilar soni yoki kurs narxlari kiritilmagan — «Ma’lumotlarni kiritish».</div>
+        ) : noCost ? (
+          <div className="fn-msg need">Bu oy doimiy xarajat yozilmagan — zararsizlik nuqtasini hisoblab bo‘lmaydi.</div>
         ) : bep === null ? (
           <div className="fn-msg need">1 o‘quvchidan marja manfiy — to‘lov to‘g‘ridan-to‘g‘ri xarajatni yopmayapti.</div>
         ) : need! > 0 ? (
@@ -501,7 +509,7 @@ function BreakEvenCard({ M, paid }: { M: Row; paid: number }) {
           To‘g‘ridan-to‘g‘ri / o‘q.<b>{ming(M.dcs)}</b>
         </div>
         <div>
-          Xavfsizlik zonasi<b className={(M.safety ?? 0) >= 0 ? 'pos' : 'neg'}>{pc(M.safety, 0)}</b>
+          Xavfsizlik zonasi<b className={(M.safety ?? 0) >= 0 ? 'pos' : 'neg'}>{noCost ? '—' : pc(M.safety, 0)}</b>
         </div>
       </div>
     </div>

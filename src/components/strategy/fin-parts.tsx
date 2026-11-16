@@ -5,12 +5,7 @@ import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { fmtMln, type Course } from '@/lib/accounting';
 import { saveCourseAction } from '@/lib/actions/accounting';
-import {
-  removeDebtorAction,
-  saveDebtorAction,
-  saveFinMonthAction,
-  saveFinSettingsAction,
-} from '@/lib/actions/strategy-finance';
+import { saveFinMonthAction, saveFinSettingsAction } from '@/lib/actions/strategy-finance';
 import { AGE, ageOf, capacityOf, debtSummary, type AgeKey, type FinInputs, type FinShift, type monthInputs } from '@/lib/strategy-finance';
 import { MONF } from '@/lib/strategy';
 import { formatUZS } from '@/lib/format-currency';
@@ -64,12 +59,11 @@ export function FinEditor({
   const [pending, start] = useTransition();
   const [courses, setCourses] = useState(books.courses);
   const [st, setSt] = useState(fin.settings);
-  const [m, setM] = useState({
+  const m = {
     students: inp.students === null ? '' : String(inp.students),
     paid: String(inp.paid),
     newS: inp.newFromLeads ? '' : String(inp.newStudents ?? ''),
-  });
-  const courseN = books.courses.reduce((a, c) => a + c.students, 0);
+  };
 
   const saveCourse = (c: Course) => {
     const was = books.courses.find((x) => x.id === c.id);
@@ -200,27 +194,11 @@ export function FinEditor({
           <div className="fn-note">
             Sig‘im: {st.rooms} × {st.seats} × {st.shifts.length} = <b>{capacityOf(st)}</b> o‘rin
           </div>
-          <Field label="Jami o‘quvchilar (bu oy)" unit="ta" value={m.students} onChange={(v) => setM((x) => ({ ...x, students: v }))} />
-          {courseN > 0 && String(courseN) !== m.students && (
-            <button className="fn-link" onClick={() => setM((x) => ({ ...x, students: String(courseN) }))}>
-              Kurslardan olish ({courseN})
-            </button>
-          )}
-          <Field label="Bu oy to‘lov qilganlar" unit="ta" value={m.paid} onChange={(v) => setM((x) => ({ ...x, paid: v }))} />
-          <label className="fn-fi">
-            <span>Bu oy yangi o‘quvchilar</span>
-            <span className="u">
-              <input
-                type="number"
-                min={0}
-                className="sx-inp"
-                placeholder={`lidlardan: ${fin.enrolled[ym] ?? 0}`}
-                value={m.newS}
-                onChange={(e) => setM((x) => ({ ...x, newS: e.target.value }))}
-              />
-              <em>ta</em>
-            </span>
-          </label>
+          {/* Head counts come from Operatsiya HQ now (owner, 2026-11-16) — not typed here. */}
+          <div className="fn-note">
+            Operatsiya HQ&apos;dan avtomatik: faol o‘quvchilar <b>{inp.students ?? '—'}</b> · bu oy to‘lov qilganlar <b>{inp.paid}</b> · yangi o‘quvchilar{' '}
+            <b>{inp.newStudents ?? 0}</b>
+          </div>
           <button className="sx-btn primary sm mt-2 w-full justify-center" disabled={pending} onClick={save}>
             {pending ? 'Saqlanmoqda…' : 'Saqlash va qayta hisoblash'}
           </button>
@@ -232,20 +210,13 @@ export function FinEditor({
 
 /* ------------------------------------------------------------ debtors */
 
-type Form = { id?: string; name: string; phone: string; courseId: string; grp: string; amount: string; dueDate: string };
-const EMPTY = (today: string): Form => ({ name: '', phone: '', courseId: '', grp: '', amount: '', dueDate: today });
-
 const smsHref = (phones: string[], body: string) => `sms:${phones.join(',')}?body=${encodeURIComponent(body)}`;
 
 export function DebtorsModal({ fin, courses, today, onClose }: { fin: FinInputs; courses: Course[]; today: string; onClose: () => void }) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
   const [q, setQ] = useState('');
   const [f, setF] = useState<'all' | AgeKey>('all');
-  const [form, setForm] = useState<Form | null>(null);
-  const [gone, setGone] = useState<Set<string>>(new Set());
   const cn = (id: string | null) => courses.find((c) => c.id === id)?.name ?? '—';
-  const d = useMemo(() => debtSummary(fin.debtors.filter((x) => !gone.has(x.id)), today), [fin.debtors, gone, today]);
+  const d = useMemo(() => debtSummary(fin.debtors, today), [fin.debtors, today]);
   const list = d.rows.filter(
     (x) => (f === 'all' || ageOf(x.days).k === f) && (!q || `${x.name} ${cn(x.course_id)} ${x.grp}`.toLowerCase().includes(q.toLowerCase().trim())),
   );
@@ -258,33 +229,6 @@ export function DebtorsModal({ fin, courses, today, onClose }: { fin: FinInputs;
     return () => document.removeEventListener('keydown', kd);
   }, [onClose]);
 
-  const remove = (id: string, paid: boolean, name: string, amount: number) =>
-    start(async () => {
-      const res = await removeDebtorAction({ id, paid });
-      if (res.error) return void toast.error(errText(res.error));
-      setGone((s) => new Set(s).add(id));
-      toast.success(paid ? `${name} — to‘lov qabul qilindi (+${ming(amount)})` : `${name} ro‘yxatdan olindi`);
-      router.refresh();
-    });
-
-  const submit = () => {
-    if (!form) return;
-    start(async () => {
-      const res = await saveDebtorAction({
-        id: form.id,
-        name: form.name,
-        phone: form.phone,
-        courseId: form.courseId || null,
-        grp: form.grp,
-        amount: num(form.amount),
-        dueDate: form.dueDate,
-      });
-      if (res.error) return void toast.error(errText(res.error));
-      toast.success(form.id ? 'Qarzdor yangilandi' : 'Qarzdor qo‘shildi');
-      setForm(null);
-      router.refresh();
-    });
-  };
 
   return (
     <div className="fn-dmbg" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -293,7 +237,7 @@ export function DebtorsModal({ fin, courses, today, onClose }: { fin: FinInputs;
           <div className="ic">!</div>
           <div>
             <h3>Qarzdorlar ro‘yxati</h3>
-            <p>To‘lov muddati o‘tgan o‘quvchilar · {mon}</p>
+            <p>Operatsiya HQ balansi manfiy o‘quvchilar · {mon} · to‘lov va qo‘ng‘iroqlar Operatsiya HQ › O‘quvchilar&apos;da</p>
           </div>
           <button className="sx-chipb ml-auto" onClick={onClose} aria-label="Yopish">
             ✕
@@ -320,36 +264,7 @@ export function DebtorsModal({ fin, courses, today, onClose }: { fin: FinInputs;
               Barchasiga SMS
             </button>
           )}
-          <button className="sx-btn primary sm" onClick={() => setForm(EMPTY(today))}>
-            + Qarzdor
-          </button>
         </div>
-        {form && (
-          <div className="fn-dmf">
-            <input className="sx-inp" placeholder="Ism familiya" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input className="sx-inp" placeholder="Telefon" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <select className="sx-inp" value={form.courseId} onChange={(e) => setForm({ ...form, courseId: e.target.value })} aria-label="Kurs">
-              <option value="">Kurs —</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <input className="sx-inp" placeholder="Guruh" value={form.grp} onChange={(e) => setForm({ ...form, grp: e.target.value })} />
-            <input className="sx-inp" type="number" min={0} placeholder="Qarz, so‘m" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-            <label className="fn-due">
-              <span>To‘lov muddati</span>
-              <input className="sx-inp" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-            </label>
-            <button className="sx-btn primary sm" disabled={pending || !form.name.trim() || num(form.amount) <= 0} onClick={submit}>
-              Saqlash
-            </button>
-            <button className="sx-btn sm" onClick={() => setForm(null)}>
-              Bekor
-            </button>
-          </div>
-        )}
         <div className="fn-dml">
           {list.length === 0 ? (
             <div className="sx-empty">{d.count === 0 ? 'Qarzdor yo‘q' : 'Hech narsa topilmadi'}</div>
@@ -405,27 +320,6 @@ export function DebtorsModal({ fin, courses, today, onClose }: { fin: FinInputs;
                             Eslatma
                           </button>
                         )}
-                        <button
-                          onClick={() =>
-                            setForm({
-                              id: x.id,
-                              name: x.name,
-                              phone: x.phone,
-                              courseId: x.course_id ?? '',
-                              grp: x.grp,
-                              amount: String(x.amount),
-                              dueDate: x.due_date,
-                            })
-                          }
-                        >
-                          Tahrir
-                        </button>
-                        <button className="pay" disabled={pending} onClick={() => remove(x.id, true, x.name, x.amount)}>
-                          To‘landi
-                        </button>
-                        <button disabled={pending} onClick={() => remove(x.id, false, x.name, x.amount)} aria-label="O‘chirish">
-                          ✕
-                        </button>
                       </div>
                     </td>
                   </tr>

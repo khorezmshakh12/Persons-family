@@ -34,8 +34,10 @@ export type FinInputs = {
   settings: FinSettings;
   months: FinMonth[];
   debtors: Debtor[];
-  /** Operatsiya HQ leads that reached "enrolled", per Tashkent month. */
+  /** New students per Tashkent month — their first real payment in Operatsiya HQ. */
   enrolled: Record<string, number>;
+  /** Operatsiya HQ: distinct paying students per month, and «faol» students now. */
+  ops: { paid: Record<string, number>; active: number };
 };
 
 export const capacityOf = (s: Pick<FinSettings, 'rooms' | 'seats' | 'shifts'>) => s.rooms * s.seats * s.shifts.length;
@@ -166,19 +168,19 @@ export function marginHeat(v: number | null) {
   return v < 0 ? mix(base, [199, 50, 43], -v / 8) : mix(base, [19, 154, 82], v / 16);
 }
 
-/** Head-count inputs for month `ym`. The current month falls back to the
- * course list (students) and the capacity settings; enrolments fall back to
- * Operatsiya HQ leads that reached "enrolled" that month. Unknown → null. */
+/** Head-count inputs for month `ym`. Payers and new students come from
+ * Operatsiya HQ payments; the current month's student count is Ops' «faol»
+ * count. A saved month row only fills what Ops has no figure for. */
 export function monthInputs(fin: FinInputs, courses: Course[], ym: string, currentYm: string) {
   const row = fin.months.find((m) => m.ym === ym);
   const cur = ym === currentYm;
   const courseN = courses.reduce((a, c) => a + c.students, 0);
   return {
     saved: !!row,
-    students: row?.students ?? (cur && courseN > 0 ? courseN : null),
-    paid: row?.paid ?? 0,
-    newStudents: row?.new_students ?? fin.enrolled[ym] ?? null,
-    newFromLeads: row?.new_students == null,
+    students: cur && fin.ops.active > 0 ? fin.ops.active : (row?.students ?? (cur && courseN > 0 ? courseN : null)),
+    paid: fin.ops.paid[ym] ?? row?.paid ?? 0,
+    newStudents: fin.enrolled[ym] ?? row?.new_students ?? null,
+    newFromLeads: fin.enrolled[ym] !== undefined || row?.new_students == null,
     capacity: row?.capacity ?? (cur ? capacityOf(fin.settings) : 0),
   };
 }
