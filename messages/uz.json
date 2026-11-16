@@ -2090,6 +2090,10 @@
           "name": "Davomat yuritish",
           "desc": "Xodimlar davomatini belgilash"
         },
+        "growth_viewAll": {
+          "name": "Barcha roadmap va mind map",
+          "desc": "Har bir xodimning roadmap va mind map'ini ko'rish (tasdiqsiz)"
+        },
         "growth_review": {
           "name": "Roadmap bosqichini tasdiqlash",
           "desc": "Xodim roadmap bosqichini yopish"

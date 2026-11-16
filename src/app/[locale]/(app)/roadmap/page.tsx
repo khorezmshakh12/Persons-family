@@ -1,7 +1,7 @@
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 
-/** Roadmap section removed (owner, 2026-09-26) — old links land on the Dashboard. */
+/** Roadmap · Mind map lives in HR (owner, 2026-11-16: visible to everyone). */
 export default async function RoadmapPage() {
-  redirect({ href: '/dashboard', locale: await getLocale() });
+  redirect({ href: '/hr?tab=growth', locale: await getLocale() });
 }

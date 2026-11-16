@@ -2090,6 +2090,10 @@
           "name": "Вести посещаемость",
           "desc": "Отмечать посещаемость сотрудников"
         },
+        "growth_viewAll": {
+          "name": "Все roadmap и mind map",
+          "desc": "Просмотр roadmap и mind map каждого сотрудника (без утверждения)"
+        },
         "growth_review": {
           "name": "Утверждать этапы roadmap",
           "desc": "Закрывать этап roadmap сотрудника"

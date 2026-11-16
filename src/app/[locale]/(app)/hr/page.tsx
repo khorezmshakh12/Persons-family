@@ -6,6 +6,7 @@ import { HrHub, type HrTab } from '@/components/hr/hr-hub';
 import { BgVideo } from '@/components/motion/bg-video';
 import { Link } from '@/i18n/navigation';
 import { getAuthState } from '@/lib/auth/session';
+import { coreViews } from '@/lib/core-state';
 import { loadEmployeeTaskStats } from '@/lib/aurora-dashboard';
 import { DAY_RE } from '@/lib/attendance';
 import { loadAttendanceRows } from '@/lib/attendance-data';
@@ -60,7 +61,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         { k: 'growth', n: 'Roadmap · Mind map' },
         { k: 'core', n: 'Ta’til va davomat' },
       ];
-  const tabs = allTabs.filter((t) => t.k !== 'attendance' || marksAttendance);
+  // Core's per-person ACL can hide HR; Roadmap · Mind map stays open to
+  // everyone (owner, 2026-11-16), so such people get only those two tabs.
+  const hrOpen = !!profile && (await coreViews(profile)).includes('hr');
+  const tabs = allTabs
+    .filter((t) => t.k !== 'attendance' || marksAttendance)
+    .filter((t) => hrOpen || t.k === 'roadmap' || t.k === 'growth');
   const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance' | 'roadmap' | 'growth';
   const today = tashkentDayKey();
   const day = dayParam && DAY_RE.test(dayParam) ? dayParam : today;
@@ -88,14 +94,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         where pr.status = 'pending' order by pr.created_at`.catch(() => [])
     : [];
 
-  // Roadmap · Mind map: o'z rejasi; CEO (growth.review) jamoanikini ham ko'radi.
+  // Roadmap · Mind map: o'z rejasi; CEO va HR (growth.viewAll) jamoanikini ham
+  // ko'radi, bosqichni faqat CEO (growth.review) tasdiqlaydi.
   const canReview = !!profile && canFor(profile, 'growth.review');
-  const growthPerson = tab === 'growth' && canReview && personParam && personParam !== profile?.id && /^[0-9a-f-]{36}$/.test(personParam) ? personParam : null;
+  const canViewTeam = canReview || (!!profile && canFor(profile, 'growth.viewAll'));
+  const growthPerson = tab === 'growth' && canViewTeam && personParam && personParam !== profile?.id && /^[0-9a-f-]{36}$/.test(personParam) ? personParam : null;
   const [growthMe, growthViewed, growthTeam] = tab === 'growth' && profile
     ? await Promise.all([
         loadGrowthPlan(profile.id),
         growthPerson ? loadGrowthPlan(growthPerson, true) : Promise.resolve(null),
-        canReview ? loadGrowthTeam() : Promise.resolve(null),
+        canViewTeam ? loadGrowthTeam() : Promise.resolve(null),
       ])
     : [null, null, null];
 

@@ -60,6 +60,7 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   // Men — my own numbers and growth.
   kpi: 'me',
   selfDevelopment: 'me',
+  roadmap: 'me',
   profile: 'me',
   // Jamoa — people and the teaching floor.
   staff: 'team',
@@ -74,7 +75,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   report: 'manage',
   finance: 'manage',
   accounting: 'manage',
-  roadmap: 'manage',
   // Tizim
   market: 'system',
   settings: 'system',
@@ -91,6 +91,7 @@ const NAV_SORT: NavItem['key'][] = [
   'taskTracker',
   'kpi',
   'selfDevelopment',
+  'roadmap',
   'profile',
   'staff',
   'hr',
@@ -102,7 +103,6 @@ const NAV_SORT: NavItem['key'][] = [
   'report',
   'finance',
   'accounting',
-  'roadmap',
   'market',
   'settings',
   'platform',
@@ -151,6 +151,9 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'taskTracker', href: '/task-tracker' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
+  // Roadmap · Mind map — everyone, even when Core's ACL hides HR (owner,
+  // 2026-11-16). /roadmap redirects to HR's growth tab.
+  { key: 'roadmap', href: '/roadmap' },
   { key: 'finance', href: '/finance' },
   { key: 'strategy', href: '/strategy' },
   // Folded into Finance (owner, 2026-10-05: one place for money) — opened
