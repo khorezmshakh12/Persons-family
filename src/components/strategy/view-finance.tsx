@@ -777,7 +777,12 @@ export function AnalyticsView({ books, fin, today }: { books: BooksLite; fin: Fi
             <b>{c.v}</b>
             <span>{c.d}</span>
           </div>
-          <Chart labels={labels} height={170} fmt={c.fmt} series={c.series} />
+          {/* A target line alone looks like data — without a single real value say so instead. */}
+          {c.series[0].v.some(Number.isFinite) ? (
+            <Chart labels={labels} height={170} fmt={c.fmt} series={c.series} />
+          ) : (
+            <div className="s3-empty mt-2">12 oy ichida bu ko‘rsatkich uchun ma’lumot yo‘q — tushum, xarajat yoki sig‘im kiritilgach chiziq paydo bo‘ladi.</div>
+          )}
         </div>
       ))}
       <div className="sx-card s12">
