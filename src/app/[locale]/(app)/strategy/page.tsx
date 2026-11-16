@@ -18,6 +18,7 @@ import { loadOkr } from '@/lib/strategy-okr-data';
 import { canFor, canSeeFor } from '@/lib/permissions';
 import { loadPortfolio } from '@/lib/strategy-portfolio';
 import { weekOf, type Dep } from '@/lib/strategy-plan';
+import { loadCashBoxes } from '@/lib/pay-cash';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,8 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
   const { profile } = await getAuthState();
   if (!profile || !canSeeFor(profile, 'strategy')) notFound();
   const finance = canFor(profile, 'strategy.finance');
+  // Writing an expense into the journal is Hisob-kitob's own right.
+  const canBook = finance && canFor(profile, 'accounting.edit');
 
   const [spaces, roadmaps, people, books, fin] = await Promise.all([
     sql<StrategySpace[]>`
@@ -40,6 +43,13 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
     finance ? loadBooks() : Promise.resolve(null),
     finance ? loadFinInputs() : Promise.resolve(null),
   ]);
+  const [cats, boxes] = canBook
+    ? await Promise.all([
+        sql<{ k: string; n: string; acc: string }[]>`
+          select k, n, acc from acct_cash_cats where dir = 'out' and active order by sort, n`.catch(() => []),
+        loadCashBoxes().catch(() => []),
+      ])
+    : [[], []];
 
   const wanted = (await searchParams)?.space;
   const space = spaces.find((s) => s.id === wanted) ?? spaces[0] ?? null;
@@ -82,6 +92,10 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
       fin={fin}
       okr={okr}
       finance={finance}
+      meId={profile.id}
+      canBook={canBook}
+      cats={[...cats]}
+      boxes={[...boxes]}
     />
   );
 }

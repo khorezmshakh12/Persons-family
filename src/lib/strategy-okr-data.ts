@@ -22,13 +22,23 @@ async function liveMetrics(spaceId: string, finance: boolean): Promise<Partial<R
     }[]
   >`
     select
-      (select count(*) from ops_leads where created_at >= ${MONTH_START})::int as leads,
-      (select count(*) from ops_leads where stage = 'enrolled' and enrolled_at >= ${MONTH_START})::int as enrolled,
-      (select coalesce(sum(students), 0) from acct_courses)::int as students,
+      -- Operatsiya HQ (owner, 2026-11-16): Sotuv lids, and new students = first real payment this month.
+      (select count(*) from crm_leads where archived_at is null and created_at >= ${MONTH_START})::int as leads,
+      (select count(*) from (
+        select y.student_id from crm_payments y
+        where y.student_id is not null and not y.is_refund and y.amount > 0
+          and not exists (select 1 from crm_payments r where r.reverses = y.id)
+        group by y.student_id having min(y.paid_at) >= ${MONTH_DAY0}::date) f)::int as enrolled,
+      (select count(*) from crm_students s where s.archived_at is null and s.status = 'active'
+        and (s.paid_elsewhere_at is not null or exists (select 1 from crm_payments y where y.student_id = s.id
+          and not y.is_refund and y.amount > 0 and not exists (select 1 from crm_payments r where r.reverses = y.id))))::int as students,
       ${
         finance
-          ? sql`(select coalesce(sum(e.amount), 0) from acct_entries e
-                 join acct_accounts a on a.code = e.credit and a.type = 'R'
+          ? sql`(select coalesce(sum(case when ca.type = 'R' then e.amount else 0 end), 0)
+                      - coalesce(sum(case when da.type = 'R' then e.amount else 0 end), 0)
+                 from acct_entries e
+                 left join acct_accounts ca on ca.code = e.credit
+                 left join acct_accounts da on da.code = e.debit
                  where e.entry_date >= ${MONTH_DAY0})::float8`
           : sql`null::float8`
       } as revenue,

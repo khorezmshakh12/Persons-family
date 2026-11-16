@@ -17,6 +17,7 @@ import {
   Hammer,
   Briefcase,
   Network,
+  Receipt,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -46,7 +47,8 @@ import {
   setRoadmapNodeStatusAction,
 } from '@/lib/actions/strategy';
 import { PersonAvatar } from './bits';
-import { DashboardView } from './view-dashboard';
+import { OverviewView } from './view-overview';
+import { IncomeExpenseView, type CashBoxLite, type ExpenseCat } from './view-income-expense';
 import { RoadmapView } from './view-roadmap';
 import { MindView } from './view-mind';
 import { BoardView } from './view-board';
@@ -67,11 +69,14 @@ import type { FinInputs } from '@/lib/strategy-finance';
 import { SuiteShell, playSound, toast, type PaletteItem } from './suite-shell';
 import './strategy.css';
 import './suite.css';
+import './strategy-v3.css';
 
-export type ViewKey = 'dash' | 'portfolio' | 'okr' | 'tree' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'fin' | 'analytics';
+export type ViewKey = 'dash' | 'portfolio' | 'okr' | 'tree' | 'roadmap' | 'mind' | 'board' | 'list' | 'gantt' | 'ie' | 'fin' | 'analytics';
+/** Ready-made task filters (Strategiya v3). */
+export type TaskFilter = 'all' | 'mine' | 'late' | 'nobody' | 'review';
 type Icon = React.ComponentType<{ className?: string }>;
 
-/** Five sections (Linear / Asana style) — each holds one or more views. */
+/** Four sections (Strategiya v3, owner 2026-11-16) — each holds one or more views. */
 type GroupKey = 'dash' | 'okr' | 'plan' | 'exec' | 'money';
 const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: string; Icon: Icon }[] }[] = [
   {
@@ -79,8 +84,8 @@ const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: stri
     n: 'Umumiy',
     Icon: LayoutDashboard,
     views: [
-      { v: 'dash', n: 'Dashboard', Icon: LayoutDashboard },
-      { v: 'portfolio', n: 'Portfel', Icon: Briefcase },
+      { v: 'dash', n: 'Umumiy holat', Icon: LayoutDashboard },
+      { v: 'portfolio', n: 'Loyihalar', Icon: Briefcase },
     ],
   },
   {
@@ -88,19 +93,19 @@ const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: stri
     n: 'Maqsadlar',
     Icon: Target,
     views: [
-      { v: 'okr', n: 'OKR', Icon: Target },
-      { v: 'tree', n: 'Daraxt', Icon: Network },
+      { v: 'okr', n: 'Maqsad va natijalar', Icon: Target },
+      { v: 'tree', n: 'Bog‘lanish daraxti', Icon: Network },
     ],
   },
   // Reja (Roadmap · Mind map) HR › Roadmap · Mind map'ga ko'chdi (owner, 2026-11-12).
   {
     g: 'exec',
-    n: 'Ijro',
+    n: 'Vazifalar',
     Icon: Hammer,
     views: [
-      { v: 'board', n: 'Board', Icon: Columns3 },
-      { v: 'list', n: 'List', Icon: List },
-      { v: 'gantt', n: 'Gantt', Icon: CalendarRange },
+      { v: 'board', n: 'Doska', Icon: Columns3 },
+      { v: 'list', n: 'Ro‘yxat', Icon: List },
+      { v: 'gantt', n: 'Vaqt jadvali', Icon: CalendarRange },
     ],
   },
   {
@@ -108,8 +113,9 @@ const GROUPS: { g: GroupKey; n: string; Icon: Icon; views: { v: ViewKey; n: stri
     n: 'Moliya',
     Icon: Wallet,
     views: [
+      { v: 'ie', n: 'Daromad va xarajat', Icon: Receipt },
       { v: 'fin', n: 'Ko‘rsatkichlar', Icon: Wallet },
-      { v: 'analytics', n: 'Tahlil', Icon: LineChart },
+      { v: 'analytics', n: '12 oylik tahlil', Icon: LineChart },
     ],
   },
 ];
@@ -160,7 +166,17 @@ export function StrategyWorkspace({
   deps: initialDeps = [],
   portfolio = [],
   finance = false,
+  meId,
+  canBook = false,
+  cats = [],
+  boxes = [],
 }: {
+  /** The viewer — «Meniki» filter. */
+  meId: string;
+  /** accounting.edit — may add an expense from Daromad va xarajat. */
+  canBook?: boolean;
+  cats?: ExpenseCat[];
+  boxes?: CashBoxLite[];
   deps?: Dep[];
   portfolio?: PortfolioRow[];
   spaces: { id: string; name: string; color: string }[];
@@ -185,7 +201,7 @@ export function StrategyWorkspace({
   const [ms, setMs] = useState(milestones);
   const [view, setView] = useState<ViewKey>('dash');
   const [q, setQ] = useState('');
-  const [lateOnly, setLateOnly] = useState(false);
+  const [filter, setFilter] = useState<TaskFilter>('all');
   const [who, setWho] = useState<string[]>([]);
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [rmId, setRmId] = useState<string | null>(initialRoadmaps[0]?.id ?? null);
@@ -222,6 +238,15 @@ export function StrategyWorkspace({
     [go],
   );
 
+  /** Open Vazifalar (last view used there) with a ready-made filter. */
+  const showTasks = useCallback(
+    (f: TaskFilter = 'all') => {
+      setFilter(f);
+      goGroup('exec');
+    },
+    [goGroup],
+  );
+
   // Sliding ink under the active section.
   useEffect(() => {
     const on = tabsRef.current?.querySelector<HTMLButtonElement>(`button[data-v="${group.g}"]`);
@@ -239,10 +264,10 @@ export function StrategyWorkspace({
     return tasks.filter(
       (t) =>
         (!needle || t.title.toLowerCase().includes(needle)) &&
-        (!lateOnly || isLate(t, today)) &&
+        matches(t, filter, meId, today) &&
         (!who.length || (t.assignee_id && who.includes(t.assignee_id))),
     );
-  }, [tasks, q, lateOnly, who, today]);
+  }, [tasks, q, filter, who, today, meId]);
 
   /** Optimistic save; rolls the row back if the server refuses. */
   const commit = useCallback(
@@ -497,7 +522,9 @@ export function StrategyWorkspace({
     ...(space
       ? [
           { g: 'Amallar', t: 'Yangi vazifa yaratish', k: 'N', run: () => openTask(null) },
-          { g: 'Amallar', t: lateOnly ? "Muddati o'tgan filtrini o'chirish" : "Muddati o'tgan vazifalar", run: () => setLateOnly((v) => !v) },
+          { g: 'Amallar', t: "Kechikkan vazifalar", run: () => showTasks('late') },
+          { g: 'Amallar', t: 'Mening vazifalarim', run: () => showTasks('mine') },
+          { g: 'Amallar', t: 'Mas’ulsiz vazifalar', run: () => showTasks('nobody') },
           { g: 'Amallar', t: 'Yangi maydon yaratish', run: () => setDrawer({ kind: 'space' }) },
           { g: 'Amallar', t: 'Maydon sozlamalari (nom, budjet, muhim sanalar)', run: () => setDrawer({ kind: 'space', edit: true }) },
         ]
@@ -594,6 +621,8 @@ export function StrategyWorkspace({
                 </div>
               )}
               <div className="flex-1" />
+              {group.g === 'exec' && (
+              <>
               <label className="sx-search">
                 <Search className="size-4" />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Vazifa qidirish…" />
@@ -603,10 +632,18 @@ export function StrategyWorkspace({
                   </button>
                 )}
               </label>
-              <button className={cn('sx-fchip', lateOnly && 'on')} onClick={() => setLateOnly((v) => !v)}>
-                <Clock className="size-3.5" />
-                Muddati o‘tgan
-              </button>
+              <div className="sx-seg s3-filters" role="group" aria-label="Filtr">
+                {FILTERS.map((f) => {
+                  const n = f.k === 'all' ? tasks.length : tasks.filter((t) => matches(t, f.k, meId, today)).length;
+                  return (
+                    <button key={f.k} className={cn(filter === f.k && 'on')} aria-pressed={filter === f.k} onClick={() => setFilter(f.k)}>
+                      {f.k === 'late' && <Clock className="size-3.5" />}
+                      {f.n}
+                      {f.k !== 'all' && n > 0 && <span className={cn('s3-fc', f.k === 'late' && 'bad')}>{n}</span>}
+                    </button>
+                  );
+                })}
+              </div>
               {involved.length > 0 && (
                 <div className="sx-people">
                   {involved.slice(0, 8).map((p) => (
@@ -619,6 +656,8 @@ export function StrategyWorkspace({
                     </button>
                   ))}
                 </div>
+              )}
+              </>
               )}
             </div>
           </>
@@ -639,7 +678,21 @@ export function StrategyWorkspace({
         <section className={cn('sx-view', fullBleed ? 'canvas' : 'px-4 pb-8 sm:px-7')}>
           <div key={view} className="sx-fade h-full">
             {view === 'dash' && (
-              <DashboardView api={api} finance={finance} space={space} tasks={visible} all={tasks} onGantt={() => go('gantt')} onEditSpace={() => setDrawer({ kind: 'space', edit: true })} okr={okr} onOkr={() => go('okr')} />
+              <OverviewView
+                api={api}
+                space={space}
+                tasks={tasks}
+                okr={okr}
+                milestones={ms}
+                books={books}
+                activeStudents={finance && fin ? fin.ops.active : null}
+                newStudents={finance && fin ? (fin.enrolled[today.slice(0, 7)] ?? 0) : null}
+                finance={finance}
+                onGoals={() => goGroup('okr')}
+                onTasks={(f) => showTasks(f ?? 'all')}
+                onMoney={() => go('ie')}
+                onSettings={() => setDrawer({ kind: 'space', edit: true })}
+              />
             )}
             {view === 'okr' && <OkrView api={api} space={space} objectives={okr} finance={finance} tasks={tasks} />}
             {view === 'tree' && (
@@ -667,6 +720,7 @@ export function StrategyWorkspace({
             {view === 'board' && <BoardView api={api} tasks={visible} onQuickAdd={(title, status) => createTask({ title, status })} />}
             {view === 'list' && <ListView api={api} tasks={visible} />}
             {view === 'gantt' && <GanttView api={api} space={space} tasks={visible} milestones={ms} deps={deps} onMilestones={() => setDrawer({ kind: 'space', edit: true })} />}
+            {finance && books && view === 'ie' && <IncomeExpenseView books={books} today={today} cats={cats} boxes={boxes} canBook={canBook} />}
             {finance && books && fin && view === 'fin' && <FinanceView books={books} fin={fin} today={today} onGo={() => go('analytics')} />}
             {finance && books && fin && view === 'analytics' && <AnalyticsView books={books} fin={fin} today={today} />}
           </div>
@@ -764,6 +818,22 @@ export function StrategyWorkspace({
     </div>
     </SuiteShell>
   );
+}
+
+const FILTERS: { k: TaskFilter; n: string }[] = [
+  { k: 'all', n: 'Hammasi' },
+  { k: 'mine', n: 'Meniki' },
+  { k: 'late', n: 'Kechikkan' },
+  { k: 'nobody', n: 'Mas’ulsiz' },
+  { k: 'review', n: 'Tekshiruvda' },
+];
+
+function matches(t: StrategyTask, f: TaskFilter, meId: string, today: string) {
+  if (f === 'mine') return t.assignee_id === meId && t.status !== 'done';
+  if (f === 'late') return isLate(t, today);
+  if (f === 'nobody') return !t.assignee_id && t.status !== 'done';
+  if (f === 'review') return t.status === 'review';
+  return true;
 }
 
 function statusName(s: TaskStatus) {

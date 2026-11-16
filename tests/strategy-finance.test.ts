@@ -95,6 +95,7 @@ test('monthInputs: saved row wins, current month falls back to courses/settings/
     months: [{ ym: '2026-08', students: 90, paid: 80, new_students: null, capacity: 40 }],
     debtors: [],
     enrolled: { '2026-08': 7, '2026-09': 3 },
+    ops: { paid: {}, active: 0 },
   };
   const courses = [{ id: 'a', name: 'A', fee: 1, students: 30, teacher_cost: 0, book_cost: 0 }];
   assert.deepEqual(monthInputs(fin, courses, '2026-08', '2026-09'), {
@@ -104,4 +105,22 @@ test('monthInputs: saved row wins, current month falls back to courses/settings/
     saved: false, students: 30, paid: 0, newStudents: 3, newFromLeads: true, capacity: 40,
   });
   assert.equal(monthInputs(fin, courses, '2026-07', '2026-09').students, null);
+});
+
+test('monthInputs: Operatsiya HQ figures win over saved rows', () => {
+  const fin = {
+    settings: { rooms: 2, seats: 10, target: 50, shifts: [{ t: '09:00', p: 50 }] },
+    months: [{ ym: '2026-11', students: 90, paid: 80, new_students: 5, capacity: 40 }],
+    debtors: [],
+    enrolled: { '2026-11': 4 },
+    ops: { paid: { '2026-11': 61 }, active: 105 },
+  };
+  const m = monthInputs(fin, [], '2026-11', '2026-11');
+  assert.equal(m.students, 105);
+  assert.equal(m.paid, 61);
+  assert.equal(m.newStudents, 4);
+  // A past month: Ops payers count, the saved head count stays.
+  const o = monthInputs({ ...fin, ops: { paid: { '2026-10': 50 }, active: 105 } }, [], '2026-10', '2026-11');
+  assert.equal(o.paid, 50);
+  assert.equal(o.students, null);
 });
