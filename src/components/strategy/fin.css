@@ -147,6 +147,7 @@
 .fn-fi .u { display: flex; align-items: center; gap: 6px; }
 .fn-fi em { font-style: normal; font-size: 11.5px; color: var(--au-faint); min-width: 36px; }
 .fn-ro { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 6px 0; border-bottom: 1px solid var(--au-line); }
+.fn-addc { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 8px; }
 .fn-shift { display: grid; grid-template-columns: 1fr 70px auto; gap: 6px; margin-bottom: 6px; }
 
 /* debtors modal */

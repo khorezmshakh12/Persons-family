@@ -428,7 +428,9 @@ export async function saveCourseAction(input: z.input<typeof courseSchema>): Pro
 }
 
 export async function deleteCourseAction(id: string): Promise<Result> {
-  const g = await requireEditor();
+  // Same gate as saveCourseAction — Strategy › Moliya can add courses too.
+  let g = await requireEditor();
+  if ('error' in g) g = await requireEditor('strategy.finance');
   if ('error' in g) return g;
   if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
   try {
