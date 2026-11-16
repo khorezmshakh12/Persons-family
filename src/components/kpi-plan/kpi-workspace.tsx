@@ -26,7 +26,6 @@ import {
 } from '@/lib/kpi-plan';
 import {
   deleteKpiPlanAction,
-  withdrawKpiPlanAction,
   gradeKpiPlanAction,
   reviewKpiPlanAction,
   saveKpiPlanAction,
@@ -61,7 +60,7 @@ const BTN_GHOST = cn(BTN, 'border border-au-line bg-au-card text-au-ink hover:bg
 
 const ERR: Record<string, string> = {
   incomplete: 'Har bir ssenariy tavsifi va har bir ko‘rsatkichning 3 ta maqsadi to‘ldirilishi kerak',
-  locked: 'Reja tasdiqlangan — o‘zgartirish uchun CEO qaytarishi kerak',
+  locked: 'Reja topshirilgan — o‘zgartirish uchun CEO qaytarishi kerak',
   noteRequired: 'Qaytarish uchun izoh yozing',
   notYet: 'Bu oy hali boshlanmagan',
   forbidden: "Ruxsat yo'q",
@@ -172,7 +171,9 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
   const [items, setItems] = useState<KpiItem[]>(() =>
     plan?.items.length ? plan.items : KPI_TEMPLATES[role].map((t) => emptyItem(t)),
   );
-  const locked = plan?.status === 'approved';
+  // One submission per month (owner, 2026-11-16): once sent, the plan is
+  // read-only until the CEO returns it.
+  const locked = plan?.status === 'approved' || plan?.status === 'submitted';
   const setItem = (i: number, p: Partial<KpiItem>) => setItems((l) => l.map((x, j) => (j === i ? { ...x, ...p } : x)));
 
   const save = (submit: boolean) =>
@@ -186,29 +187,22 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
         items: clean.map(({ title, kind, unit, target_bad, target_good, target_great }) => ({ title, kind, unit, target_bad, target_good, target_great })),
       });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      if (submit)
-        toast.success('KPI rejasi CEO’ga topshirildi', {
-          duration: 10000,
-          action: { label: 'Bekor qilish', onClick: () => withdraw(res.id) },
-        });
-      else toast.success('Qoralama saqlandi');
-      router.refresh();
-    });
-
-  const withdraw = (planId: string) =>
-    start(async () => {
-      const res = await withdrawKpiPlanAction(planId);
-      if (res.error !== undefined) return void toast.error(res.error === 'locked' ? 'Qaytarib bo‘lmaydi — CEO allaqachon qaror qildi' : errText(res.error));
-      toast.success('Topshirish bekor qilindi — reja qoralamaga qaytdi');
+      toast.success(submit ? 'KPI rejasi CEO’ga topshirildi' : 'Qoralama saqlandi');
       router.refresh();
     });
 
   if (locked && plan)
     return (
       <div className="grid gap-4">
-        <Banner tone="ok" icon={<Check className="size-4" />}>
-          {monthName(month)} rejangiz tasdiqlangan. O‘zgartirish kerak bo‘lsa, CEO bilan gaplashing.
-        </Banner>
+        {plan.status === 'approved' ? (
+          <Banner tone="ok" icon={<Check className="size-4" />}>
+            {monthName(month)} rejangiz tasdiqlangan. O‘zgartirish kerak bo‘lsa, CEO bilan gaplashing.
+          </Banner>
+        ) : (
+          <Banner tone="accent" icon={<Clock className="size-4" />}>
+            {monthName(month)} rejangiz CEO’ga topshirildi va tasdiq kutmoqda. Reja oyiga bir marta topshiriladi — CEO qaytarsagina tuzatib, qayta topshira olasiz.
+          </Banner>
+        )}
         <PlanView plan={plan} salary={salary} />
       </div>
     );
@@ -218,14 +212,6 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
       {plan?.status === 'returned' && plan.review_note && (
         <Banner tone="bad" icon={<Undo2 className="size-4" />}>
           <b>CEO qaytardi:</b> {plan.review_note}
-        </Banner>
-      )}
-      {plan?.status === 'submitted' && (
-        <Banner tone="accent" icon={<Clock className="size-4" />}>
-          Reja CEO tasdig‘ini kutmoqda. Kerak bo‘lsa tahrirlab, qayta topshirishingiz mumkin.
-          <button className={cn(BTN_GHOST, 'ml-2 h-7 px-2.5 text-xs')} disabled={busy} onClick={() => withdraw(plan.id)}>
-            <Undo2 className="size-3.5" /> Topshirishni bekor qilish
-          </button>
         </Banner>
       )}
 
@@ -338,12 +324,12 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
 
       <div className="flex flex-wrap items-center gap-2">
         <button className={BTN_PRIMARY} disabled={busy} onClick={() => save(true)}>
-          <Send className="size-4" /> {plan?.status === 'submitted' ? 'Qayta topshirish' : 'CEO’ga topshirish'}
+          <Send className="size-4" /> {plan?.status === 'returned' ? 'Qayta topshirish' : 'CEO’ga topshirish'}
         </button>
         <button className={BTN_GHOST} disabled={busy} onClick={() => save(false)}>
           Qoralama saqlash
         </button>
-        {plan && plan.status !== 'submitted' && (
+        {plan && (
           <button
             className={cn(BTN, 'text-au-bad hover:bg-au-bad/10')}
             disabled={busy}

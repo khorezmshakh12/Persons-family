@@ -75,9 +75,10 @@ export async function saveKpiPlanAction(input: z.input<typeof planSchema>): Prom
     const id = await sql.begin(async (tx) => {
       const [cur] = await tx<{ id: string; status: string }[]>`
         select id, status from kpi_plans where user_id = ${userId} and month = ${v.month} for update`;
-      // Approved plans are locked; the CEO has to return them first.
-      if (cur?.status === 'approved') return null;
-      const status = v.submit ? 'submitted' : cur?.status === 'submitted' ? 'submitted' : cur?.status === 'returned' ? 'returned' : 'draft';
+      // One submission per month (owner, 2026-11-16): submitted and approved
+      // plans are locked; only a plan the CEO returned can be sent again.
+      if (cur?.status === 'approved' || cur?.status === 'submitted') return null;
+      const status = v.submit ? 'submitted' : cur?.status === 'returned' ? 'returned' : 'draft';
       const [row] = cur
         ? await tx<{ id: string }[]>`
             update kpi_plans set scenarios = ${sql.json(v.scenarios)}, status = ${status},
@@ -102,28 +103,6 @@ export async function saveKpiPlanAction(input: z.input<typeof planSchema>): Prom
   } catch {
     return { error: 'updateFailed' };
   }
-}
-
-/** Take a submitted plan back to draft before the CEO decides (owner,
- * 2026-10-08: a submit could not be undone). */
-export async function withdrawKpiPlanAction(planId: string): Promise<Result> {
-  let userId: string;
-  try {
-    ({ profile: { id: userId } } = await requireSection('kpi'));
-  } catch (error) {
-    return { error: authErrorCode(error) };
-  }
-  if (!z.string().uuid().safeParse(planId).success) return { error: 'invalidInput' };
-  try {
-    const res = await sql`
-      update kpi_plans set status = 'draft', submitted_at = null, updated_at = now()
-      where id = ${planId} and user_id = ${userId} and status = 'submitted'`;
-    if (res.count === 0) return { error: 'locked' };
-  } catch {
-    return { error: 'updateFailed' };
-  }
-  logSystemAction('kpi.withdraw', 'KPI plan withdrawn');
-  return done();
 }
 
 /** Remove the viewer's own plan while it is still a draft or returned. */
