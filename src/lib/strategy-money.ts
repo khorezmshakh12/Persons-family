@@ -13,7 +13,21 @@ import { addMonths, monthEnd, statements, type Account, type Entry } from './acc
 export const REVENUE = '9030';
 
 export type MoneyLine = { key: string; name: string; amount: number };
-export type MoneyItem = { id: string; date: string; text: string; amount: number; account: string };
+export type MoneyItem = {
+  id: string;
+  date: string;
+  text: string;
+  amount: number;
+  account: string;
+  /** The entry's own debit / credit (for editing it in place). */
+  debit: string;
+  credit: string;
+  /** Typed by hand (source null) — may be edited or deleted here. Auto rows
+   * (Operatsiya HQ payments, payroll, depreciation) change at their source. */
+  manual: boolean;
+  /** crm:<id> — an Operatsiya HQ payment. */
+  fromOps: boolean;
+};
 
 export type MoneyMonth = {
   ym: string;
@@ -28,6 +42,7 @@ export type MoneyMonth = {
   refunds: number;
   /** Expense by category: payroll postings together, the rest by account. */
   expenseBy: MoneyLine[];
+  /** Every income / expense row of the month, newest first. */
   lastIn: MoneyItem[];
   lastOut: MoneyItem[];
   /** Entries in the month at all — false means "nothing booked yet", not zero. */
@@ -38,6 +53,18 @@ const monthStart = (ym: string) => `${ym}-01`;
 const inMonth = (e: Entry, ym: string) => e.entry_date >= monthStart(ym) && e.entry_date <= monthEnd(ym);
 const r = (n: number) => Math.round(n) || 0; // no −0
 const PAYROLL = 'payroll';
+
+const item = (e: Entry, amount: number, account: string): MoneyItem => ({
+  id: e.id,
+  date: e.entry_date,
+  text: e.description,
+  amount,
+  account,
+  debit: e.debit,
+  credit: e.credit,
+  manual: !e.source,
+  fromOps: !!e.source?.startsWith('crm:'),
+});
 
 function add(map: Map<string, MoneyLine>, key: string, name: string, v: number) {
   const cur = map.get(key);
@@ -59,18 +86,18 @@ export function moneyMonth(accounts: Account[], opening: Record<string, number>,
   for (const e of own) {
     if (e.credit === REVENUE) {
       add(byBox, e.debit, name.get(e.debit) ?? e.debit, e.amount);
-      lastIn.push({ id: e.id, date: e.entry_date, text: e.description, amount: e.amount, account: e.debit });
+      lastIn.push(item(e, e.amount, e.debit));
     } else if (e.debit === REVENUE) {
       add(byBox, e.credit, name.get(e.credit) ?? e.credit, -e.amount);
       refunds += e.amount;
-      lastIn.push({ id: e.id, date: e.entry_date, text: e.description, amount: -e.amount, account: e.credit });
+      lastIn.push(item(e, -e.amount, e.credit));
     }
     const out = expenseCodes.has(e.debit) ? e.amount : expenseCodes.has(e.credit) ? -e.amount : 0;
     if (out) {
       const code = expenseCodes.has(e.debit) ? e.debit : e.credit;
       if (e.source?.startsWith('payroll:')) add(byCat, PAYROLL, 'Ish haqi va soliqlari', out);
       else add(byCat, code, name.get(code) ?? code, out);
-      lastOut.push({ id: e.id, date: e.entry_date, text: e.description, amount: out, account: code });
+      lastOut.push(item(e, out, code));
     }
   }
   const expense = r(s.cogs + s.selling + s.admin + s.other + s.tax);
@@ -89,8 +116,8 @@ export function moneyMonth(accounts: Account[], opening: Record<string, number>,
     incomeBy: lines(byBox),
     refunds: r(refunds),
     expenseBy: lines(byCat),
-    lastIn: lastIn.sort(recent).slice(0, 6),
-    lastOut: lastOut.sort(recent).slice(0, 6),
+    lastIn: lastIn.sort(recent),
+    lastOut: lastOut.sort(recent),
     booked: own.length > 0,
   };
 }

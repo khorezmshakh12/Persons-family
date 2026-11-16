@@ -1,14 +1,14 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
-import { addJournalEntryAction } from '@/lib/actions/accounting';
+import { addJournalEntryAction, deleteJournalEntryAction } from '@/lib/actions/accounting';
 import { MONF } from '@/lib/strategy';
 import { growth, moneyMonth, moneySeries, type MoneyItem, type MoneyLine } from '@/lib/strategy-money';
 import { MonthPicker, type BooksLite } from './view-finance';
-import { toast } from './suite-shell';
+import { ask, toast } from './suite-shell';
 
 export type ExpenseCat = { k: string; n: string; acc: string };
 export type CashBoxLite = { code: string; name: string };
@@ -30,6 +30,7 @@ function errText(code: string) {
   if (code === 'forbidden') return 'Xarajat yozishga ruxsat yo‘q — Hisob-kitob muharriri kerak';
   if (code === 'periodClosed' || code === 'period_closed') return 'Bu oy Hisob-kitobda yopilgan — avval oyni oching';
   if (code === 'invalidInput') return 'Summa, turkum va izohni tekshiring';
+  if (code === 'notFound') return 'Yozuv topilmadi yoki avtomatik — sahifani yangilang';
   return 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
 }
 
@@ -79,7 +80,7 @@ export function IncomeExpenseView({
         )}
       </div>
 
-      {adding && canBook && <ExpenseForm ym={ym} today={today} cats={cats} boxes={boxes} onDone={() => setAdding(false)} />}
+      {adding && canBook && <EntryForm ym={ym} today={today} cats={cats} boxes={boxes} onDone={() => setAdding(false)} />}
 
       {!M.booked && (
         <div className="s3-note">
@@ -134,7 +135,7 @@ export function IncomeExpenseView({
               <b className="neg tabular-nums">−{som(M.refunds)}</b>
             </div>
           )}
-          <Recent title="Oxirgi to‘lovlar" items={M.lastIn} />
+          <Recent title="To‘lovlar" items={M.lastIn} canBook={canBook} cats={cats} boxes={boxes} />
         </section>
 
         <section className="sx-card s3-card">
@@ -143,7 +144,7 @@ export function IncomeExpenseView({
             <span className="s3-src">Hisob-kitob · ish haqi avtomatik</span>
           </div>
           <Lines lines={M.expenseBy} total={M.expense} tone="out" empty="Bu oy xarajat yozilmagan" />
-          <Recent title="Oxirgi xarajatlar" items={M.lastOut} negative />
+          <Recent title="Xarajatlar ro‘yxati" items={M.lastOut} negative canBook={canBook} cats={cats} boxes={boxes} />
         </section>
       </div>
     </div>
@@ -186,60 +187,132 @@ function Lines({ lines, total, tone, empty }: { lines: MoneyLine[]; total: numbe
   );
 }
 
-function Recent({ title, items, negative }: { title: string; items: MoneyItem[]; negative?: boolean }) {
+function Recent({
+  title,
+  items,
+  negative,
+  canBook,
+  cats,
+  boxes,
+}: {
+  title: string;
+  items: MoneyItem[];
+  negative?: boolean;
+  canBook: boolean;
+  cats: ExpenseCat[];
+  boxes: CashBoxLite[];
+}) {
+  const router = useRouter();
+  const [all, setAll] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [pending, start] = useTransition();
   if (!items.length) return null;
+  const shown = all ? items : items.slice(0, 6);
+
+  const remove = (x: MoneyItem) =>
+    start(async () => {
+      if (!(await ask(`«${x.text}» (${som(Math.abs(x.amount))} so‘m) o‘chirilsinmi? Hisob-kitob jurnalidan ham o‘chadi.`))) return;
+      const res = await deleteJournalEntryAction(x.id);
+      if (res.error) return void toast.error(errText(res.error));
+      toast.success('Yozuv o‘chirildi');
+      router.refresh();
+    });
+
   return (
     <div className="s3-recent">
-      <div className="s3-k">{title}</div>
-      {items.map((x) => (
-        <div key={x.id} className="s3-li">
-          <span className="dt tabular-nums">{ddmm(x.date)}</span>
-          <span className="tx">{x.text}</span>
-          <b className={cn('tabular-nums', negative || x.amount < 0 ? 'neg' : 'pos')}>
-            {negative ? '−' : x.amount < 0 ? '−' : '+'}
-            {som(Math.abs(x.amount))}
-          </b>
-        </div>
-      ))}
+      <div className="s3-k">
+        {title} · {items.length}
+      </div>
+      {shown.map((x) =>
+        editing === x.id ? (
+          <EntryForm key={x.id} entry={x} today={x.date} ym={x.date.slice(0, 7)} cats={cats} boxes={boxes} onDone={() => setEditing(null)} />
+        ) : (
+          <div key={x.id} className="s3-li">
+            <span className="dt tabular-nums">{ddmm(x.date)}</span>
+            <span className="tx">
+              {x.text}
+              {x.fromOps && (
+                <Link href="/operations" className="s3-tag" title="Operatsiya HQ’dagi to‘lov — o‘sha yerda tahrirlanadi yoki bekor qilinadi">
+                  Operatsiya HQ
+                </Link>
+              )}
+              {!x.manual && !x.fromOps && <small className="s3-tag" title="Avtomatik yozuv — o‘z bo‘limida o‘zgaradi">avto</small>}
+            </span>
+            <b className={cn('tabular-nums', negative || x.amount < 0 ? 'neg' : 'pos')}>
+              {negative || x.amount < 0 ? '−' : '+'}
+              {som(Math.abs(x.amount))}
+            </b>
+            {canBook && x.manual && (
+              <span className="s3-act">
+                <button aria-label="Tahrirlash" title="Tahrirlash" disabled={pending} onClick={() => setEditing(x.id)}>
+                  <Pencil className="size-3.5" />
+                </button>
+                <button aria-label="O‘chirish" title="O‘chirish" disabled={pending} onClick={() => remove(x)}>
+                  <Trash2 className="size-3.5" />
+                </button>
+              </span>
+            )}
+          </div>
+        ),
+      )}
+      {items.length > 6 && (
+        <button className="s3-link mt-1" onClick={() => setAll((v) => !v)}>
+          {all ? 'Qisqartirish' : `Hammasini ko‘rsatish (${items.length})`}
+        </button>
+      )}
     </div>
   );
 }
 
-function ExpenseForm({ ym, today, cats, boxes, onDone }: { ym: string; today: string; cats: ExpenseCat[]; boxes: CashBoxLite[]; onDone: () => void }) {
+/** New expense (entry undefined) or an edit of one hand-typed journal row.
+ * An expense row keeps category / cash box pickers; any other hand-typed row
+ * (e.g. a manual income) keeps its accounts and edits date, sum and text. */
+function EntryForm({
+  entry,
+  ym,
+  today,
+  cats,
+  boxes,
+  onDone,
+}: {
+  entry?: MoneyItem;
+  ym: string;
+  today: string;
+  cats: ExpenseCat[];
+  boxes: CashBoxLite[];
+  onDone: () => void;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const fitted = !entry || (cats.some((c) => c.acc === entry.debit) && boxes.some((b) => b.code === entry.credit));
   // Default date: today in the current month, else the month's 1st.
-  const [date, setDate] = useState(today.startsWith(ym) ? today : `${ym}-01`);
-  const [cat, setCat] = useState(cats[0]?.k ?? '');
-  const [box, setBox] = useState(boxes[0]?.code ?? '');
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
+  const [date, setDate] = useState(entry?.date ?? (today.startsWith(ym) ? today : `${ym}-01`));
+  const [cat, setCat] = useState((entry && cats.find((c) => c.acc === entry.debit)?.k) ?? cats[0]?.k ?? '');
+  const [box, setBox] = useState(entry?.credit && boxes.some((b) => b.code === entry.credit) ? entry.credit : (boxes[0]?.code ?? ''));
+  const [amount, setAmount] = useState(entry ? String(Math.abs(entry.amount)) : '');
+  const [note, setNote] = useState(entry?.text ?? '');
   const sum = Number(amount.replace(/\D/g, '')) || 0;
   const c = cats.find((x) => x.k === cat);
-  const ready = !!c && !!box && sum > 0 && note.trim().length >= 2;
+  const ready = (fitted ? !!c && !!box : true) && sum > 0 && note.trim().length >= 2;
 
-  if (!cats.length || !boxes.length)
-    return (
-      <div className="s3-note">
-        Xarajat turkumlari yoki kassa sozlanmagan. Ularni Hisob-kitob › Kirim-chiqim’da qo‘shing.
-      </div>
-    );
+  if (!entry && (!cats.length || !boxes.length))
+    return <div className="s3-note">Xarajat turkumlari yoki kassa sozlanmagan. Ularni Hisob-kitob › Kirim-chiqim’da qo‘shing.</div>;
 
   const save = () =>
     start(async () => {
-      if (!c) return;
-      const res = await addJournalEntryAction({ date, doc: '', description: `${c.n} — ${note.trim()}`.slice(0, 300), debit: c.acc, credit: box, amount: sum });
+      const debit = fitted ? c!.acc : entry!.debit;
+      const credit = fitted ? box : entry!.credit;
+      const description = (entry ? note.trim() : `${c!.n} — ${note.trim()}`).slice(0, 300);
+      const res = await addJournalEntryAction({ id: entry?.id, date, doc: '', description, debit, credit, amount: sum });
       if (res.error) return void toast.error(errText(res.error));
-      toast.success(`Xarajat yozildi: ${som(sum)} so‘m`);
-      setAmount('');
-      setNote('');
+      toast.success(entry ? 'Yozuv saqlandi' : `Xarajat yozildi: ${som(sum)} so‘m`);
       onDone();
       router.refresh();
     });
 
   return (
     <form
-      className="sx-card s3-form"
+      className={cn('sx-card s3-form', entry && 'inline')}
       onSubmit={(e) => {
         e.preventDefault();
         if (ready && !pending) save();
@@ -247,39 +320,50 @@ function ExpenseForm({ ym, today, cats, boxes, onDone }: { ym: string; today: st
     >
       <label>
         <span>Sana</span>
-        <input id="s3-date" className="sx-inp" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} required />
+        <input id={`s3-date-${entry?.id ?? 'new'}`} className="sx-inp" type="date" value={date} max={today > date ? today : date} onChange={(e) => setDate(e.target.value)} required />
       </label>
-      <label>
-        <span>Turkum</span>
-        <select id="s3-cat" className="sx-inp" value={cat} onChange={(e) => setCat(e.target.value)}>
-          {cats.map((x) => (
-            <option key={x.k} value={x.k}>
-              {x.n}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>Qayerdan</span>
-        <select id="s3-box" className="sx-inp" value={box} onChange={(e) => setBox(e.target.value)}>
-          {boxes.map((b) => (
-            <option key={b.code} value={b.code}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {fitted && (
+        <>
+          <label>
+            <span>Turkum</span>
+            <select id={`s3-cat-${entry?.id ?? 'new'}`} className="sx-inp" value={cat} onChange={(e) => setCat(e.target.value)}>
+              {cats.map((x) => (
+                <option key={x.k} value={x.k}>
+                  {x.n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Qayerdan</span>
+            <select id={`s3-box-${entry?.id ?? 'new'}`} className="sx-inp" value={box} onChange={(e) => setBox(e.target.value)}>
+              {boxes.map((b) => (
+                <option key={b.code} value={b.code}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      )}
       <label>
         <span>Summa, so‘m</span>
-        <input id="s3-sum" className="sx-inp tabular-nums" inputMode="numeric" value={amount ? som(sum) : ''} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+        <input id={`s3-sum-${entry?.id ?? 'new'}`} className="sx-inp tabular-nums" inputMode="numeric" value={amount ? som(sum) : ''} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
       </label>
       <label className="wide">
         <span>Izoh</span>
-        <input id="s3-note" className="sx-inp" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Masalan: Instagram reklama, noyabr" maxLength={200} />
+        <input id={`s3-note-${entry?.id ?? 'new'}`} className="sx-inp" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Masalan: Instagram reklama, noyabr" maxLength={entry ? 300 : 200} />
       </label>
-      <button className="sx-btn primary" type="submit" disabled={!ready || pending}>
-        {pending ? 'Saqlanmoqda…' : 'Xarajatni yozish'}
-      </button>
+      <span className="flex gap-2">
+        <button className="sx-btn primary" type="submit" disabled={!ready || pending}>
+          {pending ? 'Saqlanmoqda…' : entry ? 'Saqlash' : 'Xarajatni yozish'}
+        </button>
+        {entry && (
+          <button className="sx-btn" type="button" onClick={onDone}>
+            Bekor
+          </button>
+        )}
+      </span>
     </form>
   );
 }

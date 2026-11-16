@@ -21,6 +21,7 @@ import {
 } from '@/lib/strategy-okr';
 import {
   checkInKrAction,
+  deleteCheckinAction,
   closeObjectiveAction,
   deleteKeyResultAction,
   deleteObjectiveAction,
@@ -230,7 +231,7 @@ function JevChip({ k }: { k: KeyResult }) {
   );
 }
 
-function CheckInForm({ k, busy, onSave, onCancel }: { k: KeyResult; busy: boolean; onSave: (v: { value: number | null; confidence: Confidence; note: string }) => void; onCancel: () => void }) {
+function CheckInForm({ k, busy, onSave, onCancel, onDelete }: { k: KeyResult; busy: boolean; onSave: (v: { value: number | null; confidence: Confidence; note: string }) => void; onCancel: () => void; onDelete: (id: string, week: string) => void }) {
   const last = k.checkins[k.checkins.length - 1];
   const [conf, setConf] = useState<Confidence>(last?.confidence ?? 'on');
   const [val, setVal] = useState(k.metric === 'manual' && k.current !== null ? String(k.current) : '');
@@ -271,6 +272,23 @@ function CheckInForm({ k, busy, onSave, onCancel }: { k: KeyResult; busy: boolea
           Saqlash
         </button>
       </div>
+      {k.checkins.length > 0 && (
+        <div className="grid gap-1 border-t border-au-line pt-2">
+          <span className="text-[11px] font-bold tracking-wide text-au-faint uppercase">Oldingi check-in’lar</span>
+          {/* Newest first; the same week is edited by saving the form above. */}
+          {[...k.checkins].reverse().slice(0, 6).map((c) => (
+            <div key={c.id} className="flex items-center gap-2 text-xs text-au-ink">
+              <i className="size-2 shrink-0 rounded-full" style={{ background: CONFIDENCE[c.confidence].c }} />
+              <span className="tabular-nums text-au-muted">{c.week}</span>
+              {c.value !== null && <b className="tabular-nums">{fmtKr(c.value, k.unit)}</b>}
+              <span className="min-w-0 flex-1 truncate text-au-muted">{c.note ?? ''}</span>
+              <button className="sx-chipb" disabled={busy} aria-label={`${c.week} check-in’ini o‘chirish`} onClick={() => onDelete(c.id, c.week)}>
+                <Trash2 className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -723,6 +741,7 @@ export function OkrView({
                         busy={busy}
                         onCancel={() => setPanel(null)}
                         onSave={(v) => run(() => checkInKrAction({ krId: k.id, value: v.value, confidence: v.confidence, note: v.note }), 'Check-in saqlandi', () => setPanel(null))}
+                        onDelete={async (id, wk) => (await ask(`${wk} haftasidagi check-in o‘chirilsinmi?`)) && run(() => deleteCheckinAction(id), "Check-in o'chirildi")}
                       />
                     )}
                     {panel?.krId === k.id && panel.kind === 'link' && (

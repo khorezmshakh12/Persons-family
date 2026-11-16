@@ -198,6 +198,36 @@ export async function checkInKrAction(input: z.input<typeof checkinSchema>): Pro
   return done();
 }
 
+/** Remove a check-in (a wrong entry). Same people as checkInKrAction. A
+ * manual KR falls back to the latest remaining check-in's value (or its
+ * start value when none is left), so its progress follows the history. */
+export async function deleteCheckinAction(id: string): Promise<Result> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'sessionExpired' };
+  if (!z.string().uuid().safeParse(id).success) return { error: 'invalidInput' };
+  const [c] = await sql<{ kr_id: string; metric: string; owner_id: string | null; obj_owner: string | null }[]>`
+    select c.kr_id, k.metric, k.owner_id, o.owner_id as obj_owner from strategy_checkins c
+    join strategy_key_results k on k.id = c.kr_id
+    join strategy_objectives o on o.id = k.objective_id where c.id = ${id}`;
+  if (!c) return { error: 'notFound' };
+  if (!canFor(profile, 'strategy.edit') && c.owner_id !== user.id && c.obj_owner !== user.id) return { error: 'forbidden' };
+  try {
+    await sql.begin(async (tx) => {
+      const res = await tx`delete from strategy_checkins where id = ${id}`;
+      if (res.count === 0) throw new Error('gone');
+      if (c.metric === 'manual')
+        await tx`
+          update strategy_key_results k set updated_at = now(), current_value = coalesce(
+            (select x.value from strategy_checkins x where x.kr_id = k.id and x.value is not null order by x.week desc limit 1),
+            k.start_value)
+          where k.id = ${c.kr_id}`;
+    });
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  return done();
+}
+
 const closeSchema = z.object({ id: uuid, score: z.number().min(0).max(1), retro: z.string().trim().max(1000).optional().default('') });
 
 /** End-of-quarter grade (0–1, Google style) and a short retro. */

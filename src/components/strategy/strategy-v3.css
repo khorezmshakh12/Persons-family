@@ -188,3 +188,16 @@
 }
 .s3-fc.bad { background: var(--au-bad-soft); color: var(--au-bad); border-color: transparent; }
 .s3-filters button.on .s3-fc { background: color-mix(in srgb, var(--au-primary-ink) 18%, transparent); color: inherit; border-color: transparent; }
+
+/* row actions (manual journal rows) + inline edit form */
+.s3-li { grid-template-columns: 44px minmax(0, 1fr) auto auto; }
+.s3-li .tx .s3-tag { text-decoration: none; }
+.s3-act { display: inline-flex; gap: 2px; }
+.s3-act button {
+  border: 0; background: none; color: var(--au-muted); width: 26px; height: 26px; border-radius: 8px;
+  display: grid; place-items: center;
+}
+.s3-act button:hover { background: var(--au-card-2); color: var(--au-ink); }
+.s3-act button:last-child:hover { background: var(--au-bad-soft); color: var(--au-bad); }
+.s3-form.inline { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 6px 0; box-shadow: none; background: var(--au-card-2); }
+.s3-form.inline .wide { grid-column: 1 / -1; }
