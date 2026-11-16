@@ -87,10 +87,16 @@ export function IncomeExpenseView({
         </div>
       )}
 
+      {M.booked && M.income > 0 && M.expense === 0 && (
+        <div className="s3-note">
+          {monthName(ym)} uchun xarajat (ish haqi, ijara…) hali yozilmagan — sof foyda va marja to‘liq emas. Ish haqi Moliya › Ish haqi’dan, boshqa xarajatlar «Xarajat qo‘shish» orqali tushadi.
+        </div>
+      )}
+
       <div className="s3-kpis">
         <Kpi l="Daromad" v={M.booked ? mln(M.income) : '—'} tone="pos" d={gIn === null ? 'o‘quvchi to‘lovlari · Operatsiya HQ' : `${gIn >= 0 ? '▲' : '▼'} ${Math.abs(gIn)}% o‘tgan oyga nisbatan`} />
         <Kpi l="Xarajat" v={M.booked ? mln(M.expense) : '—'} tone="neg" d={payroll && M.expense > 0 ? `ish haqi ${Math.round((payroll.amount / M.expense) * 100)}%` : 'Hisob-kitob · Kirim-chiqim'} />
-        <Kpi l="Sof foyda" v={M.booked ? mln(M.net) : '—'} dark d={M.margin === null ? 'daromad yo‘q — marja hisoblanmaydi' : `marja ${String(M.margin).replace('.', ',')}%`} />
+        <Kpi l="Sof foyda" v={M.booked ? mln(M.net) : '—'} dark d={M.margin === null ? 'daromad yo‘q — marja hisoblanmaydi' : M.expense === 0 ? 'xarajat yozilmagan — marja to‘liq emas' : `marja ${String(M.margin).replace('.', ',')}%`} />
         <Kpi l="Pul qoldig‘i" v={mln(M.cash)} tone={M.cash < 0 ? 'neg' : undefined} d={M.cash < 0 ? 'manfiy — kirimlar to‘liq yozilmagan bo‘lishi mumkin' : `${monthName(ym)} oxiriga`} />
       </div>
 

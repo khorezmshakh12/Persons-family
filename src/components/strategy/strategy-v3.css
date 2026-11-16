@@ -66,7 +66,7 @@
 .s3-src { font-size: 11px; font-weight: 600; color: var(--au-muted); background: var(--au-card-2); border: 1px solid var(--au-line); border-radius: 999px; padding: 3px 9px; }
 .s3-link { border: 0; background: none; padding: 0; color: var(--au-accent-text); font-weight: 600; font-size: 13px; }
 .s3-link:hover { text-decoration: underline; }
-.s3-main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; }
+.s3-main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .s3-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .s3-empty {
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
