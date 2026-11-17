@@ -1,6 +1,7 @@
 // B-nuqta — xodimning OYLIK daromad maqsadi (owner, 2026-11-11). Uchta
-// muddat (owner, 2026-11-17): yarim yil, 1 yil, 3 yil — har biri maqsad
-// qo'yilgan oydan boshlanadi. A-nuqta: oynaning birinchi maoshli oyi;
+// muddat (owner, 2026-11-17): yarim yil, 1 yil, 3 yil — hammasi yil
+// boshidan (yanvardan) hisoblanadi: 1 yil = yanvar–dekabr, 3 yil = shu
+// yilning yanvaridan 36 oy, yarim yil = yanvar–iyun yoki iyul–dekabr. A-nuqta: oynaning birinchi maoshli oyi;
 // "hozir": joriy oy, u hali 0 bo'lsa oxirgi maoshli oy. Pure — server va
 // klient uchun.
 
@@ -29,6 +30,14 @@ export function addMonths(period: string, d: number): string {
 /** Whole months from `a` to `b` ('YYYY-MM-01'); negative when b < a. */
 export function monthsBetween(a: string, b: string): number {
   return (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + Number(b.slice(5, 7)) - Number(a.slice(5, 7));
+}
+
+/** First month of the window a goal set in `now` ('YYYY-MM-01') covers:
+ * windows are counted from January of that year in steps of `months`, so
+ * 1 yil / 3 yil start in January and yarim yil in January or July. */
+export function windowStart(now: string, months: number): string {
+  const jan = `${now.slice(0, 4)}-01-01`;
+  return addMonths(jan, Math.floor(monthsBetween(jan, now) / months) * months);
 }
 
 /** "noyabr 2026" */

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addMonths, bpointProgress, bpointSeries, monthsBetween } from '../src/lib/bpoint';
+import { addMonths, bpointProgress, bpointSeries, monthsBetween, windowStart } from '../src/lib/bpoint';
 
 const year = (vals: number[]) => [...vals, ...new Array(12 - vals.length).fill(0)];
 
@@ -69,4 +69,12 @@ test('3-year window crosses years; month math', () => {
   const s = bpointSeries([{ period: '2027-01-01', paid: 7e6 }], '2026-11-01', 36);
   assert.equal(s.length, 36);
   assert.equal(s[2], 7e6);
+});
+
+test('windows are counted from January (owner, 2026-11-17)', () => {
+  assert.equal(windowStart('2026-11-01', 12), '2026-01-01'); // 1 yil: yanvar–dekabr
+  assert.equal(windowStart('2026-11-01', 36), '2026-01-01'); // 3 yil: shu yil yanvaridan
+  assert.equal(windowStart('2026-11-01', 6), '2026-07-01'); // yarim yil: iyul–dekabr
+  assert.equal(windowStart('2026-03-01', 6), '2026-01-01'); // yarim yil: yanvar–iyun
+  assert.equal(windowStart('2026-01-01', 12), '2026-01-01');
 });

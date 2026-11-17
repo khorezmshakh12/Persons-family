@@ -5,14 +5,14 @@ import { getAuthState } from '@/lib/auth/session';
 import { can } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { tashkentYmd } from '@/lib/time';
-import { HORIZONS, isHorizon, type Horizon } from '@/lib/bpoint';
+import { HORIZONS, isHorizon, windowStart, type Horizon } from '@/lib/bpoint';
 import { loadBpointGoals, type BpointGoalView } from '@/lib/bpoint-data';
 
 // B-nuqta (oylik daromad maqsadi) ni o'rnatish — yarim yil / 1 yil / 3 yil.
 // O'z B-nuqtasini har kim qo'yadi; boshqaniki uchun finance.manage (CEO).
-// Muddat birinchi saqlangan oydan boshlanadi; summani o'zgartirish muddatni
-// qayta boshlamaydi, faqat muddat tugagandan keyingi saqlash yangi muddatni
-// shu oydan boshlaydi.
+// Muddat yil boshidan (yanvardan) hisoblanadi — windowStart; summani
+// o'zgartirish muddatni qayta boshlamaydi, faqat muddat tugagandan keyingi
+// saqlash keyingi muddatni (yangi yil yanvari / iyul) boshlaydi.
 export async function setBpointAction(input: { staffId?: string; horizon: Horizon; amount: number | string; note?: string }) {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
@@ -25,10 +25,11 @@ export async function setBpointAction(input: { staffId?: string; horizon: Horizo
   const months = HORIZONS.find((h) => h.key === input.horizon)!.months;
   const { year, month } = tashkentYmd();
   const now = `${year}-${String(month).padStart(2, '0')}-01`;
+  const start = windowStart(now, months);
   try {
     await sql`
       insert into staff_bpoint_goals as g (user_id, horizon, amount, start_period, note, updated_by, updated_at)
-      values (${staffId}, ${input.horizon}, ${amount}, ${now}, ${note}, ${user.id}, now())
+      values (${staffId}, ${input.horizon}, ${amount}, ${start}, ${note}, ${user.id}, now())
       on conflict (user_id, horizon) do update set
         amount = excluded.amount, note = excluded.note, updated_by = excluded.updated_by, updated_at = now(),
         start_period = case

@@ -9,6 +9,7 @@ import {
   bpointSeries,
   monthShort,
   monthsBetween,
+  windowStart,
   type BpointProgress,
   type Horizon,
 } from '@/lib/bpoint';
@@ -21,11 +22,11 @@ export type BpointGoalView = {
   /** Monthly target (0 = not set). */
   target: number;
   note: string | null;
-  /** 'YYYY-MM-01' — first month of the window (this month while unset). */
+  /** 'YYYY-MM-01' — first month of the window (from January, see windowStart). */
   start: string;
   /** 'YYYY-MM-01' — last month of the window. */
   end: string;
-  /** The window is over (a new save starts a new one from this month). */
+  /** The window is over (a new save starts the next one, see windowStart). */
   expired: boolean;
   progress: BpointProgress;
   /** Every month of the window; months not reached yet carry no amount. */
@@ -43,14 +44,16 @@ export async function loadBpointGoals(staffId: string): Promise<BpointGoalView[]
     from staff_bpoint_goals where user_id = ${staffId}`;
   const byKey = new Map(rows.map((r) => [r.horizon, r]));
 
+  // A goal not set yet shows the window it would get if saved now.
+  const startOf = (h: (typeof HORIZONS)[number]) => byKey.get(h.key)?.start ?? windowStart(now, h.months);
   // One pay load covers every window: from the earliest start to this month.
-  const starts = HORIZONS.map((h) => byKey.get(h.key)?.start ?? now);
+  const starts = HORIZONS.map(startOf);
   const first = starts.reduce((a, b) => (b < a ? b : a), now);
   const points = await loadPayByMonth(first, now, staffId);
 
   return HORIZONS.map((h) => {
     const row = byKey.get(h.key);
-    const start = row?.start ?? now;
+    const start = startOf(h);
     const end = addMonths(start, h.months - 1);
     const reached = monthsBetween(start, now); // index of this month in the window
     const upTo = Math.min(reached, h.months - 1);

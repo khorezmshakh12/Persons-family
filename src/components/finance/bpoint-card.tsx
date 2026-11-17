@@ -52,7 +52,7 @@ export function BpointCard({ goal, canEdit, staffId }: { goal: BpointGoalView; c
             {amount > 0 && (
               <span className="block text-[11px] text-au-muted">
                 {monthName(goal.start)} → {monthName(goal.end)}
-                {goal.expired && ' · muddat tugadi, yangi maqsad shu oydan boshlanadi'}
+                {goal.expired && ' · muddat tugadi, yangi summa saqlansa keyingi muddat boshlanadi'}
               </span>
             )}
           </div>
