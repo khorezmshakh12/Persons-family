@@ -85,10 +85,10 @@ export async function FinanceDetailContent({
     isSelf ? loadReimbursements(staffId).catch(() => []) : Promise.resolve([]),
   ]);
 
-  // B-nuqta (oylik daromad maqsadi): har oyning o'z hisoblangan oyligi
-  // (pay run payable), yanvardan joriy oygacha — bir oyning summasi boshqa
-  // oyga aralashmaydi (finance audit 2026-10-22). A-nuqta = birinchi maoshli
-  // oy, "hozir" = oxirgi maoshli oy (src/lib/bpoint.ts).
+  // B-nuqta (oylik daromad maqsadi): har oy uchun haqiqatda olingan summa
+  // (oylik to'lov + avans), yanvardan joriy oygacha — bir oyning summasi
+  // boshqa oyga aralashmaydi. A-nuqta = birinchi maoshli oy, "hozir" =
+  // oxirgi maoshli oy (src/lib/bpoint.ts).
   const nowYmd = tashkentYmd();
   const bYear = nowYmd.year;
   const upToMonth = nowYmd.month;

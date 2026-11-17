@@ -1072,11 +1072,10 @@ function StaffPanel({
   const extras = line.components.filter((c) => c.kind !== 'base');
   const pct = line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
 
-  // B-nuqta: what the person earned this year vs the straight-line plan.
-  // B-nuqta = oylik maqsad: bonus/jarima faqat "hozir" ko'rsatilayotgan oy
-  // uchun qo'shilsa, o'sha oyning maoshini (va foizini) o'zgartiradi.
-  const preview = bp && (kind === 'bonus' || kind === 'penalty') && num > 0 && per === bp.currentPeriod ? ADD_KINDS[kind].sign * num : 0;
-  const bNow = bp ? Math.max(0, bp.current + preview) : 0;
+  // B-nuqta = oylik maqsad, olingan summa bo'yicha (src/lib/bpoint.ts).
+  // Bonus/jarima olingan summani o'zgartirmaydi, shuning uchun oldindan
+  // ko'rsatish yo'q.
+  const bNow = bp ? bp.current : 0;
   const bPct = bp && bp.target > 0 ? Math.round((bNow / bp.target) * 100) : 0;
 
   // A split-advance share is part of one whole: it can only be removed
@@ -1323,7 +1322,6 @@ function StaffPanel({
                 </span>
               )}
             </div>
-            {preview !== 0 && <p className="text-xs font-semibold text-au-accent-text">Shu {ADD_KINDS[kind].n.toLowerCase()} bilan: {bPct}%</p>}
             {bNow >= bp.target ? (
               <p className="text-xs font-semibold text-au-ok">B-nuqtaga yetildi</p>
             ) : (

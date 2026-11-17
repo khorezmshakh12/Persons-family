@@ -21,13 +21,15 @@ export type BpointProgress = {
   gap: number;
 };
 
-/** 12 months of `year` (0 = January): each month's EARNED pay — payable
- * without advance bookkeeping (carry / split-advance shares), so an advance
- * does not inflate one month and shrink the next. The one input every
- * B-nuqta view uses, so the staff page and the pay run card agree. */
-export function bpointByMonth(points: { period: string; earned: number }[], year: number): number[] {
+/** 12 months of `year` (0 = January): what the person actually RECEIVED
+ * for each month — salary payments + advances booked to it (owner,
+ * 2026-11-17: the computed pay stays flat while the received pay differs
+ * month to month, and B-nuqta measures the latter). A month nothing was
+ * paid for yet is 0, so "hozir" falls back to the last paid month. The one
+ * input every B-nuqta view uses, so the staff page and the pay run card agree. */
+export function bpointByMonth(points: { period: string; paid: number }[], year: number): number[] {
   const byMonth = new Array(12).fill(0) as number[];
-  for (const m of points) if (m.period.startsWith(`${year}-`)) byMonth[Number(m.period.slice(5, 7)) - 1] = m.earned;
+  for (const m of points) if (m.period.startsWith(`${year}-`)) byMonth[Number(m.period.slice(5, 7)) - 1] = m.paid;
   return byMonth;
 }
 
