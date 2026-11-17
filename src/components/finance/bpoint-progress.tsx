@@ -29,7 +29,7 @@ export function BpointProgress({
       </span>
       <div className="flex-1">
         <h2 className="text-base font-bold text-au-ink">B-nuqta sari</h2>
-        <p className="text-xs text-au-muted">Har oy olingan oylik va maqsad oylik · {year}</p>
+        <p className="text-xs text-au-muted">Har oy olingan oylik va maqsad oylik · {year} · ustunlarda mln so‘m</p>
       </div>
     </div>
   );
@@ -47,6 +47,9 @@ export function BpointProgress({
   // is not cut off and the B-nuqta line sits at its true height.
   const top = Math.max(target, ...months.map((m) => m.amount ?? 0)) * 1.08;
   const h = (v: number) => `${Math.min(100, Math.max(0, (v / top) * 100))}%`;
+  // Bar labels in mln so'm (4 250 000 → "4.3"): with B-nuqta far above the
+  // pay, bars of different months look alike, so each one carries its number.
+  const mln = (v: number) => String(+(v / 1e6).toFixed(1));
   const focus = hover ?? Math.max(0, currentMonth);
   const f = months[focus];
   const fPct = f.amount !== null && f.amount > 0 ? Math.round((f.amount / target) * 100) : null;
@@ -77,7 +80,7 @@ export function BpointProgress({
         </span>
       </div>
 
-      <div className="relative h-36">
+      <div className="relative h-48">
         {/* B-nuqta line at its real height */}
         <div className="pointer-events-none absolute inset-x-0 z-10" style={{ bottom: h(target) }}>
           <div className="border-t-2 border-dashed border-au-ok" />
@@ -108,13 +111,26 @@ export function BpointProgress({
               {m.amount === null ? (
                 <span className="absolute inset-x-[15%] bottom-0 rounded-t-[3px] border border-dashed border-au-line" style={{ height: h(target) }} />
               ) : (
-                <span
-                  style={{ height: h(m.amount), ['--i' as string]: i }}
-                  className={cn(
-                    'ms-grow-y relative mx-[15%] w-[70%] rounded-t-[3px] transition-colors',
-                    m.amount >= target ? 'bg-au-ok' : i === currentMonth ? 'bg-au-accent' : 'bg-au-accent/55',
+                <>
+                  <span
+                    style={{ height: h(m.amount), ['--i' as string]: i }}
+                    className={cn(
+                      'ms-grow-y relative mx-[15%] w-[70%] rounded-t-[3px] transition-colors',
+                      m.amount >= target ? 'bg-au-ok' : i === currentMonth ? 'bg-au-accent' : 'bg-au-accent/55',
+                    )}
+                  />
+                  {m.amount > 0 && (
+                    <span
+                      className={cn(
+                        'pointer-events-none absolute inset-x-0 mb-0.5 text-center text-[9px] leading-none whitespace-nowrap tabular-nums',
+                        i === currentMonth ? 'font-bold text-au-accent-text' : 'text-au-muted',
+                      )}
+                      style={{ bottom: h(m.amount) }}
+                    >
+                      {mln(m.amount)}
+                    </span>
                   )}
-                />
+                </>
               )}
             </button>
           ))}
