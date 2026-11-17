@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bpointProgress } from '../src/lib/bpoint';
+import { bpointByMonth, bpointProgress } from '../src/lib/bpoint';
 
 const year = (vals: number[]) => [...vals, ...new Array(12 - vals.length).fill(0)];
 
@@ -43,4 +43,20 @@ test('no pay yet / no target / pay dropped below A', () => {
   assert.equal(bpointProgress(10e6, year([5e6, 4e6]), 1).road, 0);
   // target below A: no road to cover until current reaches it
   assert.equal(bpointProgress(3e6, year([4e6, 2e6]), 1).road, 0);
+});
+
+test('months use earned pay, not payable with advance bookkeeping', () => {
+  // October: 3M split advance given, so payable carries +2M of shares;
+  // November holds one share back. Earned is the real 5M both months.
+  const points = [
+    { period: '2026-10-01', planned: 7e6, earned: 5e6 },
+    { period: '2026-11-01', planned: 4e6, earned: 5e6 },
+    { period: '2025-12-01', planned: 9e6, earned: 9e6 },
+  ];
+  const byMonth = bpointByMonth(points, 2026);
+  assert.equal(byMonth.length, 12);
+  assert.equal(byMonth[9], 5e6);
+  assert.equal(byMonth[10], 5e6);
+  assert.equal(byMonth[11], 0); // another year's December is ignored
+  assert.equal(bpointProgress(10e6, byMonth, 10).current, 5e6);
 });

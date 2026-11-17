@@ -3,7 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
 import { BpointCard } from '@/components/finance/bpoint-card';
 import { BpointProgress } from '@/components/finance/bpoint-progress';
-import { bpointProgress } from '@/lib/bpoint';
+import { bpointByMonth, bpointProgress } from '@/lib/bpoint';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -97,8 +97,7 @@ export async function FinanceDetailContent({
     loadPayByMonth(`${bYear}-01-01`, `${bYear}-${String(upToMonth).padStart(2, '0')}-01`, staffId),
   ]);
   const bpoint = bpRows[0] ?? null;
-  const byMonth = new Array(12).fill(0) as number[];
-  for (const m of ytd) byMonth[Number(m.period.slice(5, 7)) - 1] = m.earned;
+  const byMonth = bpointByMonth(ytd, bYear);
   const bTarget = bpoint?.amount ?? 0;
   const bProgress = bpointProgress(bTarget, byMonth, upToMonth - 1);
   // All 12 months; months not reached yet carry no amount.

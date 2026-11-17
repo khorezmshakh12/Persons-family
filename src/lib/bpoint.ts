@@ -21,6 +21,16 @@ export type BpointProgress = {
   gap: number;
 };
 
+/** 12 months of `year` (0 = January): each month's EARNED pay — payable
+ * without advance bookkeeping (carry / split-advance shares), so an advance
+ * does not inflate one month and shrink the next. The one input every
+ * B-nuqta view uses, so the staff page and the pay run card agree. */
+export function bpointByMonth(points: { period: string; earned: number }[], year: number): number[] {
+  const byMonth = new Array(12).fill(0) as number[];
+  for (const m of points) if (m.period.startsWith(`${year}-`)) byMonth[Number(m.period.slice(5, 7)) - 1] = m.earned;
+  return byMonth;
+}
+
 /** `byMonth[i]` = pay of month i (0 = January) of the B-nuqta's year; months
  * not reached yet must be 0. `upTo` = the current month index (0-based). */
 export function bpointProgress(target: number, byMonth: number[], upTo: number): BpointProgress {
