@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
+import { MoneyInput } from '@/components/ui/money-input';
 import { daysBetween, nextDueDate } from '@/lib/billing';
 import { addDaysToKey } from '@/lib/time';
 import type { StudentRow } from '@/lib/ops-students';
@@ -493,7 +494,7 @@ function PayPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: st
     <Panel title="To‘lov qabul qilish">
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <Field label="Summa">
-          <input id="pay-amt" className="sx-inp tabular-nums" inputMode="numeric" value={amount} onChange={(e) => setAmount(grouped(e.target.value))} />
+          <MoneyInput id="pay-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
         <Field label="Usul">
           <select id="pay-m" className="sx-inp" value={method} onChange={(e) => setMethod(e.target.value as typeof method)}>
@@ -607,7 +608,7 @@ function TermsPane({ s, onDone, onFail, onCancel }: PaneProps) {
       </label>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <Field label="Oylik to‘lov">
-          <input id="t-fee" className="sx-inp tabular-nums" inputMode="numeric" disabled={!own} value={fee} onChange={(e) => setFee(grouped(e.target.value))} />
+          <MoneyInput id="t-fee" className="sx-inp tabular-nums" disabled={!own} value={digits(fee) ? Number(digits(fee)) : null} onValue={(v) => setFee(v == null ? '' : grouped(String(v)))} />
         </Field>
         <Field label="Aktiv bo‘lgan sana (to‘lov kuni)">
           <input id="t-start" type="date" className="sx-inp" value={startDate} onChange={(e) => setStart(e.target.value)} />
@@ -647,7 +648,7 @@ function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
     <Panel title="Qo‘lda yechish (minus)">
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <Field label="Summa">
-          <input id="adj-amt" className="sx-inp tabular-nums" inputMode="numeric" placeholder="masalan 100,000" value={amount} onChange={(e) => setAmount(grouped(e.target.value))} />
+          <MoneyInput id="adj-amt" className="sx-inp tabular-nums" placeholder="masalan 100,000" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
         <Field label="Sabab">
           <select id="adj-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
@@ -687,7 +688,7 @@ function FixPane({ s, onDone, onFail, onCancel }: PaneProps) {
       <p className="text-xs text-au-muted">To‘lov emas: tushum, kassa, to‘lovlar soni va faollikka kirmaydi. Faqat balans o‘zgaradi, tarixda kim qilgani qoladi.</p>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <Field label={`Summa (eng ko‘pi ${formatUZS(max)})`}>
-          <input id="fix-amt" className="sx-inp tabular-nums" inputMode="numeric" value={amount} onChange={(e) => setAmount(grouped(e.target.value))} />
+          <MoneyInput id="fix-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
         <Field label="Sabab">
           <select id="fix-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>

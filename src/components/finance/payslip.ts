@@ -5,7 +5,7 @@ import { COMPONENT_LABEL, monthLabel, payState, type PayLine } from '@/lib/pay-r
 /** jsPDF's built-in fonts are Latin-1: swap the Uzbek ‘ ’ and the minus sign
  * for plain ASCII so nothing renders as a box. */
 const latin = (s: string) => s.replace(/[‘’ʻʼ`]/g, "'").replace(/−/g, '-').replace(/[–—]/g, '-').replace(/·/g, '-');
-const money = (n: number) => `${n < 0 ? '-' : ''}${Math.abs(Math.round(n)).toLocaleString('en-US').replace(/,/g, ' ')} so'm`;
+const money = (n: number) => `${n < 0 ? '-' : ''}${Math.abs(Math.round(n)).toLocaleString('en-US')} so'm`;
 
 /** One payslip per line, one page each — a single person or the whole run.
  * Each page is labelled with that person's own state (To‘langan, Qisman…). */

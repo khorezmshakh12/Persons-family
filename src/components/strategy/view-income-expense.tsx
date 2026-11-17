@@ -9,11 +9,12 @@ import { MONF } from '@/lib/strategy';
 import { growth, moneyMonth, moneySeries, type MoneyItem, type MoneyLine } from '@/lib/strategy-money';
 import { MonthPicker, type BooksLite } from './view-finance';
 import { ask, toast } from './suite-shell';
+import { formatUZS } from '@/lib/format-currency';
 
 export type ExpenseCat = { k: string; n: string; acc: string };
 export type CashBoxLite = { code: string; name: string };
 
-const som = (v: number) => new Intl.NumberFormat('ru-RU').format(Math.round(v)).replace(/ /g, ' ');
+const som = (v: number) => formatUZS(Math.round(v));
 const mln = (v: number) => {
   const a = Math.abs(v);
   const s = a >= 1e6 ? `${(a / 1e6).toFixed(a >= 1e8 ? 0 : 1).replace('.', ',')} mln` : a >= 1e3 ? `${Math.round(a / 1e3)} ming` : `${Math.round(a)}`;

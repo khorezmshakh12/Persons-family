@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { FileDown, HandCoins, Undo2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { formatUZS } from '@/lib/format-currency';
 import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
@@ -211,7 +212,7 @@ export function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
         </div>
       ) : open ? (
         <div className="ms-pop-in flex flex-col gap-2">
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="Summa, so‘m" className={cn(INPUT, 'tabular-nums')} />
+          <MoneyInput value={amount ? Number(amount.replace(/\D/g, '')) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa, so‘m" className={cn(INPUT, 'tabular-nums')} />
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Sabab" className={INPUT} />
           <p className="text-[11px] text-au-muted">Tasdiqlansa, shu oyning oyligidan ushlab qolinadi.</p>
           <div className="flex justify-end gap-2">

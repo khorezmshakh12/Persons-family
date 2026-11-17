@@ -5,10 +5,12 @@ import { Target, Pencil } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { SURFACE_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { setBpointAction } from '@/lib/actions/bpoint';
 import type { BpointProgress } from '@/lib/bpoint';
+import { formatUZS } from '@/lib/format-currency';
 
-const fmt = (n: number) => `${new Intl.NumberFormat('ru-RU').format(Math.round(n))} so'm`;
+const fmt = (n: number) => `${formatUZS(Math.round(n))} so'm`;
 const MONTH = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 
 /** B-nuqta: xodimning OYLIK daromad maqsadi. A-nuqta (yilning birinchi
@@ -109,11 +111,10 @@ export function BpointCard({
       {editing && (
         <div className="flex flex-col gap-2 border-t border-au-line pt-3">
           <div className="flex items-center gap-2">
-            <input
-              value={val}
-              onChange={(e) => setVal(e.target.value)}
-              inputMode="numeric"
-              placeholder="Oylik maqsad, masalan: 10000000"
+            <MoneyInput
+              value={val ? Number(val.replace(/\D/g, '')) : null}
+              onValue={(v) => setVal(v == null ? '' : String(v))}
+              placeholder="Oylik maqsad, masalan: 10,000,000"
               className="h-9 min-w-0 flex-1 rounded-au-ctl border border-au-line bg-au-card-2 px-3 text-xs text-au-ink tabular-nums outline-none focus:border-au-accent"
             />
             <button

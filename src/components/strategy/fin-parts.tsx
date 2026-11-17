@@ -9,6 +9,7 @@ import { saveFinMonthAction, saveFinSettingsAction } from '@/lib/actions/strateg
 import { AGE, ageOf, capacityOf, debtSummary, type AgeKey, type FinInputs, type FinShift, type monthInputs } from '@/lib/strategy-finance';
 import { MONF } from '@/lib/strategy';
 import { formatUZS } from '@/lib/format-currency';
+import { MoneyInput } from '@/components/ui/money-input';
 import { ask, toast } from './suite-shell';
 import type { BooksLite } from './view-finance';
 
@@ -161,14 +162,25 @@ export function FinEditor({
                       <td>{c.name}</td>
                       {(['students', 'fee', 'teacher_cost', 'book_cost'] as CourseKey[]).map((k) => (
                         <td key={k}>
-                          <input
-                            type="number"
-                            min={0}
-                            value={(c[k] === 0 || c[k] === undefined) ? '' : c[k]}
-                            aria-label={`${c.name} · ${k}`}
-                            onChange={(e) => setCourses((list) => list.map((x, j) => (j === i ? { ...x, [k]: e.target.value === '' ? 0 : num(e.target.value) } : x)))}
-                            onBlur={() => saveCourse(courses[i])}
-                          />
+                          {k === 'students' ? (
+                            <input
+                              type="number"
+                              min={0}
+                              value={(c[k] === 0 || c[k] === undefined) ? '' : c[k]}
+                              aria-label={`${c.name} · ${k}`}
+                              onChange={(e) => setCourses((list) => list.map((x, j) => (j === i ? { ...x, [k]: e.target.value === '' ? 0 : num(e.target.value) } : x)))}
+                              onBlur={() => saveCourse(courses[i])}
+                            />
+                          ) : (
+                            <MoneyInput
+                              className=""
+                              placeholder=""
+                              value={c[k]}
+                              aria-label={`${c.name} · ${k}`}
+                              onValue={(v) => setCourses((list) => list.map((x, j) => (j === i ? { ...x, [k]: v ?? 0 } : x)))}
+                              onBlur={() => saveCourse(courses[i])}
+                            />
+                          )}
                         </td>
                       ))}
                       <td>

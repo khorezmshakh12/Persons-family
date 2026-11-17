@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Receipt, Undo2, Wallet } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { formatUZS } from '@/lib/format-currency';
 import { CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { cancelReimbursementAction, confirmPaymentAction, requestReimbursementAction } from '@/lib/actions/pay-run';
@@ -164,7 +165,7 @@ export function ReimbursePanel({ items }: { items: Reimbursement[] }) {
       <p className="text-xs text-au-muted">Markaz uchun o‘z pulingizdan to‘lagan bo‘lsangiz (taksi, material, xarid) — shu yerdan so‘rang. Tasdiqlansa, oyligingizga qo‘shiladi.</p>
       {open ? (
         <div className="flex flex-col gap-2">
-          <input value={amount} onChange={(e) => setAmount(digits(e.target.value))} inputMode="numeric" placeholder="Summa, so‘m" className={cn(INPUT, 'tabular-nums')} />
+          <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa, so‘m" className={cn(INPUT, 'tabular-nums')} />
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nima uchun (masalan: printer qog‘ozi)" className={INPUT} />
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Izoh (ixtiyoriy)" className={INPUT} />
           <label className="flex items-center gap-2 text-xs text-au-muted">

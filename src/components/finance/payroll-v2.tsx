@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { MoneyInput } from '@/components/ui/money-input';
 import { formatUZS } from '@/lib/format-currency';
 import { ExportButtons } from '@/components/export/export-buttons';
 import {
@@ -851,7 +852,7 @@ function BulkBar({
           </button>
         ))}
       </div>
-      <input value={amount} onChange={(e) => setAmount(digits(e.target.value))} inputMode="numeric" placeholder="Summa" className={cn(FIELD, 'h-9 w-32 text-right')} aria-label="Summa" />
+      <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa" className={cn(FIELD, 'h-9 w-32 text-right')} aria-label="Summa" />
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nomi (masalan: Bayram bonusi)" className={cn(FIELD, 'h-9 w-56 flex-1 font-medium')} aria-label="Nomi" />
       <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'h-9 w-auto font-medium')} aria-label="Qaysi oy uchun">
         {[0, 1, 2, 3].map((n) => {
@@ -1096,11 +1097,11 @@ function StaffPanel({
   const editor = (id: string) =>
     edit?.id === id && (
       <div className="flex items-center gap-2">
-        <input
+        <MoneyInput
           autoFocus
-          value={edit.value}
-          onChange={(e) => setEdit({ ...edit, value: digits(e.target.value) })}
-          inputMode="numeric"
+          value={edit.value ? Number(digits(edit.value)) : null}
+          onValue={(v) => setEdit({ ...edit, value: v == null ? '' : String(v) })}
+          placeholder=""
           className={cn(FIELD, 'h-9 w-32 text-right')}
           aria-label="Yangi summa"
         />
@@ -1148,10 +1149,10 @@ function StaffPanel({
         <label className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-au-ink">Asosiy maosh</span>
           <span className="flex items-center gap-2">
-            <input
-              value={base}
-              onChange={(e) => setBase(digits(e.target.value))}
-              inputMode="numeric"
+            <MoneyInput
+              value={base ? Number(digits(base)) : null}
+              onValue={(v) => setBase(v == null ? '' : String(v))}
+              placeholder=""
               className={cn(FIELD, 'h-10 w-36 text-right')}
               aria-label="Asosiy maosh"
             />
@@ -1269,7 +1270,7 @@ function StaffPanel({
               </option>
             ))}
           </select>
-          <input value={amount} onChange={(e) => setAmount(digits(e.target.value))} inputMode="numeric" placeholder="Summa, so‘m" className={cn(FIELD, 'text-right')} aria-label="Summa" />
+          <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa, so‘m" className={cn(FIELD, 'text-right')} aria-label="Summa" />
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Nomi (ixtiyoriy): ${ADD_KINDS[kind].n}`} className={cn(FIELD, 'col-span-2 font-medium')} aria-label="Nomi" />
           {kind === 'advance' && (
             <select value={split} onChange={(e) => setSplit(Number(e.target.value))} className={cn(FIELD, 'col-span-2 font-medium')} aria-label="Qanday ushlanadi">

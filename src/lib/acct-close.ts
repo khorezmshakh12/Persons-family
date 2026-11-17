@@ -14,7 +14,7 @@ export type ClosePeriod = {
   log: { action: string; reason: string | null; at: string; actor: string | null }[];
 };
 
-const som = (n: number) => Math.round(n).toLocaleString('en-US').replace(/,/g, ' ');
+const som = (n: number) => Math.round(n).toLocaleString('en-US');
 
 /** Everything that should be true before a month's books are closed. */
 export async function loadClosePeriod(ym: string): Promise<ClosePeriod> {

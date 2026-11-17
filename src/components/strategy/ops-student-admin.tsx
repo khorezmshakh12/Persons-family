@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation';
 import { fillTemplate } from '@/lib/billing';
 import { markPaidElsewhereAction, saveBillingSettingsAction, saveTemplatesAction } from '@/lib/actions/students';
 import { formatUZS } from '@/lib/format-currency';
+import { MoneyInput } from '@/components/ui/money-input';
 import type { StudentRow } from '@/lib/ops-students';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
@@ -217,7 +218,7 @@ export function PaidElsewhereModal({ students, onClose, onDone }: { students: St
             )}
             <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
               {one ? 'Oylik to‘lov (so‘m), majburiy' : 'Summasi yo‘qlar uchun oylik to‘lov (so‘m)'}
-              <input id="pe-fee" className="sx-inp" inputMode="numeric" placeholder="masalan 600 000" value={fee} onChange={(e) => setFee(e.target.value)} />
+              <MoneyInput id="pe-fee" className="sx-inp" placeholder="masalan 600,000" value={fee ? Number(fee.replace(/\D/g, '')) : null} onValue={(v) => setFee(v == null ? '' : String(v))} />
             </label>
           </>
         )}

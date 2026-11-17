@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
+import { MoneyInput } from '@/components/ui/money-input';
 import { addDaysToKey } from '@/lib/time';
 import { shiftMonthKey, monthEnd } from '@/lib/ops-health';
 import { cancelPaymentAction, listPaymentsAction, updatePaymentAction, type PaymentRow } from '@/lib/actions/students';
@@ -257,7 +258,7 @@ export function PaymentEditor({
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-au-muted">
           Summa
-          <input id={`pe-a-${payment.id}`} className="sx-inp" inputMode="numeric" value={amount} onChange={(e) => setAmount(digits(e.target.value) ? formatUZS(Number(digits(e.target.value))) : '')} />
+          <MoneyInput id={`pe-a-${payment.id}`} className="sx-inp" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : formatUZS(v))} />
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-au-muted">
           Sana

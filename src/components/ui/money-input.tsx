@@ -43,6 +43,7 @@ export function MoneyInput({
   placeholder?: string;
   /** Show a literal 0 instead of an empty box. */
   allowZero?: boolean;
+  ref?: React.Ref<HTMLInputElement>;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'name'>) {
   const shown = value === null || value === undefined || (!allowZero && value === 0) ? '' : groupDigits(Math.round(Math.abs(value)));
   const [text, setText] = useState(shown);

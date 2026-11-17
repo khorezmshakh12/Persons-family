@@ -68,7 +68,7 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { n: '6 oyda sarflangan', v: `${total.toLocaleString('en-US').replace(/,/g, ' ')} ★`, icon: <BarChart3 className="size-4" /> },
+          { n: '6 oyda sarflangan', v: `${total.toLocaleString('en-US')} ★`, icon: <BarChart3 className="size-4" /> },
           { n: 'Xaridorlar (90 kun)', v: String(data.buyers), icon: <Users className="size-4" /> },
           { n: 'Topshirish kutilmoqda', v: String(pendingCount), icon: <Gift className="size-4" />, tone: pendingCount ? 'text-au-accent-text' : '' },
           { n: 'O‘rtacha qaror vaqti', v: data.avgDecisionHours === null ? '—' : data.avgDecisionHours < 48 ? `${data.avgDecisionHours.toFixed(1)} soat` : `${(data.avgDecisionHours / 24).toFixed(1)} kun`, icon: <Timer className="size-4" /> },

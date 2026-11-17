@@ -26,6 +26,7 @@ import {
   monitorSetSalariesAction,
   monitorToggleRequestAction,
 } from '@/lib/actions/finance-monitor';
+import { MoneyInput } from '@/components/ui/money-input';
 import './monitor.css';
 
 /**
@@ -748,18 +749,15 @@ function OperationModal({
                   Qolgan summani to&apos;liq yozish
                 </button>
               </div>
-              <input
+              <MoneyInput
                 ref={amountRef}
-                type="text"
-                inputMode="numeric"
                 id="opAmountInput"
                 className={`f-input num strong ${err?.field === 'amount' ? 'input-invalid' : ''}`}
-                placeholder="Masalan: 1 500 000"
-                autoComplete="off"
+                placeholder="Masalan: 1,500,000"
                 required
-                value={amount}
-                onChange={(e) => {
-                  setAmount(groupInput(e.target.value));
+                value={toSafeIntegerAmount(amount) || null}
+                onValue={(v) => {
+                  setAmount(v == null ? '' : groupInput(String(v)));
                   if (err?.field === 'amount') setErr(null);
                 }}
               />
@@ -947,14 +945,13 @@ function CeoModal({
                         </div>
                         <div className="num muted">{formatUZS(prevSal)}</div>
                         <div>
-                          <input
-                            type="text"
+                          <MoneyInput
                             aria-label={`${emp.firstName} ${emp.lastName} oylik maoshi`}
-                            inputMode="numeric"
                             className="f-input num strong ceo-sal-input"
                             data-emp-id={emp.id}
-                            value={vals[emp.id] ?? ''}
-                            onChange={(e) => setVals((v) => ({ ...v, [emp.id]: groupInput(e.target.value) }))}
+                            placeholder=""
+                            value={toSafeIntegerAmount(vals[emp.id]) || null}
+                            onValue={(n) => setVals((v) => ({ ...v, [emp.id]: n == null ? '' : groupInput(String(n)) }))}
                             style={{ padding: '6px 10px' }}
                           />
                         </div>
@@ -1063,16 +1060,13 @@ function EmployeeModal({
                   <label className="f-label" htmlFor="empBaseSalary">
                     <span>{formatMonthUz(currM)} oyi uchun oylik maoshi (so&apos;mda)</span> <span className="req-star">*</span>
                   </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
+                  <MoneyInput
                     id="empBaseSalary"
                     className="f-input num strong"
-                    placeholder="Masalan: 7 000 000"
-                    autoComplete="off"
+                    placeholder="Masalan: 7,000,000"
                     autoFocus
-                    value={salary}
-                    onChange={(e) => setSalary(groupInput(e.target.value))}
+                    value={toSafeIntegerAmount(salary) || null}
+                    onValue={(v) => setSalary(v == null ? '' : groupInput(String(v)))}
                   />
                 </div>
               </>

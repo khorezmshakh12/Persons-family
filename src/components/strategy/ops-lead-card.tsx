@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
+import { MoneyInput } from '@/components/ui/money-input';
 import { fillTemplate } from '@/lib/billing';
 import type { SalesLead } from '@/lib/ops-sales';
 import {
@@ -410,7 +411,7 @@ function ConvertPane({ l, data, onDone, onCancel }: { l: SalesLead; data: OpsDat
       <div className="text-sm text-au-muted">CRM’da o‘quvchi ochiladi (telefon va Telegram bilan), «O‘quvchilar»ga tushadi va har oy shu sanada to‘lov yechiladi.</div>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
         <Field label="Oylik to‘lov">
-          <input id="cv-fee" className="sx-inp tabular-nums" inputMode="numeric" placeholder="masalan 600,000" value={fee} onChange={(e) => setFee(digits(e.target.value) ? formatUZS(Number(digits(e.target.value))) : '')} />
+          <MoneyInput id="cv-fee" className="sx-inp tabular-nums" placeholder="masalan 600,000" value={digits(fee) ? Number(digits(fee)) : null} onValue={(v) => setFee(v == null ? '' : formatUZS(v))} />
         </Field>
         <Field label="Aktiv bo‘lgan sana (to‘lov kuni)">
           <input id="cv-start" type="date" className="sx-inp" value={startDate} onChange={(e) => setStart(e.target.value)} />
