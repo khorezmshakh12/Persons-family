@@ -15,7 +15,10 @@ let reloading = false;
 /** Set while the page is being left — fetches it aborts are not errors. */
 let leaving = false;
 
-const STALE_BUILD = /Server Action .* was not found|Failed to find Server Action/;
+// "An unexpected response…": a Server Action got a non-RSC reply — the
+// session ended mid-page (the action redirected to /login) or a new build
+// is mid-rollout. A reload recovers both, like a stale action.
+const STALE_BUILD = /Server Action .* was not found|Failed to find Server Action|An unexpected response was received from the server/;
 const BROKEN_IDB = /Database is closing|Database deleted by request|Internal error opening backing store|IndexedDB/i;
 /** Bump to make every browser drop its Firebase IndexedDB once more. */
 const LOCAL_DATA_VERSION = '2026-10-31';
@@ -145,7 +148,10 @@ export function ErrorReporter() {
       seen.add(message);
       reportClientError(message, stack);
     };
-    const onError = (e: ErrorEvent) => send(e.message, e.error instanceof Error ? e.error.stack : undefined);
+    // A thrown non-Error (e.g. `throw ''`) arrives as a bare "Uncaught "
+    // with no stack — keep where it came from so it can be traced.
+    const onError = (e: ErrorEvent) =>
+      send(e.message, e.error instanceof Error ? e.error.stack : `at ${e.filename}:${e.lineno}:${e.colno} (thrown ${typeof e.error}: ${String(e.error).slice(0, 200)})`);
     const onRejection = (e: PromiseRejectionEvent) => {
       const r = e.reason;
       send(r instanceof Error ? r.message : String(r), r instanceof Error ? r.stack : undefined);
