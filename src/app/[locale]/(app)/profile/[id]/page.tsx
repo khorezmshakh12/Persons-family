@@ -41,6 +41,9 @@ import {
 import { AboutCard, AccountTab, ActivityCard, MetricsCard, PeopleTab, ProfileStrip, WorkTab } from '@/components/profile/profile-hub';
 import { PayStatement } from '@/components/finance/pay-statement';
 import { loadPayHistory, loadPayLines } from '@/lib/pay-run-data';
+import { BpointCard } from '@/components/finance/bpoint-card';
+import { BpointProgress } from '@/components/finance/bpoint-progress';
+import { loadBpoint } from '@/lib/bpoint-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,6 +116,10 @@ export async function ProfileDetailContent({
   const canViewCeoScoped = isSelf || isAdmin;
   const canManageWarnings = !isSelf && (isAdmin || isAdminManager);
   const canManage = !isSelf && isAdmin;
+  // B-nuqta: same rules as /finance/[staffId] — see anyone's with
+  // finance.viewAll, set anyone's with finance.manage, always your own.
+  const canSeeBpoint = isSelf || can(viewerProfile!.role, 'finance.viewAll');
+  const canEditBpoint = isSelf || can(viewerProfile!.role, 'finance.manage');
   const sectionErrorMessage = tProfile('sectionError');
 
   const [target] = await sql<
@@ -155,7 +162,7 @@ export async function ProfileDetailContent({
       : Promise.resolve([] as { id: string; name: string }[]),
   ]);
   const positionNames = [...new Set([target.role, ...positions.map((r) => r.role)])].map((r) => roleLabel(tStaff, r));
-  const [activity, skills, work, meetings, privateNotes, payLines, payHistory] = await Promise.all([
+  const [activity, skills, work, meetings, privateNotes, payLines, payHistory, bp] = await Promise.all([
     tab === 'overview' && canViewCeoScoped ? loadProfileActivity(id, true) : Promise.resolve([]),
     tab === 'overview' ? loadSkills(id) : Promise.resolve([]),
     tab === 'work' ? loadWork(id) : Promise.resolve(null),
@@ -163,6 +170,7 @@ export async function ProfileDetailContent({
     tab === 'people' && isAdmin && !isSelf ? loadPrivateNotes(id) : Promise.resolve(null),
     tab === 'finance' && canViewCeoScoped ? loadPayLines(period, id) : Promise.resolve([]),
     tab === 'finance' && canViewCeoScoped ? loadPayHistory(period, id) : Promise.resolve([]),
+    tab === 'finance' && canSeeBpoint ? loadBpoint(id) : Promise.resolve(null),
   ]);
 
   return (
@@ -268,6 +276,12 @@ export async function ProfileDetailContent({
 
           {tab === 'finance' && (
             <>
+              {bp && (
+                <div className="enter-rise grid grid-cols-1 gap-5 lg:grid-cols-2" style={{ animationDelay: '60ms' }}>
+                  <BpointCard year={bp.year} note={bp.note} progress={bp.progress} canEdit={canEditBpoint} staffId={id} />
+                  <BpointProgress year={bp.year} progress={bp.progress} months={bp.months} />
+                </div>
+              )}
               {canViewCeoScoped && (
                 <PayStatement line={payLines[0] ?? null} period={period} history={payHistory} advances={null} isSelf={false} />
               )}

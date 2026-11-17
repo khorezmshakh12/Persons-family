@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { tashkentMonthKey, tashkentYmd } from '@/lib/time';
+import { tashkentMonthKey } from '@/lib/time';
 import { BpointCard } from '@/components/finance/bpoint-card';
 import { BpointProgress } from '@/components/finance/bpoint-progress';
-import { bpointByMonth, bpointProgress } from '@/lib/bpoint';
+import { loadBpoint } from '@/lib/bpoint-data';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -18,13 +18,12 @@ import { IncomeRoadmapSection } from '@/components/income-roadmap/income-roadmap
 import { can, canSeeFor } from '@/lib/permissions';
 import { FinanceTabs } from '@/components/finance/finance-tabs';
 import { AdvancePanel, PayHistoryCard, PayStatementCard } from '@/components/finance/pay-statement';
-import { loadAdvances, loadMyPayments, loadPayByMonth, loadPayHistory, loadPayLines, loadReimbursements } from '@/lib/pay-run-data';
+import { loadAdvances, loadMyPayments, loadPayHistory, loadPayLines, loadReimbursements } from '@/lib/pay-run-data';
 import { MyPaymentsPanel, ReimbursePanel } from '@/components/finance/my-money';
 
 export const dynamic = 'force-dynamic';
 
 const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
-const SHORT_UZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
 const monthLabel = (ym: string) => `${MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 
 // Exported so /finance/page.tsx can render a non-admin viewer's own finance
@@ -85,23 +84,8 @@ export async function FinanceDetailContent({
     isSelf ? loadReimbursements(staffId).catch(() => []) : Promise.resolve([]),
   ]);
 
-  // B-nuqta (oylik daromad maqsadi): har oy uchun haqiqatda olingan summa
-  // (oylik to'lov + avans), yanvardan joriy oygacha — bir oyning summasi
-  // boshqa oyga aralashmaydi. A-nuqta = birinchi maoshli oy, "hozir" =
-  // oxirgi maoshli oy (src/lib/bpoint.ts).
-  const nowYmd = tashkentYmd();
-  const bYear = nowYmd.year;
-  const upToMonth = nowYmd.month;
-  const [bpRows, ytd] = await Promise.all([
-    sql<{ amount: number; note: string | null }[]>`select amount, note from staff_bpoint where user_id = ${staffId} and year = ${bYear}`,
-    loadPayByMonth(`${bYear}-01-01`, `${bYear}-${String(upToMonth).padStart(2, '0')}-01`, staffId),
-  ]);
-  const bpoint = bpRows[0] ?? null;
-  const byMonth = bpointByMonth(ytd, bYear);
-  const bTarget = bpoint?.amount ?? 0;
-  const bProgress = bpointProgress(bTarget, byMonth, upToMonth - 1);
-  // All 12 months; months not reached yet carry no amount.
-  const bMonths = byMonth.map((v, i) => ({ label: SHORT_UZ[i], amount: i < upToMonth ? Math.round(v) : null }));
+  // B-nuqta: the same view the profile Finance tab shows (src/lib/bpoint-data.ts).
+  const bp = await loadBpoint(staffId);
   const line = lines[0] ?? null;
   const roleName = roleLabel(tStaff, target.role);
 
@@ -126,7 +110,7 @@ export async function FinanceDetailContent({
               </h1>
               <span className="fp-chip fp-chip-accent">{roleName}</span>
             </div>
-            <span className="text-xs text-au-muted">Shaxsiy hisob varaqasi, avanslar va B-nuqta {bYear} daromad xaritasi</span>
+            <span className="text-xs text-au-muted">Shaxsiy hisob varaqasi, avanslar va B-nuqta {bp.year} daromad xaritasi</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -152,15 +136,15 @@ export async function FinanceDetailContent({
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div style={{ animationDelay: '40ms' }} className="animate-fade-in-up">
           <BpointCard
-            year={bYear}
-            note={bpoint?.note ?? null}
-            progress={bProgress}
+            year={bp.year}
+            note={bp.note}
+            progress={bp.progress}
             canEdit={isSelf || isCeo}
             staffId={staffId}
           />
         </div>
         <div style={{ animationDelay: '80ms' }} className="animate-fade-in-up">
-          <BpointProgress year={bYear} progress={bProgress} months={bMonths} />
+          <BpointProgress year={bp.year} progress={bp.progress} months={bp.months} />
         </div>
       </div>
 
@@ -191,7 +175,7 @@ export async function FinanceDetailContent({
 
       {/* Income roadmap spans the full width */}
       <div style={{ animationDelay: '210ms' }} className="animate-fade-in-up">
-        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} bpoint={bTarget} bpointYear={bYear} />
+        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} bpoint={bp.target} bpointYear={bp.year} />
       </div>
     </div>
   );
