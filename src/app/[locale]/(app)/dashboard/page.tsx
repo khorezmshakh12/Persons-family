@@ -14,7 +14,7 @@ import { nextPeriodKey, periodKeysFor } from '@/lib/goals';
 import { toGoalItem, type GoalRow } from '@/lib/goals-server';
 import { StudentRemindersCard, type StudentReminder } from '@/components/dashboard/student-reminders-card';
 import { ActiveIssuesOverview } from '@/components/dashboard/active-issues-overview';
-import { tashkentDayKey, tashkentYmd } from '@/lib/time';
+import { tashkentDayKey } from '@/lib/time';
 import { Link } from '@/i18n/navigation';
 import { TeacherProgressChartCard } from '@/components/dashboard/teacher-progress-chart-card';
 import { SelfDevelopmentLineChart } from '@/components/self-development/self-development-line-chart';
@@ -330,9 +330,9 @@ async function ProgressSection({ userId, role }: { userId: string; role: string 
 }
 
 async function BpointReminderSection({ userId }: { userId: string }) {
-  const yr = tashkentYmd().year;
-  const rows = await sql<{ amount: number }[]>`select amount from staff_bpoint where user_id = ${userId} and year = ${yr}`.catch(() => []);
-  if (rows[0] && rows[0].amount > 0) return null; // belgilangan — eslatma kerak emas
+  // Any of the three B-nuqta goals (yarim yil / 1 yil / 3 yil) set → no reminder.
+  const rows = await sql<{ n: number }[]>`select 1 as n from staff_bpoint_goals where user_id = ${userId} and amount > 0 limit 1`.catch(() => []);
+  if (rows.length) return null; // belgilangan — eslatma kerak emas
   return (
     <Link
       href={`/finance/${userId}`}
@@ -343,7 +343,7 @@ async function BpointReminderSection({ userId }: { userId: string }) {
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="text-sm font-bold text-au-ink">B-nuqtangizni belgilang</span>
-        <span className="text-xs text-au-muted">{yr}-yil uchun oylik maosh maqsadingizni kiriting →</span>
+        <span className="text-xs text-au-muted">Yarim yil, 1 yil va 3 yil uchun oylik maosh maqsadingizni kiriting →</span>
       </span>
     </Link>
   );

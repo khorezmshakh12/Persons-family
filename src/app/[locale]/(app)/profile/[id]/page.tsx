@@ -41,9 +41,8 @@ import {
 import { AboutCard, AccountTab, ActivityCard, MetricsCard, PeopleTab, ProfileStrip, WorkTab } from '@/components/profile/profile-hub';
 import { PayStatement } from '@/components/finance/pay-statement';
 import { loadPayHistory, loadPayLines } from '@/lib/pay-run-data';
-import { BpointCard } from '@/components/finance/bpoint-card';
-import { BpointProgress } from '@/components/finance/bpoint-progress';
-import { loadBpoint } from '@/lib/bpoint-data';
+import { BpointPanel } from '@/components/finance/bpoint-panel';
+import { loadBpointGoals } from '@/lib/bpoint-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -170,7 +169,7 @@ export async function ProfileDetailContent({
     tab === 'people' && isAdmin && !isSelf ? loadPrivateNotes(id) : Promise.resolve(null),
     tab === 'finance' && canViewCeoScoped ? loadPayLines(period, id) : Promise.resolve([]),
     tab === 'finance' && canViewCeoScoped ? loadPayHistory(period, id) : Promise.resolve([]),
-    tab === 'finance' && canSeeBpoint ? loadBpoint(id) : Promise.resolve(null),
+    tab === 'finance' && canSeeBpoint ? loadBpointGoals(id) : Promise.resolve(null),
   ]);
 
   return (
@@ -277,9 +276,8 @@ export async function ProfileDetailContent({
           {tab === 'finance' && (
             <>
               {bp && (
-                <div className="enter-rise grid grid-cols-1 gap-5 lg:grid-cols-2" style={{ animationDelay: '60ms' }}>
-                  <BpointCard year={bp.year} note={bp.note} progress={bp.progress} canEdit={canEditBpoint} staffId={id} />
-                  <BpointProgress year={bp.year} progress={bp.progress} months={bp.months} />
+                <div className="enter-rise" style={{ animationDelay: '60ms' }}>
+                  <BpointPanel goals={bp} canEdit={canEditBpoint} staffId={id} />
                 </div>
               )}
               {canViewCeoScoped && (

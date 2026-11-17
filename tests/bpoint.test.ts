@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bpointByMonth, bpointProgress } from '../src/lib/bpoint';
+import { addMonths, bpointProgress, bpointSeries, monthsBetween } from '../src/lib/bpoint';
 
 const year = (vals: number[]) => [...vals, ...new Array(12 - vals.length).fill(0)];
 
@@ -45,21 +45,28 @@ test('no pay yet / no target / pay dropped below A', () => {
   assert.equal(bpointProgress(3e6, year([4e6, 2e6]), 1).road, 0);
 });
 
-test('months use what was received (paid), not the computed pay', () => {
-  // Same 5M computed pay every month, but different amounts received.
+test('series: what was received (paid) per month of the window, not the computed pay', () => {
   const points = [
     { period: '2026-09-01', planned: 5e6, earned: 5e6, paid: 4e6 },
     { period: '2026-10-01', planned: 5e6, earned: 5e6, paid: 6.5e6 },
     { period: '2026-11-01', planned: 5e6, earned: 5e6, paid: 0 },
-    { period: '2025-12-01', planned: 9e6, earned: 9e6, paid: 9e6 },
+    { period: '2026-08-01', planned: 9e6, earned: 9e6, paid: 9e6 }, // before the window
   ];
-  const byMonth = bpointByMonth(points, 2026);
-  assert.equal(byMonth.length, 12);
-  assert.equal(byMonth[8], 4e6);
-  assert.equal(byMonth[9], 6.5e6);
-  assert.equal(byMonth[11], 0); // another year's December is ignored
-  // November not paid yet → "hozir" is October's 6.5M
-  const p = bpointProgress(10e6, byMonth, 10);
+  const s = bpointSeries(points, '2026-09-01', 6);
+  assert.deepEqual(s, [4e6, 6.5e6, 0, 0, 0, 0]);
+  // November not paid yet → "hozir" is October's 6.5M; A is September
+  const p = bpointProgress(10e6, s, 2);
   assert.equal(p.current, 6.5e6);
-  assert.equal(p.currentMonth, 9);
+  assert.equal(p.currentMonth, 1);
+  assert.equal(p.start, 4e6);
+});
+
+test('3-year window crosses years; month math', () => {
+  assert.equal(addMonths('2026-11-01', 35), '2029-10-01');
+  assert.equal(addMonths('2026-01-01', -1), '2025-12-01');
+  assert.equal(monthsBetween('2026-11-01', '2027-02-01'), 3);
+  assert.equal(monthsBetween('2026-11-01', '2026-10-01'), -1);
+  const s = bpointSeries([{ period: '2027-01-01', paid: 7e6 }], '2026-11-01', 36);
+  assert.equal(s.length, 36);
+  assert.equal(s[2], 7e6);
 });

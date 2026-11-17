@@ -49,7 +49,8 @@ import {
   type AttendanceProration,
 } from '@/lib/actions/finance';
 import { postPayrollAction } from '@/lib/actions/accounting';
-import { getBpointSnapshotAction, type BpointSnapshot } from '@/lib/actions/bpoint';
+import { getBpointSnapshotAction } from '@/lib/actions/bpoint';
+import type { BpointGoalView } from '@/lib/bpoint-data';
 import {
   blockers,
   COMPONENT_LABEL,
@@ -959,7 +960,7 @@ function StaffPanel({
   const [per, setPer] = useState(period);
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
-  const [bp, setBp] = useState<BpointSnapshot | null>(null);
+  const [bp, setBp] = useState<BpointGoalView[] | null>(null);
   const [forward, setForward] = useState(false);
   const [split, setSplit] = useState(1);
   const [att, setAtt] = useState<AttendanceProration | null>(null);
@@ -969,7 +970,7 @@ function StaffPanel({
   useEffect(() => {
     let alive = true;
     getBpointSnapshotAction(line.staffId).then((r) => {
-      if (alive && !('error' in r)) setBp(r);
+      if (alive && !('error' in r)) setBp(r.goals);
     });
     return () => {
       alive = false;
@@ -1073,11 +1074,9 @@ function StaffPanel({
   const extras = line.components.filter((c) => c.kind !== 'base');
   const pct = line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
 
-  // B-nuqta = oylik maqsad, olingan summa bo'yicha (src/lib/bpoint.ts).
-  // Bonus/jarima olingan summani o'zgartirmaydi, shuning uchun oldindan
-  // ko'rsatish yo'q.
-  const bNow = bp ? bp.current : 0;
-  const bPct = bp && bp.target > 0 ? Math.round((bNow / bp.target) * 100) : 0;
+  // B-nuqta = oylik maqsad (yarim yil / 1 yil / 3 yil), olingan summa
+  // bo'yicha (src/lib/bpoint-data.ts). Only the goals that are set.
+  const bGoals = bp?.filter((g) => g.target > 0) ?? [];
 
   // A split-advance share is part of one whole: it can only be removed
   // together with the advance (server deletes the group), not edited alone.
@@ -1293,44 +1292,45 @@ function StaffPanel({
         </button>
       </div>
 
-      {/* B-nuqta */}
+      {/* B-nuqta: every goal that is set (yarim yil / 1 yil / 3 yil) */}
       <div className="flex flex-col gap-2.5 rounded-[20px] border border-au-accent/25 bg-au-accent-soft p-4">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-[15px] font-extrabold text-au-ink">
-            <Target className="size-4 text-au-accent-text" /> B-nuqta{bp ? ` · ${bp.year}` : ''}
-          </span>
-          {bp && bp.target > 0 && <span className="text-[15px] font-extrabold text-au-accent-text tabular-nums">{bPct}%</span>}
-        </div>
+        <span className="flex items-center gap-2 text-[15px] font-extrabold text-au-ink">
+          <Target className="size-4 text-au-accent-text" /> B-nuqta
+        </span>
         {!bp ? (
           <div className="h-12 animate-pulse rounded-xl bg-au-card/60" />
-        ) : bp.target <= 0 ? (
+        ) : bGoals.length === 0 ? (
           <p className="text-xs text-au-muted">B-nuqta belgilanmagan — xodim sahifasida qo‘yiladi.</p>
         ) : (
-          <>
-            <div className="relative h-3 overflow-hidden rounded-full bg-au-card" role="img" aria-label={`B-nuqta ${bPct}%`}>
-              <div className="absolute inset-y-0 left-0 rounded-full bg-au-accent" style={{ width: `${Math.min(100, bPct)}%` }} />
-              {bp.start > 0 && (
-                <div className="absolute inset-y-0 w-0.5 bg-au-ink" style={{ left: `${Math.min(100, Math.round((bp.start / bp.target) * 100))}%` }} title="A-nuqta (boshlanish)" />
-              )}
-            </div>
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-au-muted">
-              <span>
-                Hozir <b className="text-au-ink tabular-nums">{som(bNow)}</b> / {som(bp.target)} so‘m oyiga
-              </span>
-              {bp.start > 0 && (
-                <span>
-                  A-nuqta <b className="text-au-ink tabular-nums">{som(bp.start)}</b>
-                </span>
-              )}
-            </div>
-            {bNow >= bp.target ? (
-              <p className="text-xs font-semibold text-au-ok">B-nuqtaga yetildi</p>
-            ) : (
-              <p className="text-xs text-au-muted">
-                B-nuqtaga yetish uchun oylik yana <b className="text-au-ink tabular-nums">{som(bp.target - bNow)}</b> so‘m oshishi kerak
-              </p>
-            )}
-          </>
+          bGoals.map((g) => {
+            const p = g.progress;
+            return (
+              <div key={g.horizon} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <b className="text-au-ink">{g.label}</b>
+                  <b className="text-au-accent-text tabular-nums">{p.pct}%</b>
+                </div>
+                <div className="relative h-3 overflow-hidden rounded-full bg-au-card" role="img" aria-label={`B-nuqta ${g.label} ${p.pct}%`}>
+                  <div className="absolute inset-y-0 left-0 rounded-full bg-au-accent" style={{ width: `${Math.min(100, p.pct)}%` }} />
+                  {p.start > 0 && (
+                    <div className="absolute inset-y-0 w-0.5 bg-au-ink" style={{ left: `${Math.min(100, Math.round((p.start / p.target) * 100))}%` }} title="A-nuqta (boshlanish)" />
+                  )}
+                </div>
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-au-muted">
+                  <span>
+                    Hozir <b className="text-au-ink tabular-nums">{som(p.current)}</b> / {som(p.target)} so‘m oyiga
+                  </span>
+                  {p.current >= p.target ? (
+                    <span className="font-semibold text-au-ok">B-nuqtaga yetildi</span>
+                  ) : (
+                    <span>
+                      yana <b className="text-au-ink tabular-nums">{som(p.gap)}</b> so‘m
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 

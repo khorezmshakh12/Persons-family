@@ -1,6 +1,54 @@
-// B-nuqta — xodimning OYLIK daromad maqsadi (owner, 2026-11-11).
-// A-nuqta: yilning birinchi maoshli oyi (odatda yanvar); "hozir": joriy oy
-// maoshi, u hali 0 bo'lsa oxirgi maoshli oy. Pure — server va klient uchun.
+// B-nuqta — xodimning OYLIK daromad maqsadi (owner, 2026-11-11). Uchta
+// muddat (owner, 2026-11-17): yarim yil, 1 yil, 3 yil — har biri maqsad
+// qo'yilgan oydan boshlanadi. A-nuqta: oynaning birinchi maoshli oyi;
+// "hozir": joriy oy, u hali 0 bo'lsa oxirgi maoshli oy. Pure — server va
+// klient uchun.
+
+export type Horizon = '6m' | '1y' | '3y';
+
+export const HORIZONS: { key: Horizon; months: number; label: string }[] = [
+  { key: '6m', months: 6, label: 'Yarim yil' },
+  { key: '1y', months: 12, label: '1 yil' },
+  { key: '3y', months: 36, label: '3 yil' },
+];
+
+export const isHorizon = (v: unknown): v is Horizon => v === '6m' || v === '1y' || v === '3y';
+
+const MONTHS_UZ = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const SHORT_UZ = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+
+/** 'YYYY-MM-01' shifted by `d` months. */
+export function addMonths(period: string, d: number): string {
+  const y = Number(period.slice(0, 4));
+  const m = Number(period.slice(5, 7)) - 1 + d;
+  const yy = y + Math.floor(m / 12);
+  const mm = ((m % 12) + 12) % 12;
+  return `${yy}-${String(mm + 1).padStart(2, '0')}-01`;
+}
+
+/** Whole months from `a` to `b` ('YYYY-MM-01'); negative when b < a. */
+export function monthsBetween(a: string, b: string): number {
+  return (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + Number(b.slice(5, 7)) - Number(a.slice(5, 7));
+}
+
+/** "noyabr 2026" */
+export const monthName = (period: string) => `${MONTHS_UZ[Number(period.slice(5, 7)) - 1]} ${period.slice(0, 4)}`;
+/** "Noy" */
+export const monthShort = (period: string) => SHORT_UZ[Number(period.slice(5, 7)) - 1];
+
+/** `count` months from `start` ('YYYY-MM-01'): what the person actually
+ * RECEIVED for each month — salary payments + advances booked to it
+ * (owner, 2026-11-17: "fond va to'lovlar"dagi to'langan summa). A month
+ * nothing was paid for yet is 0, so "hozir" falls back to the last paid
+ * month. The one input every B-nuqta view uses. */
+export function bpointSeries(points: { period: string; paid: number }[], start: string, count: number): number[] {
+  const out = new Array(count).fill(0) as number[];
+  for (const p of points) {
+    const i = monthsBetween(start, p.period.slice(0, 10));
+    if (i >= 0 && i < count) out[i] = p.paid;
+  }
+  return out;
+}
 
 export type BpointProgress = {
   /** Monthly target (B). */
@@ -21,20 +69,8 @@ export type BpointProgress = {
   gap: number;
 };
 
-/** 12 months of `year` (0 = January): what the person actually RECEIVED
- * for each month — salary payments + advances booked to it (owner,
- * 2026-11-17: the computed pay stays flat while the received pay differs
- * month to month, and B-nuqta measures the latter). A month nothing was
- * paid for yet is 0, so "hozir" falls back to the last paid month. The one
- * input every B-nuqta view uses, so the staff page and the pay run card agree. */
-export function bpointByMonth(points: { period: string; paid: number }[], year: number): number[] {
-  const byMonth = new Array(12).fill(0) as number[];
-  for (const m of points) if (m.period.startsWith(`${year}-`)) byMonth[Number(m.period.slice(5, 7)) - 1] = m.paid;
-  return byMonth;
-}
-
-/** `byMonth[i]` = pay of month i (0 = January) of the B-nuqta's year; months
- * not reached yet must be 0. `upTo` = the current month index (0-based). */
+/** `byMonth[i]` = pay of month i of the goal's window; months not reached
+ * yet must be 0. `upTo` = index of the current month in the window. */
 export function bpointProgress(target: number, byMonth: number[], upTo: number): BpointProgress {
   const last = Math.min(upTo, byMonth.length - 1);
   let startMonth = -1;

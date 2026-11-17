@@ -4,23 +4,20 @@ import { useState, type JSX } from 'react';
 import { Target } from 'lucide-react';
 import { SURFACE_CARD } from '@/lib/glass';
 import { formatUZS } from '@/lib/format-currency';
-import type { BpointProgress as Progress } from '@/lib/bpoint';
+import { monthName } from '@/lib/bpoint';
+import type { BpointGoalView } from '@/lib/bpoint-data';
 import { cn } from '@/lib/utils';
 
 /** B-nuqta sari: each month's OWN pay (bars, not a running total) against the
- * monthly B-nuqta line and the A-nuqta (first paid month) line. All 12 months
- * are drawn; a month that has not come yet has `amount: null`. */
-export function BpointProgress({
-  year,
-  progress,
-  months,
-}: {
-  year: number;
-  progress: Progress;
-  months: { label: string; amount: number | null }[];
-}): JSX.Element {
+ * monthly B-nuqta line and the A-nuqta (first paid month) line, over the
+ * goal's whole window (6 / 12 / 36 months); a month that has not come yet
+ * has `amount: null`. */
+export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element {
   const [hover, setHover] = useState<number | null>(null);
-  const { target, start, current, currentMonth } = progress;
+  const { target, start, current, currentMonth } = goal.progress;
+  const months = goal.bars;
+  // 36 bars are too narrow for numbers on each and a label under each.
+  const dense = months.length > 12;
 
   const Header = (
     <div className="flex items-center gap-2.5">
@@ -29,7 +26,9 @@ export function BpointProgress({
       </span>
       <div className="flex-1">
         <h2 className="text-base font-bold text-au-ink">B-nuqta sari</h2>
-        <p className="text-xs text-au-muted">Har oy olingan oylik va maqsad oylik · {year} · ustunlarda mln so‘m</p>
+        <p className="text-xs text-au-muted">
+          {goal.label} · {monthName(goal.start)} → {monthName(goal.end)} · har oy olingan oylik{dense ? '' : ' · ustunlarda mln so‘m'}
+        </p>
       </div>
     </div>
   );
@@ -38,7 +37,7 @@ export function BpointProgress({
     return (
       <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-5')}>
         {Header}
-        <p className="text-sm text-au-muted">B-nuqta belgilanmagan — grafik uchun avval oylik maqsadni kiriting.</p>
+        <p className="text-sm text-au-muted">{goal.label}lik B-nuqta belgilanmagan — grafik uchun avval oylik maqsadni kiriting.</p>
       </section>
     );
   }
@@ -62,7 +61,9 @@ export function BpointProgress({
       {Header}
 
       <div className="flex min-h-5 flex-wrap items-baseline justify-between gap-x-2 text-xs">
-        <span className="font-semibold text-au-ink">{f.label}</span>
+        <span className="font-semibold text-au-ink">
+          {f.label} 20{f.year}
+        </span>
         <span className="text-au-muted tabular-nums">
           {f.amount !== null ? (
             <>
@@ -98,14 +99,14 @@ export function BpointProgress({
           </div>
         )}
 
-        <div className="flex h-full items-end gap-1" onMouseLeave={() => setHover(null)}>
+        <div className={cn('flex h-full items-end', dense ? 'gap-px' : 'gap-1')} onMouseLeave={() => setHover(null)}>
           {months.map((m, i) => (
             <button
-              key={m.label}
+              key={i}
               type="button"
               onMouseEnter={() => setHover(i)}
               onFocus={() => setHover(i)}
-              aria-label={`${m.label}: ${m.amount !== null ? `oylik ${m.amount}` : 'hali kelmagan'}`}
+              aria-label={`${m.label} 20${m.year}: ${m.amount !== null ? `oylik ${m.amount}` : 'hali kelmagan'}`}
               className={cn('relative flex h-full flex-1 items-end rounded-[3px]', focus === i && 'bg-au-accent/5')}
             >
               {m.amount === null ? (
@@ -119,7 +120,7 @@ export function BpointProgress({
                       m.amount >= target ? 'bg-au-ok' : i === currentMonth ? 'bg-au-accent' : 'bg-au-accent/55',
                     )}
                   />
-                  {m.amount > 0 && (
+                  {!dense && m.amount > 0 && (
                     <span
                       className={cn(
                         'pointer-events-none absolute inset-x-0 mb-0.5 text-center text-[9px] leading-none whitespace-nowrap tabular-nums',
@@ -137,10 +138,11 @@ export function BpointProgress({
         </div>
       </div>
 
-      <div className="flex gap-1 text-center text-[9px] text-au-muted">
+      <div className={cn('flex text-center text-[9px] text-au-muted', dense ? 'gap-px' : 'gap-1')}>
         {months.map((m, i) => (
-          <span key={m.label} className={cn('flex-1', i === currentMonth && 'font-bold text-au-accent-text')}>
-            {m.label}
+          <span key={i} className={cn('flex-1 whitespace-nowrap', i === currentMonth && 'font-bold text-au-accent-text')}>
+            {/* dense (36 oy): every 3rd month, with the year on January */}
+            {!dense ? m.label : i % 3 === 0 ? (m.label === 'Yan' || i === 0 ? `${m.label}’${m.year}` : m.label) : ''}
           </span>
         ))}
       </div>

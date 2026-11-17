@@ -7,27 +7,17 @@ import { SURFACE_CARD } from '@/lib/glass';
 import { cn } from '@/lib/utils';
 import { MoneyInput } from '@/components/ui/money-input';
 import { setBpointAction } from '@/lib/actions/bpoint';
-import type { BpointProgress } from '@/lib/bpoint';
+import { addMonths, monthName } from '@/lib/bpoint';
+import type { BpointGoalView } from '@/lib/bpoint-data';
 import { formatUZS } from '@/lib/format-currency';
 
 const fmt = (n: number) => `${formatUZS(Math.round(n))} so'm`;
-const MONTH = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 
-/** B-nuqta: xodimning OYLIK daromad maqsadi. A-nuqta (yilning birinchi
- * maoshli oyi) → hozirgi oylik → B-nuqta (maqsad oylik). */
-export function BpointCard({
-  year,
-  note,
-  progress,
-  canEdit,
-  staffId,
-}: {
-  year: number;
-  note: string | null;
-  progress: BpointProgress;
-  canEdit: boolean;
-  staffId: string;
-}) {
+/** B-nuqta: xodimning OYLIK daromad maqsadi, bitta muddat uchun (yarim yil /
+ * 1 yil / 3 yil). A-nuqta (muddatning birinchi maoshli oyi) → hozirgi oylik →
+ * B-nuqta (maqsad oylik). */
+export function BpointCard({ goal, canEdit, staffId }: { goal: BpointGoalView; canEdit: boolean; staffId: string }) {
+  const { progress, note } = goal;
   const amount = progress.target;
   const [editing, setEditing] = useState(amount <= 0 && canEdit);
   const [val, setVal] = useState(amount > 0 ? String(amount) : '');
@@ -43,7 +33,7 @@ export function BpointCard({
   const save = () =>
     start(async () => {
       setErr('');
-      const res = await setBpointAction({ staffId, amount: typed, note: noteVal });
+      const res = await setBpointAction({ staffId, horizon: goal.horizon, amount: typed, note: noteVal });
       if ('error' in res) return setErr('Saqlashda xatolik');
       setEditing(false);
       router.refresh();
@@ -57,8 +47,14 @@ export function BpointCard({
             <Target className="size-4" />
           </span>
           <div>
-            <span className="text-[11px] font-bold tracking-wider text-au-accent-text uppercase">B-nuqta · {year}</span>
+            <span className="text-[11px] font-bold tracking-wider text-au-accent-text uppercase">B-nuqta · {goal.label}</span>
             <h3 className="text-lg leading-tight font-bold text-au-ink">Oylik daromad maqsadi</h3>
+            {amount > 0 && (
+              <span className="block text-[11px] text-au-muted">
+                {monthName(goal.start)} → {monthName(goal.end)}
+                {goal.expired && ' · muddat tugadi, yangi maqsad shu oydan boshlanadi'}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -75,11 +71,11 @@ export function BpointCard({
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-              <span className="block text-[11px] text-au-muted">A-nuqta{startMonth >= 0 ? ` (${MONTH[startMonth]} oyligi)` : ''}</span>
+              <span className="block text-[11px] text-au-muted">A-nuqta{startMonth >= 0 ? ` (${monthName(addMonths(goal.start, startMonth))})` : ''}</span>
               <span className="text-lg font-bold break-words text-au-ink tabular-nums">{aAmount > 0 ? fmt(aAmount) : '—'}</span>
             </div>
             <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-              <span className="block text-[11px] text-au-muted">Hozir{currentMonth >= 0 ? ` (${MONTH[currentMonth]} oyligi)` : ''}</span>
+              <span className="block text-[11px] text-au-muted">Hozir{currentMonth >= 0 ? ` (${monthName(addMonths(goal.start, currentMonth))})` : ''}</span>
               <span className="text-lg font-bold break-words text-au-ok tabular-nums">{current > 0 ? fmt(current) : '—'}</span>
             </div>
             <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
@@ -101,11 +97,11 @@ export function BpointCard({
               </div>
             </div>
           ) : (
-            <p className="text-xs text-au-muted">{year}-yilda hali hisoblangan oylik yo‘q.</p>
+            <p className="text-xs text-au-muted">Bu muddatda hali to‘langan oylik yo‘q.</p>
           )}
         </>
       ) : (
-        !editing && <p className="text-sm text-au-muted">B-nuqta belgilanmagan.</p>
+        !editing && <p className="text-sm text-au-muted">{goal.label}lik B-nuqta belgilanmagan.</p>
       )}
 
       {editing && (
@@ -114,7 +110,7 @@ export function BpointCard({
             <MoneyInput
               value={val ? Number(val.replace(/\D/g, '')) : null}
               onValue={(v) => setVal(v == null ? '' : String(v))}
-              placeholder="Oylik maqsad, masalan: 10,000,000"
+              placeholder={`${goal.label}dan keyin oyiga, masalan: 10,000,000`}
               className="h-9 min-w-0 flex-1 rounded-au-ctl border border-au-line bg-au-card-2 px-3 text-xs text-au-ink tabular-nums outline-none focus:border-au-accent"
             />
             <button

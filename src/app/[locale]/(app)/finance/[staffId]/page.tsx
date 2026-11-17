@@ -1,9 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { tashkentMonthKey } from '@/lib/time';
-import { BpointCard } from '@/components/finance/bpoint-card';
-import { BpointProgress } from '@/components/finance/bpoint-progress';
-import { loadBpoint } from '@/lib/bpoint-data';
+import { BpointPanel } from '@/components/finance/bpoint-panel';
+import { loadBpointGoals } from '@/lib/bpoint-data';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -84,8 +83,10 @@ export async function FinanceDetailContent({
     isSelf ? loadReimbursements(staffId).catch(() => []) : Promise.resolve([]),
   ]);
 
-  // B-nuqta: the same view the profile Finance tab shows (src/lib/bpoint-data.ts).
-  const bp = await loadBpoint(staffId);
+  // B-nuqta (yarim yil / 1 yil / 3 yil): the same view the profile Finance
+  // tab shows (src/lib/bpoint-data.ts).
+  const goals = await loadBpointGoals(staffId);
+  const goal1y = goals.find((g) => g.horizon === '1y')!;
   const line = lines[0] ?? null;
   const roleName = roleLabel(tStaff, target.role);
 
@@ -110,7 +111,7 @@ export async function FinanceDetailContent({
               </h1>
               <span className="fp-chip fp-chip-accent">{roleName}</span>
             </div>
-            <span className="text-xs text-au-muted">Shaxsiy hisob varaqasi, avanslar va B-nuqta {bp.year} daromad xaritasi</span>
+            <span className="text-xs text-au-muted">Shaxsiy hisob varaqasi, avanslar, B-nuqta va daromad xaritasi</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -132,20 +133,9 @@ export async function FinanceDetailContent({
         </div>
       </div>
 
-      {/* B-nuqta first, full width (owner, 2026-11-16): target + A→B road | 12 months */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div style={{ animationDelay: '40ms' }} className="animate-fade-in-up">
-          <BpointCard
-            year={bp.year}
-            note={bp.note}
-            progress={bp.progress}
-            canEdit={isSelf || isCeo}
-            staffId={staffId}
-          />
-        </div>
-        <div style={{ animationDelay: '80ms' }} className="animate-fade-in-up">
-          <BpointProgress year={bp.year} progress={bp.progress} months={bp.months} />
-        </div>
+      {/* B-nuqta first, full width (owner, 2026-11-16): yarim yil / 1 yil / 3 yil tabs, target + A→B road | months */}
+      <div style={{ animationDelay: '40ms' }} className="animate-fade-in-up">
+        <BpointPanel goals={goals} canEdit={isSelf || isCeo} staffId={staffId} />
       </div>
 
       {/* Left 7: statement + ledger; right 5: advance, reimbursements, 12 months */}
@@ -175,7 +165,7 @@ export async function FinanceDetailContent({
 
       {/* Income roadmap spans the full width */}
       <div style={{ animationDelay: '210ms' }} className="animate-fade-in-up">
-        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} bpoint={bp.target} bpointYear={bp.year} />
+        <IncomeRoadmapSection staffId={staffId} canManage={isCeo && !isSelf} year={year} bpoint={goal1y.target} bpointYear={Number(goal1y.end.slice(0, 4))} />
       </div>
     </div>
   );
