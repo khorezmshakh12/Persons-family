@@ -22,7 +22,8 @@ type Row = {
   node_status: Record<string, NodeStatus> | null;
   stage_state: Record<string, StageReview> | null;
   mind: GrowthMind | null;
-  submitted_at: Date | null;
+  /** db/client.ts returns timestamptz as a string, not a Date. */
+  submitted_at: string | Date | null;
 };
 
 const fullName = (r: { first_name: string | null; last_name: string | null }) =>
@@ -37,7 +38,7 @@ function toPlan(r: Row): GrowthPlan {
     nodeStatus: r.node_status ?? {},
     stageState: r.stage_state ?? {},
     mind: r.mind?.ch ? r.mind : EMPTY_MIND,
-    submittedAt: r.submitted_at ? r.submitted_at.toISOString() : null,
+    submittedAt: r.submitted_at ? new Date(r.submitted_at).toISOString() : null,
   };
 }
 

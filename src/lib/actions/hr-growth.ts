@@ -63,7 +63,7 @@ type GrowthRow = {
   roadmap: GrowthRoadmap;
   node_status: Record<string, NodeStatus>;
   stage_state: Record<string, StageReview>;
-  submitted_at: Date | null;
+  submitted_at: string | Date | null;
 };
 
 type Tx = TransactionSql;
