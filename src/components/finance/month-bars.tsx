@@ -21,7 +21,7 @@ export function MonthBars({ points, current }: { points: MonthPoint[]; current: 
           <>
             <span className="font-semibold text-au-ink">{SHORT[Number(f.period.slice(5, 7)) - 1]} {f.period.slice(0, 4)}</span>
             <span className="text-au-muted tabular-nums">
-              hisoblangan {formatUZS(f.planned)} · to‘langan <b className="text-au-ink">{formatUZS(f.paid)}</b>
+              oylik {formatUZS(f.planned)} · berilgan <b className="text-au-ink">{formatUZS(f.paid)}</b>
             </span>
           </>
         ) : null}
@@ -33,7 +33,7 @@ export function MonthBars({ points, current }: { points: MonthPoint[]; current: 
             type="button"
             onMouseEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
-            aria-label={`${p.period}: hisoblangan ${p.planned}, to‘langan ${p.paid}`}
+            aria-label={`${p.period}: oylik ${p.planned}, berilgan ${p.paid}`}
             className={cn('relative flex h-full flex-1 items-end rounded-[3px]', p.period === current && 'outline-1 outline-offset-2 outline-au-accent outline-dashed')}
           >
             <span className="absolute inset-x-0 bottom-0 rounded-t-[3px] border border-dashed border-au-line" style={{ height: h(p.planned) }} />
@@ -56,10 +56,10 @@ export function MonthBars({ points, current }: { points: MonthPoint[]; current: 
       </div>
       <div className="flex items-center justify-end gap-3 text-[10px] text-au-muted">
         <span className="inline-flex items-center gap-1">
-          <i className="size-2 rounded-xs border border-dashed border-au-muted" /> Hisoblangan oylik
+          <i className="size-2 rounded-xs border border-dashed border-au-muted" /> Oylik
         </span>
         <span className="inline-flex items-center gap-1">
-          <i className="size-2 rounded-xs bg-au-ok" /> To‘langan
+          <i className="size-2 rounded-xs bg-au-ok" /> Berilgan
         </span>
       </div>
     </div>

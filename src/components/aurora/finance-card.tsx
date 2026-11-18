@@ -9,7 +9,7 @@ import { FinanceFigures } from './finance-figures';
 /**
  * Dashboard Finance card ("Moliya kartasi" — took the task-status card's
  * place). CEO: this Tashkent month's team payroll; anyone else: their own
- * salary for the month. Figures come from lib/payroll.ts via
+ * month (given + KPI/bonus − jarima). Figures come from the pay engine via
  * loadFinanceSnapshot, the same source /finance and the profile use.
  */
 export async function FinanceCard({
@@ -36,7 +36,6 @@ export async function FinanceCard({
   }
 
   const month = new Date(`${data.period}T00:00:00Z`).toLocaleDateString(locale, { month: 'long', timeZone: 'UTC' });
-  const pct = data.gross > 0 ? Math.min(100, Math.max(0, Math.round((data.paid / data.gross) * 100))) : 0;
   const company = data.scope === 'company';
 
   return (
@@ -58,29 +57,17 @@ export async function FinanceCard({
 
       <FinanceFigures
         headline={data.gross}
-        headlineCaption={`${tp('gross')} · UZS`}
+        headlineCaption={`${tp('monthPay')} · UZS`}
         figures={[
-          { label: tp('gross'), value: data.gross },
-          { label: tp('paid'), value: data.paid, tone: 'ok' },
-          { label: tp('remaining'), value: data.remaining, tone: data.remaining > 0 ? 'accent' : 'muted' },
+          { label: tp('monthPay'), value: data.gross },
+          { label: tp('given'), value: data.paid, tone: 'ok' },
+          { label: tp('extra'), value: data.extra, tone: data.extra > 0 ? 'ok' : 'muted' },
         ]}
       />
 
-      <div className="mt-auto pt-4">
-        <div className="mb-1.5 flex items-center justify-between gap-2 text-xs text-au-muted">
-          <span>{t('finPaidShare', { pct })}</span>
-          {company && typeof data.staffCount === 'number' && <span>{t('finStaff', { count: data.staffCount })}</span>}
-        </div>
-        <div
-          className="h-2.5 overflow-hidden rounded-full bg-au-card-2"
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        >
-          <div className="h-full rounded-full bg-au-accent" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
+      {company && typeof data.staffCount === 'number' && (
+        <div className="mt-auto pt-4 text-xs text-au-muted">{t('finStaff', { count: data.staffCount })}</div>
+      )}
     </section>
   );
 }

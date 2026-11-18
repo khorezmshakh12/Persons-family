@@ -94,7 +94,9 @@ function Countdown({ month }: { month: string }) {
 
 /* ------------------------------------------------------------ plan (read-only) */
 
-function PlanView({ plan, showActual = false, salary }: { plan: KpiPlan; showActual?: boolean; salary?: number | null }) {
+function PlanView({ plan, showActual = false }: { plan: KpiPlan; showActual?: boolean }) {
+  // The % is of what was given for the month so far (no fixed salary, 2026-11-18).
+  const salary = plan.paid;
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-3">
@@ -110,6 +112,7 @@ function PlanView({ plan, showActual = false, salary }: { plan: KpiPlan; showAct
             {!!salary && (
               <div className={cn('mb-2 text-lg font-bold tabular-nums', pctFor(plan, s) < 0 ? 'text-au-bad' : pctFor(plan, s) > 0 ? 'text-au-ok' : 'text-au-ink')}>
                 {pctFor(plan, s) === 0 ? 'Oylik o‘zgarmaydi' : som((salary * pctFor(plan, s)) / 100)}
+                <span className="block text-[11px] font-normal text-au-faint">shu oy berilgan {som(salary).replace('+', '')} dan</span>
               </div>
             )}
             <p className="text-[13px] whitespace-pre-wrap text-au-muted">{plan.scenarios[s]?.summary || '—'}</p>
@@ -159,7 +162,7 @@ function PlanView({ plan, showActual = false, salary }: { plan: KpiPlan; showAct
 
 /* ------------------------------------------------------------ editor */
 
-function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPlan | undefined; role: Role; salary?: number | null }) {
+function PlanEditor({ month, plan, role }: { month: string; plan: KpiPlan | undefined; role: Role }) {
   const pcts = plan ?? DEFAULT_PCT;
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -203,7 +206,7 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
             {monthName(month)} rejangiz CEO’ga topshirildi va tasdiq kutmoqda. Reja oyiga bir marta topshiriladi — CEO qaytarsagina tuzatib, qayta topshira olasiz.
           </Banner>
         )}
-        <PlanView plan={plan} salary={salary} />
+        <PlanView plan={plan} />
       </div>
     );
 
@@ -222,7 +225,7 @@ function PlanEditor({ month, plan, role, salary }: { month: string; plan: KpiPla
               <span className="text-sm font-bold text-au-ink">{SCENARIO_LABEL[s]}</span>
               <Chip className={SC_STYLE[s].chip}>
                 {pctFor(pcts, s) > 0 ? '+' : ''}
-                {pctFor(pcts, s)}%{salary && pctFor(pcts, s) !== 0 ? ` · ${som((salary * pctFor(pcts, s)) / 100)}` : ''}
+                {pctFor(pcts, s)}%
               </Chip>
             </span>
             <span className="text-[11px] text-au-faint">{SCENARIO_HINT[s]}</span>
@@ -434,7 +437,7 @@ function SelfAssess({ plan }: { plan: KpiPlan }) {
 
 /* ------------------------------------------------------------ employee */
 
-export function MyKpi({ plans, role, thisMonth, nextMonth, salary }: { plans: KpiPlan[]; role: Role; thisMonth: string; nextMonth: string; salary: number | null }) {
+export function MyKpi({ plans, role, thisMonth, nextMonth }: { plans: KpiPlan[]; role: Role; thisMonth: string; nextMonth: string }) {
   const next = plans.find((p) => p.month === nextMonth);
   const cur = plans.find((p) => p.month === thisMonth);
   const past = plans.filter((p) => p.month < thisMonth);
@@ -477,7 +480,7 @@ export function MyKpi({ plans, role, thisMonth, nextMonth, salary }: { plans: Kp
         {next && <Chip className={STATUS_CHIP[next.status]}>{STATUS_LABEL[next.status]}</Chip>}
       </div>
       <TabsContent value="next" className="mt-4 outline-none">
-        <PlanEditor key={next?.id ?? 'new'} month={nextMonth} plan={next} role={role} salary={salary} />
+        <PlanEditor key={next?.id ?? 'new'} month={nextMonth} plan={next} role={role} />
       </TabsContent>
       <TabsContent value="current" className="mt-4 grid gap-4 outline-none">
         {!cur ? (
@@ -485,15 +488,15 @@ export function MyKpi({ plans, role, thisMonth, nextMonth, salary }: { plans: Kp
             <Banner tone="bad" icon={<AlertTriangle className="size-4" />}>
               {monthName(thisMonth)} uchun KPI rejasi yo‘q. Hozir kiritib, CEO’ga topshiring.
             </Banner>
-            <PlanEditor month={thisMonth} plan={undefined} role={role} salary={salary} />
+            <PlanEditor month={thisMonth} plan={undefined} role={role} />
           </div>
         ) : cur.status === 'approved' ? (
           <>
-            <PlanView plan={cur} showActual salary={salary} />
+            <PlanView plan={cur} showActual />
             <SelfAssess plan={cur} />
           </>
         ) : (
-          <PlanEditor month={thisMonth} plan={cur} role={role} salary={salary} />
+          <PlanEditor month={thisMonth} plan={cur} role={role} />
         )}
       </TabsContent>
       <TabsContent value="history" className="mt-4 grid gap-3 outline-none">
@@ -508,7 +511,7 @@ export function MyKpi({ plans, role, thisMonth, nextMonth, salary }: { plans: Kp
               <ChevronDown className="size-4 text-au-faint transition group-open:rotate-180" />
             </summary>
             <div className="mt-4">
-              <PlanView plan={p} showActual salary={salary} />
+              <PlanView plan={p} showActual />
             </div>
           </details>
         ))}
@@ -577,7 +580,7 @@ function ReviewCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMembe
             {member.first_name} {member.last_name}
           </span>
           <span className="text-[11px] text-au-faint">
-            {plan.items.length} ko‘rsatkich · oylik {member.salary ? som(member.salary).replace('+', '') : 'kiritilmagan'}
+            {plan.items.length} ko‘rsatkich
           </span>
         </span>
         {late && <Chip className="bg-au-bad/10 text-au-bad">Kechikdi</Chip>}
@@ -586,7 +589,7 @@ function ReviewCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMembe
       </button>
       {open && (
         <div className="grid gap-4 border-t border-au-line p-4">
-          <PlanView plan={plan} salary={member.salary} />
+          <PlanView plan={plan} />
           <AuditTrail plan={plan} />
           {plan.status !== 'approved' || !plan.grade ? (
             <div className="grid gap-3 rounded-au-ctl bg-au-card-2 p-3">
@@ -623,7 +626,9 @@ function GradeCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember
   const [grade, setGrade] = useState<Scenario | null>(plan.grade ?? plan.self_result);
   const [override, setOverride] = useState('');
   const [note, setNote] = useState(plan.grade_note ?? '');
-  const base = member.salary ?? 0;
+  // KPI = what was given for the month at grading time × % (owner,
+  // 2026-11-18); the amount is stored at grading and does not move after.
+  const base = plan.paid;
   const computed = grade ? Math.round((base * pctFor(plan, grade)) / 100) : 0;
   const amount = override.trim() ? Number(override.replace(/\s/g, '')) : computed;
   return (
@@ -651,7 +656,7 @@ function GradeCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember
       {open && (
         <div className="grid gap-4 border-t border-au-line p-4">
           <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-            <PlanView plan={plan} showActual salary={member.salary} />
+            <PlanView plan={plan} showActual />
             <div className="grid content-start justify-items-center gap-1 rounded-au-ctl bg-au-card-2 p-3">
               <span className="text-[11px] font-semibold tracking-wide text-au-faint uppercase">Natijalar bo‘yicha</span>
               <ForecastGauge value={live} />
@@ -692,7 +697,9 @@ function GradeCard({ plan, member, onDone }: { plan: KpiPlan; member: TeamMember
                 <input className={INP} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
             </div>
-            {!member.salary && <p className="text-xs text-au-bad">Bu xodimning oyligi Moliya bo‘limida kiritilmagan — summa 0 hisoblanadi.</p>}
+            <p className="text-xs text-au-muted">
+              Foiz {monthName(plan.month)} uchun hozirgacha berilgan <b className="tabular-nums text-au-ink">{som(base).replace('+', '')}</b> dan olinadi. Baholangach summa o‘zgarmaydi — asosiy oylikni bergandan keyin baholang.
+            </p>
             <div className="flex flex-wrap items-center gap-3">
               <button
                 className={BTN_PRIMARY}

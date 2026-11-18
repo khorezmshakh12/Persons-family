@@ -37,10 +37,10 @@ export async function SalarySection({
   line: PayLine | null;
 }) {
   const t = await getTranslations('salary');
-  // This month only, from the pay engine: everything on top of the base
-  // (KPI, bonus, rag‘bat, jarima, self-development, carry, advance shares)
-  // and what was paid out for this month. Payments are never added to pay.
-  const adjustments = line ? line.payable - line.base : 0;
+  // This month only, from the pay engine: KPI, bonus, rag‘bat, jarima,
+  // self-development, and what was given for this month (no fixed salary,
+  // 2026-11-18: the month's pay is their sum).
+  const adjustments = line ? line.kpi + line.bonuses + line.deductions : 0;
   const paid = line?.paid ?? 0;
 
   return (

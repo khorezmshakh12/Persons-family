@@ -1,6 +1,5 @@
 import 'server-only';
 import { sql } from '@/lib/db/client';
-import { startOfTashkentMonthKey } from '@/lib/time';
 
 export const CRON_JOBS: Record<string, { n: string; every: string; staleHours: number }> = {
   'task-deadline-reminders': { n: 'Vazifa eslatmalari, rejali postlar', every: 'har 15 daqiqa', staleHours: 2 },
@@ -66,19 +65,17 @@ export async function loadHealth(): Promise<Health> {
 
 export type QualityIssue = { key: string; n: string; fix: string; href: string; people: { id: string; name: string }[] };
 
-/** Gaps that make other sections wrong or quiet: no salary, no Telegram, … */
+/** Gaps that make other sections wrong or quiet: no Telegram, … (no fixed
+ * salary to check since 2026-11-18). */
 export async function loadDataQuality(): Promise<QualityIssue[]> {
-  const month = startOfTashkentMonthKey();
-  const rows = await sql<{ id: string; name: string; role: string; telegram: boolean; salary: boolean; hire: boolean; dob: boolean; phone: boolean; avatar: boolean }[]>`
+  const rows = await sql<{ id: string; name: string; role: string; telegram: boolean; hire: boolean; dob: boolean; phone: boolean; avatar: boolean }[]>`
     select p.id, trim(concat(p.first_name, ' ', p.last_name)) as name, p.role::text as role,
       p.telegram_id is not null as telegram,
-      exists (select 1 from salary_months s where s.staff_id = p.id and s.period = ${month} and s.gross_amount > 0) as salary,
       p.hire_date is not null as hire, p.date_of_birth is not null as dob,
       coalesce(p.phone, '') <> '' as phone, p.avatar_url is not null as avatar
     from profiles p where p.is_active order by p.first_name`;
   const pick = (f: (r: (typeof rows)[number]) => boolean) => rows.filter(f).map((r) => ({ id: r.id, name: r.name }));
   return [
-    { key: 'salary', n: 'Bu oy maoshi kiritilmagan', fix: 'Moliya › Oylik jarayoni', href: '/finance', people: pick((r) => !r.salary && r.role !== 'ceo') },
     { key: 'telegram', n: 'Telegram ulanmagan (xabar olmaydi)', fix: 'Xodimga Sozlamalar › Telegram', href: '/staff?tab=security', people: pick((r) => !r.telegram) },
     { key: 'hire', n: 'Ishga kirgan sana yo‘q (staj, yillik)', fix: 'HR › Xodim', href: '/hr', people: pick((r) => !r.hire) },
     { key: 'dob', n: 'Tug‘ilgan sana yo‘q (tabrik, kalendar)', fix: 'Profil', href: '/staff', people: pick((r) => !r.dob) },

@@ -9,7 +9,6 @@ import {
   formatMonthNameOnly,
   formatMonthUz,
   formatUZS,
-  getEmployeeSalaryForMonth,
   getInitials,
   getPreviousMonth,
   getStatusText,
@@ -23,7 +22,6 @@ import {
 import {
   monitorAddOperationAction,
   monitorDeleteEntryAction,
-  monitorSetSalariesAction,
   monitorToggleRequestAction,
 } from '@/lib/actions/finance-monitor';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -95,7 +93,6 @@ export function MonitorView({ month, employees, transactions }: { month: string;
   const [flash, setFlash] = useState<string | null>(null);
   const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
   const [opModal, setOpModal] = useState<{ type: MonOp; empId: string } | null>(null);
-  const [ceoModal, setCeoModal] = useState<{ focus: string | null } | null>(null);
   const [empModal, setEmpModal] = useState<{ id: string | null } | null>(null);
   const [drawer, setDrawer] = useState<string | null>(null);
   const toastId = useRef(0);
@@ -130,7 +127,6 @@ export function MonitorView({ month, employees, transactions }: { month: string;
     const kd = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setOpModal(null);
-      setCeoModal(null);
       setEmpModal(null);
       setDrawer(null);
     };
@@ -148,29 +144,25 @@ export function MonitorView({ month, employees, transactions }: { month: string;
     [employees, transactions, currM, prevM],
   );
 
-  let allBase = 0;
   let allNet = 0;
+  let allPrevNet = 0;
   let allBonus = 0;
   let allPenalty = 0;
   let allPaid = 0;
   let allAvans = 0;
-  let allRem = 0;
-  let allPrevRem = 0;
   let countRequested = 0;
   let countPartial = 0;
   let countUnpaid = 0;
   let countPaid = 0;
   for (const { curr, prev } of rowsData) {
-    allBase += curr.baseSalary;
     allNet += curr.netPayable;
+    allPrevNet += prev.netPayable;
     allBonus += curr.bonusTotal;
     allPenalty += curr.penaltyTotal;
     allPaid += curr.totalPaid;
     allAvans += curr.avansTotal;
-    allRem += curr.remainingToPay;
-    allPrevRem += prev.remainingToPay;
     if (curr.avansRequested) countRequested++;
-    if (curr.status === 'PARTIAL' || curr.status === 'OVERPAID') countPartial++;
+    if (curr.status === 'PARTIAL') countPartial++;
     else if (curr.status === 'UNPAID') countUnpaid++;
     else if (curr.status === 'PAID') countPaid++;
   }
@@ -179,7 +171,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
   const q = search.trim().toLowerCase();
   const filteredRows = rowsData.filter(({ emp, curr }) => {
     if (filter === 'REQUESTED' && !curr.avansRequested) return false;
-    if (filter === 'PARTIAL' && curr.status !== 'PARTIAL' && curr.status !== 'OVERPAID') return false;
+    if (filter === 'PARTIAL' && curr.status !== 'PARTIAL') return false;
     if (filter === 'UNPAID' && curr.status !== 'UNPAID') return false;
     if (filter === 'PAID' && curr.status !== 'PAID') return false;
     if (q && !`${emp.firstName} ${emp.lastName} ${emp.role}`.toLowerCase().includes(q)) return false;
@@ -220,7 +212,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                 <h1>O&apos;quv Markazi Moliya Bo&apos;limi</h1>
                 <span className="tag">Minimal</span>
               </div>
-              <p className="sub">Xodimlar maoshi (har oy o&apos;zgaruvchan), avans so&apos;rovlari, bonus va jarimalar hisobi</p>
+              <p className="sub">Oylik = oy davomida berilgan avans va oylik + bonus − jarima. Fix oylik yo&apos;q.</p>
             </div>
           </div>
 
@@ -239,9 +231,6 @@ export function MonitorView({ month, employees, transactions }: { month: string;
               </button>
             </div>
 
-            <button type="button" className="btn-ghost btn-ceo" title="Yangi oy uchun xodimlar maoshini ko'rish va o'zgartirish" onClick={() => setCeoModal({ focus: null })}>
-              CEO: Oyliklar
-            </button>
             <button type="button" className="btn-ghost" onClick={() => setEmpModal({ id: null })}>
               + Xodim
             </button>
@@ -253,12 +242,12 @@ export function MonitorView({ month, employees, transactions }: { month: string;
 
         <section className="kpis" aria-label="Asosiy moliyaviy ko'rsatkichlar">
           <div className="kpi">
-            <span className="k-label">Jami hisoblangan maosh</span>
+            <span className="k-label">{currMonthName} oyligi (jami)</span>
             <KpiValue value={allNet} />
             <div className="k-sub num">
               <span>{employees.length} ta faol xodim</span>
               <span>•</span>
-              <span>Shtat: {formatUZS(allBase, false)}</span>
+              <span>berilgan + bonus − jarima</span>
             </div>
           </div>
           <div className="kpi">
@@ -290,10 +279,10 @@ export function MonitorView({ month, employees, transactions }: { month: string;
             </div>
           </div>
           <div className="kpi">
-            <span className="k-label">To&apos;lanishi qolgan summa</span>
-            <KpiValue value={allRem} className="accent-neg" />
+            <span className="k-label">{prevMonthName} oyligi (jami)</span>
+            <KpiValue value={allPrevNet} />
             <div className="k-sub num">
-              <span>Oldingi oydan qoldiq: {formatUZS(allPrevRem, false)}</span>
+              <span>Oldingi oy, taqqoslash uchun</span>
             </div>
           </div>
         </section>
@@ -312,10 +301,10 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                 Avans olgan ({countPartial})
               </button>
               <button type="button" className={`tab ${filter === 'UNPAID' ? 'active' : ''}`} onClick={() => setFilter('UNPAID')}>
-                To&apos;lanmagan ({countUnpaid})
+                Hali berilmagan ({countUnpaid})
               </button>
               <button type="button" className={`tab ${filter === 'PAID' ? 'active' : ''}`} onClick={() => setFilter('PAID')}>
-                Yopilgan ({countPaid})
+                Oylik berilgan ({countPaid})
               </button>
             </div>
             <div className="search-wrap">
@@ -331,11 +320,11 @@ export function MonitorView({ month, employees, transactions }: { month: string;
               <thead>
                 <tr>
                   <th>Xodim</th>
-                  <th>Oylik maosh ({currMonthName})</th>
+                  <th>Oylik ({currMonthName})</th>
                   <th>Oldingi oy ({prevMonthName})</th>
                   <th>Bonus / Jarima</th>
                   <th>Berilgan ({currMonthName})</th>
-                  <th>Qolgan summa</th>
+                  <th>Holat</th>
                   <th style={{ textAlign: 'right' }}>Amallar</th>
                 </tr>
               </thead>
@@ -348,7 +337,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                   </tr>
                 ) : (
                   filteredRows.map(({ emp, curr, prev }) => {
-                    const salDiff = curr.baseSalary - prev.baseSalary;
+                    const salDiff = prev.netPayable > 0 ? curr.netPayable - prev.netPayable : 0;
                     return (
                       <tr key={emp.id} className={flash === emp.id ? 'row-flash' : ''}>
                         <td>
@@ -365,13 +354,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                         <td className="num">
                           <div className="sal-cell">
                             <div className="sal-main-line">
-                              <span className="strong">{formatUZS(curr.baseSalary, false)}</span>
-                              <button type="button" className="ceo-edit-trigger" title="CEO: Ushbu oy maoshini o'zgartirish" aria-label="Maoshni o'zgartirish" onClick={() => setCeoModal({ focus: emp.id })}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M12 20h9" />
-                                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                </svg>
-                              </button>
+                              <span className="strong">{formatUZS(curr.netPayable, false)}</span>
                             </div>
                             {salDiff > 0 && <span className="sal-delta accent-pos num">+{formatUZS(salDiff, false)} o&apos;sgan</span>}
                             {salDiff < 0 && <span className="sal-delta accent-neg num">{formatUZS(salDiff, false)} kamaygan</span>}
@@ -379,15 +362,9 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                         </td>
                         <td className="num prev-cell" title="Oldingi va hozirgi oy taqqoslamasini ko'rish" onClick={() => setDrawer(emp.id)}>
                           <div>
-                            Berilgan: <b>{formatUZS(prev.totalPaid, false)}</b>
+                            Oylik: <b>{formatUZS(prev.netPayable, false)}</b>
                           </div>
-                          {prev.remainingToPay > 0 ? (
-                            <div className="accent-neg">Qoldiq: {formatUZS(prev.remainingToPay, false)}</div>
-                          ) : prev.overpaidAmount > 0 ? (
-                            <div className="accent-violet">+{formatUZS(prev.overpaidAmount, false)} ortiqcha</div>
-                          ) : (
-                            <div className="muted">Qoldiq: 0</div>
-                          )}
+                          <div className="muted">Berilgan: {formatUZS(prev.totalPaid, false)}</div>
                         </td>
                         <td className="num">
                           {curr.bonusTotal > 0 && <span className="pill pos num">+{formatUZS(curr.bonusTotal, false)}</span>}
@@ -397,10 +374,6 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                         <td className="num">
                           <div className="paid-line">
                             <b>{formatUZS(curr.totalPaid, false)}</b>
-                            <span className="muted">{curr.paidPercent}%</span>
-                          </div>
-                          <div className="prog">
-                            <i style={{ width: `${curr.paidPercent}%` }} />
                           </div>
                           {curr.totalPaid > 0 && (
                             <div className="paid-breakdown num">
@@ -409,13 +382,6 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                           )}
                         </td>
                         <td className="num">
-                          {curr.overpaidAmount > 0 ? (
-                            <div className="strong accent-violet">+{formatUZS(curr.overpaidAmount)} (Ortiqcha)</div>
-                          ) : curr.remainingToPay === 0 ? (
-                            <div className="strong accent-pos">0 so&apos;m</div>
-                          ) : (
-                            <div className="strong">{formatUZS(curr.remainingToPay)}</div>
-                          )}
                           <div className="st-row">
                             <span className="st">{getStatusText(curr)}</span>
                             {curr.avansRequested && <span className="req-badge">✓ Avans so&apos;raldi</span>}
@@ -435,7 +401,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                               + Avans
                             </button>
                             <button type="button" className="rbtn" onClick={() => openOperationModal('SALARY_PAY', emp.id)}>
-                              + To&apos;lov
+                              + Oylik
                             </button>
                             <button type="button" className="rbtn" onClick={() => openOperationModal('BONUS', emp.id)}>
                               + Bonus
@@ -474,31 +440,10 @@ export function MonitorView({ month, employees, transactions }: { month: string;
           }}
         />
       )}
-      {ceoModal && (
-        <CeoModal
-          employees={employees}
-          initialMonth={currM}
-          focus={ceoModal.focus}
-          onClose={() => setCeoModal(null)}
-          onToast={showToast}
-          onSaved={(ym) => {
-            setCeoModal(null);
-            if (ym !== currM) goMonth(ym);
-            else refresh();
-            showToast(`CEO: ${formatMonthUz(ym)} oyi uchun maoshlar saqlandi va hisoblar yangilandi`);
-          }}
-        />
-      )}
       {empModal && (
         <EmployeeModal
           emp={empModal.id ? employees.find((e) => e.id === empModal.id) : undefined}
-          currM={currM}
           onClose={() => setEmpModal(null)}
-          onSaved={(e) => {
-            setEmpModal(null);
-            refresh(e.id);
-            showToast(`${e.firstName} ${e.lastName} ma'lumotlari yangilandi`);
-          }}
         />
       )}
 
@@ -516,10 +461,6 @@ export function MonitorView({ month, employees, transactions }: { month: string;
             onAvans={() => {
               setDrawer(null);
               openOperationModal('AVANS', drawerEmp.id);
-            }}
-            onCeo={() => {
-              setDrawer(null);
-              setCeoModal({ focus: drawerEmp.id });
             }}
             onEdit={() => {
               setDrawer(null);
@@ -546,37 +487,33 @@ export function MonitorView({ month, employees, transactions }: { month: string;
 }
 
 function TableFoot({ rows, prevMonthName }: { rows: Row[]; prevMonthName: string }) {
-  let sumBase = 0;
-  let sumPrevRem = 0;
+  let sumNet = 0;
+  let sumPrevNet = 0;
   let sumBonus = 0;
   let sumPenalty = 0;
   let sumPaid = 0;
-  let sumRem = 0;
   let sumReq = 0;
   for (const { curr, prev } of rows) {
-    sumBase += curr.baseSalary;
-    sumPrevRem += prev.remainingToPay;
+    sumNet += curr.netPayable;
+    sumPrevNet += prev.netPayable;
     sumBonus += curr.bonusTotal;
     sumPenalty += curr.penaltyTotal;
     sumPaid += curr.totalPaid;
-    sumRem += curr.remainingToPay;
     if (curr.avansRequested) sumReq++;
   }
   return (
     <tfoot>
       <tr className="num">
         <td>JAMI XULOSA ({rows.length} xodim)</td>
-        <td>{formatUZS(sumBase, false)}</td>
+        <td>{formatUZS(sumNet, false)}</td>
         <td>
-          {prevMonthName} qoldiq: <span className={sumPrevRem > 0 ? 'accent-neg' : ''}>{formatUZS(sumPrevRem, false)}</span>
+          {prevMonthName} oyligi: {formatUZS(sumPrevNet, false)}
         </td>
         <td>
           <span className="accent-pos">+{formatUZS(sumBonus, false)}</span> / <span className="accent-neg">−{formatUZS(sumPenalty, false)}</span>
         </td>
         <td>{formatUZS(sumPaid)}</td>
-        <td>
-          <span className={sumRem > 0 ? 'accent-neg' : 'accent-pos'}>{formatUZS(sumRem)}</span>
-        </td>
+        <td />
         <td style={{ textAlign: 'right', fontWeight: 500 }} className="muted">
           {sumReq > 0 ? (
             <>
@@ -616,7 +553,6 @@ function OperationModal({
   const [reason, setReason] = useState('');
   const [err, setErr] = useState<{ field: 'amount' | 'reason' | null; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
 
@@ -628,23 +564,8 @@ function OperationModal({
   const emp = employees.find((e) => e.id === empId);
   const summary = emp && YM_RE.test(target) ? calculateEmployeeMonthSummary(emp, transactions, target) : null;
   const amt = toSafeIntegerAmount(amount);
-  let afterNode: React.ReactNode = null;
-  if (summary) {
-    let nextNet = summary.netPayable;
-    let nextPaid = summary.totalPaid;
-    if (type === 'BONUS') nextNet += amt;
-    else if (type === 'PENALTY') nextNet -= amt;
-    else nextPaid += amt;
-    const d = nextNet - nextPaid;
-    afterNode =
-      d < 0 ? (
-        <strong className="accent-violet">+{formatUZS(Math.abs(d))} (Ortiqcha avans)</strong>
-      ) : d === 0 ? (
-        <strong className="accent-pos">0 so&apos;m (To&apos;liq yopiladi)</strong>
-      ) : (
-        <strong className="accent-neg">{formatUZS(d)}</strong>
-      );
-  }
+  // Every operation moves the month's pay: avans / oylik / bonus add, jarima subtracts.
+  const nextNet = summary ? summary.netPayable + (type === 'PENALTY' ? -amt : amt) : null;
   const periodText = `${formatMonthUz(target)}${target === currM ? ' (Hozirgi oy)' : target === prevM ? ' (Oldingi oy)' : ''}`;
 
   async function submit(e: React.FormEvent) {
@@ -732,22 +653,6 @@ function OperationModal({
                 <label htmlFor="opAmountInput">
                   Miqdori (so&apos;mda) <span className="req-star">*</span>
                 </label>
-                <button
-                  type="button"
-                  className="f-link-btn"
-                  style={{ display: type === 'AVANS' || type === 'SALARY_PAY' ? 'inline-block' : 'none' }}
-                  onClick={() => {
-                    if (summary && summary.remainingToPay > 0) {
-                      setAmount(formatUZS(summary.remainingToPay, false));
-                      reasonRef.current?.focus();
-                    } else {
-                      setToast("Ushbu oyda to'lanishi kerak bo'lgan qoldiq 0 so'm");
-                      setTimeout(() => setToast(null), 2900);
-                    }
-                  }}
-                >
-                  Qolgan summani to&apos;liq yozish
-                </button>
               </div>
               <MoneyInput
                 ref={amountRef}
@@ -793,19 +698,18 @@ function OperationModal({
                 <strong>{periodText}</strong>
               </div>
               <div className="preview-line">
-                <span className="muted">Amaldan oldingi qolgan summa:</span>
-                <strong>{summary ? (summary.overpaidAmount > 0 ? `+${formatUZS(summary.overpaidAmount)} (Ortiqcha)` : formatUZS(summary.remainingToPay)) : '—'}</strong>
+                <span className="muted">Shu oy oyligi (hozir):</span>
+                <strong>{summary ? formatUZS(summary.netPayable) : '—'}</strong>
               </div>
               <div className="preview-line">
-                <span className="muted">Amaldan keyingi yangi qolgan summa:</span>
-                {afterNode ?? <strong>—</strong>}
+                <span className="muted">Amaldan keyin oylik:</span>
+                <strong>{nextNet === null ? '—' : formatUZS(nextNet)}</strong>
               </div>
             </div>
 
             <div className={`form-err ${err ? 'show' : ''}`} role="alert">
               {err?.msg}
             </div>
-            {toast && <div className="muted" style={{ fontSize: 12 }}>{toast}</div>}
           </div>
 
           <div className="m-foot">
@@ -824,204 +728,16 @@ function OperationModal({
   );
 }
 
-/* ------------------------------------------------------------------ MODAL 2 */
-
-function CeoModal({
-  employees,
-  initialMonth,
-  focus,
-  onClose,
-  onToast,
-  onSaved,
-}: {
-  employees: MonEmp[];
-  initialMonth: string;
-  focus: string | null;
-  onClose: () => void;
-  onToast: (m: string) => void;
-  onSaved: (ym: string) => void;
-}) {
-  const [target, setTarget] = useState(initialMonth);
-  const [vals, setVals] = useState<Record<string, string>>(() =>
-    Object.fromEntries(employees.map((e) => [e.id, groupInput(String(getEmployeeSalaryForMonth(e, initialMonth)))])),
-  );
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  const prevM = getPreviousMonth(target);
-
-  useEffect(() => {
-    if (!focus) return;
-    const t = setTimeout(() => {
-      const el = listRef.current?.querySelector<HTMLInputElement>(`.ceo-sal-input[data-emp-id="${focus}"]`);
-      el?.focus();
-      el?.select();
-    }, 60);
-    return () => clearTimeout(t);
-  }, [focus]);
-
-  const pickMonth = (ym: string) => {
-    if (!YM_RE.test(ym)) return;
-    setTarget(ym);
-    setVals(Object.fromEntries(employees.map((e) => [e.id, groupInput(String(getEmployeeSalaryForMonth(e, ym)))])));
-  };
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    if (!YM_RE.test(target)) return setErr("Iltimos, oyni to'g'ri tanlang.");
-    for (const emp of employees) {
-      if (toSafeIntegerAmount(vals[emp.id]) <= 0) {
-        listRef.current?.querySelector<HTMLInputElement>(`.ceo-sal-input[data-emp-id="${emp.id}"]`)?.focus();
-        return setErr("Har bir xodimning oylik maoshi 0 dan katta bo'lishi shart.");
-      }
-    }
-    setBusy(true);
-    const res = await monitorSetSalariesAction({ month: target, rows: employees.map((x) => ({ staffId: x.id, amount: toSafeIntegerAmount(vals[x.id]) })) });
-    setBusy(false);
-    if ('error' in res) return setErr(errText(res.error));
-    onSaved(target);
-  }
-
-  return (
-    <div className="backdrop open" role="dialog" aria-modal="true" aria-labelledby="ceoModalTitle" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-wide">
-        <div className="m-head">
-          <div>
-            <h2 id="ceoModalTitle">CEO — Oylik Maoshlarni Belgilash va O&apos;zgartirish</h2>
-            <p className="sub">
-              {formatMonthUz(target)} oyi uchun maoshlar (Oldingi oy: {formatMonthUz(prevM)})
-            </p>
-          </div>
-          <button type="button" className="m-close" aria-label="Yopish" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <form noValidate onSubmit={submit}>
-          <div className="m-body">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-secondary)' }}>Qaysi oy maoshlari:</span>
-                <input type="month" className="f-input num strong" style={{ width: 'auto', padding: '6px 10px' }} value={target} onChange={(e) => pickMonth(e.target.value)} aria-label="Oy" />
-              </div>
-              <button
-                type="button"
-                className="btn-ghost"
-                style={{ padding: '6px 11px', fontSize: 12 }}
-                onClick={() => {
-                  setVals(Object.fromEntries(employees.map((x) => [x.id, groupInput(String(getEmployeeSalaryForMonth(x, prevM)))])));
-                  onToast(`${formatMonthUz(prevM)} oyi maoshlari namuna sifatida ko'chirildi`);
-                }}
-              >
-                Oldingi oydan bir xil ko&apos;chirish
-              </button>
-            </div>
-
-            <div className="ceo-note">
-              Har bir oyning maoshi mustaqil saqlanadi. Yangi oy boshlanganda CEO ushbu oynada istalgan xodimning maoshini guruhlar/KPI ga qarab o&apos;zgartirishi mumkin — oldingi oylarning hisob-kitobi va qoldiqlari buzilmaydi.
-            </div>
-
-            <div className="ceo-list" ref={listRef}>
-              {employees.length === 0 ? (
-                <div className="empty-box">Xodimlar mavjud emas.</div>
-              ) : (
-                <>
-                  <div className="ceo-row ceo-head">
-                    <div>Xodim va Lavozimi</div>
-                    <div>Oldingi oy ({formatMonthNameOnly(prevM)})</div>
-                    <div>{formatMonthUz(target)} maoshi (UZS)</div>
-                    <div style={{ textAlign: 'right' }}>Farqi</div>
-                  </div>
-                  {employees.map((emp) => {
-                    const prevSal = getEmployeeSalaryForMonth(emp, prevM);
-                    const diff = toSafeIntegerAmount(vals[emp.id]) - prevSal;
-                    return (
-                      <div key={emp.id} className={`ceo-row ${focus === emp.id ? 'ceo-focus' : ''}`}>
-                        <div>
-                          <div className="strong" style={{ fontSize: 13.5 }}>
-                            {emp.firstName} {emp.lastName}
-                          </div>
-                          <div className="e-role">{emp.role}</div>
-                        </div>
-                        <div className="num muted">{formatUZS(prevSal)}</div>
-                        <div>
-                          <MoneyInput
-                            aria-label={`${emp.firstName} ${emp.lastName} oylik maoshi`}
-                            className="f-input num strong ceo-sal-input"
-                            data-emp-id={emp.id}
-                            placeholder=""
-                            value={toSafeIntegerAmount(vals[emp.id]) || null}
-                            onValue={(n) => setVals((v) => ({ ...v, [emp.id]: n == null ? '' : groupInput(String(n)) }))}
-                            style={{ padding: '6px 10px' }}
-                          />
-                        </div>
-                        <div className="num" style={{ textAlign: 'right', fontSize: 12.5 }}>
-                          {diff > 0 ? (
-                            <span className="accent-pos strong">+{formatUZS(diff, false)}</span>
-                          ) : diff < 0 ? (
-                            <span className="accent-neg strong">{formatUZS(diff, false)}</span>
-                          ) : (
-                            <span className="muted">O&apos;zgarishsiz</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-
-            <div className={`form-err ${err ? 'show' : ''}`} role="alert">
-              {err}
-            </div>
-          </div>
-          <div className="m-foot">
-            <div className="m-foot-right">
-              <button type="button" className="btn-ghost" onClick={onClose}>
-                Bekor qilish
-              </button>
-              <button type="submit" className="btn-main" disabled={busy}>
-                Oylik o&apos;zgarishlarni saqlash
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ MODAL 3 */
-
 /** Monitor's employee modal. Staff accounts live in Xodimlar (login,
- * role, contract), so here a new employee is added there, and an existing
- * one's month salary is edited; name and role open the profile. */
+ * role, contract); there is no fixed salary to set (2026-11-18), so this
+ * only shows the person and opens the profile. */
 function EmployeeModal({
   emp,
-  currM,
   onClose,
-  onSaved,
 }: {
   emp: MonEmp | undefined;
-  currM: string;
   onClose: () => void;
-  onSaved: (e: MonEmp) => void;
 }) {
-  const [salary, setSalary] = useState(emp ? groupInput(String(getEmployeeSalaryForMonth(emp, currM))) : '');
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!emp) return;
-    const v = toSafeIntegerAmount(salary);
-    if (v <= 0) return setErr("Oylik maosh 0 dan katta bo'lishi shart.");
-    setBusy(true);
-    const res = await monitorSetSalariesAction({ month: currM, rows: [{ staffId: emp.id, amount: v }] });
-    setBusy(false);
-    if ('error' in res) return setErr(errText(res.error));
-    onSaved(emp);
-  }
 
   return (
     <div className="backdrop open" role="dialog" aria-modal="true" aria-labelledby="empModalTitle" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -1032,7 +748,7 @@ function EmployeeModal({
             ×
           </button>
         </div>
-        <form noValidate onSubmit={submit}>
+        <div>
           <div className="m-body">
             {emp ? (
               <>
@@ -1056,28 +772,12 @@ function EmployeeModal({
                   </label>
                   <input type="text" id="empRole" className="f-input" value={emp.role} disabled />
                 </div>
-                <div className="f-group">
-                  <label className="f-label" htmlFor="empBaseSalary">
-                    <span>{formatMonthUz(currM)} oyi uchun oylik maoshi (so&apos;mda)</span> <span className="req-star">*</span>
-                  </label>
-                  <MoneyInput
-                    id="empBaseSalary"
-                    className="f-input num strong"
-                    placeholder="Masalan: 7,000,000"
-                    autoFocus
-                    value={toSafeIntegerAmount(salary) || null}
-                    onValue={(v) => setSalary(v == null ? '' : groupInput(String(v)))}
-                  />
-                </div>
               </>
             ) : (
               <div className="ceo-note">
-                Yangi xodim akkaunti (login, lavozim, shartnoma) Xodimlar bo&apos;limida ochiladi. Qo&apos;shilgach u shu jadvalda paydo bo&apos;ladi — oyligini «CEO: Oyliklar» orqali belgilang.
+                Yangi xodim akkaunti (login, lavozim, shartnoma) Xodimlar bo&apos;limida ochiladi. Qo&apos;shilgach u shu jadvalda paydo bo&apos;ladi — avans, oylik, bonus va jarimani «+ Avans / Amal qo&apos;shish» orqali yozing.
               </div>
             )}
-            <div className={`form-err ${err ? 'show' : ''}`} role="alert">
-              {err}
-            </div>
           </div>
           <div className="m-foot">
             {emp ? (
@@ -1091,18 +791,14 @@ function EmployeeModal({
               <button type="button" className="btn-ghost" onClick={onClose}>
                 Bekor qilish
               </button>
-              {emp ? (
-                <button type="submit" className="btn-main" disabled={busy}>
-                  Xodimni saqlash
-                </button>
-              ) : (
+              {emp ? null : (
                 <Link href="/staff" className="btn-main" style={{ display: 'inline-flex', alignItems: 'center' }}>
                   Xodimlar bo&apos;limiga o&apos;tish
                 </Link>
               )}
             </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -1116,7 +812,6 @@ function HistoryDrawer({
   currM,
   onClose,
   onAvans,
-  onCeo,
   onEdit,
   onDeleted,
   onError,
@@ -1126,7 +821,6 @@ function HistoryDrawer({
   currM: string;
   onClose: () => void;
   onAvans: () => void;
-  onCeo: () => void;
   onEdit: () => void;
   onDeleted: () => void;
   onError: (e: string) => void;
@@ -1143,8 +837,12 @@ function HistoryDrawer({
         {label} — {formatMonthUz(sum.period)}
       </div>
       <div className="d-line">
-        <span className="muted">CEO Oylik maosh:</span>
-        <strong>{formatUZS(sum.baseSalary)}</strong>
+        <span className="muted">Avans berilgan:</span>
+        <strong>{formatUZS(sum.avansTotal)}</strong>
+      </div>
+      <div className="d-line">
+        <span className="muted">Oylik berilgan:</span>
+        <strong>{formatUZS(sum.salaryPayTotal)}</strong>
       </div>
       <div className="d-line">
         <span className="muted">Bonus (+):</span>
@@ -1155,24 +853,8 @@ function HistoryDrawer({
         <strong className="accent-neg">−{formatUZS(sum.penaltyTotal)}</strong>
       </div>
       <div className="d-line sep">
-        <span>Jami hisoblangan:</span>
+        <span>Oylik:</span>
         <span>{formatUZS(sum.netPayable)}</span>
-      </div>
-      <div className="d-line">
-        <span className="muted">Avans berilgan:</span>
-        <strong>{formatUZS(sum.avansTotal)}</strong>
-      </div>
-      <div className="d-line">
-        <span className="muted">Oylik to&apos;langan:</span>
-        <strong>{formatUZS(sum.salaryPayTotal)}</strong>
-      </div>
-      <div className="d-line sep">
-        <span>Qolgan summa:</span>
-        {sum.overpaidAmount > 0 ? (
-          <span className="accent-violet">+{formatUZS(sum.overpaidAmount)} (Ortiqcha)</span>
-        ) : (
-          <span className={sum.remainingToPay === 0 ? 'accent-pos' : 'accent-neg'}>{formatUZS(sum.remainingToPay)}</span>
-        )}
       </div>
     </div>
   );
@@ -1185,16 +867,13 @@ function HistoryDrawer({
             {emp.firstName} {emp.lastName}
           </h2>
           <p className="sub">
-            {emp.role} • {formatMonthUz(currM)} oyligi: {formatUZS(curr.baseSalary)}
+            {emp.role} • {formatMonthUz(currM)} oyligi: {formatUZS(curr.netPayable)}
             {curr.avansRequested ? " • ✓ Avans so'ralgan" : ''}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button type="button" className="rbtn primary-soft" onClick={onAvans}>
             + Avans
-          </button>
-          <button type="button" className="rbtn" onClick={onCeo}>
-            CEO Oylik
           </button>
           <button type="button" className="rbtn" onClick={onEdit}>
             Tahrirlash

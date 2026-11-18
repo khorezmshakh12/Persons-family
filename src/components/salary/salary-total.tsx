@@ -4,8 +4,8 @@ import { monthLabel } from '@/lib/pay-run';
 import { cn } from '@/lib/utils';
 import { SalaryNoteForm } from './salary-note-form';
 
-/** The selected month's computed pay (pay engine payable: base + KPI +
- * bonuses − jarima ± carry/advance shares) — only that month, never a sum
+/** The selected month's pay (pay engine payable: avans + oylik given + KPI +
+ * bonuses − jarima; no fixed salary since 2026-11-18) — only that month, never a sum
  * across months (finance audit 2026-10-22: the old all-time total sat under
  * the month picker and read as this month's). */
 export async function SalaryTotal({ staffId, isCeo, month, payable }: { staffId: string; isCeo: boolean; month: string; payable: number }) {
@@ -15,7 +15,7 @@ export async function SalaryTotal({ staffId, isCeo, month, payable }: { staffId:
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-au-line bg-au-card p-4">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-semibold text-au-muted">{monthLabel(`${month}-01`)} — hisoblangan oylik</span>
+        <span className="text-sm font-semibold text-au-muted">{monthLabel(`${month}-01`)} — oylik</span>
         <span
           className={cn(
             'text-3xl font-bold tabular-nums',

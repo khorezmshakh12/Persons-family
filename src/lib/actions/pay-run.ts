@@ -189,14 +189,8 @@ export async function requestAdvanceAction(input: z.input<typeof requestSchema>)
       await tx`select pg_advisory_xact_lock(hashtext(${'advance:' + user.id}))`;
       const [open] = await tx`select 1 from advance_requests where staff_id = ${user.id} and status = 'pending'`;
       if (open) return 'alreadyPending' as const;
-      const [sal] = await tx<{ gross: number; taken: number }[]>`
-        select gross_amount as gross,
-          coalesce((select sum(amount) from finance_entries where staff_id = ${user.id} and period = ${per} and kind = 'advance'), 0) as taken
-        from salary_months where staff_id = ${user.id} and period <= ${per} order by period desc limit 1`;
-      // No salary set for the month means no ceiling to check against.
-      if (!sal || sal.gross <= 0) return 'noSalary' as const;
-      // Advances already paid this month count against the salary too.
-      if (p.data.amount + sal.taken > sal.gross) return 'overLimit' as const;
+      // No limit (owner, 2026-11-18): there is no fixed salary to cap it by;
+      // the CEO approves or rejects.
       await tx`
         insert into advance_requests (staff_id, amount, reason, period)
         values (${user.id}, ${p.data.amount}, ${p.data.reason}, ${per})`;
@@ -254,8 +248,8 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
   if (!p.success) return { error: 'invalidInput' };
   const v = p.data;
   if (!v.approve && v.note.length < 3) return { error: 'reasonRequired' };
-  // An advance is cash handed over now; it is held back from the chosen month
-  // (default: the current one) and capped by that month's salary when known.
+  // An advance is cash handed over now and counts in the chosen month's pay
+  // (default: the current one). No cap — there is no fixed salary (2026-11-18).
   const current = startOfTashkentMonthKey();
   const per = v.targetPeriod ?? current;
   // Can't predate: an advance is never held from a month already gone by.
@@ -268,19 +262,6 @@ export async function decideAdvanceAction(input: z.input<typeof decideSchema>): 
         select staff_id, amount from advance_requests where id = ${v.id} and status = 'pending' for update`;
       if (!r) return 'alreadyDecided' as const;
       req = r;
-      if (v.approve) {
-        const [sal] = await tx<{ gross: number; taken: number }[]>`
-          select gross_amount as gross,
-            coalesce((select sum(amount) from finance_entries where staff_id = ${r.staff_id} and period = ${per} and kind = 'advance'), 0) as taken
-          from salary_months where staff_id = ${r.staff_id} and period <= ${per} order by period desc limit 1`;
-        // A future month may have no salary set yet — then there is no ceiling
-        // to check (CEO's discretion). The current month still requires one.
-        if (!sal || sal.gross <= 0) {
-          if (per === current) return 'noSalary' as const;
-        } else if (r.amount + sal.taken > sal.gross) {
-          return 'overLimit' as const;
-        }
-      }
       let entryId: string | null = null;
       if (v.approve) {
         const [e] = await tx<{ id: string }[]>`

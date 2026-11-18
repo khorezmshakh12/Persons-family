@@ -218,8 +218,9 @@ const gradeSchema = z.object({
 });
 
 /**
- * Grade a finished month: the scenario reached → % of that month's salary
- * (salary_months.gross_amount) → a finance_entries adjustment for the month.
+ * Grade a finished month: the scenario reached → % of what was given for that
+ * month so far (avans + oylik; no fixed salary, owner 2026-11-18) → a
+ * finance_entries adjustment for the month. The amount is fixed at grading.
  * Re-grading replaces the previous entry, in the same transaction.
  */
 export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Promise<Result<{ amount: number }>> {
@@ -242,12 +243,11 @@ export async function gradeKpiPlanAction(input: z.input<typeof gradeSchema>): Pr
         from kpi_plans where id = ${v.planId} and status = 'approved' for update`;
       if (!plan) return null;
       if (plan.month > thisMonth()) return 'future' as const;
-      const [sal] = await tx<{ gross: number }[]>`
-        select gross_amount::float8 as gross from salary_months
-        where staff_id = ${plan.user_id} and period <= ${plan.month}
-        order by period desc limit 1`;
+      const [given] = await tx<{ paid: number }[]>`
+        select coalesce(sum(amount), 0)::float8 as paid from finance_entries
+        where staff_id = ${plan.user_id} and period = ${plan.month} and kind in ('salary', 'advance')`;
       const percent = pctFor(plan, v.grade as Scenario);
-      const amount = v.amount ?? Math.round(((sal?.gross ?? 0) * percent) / 100);
+      const amount = v.amount ?? Math.round(((given?.paid ?? 0) * percent) / 100);
       if (plan.finance_entry_id) await tx`delete from finance_entries where id = ${plan.finance_entry_id}`;
       let entryId: string | null = null;
       if (amount !== 0) {

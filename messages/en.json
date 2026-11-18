@@ -1214,6 +1214,9 @@
       "gross": "Planned",
       "paid": "Paid",
       "remaining": "Remaining",
+      "monthPay": "Pay",
+      "given": "Given",
+      "extra": "KPI, bonus − penalty",
       "errors": {
         "invalidInput": "Check the values.",
         "updateFailed": "Could not save.",
@@ -1817,7 +1820,7 @@
     "financeCompanySub": "team payroll",
     "financeSelfSub": "my salary",
     "finPaidShare": "{pct}% paid",
-    "finStaff": "{count} staff on plan",
+    "finStaff": "{count} staff paid",
     "feedCeoTitle": "Tasks completed by staff",
     "feedSelfTitle": "Tasks assigned to me",
     "feedEmpty": "No completed tasks yet.",

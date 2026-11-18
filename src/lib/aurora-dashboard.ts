@@ -597,8 +597,8 @@ export async function loadActivity(v: Viewer, limit = 5): Promise<ActivityItem[]
  * card). Same source as /finance and the profile's SalaryCard —
  * lib/payroll.ts — for the current Asia/Tashkent month, so the three can
  * never disagree:
- *   - CEO: the whole team's payroll (planned gross, paid, still owed).
- *   - everyone else: their own gross salary, paid so far, remaining.
+ *   - CEO: the whole team's pay this month (given + KPI/bonus − jarima).
+ *   - everyone else: their own month the same way (no fixed salary, 2026-11-18).
  */
 export type FinanceSnapshot = {
   scope: 'company' | 'self';
@@ -606,8 +606,9 @@ export type FinanceSnapshot = {
   period: string;
   gross: number;
   paid: number;
-  remaining: number;
-  /** CEO only: how many active staff are on this month's payroll plan. */
+  /** KPI + bonuses − jarima: the part of `gross` that is not money given. */
+  extra: number;
+  /** CEO only: how many staff were given money this month. */
   staffCount?: number;
 };
 
@@ -615,8 +616,8 @@ export async function loadFinanceSnapshot(v: Viewer): Promise<FinanceSnapshot | 
   return safe('finance', async () => {
     const period = startOfTashkentMonthKey();
     // Same pay-run engine the Finance page uses, so the dashboard card and
-    // Finance can never disagree. `gross` here = payable (base + KPI +
-    // bonuses − deductions), not the bare salary_months plan.
+    // Finance can never disagree. `gross` here = payable (given + KPI +
+    // bonuses − deductions).
     if (isCompanyWide(v)) {
       const lines = (await loadPayLines(period)).filter(isRelevant);
       const t = totals(lines);
@@ -625,8 +626,8 @@ export async function loadFinanceSnapshot(v: Viewer): Promise<FinanceSnapshot | 
         period,
         gross: t.payable,
         paid: t.paid,
-        remaining: t.payable - t.paid,
-        staffCount: lines.filter((l) => l.base > 0).length,
+        extra: t.payable - t.paid,
+        staffCount: lines.filter((l) => l.paid > 0).length,
       };
     }
     const [line] = await loadPayLines(period, v.userId);
@@ -635,7 +636,7 @@ export async function loadFinanceSnapshot(v: Viewer): Promise<FinanceSnapshot | 
       period,
       gross: line?.payable ?? 0,
       paid: line?.paid ?? 0,
-      remaining: line?.remaining ?? 0,
+      extra: (line?.payable ?? 0) - (line?.paid ?? 0),
     };
   });
 }

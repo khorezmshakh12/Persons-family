@@ -3,7 +3,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { canFor, canSeeFor, type Role } from '@/lib/permissions';
 import { tashkentMonthKey } from '@/lib/time';
 import { shiftMonth } from '@/lib/kpi-plan';
-import { loadMyPlans, loadMySalary, loadPlansFor, loadTeam } from '@/lib/kpi-plan-data';
+import { loadMyPlans, loadPlansFor, loadTeam } from '@/lib/kpi-plan-data';
 import { MyKpi, TeamKpi } from '@/components/kpi-plan/kpi-workspace';
 import { BgVideo } from '@/components/motion/bg-video';
 
@@ -46,7 +46,6 @@ export default async function MyKpiPage() {
           role={profile.role as Role}
           thisMonth={thisMonth}
           nextMonth={nextMonth}
-          salary={await loadMySalary(profile.id)}
         />
       )}
     </div>

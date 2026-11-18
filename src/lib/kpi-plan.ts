@@ -58,6 +58,9 @@ export type KpiPlan = {
   grade_note: string | null;
   graded_at: string | null;
   items: KpiItem[];
+  /** Avans + oylik already given for the plan's month — the base the grade's
+   * % is taken of (no fixed salary, owner 2026-11-18). */
+  paid: number;
   /** Reviewer decisions, oldest first (reviewer view only). */
   audit?: KpiAuditEntry[];
 };
