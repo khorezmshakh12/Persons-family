@@ -1214,6 +1214,9 @@
       "gross": "План",
       "paid": "Выплачено",
       "remaining": "Остаток",
+      "monthPay": "Зарплата",
+      "given": "Выдано",
+      "extra": "KPI, бонус − штраф",
       "errors": {
         "invalidInput": "Проверьте значения.",
         "updateFailed": "Не удалось сохранить.",
@@ -1817,7 +1820,7 @@
     "financeCompanySub": "фонд зарплат команды",
     "financeSelfSub": "моя зарплата",
     "finPaidShare": "выплачено {pct}%",
-    "finStaff": "в плане: {count} сотр.",
+    "finStaff": "выдано: {count} сотр.",
     "feedCeoTitle": "Задачи, выполненные сотрудниками",
     "feedSelfTitle": "Мои задачи",
     "feedEmpty": "Пока нет выполненных задач.",

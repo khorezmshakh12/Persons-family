@@ -41,9 +41,8 @@ export type AdvanceRequest = {
   created_at: string;
 };
 
-/** `planned` = the month's computed pay (payable); `paid` = paid out for that
- * month; `earned` = payable without advance bookkeeping (carry / split
- * advance) — what the month really earned, used by B-nuqta. */
+/** `planned` = the month's pay (payable = paid + KPI + bonus − jarima);
+ * `paid` = paid out for that month; `earned` = the same pay, used by B-nuqta. */
 export type MonthPoint = { period: string; planned: number; paid: number; earned: number };
 
 const name = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.trim() || 'Xodim';
@@ -62,19 +61,13 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
   const only = staffId ? sql`and p.id = ${staffId}` : sql``;
   const onlyCol = (col: string) => (staffId ? sql`and ${sql(col)} = ${staffId}` : sql``);
 
-  const [people, salaries, entries, selfDev, perfRows, missionRows, kpi, advances, lockRows] = await Promise.all([
+  const [people, entries, selfDev, perfRows, missionRows, kpi, advances, lockRows] = await Promise.all([
     db<{ id: string; first_name: string | null; last_name: string | null; role: string }[]>`
       select p.id, p.first_name, p.last_name, p.role from profiles p
       where (p.is_active
-        or exists (select 1 from salary_months s where s.staff_id = p.id and s.period = ${period})
         or exists (select 1 from finance_entries f where f.staff_id = p.id and f.period = ${period}))
         ${only}
       order by p.first_name, p.last_name`,
-    db<{ staff_id: string; gross: number }[]>`
-      -- One rule everywhere (Monitor too): the month's own salary, else the
-      -- nearest earlier month's (owner, 2026-11-16 — single algorithm).
-      select distinct on (staff_id) staff_id, gross_amount as gross from salary_months
-      where period <= ${period} ${onlyCol('staff_id')} order by staff_id, period desc`,
     db<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; reversal_of: string | null; created_at: string | null; method: string | null; r_status: 'received' | 'disputed' | null; r_note: string | null }[]>`
       select fe.id, fe.staff_id, fe.title, fe.amount, fe.kind, fe.source, fe.reversal_of, fe.created_at, fe.method,
         r.status as r_status, r.note as r_note
@@ -116,15 +109,12 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
   const perf = perfRows.map((row) => ({ row, from: null as string | null }));
   const missions = inThisRun(missionRows, (r) => r.at);
 
-  const gross = new Map(salaries.map((s) => [s.staff_id, s.gross]));
   const kpiPending = new Set(kpi.map((k) => k.user_id));
   const advPending = new Set(advances.map((a) => a.staff_id));
 
   return people.map((p) => {
     const components: PayComponent[] = [];
     const payments: Payment[] = [];
-    const g = gross.get(p.id) ?? 0;
-    if (g) components.push({ kind: 'base', title: 'Asosiy maosh', amount: g });
     for (const e of entries) {
       if (e.staff_id !== p.id) continue;
       if (e.kind === 'salary' || e.kind === 'advance') {
@@ -140,11 +130,11 @@ async function loadInputs(period: string, staffId?: string, db: Db = sql): Promi
         });
         continue;
       }
+      // No fixed salary (2026-11-18): old advance bookkeeping rows (carry,
+      // split-advance shares) are neither money given nor earnings — skipped.
+      if (e.source === 'carry' || e.source === 'advance') continue;
       const kind =
-        e.source === 'carry' ? 'carry'
-        // Split-advance shares (the cash itself is an 'advance' payment above).
-        : e.source === 'advance' ? 'advshift'
-        : e.source === 'correction' ? 'correction'
+        e.source === 'correction' ? 'correction'
         : e.source === 'kpi' || e.title.startsWith('KPI ·') ? 'kpi'
         : e.kind === 'penalty' ? 'penalty'
         : 'adjustment';
@@ -241,7 +231,7 @@ export async function loadPayByMonth(first: string, last: string, staffId?: stri
       period: p,
       planned: lines.reduce((t, l) => t + l.payable, 0),
       paid: lines.reduce((t, l) => t + l.paid, 0),
-      earned: lines.reduce((t, l) => t + l.payable - l.carry - l.advanceShift, 0),
+      earned: lines.reduce((t, l) => t + l.payable, 0),
     });
   }
   return out;

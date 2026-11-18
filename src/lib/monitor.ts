@@ -13,7 +13,8 @@
  */
 
 export type MonOp = 'AVANS' | 'SALARY_PAY' | 'BONUS' | 'PENALTY';
-export type MonStatus = 'PAID' | 'OVERPAID' | 'PARTIAL' | 'UNPAID';
+/** What was given this month: the salary, only an avans, or nothing yet. */
+export type MonStatus = 'PAID' | 'PARTIAL' | 'UNPAID';
 
 export type MonTx = {
   id: string;
@@ -40,27 +41,20 @@ export type MonEmp = {
   firstName: string;
   lastName: string;
   role: string;
-  /** Explicit CEO salaries by 'YYYY-MM'. */
-  salaries: Record<string, number>;
   /** "Avans so'raldi" by 'YYYY-MM'. */
   requested: Record<string, boolean>;
 };
 
 export type MonSummary = {
   period: string;
-  baseSalary: number;
   bonusTotal: number;
   penaltyTotal: number;
-  /** Signed sum of `shift` rows (advance bookkeeping). */
-  shiftTotal: number;
+  /** The month's pay: everything given + bonus − jarima (no fixed salary,
+   * owner 2026-11-18). */
   netPayable: number;
   avansTotal: number;
   salaryPayTotal: number;
   totalPaid: number;
-  remainingToPay: number;
-  overpaidAmount: number;
-  rawDiff: number;
-  paidPercent: number;
   status: MonStatus;
   avansRequested: boolean;
   transactions: MonTx[];
@@ -115,60 +109,41 @@ export function getInitials(firstName: string, lastName: string): string {
   return f + l || 'XM';
 }
 
-/** Explicit salary for the month, else the nearest earlier month's, else 0. */
-export function getEmployeeSalaryForMonth(emp: Pick<MonEmp, 'salaries'>, ym: string): number {
-  const map = emp.salaries;
-  if (Object.prototype.hasOwnProperty.call(map, ym)) return toSafeIntegerAmount(map[ym]);
-  const prior = Object.keys(map).filter((k) => YM_RE.test(k) && k < ym).sort();
-  return prior.length ? toSafeIntegerAmount(map[prior[prior.length - 1]]) : 0;
-}
-
-export function calculateEmployeeMonthSummary(emp: MonEmp, txs: MonTx[], ym: string): MonSummary {
-  const baseSalary = getEmployeeSalaryForMonth(emp, ym);
+/**
+ * One person's month (owner, 2026-11-18): there is no fixed salary. The
+ * month's pay is everything the CEO added for it —
+ *   netPayable = avans + oylik to'lov + bonus − jarima
+ * so nothing is ever "still owed" or "overpaid". Old advance bookkeeping
+ * rows (`shift`) are neither money given nor earnings and are skipped.
+ * Status says only what was given: nothing yet, an avans, or the salary.
+ */
+export function calculateEmployeeMonthSummary(emp: Pick<MonEmp, 'id' | 'requested'>, txs: MonTx[], ym: string): MonSummary {
   let bonusTotal = 0;
   let penaltyTotal = 0;
-  let shiftTotal = 0;
   let avansTotal = 0;
   let salaryPayTotal = 0;
   const periodTxs: MonTx[] = [];
   for (const tx of txs) {
-    if (tx.staffId !== emp.id || tx.month !== ym) continue;
+    if (tx.staffId !== emp.id || tx.month !== ym || tx.shift) continue;
     const amt = toSafeIntegerAmount(tx.amount);
     periodTxs.push(tx);
-    if (tx.shift && (tx.type === 'BONUS' || tx.type === 'PENALTY')) shiftTotal += tx.type === 'BONUS' ? amt : -amt;
-    else if (tx.type === 'BONUS') bonusTotal += amt;
+    if (tx.type === 'BONUS') bonusTotal += amt;
     else if (tx.type === 'PENALTY') penaltyTotal += amt;
     else if (tx.type === 'AVANS') avansTotal += amt;
     else if (tx.type === 'SALARY_PAY') salaryPayTotal += amt;
   }
-  const netPayable = baseSalary + bonusTotal - penaltyTotal + shiftTotal;
   const totalPaid = avansTotal + salaryPayTotal;
-  const rawDiff = netPayable - totalPaid;
-  const remainingToPay = rawDiff > 0 ? rawDiff : 0;
-  const overpaidAmount = rawDiff < 0 ? Math.abs(rawDiff) : 0;
-
-  let status: MonStatus = 'UNPAID';
-  if (overpaidAmount > 0) status = 'OVERPAID';
-  else if (netPayable <= 0 && totalPaid === 0) status = 'PAID';
-  else if (remainingToPay === 0 && netPayable > 0) status = 'PAID';
-  else if (totalPaid > 0 && remainingToPay > 0) status = 'PARTIAL';
-
-  const paidPercent = netPayable > 0 ? Math.min(100, Math.round((totalPaid / netPayable) * 100)) : totalPaid > 0 ? 100 : 0;
+  const netPayable = totalPaid + bonusTotal - penaltyTotal;
+  const status: MonStatus = salaryPayTotal > 0 ? 'PAID' : avansTotal > 0 ? 'PARTIAL' : 'UNPAID';
 
   return {
     period: ym,
-    baseSalary,
     bonusTotal,
     penaltyTotal,
-    shiftTotal,
     netPayable,
     avansTotal,
     salaryPayTotal,
     totalPaid,
-    remainingToPay,
-    overpaidAmount,
-    rawDiff,
-    paidPercent,
     status,
     avansRequested: Boolean(emp.requested[ym]),
     transactions: periodTxs,
@@ -176,10 +151,9 @@ export function calculateEmployeeMonthSummary(emp: MonEmp, txs: MonTx[], ym: str
 }
 
 export function getStatusText(curr: MonSummary): string {
-  if (curr.status === 'PAID') return "To'liq yopilgan";
-  if (curr.status === 'OVERPAID') return "Ortiqcha to'lov";
-  if (curr.status === 'PARTIAL') return curr.salaryPayTotal > 0 ? 'Qisman berilgan' : 'Avans olgan';
-  return "To'lanmagan";
+  if (curr.status === 'PAID') return 'Oylik berilgan';
+  if (curr.status === 'PARTIAL') return 'Avans olgan';
+  return 'Hali berilmagan';
 }
 
 /** 'YYYY-MM' ↔ the DB's 'YYYY-MM-01'. */

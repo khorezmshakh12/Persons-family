@@ -1,19 +1,18 @@
 /**
- * Pay run engine — pure, no DB. One month's pay for one person is the sum of
- * signed components; everything the Finance screens show (columns, the
- * breakdown drawer, the pre-approval checks, the payslip) is derived here so
- * no two views can disagree. Tested in tests/pay-run.test.ts.
+ * Pay run engine — pure, no DB. Everything the Finance screens show (columns,
+ * the breakdown drawer, the payslip) is derived here so no two views can
+ * disagree. Tested in tests/pay-run.test.ts.
  *
- *   payable   = base + kpi + bonuses + deductions + carry + advanceShift
+ * No fixed salary (owner, 2026-11-18): a month's pay is everything the CEO
+ * added for it —
+ *
+ *   payable   = paid + kpi + bonuses + deductions
  *   paid      = salary payments + advances for the month
- *   remaining = payable − paid       (< 0 = paid ahead: an advance on next month)
+ *   remaining = 0  (kept for callers; there is nothing "still owed")
  *
  * Every amount belongs to exactly one month (its `period`); nothing from
- * another month is summed in. Two rows are bookkeeping, not earnings, and
- * stay out of bonuses/deductions (finance audit 2026-10-22):
- *   carry        — last month's advance on this month, held back now (≤ 0);
- *   advanceShift — a split advance: this month gives back all but its share
- *                  (> 0), each later month holds back one share (< 0).
+ * another month is summed in. Old advance bookkeeping rows (carry / split
+ * advance shares) are not earnings and not money given, so they stay out.
  */
 
 import { startOfTashkentMonthKey } from './time';
@@ -122,47 +121,41 @@ export const VARIANCE_LIMIT = 0.3;
 const round = (n: number) => Math.round(n);
 
 export function computeLine(input: PayInput): PayLine {
-  let base = 0;
   let kpi = 0;
   let bonuses = 0;
   let deductions = 0;
-  let carry = 0;
-  let advanceShift = 0;
   for (const c of input.components) {
-    if (c.kind === 'carry') carry += c.amount;
-    else if (c.kind === 'advshift') advanceShift += c.amount;
-    else if (c.kind === 'base') base += c.amount;
-    else if (c.kind === 'kpi') kpi += c.amount;
+    // base / carry / advshift: the fixed salary and its advance bookkeeping
+    // are gone from the rule (2026-11-18); old rows are ignored, not deleted.
+    if (c.kind === 'base' || c.kind === 'carry' || c.kind === 'advshift') continue;
+    if (c.kind === 'kpi') kpi += c.amount;
     else if (c.amount >= 0) bonuses += c.amount;
     else deductions += c.amount;
   }
-  const payable = round(base + kpi + bonuses + deductions + carry + advanceShift);
   const advances = round(input.payments.filter((p) => p.kind === 'advance').reduce((s, p) => s + p.amount, 0));
   const paid = round(input.payments.reduce((s, p) => s + p.amount, 0));
-  const remaining = payable - paid;
+  const payable = round(paid + kpi + bonuses + deductions);
   const delta = input.prevPayable && input.prevPayable > 0 ? (payable - input.prevPayable) / input.prevPayable : null;
 
   const flags: PayFlag[] = [];
-  if (base <= 0) flags.push('noBase');
   if (payable < 0) flags.push('negative');
   if (input.kpiPending) flags.push('kpiPending');
   if (input.selfDevPending) flags.push('selfDevPending');
   if (delta !== null && Math.abs(delta) > VARIANCE_LIMIT) flags.push('variance');
-  if (remaining < 0) flags.push('overpaid');
   if (input.advancePending) flags.push('advancePending');
 
   return {
     ...input,
-    base: round(base),
+    base: 0,
     kpi: round(kpi),
     bonuses: round(bonuses),
     deductions: round(deductions),
-    carry: round(carry),
-    advanceShift: round(advanceShift),
+    carry: 0,
+    advanceShift: 0,
     payable,
     paid,
     advances,
-    remaining,
+    remaining: 0,
     flags,
     delta,
   };
@@ -192,12 +185,10 @@ export function isRelevant(l: PayLine): boolean {
   return l.base > 0 || l.components.length > 0 || l.payments.length > 0;
 }
 
-/** A person's month in one word, from their line alone (no month lock
- * since 2026-10-21 — the run itself has no state worth showing). */
-export function payState(l: Pick<PayLine, 'remaining' | 'paid'>): string {
-  if (l.remaining < 0) return 'Keyingi oyga avans';
-  if (l.remaining === 0) return 'To‘langan';
-  return l.paid > 0 ? 'Qisman to‘langan' : 'To‘lanmagan';
+/** A person's month in one word: still running, or closed (no fixed salary
+ * since 2026-11-18, so nothing is "owed" — the month just ends). */
+export function payState(period: string, current: string): string {
+  return period >= current ? 'Oy davom etyapti' : 'Yakunlandi';
 }
 
 export function blockers(lines: PayLine[]): PayLine[] {

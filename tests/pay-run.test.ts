@@ -15,7 +15,7 @@ const input = (over: Partial<PayInput> = {}): PayInput => ({
   ...over,
 });
 
-test('payable = base + kpi + bonuses + deductions; remaining = payable − paid', () => {
+test('payable = paid + kpi + bonuses + deductions; no fixed salary, nothing owed (2026-11-18)', () => {
   const l = computeLine(
     input({
       components: [
@@ -31,44 +31,60 @@ test('payable = base + kpi + bonuses + deductions; remaining = payable − paid'
       ],
     }),
   );
-  assert.equal(l.base, 5_000_000);
+  assert.equal(l.base, 0);
   assert.equal(l.kpi, 750_000);
   assert.equal(l.bonuses, 200_000);
   assert.equal(l.deductions, -150_000);
-  assert.equal(l.payable, 5_800_000);
   assert.equal(l.advances, 1_000_000);
   assert.equal(l.paid, 3_000_000);
-  assert.equal(l.remaining, 2_800_000);
+  assert.equal(l.payable, 3_800_000);
+  assert.equal(l.remaining, 0);
   assert.deepEqual(l.flags, []);
 });
 
-test('flags: missing salary, negative pay, overpaid, variance', () => {
-  assert.ok(computeLine(input({ components: [] })).flags.includes('noBase'));
-  const neg = computeLine(input({ components: [{ kind: 'base', title: '', amount: 100 }, { kind: 'penalty', title: '', amount: -500 }] }));
+test('owner example: 1 000 000 avans + 3 000 000 oylik + 500 000 bonus − 200 000 jarima = 4 300 000', () => {
+  const l = computeLine(
+    input({
+      components: [
+        { kind: 'adjustment', title: 'Bonus', amount: 500_000 },
+        { kind: 'penalty', title: 'Jarima', amount: -200_000 },
+      ],
+      payments: [
+        { id: 'a', kind: 'advance', title: 'Avans', amount: 1_000_000, at: null },
+        { id: 'b', kind: 'salary', title: 'Oylik', amount: 3_000_000, at: null },
+      ],
+    }),
+  );
+  assert.equal(l.payable, 4_300_000);
+  assert.equal(l.remaining, 0);
+});
+
+test('flags: negative pay and variance; no "missing salary" or "overpaid" any more', () => {
+  assert.deepEqual(computeLine(input({ components: [] })).flags, []);
+  const neg = computeLine(input({ components: [{ kind: 'penalty', title: '', amount: -500 }] }));
   assert.ok(neg.flags.includes('negative'));
-  const over = computeLine(input({ payments: [{ id: 'x', kind: 'salary', title: '', amount: 6_000_000, at: null }] }));
-  assert.ok(over.flags.includes('overpaid'));
-  assert.equal(over.remaining, -1_000_000);
-  assert.ok(computeLine(input({ prevPayable: 3_000_000 })).flags.includes('variance'));
-  assert.ok(!computeLine(input({ prevPayable: 4_800_000 })).flags.includes('variance'));
+  const paidMore = computeLine(input({ payments: [{ id: 'x', kind: 'salary', title: '', amount: 6_000_000, at: null }] }));
+  assert.deepEqual(paidMore.flags, []);
+  const paid = [{ id: 'x', kind: 'salary' as const, title: '', amount: 5_000_000, at: null }];
+  assert.ok(computeLine(input({ payments: paid, prevPayable: 3_000_000 })).flags.includes('variance'));
+  assert.ok(!computeLine(input({ payments: paid, prevPayable: 4_800_000 })).flags.includes('variance'));
 });
 
 test('only negative pay blocks approval', () => {
-  const ok = computeLine(input({ components: [] , payments: [{ id: 'p', kind: 'salary', title: '', amount: 1, at: null }] }));
-  const bad = computeLine(input({ staffId: 's2', components: [{ kind: 'base', title: '', amount: 1 }, { kind: 'penalty', title: '', amount: -9 }] }));
+  const ok = computeLine(input({ components: [], payments: [{ id: 'p', kind: 'salary', title: '', amount: 1, at: null }] }));
+  const bad = computeLine(input({ staffId: 's2', components: [{ kind: 'penalty', title: '', amount: -9 }] }));
   assert.deepEqual(blockers([ok, bad]).map((l) => l.staffId), ['s2']);
 });
 
-test('payState: one word from the line alone (no month lock)', () => {
-  assert.equal(payState({ remaining: 100, paid: 0 }), 'To‘lanmagan');
-  assert.equal(payState({ remaining: 100, paid: 50 }), 'Qisman to‘langan');
-  assert.equal(payState({ remaining: 0, paid: 150 }), 'To‘langan');
-  assert.equal(payState({ remaining: -20, paid: 170 }), 'Keyingi oyga avans');
+test('payState: the month is running or closed', () => {
+  assert.equal(payState('2026-11-01', '2026-11-01'), 'Oy davom etyapti');
+  assert.equal(payState('2026-12-01', '2026-11-01'), 'Oy davom etyapti');
+  assert.equal(payState('2026-10-01', '2026-11-01'), 'Yakunlandi');
 });
 
 test('totals, drift and month shifting', () => {
-  const a = computeLine(input());
-  const b = computeLine(input({ staffId: 's2', components: [{ kind: 'base', title: '', amount: 1_000_000 }] }));
+  const a = computeLine(input({ payments: [{ id: 'p', kind: 'salary', title: '', amount: 5_000_000, at: null }] }));
+  const b = computeLine(input({ staffId: 's2', payments: [{ id: 'q', kind: 'advance', title: '', amount: 1_000_000, at: null }] }));
   assert.equal(totals([a, b]).payable, 6_000_000);
   assert.deepEqual(drift([a, b], [{ staffId: 's1', payable: 5_000_000 }, { staffId: 's2', payable: 900_000 }]), [{ staffId: 's2', was: 900_000, now: 1_000_000 }]);
   assert.deepEqual(drift([a], null), []);
@@ -97,40 +113,21 @@ test('effectivePeriod: rolls past every month approved before the movement', () 
   assert.equal(effectivePeriod('2026-09-15T00:00:00Z', locks), '2026-11-01');
 });
 
-test('carry: last month’s overpayment is held back, apart from earnings cuts', () => {
+test('old carry / split-advance rows are neither money given nor earnings', () => {
   const l = computeLine(
     input({
       components: [
-        { kind: 'base', title: '', amount: 5_000_000 },
         { kind: 'penalty', title: 'Jarima', amount: -100_000 },
         { kind: 'carry', title: 'Ortiqcha to‘lov', amount: -400_000 },
-      ],
-    }),
-  );
-  assert.equal(l.deductions, -100_000);
-  assert.equal(l.carry, -400_000);
-  assert.equal(l.payable, 4_500_000);
-  // Accrued pay for the books = payable − carry.
-  assert.equal(l.payable - l.carry, 4_900_000);
-});
-
-test('split advance: shifts are bookkeeping, not bonus or jarima', () => {
-  // 900k advance over 3 months, paid in month 1: this month gives back 600k.
-  const m1 = computeLine(
-    input({
-      components: [
-        { kind: 'base', title: '', amount: 5_000_000 },
-        { kind: 'advshift', title: 'Avans: 2 oyga o‘tkazildi', amount: 600_000 },
+        { kind: 'advshift', title: 'Avans qaytarish 2/3', amount: -300_000 },
       ],
       payments: [{ id: 'a', kind: 'advance', title: 'Avans', amount: 900_000, at: null }],
     }),
   );
-  assert.equal(m1.bonuses, 0);
-  assert.equal(m1.advanceShift, 600_000);
-  assert.equal(m1.remaining, 5_000_000 - 300_000);
-  const m2 = computeLine(input({ components: [{ kind: 'base', title: '', amount: 5_000_000 }, { kind: 'advshift', title: 'Avans qaytarish 2/3', amount: -300_000 }] }));
-  assert.equal(m2.deductions, 0);
-  assert.equal(m2.payable, 4_700_000);
+  assert.equal(l.deductions, -100_000);
+  assert.equal(l.carry, 0);
+  assert.equal(l.advanceShift, 0);
+  assert.equal(l.payable, 800_000);
 });
 
 test('a pending advance blocks approval', () => {

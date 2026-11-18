@@ -10,7 +10,8 @@ import { formatUZS } from '@/lib/format-currency';
 import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { cancelAdvanceAction, requestAdvanceAction } from '@/lib/actions/pay-run';
-import { COMPONENT_LABEL, monthLabel, type PayLine } from '@/lib/pay-run';
+import { COMPONENT_LABEL, monthLabel, payState, type PayLine } from '@/lib/pay-run';
+import { startOfTashkentMonthKey } from '@/lib/time';
 import type { AdvanceRequest, MonthPoint } from '@/lib/pay-run-data';
 import { downloadPayslips } from './payslip';
 import { MonthBars } from './month-bars';
@@ -26,8 +27,9 @@ const ADV_ERR: Record<string, string> = {
   invalidInput: 'Summa va sababni tekshiring',
 };
 
-/** One person's month: what they get, where each sum comes from, what has
- * been paid and what is left — the same numbers the CEO's pay run shows. */
+/** One person's month: what was given, KPI/bonus/jarima, and the month's
+ * pay (their sum — no fixed salary, 2026-11-18). Same numbers as the CEO's
+ * Monitor. */
 export function PayStatement({
   line,
   period,
@@ -55,40 +57,26 @@ export function PayStatement({
 export function PayHistoryCard({ history, period }: { history: MonthPoint[]; period: string }) {
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 1 }}>
-      <h3 className="text-xs font-bold tracking-wider text-au-muted uppercase">12 oy: fond va to‘lovlar</h3>
+      <h3 className="text-xs font-bold tracking-wider text-au-muted uppercase">12 oy: oylik va berilganlar</h3>
       <MonthBars points={history} current={period} />
     </section>
   );
 }
 
 /** The owner-design statement card: status, three headline boxes, then every
- * component and payment of the month as one list. */
+ * payment and KPI/bonus/jarima of the month as one list. */
 export function PayStatementCard({ line, period }: { line: PayLine | null; period: string }) {
-  const remaining = line?.remaining ?? 0;
-  const owed = Math.max(0, remaining);
-  const over = Math.max(0, -remaining);
-  const pct = line && line.payable > 0 ? Math.min(100, Math.round((line.paid / line.payable) * 100)) : 0;
-  const box3 =
-    owed > 0
-      ? { n: 'Oylik qoldig‘i (olinishi kerak)', v: `${som(owed)} so‘m`, tone: 'text-au-accent-text' }
-      : over > 0
-        ? { n: 'Keyingi oy uchun avans', v: `+${som(over)} so‘m`, tone: 'text-au-info' }
-        : { n: 'Joriy balans', v: '0 so‘m', tone: 'text-au-ok' };
+  const running = payState(period, startOfTashkentMonthKey()) === 'Oy davom etyapti';
+  const extra = line ? line.kpi + line.bonuses + line.deductions : 0;
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col gap-4 p-5')}>
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-au-line pb-3">
         <div className="min-w-0">
           <h3 className="text-base font-bold text-au-ink">Oylik va avans hisob varaqasi ({monthLabel(period)})</h3>
-          <p className="text-xs text-au-muted">Hisoblangan oylik, bonus/jarima va olingan to‘lovlar tafsiloti</p>
+          <p className="text-xs text-au-muted">Oylik = berilgan avans va oylik + KPI + bonus − jarima</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {owed > 0 ? (
-            <span className="fp-chip fp-chip-accent">To‘lanishi kerak: {som(owed)}</span>
-          ) : over > 0 ? (
-            <span className="fp-chip fp-chip-info">Avans olgan: +{som(over)}</span>
-          ) : line && line.paid > 0 ? (
-            <span className="fp-chip fp-chip-ok">✓ To‘liq to‘langan</span>
-          ) : null}
+          <span className={cn('fp-chip', running ? 'fp-chip-info' : 'fp-chip-ok')}>{running ? 'Oy davom etyapti' : 'Yakunlandi'}</span>
           {line && (
             <button
               onClick={() => downloadPayslips([line], period)}
@@ -101,27 +89,20 @@ export function PayStatementCard({ line, period }: { line: PayLine | null; perio
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-          <span className="block text-[11px] text-au-muted">Hisoblangan oylik</span>
-          <b className="text-base break-words tabular-nums">
+        <div className="min-w-0 rounded-lg border border-au-line bg-au-accent-soft p-3">
+          <span className="block text-[11px] text-au-muted">{running ? 'Shu oygacha oylik' : 'Oylik'}</span>
+          <b className="text-base break-words text-au-accent-text tabular-nums">
             <CountUp value={som(line?.payable ?? 0)} /> so‘m
           </b>
         </div>
         <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-          <span className="block text-[11px] text-au-muted">Jami olingan (to‘langan)</span>
-          <b className="text-base break-words text-au-ok tabular-nums">{som(line?.paid ?? 0)} so‘m</b>
+          <span className="block text-[11px] text-au-muted">Shu oy berildi (avans + oylik)</span>
+          <b className="text-base break-words tabular-nums">{som(line?.paid ?? 0)} so‘m</b>
         </div>
         <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-          <span className="block text-[11px] text-au-muted">{box3.n}</span>
-          <b className={cn('text-base break-words tabular-nums', box3.tone)}>{box3.v}</b>
+          <span className="block text-[11px] text-au-muted">KPI, bonus − jarima</span>
+          <b className={cn('text-base break-words tabular-nums', extra > 0 ? 'text-au-ok' : extra < 0 ? 'text-au-bad' : 'text-au-ink')}>{signed(extra)} so‘m</b>
         </div>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <div className="fp-kpi-bar h-2">
-          <i style={{ width: `${pct}%`, background: 'var(--au-ok)' }} />
-        </div>
-        <span className="text-[11px] text-au-muted">{pct}% to‘langan</span>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -139,12 +120,12 @@ export function PayStatementCard({ line, period }: { line: PayLine | null; perio
                 <div className="flex min-w-0 flex-col">
                   <span className="font-semibold text-au-ink">{COMPONENT_LABEL[c.kind]}</span>
                   <span className="truncate text-[11px] text-au-muted">
-                    {c.kind !== 'base' ? c.title : 'Hisoblangan'}
+                    {c.title}
                     {c.at ? ` · ${c.at.slice(0, 10)}` : ''}
                   </span>
                 </div>
-                <span className={cn('shrink-0 font-bold tabular-nums', c.kind === 'base' ? 'text-au-ink' : c.amount >= 0 ? 'text-au-ok' : 'text-au-bad')}>
-                  {c.kind === 'base' ? som(c.amount) : signed(c.amount)} so‘m
+                <span className={cn('shrink-0 font-bold tabular-nums', c.amount >= 0 ? 'text-au-ok' : 'text-au-bad')}>
+                  {signed(c.amount)} so‘m
                 </span>
               </div>
             ))}
@@ -214,7 +195,7 @@ export function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
         <div className="ms-pop-in flex flex-col gap-2">
           <MoneyInput value={amount ? Number(amount.replace(/\D/g, '')) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa, so‘m" className={cn(INPUT, 'tabular-nums')} />
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Sabab" className={INPUT} />
-          <p className="text-[11px] text-au-muted">Tasdiqlansa, shu oyning oyligidan ushlab qolinadi.</p>
+          <p className="text-[11px] text-au-muted">Tasdiqlansa, shu oyning oyligiga qo‘shib yoziladi.</p>
           <div className="flex justify-end gap-2">
             <button className="h-8 px-3 text-xs font-semibold text-au-muted" onClick={() => setOpen(false)}>
               Bekor

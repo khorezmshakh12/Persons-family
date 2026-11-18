@@ -1,6 +1,7 @@
 'use client';
 
 import { COMPONENT_LABEL, monthLabel, payState, type PayLine } from '@/lib/pay-run';
+import { startOfTashkentMonthKey } from '@/lib/time';
 
 /** jsPDF's built-in fonts are Latin-1: swap the Uzbek ‘ ’ and the minus sign
  * for plain ASCII so nothing renders as a box. */
@@ -8,12 +9,13 @@ const latin = (s: string) => s.replace(/[‘’ʻʼ`]/g, "'").replace(/−/g, '-
 const money = (n: number) => `${n < 0 ? '-' : ''}${Math.abs(Math.round(n)).toLocaleString('en-US')} so'm`;
 
 /** One payslip per line, one page each — a single person or the whole run.
- * Each page is labelled with that person's own state (To‘langan, Qisman…). */
+ * Oylik = berilganlar + KPI + bonus − jarima (no fixed salary, 2026-11-18). */
 export async function downloadPayslips(lines: PayLine[], period: string) {
   if (!lines.length) return;
   const { default: jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
+  const current = startOfTashkentMonthKey(new Date());
   lines.forEach((l, idx) => {
     if (idx > 0) doc.addPage();
     doc.setFillColor(27, 31, 42);
@@ -23,7 +25,7 @@ export async function downloadPayslips(lines: PayLine[], period: string) {
     doc.text('Persons Education', 14, 12);
     doc.setFontSize(10);
     doc.text(latin(`Hisob varaqasi - ${monthLabel(period)}`), 14, 19);
-    doc.text(latin(payState(l)), 196, 19, { align: 'right' });
+    doc.text(latin(payState(period, current)), 196, 19, { align: 'right' });
 
     doc.setTextColor(20);
     doc.setFontSize(13);
@@ -34,24 +36,25 @@ export async function downloadPayslips(lines: PayLine[], period: string) {
 
     autoTable(doc, {
       startY: 52,
-      head: [['Tarkib', 'Izoh', 'Summa']],
-      body: l.components.map((c) => [latin(COMPONENT_LABEL[c.kind]), latin(c.kind === 'base' ? '' : c.title), money(c.amount)]),
-      foot: [['To\'lanadi', '', money(l.payable)]],
+      head: [["Berilgan pullar", 'Sana', 'Summa']],
+      body: l.payments.length
+        ? l.payments.map((p) => [latin(p.kind === 'advance' ? 'Avans' : 'Oylik berish'), p.at ? p.at.slice(0, 10) : '', money(p.amount)])
+        : [["Hali to'lov yo'q", '', '']],
+      foot: [['Berilgan jami', '', money(l.paid)]],
       headStyles: { fillColor: [45, 52, 70] },
       footStyles: { fillColor: [235, 238, 244], textColor: 20, fontStyle: 'bold' },
       styles: { fontSize: 9 },
       columnStyles: { 2: { halign: 'right' } },
     });
     const y1 = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+    const extras = l.components.filter((c) => c.kind !== 'base' && c.kind !== 'carry' && c.kind !== 'advshift');
     autoTable(doc, {
       startY: y1,
-      head: [["To'lovlar", 'Sana', 'Summa']],
-      body: l.payments.length
-        ? l.payments.map((p) => [latin(p.kind === 'advance' ? 'Avans' : 'Oylik'), p.at ? p.at.slice(0, 10) : '', money(p.amount)])
-        : [["Hali to'lov yo'q", '', '']],
-      foot: [["Qoldiq", '', money(l.remaining)]],
+      head: [['KPI, bonus va jarima', 'Izoh', 'Summa']],
+      body: extras.length ? extras.map((c) => [latin(COMPONENT_LABEL[c.kind]), latin(c.title), money(c.amount)]) : [["Yo'q", '', '']],
+      foot: [['Oylik', '', money(l.payable)]],
       headStyles: { fillColor: [45, 52, 70] },
-      footStyles: { fillColor: l.remaining > 0 ? [255, 243, 224] : [232, 245, 233], textColor: 20, fontStyle: 'bold' },
+      footStyles: { fillColor: [255, 243, 224], textColor: 20, fontStyle: 'bold' },
       styles: { fontSize: 9 },
       columnStyles: { 2: { halign: 'right' } },
     });

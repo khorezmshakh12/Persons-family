@@ -6,7 +6,9 @@ const PLAN_COLS = sql`
   id, user_id, month::text as month, status, scenarios, submitted_at, review_note, reviewed_at,
   pct_bad::float8 as pct_bad, pct_good::float8 as pct_good, pct_great::float8 as pct_great,
   self_result, self_note, grade, grade_pct::float8 as grade_pct, grade_amount::float8 as grade_amount,
-  grade_note, graded_at`;
+  grade_note, graded_at,
+  (select coalesce(sum(f.amount), 0)::float8 from finance_entries f
+    where f.staff_id = kpi_plans.user_id and f.period = kpi_plans.month and f.kind in ('salary', 'advance')) as paid`;
 
 async function withItems(plans: Omit<KpiPlan, 'items'>[]): Promise<KpiPlan[]> {
   if (!plans.length) return [];
@@ -28,13 +30,12 @@ export async function loadMyPlans(userId: string): Promise<KpiPlan[]> {
   return withItems(plans);
 }
 
-export type TeamMember = { id: string; first_name: string; last_name: string; role: string; avatar_url: string | null; salary: number | null };
+export type TeamMember = { id: string; first_name: string; last_name: string; role: string; avatar_url: string | null };
 
-/** Everyone who files a KPI (all active staff but the CEO), with their latest salary. */
+/** Everyone who files a KPI (all active staff but the CEO). */
 export async function loadTeam(): Promise<TeamMember[]> {
   return sql<TeamMember[]>`
-    select p.id, p.first_name, p.last_name, p.role::text as role, p.avatar_url,
-      (select gross_amount::float8 from salary_months s where s.staff_id = p.id order by period desc limit 1) as salary
+    select p.id, p.first_name, p.last_name, p.role::text as role, p.avatar_url
     from profiles p
     where p.is_active and p.role <> 'ceo'
     order by p.first_name, p.last_name`;
@@ -52,11 +53,4 @@ export async function loadPlansFor(months: string[]): Promise<KpiPlan[]> {
     from kpi_audit a left join profiles p on p.id = a.actor
     where a.plan_id in ${sql(plans.map((p) => p.id))} order by a.created_at`.catch(() => []);
   return plans.map((p) => ({ ...p, audit: audit.filter((a) => a.plan_id === p.id).map((a) => ({ action: a.action, detail: a.detail, actor: a.actor, at: a.at })) }));
-}
-
-/** The viewer's own latest gross salary — shows what each scenario means in so'm. */
-export async function loadMySalary(userId: string): Promise<number | null> {
-  const [row] = await sql<{ gross: number | null }[]>`
-    select gross_amount as gross from salary_months where staff_id = ${userId} order by period desc limit 1`.catch(() => []);
-  return row?.gross ?? null;
 }

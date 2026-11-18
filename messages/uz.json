@@ -1214,6 +1214,9 @@
       "gross": "Reja",
       "paid": "To‘langan",
       "remaining": "Qoldi",
+      "monthPay": "Oylik",
+      "given": "Berilgan",
+      "extra": "KPI, bonus − jarima",
       "errors": {
         "invalidInput": "Qiymatlarni tekshiring.",
         "updateFailed": "Saqlab bo‘lmadi.",
@@ -1817,7 +1820,7 @@
     "financeCompanySub": "jamoa oylik fondi",
     "financeSelfSub": "mening oyligim",
     "finPaidShare": "{pct}% to‘langan",
-    "finStaff": "{count} ta xodim rejada",
+    "finStaff": "{count} ta xodimga berildi",
     "feedCeoTitle": "Xodimlar bajargan vazifalar",
     "feedSelfTitle": "Menga berilgan vazifalar",
     "feedEmpty": "Hozircha bajarilgan vazifalar yo‘q.",

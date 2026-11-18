@@ -7,8 +7,8 @@ import { getPreviousMonth, periodToYm, ymToPeriod, type MonEmp, type MonOp, type
 
 /**
  * Finance › Moliya (Monitor) ma'lumoti. Hamma narsa mavjud jadvallardan:
- * oylik — salary_months; avans / oylik to'lov / bonus / jarima —
- * finance_entries; KPI, o'zini rivojlantirish, missiya, rag'bat — pay-run
+ * avans / oylik to'lov / bonus / jarima — finance_entries (fix oylik yo'q,
+ * 2026-11-18: oylik = shularning jami); KPI, o'zini rivojlantirish, missiya, rag'bat — pay-run
  * dvigateli (loadPayLines) orqali, shuning uchun xodim sahifasi, buxgalteriya
  * va bu ekran bir xil summani ko'rsatadi.
  */
@@ -55,15 +55,16 @@ function lineTxs(line: PayLine, ym: string): MonTx[] {
 
 export async function loadMonitor(month: string): Promise<MonitorData> {
   const prev = getPreviousMonth(month);
-  const [curLines, prevLines, salaries, older, requests, flags] = await Promise.all([
+  const [curLines, prevLines, older, requests, flags] = await Promise.all([
     loadPayLines(ymToPeriod(month)),
     loadPayLines(ymToPeriod(prev)),
-    sql<{ staff_id: string; period: string; gross: number }[]>`
-      select staff_id, period::text as period, gross_amount as gross from salary_months where period <= ${ymToPeriod(month)}`,
     // Drawer journal: every other month's ledger rows (curr/prev come from the engine above).
     sql<{ id: string; staff_id: string; title: string; amount: number; kind: string; source: string; period: string; created_at: string }[]>`
       select id, staff_id, title, amount, kind, source, period::text as period, created_at from finance_entries
-      where period is not null and period not in (${ymToPeriod(month)}, ${ymToPeriod(prev)})`,
+      -- Old advance bookkeeping (carry / split-advance shares) is not money
+      -- given nor earnings — the engine skips it too (2026-11-18).
+      where period is not null and not (kind not in ('salary', 'advance') and source in ('carry', 'advance'))
+        and period not in (${ymToPeriod(month)}, ${ymToPeriod(prev)})`,
     sql<{ staff_id: string; period: string | null; created_at: string }[]>`
       select staff_id, period::text as period, created_at from advance_requests where status = 'pending'`,
     sql<{ staff_id: string; period: string }[]>`select staff_id, period::text as period from payroll_avans_flags`.catch(() => []),
@@ -75,11 +76,6 @@ export async function loadMonitor(month: string): Promise<MonitorData> {
     where id = any(${sql.array([...new Set([...curLines, ...prevLines].map((l) => l.staffId))])}::uuid[])`;
   for (const p of profiles) people.set(p.id, { first: p.first_name ?? '', last: p.last_name ?? '', role: p.role });
 
-  const sal = new Map<string, Record<string, number>>();
-  for (const s of salaries) {
-    if (!sal.has(s.staff_id)) sal.set(s.staff_id, {});
-    sal.get(s.staff_id)![periodToYm(s.period)] = s.gross;
-  }
   const req = new Map<string, Record<string, boolean>>();
   const mark = (id: string, ym: string) => {
     if (!req.has(id)) req.set(id, {});
@@ -93,7 +89,7 @@ export async function loadMonitor(month: string): Promise<MonitorData> {
   const ids = curLines.map((l) => l.staffId);
   const employees: MonEmp[] = ids.map((id) => {
     const p = people.get(id) ?? { first: 'Xodim', last: '', role: '' };
-    return { id, firstName: p.first, lastName: p.last, role: p.role, salaries: sal.get(id) ?? {}, requested: req.get(id) ?? {} };
+    return { id, firstName: p.first, lastName: p.last, role: p.role, requested: req.get(id) ?? {} };
   });
 
   const typeOf = (kind: string, amount: number): MonOp =>
@@ -113,8 +109,6 @@ export async function loadMonitor(month: string): Promise<MonitorData> {
         createdAt: day(e.created_at),
         entryId: EDITABLE_SOURCES.has(e.source) ? e.id : null,
         auto: e.source !== 'manual' && e.kind !== 'salary' && e.kind !== 'advance',
-        // Same split as the engine (pay-run-data): carry rows and split-advance shares.
-        shift: (e.kind !== 'salary' && e.kind !== 'advance' && (e.source === 'carry' || e.source === 'advance')) || undefined,
       })),
   ].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
 
