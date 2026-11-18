@@ -20,7 +20,6 @@ export type NavItem = {
     | 'selfDevelopment'
     | 'taskTracker'
     | 'finance'
-    | 'roadmap'
     | 'market'
     | 'strategy'
     | 'accounting'
@@ -60,7 +59,6 @@ const NAV_GROUP: Record<NavItem['key'], NavGroup> = {
   // Men — my own numbers and growth.
   kpi: 'me',
   selfDevelopment: 'me',
-  roadmap: 'me',
   profile: 'me',
   // Jamoa — people and the teaching floor.
   staff: 'team',
@@ -91,7 +89,6 @@ const NAV_SORT: NavItem['key'][] = [
   'taskTracker',
   'kpi',
   'selfDevelopment',
-  'roadmap',
   'profile',
   'staff',
   'hr',
@@ -133,7 +130,10 @@ export const NAV_ITEMS: NavItem[] = [
   // SECTION_ROLES, the CEO's per-person ACL in Core can narrow them — passed
   // in as `coreViews`, see coreViews() in lib/core-state.ts. (Inbox removed
   // by the owner 2026-10-05; /inbox now redirects to the Dashboard.)
-  { key: 'hr', href: '/hr', core: 'hr' },
+  // HR is listed for everyone: when Core's ACL hides HR for a person, the
+  // page shows them only Rivojlanish + Roadmap · Mind map (owner, 2026-11-18:
+  // Roadmap lives inside HR only, open to all).
+  { key: 'hr', href: '/hr' },
   { key: 'report', href: '/report' },
   { key: 'platform', href: '/platform', core: 'settings' },
   // Goes through the SSO handoff route, not straight to /materials, so
@@ -151,9 +151,6 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'taskTracker', href: '/task-tracker' },
   { key: 'companyNews', href: '/company-news' },
   { key: 'selfDevelopment', href: '/self-development' },
-  // Roadmap · Mind map — everyone, even when Core's ACL hides HR (owner,
-  // 2026-11-16). /roadmap redirects to HR's growth tab.
-  { key: 'roadmap', href: '/roadmap' },
   { key: 'finance', href: '/finance' },
   { key: 'strategy', href: '/strategy' },
   // Folded into Finance (owner, 2026-10-05: one place for money) — opened
