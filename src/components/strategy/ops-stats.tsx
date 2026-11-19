@@ -40,6 +40,9 @@ function Delta({ cur, prev, money, lowerIsBetter, vs }: { cur: number; prev: num
 export function OpsStats({ data }: { data: OpsData }) {
   const [period, setPeriod] = useState<OpsPeriodKey>('day');
   const s = data.stats;
+  const money = data.statsMoney;
+  const people = data.statsPeople;
+  const tiles = TILES.filter((t) => (t.money ? money : people));
   const p = s.periods[period];
   const vs = PERIODS.find(([k]) => k === period)![2];
   const today = data.today.day;
@@ -68,7 +71,13 @@ export function OpsStats({ data }: { data: OpsData }) {
         </div>
       </div>
 
-      {TILES.map((t) => {
+      {!money && (
+        <div className="sx-card s12 text-xs text-au-muted">
+          Moliyaviy raqamlar (tushum, to‘lovlar, qarz summasi) faqat ruxsati borlarga ko‘rinadi — Platforma › Section access.
+        </div>
+      )}
+
+      {tiles.map((t) => {
         const cur = t.v(p.cur);
         return (
           <div key={t.l} className="sx-card sx-stat s4">
@@ -82,6 +91,8 @@ export function OpsStats({ data }: { data: OpsData }) {
         );
       })}
 
+      {people && (
+      <>
       <div className="sx-card sx-stat dark s4">
         <div className="l">Faol o‘quvchilar</div>
         <div className="v">{s.snapshot.active}</div>
@@ -90,14 +101,18 @@ export function OpsStats({ data }: { data: OpsData }) {
       <div className="sx-card sx-stat s4">
         <div className="l">Qarzdorlar</div>
         <div className="v" style={{ color: s.snapshot.debtors ? 'var(--au-bad)' : undefined }}>{s.snapshot.debtors}</div>
-        <div className="d">jami qarz {som(s.snapshot.debt)}</div>
+        <div className="d">{money ? `jami qarz ${som(s.snapshot.debt)}` : 'balansi minusda · hozir'}</div>
       </div>
       <div className="sx-card sx-stat s4">
         <div className="l">Muzlatilgan</div>
         <div className="v">{s.snapshot.frozen}</div>
         <div className="d">o‘quvchi · hozir</div>
       </div>
+      </>
+      )}
 
+      {money && (
+      <>
       <div className="sx-card s4">
         <div className="sx-h">
           <h3>To‘lov usuli</h3>
@@ -150,6 +165,8 @@ export function OpsStats({ data }: { data: OpsData }) {
       </div>
 
       <OpsHealth month={`${today.slice(0, 7)}-01`} />
+      </>
+      )}
     </div>
   );
 }

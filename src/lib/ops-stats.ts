@@ -61,6 +61,16 @@ function shell(day: string, now: Date): OpsStatsData {
   return { day, periods: { day: p('day'), week: p('week'), month: p('month') }, series, snapshot: { active: 0, frozen: 0, debtors: 0, debt: 0 } };
 }
 
+/** The same statistics with every money figure zeroed — for staff who see
+ * student and lead figures only (operations.stats without statsMoney). */
+export function withoutMoney(s: OpsStatsData): OpsStatsData {
+  const strip = (m: OpsMetrics): OpsMetrics => ({ ...m, collected: 0, payments: 0, methods: [], charged: 0, charges: 0 });
+  const periods = Object.fromEntries(
+    Object.entries(s.periods).map(([k, p]) => [k, { ...p, cur: strip(p.cur), prev: strip(p.prev) }]),
+  ) as OpsStatsData['periods'];
+  return { ...s, periods, series: s.series.map((x) => ({ ...x, amount: 0 })), snapshot: { ...s.snapshot, debt: 0 } };
+}
+
 export function emptyOpsStats(day: string): OpsStatsData {
   return shell(day, new Date(`${day}T12:00:00+05:00`));
 }

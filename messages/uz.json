@@ -2108,6 +2108,14 @@
         "checklist_feedback": {
           "name": "Feedback berish",
           "desc": "Kunlik izoh va bandga izoh; xodimga sayt + Telegram xabari boradi"
+        },
+        "operations_stats": {
+          "name": "Statistika: o'quvchi va lidlar",
+          "desc": "Yangi, faol, ketgan, muzlatilgan o'quvchilar, qarzdorlar soni va yangi lidlar"
+        },
+        "operations_statsMoney": {
+          "name": "Statistika: moliyaviy raqamlar",
+          "desc": "Tushum, to'lovlar, to'lov usullari, hisoblangan summa, qarz summasi va Markaz holati"
         }
       }
     },
