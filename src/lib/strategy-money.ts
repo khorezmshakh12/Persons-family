@@ -27,6 +27,8 @@ export type MoneyItem = {
   manual: boolean;
   /** crm:<id> — an Operatsiya HQ payment. */
   fromOps: boolean;
+  /** The row's expense / income type (acct_entries.cat). */
+  cat: string | null;
 };
 
 export type MoneyMonth = {
@@ -40,7 +42,8 @@ export type MoneyMonth = {
   /** Income by the cash box it went to (naqd / bank…), refunds netted. */
   incomeBy: MoneyLine[];
   refunds: number;
-  /** Expense by category: payroll postings together, the rest by account. */
+  /** Expense by type: payroll postings together, typed rows by their type
+   * (key `cat:<k>`), untyped rows by account. */
   expenseBy: MoneyLine[];
   /** Every income / expense row of the month, newest first. */
   lastIn: MoneyItem[];
@@ -64,6 +67,7 @@ const item = (e: Entry, amount: number, account: string): MoneyItem => ({
   credit: e.credit,
   manual: !e.source,
   fromOps: !!e.source?.startsWith('crm:'),
+  cat: e.cat ?? null,
 });
 
 function add(map: Map<string, MoneyLine>, key: string, name: string, v: number) {
@@ -72,7 +76,15 @@ function add(map: Map<string, MoneyLine>, key: string, name: string, v: number) 
   else map.set(key, { key, name, amount: v });
 }
 
-export function moneyMonth(accounts: Account[], opening: Record<string, number>, entries: Entry[], ym: string): MoneyMonth {
+/** `catNames` (acct_cash_cats k → name): an expense written under a type is
+ * counted under that type, so two types sharing one account stay apart. */
+export function moneyMonth(
+  accounts: Account[],
+  opening: Record<string, number>,
+  entries: Entry[],
+  ym: string,
+  catNames: Record<string, string> = {},
+): MoneyMonth {
   const s = statements(accounts, opening, entries, monthStart(ym), monthEnd(ym));
   const name = new Map(accounts.map((a) => [a.code, a.name]));
   const expenseCodes = new Set(accounts.filter((a) => a.type === 'X').map((a) => a.code));
@@ -96,6 +108,7 @@ export function moneyMonth(accounts: Account[], opening: Record<string, number>,
     if (out) {
       const code = expenseCodes.has(e.debit) ? e.debit : e.credit;
       if (e.source?.startsWith('payroll:')) add(byCat, PAYROLL, 'Ish haqi va soliqlari', out);
+      else if (e.cat && catNames[e.cat]) add(byCat, `cat:${e.cat}`, catNames[e.cat], out);
       else add(byCat, code, name.get(code) ?? code, out);
       lastOut.push(item(e, out, code));
     }

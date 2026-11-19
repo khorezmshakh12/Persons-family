@@ -27,7 +27,7 @@ export async function loadBooks(): Promise<Books> {
     sql<Account[]>`select code, name, type from acct_accounts order by sort, code`,
     sql<{ code: string; amount: number }[]>`select code, amount from acct_opening`,
     sql<Entry[]>`
-      select id, entry_date, doc, description, debit, credit, amount, source, receipt_path
+      select id, entry_date, doc, description, debit, credit, amount, source, receipt_path, cat
       from acct_entries order by entry_date, created_at`,
     sql<Asset[]>`select id, name, category, cost, acquired, life_years, disposed from acct_assets order by acquired`,
     sql<Course[]>`select id, name, fee, students, teacher_cost, book_cost, teacher_share::float8 as teacher_share, hours_month::float8 as hours_month from acct_courses order by sort_order, name`,
@@ -36,7 +36,7 @@ export async function loadBooks(): Promise<Books> {
     sql<{ value: Record<string, number> }[]>`select value from acct_settings where key = 'plan_students'`,
     sql<CashTemplate[]>`select id, cat, method, amount, note, day, active, to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as "from" from acct_templates order by day, created_at`,
     sql<{ code: string; name: string }[]>`select code, name from acct_accounts where cash_box order by sort, code`,
-    sql<CashCatRow[]>`select k, n, dir, acc, sort, active from acct_cash_cats order by sort, n`,
+    sql<CashCatRow[]>`select k, n, dir, acc, sort, active, cycle from acct_cash_cats order by sort, n`,
   ]);
   return {
     accounts: [...accounts],
