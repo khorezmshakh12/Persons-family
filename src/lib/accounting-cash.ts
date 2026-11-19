@@ -1,5 +1,6 @@
 /** Kirim-chiqim vocabulary — client-safe, shared by the cash book UI and
  * the template actions (v8-B). */
+import type { Cycle } from './expense-forecast';
 
 /** A plain-language income / expense category of an education centre. Each
  * maps to the account on the other side of the cash line, so a cash entry
@@ -7,7 +8,7 @@
  * ever seeing an account code (owner, 2026-10-05). The list lives in
  * acct_cash_cats and is edited from Kirim-chiqim › Kategoriyalar (v2). */
 export type CashCat = { k: string; n: string; dir: 'in' | 'out'; acc: string };
-export type CashCatRow = CashCat & { active: boolean; sort: number };
+export type CashCatRow = CashCat & { active: boolean; sort: number; cycle: Cycle };
 
 /** A kassa / bank / karta: an asset account flagged `cash_box`. Codes are
  * handed out from two families — 50xx naqd, 51xx bank/karta — so the code

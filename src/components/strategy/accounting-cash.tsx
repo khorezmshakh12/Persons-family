@@ -14,6 +14,7 @@ import {
   deleteCashCatAction,
   renameCashBoxAction,
   saveCashCatAction,
+  setCashCatCycleAction,
   deleteCashTemplateAction,
   deleteJournalEntryAction,
   getReceiptUrlAction,
@@ -25,6 +26,7 @@ import { ask, toast } from './suite-shell';
 import { Chart } from './charts';
 import { MoneyInput } from '@/components/ui/money-input';
 import { downloadCsv, err, useRun } from './accounting-shared';
+import { CYCLES, CYCLE_NAME, type Cycle } from '@/lib/expense-forecast';
 
 /* ------------------------------------------------------------------ MA · cash */
 export function MaCash({ books, today, ym }: { books: Books; today: string; ym: string }) {
@@ -127,6 +129,8 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
   const catOf = (e: Books['entries'][number]): CashCat | undefined => {
     // Salary / advance paid from Ish haqi — one category, whatever the role.
     if (e.source?.startsWith(PAY_SOURCE)) return { k: 'pay', n: PAY_CAT_NAME, dir: 'out', acc: e.debit };
+    const own = e.cat ? allCats.find((c) => c.k === e.cat) : undefined;
+    if (own) return own;
     const dir = isCash(e.debit) ? 'in' : 'out';
     const other = dir === 'in' ? e.credit : e.debit;
     const list = allCats.filter((c) => c.dir === dir && c.acc === other);
@@ -155,7 +159,7 @@ function CashBook({ books, today, ym }: { books: Books; today: string; ym: strin
     const description = f.note.trim() ? `${cat.n} — ${f.note.trim()}` : cat.n;
     const [debit, credit] = cat.dir === 'in' ? [f.method, cat.acc] : [cat.acc, f.method];
     run(
-      () => addJournalEntryAction({ id: editId ?? undefined, date: f.date, doc: editId ? editDoc : '', description, debit, credit, amount: f.amount ?? 0 }),
+      () => addJournalEntryAction({ id: editId ?? undefined, date: f.date, doc: editId ? editDoc : '', description, debit, credit, amount: f.amount ?? 0, cat: cat.k }),
       editId ? 'Yozuv saqlandi' : cat.dir === 'in' ? 'Kirim qo‘shildi' : 'Chiqim qo‘shildi',
       () => {
         setF({ ...blank, dir: f.dir, cat: f.cat, method: f.method, date: f.date });
@@ -825,6 +829,22 @@ function CashCategories({ books }: { books: Books }) {
                         </span>
                         {c.active ? (
                           <>
+                            {c.dir === 'out' && (
+                              <select
+                                className="sx-inp !h-[28px] !w-auto !px-1.5 text-xs"
+                                aria-label={`${c.n}: takrorlanishi`}
+                                title="Qanchalik tez-tez takrorlanadi — keyingi oy prognozi shundan hisoblanadi"
+                                value={c.cycle}
+                                disabled={pending}
+                                onChange={(e) => run(() => setCashCatCycleAction(c.k, e.target.value as Cycle), 'Takrorlanish saqlandi')}
+                              >
+                                {CYCLES.map((v) => (
+                                  <option key={v} value={v}>
+                                    {CYCLE_NAME[v]}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
                             <button className="sx-btn sm" aria-label="Tahrirlash" onClick={() => setDraft({ k: c.k, n: c.n, dir: c.dir, acc: c.acc })}>
                               <Pencil className="size-3.5" />
                             </button>

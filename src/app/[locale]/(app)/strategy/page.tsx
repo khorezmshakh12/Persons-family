@@ -13,6 +13,7 @@ import type {
 } from '@/lib/strategy';
 import { StrategyWorkspace } from '@/components/strategy/strategy-workspace';
 import { loadBooks } from '@/lib/accounting-data';
+import type { Cycle } from '@/lib/expense-forecast';
 import { loadFinInputs } from '@/lib/strategy-finance-data';
 import { loadOkr } from '@/lib/strategy-okr-data';
 import { canFor, canSeeFor } from '@/lib/permissions';
@@ -45,8 +46,9 @@ export default async function StrategyPage({ searchParams }: { searchParams: Pro
   ]);
   const [cats, boxes] = canBook
     ? await Promise.all([
-        sql<{ k: string; n: string; acc: string }[]>`
-          select k, n, acc from acct_cash_cats where dir = 'out' and active order by sort, n`.catch(() => []),
+        // Hidden types too: their names and cycles still label old rows and the forecast.
+        sql<{ k: string; n: string; acc: string; active: boolean; cycle: Cycle }[]>`
+          select k, n, acc, active, cycle from acct_cash_cats where dir = 'out' order by sort, n`.catch(() => []),
         loadCashBoxes().catch(() => []),
       ])
     : [[], []];

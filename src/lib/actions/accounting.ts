@@ -24,6 +24,7 @@ import { requireCap } from '@/lib/auth/require-admin';
 import { loadClosePeriod, type ClosePeriod } from '@/lib/acct-close';
 import { createSignedReadUrl, createSignedWriteUrl, deleteObject } from '@/lib/gcp/storage';
 import { cashDescription, templateDoc } from '@/lib/accounting-cash';
+import { CYCLES, type Cycle } from '@/lib/expense-forecast';
 
 type Result = { error?: string };
 
@@ -82,6 +83,9 @@ const entrySchema = z.object({
   debit: code,
   credit: code,
   amount: money,
+  /** Kirim-chiqim type (acct_cash_cats.k). Must sit on the row's own side:
+   * an expense type on the debit, an income type on the credit. */
+  cat: z.string().regex(/^[a-z0-9_]{1,24}$/).nullish(),
 });
 
 export async function addJournalEntryAction(input: z.input<typeof entrySchema>): Promise<Result> {
@@ -90,18 +94,25 @@ export async function addJournalEntryAction(input: z.input<typeof entrySchema>):
   const p = entrySchema.safeParse(input);
   if (!p.success || p.data.debit === p.data.credit) return { error: 'invalidInput' };
   const amount = Math.round(p.data.amount * 100) / 100;
+  const cat = p.data.cat ?? null;
   try {
+    if (cat) {
+      const [ok] = await sql`
+        select 1 from acct_cash_cats
+        where k = ${cat} and ((dir = 'out' and acc = ${p.data.debit}) or (dir = 'in' and acc = ${p.data.credit}))`;
+      if (!ok) return { error: 'invalidInput' };
+    }
     if (p.data.id) {
       const res = await sql`
         update acct_entries set entry_date = ${p.data.date}, doc = ${p.data.doc}, description = ${p.data.description},
-          debit = ${p.data.debit}, credit = ${p.data.credit}, amount = ${amount}
+          debit = ${p.data.debit}, credit = ${p.data.credit}, amount = ${amount}, cat = ${cat}
         where id = ${p.data.id} and source is null`;
       if (res.count === 0) return { error: 'notFound' };
     } else {
       await sql`
-        insert into acct_entries (entry_date, doc, description, debit, credit, amount, created_by)
+        insert into acct_entries (entry_date, doc, description, debit, credit, amount, cat, created_by)
         values (${p.data.date}, ${p.data.doc}, ${p.data.description}, ${p.data.debit}, ${p.data.credit},
-          ${amount}, ${g.id})`;
+          ${amount}, ${cat}, ${g.id})`;
     }
   } catch (error) {
     return { error: closedOr(error) };
@@ -723,9 +734,9 @@ export async function applyCashTemplatesAction(month: string): Promise<Result & 
         if (exists) continue;
         const [debit, credit] = cat.dir === 'in' ? [t.method, cat.acc] : [cat.acc, t.method];
         await tx`
-          insert into acct_entries (entry_date, doc, description, debit, credit, amount, created_by)
+          insert into acct_entries (entry_date, doc, description, debit, credit, amount, cat, created_by)
           values (${`${month}-${String(t.day).padStart(2, '0')}`}, ${templateDoc(t.id)}, ${cashDescription(cat.n, t.note)},
-                  ${debit}, ${credit}, ${t.amount}, ${g.id})`;
+                  ${debit}, ${credit}, ${t.amount}, ${cat.k}, ${g.id})`;
         count++;
       }
     });
@@ -787,6 +798,21 @@ export async function deleteCashCatAction(k: string): Promise<Result> {
     return { error: 'updateFailed' };
   }
   logSystemAction('acct.cat_hide', `Hid cash category ${k}`);
+  return done();
+}
+
+/** How often an expense type comes back — 'auto' lets the forecast detect it. */
+export async function setCashCatCycleAction(k: string, cycle: Cycle): Promise<Result> {
+  const g = await requireEditor();
+  if ('error' in g) return g;
+  if (!catKey.safeParse(k).success || !(CYCLES as string[]).includes(cycle)) return { error: 'invalidInput' };
+  try {
+    const res = await sql`update acct_cash_cats set cycle = ${cycle} where k = ${k} and dir = 'out'`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  logSystemAction('acct.cat_cycle', `Expense type ${k} recurrence → ${cycle}`);
   return done();
 }
 

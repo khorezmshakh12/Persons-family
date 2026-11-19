@@ -6,12 +6,27 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { addJournalEntryAction, deleteJournalEntryAction } from '@/lib/actions/accounting';
 import { MONF } from '@/lib/strategy';
-import { growth, moneyMonth, moneySeries, type MoneyItem, type MoneyLine } from '@/lib/strategy-money';
+import { growth, moneyMonth, moneySeries, REVENUE, type MoneyItem, type MoneyLine } from '@/lib/strategy-money';
 import { MonthPicker, type BooksLite } from './view-finance';
 import { ask, toast } from './suite-shell';
 import { formatUZS } from '@/lib/format-currency';
+import {
+  addMonthsYm,
+  backtest,
+  CYCLES,
+  CYCLE_NAME,
+  expenseRows,
+  forecastMonth,
+  forecastType,
+  KIND_NAME,
+  nextDay,
+  type Cycle,
+  type ForecastKind,
+  type TypeForecast,
+} from '@/lib/expense-forecast';
+import { setCashCatCycleAction } from '@/lib/actions/accounting';
 
-export type ExpenseCat = { k: string; n: string; acc: string };
+export type ExpenseCat = { k: string; n: string; acc: string; active: boolean; cycle: Cycle };
 export type CashBoxLite = { code: string; name: string };
 
 const som = (v: number) => formatUZS(Math.round(v));
@@ -44,7 +59,7 @@ export function IncomeExpenseView({
 }: {
   books: BooksLite;
   today: string;
-  /** Kirim-chiqim expense categories (acct_cash_cats, dir 'out'). */
+  /** Expense types (acct_cash_cats, dir 'out'), hidden ones included. */
   cats: ExpenseCat[];
   boxes: CashBoxLite[];
   /** accounting.edit — may write an expense into the journal. */
@@ -54,8 +69,10 @@ export function IncomeExpenseView({
   const [ym, setYm] = useState(currentYm);
   const [adding, setAdding] = useState(false);
   const { accounts, opening, entries } = books;
-  const M = useMemo(() => moneyMonth(accounts, opening, entries, ym), [accounts, opening, entries, ym]);
-  const P = useMemo(() => moneyMonth(accounts, opening, entries, prevYm(ym)), [accounts, opening, entries, ym]);
+  const catNames = useMemo(() => Object.fromEntries(cats.map((c) => [c.k, c.n])), [cats]);
+  const M = useMemo(() => moneyMonth(accounts, opening, entries, ym, catNames), [accounts, opening, entries, ym, catNames]);
+  const P = useMemo(() => moneyMonth(accounts, opening, entries, prevYm(ym), catNames), [accounts, opening, entries, ym, catNames]);
+  const formCats = useMemo(() => cats.filter((c) => c.active), [cats]);
   const S = useMemo(() => moneySeries(accounts, opening, entries, ym, 12), [accounts, opening, entries, ym]);
   const top = Math.max(1, ...S.flatMap((x) => [x.income, x.expense]));
   const gIn = growth(M.income, P.income);
@@ -81,7 +98,7 @@ export function IncomeExpenseView({
         )}
       </div>
 
-      {adding && canBook && <EntryForm ym={ym} today={today} cats={cats} boxes={boxes} onDone={() => setAdding(false)} />}
+      {adding && canBook && <EntryForm ym={ym} today={today} cats={formCats} allCats={cats} books={books} boxes={boxes} onDone={() => setAdding(false)} />}
 
       {!M.booked && (
         <div className="s3-note">
@@ -136,7 +153,7 @@ export function IncomeExpenseView({
               <b className="neg tabular-nums">−{som(M.refunds)}</b>
             </div>
           )}
-          <Recent title="To‘lovlar" items={M.lastIn} canBook={canBook} cats={cats} boxes={boxes} />
+          <Recent title="To‘lovlar" items={M.lastIn} canBook={canBook} cats={cats} boxes={boxes} books={books} />
         </section>
 
         <section className="sx-card s3-card">
@@ -145,9 +162,11 @@ export function IncomeExpenseView({
             <span className="s3-src">Hisob-kitob · ish haqi avtomatik</span>
           </div>
           <Lines lines={M.expenseBy} total={M.expense} tone="out" empty="Bu oy xarajat yozilmagan" />
-          <Recent title="Xarajatlar ro‘yxati" items={M.lastOut} negative canBook={canBook} cats={cats} boxes={boxes} />
+          <Recent title="Xarajatlar ro‘yxati" items={M.lastOut} negative canBook={canBook} cats={cats} boxes={boxes} books={books} />
         </section>
       </div>
+
+      <Forecast books={books} cats={cats} ym={ym} today={today} canBook={canBook} />
     </div>
   );
 }
@@ -195,6 +214,7 @@ function Recent({
   canBook,
   cats,
   boxes,
+  books,
 }: {
   title: string;
   items: MoneyItem[];
@@ -202,6 +222,7 @@ function Recent({
   canBook: boolean;
   cats: ExpenseCat[];
   boxes: CashBoxLite[];
+  books: BooksLite;
 }) {
   const router = useRouter();
   const [all, setAll] = useState(false);
@@ -226,7 +247,7 @@ function Recent({
       </div>
       {shown.map((x) =>
         editing === x.id ? (
-          <EntryForm key={x.id} entry={x} today={x.date} ym={x.date.slice(0, 7)} cats={cats} boxes={boxes} onDone={() => setEditing(null)} />
+          <EntryForm key={x.id} entry={x} today={x.date} ym={x.date.slice(0, 7)} cats={cats.filter((c) => c.active || c.k === x.cat)} allCats={cats} books={books} boxes={boxes} onDone={() => setEditing(null)} />
         ) : (
           <div key={x.id} className="s3-li">
             <span className="dt tabular-nums">{ddmm(x.date)}</span>
@@ -265,46 +286,76 @@ function Recent({
   );
 }
 
+/** Plain recurrence line for one type, from the same forecast the table shows. */
+function cycleHint(t: TypeForecast, name: string, target: string): string {
+  if (!t.payments) return `${name}: hali yozuv yo‘q — birinchi xarajatdan keyin takrorlanishi hisoblana boshlaydi.`;
+  const every = t.gapDays ? `odatda har ~${t.gapDays} kunda` : 'takrorlanishi hali noma’lum';
+  return `${name}: 180 kunda ${t.payments} marta, ${every}, bitta to‘lov ~${som(t.perPayment)} so‘m. ${monthName(target)} prognozi: ${som(t.amount)} so‘m (${KIND_NAME[t.kind].toLowerCase()}).`;
+}
+
 /** New expense (entry undefined) or an edit of one hand-typed journal row.
- * An expense row keeps category / cash box pickers; any other hand-typed row
+ * A new expense must name its type — statistics and the forecast group by it.
+ * An expense row keeps type / cash box pickers; any other hand-typed row
  * (e.g. a manual income) keeps its accounts and edits date, sum and text. */
 function EntryForm({
   entry,
   ym,
   today,
   cats,
+  allCats,
+  books,
   boxes,
   onDone,
 }: {
   entry?: MoneyItem;
   ym: string;
   today: string;
+  /** Types offered in the picker (active ones, plus the row's own). */
   cats: ExpenseCat[];
+  allCats: ExpenseCat[];
+  books: BooksLite;
   boxes: CashBoxLite[];
   onDone: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const fitted = !entry || (cats.some((c) => c.acc === entry.debit) && boxes.some((b) => b.code === entry.credit));
+  const own = entry?.cat ? allCats.find((c) => c.k === entry.cat) : undefined;
+  const fitted = !entry || ((!!own || cats.some((c) => c.acc === entry.debit)) && boxes.some((b) => b.code === entry.credit));
   // Default date: today in the current month, else the month's 1st.
   const [date, setDate] = useState(entry?.date ?? (today.startsWith(ym) ? today : `${ym}-01`));
-  const [cat, setCat] = useState((entry && cats.find((c) => c.acc === entry.debit)?.k) ?? cats[0]?.k ?? '');
+  const [cat, setCat] = useState(entry ? (own?.k ?? cats.find((c) => c.acc === entry.debit)?.k ?? '') : '');
   const [box, setBox] = useState(entry?.credit && boxes.some((b) => b.code === entry.credit) ? entry.credit : (boxes[0]?.code ?? ''));
   const [amount, setAmount] = useState(entry ? String(Math.abs(entry.amount)) : '');
   const [note, setNote] = useState(entry?.text ?? '');
   const sum = Number(amount.replace(/\D/g, '')) || 0;
-  const c = cats.find((x) => x.k === cat);
+  const c = allCats.find((x) => x.k === cat);
   const ready = (fitted ? !!c && !!box : true) && sum > 0 && note.trim().length >= 2;
+  const target = addMonthsYm(today.slice(0, 7), 1);
+  const hint = useMemo(() => {
+    if (!c) return null;
+    if (c.acc === REVENUE) return `${c.n}: xarajat emas — daromaddan ayriladi (Operatsiya HQ qaytarishlari kabi).`;
+    const t = forecastType(c.k, expenseRows(books.accounts, books.entries), nextDay(today), target, c.cycle);
+    return cycleHint(t, c.n, target);
+  }, [c, books, today, target]);
 
   if (!entry && (!cats.length || !boxes.length))
-    return <div className="s3-note">Xarajat turkumlari yoki kassa sozlanmagan. Ularni Hisob-kitob › Kirim-chiqim’da qo‘shing.</div>;
+    return <div className="s3-note">Xarajat turlari yoki kassa sozlanmagan. Ularni Hisob-kitob › Kirim-chiqim’da qo‘shing.</div>;
 
   const save = () =>
     start(async () => {
       const debit = fitted ? c!.acc : entry!.debit;
       const credit = fitted ? box : entry!.credit;
       const description = (entry ? note.trim() : `${c!.n} — ${note.trim()}`).slice(0, 300);
-      const res = await addJournalEntryAction({ id: entry?.id, date, doc: '', description, debit, credit, amount: sum });
+      const res = await addJournalEntryAction({
+        id: entry?.id,
+        date,
+        doc: '',
+        description,
+        debit,
+        credit,
+        amount: sum,
+        cat: fitted ? c!.k : (entry?.cat ?? null),
+      });
       if (res.error) return void toast.error(errText(res.error));
       toast.success(entry ? 'Yozuv saqlandi' : `Xarajat yozildi: ${som(sum)} so‘m`);
       onDone();
@@ -326,8 +377,11 @@ function EntryForm({
       {fitted && (
         <>
           <label>
-            <span>Turkum</span>
-            <select id={`s3-cat-${entry?.id ?? 'new'}`} className="sx-inp" value={cat} onChange={(e) => setCat(e.target.value)}>
+            <span>Xarajat turi *</span>
+            <select id={`s3-cat-${entry?.id ?? 'new'}`} className="sx-inp" value={cat} onChange={(e) => setCat(e.target.value)} required>
+              <option value="" disabled>
+                — turini tanlang —
+              </option>
               {cats.map((x) => (
                 <option key={x.k} value={x.k}>
                   {x.n}
@@ -365,6 +419,132 @@ function EntryForm({
           </button>
         )}
       </span>
+      {fitted && <div className="s3-hint">{hint ?? 'Avval xarajat turini tanlang — statistika va keyingi oy prognozi shu turga qarab hisoblanadi.'}</div>}
     </form>
+  );
+}
+
+const chipOf = (k: ForecastKind) => (k === 'few' ? 'x' : k === 'frequent' ? 'f' : k === 'periodic' ? 'p' : 'm');
+
+/** Keyingi oy prognozi: every type from its own recurrence, payroll from
+ * the last posted month, and last month's forecast checked against reality. */
+function Forecast({ books, cats, ym, today, canBook }: { books: BooksLite; cats: ExpenseCat[]; ym: string; today: string; canBook: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const currentYm = today.slice(0, 7);
+  const target = addMonthsYm(ym, 1);
+  const asOf = ym >= currentYm ? nextDay(today) : `${target}-01`;
+  const cycles = useMemo(() => Object.fromEntries(cats.map((c) => [c.k, c.cycle])), [cats]);
+  const F = useMemo(() => forecastMonth(books.accounts, books.entries, cycles, asOf, target), [books, cycles, asOf, target]);
+  const btMonth = ym < currentYm ? ym : prevYm(ym);
+  const B = useMemo(() => backtest(books.accounts, books.entries, cycles, btMonth), [books, cycles, btMonth]);
+  const accName = (code: string) => books.accounts.find((a) => a.code === code)?.name ?? code;
+  const nameOf = (k: string) => (k.startsWith('acc:') ? `${accName(k.slice(4))} (turi yo‘q)` : (cats.find((c) => c.k === k)?.n ?? k));
+  const setCycle = (k: string, v: Cycle) =>
+    start(async () => {
+      const res = await setCashCatCycleAction(k, v);
+      if (res.error) return void toast.error(errText(res.error));
+      toast.success('Takrorlanish saqlandi — prognoz qayta hisoblandi');
+      router.refresh();
+    });
+  const few = F.types.filter((t) => t.kind === 'few').length;
+
+  return (
+    <section className="sx-card s3-card">
+      <div className="s3-ch">
+        <h3>Keyingi oy prognozi · {monthName(target)}</h3>
+        <span className="s3-src">har tur o‘z takrorlanishidan · ish haqi Moliya’dan</span>
+      </div>
+      <div className="s3-fc-sum">
+        <div>
+          <div className="s3-k">Jami prognoz</div>
+          <b className="tabular-nums">{som(F.total)} so‘m</b>
+        </div>
+        <div>
+          <div className="s3-k">Ish haqi</div>
+          <span className="tabular-nums">{F.payroll ? `${som(F.payroll.amount)} · ${monthName(F.payroll.month)} bo‘yicha` : 'hali hisoblanmagan'}</span>
+        </div>
+        <div>
+          <div className="s3-k">{monthName(btMonth)} tekshiruvi</div>
+          <span className="tabular-nums">
+            {B.actual > 0 ? `prognoz ${som(B.forecast)} · haqiqiy ${som(B.actual)} · aniqlik ${B.accuracy}%` : 'bu oy xarajat yozilmagan'}
+          </span>
+        </div>
+      </div>
+      {few > 0 && (
+        <div className="s3-note">
+          {few} ta turda ma’lumot kam: so‘nggi 4 oyning 3 tasidan kamida uchragan. Ular prognozga 0 qo‘shadi — takrorlanishini qo‘lda belgilang.
+        </div>
+      )}
+      {!F.types.length ? (
+        <div className="s3-empty">So‘nggi 180 kunda xarajat yozilmagan — prognoz uchun ma’lumot yo‘q</div>
+      ) : (
+        <div className="s3-fc-wrap">
+          <table className="s3-fc-t">
+            <thead>
+              <tr>
+                <th>Tur</th>
+                <th>Takrorlanish</th>
+                <th className="r">Aylanish</th>
+                <th className="r">1 to‘lov</th>
+                <th>Oxirgi</th>
+                <th className="r">{monthName(target)}</th>
+                <th>Hisob asosi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {F.payroll && (
+                <tr>
+                  <td>Ish haqi va soliqlari</td>
+                  <td>
+                    <span className="s3-chip m">Oylik · avto</span>
+                  </td>
+                  <td className="r">—</td>
+                  <td className="r">—</td>
+                  <td>Moliya</td>
+                  <td className="r">{som(F.payroll.amount)}</td>
+                  <td className="why">oxirgi hisoblangan oy ({monthName(F.payroll.month)})</td>
+                </tr>
+              )}
+              {F.types.map((t) => (
+                <tr key={t.key}>
+                  <td>{nameOf(t.key)}</td>
+                  <td>
+                    {canBook && !t.key.startsWith('acc:') ? (
+                      <select
+                        id={`s3-cyc-${t.key}`}
+                        className="sx-inp s3-cyc"
+                        aria-label={`${nameOf(t.key)}: takrorlanishi`}
+                        value={t.cycle}
+                        disabled={pending}
+                        onChange={(e) => setCycle(t.key, e.target.value as Cycle)}
+                      >
+                        {CYCLES.map((v) => (
+                          <option key={v} value={v}>
+                            {v === 'auto' ? `Avto${t.cycle === 'auto' ? `: ${KIND_NAME[t.kind]}` : ''}` : CYCLE_NAME[v]}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className={cn('s3-chip', chipOf(t.kind))}>{KIND_NAME[t.kind]}</span>
+                    )}
+                  </td>
+                  <td className="r">{t.gapDays ? `~${t.gapDays} kun` : '—'}</td>
+                  <td className="r">{t.perPayment ? som(t.perPayment) : '—'}</td>
+                  <td>{t.last ? ddmm(t.last) : '—'}</td>
+                  <td className="r">{som(t.amount)}</td>
+                  <td className="why">{t.basis}</td>
+                </tr>
+              ))}
+              <tr className="tot">
+                <td colSpan={5}>Jami</td>
+                <td className="r">{som(F.total)}</td>
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }

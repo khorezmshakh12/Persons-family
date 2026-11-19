@@ -15,6 +15,8 @@ export type Entry = {
   credit: string;
   amount: number;
   source: string | null;
+  /** Kirim-chiqim category (acct_cash_cats.k) the row was written under; null for auto postings. */
+  cat?: string | null;
   /** Receipt photo / PDF (contract-files bucket), v8-B. */
   receipt_path?: string | null;
 };
