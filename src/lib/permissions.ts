@@ -187,6 +187,8 @@ export type Capability =
   | 'accounting.edit'
   | 'operations.edit'
   | 'operations.balanceFix' // Operation HQ › remove a wrong minus from a student's balance
+  | 'operations.stats' // Operation HQ › Statistika: student and lead figures
+  | 'operations.statsMoney' // Operation HQ › Statistika: money figures (collected, methods, debt sum)
   | 'checklist.manage'
   | 'checklist.monitor' // Jamoa tabi: har bir xodimning bandlari (CEO/COO'nikidan tashqari)
   | 'checklist.feedback' // checklistga kunlik / bandga izoh, xodimga xabar boradi
@@ -226,6 +228,11 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'operations.edit': SECTION_ROLES.operations,
   // Balansni tuzatish — CEO, COO, Office Manager (owner, 2026-10-31).
   'operations.balanceFix': ['ceo', 'coo', 'office_manager'],
+  // Statistika (owner, 2026-11-19): student and lead figures for Operation HQ
+  // staff (not the Sales manager); money figures CEO only — Section access
+  // opens either per role or person.
+  'operations.stats': SECTION_ROLES.operations.filter((r) => r !== 'sales_manager'),
+  'operations.statsMoney': ['ceo'],
   // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
   'checklist.manage': ['ceo', 'coo'],
   // Kuzatish va feedback — CEO, COO; HR'ga Section access orqali (owner, 2026-11-13).
@@ -352,6 +359,7 @@ export const SECTION_FUNCTIONS: Partial<Record<SectionKey, AccessFunction[]>> = 
   selfDevelopment: [{ key: 'selfDev.viewAll' }, { key: 'selfDev.review', ceoOnly: true }],
   taskTracker: [{ key: 'checklist.monitor' }, { key: 'checklist.feedback' }, { key: 'checklist.manage' }],
   hr: [{ key: 'attendance' }, { key: 'growth.viewAll' }, { key: 'growth.review', ceoOnly: true }],
+  operations: [{ key: 'operations.stats' }, { key: 'operations.statsMoney', ceoOnly: true }],
 };
 export const FUNCTION_KEYS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.map((f) => f.key));
 const CEO_ONLY_FUNCTIONS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.filter((f) => f.ceoOnly).map((f) => f.key));

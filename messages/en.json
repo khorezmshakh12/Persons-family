@@ -2108,6 +2108,14 @@
         "checklist_feedback": {
           "name": "Give feedback",
           "desc": "Day note and item note; the employee is notified on the site and in Telegram"
+        },
+        "operations_stats": {
+          "name": "Statistics: students and leads",
+          "desc": "New, active, left and frozen students, debtor count and new leads"
+        },
+        "operations_statsMoney": {
+          "name": "Statistics: money figures",
+          "desc": "Collected, payments, methods, charges, debt total and centre health"
         }
       }
     },

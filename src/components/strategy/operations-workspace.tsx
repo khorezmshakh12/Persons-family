@@ -18,6 +18,10 @@ export type OpsData = {
   canEdit: boolean;
   /** Sees money figures (Statistika, To'lovlar, kassa). False for the Sales manager. */
   money: boolean;
+  /** Statistika: student and lead figures (operations.stats). */
+  statsPeople: boolean;
+  /** Statistika: money figures (operations.statsMoney, CEO by default). */
+  statsMoney: boolean;
   /** May take a wrong minus off a student's balance (CEO, COO, Office Manager). */
   canFixBalance: boolean;
   today: { day: string };
@@ -38,11 +42,17 @@ const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string 
   { v: 'sales', n: 'Sales', Icon: KanbanSquare },
 ];
 const KEY = 'persons-ops-tab';
-// Sales manager: no Statistika / To'lovlar (owner, 2026-10-31). Module-level so the reference is stable.
-const SALES_TABS = TABS.filter((t) => t.v !== 'ov' && t.v !== 'pay');
+// Module-level so each reference is stable: Statistika follows the two
+// Section access functions, To'lovlar the money gate (Sales manager has neither).
+const TAB_SETS = new Map<string, typeof TABS>();
+const tabsFor = (stats: boolean, pay: boolean) => {
+  const k = `${stats}:${pay}`;
+  if (!TAB_SETS.has(k)) TAB_SETS.set(k, TABS.filter((t) => (t.v !== 'ov' || stats) && (t.v !== 'pay' || pay)));
+  return TAB_SETS.get(k)!;
+};
 
 export function OperationsWorkspace({ data }: { data: OpsData }) {
-  const tabs = data.money ? TABS : SALES_TABS;
+  const tabs = tabsFor(data.statsPeople || data.statsMoney, data.money);
   const [tab, setTab] = useState<Tab>(tabs[0].v);
   const [openLead, setOpenLead] = useState<string | null>(null);
   const restored = useRef(false);
@@ -95,7 +105,7 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
       </div>
       <section className="px-4 pb-10 sm:px-7">
         <div key={tab} className="sx-fade">
-          {tab === 'ov' && data.money && <OpsStats data={data} />}
+          {tab === 'ov' && (data.statsPeople || data.statsMoney) && <OpsStats data={data} />}
           {tab === 'stu' && <OpsStudents data={data} />}
           {tab === 'pay' && data.money && <OpsPayments data={data} />}
           {tab === 'sales' && <OpsSales data={data} openId={openLead} onOpenChange={setOpenLead} />}

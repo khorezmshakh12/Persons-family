@@ -1,7 +1,7 @@
 'use server';
 
 import { getAuthState } from '@/lib/auth/session';
-import { canSeeOpsMoney } from '@/lib/permissions';
+import { canFor } from '@/lib/permissions';
 import { REAL_PAYMENT } from '@/lib/ops-students';
 import { sql } from '@/lib/db/client';
 import { feeAfterDiscount } from '@/lib/billing';
@@ -13,7 +13,7 @@ import { startOfTashkentMonthKey, tashkentDayKey } from '@/lib/time';
 
 export async function getOpsHealthAction(month?: string): Promise<{ health?: Health; error?: string }> {
   const { profile } = await getAuthState();
-  if (!profile || !canSeeOpsMoney(profile)) return { error: 'forbidden' };
+  if (!profile || !canFor(profile, 'operations.statsMoney')) return { error: 'forbidden' };
   const today = tashkentDayKey();
   const cur = startOfTashkentMonthKey();
   const m = month && /^\d{4}-\d{2}-01$/.test(month) && month <= cur && month >= '2024-01-01' ? month : cur;
