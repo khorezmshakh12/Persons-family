@@ -149,13 +149,7 @@ export function GrowthRoadmapView({
   side: React.ReactNode;
 }) {
   const { nodes, links, H } = layout(roadmap);
-  const stageOf = new Map<string, string>();
-  for (const s of roadmap.sections) for (const id of [s.id, ...stageNodeIds(s)]) stageOf.set(id, s.id);
   const st = (n: Node) => (n.main ? PHASE_CLASS[phases[n.id] ?? 'current'] : (status[n.id] ?? 'todo'));
-  const frozen = (id: string) => {
-    const ph = phases[stageOf.get(id) ?? ''];
-    return ph === 'approved' || ph === 'waiting';
-  };
   const topics = nodes.filter((n) => !n.main);
   const doneN = topics.filter((n) => st(n) === 'done').length;
   const progN = topics.filter((n) => st(n) === 'progress').length;
@@ -208,7 +202,7 @@ export function GrowthRoadmapView({
                 )}
                 <span className="truncate">{n.t}</span>
                 {n.sub > 0 && <span className="cnt">{n.sub}</span>}
-                {editable && !frozen(n.id) && <InlineRename title={n.t} onSave={(t) => onRename(n.id, t)} />}
+                {editable && <InlineRename title={n.t} onSave={(t) => onRename(n.id, t)} />}
               </button>
             ))}
           </div>
@@ -403,7 +397,7 @@ export function GrowthNodeDrawer({
   status,
   phases,
   review,
-  submitted,
+  sent,
   own,
   canReview,
   onClose,
@@ -417,7 +411,8 @@ export function GrowthNodeDrawer({
   status: Record<string, NodeStatus>;
   phases: Record<string, StagePhase>;
   review: Record<string, StageReview>;
-  submitted: boolean;
+  /** This stage was sent to the CEO exactly as it is in the draft. */
+  sent: boolean;
   /** The viewer owns this roadmap (may edit / tick / mark). */
   own: boolean;
   canReview: boolean;
@@ -437,7 +432,7 @@ export function GrowthNodeDrawer({
   const rev = review[sec.id];
   const topic = main ? undefined : [...sec.left, ...sec.right].map((t) => findIn(t, nodeId)).find(Boolean);
   const canTick = own && phase === 'current';
-  const canEdit = own && (phase === 'current' || phase === 'locked');
+  const canEdit = own;
   const ids = stageNodeIds(sec);
   const doneIds = ids.filter((id) => status[id] === 'done' || status[id] === 'skip').length;
   const complete = stageComplete(sec, status);
@@ -494,8 +489,8 @@ export function GrowthNodeDrawer({
             </div>
             {own && phase === 'current' && (
               <>
-                {!submitted && <p className="text-xs text-au-faint">Avval roadmap’ni CEO’ga topshiring.</p>}
-                <button className="sx-btn primary self-start" disabled={busy || !complete || !submitted} onClick={() => run(() => onMark(sec.id, true))}>
+                {!sent && <p className="text-xs text-au-faint">Avval o‘zgarishlarni «CEO’ga yuborish» bilan yuboring.</p>}
+                <button className="sx-btn primary self-start" disabled={busy || !complete || !sent} onClick={() => run(() => onMark(sec.id, true))}>
                   <Check className="size-4" /> Bosqichni yakunladim
                 </button>
                 {!complete && <p className="text-xs text-au-faint">Barcha mavzu va bandlar «Bajarildi» yoki «O‘tkazish» bo‘lishi kerak.</p>}
@@ -627,8 +622,6 @@ export function GrowthRoadmapEditor({
     fresh ? [{ id: growthId(), t: '', q: '', left: [{ id: growthId(), t: '', ch: [] }], right: [], isNew: true }] : roadmap.sections,
   );
   const [busy, setBusy] = useState(false);
-  const isFrozen = (s: Stage) => phases[s.id] === 'approved' || phases[s.id] === 'waiting';
-  const frozenCount = stages.filter(isFrozen).length;
 
   const patch = (i: number, p: Partial<Stage>) => setStages((s) => s.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const move = (i: number, d: -1 | 1) =>
@@ -673,24 +666,23 @@ export function GrowthRoadmapEditor({
         <div className="dr-sec">Bosqichlar · {stages.length}</div>
         <div className="grid gap-3">
           {stages.map((s, i) => {
-            const fz = isFrozen(s);
+            const ph = phases[s.id];
             return (
-              <div key={s.id} className={cn('grid gap-2 rounded-au-ctl border border-au-line bg-au-card-2 p-3', fz && 'opacity-70')}>
+              <div key={s.id} className="grid gap-2 rounded-au-ctl border border-au-line bg-au-card-2 p-3">
                 <div className="flex items-center gap-2">
                   <span className="grid size-6 shrink-0 place-items-center rounded-full bg-au-ink text-[11px] font-bold text-au-card">
-                    {fz ? <Lock className="size-3" /> : i + 1}
+                    {i + 1}
                   </span>
-                  <input className="sx-inp !w-24 shrink-0" disabled={fz} maxLength={30} placeholder="2027 · Q1" value={s.q} onChange={(e) => patch(i, { q: e.target.value })} aria-label="Muddat" />
-                  <input className="sx-inp min-w-0 flex-1 font-semibold" disabled={fz} maxLength={120} placeholder="Bosqich nomi" value={s.t} onChange={(e) => patch(i, { t: e.target.value })} />
-                  <button className="sx-chipb" disabled={fz || i <= frozenCount} onClick={() => move(i, -1)} aria-label="Yuqoriga">
+                  <input className="sx-inp !w-24 shrink-0" maxLength={30} placeholder="2027 · Q1" value={s.q} onChange={(e) => patch(i, { q: e.target.value })} aria-label="Muddat" />
+                  <input className="sx-inp min-w-0 flex-1 font-semibold" maxLength={120} placeholder="Bosqich nomi" value={s.t} onChange={(e) => patch(i, { t: e.target.value })} />
+                  <button className="sx-chipb" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Yuqoriga">
                     <ArrowUp className="size-3.5" />
                   </button>
-                  <button className="sx-chipb" disabled={fz || i === stages.length - 1} onClick={() => move(i, 1)} aria-label="Pastga">
+                  <button className="sx-chipb" disabled={i === stages.length - 1} onClick={() => move(i, 1)} aria-label="Pastga">
                     <ArrowDown className="size-3.5" />
                   </button>
                   <button
                     className="sx-chipb text-au-bad"
-                    disabled={fz}
                     aria-label="Bosqichni o‘chirish"
                     onClick={async () => {
                       const n = countNodes([...s.left, ...s.right]);
@@ -701,27 +693,27 @@ export function GrowthRoadmapEditor({
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
-                {fz && <span className="pl-8 text-[11px] text-au-faint">{phases[s.id] === 'approved' ? 'CEO tasdiqlagan — o‘zgarmaydi' : 'CEO tasdig‘ida — o‘zgarmaydi'}</span>}
+                {(ph === 'approved' || ph === 'waiting') && (
+                  <span className="pl-8 text-[11px] text-au-faint">
+                    {ph === 'approved' ? 'CEO tasdiqlagan' : 'CEO tasdig‘ida'} — o‘zgartirsangiz, «CEO’ga yuborish»dan keyin qayta tasdiqqa tushadi
+                  </span>
+                )}
                 <div className="grid gap-2 pl-8">
                   {SIDES.map(([side, label]) => (
                     <div key={side} className="grid content-start gap-1.5">
                       <span className="text-[11px] font-semibold text-au-faint">{label} tomon</span>
                       {s[side].map((x, j) => (
                         <div key={x.id} className="flex items-center gap-1">
-                          <input className="sx-inp h-8 min-w-0 flex-1 text-[13px]" disabled={fz} maxLength={120} placeholder="Mavzu / maqsad" value={x.t} onChange={(e) => setTopic(i, side, j, e.target.value)} />
+                          <input className="sx-inp h-8 min-w-0 flex-1 text-[13px]" maxLength={120} placeholder="Mavzu / maqsad" value={x.t} onChange={(e) => setTopic(i, side, j, e.target.value)} />
                           {x.ch.length > 0 && <span className="shrink-0 text-[11px] text-au-faint">{countNodes(x.ch)} band</span>}
-                          {!fz && (
-                            <button className="sx-chipb" aria-label="Mavzuni o‘chirish" onClick={() => patch(i, { [side]: s[side].filter((_, k) => k !== j) })}>
-                              <X className="size-3" />
-                            </button>
-                          )}
+                          <button className="sx-chipb" aria-label="Mavzuni o‘chirish" onClick={() => patch(i, { [side]: s[side].filter((_, k) => k !== j) })}>
+                            <X className="size-3" />
+                          </button>
                         </div>
                       ))}
-                      {!fz && (
-                        <button className="sx-btn sm justify-self-start text-au-muted" onClick={() => patch(i, { [side]: [...s[side], { id: growthId(), t: '', ch: [] }] })}>
-                          <Plus className="size-3" /> Mavzu
-                        </button>
-                      )}
+                      <button className="sx-btn sm justify-self-start text-au-muted" onClick={() => patch(i, { [side]: [...s[side], { id: growthId(), t: '', ch: [] }] })}>
+                        <Plus className="size-3" /> Mavzu
+                      </button>
                     </div>
                   ))}
                 </div>

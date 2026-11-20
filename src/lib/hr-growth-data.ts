@@ -22,8 +22,10 @@ type Row = {
   node_status: Record<string, NodeStatus> | null;
   stage_state: Record<string, StageReview> | null;
   mind: GrowthMind | null;
+  sent_roadmap: GrowthRoadmap | null;
+  sent_mind: GrowthMind | null;
   /** db/client.ts returns timestamptz as a string, not a Date. */
-  submitted_at: string | Date | null;
+  sent_at: string | Date | null;
 };
 
 const fullName = (r: { first_name: string | null; last_name: string | null }) =>
@@ -38,32 +40,34 @@ function toPlan(r: Row): GrowthPlan {
     nodeStatus: r.node_status ?? {},
     stageState: r.stage_state ?? {},
     mind: r.mind?.ch ? r.mind : EMPTY_MIND,
-    submittedAt: r.submitted_at ? new Date(r.submitted_at).toISOString() : null,
+    sentRoadmap: r.sent_roadmap?.sections ? r.sent_roadmap : EMPTY_ROADMAP,
+    sentMind: r.sent_mind?.ch ? r.sent_mind : EMPTY_MIND,
+    submittedAt: r.sent_at ? new Date(r.sent_at).toISOString() : null,
   };
 }
 
 /**
- * One person's plan. `forCeo`: a roadmap that was never submitted is hidden
- * (empty) — only the mind map is always visible to the CEO.
+ * One person's plan. `forCeo` (CEO / HR looking at someone else's): only the
+ * copy sent with «CEO'ga yuborish» — the draft stays private.
  */
 export async function loadGrowthPlan(userId: string, forCeo = false): Promise<GrowthPlan | null> {
   const [r] = await sql<Row[]>`
     select p.id as user_id, p.first_name, p.last_name, p.role::text as role,
-      g.roadmap, g.node_status, g.stage_state, g.mind, g.submitted_at
+      g.roadmap, g.node_status, g.stage_state, g.mind, g.sent_roadmap, g.sent_mind, g.sent_at
     from profiles p left join hr_growth g on g.user_id = p.id
     where p.id = ${userId}
   `.catch(() => []);
   if (!r) return null;
   const plan = toPlan(r);
-  if (forCeo && !plan.submittedAt) return { ...plan, roadmap: EMPTY_ROADMAP, nodeStatus: {}, stageState: {} };
+  if (forCeo) return { ...plan, roadmap: plan.sentRoadmap, mind: plan.sentMind };
   return plan;
 }
 
-/** CEO's team list: every active employee, roadmap numbers only once submitted. */
+/** CEO / HR team list: every active employee, numbers from the sent copy only. */
 export async function loadGrowthTeam(): Promise<GrowthPerson[]> {
   const rows = await sql<Row[]>`
     select p.id as user_id, p.first_name, p.last_name, p.role::text as role,
-      g.roadmap, g.node_status, g.stage_state, g.mind, g.submitted_at
+      g.roadmap, g.node_status, g.stage_state, g.mind, g.sent_roadmap, g.sent_mind, g.sent_at
     from profiles p left join hr_growth g on g.user_id = p.id
     where p.is_active = true
     order by p.first_name, p.last_name
@@ -71,16 +75,16 @@ export async function loadGrowthTeam(): Promise<GrowthPerson[]> {
   return rows.map((r) => {
     const plan = toPlan(r);
     const submitted = !!plan.submittedAt;
-    const phases = Object.values(stagePhases(plan.roadmap, plan.stageState));
+    const phases = Object.values(stagePhases(plan.sentRoadmap, plan.stageState));
     return {
       userId: plan.userId,
       name: plan.name,
       role: plan.role,
       submitted,
-      stages: submitted ? plan.roadmap.sections.length : 0,
+      stages: submitted ? plan.sentRoadmap.sections.length : 0,
       approved: submitted ? phases.filter((p) => p === 'approved').length : 0,
       waiting: submitted ? phases.filter((p) => p === 'waiting').length : 0,
-      mindNodes: countNodes(plan.mind.ch),
+      mindNodes: countNodes(plan.sentMind.ch),
     };
   });
 }

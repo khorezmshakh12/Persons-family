@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mapNode, stageComplete, stagePhases, type GrowthRoadmap } from '../src/lib/hr-growth';
+import { EMPTY_MIND, canon, growthUnsent, mapNode, stageCanon, stageComplete, stagePhases, type GrowthRoadmap } from '../src/lib/hr-growth';
 
 const rm: GrowthRoadmap = {
   name: 'Yo‘l',
@@ -38,4 +38,17 @@ test('mapNode edits and deletes at any depth', () => {
   const left = mapNode(rm.sections[0].left, 'v1', (n) => ({ ...n, t: 'new' }));
   assert.equal(left[0].ch[0].ch[0].t, 'new');
   assert.equal(mapNode(rm.sections[0].left, 'u1', () => null)[0].ch.length, 0);
+});
+
+test('draft vs sent copy: key order does not matter, content does', () => {
+  // jsonb returns keys in its own order.
+  const fromDb = JSON.parse(JSON.stringify(rm).replace(/"id":"s1","t":"A"/, '"t":"A","id":"s1"')) as GrowthRoadmap;
+  assert.equal(canon(fromDb), canon(rm));
+  assert.equal(growthUnsent({ roadmap: rm, mind: EMPTY_MIND, sentRoadmap: fromDb, sentMind: EMPTY_MIND }), false);
+  const edited = { ...rm, sections: [{ ...rm.sections[0], t: 'A2' }, ...rm.sections.slice(1)] };
+  assert.equal(growthUnsent({ roadmap: edited, mind: EMPTY_MIND, sentRoadmap: rm, sentMind: EMPTY_MIND }), true);
+  assert.notEqual(stageCanon(edited.sections[0]), stageCanon(rm.sections[0]));
+  assert.equal(stageCanon(edited.sections[1]), stageCanon(rm.sections[1]));
+  // A new mind map branch is an unsent change too.
+  assert.equal(growthUnsent({ roadmap: rm, mind: { t: '', ch: [{ id: 'm1', t: 'x', ch: [] }] }, sentRoadmap: rm, sentMind: EMPTY_MIND }), true);
 });
