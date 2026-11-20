@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { AskHost, SuiteTabs, ask, toast } from '@/components/strategy/suite-shell';
 import '@/components/strategy/strategy.css';
+import '@/components/strategy/suite.css';
 import type { NodeStatus } from '@/lib/strategy';
 import { findStageOf, growthUnsent, stageCanon, stagePhases, type GrowthMind, type GrowthPerson, type GrowthPlan, type GrowthRoadmap, type StageReview } from '@/lib/hr-growth';
 import {
@@ -302,14 +303,23 @@ export function GrowthWorkspace({
                     : updateRoadmapNode(roadmap, id, (n) => ({ ...n, t })),
                 )
               }
-              side={picker || ownCard}
+              side={
+                own && picker ? (
+                  <>
+                    {ownCard}
+                    {picker}
+                  </>
+                ) : (
+                  picker || ownCard
+                )
+              }
             />
           )}
           {view === 'mind' && <GrowthMindView mind={mind} rootLabel={base.name} readonly={!own} onChange={updateMind} />}
         </div>
       </section>
 
-      <div className={cn('sx-scrim', drawer && 'open')} onClick={() => setDrawer(null)} />
+      <div className={cn('sx-scrim', drawer && 'open')} onClick={() => drawer?.kind !== 'edit' && setDrawer(null)} />
       <aside className={cn('sx-drawer', drawer && 'open')} aria-label="Tafsilotlar">
         {drawer?.kind === 'node' && (
           <GrowthNodeDrawer

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, CornerDownRight, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ask, toast } from '@/components/strategy/suite-shell';
@@ -622,6 +622,12 @@ export function GrowthRoadmapEditor({
     fresh ? [{ id: growthId(), t: '', q: '', left: [{ id: growthId(), t: '', ch: [] }], right: [], isNew: true }] : roadmap.sections,
   );
   const [busy, setBusy] = useState(false);
+  const initial = useRef(JSON.stringify([name, subtitle, stages]));
+  /** Closing with unsaved edits asks first (Saqlash keeps them). */
+  const close = async () => {
+    if (JSON.stringify([name, subtitle, stages]) !== initial.current && !(await ask('Saqlanmagan o‘zgarishlar bekor qilinsinmi?', { ok: 'Bekor qilish' }))) return;
+    onClose();
+  };
 
   const patch = (i: number, p: Partial<Stage>) => setStages((s) => s.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const move = (i: number, d: -1 | 1) =>
@@ -655,7 +661,7 @@ export function GrowthRoadmapEditor({
       <div className="dr-h">
         <span className="sx-node-chip">Roadmap</span>
         <span className="text-xs text-au-faint">{fresh ? 'Yangi roadmap' : 'Tahrirlash'}</span>
-        <button className="x" onClick={onClose} aria-label="Yopish">
+        <button className="x" onClick={close} aria-label="Yopish">
           <X className="size-4" />
         </button>
       </div>
