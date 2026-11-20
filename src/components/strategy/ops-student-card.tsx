@@ -11,9 +11,11 @@ import { addDaysToKey } from '@/lib/time';
 import type { StudentRow } from '@/lib/ops-students';
 import {
   archiveStudentAction,
+  cancelChargeAction,
   deleteStudentAction,
   fixStudentBalanceAction,
   freezeStudentAction,
+  getOpenChargeAction,
   getStudentCardAction,
   logDebtCallAction,
   manualChargeAction,
@@ -47,6 +49,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   const [notes, setNotes] = useState<StudentNote[] | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [editPay, setEditPay] = useState<string | null>(null);
+  const [cancelCh, setCancelCh] = useState<string | null>(null);
   const today = data.today.day;
   const canEdit = data.canEdit;
 
@@ -89,7 +92,10 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   const g = GRADE[s.grade.grade];
   const archived = s.status === 'archived';
   const next = s.start && s.status === 'active' ? nextDueDate(s.start, today) : null;
-  const signed = (e: StudentCard['ledger'][number]) => (e.type === 'charge' ? -e.amount : e.amount);
+  const signed = (e: StudentCard['ledger'][number]) => (e.type === 'charge' ? (e.cancelled ? 0 : -e.amount) : e.amount);
+  // 60+ days old: the CEO only (operations.chargeCancelOld).
+  const canCancelCharge = (e: StudentCard['ledger'][number]) =>
+    canEdit && e.type === 'charge' && !e.cancelled && (data.canCancelOldCharge || e.date >= addDaysToKey(today, -60));
   const opening = card ? s.balance - card.ledger.reduce((a, e) => a + signed(e), 0) : 0;
   let run = s.balance;
   const ledger = (card?.ledger ?? []).map((e) => {
@@ -307,6 +313,16 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                             {editPay === e.id ? 'Yopish' : 'Tahrirlash'}
                           </button>
                         )}
+                        {canCancelCharge(e) && (
+                          <button className="mt-1 text-xs font-semibold text-au-bad hover:underline" onClick={() => setCancelCh(cancelCh === e.id ? null : e.id)}>
+                            {cancelCh === e.id ? 'Yopish' : 'Yechimni bekor qilish'}
+                          </button>
+                        )}
+                        {cancelCh === e.id && (
+                          <span className="mt-2 block">
+                            <ChargeCancel charge={e} onDone={(m) => { setCancelCh(null); done(m); }} onFail={fail} onCancel={() => setCancelCh(null)} />
+                          </span>
+                        )}
                         {editPay === e.id && (
                           <span className="mt-2 block">
                             <PaymentEditor payment={{ id: e.id, amount: e.amount, method: e.kind, date: e.date }} today={today} onDone={(m) => { setEditPay(null); done(m); }} onFail={fail} onCancel={() => setEditPay(null)} />
@@ -314,7 +330,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                         )}
                       </span>
                       <span className="text-right">
-                        <b className={cn('block tabular-nums', e.type === 'fix' ? 'text-au-info' : e.type === 'pay' && e.amount > 0 ? 'text-au-ok' : 'text-au-bad')}>
+                        <b className={cn('block tabular-nums', e.type === 'fix' ? 'text-au-info' : e.type === 'pay' && e.amount > 0 ? 'text-au-ok' : 'text-au-bad', e.type === 'charge' && e.cancelled && 'text-au-faint line-through')}>
                           {signed(e) > 0 ? '+' : '−'}
                           {formatUZS(Math.abs(e.amount))}
                         </b>
@@ -626,7 +642,7 @@ function TermsPane({ s, onDone, onFail, onCancel }: PaneProps) {
       </label>
       <div className="text-xs text-au-muted">
         Har oy yechiladi: <b className="text-au-ink">{som(Math.round(((own ? Number(digits(fee)) : s.feeBase) * (100 - Math.min(100, Number(discount) || 0))) / 100))}</b>. Yozilgan qarz
-        o‘zgarmaydi.
+        o‘zgarmaydi. Sana yoki bo‘lib to‘lash o‘zgarsa, shu oyning yechimi bo‘lsa qayta yechilmaydi; farq bo‘lsa — yechimni bekor qilib, qo‘lda yeching.
       </div>
       <Actions pending={pending || Number(discount) > 100} ok={ok} okText="Saqlash" onCancel={onCancel} />
     </Panel>
@@ -666,6 +682,62 @@ function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
       <Actions pending={pending || !digits(amount)} ok={ok} okText="Yechish" onCancel={onCancel} />
     </Panel>
   );
+}
+
+/** «Yechimni bekor qilish»: the charge stays in the history marked cancelled, its sum goes back to the balance. */
+function ChargeCancel({ charge, onDone, onFail, onCancel }: { charge: StudentCard['ledger'][number]; onDone: (m: string) => void; onFail: (e: string) => void; onCancel: () => void }) {
+  const [pending, start] = useTransition();
+  const [reason, setReason] = useState('Xato yechilgan');
+  const [other, setOther] = useState('');
+  const why = reason === 'Boshqa' ? other.trim() : reason;
+  const ok = () =>
+    start(async () => {
+      const r = await cancelChargeAction({ chargeId: charge.id, reason: why });
+      if (r.error) return onFail(r.error);
+      onDone(`Yechim bekor qilindi: +${som(charge.amount)} balansga qaytdi`);
+    });
+  return (
+    <Panel title={`${dmy(charge.date)} dagi ${som(charge.amount)} yechimni bekor qilish`} danger>
+      <p className="text-xs text-au-muted">Yozuv o‘chmaydi — tarixda «Bekor qilingan» bo‘lib qoladi. Summa balansga qaytadi, avto-yechim shu oyni qayta yechmaydi.</p>
+      <Field label="Sabab">
+        <select id="cc-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
+          {['Xato yechilgan', 'Ikki marta yechilgan', 'O‘quvchi shu oy o‘qimadi', 'Summa noto‘g‘ri edi', 'Boshqa'].map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+        </select>
+      </Field>
+      {reason === 'Boshqa' && (
+        <Field label="Izoh (majburiy)">
+          <input id="cc-o" className="sx-inp" maxLength={300} value={other} onChange={(e) => setOther(e.target.value)} />
+        </Field>
+      )}
+      {reason === 'Summa noto‘g‘ri edi' && <p className="text-xs text-au-muted">Bekor qilgach, to‘g‘ri summani «Qo‘lda yechish» bilan yeching.</p>}
+      <Actions pending={pending || why.length < 3} ok={ok} okText="Bekor qilish" onCancel={onCancel} danger />
+    </Panel>
+  );
+}
+
+/** This period's monthly charge, offered back when archiving or freezing. */
+function useOpenCharge(studentId: string) {
+  const [charge, setCharge] = useState<{ id: string; amount: number; date: string } | null>(null);
+  const [take, setTake] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getOpenChargeAction(studentId).then((r) => live && setCharge(r.charge ?? null));
+    return () => {
+      live = false;
+    };
+  }, [studentId]);
+  const box = charge && (
+    <label className="flex items-start gap-2 text-sm text-au-ink">
+      <input id="oc-take" type="checkbox" className="mt-1" checked={take} onChange={(e) => setTake(e.target.checked)} />
+      <span>
+        {dmy(charge.date)} dagi <b>{som(charge.amount)}</b> oylik yechimni ham bekor qilish
+        <span className="block text-xs text-au-muted">Shu oy o‘qimagan bo‘lsa belgilang — summa balansga qaytadi.</span>
+      </span>
+    </label>
+  );
+  return { box, cancelChargeId: take && charge ? charge.id : null };
 }
 
 /** Balansni tuzatish: takes a wrong minus off — never past 0, reason required. */
@@ -712,11 +784,12 @@ function FreezePane({ s, today, onDone, onFail, onCancel }: PaneProps & { today:
   const [pending, start] = useTransition();
   const [until, setUntil] = useState('');
   const frozen = s.status === 'frozen';
+  const open = useOpenCharge(s.id);
   const ok = () =>
     start(async () => {
-      const r = await freezeStudentAction({ studentId: s.id, until: frozen ? null : until });
+      const r = await freezeStudentAction({ studentId: s.id, until: frozen ? null : until, cancelChargeId: frozen ? null : open.cancelChargeId });
       if (r.error) return onFail(r.error);
-      onDone(frozen ? 'Muzlatish bekor qilindi' : `${dmy(until)} gacha muzlatildi`);
+      onDone(frozen ? 'Muzlatish bekor qilindi' : `${dmy(until)} gacha muzlatildi${open.cancelChargeId ? ', oylik yechim bekor qilindi' : ''}`);
     });
   return (
     <Panel title={frozen ? 'Muzlatishni bekor qilish' : 'Muzlatish'}>
@@ -728,6 +801,7 @@ function FreezePane({ s, today, onDone, onFail, onCancel }: PaneProps & { today:
           <Field label="Qaysi sanagacha">
             <input id="fr-until" type="date" className="sx-inp !w-[170px]" min={today} value={until} onChange={(e) => setUntil(e.target.value)} />
           </Field>
+          {open.box}
         </>
       )}
       <Actions pending={pending || (!frozen && !until)} ok={ok} okText={frozen ? 'Faollashtirish' : 'Muzlatish'} onCancel={onCancel} />
@@ -779,12 +853,13 @@ function OutPane({ s, onDone, onFail, onCancel }: PaneProps) {
   const [pending, start] = useTransition();
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
+  const open = useOpenCharge(s.id);
   const ok = () =>
     start(async () => {
       if (!reason) return onFail('invalidInput');
-      const r = await archiveStudentAction({ studentId: s.id, reason, note });
+      const r = await archiveStudentAction({ studentId: s.id, reason, note, cancelChargeId: open.cancelChargeId });
       if (r.error) return onFail(r.error);
-      onDone('Arxivga o‘tkazildi');
+      onDone(open.cancelChargeId ? 'Arxivga o‘tkazildi, oylik yechim bekor qilindi' : 'Arxivga o‘tkazildi');
     });
   return (
     <Panel title="O‘quvchini chiqarish" danger>
@@ -800,6 +875,7 @@ function OutPane({ s, onDone, onFail, onCancel }: PaneProps) {
       <Field label="Izoh">
         <input id="out-n" className="sx-inp" maxLength={500} placeholder="Masalan: 3 haftadan beri darsga kelmayapti" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
+      {open.box}
       <Actions pending={pending || !reason} ok={ok} okText="Chiqarish va arxivlash" onCancel={onCancel} danger />
     </Panel>
   );

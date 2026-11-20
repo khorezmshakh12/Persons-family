@@ -101,7 +101,7 @@ async function dailyReport(today: string): Promise<string> {
   const [charged, msgs, calls, left, back] = await Promise.all([
     sql<{ n: number; sum: number }[]>`
       select count(*)::int as n, coalesce(sum(amount), 0) as sum from crm_charges
-      where source in ('auto', 'manual') and (created_at at time zone 'Asia/Tashkent')::date = ${today}`,
+      where source in ('auto', 'manual') and status <> 'waived' and (created_at at time zone 'Asia/Tashkent')::date = ${today}`,
     sql<{ n: number; ok: number }[]>`
       select count(*)::int as n, count(*) filter (where sent > 0)::int as ok from crm_student_messages
       where (created_at at time zone 'Asia/Tashkent')::date = ${today}`,

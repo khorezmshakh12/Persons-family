@@ -62,7 +62,9 @@ async function handle(req: NextRequest): Promise<Response> {
     if (!s.start || fee <= 0) continue;
     const due = currentDueDate(s.start, today);
     if (!due || due < cfg.start_date) continue;
-    for (const part of periodParts(s.start, due, fee, s.installments)) {
+    const parts = periodParts(s.start, due, fee, s.installments);
+    const keys = parts.map((x) => x.key);
+    for (const part of parts) {
       if (part.date > today) continue;
       const done = await sql.begin(async (tx) => {
         if (!part.key.endsWith('#2')) {
@@ -72,6 +74,16 @@ async function handle(req: NextRequest): Promise<Response> {
               and c.period_start between ${addDaysToKey(due, -20)} and ${addDaysToKey(due, 20)} limit 1`;
           if (legacy) return false;
         }
+        // The pay day or «bo'lib to'lash» changed: the period key changes too,
+        // so an auto charge under another key that already covers this due
+        // date (or sits in the same month) means this month is taken — never
+        // twice (owner, 2026-11-20). A cancelled one does not count.
+        const [taken] = await tx`
+          select 1 from crm_charges where student_id = ${s.id} and source = 'auto' and status <> 'waived'
+            and period_key is not null and not (period_key = any(${keys}::text[]))
+            and ((period_start <= ${due} and period_end >= ${due})
+              or date_trunc('month', period_start) = date_trunc('month', ${due}::date)) limit 1`;
+        if (taken) return false;
         const end = addDaysToKey(nextDueDate(s.start!, addDaysToKey(due, 1)), -1);
         const [row] = await tx`
           insert into crm_charges (student_id, period_start, period_end, amount, due_date, status, period_key, source, note)

@@ -24,6 +24,8 @@ export type OpsData = {
   statsMoney: boolean;
   /** May take a wrong minus off a student's balance (CEO, COO, Office Manager). */
   canFixBalance: boolean;
+  /** May cancel a charge older than 60 days (CEO). */
+  canCancelOldCharge: boolean;
   today: { day: string };
   /** O'quvchilar: every CRM student with billing, grade, log, templates and stats. */
   students: StudentsData;

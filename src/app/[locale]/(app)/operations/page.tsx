@@ -38,6 +38,7 @@ export default async function OperationsPage() {
     statsPeople,
     statsMoney,
     canFixBalance: canFor(profile, 'operations.balanceFix'),
+    canCancelOldCharge: canFor(profile, 'operations.chargeCancelOld'),
     today: { day },
     students,
     stats,
