@@ -36,17 +36,18 @@ const EVERYONE: SectionKey[] = [
   // Inbox (approvals) removed for everyone — owner, 2026-10-05.
   'dashboard', 'tasks', 'issues', 'companyNews', 'selfDevelopment', 'taskTracker',
   'finance', 'profile', 'settings', 'materials', 'hr', 'kpi',
+  // Persons Market opened to everyone (owner, 2026-11-20).
+  'market',
 ];
 
 // The owner-facing matrix: department sections per role, on top of EVERYONE.
 const EXPECTED: Record<Role, SectionKey[]> = {
-  // Owner, 2026-09-30: Market closed to all but CEO / COO / IT Developer;
-  // monthly report removed; Strategy = CEO, COO, PM; Accounting = CEO only;
+  // Owner, 2026-09-30: monthly report removed; Strategy = CEO, COO, PM; Accounting = CEO only;
   // Platform settings = CEO, COO. Reports (Hisobotlar) reopened for CEO + COO
   // as a native page (owner, 2026-10-09). Attendance (Davomat) = CEO, COO,
   // Admin Manager (owner, 2026-10-14).
-  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance'],
-  coo: ['sales', 'staff', 'strategy', 'operations', 'platform', 'telegramSetup', 'market', 'report', 'attendance'],
+  ceo: ['sales', 'staff', 'lessonPlans', 'strategy', 'accounting', 'operations', 'platform', 'telegramSetup', 'report', 'attendance'],
+  coo: ['sales', 'staff', 'strategy', 'operations', 'platform', 'telegramSetup', 'report', 'attendance'],
   commercial_director: ['sales', 'operations'],
   academic_director: ['lessonPlans', 'operations'],
   financist: ['sales'],
@@ -57,7 +58,7 @@ const EXPECTED: Record<Role, SectionKey[]> = {
   sales_manager: ['sales', 'operations'],
   event_manager: ['operations'],
   project_manager: ['strategy', 'operations'],
-  it_developer: ['staff', 'operations', 'telegramSetup', 'market'],
+  it_developer: ['staff', 'operations', 'telegramSetup'],
   head_teacher: ['lessonPlans'],
   teacher: ['lessonPlans'],
   assistant: ['lessonPlans'],

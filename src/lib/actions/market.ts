@@ -113,7 +113,7 @@ const itemFieldsSchema = z.object({
   category: z.enum(MARKET_CATEGORIES).default('gift'),
 });
 
-/** Employee-side gate: the shop is limited to MARKET_ROLES for now. */
+/** Employee-side gate: the Market section (everyone) or a market editor. */
 async function requireMarketUser(): Promise<{ id: string } | { error: string }> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };

@@ -124,9 +124,9 @@ export const SECTION_ROLES: Record<SectionKey, readonly Role[]> = {
   selfDevelopment: ALL,
   taskTracker: ALL, // personal weekly task/habit sheet — each person sees only their own
   finance: ALL, // everyone sees their own pay; the all-staff table is a capability
-  // Closed while the catalogue is prepared (owner, 2026-09-30); market
-  // editors (market_editors table) get it as a per-person grant.
-  market: ['ceo', 'coo', 'it_developer'],
+  // Persons Market — open to everyone (owner, 2026-11-20); curation stays
+  // 'market.manage' + market editors.
+  market: ALL,
   profile: ALL,
   settings: ALL,
   materials: ALL,
