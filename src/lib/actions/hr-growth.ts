@@ -9,13 +9,16 @@ import { canFor } from '@/lib/permissions';
 import { notifyUsers } from '@/lib/telegram';
 import type { NodeStatus } from '@/lib/strategy';
 import {
+  EMPTY_MIND,
   EMPTY_ROADMAP,
   GROWTH_MAX_DEPTH,
   GROWTH_MAX_NODES,
+  canon,
   countNodes,
   findStageOf,
   stageComplete,
   stageNodeIds,
+  stageCanon,
   stagePhases,
   walkNodes,
   type GrowthMind,
@@ -28,6 +31,8 @@ import {
 // HR › Roadmap va Mind map. Har bir amal o'z autentifikatsiyasini tekshiradi.
 // Xodim faqat o'z yozuviga tegadi; bosqich tasdig'i faqat CEO'da
 // (growth.review). Holat o'tishlari qator qulfi (for update) ostida.
+// roadmap / mind = qoralama (istalgancha tahrir); sent_* = «CEO'ga yuborish»
+// nusxasi — CEO tasdig'i va HR ko'rinishi faqat shunga tayanadi.
 
 type Result = { error: string } | { ok: true };
 
@@ -61,9 +66,12 @@ function uniqueIds(ids: string[]): boolean {
 
 type GrowthRow = {
   roadmap: GrowthRoadmap;
+  mind: GrowthMind;
   node_status: Record<string, NodeStatus>;
   stage_state: Record<string, StageReview>;
-  submitted_at: string | Date | null;
+  sent_roadmap: GrowthRoadmap;
+  sent_mind: GrowthMind;
+  sent_at: string | Date | null;
 };
 
 type Tx = TransactionSql;
@@ -72,12 +80,16 @@ type Tx = TransactionSql;
 async function lockRow(t: Tx, userId: string): Promise<GrowthRow> {
   await t`insert into hr_growth (user_id) values (${userId}) on conflict (user_id) do nothing`;
   const [row] = await t<GrowthRow[]>`
-    select roadmap, node_status, stage_state, submitted_at from hr_growth where user_id = ${userId} for update`;
+    select roadmap, mind, node_status, stage_state, sent_roadmap, sent_mind, sent_at
+    from hr_growth where user_id = ${userId} for update`;
   return {
     roadmap: row.roadmap?.sections ? row.roadmap : EMPTY_ROADMAP,
+    mind: row.mind?.ch ? row.mind : EMPTY_MIND,
     node_status: row.node_status ?? {},
     stage_state: row.stage_state ?? {},
-    submitted_at: row.submitted_at,
+    sent_roadmap: row.sent_roadmap?.sections ? row.sent_roadmap : EMPTY_ROADMAP,
+    sent_mind: row.sent_mind?.ch ? row.sent_mind : EMPTY_MIND,
+    sent_at: row.sent_at,
   };
 }
 
@@ -90,10 +102,11 @@ async function ceoRecipients(): Promise<string[]> {
 }
 
 const revalidate = () => revalidatePath('/[locale]/hr', 'page');
-const stageJson = (s: GrowthRoadmap['sections'][number]) => JSON.stringify([s.id, s.t, s.q, s.left, s.right]);
+const allIds = (r: GrowthRoadmap) => r.sections.flatMap((s) => [s.id, ...stageNodeIds(s)]);
 
-/** Saves the employee's own roadmap structure. Approved / waiting stages are
- * frozen: they must stay first, in order, unchanged. */
+/** «Saqlash» — the employee's own draft. Anything may be added, edited or
+ * deleted at any time; the CEO / HR keep seeing the last sent copy (and its
+ * approvals) until «CEO'ga yuborish». */
 export async function saveGrowthRoadmapAction(input: GrowthRoadmap): Promise<Result> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
@@ -105,24 +118,17 @@ export async function saveGrowthRoadmapAction(input: GrowthRoadmap): Promise<Res
   if (all.length > GROWTH_MAX_NODES) return { error: 'tooBig' };
   if (next.sections.some((s) => depthOf([...s.left, ...s.right]) > GROWTH_MAX_DEPTH)) return { error: 'tooDeep' };
   try {
-    const err = await sql.begin(async (s) => {
+    await sql.begin(async (s) => {
       const t = s;
       const cur = await lockRow(t, user.id);
-      const phases = stagePhases(cur.roadmap, cur.stage_state);
-      const frozen = cur.roadmap.sections.filter((x) => phases[x.id] === 'approved' || phases[x.id] === 'waiting');
-      for (let i = 0; i < frozen.length; i++) {
-        const n = next.sections[i];
-        if (!n || stageJson(n) !== stageJson(frozen[i])) return 'frozen';
-      }
-      // Status and review records only for nodes / stages that still exist.
-      const keep = new Set(all);
+      // Status / review records only for nodes that exist in the draft or in
+      // the sent copy (the CEO still sees the sent one).
+      const keep = new Set([...all, ...allIds(cur.sent_roadmap)]);
       const status = Object.fromEntries(Object.entries(cur.node_status).filter(([k]) => keep.has(k)));
       const state = Object.fromEntries(Object.entries(cur.stage_state).filter(([k]) => keep.has(k)));
       await t`update hr_growth set roadmap = ${t.json(next as never)}, node_status = ${t.json(status as never)},
         stage_state = ${t.json(state as never)}, updated_at = now() where user_id = ${user.id}`;
-      return null;
     });
-    if (err) return { error: err };
     revalidate();
     return { ok: true };
   } catch (e) {
@@ -156,26 +162,47 @@ export async function setGrowthNodeStatusAction(nodeId: string, status: NodeStat
   }
 }
 
-/** «CEO'ga topshirish» — from now on the CEO sees the roadmap. */
-export async function submitGrowthAction(): Promise<Result> {
+/** «CEO'ga yuborish» — the draft becomes what the CEO / HR see. Can be sent
+ * again any time; an approved stage that changed goes back for approval. */
+export async function sendGrowthAction(): Promise<Result> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };
+  let first = false;
+  let reapprove = 0;
   try {
     const err = await sql.begin(async (s) => {
       const t = s;
       const cur = await lockRow(t, user.id);
-      if (!cur.roadmap.sections.length) return 'empty';
-      if (cur.submitted_at) return 'already';
-      await t`update hr_growth set submitted_at = now(), updated_at = now() where user_id = ${user.id}`;
+      if (!cur.roadmap.sections.length && !cur.mind.ch.length && !cur.sent_at) return 'empty';
+      if (canon(cur.roadmap) === canon(cur.sent_roadmap) && canon(cur.mind) === canon(cur.sent_mind)) return 'nothingNew';
+      first = !cur.sent_at;
+      const sentStages = new Map(cur.sent_roadmap.sections.map((x) => [x.id, x]));
+      const keep = new Set(allIds(cur.roadmap));
+      const state: Record<string, StageReview> = Object.fromEntries(Object.entries(cur.stage_state).filter(([k]) => keep.has(k)));
+      const at = new Date().toISOString();
+      for (const st of cur.roadmap.sections) {
+        const prev = sentStages.get(st.id);
+        if (prev && state[st.id]?.s === 'approved' && stageCanon(prev) !== stageCanon(st)) {
+          state[st.id] = { s: 'self_done', at };
+          reapprove++;
+        }
+      }
+      const status = Object.fromEntries(Object.entries(cur.node_status).filter(([k]) => keep.has(k)));
+      await t`update hr_growth set sent_roadmap = roadmap, sent_mind = mind, sent_at = now(),
+        submitted_at = coalesce(submitted_at, now()), stage_state = ${t.json(state as never)},
+        node_status = ${t.json(status as never)}, updated_at = now() where user_id = ${user.id}`;
       return null;
     });
     if (err) return { error: err };
     const name = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
-    await notifyUsers('goals', await ceoRecipients(), `🗺 ${name} roadmap’ini topshirdi`, { href: '/hr?tab=growth' }).catch(() => {});
+    const text = first
+      ? `🗺 ${name} roadmap’ini CEO’ga yubordi`
+      : `🗺 ${name} roadmap’ini yangiladi${reapprove ? ` — ${reapprove} ta o‘zgargan bosqich qayta tasdiq kutmoqda` : ''}`;
+    await notifyUsers('goals', await ceoRecipients(), text, { href: `/hr?tab=growth&person=${user.id}` }).catch(() => {});
     revalidate();
     return { ok: true };
   } catch (e) {
-    console.error('[hr-growth] submit failed', e);
+    console.error('[hr-growth] send failed', e);
     return { error: 'failed' };
   }
 }
@@ -189,11 +216,13 @@ export async function markGrowthStageAction(stageId: string, done: boolean): Pro
     const err = await sql.begin(async (s) => {
       const t = s;
       const cur = await lockRow(t, user.id);
-      const stage = cur.roadmap.sections.find((x) => x.id === stageId);
-      if (!stage) return 'notFound';
-      const phase = stagePhases(cur.roadmap, cur.stage_state)[stageId];
+      // The CEO approves the sent copy — the stage must be sent as it is now.
+      const stage = cur.sent_roadmap.sections.find((x) => x.id === stageId);
+      const draft = cur.roadmap.sections.find((x) => x.id === stageId);
+      if (!stage || !draft) return 'notFound';
+      const phase = stagePhases(cur.sent_roadmap, cur.stage_state)[stageId];
       if (done) {
-        if (!cur.submitted_at) return 'notSubmitted';
+        if (!cur.sent_at || stageCanon(stage) !== stageCanon(draft)) return 'notSubmitted';
         if (phase !== 'current') return 'locked';
         if (!stageComplete(stage, cur.node_status)) return 'incomplete';
         const rec: StageReview = { s: 'self_done', at: new Date().toISOString() };
@@ -236,11 +265,11 @@ export async function reviewGrowthStageAction(input: { userId: string; stageId: 
     const err = await sql.begin(async (s) => {
       const t = s;
       const cur = await lockRow(t, userId);
-      if (!cur.submitted_at) return 'notSubmitted';
-      const stage = cur.roadmap.sections.find((x) => x.id === stageId);
+      if (!cur.sent_at) return 'notSubmitted';
+      const stage = cur.sent_roadmap.sections.find((x) => x.id === stageId);
       if (!stage) return 'notFound';
       // Someone else may have decided already — only a waiting stage moves.
-      if (stagePhases(cur.roadmap, cur.stage_state)[stageId] !== 'waiting') return 'alreadyDecided';
+      if (stagePhases(cur.sent_roadmap, cur.stage_state)[stageId] !== 'waiting') return 'alreadyDecided';
       stageName = stage.t;
       const at = new Date().toISOString();
       const rec: StageReview = approve ? { s: 'approved', at, by: user.id, ...(note ? { note } : {}) } : { s: 'returned', at, by: user.id, note: note! };
@@ -263,7 +292,7 @@ export async function reviewGrowthStageAction(input: { userId: string; stageId: 
   }
 }
 
-/** Saves the employee's own mind map (always visible to the CEO). */
+/** Saves the employee's own mind map draft (CEO / HR see the sent copy). */
 export async function saveGrowthMindAction(input: GrowthMind): Promise<Result> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };

@@ -4,9 +4,12 @@ import type { NodeStatus } from '@/lib/strategy';
  * HR › Roadmap va Mind map — har bir xodimning shaxsiy rivojlanish rejasi.
  * Ko'rinishi Strategy'dagi Roadmap / Mind map bilan bir xil; farqi:
  * - har bir mavzu va shox ichiga cheksiz band qo'shiladi (daraxt);
- * - roadmap «CEO'ga topshirish»dan keyingina CEO'ga ko'rinadi;
- * - bosqich: xodim «yakunladim» → CEO tasdiqlaydi → keyingi bosqich ochiladi.
- * Mind map CEO'ga doim ko'rinadi (faqat o'qish). Client-safe.
+ * - xodim qoralamada istalgancha qo'shadi / tahrirlaydi / o'chiradi («Saqlash»);
+ *   CEO va HR faqat «CEO'ga yuborish» paytidagi nusxani ko'radi (roadmap ham,
+ *   mind map ham), qayta yuborish istalgancha;
+ * - bosqich: xodim «yakunladim» → CEO tasdiqlaydi → keyingi bosqich ochiladi;
+ *   tasdiqlangan bosqich o'zgartirilib yuborilsa, qayta CEO tasdig'iga tushadi.
+ * Client-safe.
  */
 
 export type GrowthNode = { id: string; t: string; ch: GrowthNode[] };
@@ -29,6 +32,10 @@ export type GrowthPlan = {
   nodeStatus: Record<string, NodeStatus>;
   stageState: Record<string, StageReview>;
   mind: GrowthMind;
+  /** What the CEO / HR see — the copy taken at the last «CEO'ga yuborish». */
+  sentRoadmap: GrowthRoadmap;
+  sentMind: GrowthMind;
+  /** Last «CEO'ga yuborish» (null = never sent). */
   submittedAt: string | null;
 };
 
@@ -50,6 +57,25 @@ export const EMPTY_MIND: GrowthMind = { t: '', ch: [] };
 /** Limits that keep one plan a sane size ("cheksiz" for any real use). */
 export const GROWTH_MAX_NODES = 1500;
 export const GROWTH_MAX_DEPTH = 24;
+
+/** JSON with sorted keys — jsonb reorders keys, so plain JSON.stringify can't compare. */
+export function canon(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+  if (v && typeof v === 'object')
+    return `{${Object.keys(v)
+      .filter((k) => (v as Record<string, unknown>)[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`)
+      .join(',')}}`;
+  return JSON.stringify(v);
+}
+
+/** The draft differs from what was last sent to the CEO. */
+export const growthUnsent = (p: Pick<GrowthPlan, 'roadmap' | 'mind' | 'sentRoadmap' | 'sentMind'>) =>
+  canon(p.roadmap) !== canon(p.sentRoadmap) || canon(p.mind) !== canon(p.sentMind);
+
+/** Stage content (title, term, topics) — what a CEO approval covers. */
+export const stageCanon = (s: GrowthStage) => canon([s.t, s.q, s.left, s.right]);
 
 export const growthId = () =>
   `g${Date.now().toString(36).slice(-5)}${Math.random().toString(36).slice(2, 7)}`.replace(/[^a-z0-9]/g, '');
