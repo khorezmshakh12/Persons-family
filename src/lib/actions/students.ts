@@ -5,7 +5,7 @@ import type { TransactionSql } from 'postgres';
 import { revalidatePath } from 'next/cache';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
 import { getAuthState } from '@/lib/auth/session';
-import { canSeeFor, canSeeOpsMoney } from '@/lib/permissions';
+import { canFor, canSeeFor, canSeeOpsMoney } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
 import { renderMessage, sendToStudentContacts, studentVars } from '@/lib/student-messages';
@@ -101,8 +101,12 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
         select * from (
           select c.id, 'charge' as type, c.due_date::text as date, c.amount, c.source as kind, coalesce(c.note, '') as note,
             coalesce(p.first_name || ' ' || p.last_name, case c.source when 'auto' then 'Avto-yechim' when 'import' then 'Import' else 'CRM' end) as actor,
-            c.created_at::text as at, null as edit, false as cancelled, false as "isCancel"
+            c.created_at::text as at,
+            case when c.status = 'waived' then concat_ws(' · ', 'Bekor qilindi', to_char(c.cancelled_at at time zone 'Asia/Tashkent', 'DD.MM.YYYY'),
+              nullif(trim(coalesce(pc.first_name || ' ' || pc.last_name, '')), ''), c.cancel_reason) end as edit,
+            c.status = 'waived' as cancelled, false as "isCancel"
           from crm_charges c left join crm_enrollments e on e.id = c.enrollment_id left join profiles p on p.id = c.created_by
+            left join profiles pc on pc.id = c.cancelled_by
           where coalesce(c.student_id, e.student_id) = ${studentId}
           union all
           select y.id, 'pay', y.paid_at::text, case when y.is_refund then -y.amount else y.amount end, y.method, coalesce(y.note, ''),
@@ -124,7 +128,7 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
         select l.id, l.kind, l.text, coalesce(p.first_name || ' ' || p.last_name, 'Avto') as actor, l.created_at::text as at
         from crm_student_log l left join profiles p on p.id = l.actor
         where l.student_id = ${studentId}
-          and ${money ? sql`true` : sql`l.amount is null and l.kind not in ('pay', 'charge', 'payedit', 'paycancel', 'fix')`}
+          and ${money ? sql`true` : sql`l.amount is null and l.kind not in ('pay', 'charge', 'chargecancel', 'payedit', 'paycancel', 'fix')`}
         order by l.created_at desc limit 200`,
       sql<StudentCard['calls']>`
         select c.id, c.result, c.promised_date::text as promised, c.note, coalesce(p.first_name || ' ' || p.last_name, '') as actor, c.created_at::text as at
@@ -380,19 +384,109 @@ export async function manualChargeAction(input: z.input<typeof chargeSchema>): P
   if (!name) return { error: 'notFound' };
   const today = tashkentDayKey();
   try {
-    await sql.begin(async (tx) => {
+    const res = await sql.begin(async (tx) => {
+      await tx`select 1 from crm_students where id = ${v.studentId} for update`;
+      // A double click (or a second tab) must not take the same minus twice.
+      const [dup] = await tx`
+        select 1 from crm_charges where student_id = ${v.studentId} and source = 'manual' and amount = ${v.amount}
+          and note = ${v.reason} and created_by = ${me.id} and status <> 'waived' and created_at > now() - interval '30 seconds' limit 1`;
+      if (dup) return 'duplicate';
       await tx`
         insert into crm_charges (student_id, period_start, period_end, amount, due_date, status, source, note, created_by)
         values (${v.studentId}, ${today}, ${today}, ${v.amount}, ${today}, 'pending', 'manual', ${v.reason}, ${me.id})`;
       await tx`update crm_students set balance = balance - ${v.amount}, updated_at = now() where id = ${v.studentId}`;
       await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
         values (${v.studentId}, 'charge', ${`${name} — ${som(v.amount)} qo‘lda yechildi (${v.reason})`}, ${v.amount}, ${me.id})`;
+      return 'ok';
     });
+    if (res === 'duplicate') return { error: 'duplicate' };
   } catch {
     return { error: 'updateFailed' };
   }
   refresh();
   return {};
+}
+
+/** Charges older than this are cancelled by the CEO only (same limit as a backdated payment). */
+const CHARGE_CANCEL_DAYS = 60;
+type CancelRes = 'ok' | 'notFound' | 'locked' | 'tooOld';
+
+/**
+ * Yechimni bekor qilish inside a transaction: nothing is deleted. The charge
+ * becomes 'waived' with who / when / why, its amount goes back to the
+ * balance, and its period_key stays — the daily billing never takes that
+ * period again. Shared by the card button, archive and freeze.
+ */
+async function cancelChargeTx(tx: TransactionSql, chargeId: string, reason: string, actor: string, oldOk: boolean, studentId?: string): Promise<CancelRes> {
+  const [c] = await tx<{ sid: string | null; amount: number; due: string; status: string; source: string; name: string }[]>`
+    select coalesce(c.student_id, e.student_id) as sid, c.amount, c.due_date::text as due, c.status, c.source, coalesce(s.full_name, '') as name
+    from crm_charges c left join crm_enrollments e on e.id = c.enrollment_id
+      left join crm_students s on s.id = coalesce(c.student_id, e.student_id)
+    where c.id = ${chargeId} for update of c`;
+  if (!c || !c.sid || (studentId && c.sid !== studentId)) return 'notFound';
+  if (c.status === 'waived') return 'locked';
+  if (!oldOk && c.due < addDaysToKey(tashkentDayKey(), -CHARGE_CANCEL_DAYS)) return 'tooOld';
+  await tx`select 1 from crm_students where id = ${c.sid} for update`;
+  const res = await tx`
+    update crm_charges set status = 'waived', cancelled_at = now(), cancelled_by = ${actor}, cancel_reason = ${reason}
+    where id = ${chargeId} and status <> 'waived'`;
+  if (res.count === 0) return 'locked';
+  await tx`update crm_students set balance = balance + ${c.amount}, updated_at = now() where id = ${c.sid}`;
+  const what = c.source === 'manual' ? 'qo‘lda yechilgan' : 'oylik';
+  await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
+    values (${c.sid}, 'chargecancel', ${`${c.name} — ${dmy(c.due)} dagi ${som(c.amount)} ${what} yechim bekor qilindi, balansga qaytdi. Sabab: ${reason}`}, ${c.amount}, ${actor})`;
+  return 'ok';
+}
+
+const cancelErr = (r: CancelRes): Result => (r === 'ok' ? {} : { error: r === 'locked' ? 'chargeLocked' : r });
+
+/** Who may cancel a charge: Operation HQ editors who see money; old ones the CEO. */
+async function requireChargeCanceller(): Promise<{ id: string; oldOk: boolean } | { error: string }> {
+  try {
+    const { profile } = await requireCap('operations.edit');
+    if (!canSeeOpsMoney(profile)) return { error: 'forbidden' };
+    return { id: profile.id, oldOk: canFor(profile, 'operations.chargeCancelOld') };
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+}
+
+const chargeCancelSchema = z.object({ chargeId: uuid, reason: z.string().trim().min(3).max(300) });
+
+/** «Yechimni bekor qilish» — a monthly or manual minus taken by mistake. */
+export async function cancelChargeAction(input: z.input<typeof chargeCancelSchema>): Promise<Result> {
+  const me = await requireChargeCanceller();
+  if ('error' in me) return me;
+  const p = chargeCancelSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  let res: CancelRes;
+  try {
+    res = await sql.begin((tx) => cancelChargeTx(tx, p.data.chargeId, p.data.reason, me.id, me.oldOk));
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  if (res === 'ok') refresh();
+  return cancelErr(res);
+}
+
+/**
+ * The latest monthly charge archiving or freezing may take back: not
+ * cancelled, its period still running today. Null when there is none.
+ */
+export async function getOpenChargeAction(studentId: string): Promise<{ charge?: { id: string; amount: number; date: string } | null; error?: string }> {
+  const { profile } = await getAuthState();
+  if (!profile || !canFor(profile, 'operations.edit') || !canSeeOpsMoney(profile)) return { error: 'forbidden' };
+  if (!uuid.safeParse(studentId).success) return { error: 'invalidInput' };
+  try {
+    const [c] = await sql<{ id: string; amount: number; date: string }[]>`
+      select id, amount, due_date::text as date from crm_charges
+      where student_id = ${studentId} and source in ('auto', 'enroll', 'import') and status <> 'waived'
+        and period_end >= ${tashkentDayKey()} and due_date >= ${addDaysToKey(tashkentDayKey(), -CHARGE_CANCEL_DAYS)}
+      order by due_date desc, created_at desc limit 1`;
+    return { charge: c ?? null };
+  } catch {
+    return { error: 'loadFailed' };
+  }
 }
 
 const fixSchema = z.object({ studentId: uuid, amount: money, reason: z.string().trim().min(1).max(200) });
@@ -545,11 +639,11 @@ export async function unmarkPaidElsewhereAction(studentId: string): Promise<Resu
   return {};
 }
 
-const freezeSchema = z.object({ studentId: uuid, until: dayKey.nullable() });
+const freezeSchema = z.object({ studentId: uuid, until: dayKey.nullable(), cancelChargeId: uuid.nullable().default(null) });
 
-/** Muzlatish until a date (no charges meanwhile); `until: null` unfreezes now. */
+/** Muzlatish until a date (no charges meanwhile); `until: null` unfreezes now. Can take this period's charge back. */
 export async function freezeStudentAction(input: z.input<typeof freezeSchema>): Promise<Result> {
-  const me = await requireEditor();
+  const me = input.cancelChargeId ? await requireChargeCanceller() : await requireEditor();
   if ('error' in me) return me;
   const p = freezeSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
@@ -565,19 +659,35 @@ export async function freezeStudentAction(input: z.input<typeof freezeSchema>): 
       if (res.count === 0) throw new Error('notFound');
       await tx`insert into crm_student_log (student_id, kind, text, actor)
         values (${v.studentId}, 'freeze', ${v.until ? `${name} — ${dmy(v.until)} gacha muzlatildi` : `${name} — muzlatish bekor qilindi`}, ${me.id})`;
+      if (v.until && v.cancelChargeId) {
+        const r = await cancelChargeTx(tx, v.cancelChargeId, `Muzlatildi (${dmy(v.until)} gacha)`, me.id, (me as { oldOk?: boolean }).oldOk === true, v.studentId);
+        if (r !== 'ok') throw new CancelFailed(r);
+      }
     });
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (e) {
+    return e instanceof CancelFailed ? cancelErr(e.res) : { error: 'updateFailed' };
   }
   refresh();
   return {};
 }
 
-const archiveSchema = z.object({ studentId: uuid, reason: z.string().trim().min(1).max(120), note: z.string().trim().max(500).default('') });
+const archiveSchema = z.object({
+  studentId: uuid,
+  reason: z.string().trim().min(1).max(120),
+  note: z.string().trim().max(500).default(''),
+  cancelChargeId: uuid.nullable().default(null),
+});
 
-/** Chiqarish: the student goes to the archive with a reason (counted in the exit statistics). */
+/** Rolls the archive / freeze back when the charge it takes back is refused. */
+class CancelFailed extends Error {
+  constructor(readonly res: CancelRes) {
+    super(res);
+  }
+}
+
+/** Chiqarish: the student goes to the archive with a reason (counted in the exit statistics). Can take this period's charge back. */
 export async function archiveStudentAction(input: z.input<typeof archiveSchema>): Promise<Result> {
-  const me = await requireEditor();
+  const me = input.cancelChargeId ? await requireChargeCanceller() : await requireEditor();
   if ('error' in me) return me;
   const p = archiveSchema.safeParse(input);
   if (!p.success) return { error: 'invalidInput' };
@@ -593,11 +703,15 @@ export async function archiveStudentAction(input: z.input<typeof archiveSchema>)
       if (res.count === 0) return false;
       await tx`insert into crm_student_log (student_id, kind, text, actor)
         values (${v.studentId}, 'archive', ${`${name} — chiqarildi: «${v.reason}»${v.note ? ` (${v.note})` : ''}`}, ${me.id})`;
+      if (v.cancelChargeId) {
+        const r = await cancelChargeTx(tx, v.cancelChargeId, `Chiqarildi: ${v.reason}`, me.id, (me as { oldOk?: boolean }).oldOk === true, v.studentId);
+        if (r !== 'ok') throw new CancelFailed(r);
+      }
       return true;
     });
     if (!done) return { error: 'notFound' };
-  } catch {
-    return { error: 'updateFailed' };
+  } catch (e) {
+    return e instanceof CancelFailed ? cancelErr(e.res) : { error: 'updateFailed' };
   }
   refresh();
   return {};

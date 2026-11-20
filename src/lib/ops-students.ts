@@ -162,7 +162,7 @@ export async function loadStudentsData(opts: { money?: boolean } = {}): Promise<
         select l.id, l.student_id as "studentId", coalesce(s.full_name, '') as name, l.kind, l.text,
           coalesce(p.first_name || ' ' || p.last_name, 'Avto') as actor, l.created_at::text as at
         from crm_student_log l left join crm_students s on s.id = l.student_id left join profiles p on p.id = l.actor
-        where ${money ? sql`true` : sql`l.amount is null and l.kind not in ('pay', 'charge', 'payedit', 'paycancel', 'fix')`}
+        where ${money ? sql`true` : sql`l.amount is null and l.kind not in ('pay', 'charge', 'chargecancel', 'payedit', 'paycancel', 'fix')`}
         order by l.created_at desc limit 60
       ) x order by at desc`,
     sql<MessageTemplate[]>`select id, name, body, trigger from crm_message_templates where audience = 'student' order by sort, name`,

@@ -187,6 +187,7 @@ export type Capability =
   | 'accounting.edit'
   | 'operations.edit'
   | 'operations.balanceFix' // Operation HQ › remove a wrong minus from a student's balance
+  | 'operations.chargeCancelOld' // Operation HQ › cancel a charge older than 60 days
   | 'operations.stats' // Operation HQ › Statistika: student and lead figures
   | 'operations.statsMoney' // Operation HQ › Statistika: money figures (collected, methods, debt sum)
   | 'checklist.manage'
@@ -228,6 +229,8 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'operations.edit': SECTION_ROLES.operations,
   // Balansni tuzatish — CEO, COO, Office Manager (owner, 2026-10-31).
   'operations.balanceFix': ['ceo', 'coo', 'office_manager'],
+  // Yechimni bekor qilish: 60 kundan eskisini faqat CEO (owner, 2026-11-20).
+  'operations.chargeCancelOld': ['ceo'],
   // Statistika (owner, 2026-11-19): student and lead figures for Operation HQ
   // staff (not the Sales manager); money figures CEO only — Section access
   // opens either per role or person.
