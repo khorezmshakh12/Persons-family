@@ -63,3 +63,13 @@ export const leadErr = (e: string) =>
             : e === 'notFound'
               ? 'Lid topilmadi'
               : "Saqlab bo'lmadi";
+
+/** Lid xohlagan dars kunlari (crm_leads.pref_days). */
+export const PREF_DAYS: Record<string, string> = { odd: 'Du·Chor·Ju', even: 'Se·Pa·Sha', daily: 'Har kuni', weekend: 'Dam olish kuni' };
+export const LEVELS = ['Beginner', 'Elementary', 'Pre-Intermediate', 'Intermediate', 'Upper-Intermediate', 'Advanced', 'Bilmayman'];
+/** A lead still waiting for a group: not a student, not lost, not in a closed stage. */
+export const isOpenLead = (l: SalesLead, d: SalesData) => {
+  if (l.studentId || l.lostReason) return false;
+  const kind = d.stages.find((s) => s.id === l.sectionId)?.kind;
+  return kind !== 'joined' && kind !== 'lost';
+};
