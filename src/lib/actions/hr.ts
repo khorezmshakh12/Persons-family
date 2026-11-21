@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { authErrorCode, requireCap } from '@/lib/auth/require-admin';
-import { can } from '@/lib/permissions';
+import { canFor } from '@/lib/permissions';
 
 type Result = { error?: string };
 
@@ -99,12 +99,51 @@ export async function toggleOnboardingItemAction(itemId: string, done: boolean):
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'sessionExpired' };
   if (!z.string().uuid().safeParse(itemId).success) return { error: 'invalidInput' };
-  const manager = can(profile.role, 'hr.manage');
+  const manager = canFor(profile, 'hr.manage');
   try {
     const res = await sql`
       update onboarding_items set done_at = ${done ? sql`now()` : null}, done_by = ${done ? user.id : null}
       where id = ${itemId} and (${manager} or user_id = ${user.id})`;
     if (res.count === 0) return { error: 'forbidden' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/hr', 'page');
+  return {};
+}
+
+const renameSchema = z.object({ itemId: z.string().uuid(), title: z.string().trim().min(1).max(200) });
+
+/** HR: fix an onboarding item's wording. */
+export async function renameOnboardingItemAction(input: z.input<typeof renameSchema>): Promise<Result> {
+  try {
+    await requireCap('hr.manage');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = renameSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`update onboarding_items set title = ${p.data.title} where id = ${p.data.itemId}`;
+    if (res.count === 0) return { error: 'notFound' };
+  } catch {
+    return { error: 'updateFailed' };
+  }
+  revalidatePath('/[locale]/hr', 'page');
+  return {};
+}
+
+/** HR: remove an onboarding item (the UI asks first). */
+export async function deleteOnboardingItemAction(itemId: string): Promise<Result> {
+  try {
+    await requireCap('hr.manage');
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  if (!z.string().uuid().safeParse(itemId).success) return { error: 'invalidInput' };
+  try {
+    const res = await sql`delete from onboarding_items where id = ${itemId}`;
+    if (res.count === 0) return { error: 'notFound' };
   } catch {
     return { error: 'updateFailed' };
   }

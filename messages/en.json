@@ -1865,6 +1865,21 @@
           "hint": "Approve or return with a note",
           "cta": "Review"
         },
+        "growthReview": {
+          "title": "{count, plural, one {# roadmap stage awaits approval} other {# roadmap stages await approval}}",
+          "hint": "Approve or return the stage an employee finished",
+          "cta": "Review"
+        },
+        "leaveReview": {
+          "title": "{count, plural, one {# leave request pending} other {# leave requests pending}}",
+          "hint": "Approve or reject with a reason",
+          "cta": "Review"
+        },
+        "positionReview": {
+          "title": "{count, plural, one {# position request pending} other {# position requests pending}}",
+          "hint": "Career path: approve or reject",
+          "cta": "Review"
+        },
         "overdue": {
           "title": "{count, plural, one {# task is overdue} other {# tasks are overdue}}",
           "hint": "Agree new dates with the owners",
@@ -2094,12 +2109,20 @@
           "desc": "Mark staff attendance"
         },
         "growth_viewAll": {
-          "name": "View all roadmaps and mind maps",
-          "desc": "See every employee's roadmap and mind map (no approving)"
+          "name": "View all roadmaps",
+          "desc": "See every employee's roadmap (no approving)"
         },
         "growth_review": {
           "name": "Approve roadmap stages",
           "desc": "Close a stage of an employee's roadmap"
+        },
+        "leave_review": {
+          "name": "Approve leave requests",
+          "desc": "Approve / reject the team's leave requests"
+        },
+        "hr_hiring": {
+          "name": "Hiring",
+          "desc": "Keep vacancies and candidate counts"
         },
         "checklist_monitor": {
           "name": "Monitor the team",

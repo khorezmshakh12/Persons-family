@@ -2,13 +2,20 @@
 
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { Cake, Check, ClipboardList, Flame, Network, PartyPopper, Plus, Search, ShieldCheck, Sparkles, Star, Users } from 'lucide-react';
+import { Cake, Check, ClipboardList, Flame, Network, PartyPopper, Pencil, Plus, Search, ShieldCheck, Sparkles, Star, Trash2, Users } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { SURFACE_CARD } from '@/lib/glass';
 import { celebrate } from '@/components/motion/events';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { addOnboardingItemAction, startOnboardingAction, toggleOnboardingItemAction, updateEmploymentAction } from '@/lib/actions/hr';
+import {
+  addOnboardingItemAction,
+  deleteOnboardingItemAction,
+  renameOnboardingItemAction,
+  startOnboardingAction,
+  toggleOnboardingItemAction,
+  updateEmploymentAction,
+} from '@/lib/actions/hr';
 import type { HrPerson, OnboardingItem } from '@/lib/hr-data';
 import type { Department } from '@/lib/permissions';
 
@@ -178,6 +185,9 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
   const [busy, start] = useTransition();
   const [local, setLocal] = useState<Record<string, boolean>>({});
   const [add, setAdd] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  /** Item whose delete was clicked once — the second click deletes. */
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const isDone = (i: OnboardingItem) => local[i.id] ?? !!i.done_at;
   const done = items.filter(isDone).length;
   const share = items.length ? done / items.length : 0;
@@ -202,7 +212,29 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
         {items.map((it, i) => {
           const d = isDone(it);
           return (
-            <li key={it.id} className="ms-rise" style={{ ['--i' as string]: Math.min(i, 8) }}>
+            <li key={it.id} className="ms-rise group flex items-center gap-1" style={{ ['--i' as string]: Math.min(i, 8) }}>
+              {editing === it.id ? (
+                <input
+                  autoFocus
+                  defaultValue={it.title}
+                  maxLength={200}
+                  className="h-8 flex-1 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-sm text-au-ink"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') setEditing(null);
+                  }}
+                  onBlur={(e) => {
+                    const v = e.currentTarget.value.trim();
+                    setEditing(null);
+                    if (!v || v === it.title) return;
+                    start(async () => {
+                      const r = await renameOnboardingItemAction({ itemId: it.id, title: v });
+                      if (r.error) return void toast.error('Saqlab bo‘lmadi');
+                      router.refresh();
+                    });
+                  }}
+                />
+              ) : (
               <button
                 type="button"
                 disabled={!canEdit || busy}
@@ -225,6 +257,33 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
                 </span>
                 <span className={cn(d ? 'text-au-muted line-through' : 'text-au-ink')}>{it.title}</span>
               </button>
+              )}
+              {isManager && editing !== it.id && (
+                <span className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  <button type="button" aria-label="Tahrirlash" className="grid size-7 place-items-center rounded text-au-muted hover:bg-au-card-2 hover:text-au-ink" onClick={() => setEditing(it.id)}>
+                    <Pencil className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    aria-label={confirmDel === it.id ? 'O‘chirishni tasdiqlash' : 'O‘chirish'}
+                    title={confirmDel === it.id ? 'Yana bosing — o‘chiriladi' : 'O‘chirish'}
+                    onBlur={() => setConfirmDel((c) => (c === it.id ? null : c))}
+                    className={cn('grid h-7 place-items-center rounded px-1.5 text-xs', confirmDel === it.id ? 'bg-au-bad text-white' : 'text-au-muted hover:bg-au-card-2 hover:text-au-bad')}
+                    onClick={() => {
+                      if (confirmDel !== it.id) return setConfirmDel(it.id);
+                      setConfirmDel(null);
+                      start(async () => {
+                        const r = await deleteOnboardingItemAction(it.id);
+                        if (r.error) return void toast.error('O‘chirib bo‘lmadi');
+                        router.refresh();
+                      });
+                    }}
+                  >
+                    {confirmDel === it.id ? 'O‘chirilsinmi?' : <Trash2 className="size-3.5" />}
+                  </button>
+                </span>
+              )}
             </li>
           );
         })}

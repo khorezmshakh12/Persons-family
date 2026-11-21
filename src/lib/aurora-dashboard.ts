@@ -7,6 +7,7 @@ import { totals, isRelevant } from '@/lib/pay-run';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { LESSON_PLAN_ROLES, type StaffRole } from '@/lib/nav';
 import { addDaysToKey, tashkentDayKey, tashkentDayOfWeek, tashkentMidnight, startOfTashkentMonthKey, startOfPreviousTashkentMonthKey } from '@/lib/time';
+import { loadGrowthTeam } from '@/lib/hr-growth-data';
 import { changePercent, lastPoint, openBacklogSeries, periodBucketEnds } from '@/lib/dashboard-stats';
 import { can } from '@/lib/permissions';
 
@@ -870,6 +871,14 @@ export type AttentionItem = {
  * queues (approvals, overdue work, stale issues, missing reports); everyone
  * else their own deadlines. Lines with nothing to do are dropped.
  */
+/** Leave requests waiting for this viewer (leave.review; not their own). */
+async function pendingLeave(v: Viewer): Promise<number> {
+  if (!can(v.role, 'leave.review')) return 0;
+  const [r] = await sql<{ n: number }[]>`
+    select count(*)::int as n from leave_requests where status = 'pending' and (user_id <> ${v.userId} or ${isCompanyWide(v)})`.catch(() => [{ n: 0 }]);
+  return r.n;
+}
+
 export async function loadAttention(v: Viewer): Promise<AttentionItem[] | null> {
   return safe('attention', async () => {
     const month = startOfTashkentMonthKey();
@@ -891,11 +900,17 @@ export async function loadAttention(v: Viewer): Promise<AttentionItem[] | null> 
           (select count(*) from staff s where not exists (
             select 1 from self_development d where d.user_id = s.id and d.month = ${month}))::int as "selfDevMissing",
           (select count(*) from staff s where not exists (
-            select 1 from kpi_plans k where k.user_id = s.id and k.month = ${month} and k.status in ('submitted', 'approved')))::int as "kpiMissing"
+            select 1 from kpi_plans k where k.user_id = s.id and k.month = ${month} and k.status in ('submitted', 'approved')))::int as "kpiMissing",
+          (select count(*) from position_requests where status = 'pending')::int as "positionReview"
       `;
+      const growthReview = (await loadGrowthTeam()).reduce((a, p) => a + p.waiting, 0);
+      const leaveReview = await pendingLeave(v);
       const items: AttentionItem[] = [
         { key: 'taskReview', tone: 'warn', count: r.taskReview, href: '/tasks' },
         { key: 'kpiReview', tone: 'warn', count: r.kpiReview, href: '/my-kpi' },
+        { key: 'growthReview', tone: 'warn', count: growthReview, href: '/hr?tab=growth' },
+        { key: 'leaveReview', tone: 'warn', count: leaveReview, href: '/hr?tab=leave' },
+        { key: 'positionReview', tone: 'warn', count: r.positionReview, href: '/hr?tab=roadmap' },
         { key: 'overdue', tone: 'bad', count: r.overdue, href: '/tasks' },
         { key: 'staleIssues', tone: 'bad', count: r.staleIssues, href: '/issues' },
         { key: 'selfDevRate', tone: 'info', count: r.selfDevRate, href: '/self-development' },
@@ -922,7 +937,9 @@ export async function loadAttention(v: Viewer): Promise<AttentionItem[] | null> 
         (select count(*) from self_development where user_id = ${v.userId} and month = ${month})::int as "selfDev"
     `;
     const selfDevRequired = !can(v.role, 'selfDev.review');
+    const leaveReview = await pendingLeave(v);
     const items: AttentionItem[] = [
+      { key: 'leaveReview', tone: 'warn', count: leaveReview, href: '/hr?tab=leave' },
       { key: 'myOverdue', tone: 'bad', count: r.myOverdue, href: '/tasks' },
       { key: 'kpiReturned', tone: 'bad', count: r.kpiReturned, href: '/my-kpi' },
       { key: 'kpiThis', tone: 'warn', count: r.kpiThis ? 0 : 1, href: '/my-kpi' },

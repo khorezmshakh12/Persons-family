@@ -4,8 +4,8 @@ import type { NodeStatus } from '@/lib/strategy';
 import {
   EMPTY_MIND,
   EMPTY_ROADMAP,
-  countNodes,
   stagePhases,
+  type GrowthLogEntry,
   type GrowthMind,
   type GrowthPerson,
   type GrowthPlan,
@@ -24,6 +24,7 @@ type Row = {
   mind: GrowthMind | null;
   sent_roadmap: GrowthRoadmap | null;
   sent_mind: GrowthMind | null;
+  review_log: GrowthLogEntry[] | null;
   /** db/client.ts returns timestamptz as a string, not a Date. */
   sent_at: string | Date | null;
 };
@@ -43,23 +44,25 @@ function toPlan(r: Row): GrowthPlan {
     sentRoadmap: r.sent_roadmap?.sections ? r.sent_roadmap : EMPTY_ROADMAP,
     sentMind: r.sent_mind?.ch ? r.sent_mind : EMPTY_MIND,
     submittedAt: r.sent_at ? new Date(r.sent_at).toISOString() : null,
+    log: Array.isArray(r.review_log) ? r.review_log : [],
   };
 }
 
 /**
  * One person's plan. `forCeo` (CEO / HR looking at someone else's): only the
- * copy sent with «CEO'ga yuborish» — the draft stays private.
+ * roadmap copy sent with «CEO'ga yuborish» — the draft stays private, and the
+ * mind map is never shown to anyone but its owner (owner, 2026-11-21).
  */
 export async function loadGrowthPlan(userId: string, forCeo = false): Promise<GrowthPlan | null> {
   const [r] = await sql<Row[]>`
     select p.id as user_id, p.first_name, p.last_name, p.role::text as role,
-      g.roadmap, g.node_status, g.stage_state, g.mind, g.sent_roadmap, g.sent_mind, g.sent_at
+      g.roadmap, g.node_status, g.stage_state, g.mind, g.sent_roadmap, g.sent_mind, g.sent_at, g.review_log
     from profiles p left join hr_growth g on g.user_id = p.id
     where p.id = ${userId}
   `.catch(() => []);
   if (!r) return null;
   const plan = toPlan(r);
-  if (forCeo) return { ...plan, roadmap: plan.sentRoadmap, mind: plan.sentMind };
+  if (forCeo) return { ...plan, roadmap: plan.sentRoadmap, mind: EMPTY_MIND, sentMind: EMPTY_MIND };
   return plan;
 }
 
@@ -75,7 +78,8 @@ export async function loadGrowthTeam(): Promise<GrowthPerson[]> {
   return rows.map((r) => {
     const plan = toPlan(r);
     const submitted = !!plan.submittedAt;
-    const phases = Object.values(stagePhases(plan.sentRoadmap, plan.stageState));
+    const byStage = stagePhases(plan.sentRoadmap, plan.stageState);
+    const phases = Object.values(byStage);
     return {
       userId: plan.userId,
       name: plan.name,
@@ -84,7 +88,7 @@ export async function loadGrowthTeam(): Promise<GrowthPerson[]> {
       stages: submitted ? plan.sentRoadmap.sections.length : 0,
       approved: submitted ? phases.filter((p) => p === 'approved').length : 0,
       waiting: submitted ? phases.filter((p) => p === 'waiting').length : 0,
-      mindNodes: countNodes(plan.sentMind.ch),
+      waitingStages: submitted ? plan.sentRoadmap.sections.filter((s) => byStage[s.id] === 'waiting').map((s) => ({ id: s.id, t: s.t })) : [],
     };
   });
 }

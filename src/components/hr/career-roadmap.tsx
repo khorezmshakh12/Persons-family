@@ -29,6 +29,8 @@ export function CareerRoadmap({
 }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState('');
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [note, setNote] = useState('');
   const reqOf = (role: string) => requests.find((r) => r.role === role && r.status === 'pending');
 
   const run = (fn: () => Promise<{ error: string } | { ok: true }>, okMsg: string) =>
@@ -56,16 +58,24 @@ export function CareerRoadmap({
             <ShieldCheck className="size-4 text-au-accent-text" /> Tasdiqlashni kutayotgan so‘rovlar ({queue.length})
           </div>
           {queue.map((q) => (
-            <div key={q.id} className="flex items-center gap-3 rounded-au-ctl border border-au-line p-3">
+            <div key={q.id} className="flex flex-wrap items-center gap-3 rounded-au-ctl border border-au-line p-3">
               <span className="flex-1 text-sm">
                 <b className="text-au-ink">{q.name}</b> → <b className="text-au-accent-text">{q.label}</b>
               </span>
               <button type="button" disabled={pending} onClick={() => run(() => approvePositionRequestAction(q.id), 'Tasdiqlandi')} className="inline-flex items-center gap-1 rounded-au-ctl bg-au-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40">
                 <Check className="size-4" /> Tasdiqlash
               </button>
-              <button type="button" disabled={pending} onClick={() => run(() => rejectPositionRequestAction(q.id, ''), 'Rad etildi')} className="inline-flex items-center gap-1 rounded-au-ctl border border-au-line px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-bad disabled:opacity-40">
+              <button type="button" disabled={pending} onClick={() => (setRejecting(rejecting === q.id ? null : q.id), setNote(''))} className="inline-flex items-center gap-1 rounded-au-ctl border border-au-line px-3 py-1.5 text-sm font-semibold text-au-muted hover:text-au-bad disabled:opacity-40">
                 <X className="size-4" /> Rad
               </button>
+              {rejecting === q.id && (
+                <div className="flex basis-full gap-2">
+                  <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Rad etish sababi — xodimga yuboriladi" className="h-9 min-w-0 flex-1 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-sm text-au-ink" />
+                  <button type="button" disabled={pending || !note.trim()} onClick={() => run(() => rejectPositionRequestAction(q.id, note.trim()), 'Rad etildi')} className="rounded-au-ctl bg-au-bad px-3 text-sm font-semibold text-white disabled:opacity-40">
+                    Rad etish
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </section>

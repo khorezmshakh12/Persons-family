@@ -11,6 +11,7 @@ import {
   mapNode,
   stageComplete,
   stageNodeIds,
+  type GrowthLogEntry,
   type GrowthNode,
   type GrowthRoadmap,
   type GrowthStage,
@@ -77,6 +78,9 @@ const PHASE_LABEL: Record<StagePhase, string> = {
   locked: 'Yopiq — oldingi bosqich tasdiqlanmagan',
 };
 
+/* A small pencil at the node's right edge. It used to cover the whole node
+   (absolute inset-0), so every click renamed instead of opening the drawer —
+   ticking topics and «Bosqichni yakunladim» were unreachable. */
 function InlineRename({ title, onSave }: { title: string; onSave: (t: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(title);
@@ -91,7 +95,9 @@ function InlineRename({ title, onSave }: { title: string; onSave: (t: string) =>
       <span
         role="button"
         tabIndex={-1}
-        className="absolute inset-0 flex items-center justify-end gap-1 rounded opacity-0 transition-opacity hover:opacity-100"
+        aria-label="Nomini o‘zgartirish"
+        title="Nomini o‘zgartirish"
+        className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded bg-au-card opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -134,6 +140,8 @@ export function GrowthRoadmapView({
   onNode,
   onNew,
   onRename,
+  onTick,
+  today,
   side,
 }: {
   roadmap: GrowthRoadmap;
@@ -145,10 +153,15 @@ export function GrowthRoadmapView({
   onNode: (id: string) => void;
   onNew: () => void;
   onRename: (id: string, t: string) => void;
+  /** Tick a topic right on the canvas (owner, open stage only). */
+  onTick?: (id: string, s: NodeStatus) => void;
+  today: string;
   /** Right column top card (owner / person picker). */
   side: React.ReactNode;
 }) {
   const { nodes, links, H } = layout(roadmap);
+  const stageOf = new Map(roadmap.sections.flatMap((s) => [...s.left, ...s.right].map((t) => [t.id, s.id] as const)));
+  const dueOf = new Map(roadmap.sections.map((s) => [s.id, s.due]));
   const st = (n: Node) => (n.main ? PHASE_CLASS[phases[n.id] ?? 'current'] : (status[n.id] ?? 'todo'));
   const topics = nodes.filter((n) => !n.main);
   const doneN = topics.filter((n) => st(n) === 'done').length;
@@ -186,25 +199,57 @@ export function GrowthRoadmapView({
                 />
               ))}
             </svg>
-            {nodes.map((n, i) => (
+            {nodes.map((n, i) => {
+              const tick = !n.main && editable && !!onTick && phases[stageOf.get(n.id) ?? ''] === 'current';
+              const done = st(n) === 'done' || st(n) === 'skip';
+              const due = n.main ? dueOf.get(n.id) : undefined;
+              const late = !!due && due < today && phases[n.id] !== 'approved';
+              return (
               <button
                 key={n.id}
-                className={cn('rn relative', n.main ? 'main' : 'topic', st(n), selected === n.id && 'sel')}
+                className={cn('rn group relative', n.main ? 'main' : 'topic', st(n), selected === n.id && 'sel', tick && '!pl-8')}
                 style={{ left: n.x, top: n.y, width: n.w, height: n.h, animationDelay: `${Math.min(i, 30) * 25}ms` }}
                 onClick={() => onNode(n.id)}
                 title={n.main ? PHASE_LABEL[phases[n.id] ?? 'current'] : undefined}
               >
                 {n.main && (
-                  <span className="q">
+                  <span className={cn('q', late && '!text-au-bad')}>
                     {phases[n.id] === 'locked' && <Lock className="mr-0.5 inline size-2.5" />}
                     {n.q || PHASE_LABEL[phases[n.id] ?? 'current']}
+                    {due && ` · ${due.slice(8, 10)}.${due.slice(5, 7)}.${due.slice(0, 4)}${late ? ' — muddat o‘tgan' : ''}`}
+                  </span>
+                )}
+                {tick && (
+                  <span
+                    role="checkbox"
+                    aria-checked={done}
+                    aria-label={done ? 'Bajarilmagan deb belgilash' : 'Bajarildi deb belgilash'}
+                    tabIndex={0}
+                    className={cn(
+                      'absolute top-1/2 left-2 grid size-[18px] -translate-y-1/2 place-items-center rounded border',
+                      done ? 'border-au-ok bg-au-ok text-white' : 'border-au-line bg-au-card',
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onTick!(n.id, done ? 'todo' : 'done');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== ' ' && e.key !== 'Enter') return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onTick!(n.id, done ? 'todo' : 'done');
+                    }}
+                  >
+                    {done && <Check className="size-3" />}
                   </span>
                 )}
                 <span className="truncate">{n.t}</span>
                 {n.sub > 0 && <span className="cnt">{n.sub}</span>}
                 {editable && <InlineRename title={n.t} onSave={(t) => onRename(n.id, t)} />}
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -252,7 +297,7 @@ export function GrowthRoadmapView({
             </div>
           </div>
           <p className="mt-3 text-xs text-au-faint">
-            Tugunni bosing: holatini belgilang, ichiga cheksiz band qo‘shing. Bosqich: xodim yakunlaydi → CEO tasdiqlaydi → keyingisi ochiladi.
+            Mavzu yonidagi katakcha — bajarildi. Tugunni bosing: holat, ichki bandlar, bosqichni yakunlash. Bosqich: xodim yakunlaydi → CEO tasdiqlaydi → keyingisi ochiladi.
           </p>
         </div>
       </div>
@@ -397,6 +442,9 @@ export function GrowthNodeDrawer({
   status,
   phases,
   review,
+  log,
+  names,
+  today,
   sent,
   own,
   canReview,
@@ -405,12 +453,18 @@ export function GrowthNodeDrawer({
   onTree,
   onMark,
   onReview,
+  onUnapprove,
 }: {
   roadmap: GrowthRoadmap;
   nodeId: string;
   status: Record<string, NodeStatus>;
   phases: Record<string, StagePhase>;
   review: Record<string, StageReview>;
+  /** Decision history of the whole plan (filtered to this stage here). */
+  log: GrowthLogEntry[];
+  /** user id → name, for the history lines. */
+  names: Record<string, string>;
+  today: string;
   /** This stage was sent to the CEO exactly as it is in the draft. */
   sent: boolean;
   /** The viewer owns this roadmap (may edit / tick / mark). */
@@ -421,6 +475,7 @@ export function GrowthNodeDrawer({
   onTree: (id: string, f: (n: GrowthNode) => GrowthNode | null) => void;
   onMark: (stageId: string, done: boolean) => Promise<void>;
   onReview: (stageId: string, approve: boolean, note: string) => Promise<boolean>;
+  onUnapprove: (stageId: string, note: string) => Promise<boolean>;
 }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
@@ -436,6 +491,11 @@ export function GrowthNodeDrawer({
   const ids = stageNodeIds(sec);
   const doneIds = ids.filter((id) => status[id] === 'done' || status[id] === 'skip').length;
   const complete = stageComplete(sec, status);
+  const idx = roadmap.sections.indexOf(sec);
+  const nextSec = roadmap.sections[idx + 1];
+  /** Only the newest approval can be undone (keeps the stage order intact). */
+  const canUndo = canReview && phase === 'approved' && (!nextSec || phases[nextSec.id] !== 'approved');
+  const hist = log.filter((e) => e.st === sec.id).slice().reverse();
 
   const run = async (f: () => Promise<unknown>) => {
     setBusy(true);
@@ -477,6 +537,14 @@ export function GrowthNodeDrawer({
               <div className="rounded-au-ctl bg-au-bad-soft px-3 py-2 text-[13px] text-au-bad">CEO qaytardi: {rev.note}</div>
             )}
             {rev?.s === 'approved' && rev.note && <div className="rounded-au-ctl bg-au-ok-soft px-3 py-2 text-[13px] text-au-ok">CEO izohi: {rev.note}</div>}
+            {sec.due && (
+              <div className="fld">
+                <label>Tugash sanasi</label>
+                <span className={cn('text-sm', sec.due < today && phase !== 'approved' ? 'font-semibold text-au-bad' : 'text-au-ink')}>
+                  {fmtDay(sec.due)}
+                </span>
+              </div>
+            )}
             <div className="dr-sec">Mavzular · {sec.left.length + sec.right.length}</div>
             <div className="linked">
               {[...sec.left, ...sec.right].map((t) => (
@@ -518,6 +586,38 @@ export function GrowthNodeDrawer({
                   </button>
                 </div>
               </div>
+            )}
+            {canUndo && (
+              <div className="grid gap-2">
+                <div className="dr-sec">Tasdiqni bekor qilish</div>
+                <textarea className="sx-inp min-h-[56px] py-2" maxLength={500} placeholder="Sabab (ixtiyoriy) — xodimga yuboriladi" value={note} onChange={(e) => setNote(e.target.value)} />
+                <button
+                  className="sx-btn self-start text-au-bad"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      if (!(await ask(`«${sec.t}» tasdig‘i bekor qilinsinmi? Bosqich qayta «tasdiq kutilmoqda» holatiga qaytadi, keyingi bosqich yopiladi (belgilangan bandlar saqlanadi).`, { ok: 'Bekor qilish' }))) return;
+                      if (await onUnapprove(sec.id, note.trim())) setNote('');
+                    })
+                  }
+                >
+                  Tasdiqni bekor qilish
+                </button>
+              </div>
+            )}
+            {hist.length > 0 && (
+              <>
+                <div className="dr-sec">Tarix · {hist.length}</div>
+                <ul className="grid gap-1.5">
+                  {hist.map((e, i) => (
+                    <li key={`${e.at}-${i}`} className="text-[13px]">
+                      <b className="text-au-ink">{LOG_LABEL[e.s]}</b>
+                      <span className="text-au-faint"> · {names[e.by] ?? '—'} · {fmtAt(e.at)}</span>
+                      {e.note && <div className="text-au-muted">{e.note}</div>}
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </>
         ) : (
@@ -568,6 +668,20 @@ export function GrowthNodeDrawer({
     </>
   );
 }
+
+const LOG_LABEL: Record<GrowthLogEntry['s'], string> = {
+  self_done: 'Yakunlandi — tasdiqqa yuborildi',
+  unmarked: 'Xodim qaytarib oldi',
+  approved: 'CEO tasdiqladi',
+  returned: 'CEO qaytardi',
+  unapproved: 'Tasdiq bekor qilindi',
+};
+const fmtDay = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
+/** ISO instant → "21.11.2026 14:05" in Tashkent. */
+const fmtAt = (iso: string) => {
+  const t = new Date(new Date(iso).getTime() + 5 * 3_600_000).toISOString();
+  return `${fmtDay(t.slice(0, 10))} ${t.slice(11, 16)}`;
+};
 
 function findIn(n: GrowthNode, id: string): GrowthNode | undefined {
   if (n.id === id) return n;
@@ -645,6 +759,7 @@ export function GrowthRoadmapEditor({
         ...s,
         t: s.t.trim(),
         q: s.q.trim(),
+        due: s.due || undefined,
         left: s.left.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t),
         right: s.right.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t),
       }))
@@ -699,6 +814,10 @@ export function GrowthRoadmapEditor({
                     <Trash2 className="size-3.5" />
                   </button>
                 </div>
+                <label className="flex items-center gap-2 pl-8 text-[11px] font-semibold text-au-faint">
+                  Tugash sanasi
+                  <input type="date" className="sx-inp h-8 !w-40 text-[13px]" value={s.due ?? ''} onChange={(e) => patch(i, { due: e.target.value || undefined })} />
+                </label>
                 {(ph === 'approved' || ph === 'waiting') && (
                   <span className="pl-8 text-[11px] text-au-faint">
                     {ph === 'approved' ? 'CEO tasdiqlagan' : 'CEO tasdig‘ida'} — o‘zgartirsangiz, «CEO’ga yuborish»dan keyin qayta tasdiqqa tushadi

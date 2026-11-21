@@ -1865,6 +1865,21 @@
           "hint": "Tasdiqlang yoki izoh bilan qaytaring",
           "cta": "Ko‘rib chiqish"
         },
+        "growthReview": {
+          "title": "{count, plural, other {# ta roadmap bosqichi tasdiq kutmoqda}}",
+          "hint": "Xodim yakunlagan bosqichni tasdiqlang yoki qaytaring",
+          "cta": "Ko‘rib chiqish"
+        },
+        "leaveReview": {
+          "title": "{count, plural, other {# ta ta’til so‘rovi kutmoqda}}",
+          "hint": "Tasdiqlang yoki sabab bilan rad eting",
+          "cta": "Ko‘rib chiqish"
+        },
+        "positionReview": {
+          "title": "{count, plural, other {# ta lavozim so‘rovi kutmoqda}}",
+          "hint": "Rivojlanish yo‘li: tasdiqlang yoki rad eting",
+          "cta": "Ko‘rib chiqish"
+        },
         "overdue": {
           "title": "{count, plural, other {# ta vazifa muddati o‘tgan}}",
           "hint": "Mas’ullar bilan muddatni aniqlashtiring",
@@ -2094,12 +2109,20 @@
           "desc": "Xodimlar davomatini belgilash"
         },
         "growth_viewAll": {
-          "name": "Barcha roadmap va mind map",
-          "desc": "Har bir xodimning roadmap va mind map'ini ko'rish (tasdiqsiz)"
+          "name": "Barcha roadmap'lar",
+          "desc": "Har bir xodimning roadmap'ini ko'rish (tasdiqsiz)"
         },
         "growth_review": {
           "name": "Roadmap bosqichini tasdiqlash",
           "desc": "Xodim roadmap bosqichini yopish"
+        },
+        "leave_review": {
+          "name": "Ta’til so‘rovlarini tasdiqlash",
+          "desc": "Jamoaning ta’til so‘rovlarini tasdiqlash / rad etish"
+        },
+        "hr_hiring": {
+          "name": "Ishga olish",
+          "desc": "Vakansiyalar va nomzodlar sonini yuritish"
         },
         "checklist_monitor": {
           "name": "Jamoani kuzatish",

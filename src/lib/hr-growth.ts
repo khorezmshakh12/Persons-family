@@ -5,21 +5,32 @@ import type { NodeStatus } from '@/lib/strategy';
  * Ko'rinishi Strategy'dagi Roadmap / Mind map bilan bir xil; farqi:
  * - har bir mavzu va shox ichiga cheksiz band qo'shiladi (daraxt);
  * - xodim qoralamada istalgancha qo'shadi / tahrirlaydi / o'chiradi («Saqlash»);
- *   CEO va HR faqat «CEO'ga yuborish» paytidagi nusxani ko'radi (roadmap ham,
- *   mind map ham), qayta yuborish istalgancha;
+ *   CEO va HR faqat «CEO'ga yuborish» paytidagi roadmap nusxasini ko'radi,
+ *   qayta yuborish istalgancha; mind map faqat xodimning o'zida;
  * - bosqich: xodim «yakunladim» → CEO tasdiqlaydi → keyingi bosqich ochiladi;
  *   tasdiqlangan bosqich o'zgartirilib yuborilsa, qayta CEO tasdig'iga tushadi.
  * Client-safe.
  */
 
 export type GrowthNode = { id: string; t: string; ch: GrowthNode[] };
-export type GrowthStage = { id: string; t: string; q: string; left: GrowthNode[]; right: GrowthNode[] };
+/** `due` — optional deadline (YYYY-MM-DD); not part of what the CEO approves. */
+export type GrowthStage = { id: string; t: string; q: string; due?: string; left: GrowthNode[]; right: GrowthNode[] };
 export type GrowthRoadmap = { name: string; subtitle: string; sections: GrowthStage[] };
 
 export type StageReview =
   | { s: 'self_done'; at: string }
   | { s: 'approved'; at: string; by: string; note?: string }
   | { s: 'returned'; at: string; by: string; note: string };
+
+/** One line of a stage's decision history (hr_growth.review_log). */
+export type GrowthLogEntry = {
+  st: string;
+  t: string;
+  s: 'self_done' | 'unmarked' | 'approved' | 'returned' | 'unapproved';
+  at: string;
+  by: string;
+  note?: string;
+};
 
 export type MindNode = { id: string; t: string; c?: string; ch: MindNode[] };
 export type GrowthMind = { t: string; ch: MindNode[] };
@@ -37,6 +48,8 @@ export type GrowthPlan = {
   sentMind: GrowthMind;
   /** Last «CEO'ga yuborish» (null = never sent). */
   submittedAt: string | null;
+  /** Decision history, newest last. */
+  log: GrowthLogEntry[];
 };
 
 /** One row of the CEO's team list. */
@@ -48,7 +61,8 @@ export type GrowthPerson = {
   stages: number;
   approved: number;
   waiting: number;
-  mindNodes: number;
+  /** Stages waiting for the CEO (sent copy). */
+  waitingStages: { id: string; t: string }[];
 };
 
 export const EMPTY_ROADMAP: GrowthRoadmap = { name: '', subtitle: '', sections: [] };
@@ -70,11 +84,11 @@ export function canon(v: unknown): string {
   return JSON.stringify(v);
 }
 
-/** The draft differs from what was last sent to the CEO. */
-export const growthUnsent = (p: Pick<GrowthPlan, 'roadmap' | 'mind' | 'sentRoadmap' | 'sentMind'>) =>
-  canon(p.roadmap) !== canon(p.sentRoadmap) || canon(p.mind) !== canon(p.sentMind);
+/** The roadmap draft differs from what was last sent to the CEO. The mind
+ * map is private to its owner (owner, 2026-11-21), so it never counts. */
+export const growthUnsent = (p: Pick<GrowthPlan, 'roadmap' | 'sentRoadmap'>) => canon(p.roadmap) !== canon(p.sentRoadmap);
 
-/** Stage content (title, term, topics) — what a CEO approval covers. */
+/** Stage content (title, term, topics) — what a CEO approval covers (the deadline is not). */
 export const stageCanon = (s: GrowthStage) => canon([s.t, s.q, s.left, s.right]);
 
 export const growthId = () =>
