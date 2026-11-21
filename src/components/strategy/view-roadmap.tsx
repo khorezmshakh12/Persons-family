@@ -86,8 +86,15 @@ function NodeEditButton({ roadmapId, nodeId, title }: { roadmapId: string; nodeI
 
   if (!editing) {
     return (
-      <button
-        className="absolute inset-0 flex items-center justify-end gap-1 rounded opacity-0 transition-opacity hover:opacity-100"
+      // A small pencil at the right edge — it used to cover the whole node
+      // (inset-0), so every click renamed instead of opening the drawer. A
+      // span, not a <button>: buttons can't nest (hydration error).
+      <span
+        role="button"
+        tabIndex={-1}
+        aria-label="Nomini o‘zgartirish"
+        title="Nomini o‘zgartirish"
+        className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded bg-au-card opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -96,7 +103,7 @@ function NodeEditButton({ roadmapId, nodeId, title }: { roadmapId: string; nodeI
         }}
       >
         <Pencil className="size-3 shrink-0 text-au-muted" />
-      </button>
+      </span>
     );
   }
 
@@ -185,7 +192,7 @@ export function RoadmapView({
             return (
               <button
                 key={n.id}
-                className={cn('rn relative', n.main ? 'main' : 'topic', st(n.id), selected === n.id && 'sel')}
+                className={cn('rn group relative', n.main ? 'main' : 'topic', st(n.id), selected === n.id && 'sel')}
                 style={{ left: n.x, top: n.y, width: n.w, height: n.h, animationDelay: `${Math.min(i, 30) * 25}ms` }}
                 onClick={() => onNode(R.id, n.id)}
               >

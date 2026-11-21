@@ -81,11 +81,14 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
   const out = shell(day, now);
   const r = ranges(day, now);
   // Six spans: 'day', 'day:prev', 'week', ... — one recordset joined by every query.
-  const spans = JSON.stringify(
+  // Passed with sql.json: a pre-stringified string gets JSON.stringify'd again
+  // by postgres-js (the param is typed jsonb), so jsonb_to_recordset saw a
+  // scalar string and every query failed — Statistika showed all zeros.
+  const spans = sql.json(
     (Object.keys(r) as OpsPeriodKey[]).flatMap((k) => [
       { k, a: r[k].from, b: r[k].to },
       { k: `${k}:prev`, a: r[k].prevFrom, b: r[k].prevTo },
-    ]),
+    ]) as never,
   );
   const seriesFrom = addDaysToKey(day, -30);
 

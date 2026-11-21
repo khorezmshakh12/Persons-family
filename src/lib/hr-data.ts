@@ -89,7 +89,8 @@ export async function loadHrPeople(onlyId?: string): Promise<HrPerson[]> {
       name: `${p.first_name} ${p.last_name}`,
       first_name: p.first_name,
       role: p.role,
-      roles: p.roles?.length ? p.roles : [p.role],
+      // Main position first, then extra ones (profile_roles holds only the extras).
+      roles: [p.role, ...(p.roles ?? []).filter((r) => r !== p.role)],
       dept: ROLE_DEPT[p.role] ?? 'ops',
       avatar: avatars[i],
       phone: p.phone,

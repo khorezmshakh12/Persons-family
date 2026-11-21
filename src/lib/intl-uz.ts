@@ -10,8 +10,8 @@
 // These formatters reproduce Node's CLDR uz output exactly for the option
 // shapes the app uses (tests/intl-uz.test.ts compares them against Node).
 // installUzIntl() patches the Intl constructors + Date/Number toLocale*
-// ONLY for uz locales and ONLY when the runtime lacks uz data; every other
-// locale goes straight to the native implementation.
+// for uz locales only (in every browser, so client output always equals the
+// server's); every other locale goes straight to the native implementation.
 
 const MONTH_LONG = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 const MONTH_SHORT = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
@@ -135,13 +135,10 @@ let installed = false;
 export function installUzIntl() {
   if (installed || typeof window === 'undefined') return;
   installed = true;
-  let broken = false;
-  try {
-    broken = /^M\d/.test(new Intl.DateTimeFormat('uz', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 8, 1))));
-  } catch {
-    broken = false;
-  }
-  if (!broken) return;
+  // Always, not only when the browser lacks uz data: a browser that HAS it
+  // (Safari, Firefox) uses its own CLDR version, whose short months etc. can
+  // differ from the server's Node output — React #418 hydration errors on
+  // /tasks from iPhones. The shim reproduces Node exactly, so client = server.
 
   const NativeDTF = Intl.DateTimeFormat;
   const NativeRTF = Intl.RelativeTimeFormat;
