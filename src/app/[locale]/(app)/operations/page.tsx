@@ -27,7 +27,10 @@ export default async function OperationsPage() {
     statsPeople || statsMoney
       ? loadOpsStats()
           .then((s) => (statsMoney ? s : withoutMoney(s)))
-          .catch(() => emptyOpsStats(day))
+          .catch((e) => {
+            console.error('[operations] stats failed', e);
+            return emptyOpsStats(day);
+          })
       : emptyOpsStats(day),
     loadSalesData().catch(() => emptySalesData()),
   ]);
