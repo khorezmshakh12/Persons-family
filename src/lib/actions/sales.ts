@@ -409,7 +409,7 @@ export async function bulkTrialAction(input: z.input<typeof bulkTrialSchema>): P
         update crm_leads set trial_date = ${v.trialDate}, trial_time = ${v.trialTime},
           trial_reminded_for = case when trial_date is distinct from ${v.trialDate}::date then null else trial_reminded_for end,
           first_contact_at = coalesce(first_contact_at, now()), updated_at = now()
-        where id = any(${v.ids}::uuid[]) and archived_at is null and converted_student_id is null
+        where id = any(${sql.array(v.ids)}::uuid[]) and archived_at is null and converted_student_id is null
         returning id`;
       for (const r of rows)
         await tx`insert into crm_lead_log (lead_id, text, actor) values (${r.id}, ${`Sinov darsiga yozildi: ${v.trialDate} ${v.trialTime}`}, ${me.id})`;
@@ -417,7 +417,8 @@ export async function bulkTrialAction(input: z.input<typeof bulkTrialSchema>): P
     });
     refresh();
     return { n };
-  } catch {
+  } catch (e) {
+    console.error('[sales] bulkTrialAction failed', e);
     return { error: 'updateFailed' };
   }
 }
@@ -440,13 +441,14 @@ export async function bulkGroupAction(input: z.input<typeof bulkGroupSchema>): P
           values (${v.name}, 'g3', (select coalesce(max(sort), 0) + 1 from crm_lead_groups), ${me.id}) returning id`;
       const rows = await tx<{ id: string }[]>`
         update crm_leads set group_id = ${g.id}, updated_at = now()
-        where id = any(${v.ids}::uuid[]) and archived_at is null returning id`;
+        where id = any(${sql.array(v.ids)}::uuid[]) and archived_at is null returning id`;
       for (const r of rows) await tx`insert into crm_lead_log (lead_id, text, actor) values (${r.id}, ${`«${v.name}» guruhiga biriktirildi`}, ${me.id})`;
       return rows.length;
     });
     refresh();
     return { n };
-  } catch {
+  } catch (e) {
+    console.error('[sales] bulkGroupAction failed', e);
     return { error: 'updateFailed' };
   }
 }
