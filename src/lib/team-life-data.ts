@@ -3,6 +3,7 @@ import { sql } from '@/lib/db/client';
 import { can, canSeeFor, ROLE_DEPT, type Role } from '@/lib/permissions';
 import type { Profile } from '@/lib/auth/session';
 import { addDaysToKey, tashkentDayKey } from '@/lib/time';
+import { LEAVE_KIND_LABEL, type LeaveKind } from '@/lib/hr-leave';
 import { occurrences, sortEvents, yearlyIn, type CalEvent, type EventKind, type Layer, type NewsCategory, type Repeat } from '@/lib/team-life';
 
 const nm = (f: string | null, l: string | null) => `${f ?? ''} ${l ?? ''}`.trim() || 'Xodim';
@@ -22,7 +23,7 @@ export async function loadCalendar(viewer: Profile, from: string, to: string, sc
   const fromTs = `${from}T00:00:00+05:00`;
   const toTs = `${addDaysToKey(to, 1)}T00:00:00+05:00`;
 
-  const [events, rsvps, tasks, milestones, people, core, ones, lessons] = await Promise.all([
+  const [events, rsvps, tasks, milestones, people, leave, ones, lessons] = await Promise.all([
     sql<{ id: string; title: string; description: string; starts_at: string; ends_at: string | null; all_day: boolean; location: string; kind: string; repeat: Repeat; repeat_until: string | null; created_by: string | null }[]>`
       select id, title, description, starts_at, ends_at, all_day, location, kind, repeat, repeat_until::text as repeat_until, created_by
       from events where deleted_at is null and starts_at < ${toTs}
@@ -39,7 +40,9 @@ export async function loadCalendar(viewer: Profile, from: string, to: string, sc
       : Promise.resolve([] as { id: string; title: string; date: string; space: string }[]),
     sql<{ id: string; first_name: string | null; last_name: string | null; date_of_birth: string | null; hire_date: string | null; role: string }[]>`
       select id, first_name, last_name, date_of_birth::text as date_of_birth, hire_date::text as hire_date, role from profiles where is_active`,
-    sql<{ leave: unknown; keys: Record<string, string> | null }[]>`select data->'leave' as leave, data->'keys' as keys from core_state where id = 1`,
+    sql<{ id: string; user_id: string; kind: LeaveKind; from_day: string; to_day: string; status: string }[]>`
+      select id, user_id, kind, from_day::text as from_day, to_day::text as to_day, status from leave_requests
+      where status in ('pending', 'approved') and to_day >= ${from} and from_day <= ${to}`.catch(() => []),
     sql<{ id: string; held_on: string; staff_id: string; lead_id: string }[]>`
       select id, held_on::text as held_on, staff_id, lead_id from one_on_ones
       where held_on >= ${from} and held_on <= ${to} and (staff_id = ${viewer.id} or lead_id = ${viewer.id})`.catch(() => []),
@@ -92,16 +95,12 @@ export async function loadCalendar(viewer: Profile, from: string, to: string, sc
       }
   }
 
-  // Leave lives in Core's shared state, keyed by Core's short staff keys.
-  const leave = Array.isArray(core[0]?.leave) ? (core[0].leave as { id: unknown; k: string; from: number; to: number; type?: string; st?: string }[]) : [];
-  const keyToId = Object.fromEntries(Object.entries(core[0]?.keys ?? {}).map(([id, k]) => [k, id]));
+  // Leave: HR › Ta'til (leave_requests; moved from Core 2026-11-21).
   for (const l of leave) {
-    if (l.st === 'no' || typeof l.from !== 'number' || typeof l.to !== 'number') continue;
-    const a = tashkentDayKey(new Date(l.from));
-    const b = tashkentDayKey(new Date(l.to));
-    if (b < from || a > to) continue;
-    const pid = keyToId[l.k];
-    const p = pid ? byId.get(pid) : undefined;
+    const a = l.from_day;
+    const b = l.to_day;
+    const pid = l.user_id;
+    const p = byId.get(pid);
     // Other people's leave reasons stay in the team view for HR / leadership;
     // the personal ('mine') scope — and so the .ics feed — never carries them.
     if (scope === 'mine' && pid !== viewer.id) continue;
@@ -109,10 +108,10 @@ export async function loadCalendar(viewer: Profile, from: string, to: string, sc
     out.push({
       id: `lv-${String(l.id)}`,
       layer: 'leave',
-      title: `${p ? nm(p.first_name, p.last_name) : l.k} — ${mineOrHr ? (l.type ?? 'Ta’til') : 'ishda emas'}${l.st === 'pending' && mineOrHr ? ' (kutilmoqda)' : ''}`,
+      title: `${p ? nm(p.first_name, p.last_name) : '—'} — ${mineOrHr ? LEAVE_KIND_LABEL[l.kind] : 'ishda emas'}${l.status === 'pending' && mineOrHr ? ' (kutilmoqda)' : ''}`,
       day: a < from ? from : a,
       endDay: b > to ? to : b,
-      href: mineOrHr ? '/hr' : undefined,
+      href: mineOrHr ? '/hr?tab=leave' : undefined,
     });
   }
 

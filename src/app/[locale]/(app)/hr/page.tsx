@@ -1,5 +1,4 @@
 import { getTranslations } from 'next-intl/server';
-import { CoreSection } from '@/components/core/core-section';
 import { AttendanceView } from '@/components/attendance/attendance-view';
 import { EmployeeStatsTable } from '@/components/aurora/employee-stats-table';
 import { HrHub, type HrTab } from '@/components/hr/hr-hub';
@@ -15,6 +14,8 @@ import { can, canFor, canSeeFor, ROLES, ROLE_DEPT, type Department } from '@/lib
 import { sql } from '@/lib/db/client';
 import { CareerRoadmap } from '@/components/hr/career-roadmap';
 import { GrowthWorkspace, type GrowthView } from '@/components/hr/growth-workspace';
+import { HiringView, LeaveView } from '@/components/hr/leave-hiring';
+import { loadLeave, loadVacancies } from '@/lib/hr-leave-data';
 import { loadGrowthPlan, loadGrowthTeam } from '@/lib/hr-growth-data';
 import { roleLabel } from '@/lib/roles';
 import { tashkentDayKey } from '@/lib/time';
@@ -32,19 +33,23 @@ const DEPT_LABEL: Record<Department, string> = {
 };
 
 /**
- * HR hub. People, structure, onboarding and analytics are native; leave,
- * hiring and the month-end bonus still run in Core (their data lives in
- * core_state), so they stay one tab away instead of being lost.
+ * HR hub — all native. Leave and hiring moved off Core on 2026-11-21 (the
+ * month-end bonus lives in Finance).
  */
-export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; day?: string; v?: string; person?: string }> }) {
-  const { tab: tabParam, day: dayParam, v: viewParam, person: personParam } = await searchParams;
+type Tab = HrTab | 'leave' | 'hiring' | 'attendance' | 'roadmap' | 'growth';
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ tab?: string; day?: string; v?: string; person?: string; stage?: string }> }) {
+  const { tab: tabParam, day: dayParam, v: viewParam, person: personParam, stage: stageParam } = await searchParams;
   const { profile } = await getAuthState();
-  const isManager = !!profile && can(profile.role, 'hr.manage');
+  // canFor: the active role plus Section access overrides.
+  const isManager = !!profile && canFor(profile, 'hr.manage');
+  const leaveReviewer = !!profile && canFor(profile, 'leave.review');
+  const hiring = !!profile && canFor(profile, 'hr.hiring');
   const overview = !!profile && can(profile.role, 'company.overview');
   // Davomat — CEO, COO and Admin Manager only (SECTION_ROLES.attendance).
   const marksAttendance = !!profile && canSeeFor(profile, 'attendance');
 
-  const allTabs: { k: HrTab | 'core' | 'attendance' | 'roadmap' | 'growth'; n: string }[] = isManager
+  const allTabs: { k: Tab; n: string }[] = isManager
     ? [
         { k: 'people', n: 'Xodimlar' },
         { k: 'org', n: 'Tuzilma' },
@@ -53,31 +58,36 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
         { k: 'onboarding', n: 'Onboarding' },
         { k: 'analytics', n: 'Tahlil' },
         { k: 'attendance', n: 'Davomat' },
-        { k: 'core', n: 'Ta’til · Ishga olish · Bonus' },
+        { k: 'leave', n: 'Ta’til' },
+        { k: 'hiring', n: 'Ishga olish' },
       ]
     : [
         { k: 'people', n: 'Mening profilim' },
         { k: 'roadmap', n: 'Rivojlanish' },
         { k: 'growth', n: 'Roadmap · Mind map' },
-        { k: 'core', n: 'Ta’til va davomat' },
+        { k: 'leave', n: 'Ta’til' },
+        ...(hiring ? [{ k: 'hiring' as const, n: 'Ishga olish' }] : []),
       ];
   // Core's per-person ACL can hide HR; Roadmap · Mind map stays open to
-  // everyone (owner, 2026-11-16), so such people get only those two tabs.
+  // everyone (owner, 2026-11-16) and so does asking for leave.
   const hrOpen = !!profile && (await coreViews(profile)).includes('hr');
   const tabs = allTabs
     .filter((t) => t.k !== 'attendance' || marksAttendance)
-    .filter((t) => hrOpen || t.k === 'roadmap' || t.k === 'growth');
-  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as HrTab | 'core' | 'attendance' | 'roadmap' | 'growth';
+    .filter((t) => t.k !== 'hiring' || hiring)
+    .filter((t) => hrOpen || t.k === 'roadmap' || t.k === 'growth' || t.k === 'leave');
+  const tab = (tabs.some((t) => t.k === tabParam) ? tabParam : tabs[0].k) as Tab;
   const today = tashkentDayKey();
   const day = dayParam && DAY_RE.test(dayParam) ? dayParam : today;
 
   const tStaff = await getTranslations('staff');
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabel(tStaff, r)]));
-  const native = tab !== 'core' && tab !== 'attendance' && tab !== 'roadmap' && tab !== 'growth';
+  const native = tab === 'people' || tab === 'org' || tab === 'onboarding' || tab === 'analytics';
   const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
   const onboarding = !native ? [] : await loadOnboarding(people.map((p) => p.id));
   const attendance = tab === 'attendance' ? await loadAttendanceRows(day) : null;
   const stats = tab === 'analytics' && overview ? await loadEmployeeTaskStats() : null;
+  const [myLeave, teamLeave] = tab === 'leave' && profile ? await Promise.all([loadLeave(profile.id), leaveReviewer ? loadLeave() : Promise.resolve(null)]) : [[], null];
+  const vacancies = tab === 'hiring' && hiring ? await loadVacancies() : null;
 
   // HR rivojlanish yo'li (barcha xodimlar) — lavozim pog'onasi + o'z so'rovlari;
   // CEO uchun tasdiqlash navbati.
@@ -155,7 +165,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               team={growthTeam}
               canReview={canReview}
               initialView={(viewParam === 'mind' ? 'mind' : 'roadmap') as GrowthView}
+              initialStage={stageParam ?? null}
+              today={today}
             />
+          </div>
+        )}
+        {tab === 'leave' && profile && (
+          <div className="pb-8">
+            <LeaveView mine={myLeave} team={teamLeave} meId={profile.id} isCeo={overview} today={today} />
+          </div>
+        )}
+        {vacancies && (
+          <div className="pb-8">
+            <HiringView vacancies={vacancies} deptLabels={DEPT_LABEL} />
           </div>
         )}
         {native && profile && (
@@ -174,7 +196,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           </div>
         )}
       </div>
-      {tab === 'core' && <CoreSection view="hr" navKey="hr" />}
     </div>
   );
 }

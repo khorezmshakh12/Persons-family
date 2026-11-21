@@ -195,7 +195,9 @@ export type Capability =
   | 'checklist.feedback' // checklistga kunlik / bandga izoh, xodimga xabar boradi
   | 'hr.manage' // HR hub: barcha xodimlar profili, tuzilma, onboarding (oylik/moliya emas)
   | 'growth.review' // HR › Roadmap: topshirilgan roadmap'lar, bosqich tasdig'i
-  | 'growth.viewAll'; // HR › Roadmap · Mind map: har bir xodimnikini ko'rish (tasdiqsiz)
+  | 'growth.viewAll' // HR › Roadmap: har bir xodimnikini ko'rish (tasdiqsiz)
+  | 'leave.review' // HR › Ta'til: so'rovlarni tasdiqlash / rad etish, jamoa ta'tillari
+  | 'hr.hiring'; // HR › Ishga olish: vakansiyalar va nomzodlar soni
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -247,6 +249,10 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   'growth.review': ['ceo'],
   // Barcha xodim roadmap/mind map'ini ko'rish — CEO va HR (owner, 2026-11-16).
   'growth.viewAll': ['ceo', 'hr_manager'],
+  // Ta'til va ishga olish Core'dan ko'chdi (owner, 2026-11-21) — Core'dagi
+  // kabi CEO + HR; COO rahbariyat sifatida.
+  'leave.review': ['ceo', 'coo', 'hr_manager'],
+  'hr.hiring': ['ceo', 'coo', 'hr_manager'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
@@ -361,7 +367,7 @@ export type AccessFunction = { key: Capability | SectionKey; ceoOnly?: boolean }
 export const SECTION_FUNCTIONS: Partial<Record<SectionKey, AccessFunction[]>> = {
   selfDevelopment: [{ key: 'selfDev.viewAll' }, { key: 'selfDev.review', ceoOnly: true }],
   taskTracker: [{ key: 'checklist.monitor' }, { key: 'checklist.feedback' }, { key: 'checklist.manage' }],
-  hr: [{ key: 'attendance' }, { key: 'growth.viewAll' }, { key: 'growth.review', ceoOnly: true }],
+  hr: [{ key: 'attendance' }, { key: 'growth.viewAll' }, { key: 'growth.review', ceoOnly: true }, { key: 'leave.review' }, { key: 'hr.hiring' }],
   operations: [{ key: 'operations.stats' }, { key: 'operations.statsMoney', ceoOnly: true }],
 };
 export const FUNCTION_KEYS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.map((f) => f.key));

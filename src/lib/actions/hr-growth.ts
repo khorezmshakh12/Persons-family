@@ -21,6 +21,7 @@ import {
   stageCanon,
   stagePhases,
   walkNodes,
+  type GrowthLogEntry,
   type GrowthMind,
   type GrowthNode,
   type GrowthRoadmap,
@@ -31,8 +32,9 @@ import {
 // HR › Roadmap va Mind map. Har bir amal o'z autentifikatsiyasini tekshiradi.
 // Xodim faqat o'z yozuviga tegadi; bosqich tasdig'i faqat CEO'da
 // (growth.review). Holat o'tishlari qator qulfi (for update) ostida.
-// roadmap / mind = qoralama (istalgancha tahrir); sent_* = «CEO'ga yuborish»
-// nusxasi — CEO tasdig'i va HR ko'rinishi faqat shunga tayanadi.
+// roadmap = qoralama (istalgancha tahrir); sent_roadmap = «CEO'ga yuborish»
+// nusxasi — CEO tasdig'i va HR ko'rinishi faqat shunga tayanadi. Mind map
+// faqat xodimning o'zida. review_log — bosqich qarorlari tarixi.
 
 type Result = { error: string } | { ok: true };
 
@@ -48,7 +50,7 @@ const roadmapSchema = z.object({
   name: z.string().trim().max(80).default(''),
   subtitle: z.string().trim().max(80).default(''),
   sections: z
-    .array(z.object({ id, t: title, q: z.string().trim().max(30).default(''), left: z.array(nodeSchema).max(300), right: z.array(nodeSchema).max(300) }))
+    .array(z.object({ id, t: title, q: z.string().trim().max(30).default(''), due: z.iso.date().optional(), left: z.array(nodeSchema).max(300), right: z.array(nodeSchema).max(300) }))
     .max(60),
 });
 
@@ -99,6 +101,11 @@ async function ceoRecipients(): Promise<string[]> {
     where p.is_active and (p.role = 'ceo' or exists (select 1 from profile_roles r where r.user_id = p.id and r.role = 'ceo'))
   `.catch(() => []);
   return rows.map((r) => r.id);
+}
+
+/** Appends one line to the decision history (inside the row's transaction). */
+async function logReview(t: Tx, userId: string, e: GrowthLogEntry) {
+  await t`update hr_growth set review_log = coalesce(review_log, '[]'::jsonb) || ${t.json([e] as never)} where user_id = ${userId}`;
 }
 
 const revalidate = () => revalidatePath('/[locale]/hr', 'page');
@@ -173,8 +180,8 @@ export async function sendGrowthAction(): Promise<Result> {
     const err = await sql.begin(async (s) => {
       const t = s;
       const cur = await lockRow(t, user.id);
-      if (!cur.roadmap.sections.length && !cur.mind.ch.length && !cur.sent_at) return 'empty';
-      if (canon(cur.roadmap) === canon(cur.sent_roadmap) && canon(cur.mind) === canon(cur.sent_mind)) return 'nothingNew';
+      if (!cur.roadmap.sections.length && !cur.sent_at) return 'empty';
+      if (canon(cur.roadmap) === canon(cur.sent_roadmap)) return 'nothingNew';
       first = !cur.sent_at;
       const sentStages = new Map(cur.sent_roadmap.sections.map((x) => [x.id, x]));
       const keep = new Set(allIds(cur.roadmap));
@@ -184,6 +191,7 @@ export async function sendGrowthAction(): Promise<Result> {
         const prev = sentStages.get(st.id);
         if (prev && state[st.id]?.s === 'approved' && stageCanon(prev) !== stageCanon(st)) {
           state[st.id] = { s: 'self_done', at };
+          await logReview(t, user.id, { st: st.id, t: st.t, s: 'self_done', at, by: user.id, note: 'O‘zgartirildi — qayta tasdiqqa' });
           reapprove++;
         }
       }
@@ -228,9 +236,11 @@ export async function markGrowthStageAction(stageId: string, done: boolean): Pro
         const rec: StageReview = { s: 'self_done', at: new Date().toISOString() };
         await t`update hr_growth set stage_state = stage_state || ${t.json({ [stageId]: rec } as never)}, updated_at = now()
           where user_id = ${user.id}`;
+        await logReview(t, user.id, { st: stageId, t: stage.t, s: 'self_done', at: rec.at, by: user.id });
       } else {
         if (phase !== 'waiting') return 'locked';
         await t`update hr_growth set stage_state = stage_state - ${stageId}, updated_at = now() where user_id = ${user.id}`;
+        await logReview(t, user.id, { st: stageId, t: stage.t, s: 'unmarked', at: new Date().toISOString(), by: user.id });
       }
       return null;
     });
@@ -275,6 +285,7 @@ export async function reviewGrowthStageAction(input: { userId: string; stageId: 
       const rec: StageReview = approve ? { s: 'approved', at, by: user.id, ...(note ? { note } : {}) } : { s: 'returned', at, by: user.id, note: note! };
       await t`update hr_growth set stage_state = stage_state || ${t.json({ [stageId]: rec } as never)}, updated_at = now()
         where user_id = ${userId}`;
+      await logReview(t, userId, { st: stageId, t: stage.t, s: approve ? 'approved' : 'returned', at, by: user.id, ...(note ? { note } : {}) });
       return null;
     });
     if (err) return { error: err };
@@ -292,7 +303,47 @@ export async function reviewGrowthStageAction(input: { userId: string; stageId: 
   }
 }
 
-/** Saves the employee's own mind map draft (CEO / HR see the sent copy). */
+/** CEO: «Tasdiqni bekor qilish» — the last approved stage goes back to
+ * waiting (the stage after it closes again; its ticks are kept). Only the
+ * newest approval can be undone, so the order of stages never breaks. */
+export async function unapproveGrowthStageAction(input: { userId: string; stageId: string; note?: string }): Promise<Result> {
+  const { user, profile } = await getAuthState();
+  if (!user || !profile) return { error: 'auth' };
+  if (!canFor(profile, 'growth.review')) return { error: 'forbidden' };
+  const p = z.object({ userId: z.string().uuid(), stageId: id, note: z.string().trim().max(500).optional() }).safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const { userId, stageId, note } = p.data;
+  let stageName = '';
+  try {
+    const err = await sql.begin(async (s) => {
+      const t = s;
+      const cur = await lockRow(t, userId);
+      const phases = stagePhases(cur.sent_roadmap, cur.stage_state);
+      const idx = cur.sent_roadmap.sections.findIndex((x) => x.id === stageId);
+      if (idx < 0) return 'notFound';
+      const nextSt = cur.sent_roadmap.sections[idx + 1];
+      if (phases[stageId] !== 'approved' || (nextSt && phases[nextSt.id] === 'approved')) return 'notLastApproved';
+      stageName = cur.sent_roadmap.sections[idx].t;
+      const at = new Date().toISOString();
+      const rec: StageReview = { s: 'self_done', at };
+      await t`update hr_growth set stage_state = stage_state || ${t.json({ [stageId]: rec } as never)}, updated_at = now()
+        where user_id = ${userId}`;
+      await logReview(t, userId, { st: stageId, t: stageName, s: 'unapproved', at, by: user.id, ...(note ? { note } : {}) });
+      return null;
+    });
+    if (err) return { error: err };
+    await notifyUsers('goals', [userId], `↩️ «${stageName}» bosqichi tasdig‘i bekor qilindi — qayta ko‘rib chiqiladi${note ? `: ${note}` : ''}`, {
+      href: '/hr?tab=growth',
+    }).catch(() => {});
+    revalidate();
+    return { ok: true };
+  } catch (e) {
+    console.error('[hr-growth] unapprove failed', e);
+    return { error: 'failed' };
+  }
+}
+
+/** Saves the employee's own mind map (private — nobody else sees it). */
 export async function saveGrowthMindAction(input: GrowthMind): Promise<Result> {
   const { user, profile } = await getAuthState();
   if (!user || !profile) return { error: 'auth' };

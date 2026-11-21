@@ -5,7 +5,8 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EMPTY_MIND, canon, growthUnsent, mapNode, stageCanon, stageComplete, stagePhases, type GrowthRoadmap } from '../src/lib/hr-growth';
+import { canon, growthUnsent, mapNode, stageCanon, stageComplete, stagePhases, type GrowthRoadmap } from '../src/lib/hr-growth';
+import { leaveDays } from '../src/lib/hr-leave';
 
 const rm: GrowthRoadmap = {
   name: 'Yo‘l',
@@ -44,11 +45,16 @@ test('draft vs sent copy: key order does not matter, content does', () => {
   // jsonb returns keys in its own order.
   const fromDb = JSON.parse(JSON.stringify(rm).replace(/"id":"s1","t":"A"/, '"t":"A","id":"s1"')) as GrowthRoadmap;
   assert.equal(canon(fromDb), canon(rm));
-  assert.equal(growthUnsent({ roadmap: rm, mind: EMPTY_MIND, sentRoadmap: fromDb, sentMind: EMPTY_MIND }), false);
+  assert.equal(growthUnsent({ roadmap: rm, sentRoadmap: fromDb }), false);
   const edited = { ...rm, sections: [{ ...rm.sections[0], t: 'A2' }, ...rm.sections.slice(1)] };
-  assert.equal(growthUnsent({ roadmap: edited, mind: EMPTY_MIND, sentRoadmap: rm, sentMind: EMPTY_MIND }), true);
+  assert.equal(growthUnsent({ roadmap: edited, sentRoadmap: rm }), true);
   assert.notEqual(stageCanon(edited.sections[0]), stageCanon(rm.sections[0]));
   assert.equal(stageCanon(edited.sections[1]), stageCanon(rm.sections[1]));
-  // A new mind map branch is an unsent change too.
-  assert.equal(growthUnsent({ roadmap: rm, mind: { t: '', ch: [{ id: 'm1', t: 'x', ch: [] }] }, sentRoadmap: rm, sentMind: EMPTY_MIND }), true);
+  // A stage deadline is not part of what the CEO approves.
+  assert.equal(stageCanon({ ...rm.sections[0], due: '2027-01-31' }), stageCanon(rm.sections[0]));
+});
+
+test('leave day count is inclusive', () => {
+  assert.equal(leaveDays('2026-11-21', '2026-11-21'), 1);
+  assert.equal(leaveDays('2026-12-30', '2027-01-02'), 4);
 });
