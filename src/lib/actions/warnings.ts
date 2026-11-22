@@ -10,6 +10,7 @@ import { sql } from '@/lib/db/client';
 import { logSystemAction } from '@/lib/audit-log';
 import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
+import { hrCanViewProfile } from '@/lib/profile-access';
 
 export type WarningActionState = { error?: string } | undefined;
 
@@ -199,11 +200,11 @@ export async function getMonthlyWarningsArchiveAction(
   staffId: string,
 ): Promise<MonthlyWarningsArchiveEntry[]> {
   try {
-    const { user } = await getAuthState();
+    const { user, profile } = await getAuthState();
     if (!user) return [];
     if (!z.string().uuid().safeParse(staffId).success) return [];
 
-    if (staffId !== user.id) {
+    if (staffId !== user.id && !(await hrCanViewProfile(profile, staffId))) {
       try {
         await requireCap('warnings.manage');
       } catch {

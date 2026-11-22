@@ -9,11 +9,14 @@ import { MonthPicker } from './month-picker';
 export async function SelfDevelopmentSection({
   staffId,
   isAdmin,
+  hideMoney = false,
   selectedMonth,
 }: {
   staffId: string;
   /** CEO viewing someone else — reuses SubmissionCard's own rating panel. */
   isAdmin: boolean;
+  /** HR read-only view: no bonus sums reach the client. */
+  hideMoney?: boolean;
   selectedMonth: string;
 }) {
   const t = await getTranslations('profile.selfDevelopment');
@@ -55,7 +58,7 @@ export async function SelfDevelopmentSection({
         cards={filtered.map((s) => (
           <SubmissionCard
             key={s.id}
-            submission={{ ...s, author: null } as Submission}
+            submission={{ ...s, author: null, ...(hideMoney ? { bonus_amount: null } : {}) } as Submission}
             isAdmin={isAdmin}
             defaultOpen={false}
             storageKeyPrefix="profile-submission"

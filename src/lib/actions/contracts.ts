@@ -8,6 +8,7 @@ import { sql } from '@/lib/db/client';
 import { createSignedWriteUrl, createSignedReadUrl, deleteObject } from '@/lib/gcp/storage';
 import { logSystemAction } from '@/lib/audit-log';
 import { can } from '@/lib/permissions';
+import { hrCanViewProfile } from '@/lib/profile-access';
 
 export type ContractActionState = { error?: string } | undefined;
 
@@ -419,7 +420,9 @@ export async function requestContractFileReadUrlAction(
     const [contract] = await sql<{ staff_id: string }[]>`
       select staff_id from staff_contracts where id = ${attachment.contract_id}
     `;
-    if (!contract || contract.staff_id !== user.id) return { error: 'forbidden' };
+    if (!contract || (contract.staff_id !== user.id && !(await hrCanViewProfile(profile, contract.staff_id)))) {
+      return { error: 'forbidden' };
+    }
   }
 
   try {

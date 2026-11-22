@@ -12,6 +12,7 @@ import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 import { bumpNavBadgeSignal } from '@/lib/gcp/firestoreAdmin';
 import { insertStarTransaction, type StarSourceType } from '@/lib/stars-write';
 import { can } from '@/lib/permissions';
+import { hrCanViewProfile } from '@/lib/profile-access';
 
 export type StarsActionState = { error?: string } | undefined;
 
@@ -150,8 +151,8 @@ export async function getStarLedgerAction(userId?: string): Promise<StarLedgerEn
   if (!user) return [];
 
   const targetId = userId ?? user.id;
-  if (targetId !== user.id && !can(profile?.role, 'stars.grant')) return [];
   if (!z.string().uuid().safeParse(targetId).success) return [];
+  if (targetId !== user.id && !can(profile?.role, 'stars.grant') && !(await hrCanViewProfile(profile, targetId))) return [];
 
   return sql<StarLedgerEntry[]>`
     select t.id, t.delta, t.reason, t.source_type, t.source_id, t.created_at,
@@ -212,8 +213,8 @@ export async function getMonthlyStarsArchiveAction(
     if (!user) return [];
 
     const targetId = userId ?? user.id;
-    if (targetId !== user.id && !can(profile?.role, 'stars.grant')) return [];
     if (!z.string().uuid().safeParse(targetId).success) return [];
+    if (targetId !== user.id && !can(profile?.role, 'stars.grant') && !(await hrCanViewProfile(profile, targetId))) return [];
 
     const rows = await sql<(ArchivedStarRow & { month_key: string })[]>`
       select t.id, t.delta, t.reason, t.source_type, t.created_at,

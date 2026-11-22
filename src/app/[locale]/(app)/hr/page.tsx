@@ -192,6 +192,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               roleLabels={roleLabels}
               deptLabels={DEPT_LABEL}
               analyticsExtra={overview ? <EmployeeStatsTable rows={stats} /> : undefined}
+              profileLinkIds={people
+                .filter(
+                  (p) =>
+                    p.id !== profile.id &&
+                    (can(profile.role, 'company.overview') ||
+                      (canFor(profile, 'profiles.viewAll') && ![p.role, ...p.roles].some((r) => r === 'ceo' || r === 'coo'))),
+                )
+                .map((p) => p.id)}
             />
           </div>
         )}
