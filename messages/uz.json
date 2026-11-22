@@ -2108,6 +2108,10 @@
           "name": "Davomat yuritish",
           "desc": "Xodimlar davomatini belgilash"
         },
+        "profiles_viewAll": {
+          "name": "Xodimlar profili",
+          "desc": "Boshqa xodimlar profilini ko'rish (moliyasiz, faqat o'qish)"
+        },
         "growth_viewAll": {
           "name": "Barcha roadmap'lar",
           "desc": "Har bir xodimning roadmap'ini ko'rish (tasdiqsiz)"

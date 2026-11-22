@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Cake, Check, ClipboardList, Flame, Network, PartyPopper, Pencil, Plus, Search, ShieldCheck, Sparkles, Star, Trash2, Users } from 'lucide-react';
-import { useRouter } from '@/i18n/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { SURFACE_CARD } from '@/lib/glass';
 import { celebrate } from '@/components/motion/events';
@@ -75,13 +75,14 @@ function KpiDots({ kpi }: { kpi: HrPerson['kpi'] }) {
 
 /* ------------------------------------------------------------ profile */
 
-function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, onClose }: {
+function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, canOpenProfile, onClose }: {
   p: HrPerson;
   isManager: boolean;
   today: string;
   roleLabels: Record<string, string>;
   deptLabels: Record<Department, string>;
   onboarding: OnboardingItem[];
+  canOpenProfile: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -109,6 +110,11 @@ function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, onCl
             {p.probation_until && p.probation_until >= today && <span className="rounded-full bg-au-accent-soft px-2 py-0.5 font-semibold text-au-accent-text">Sinov: {p.probation_until} gacha</span>}
             {p.phone && <span className="rounded-full bg-au-card-2 px-2 py-0.5 font-semibold text-au-muted">{p.phone}</span>}
           </div>
+          {canOpenProfile && (
+            <Link href={`/profile/${p.id}`} className="mt-2 inline-block text-xs font-semibold text-au-accent-text hover:underline">
+              To‘liq profilni ochish →
+            </Link>
+          )}
         </div>
       </SheetHeader>
       <div className="grid gap-4 px-5 py-5">
@@ -324,6 +330,7 @@ export function HrHub({
   roleLabels,
   deptLabels,
   analyticsExtra,
+  profileLinkIds = [],
 }: {
   people: HrPerson[];
   onboarding: OnboardingItem[];
@@ -335,6 +342,8 @@ export function HrHub({
   deptLabels: Record<Department, string>;
   /** Server-rendered extra for the analytics tab (task statistics table). */
   analyticsExtra?: ReactNode;
+  /** Staff whose full profile the viewer may open (HR: not CEO/COO). */
+  profileLinkIds?: string[];
 }) {
   const [q, setQ] = useState('');
   const [dept, setDept] = useState<Department | 'all'>('all');
@@ -510,6 +519,7 @@ export function HrHub({
             roleLabels={roleLabels}
             deptLabels={deptLabels}
             onboarding={onboarding.filter((o) => o.user_id === open.id)}
+            canOpenProfile={profileLinkIds.includes(open.id)}
             onClose={() => setOpenId(null)}
           />
         )}

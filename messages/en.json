@@ -2108,6 +2108,10 @@
           "name": "Keep attendance",
           "desc": "Mark staff attendance"
         },
+        "profiles_viewAll": {
+          "name": "Staff profiles",
+          "desc": "View other staff profiles (no money, read-only)"
+        },
         "growth_viewAll": {
           "name": "View all roadmaps",
           "desc": "See every employee's roadmap (no approving)"

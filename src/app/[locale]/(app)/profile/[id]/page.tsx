@@ -43,6 +43,7 @@ import { PayStatement } from '@/components/finance/pay-statement';
 import { loadPayHistory, loadPayLines } from '@/lib/pay-run-data';
 import { BpointPanel } from '@/components/finance/bpoint-panel';
 import { loadBpointGoals } from '@/lib/bpoint-data';
+import { hrCanViewProfile } from '@/lib/profile-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,10 +110,14 @@ export async function ProfileDetailContent({
   // self-development, duties, and contracts stay admin-or-self only
   // (mirrors their own RLS, which never granted admin_manager access to
   // those tables).
-  const canView = isSelf || isAdmin || isAdminManager;
+  // HR (profiles.viewAll): everything read-only except money (pay, B-nuqta,
+  // bonus/jarima) and CEO/COO profiles (owner, 2026-11-23).
+  const isHrView = !isSelf && !isAdmin && (await hrCanViewProfile(viewerProfile, id));
+  const canView = isSelf || isAdmin || isAdminManager || isHrView;
   if (!canView) redirect({ href: '/dashboard', locale });
 
-  const canViewCeoScoped = isSelf || isAdmin;
+  const canViewCeoScoped = isSelf || isAdmin || isHrView;
+  const canSeeMoney = isSelf || isAdmin;
   const canManageWarnings = !isSelf && (isAdmin || isAdminManager);
   const canManage = !isSelf && isAdmin;
   // B-nuqta: same rules as /finance/[staffId] — see anyone's with
@@ -143,7 +148,10 @@ export async function ProfileDetailContent({
   // Work / 1:1 / account (sections v5) sit next to the original five.
   const CEO_SCOPED = new Set(['stars', 'growth', 'work', 'people']);
   const tabs = (['overview', 'work', 'stars', 'finance', 'discipline', 'growth', 'people', 'account'] as const).filter(
-    (k) => (canViewCeoScoped || !CEO_SCOPED.has(k)) && (k !== 'account' || isSelf || isAdmin),
+    (k) =>
+      (canViewCeoScoped || !CEO_SCOPED.has(k)) &&
+      (k !== 'account' || isSelf || isAdmin || isHrView) &&
+      (k !== 'finance' || !isHrView),
   );
   const tab = (tabs as readonly string[]).includes(tabParam ?? '') ? (tabParam as (typeof tabs)[number]) : 'overview';
   const NEW_LABELS: Record<string, string> = { work: 'Ish', people: '1:1', account: 'Hisob' };
@@ -167,8 +175,8 @@ export async function ProfileDetailContent({
     tab === 'work' ? loadWork(id) : Promise.resolve(null),
     tab === 'people' ? loadOneOnOnes(id) : Promise.resolve([]),
     tab === 'people' && isAdmin && !isSelf ? loadPrivateNotes(id) : Promise.resolve(null),
-    tab === 'finance' && canViewCeoScoped ? loadPayLines(period, id) : Promise.resolve([]),
-    tab === 'finance' && canViewCeoScoped ? loadPayHistory(period, id) : Promise.resolve([]),
+    tab === 'finance' && canSeeMoney ? loadPayLines(period, id) : Promise.resolve([]),
+    tab === 'finance' && canSeeMoney ? loadPayHistory(period, id) : Promise.resolve([]),
     tab === 'finance' && canSeeBpoint ? loadBpointGoals(id) : Promise.resolve(null),
   ]);
 
@@ -280,7 +288,7 @@ export async function ProfileDetailContent({
                   <BpointPanel goals={bp} canEdit={canEditBpoint} staffId={id} />
                 </div>
               )}
-              {canViewCeoScoped && (
+              {canSeeMoney && (
                 <PayStatement line={payLines[0] ?? null} period={period} history={payHistory} advances={null} isSelf={false} />
               )}
             <div className="enter-rise" style={{ animationDelay: '120ms' }}>
@@ -331,7 +339,7 @@ export async function ProfileDetailContent({
             <div className="enter-rise" style={{ animationDelay: '70ms' }}>
               <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
                 <Suspense fallback={<GlassCardSkeleton />}>
-                  <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} selectedMonth={month ?? 'all'} />
+                  <SelfDevelopmentSection staffId={id} isAdmin={isAdmin && !isSelf} hideMoney={isHrView} selectedMonth={month ?? 'all'} />
                 </Suspense>
               </SectionErrorBoundary>
             </div>
