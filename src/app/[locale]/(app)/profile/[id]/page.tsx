@@ -220,6 +220,7 @@ export async function ProfileDetailContent({
         today={today}
         isSelf={isSelf}
         isLead={isAdmin && !isSelf}
+        showPct={isHrView}
         metrics={metrics ?? { months: [], series: { tasksDone: [], onTime: [], kpi: [], selfDev: [], stars: [], issues: [] } }}
         name={`${target.first_name} ${target.last_name}`}
       />

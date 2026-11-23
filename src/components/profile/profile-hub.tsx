@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarHeart,
   CheckCircle2,
+  ChevronDown,
   CircleDot,
   FileDown,
   Gauge,
@@ -95,6 +96,7 @@ export function ProfileStrip({
   today,
   isSelf,
   isLead,
+  showPct,
   metrics,
   name,
 }: {
@@ -104,6 +106,8 @@ export function ProfileStrip({
   today: string;
   isSelf: boolean;
   isLead: boolean;
+  /** HR view: the profile % ring as the CEO sees it (owner, 2026-11-23). */
+  showPct?: boolean;
   metrics: ProfileMetrics;
   name: string;
 }) {
@@ -128,7 +132,7 @@ export function ProfileStrip({
       {anniv !== null && anniv <= 7 && ten && ten !== 'yangi xodim' && <span className={CHIP_OK}>Ish yilligi {anniv === 0 ? 'bugun' : `${anniv} kundan keyin`}</span>}
       {!card.telegram && <span className={CHIP_BAD}>Telegram ulanmagan</span>}
       <div className="ml-auto flex items-center gap-2">
-        {(isSelf || isLead) && (
+        {(isSelf || isLead || showPct) && (
           <span className="flex items-center gap-1.5 text-xs text-au-muted" title={card.completeness.missing.length ? `Yetishmaydi: ${card.completeness.missing.join(', ')}` : 'Profil to‘liq'}>
             <Ring pct={pct} /> Profil {pct}%
           </span>
@@ -443,8 +447,38 @@ const TASK_STATUS: Record<string, [string, string]> = {
 };
 
 /** `commenterId`: HR / CEO viewing someone's work — each task gets its comment thread (owner, 2026-11-23). */
+function TaskDetails({ t, late }: { t: WorkSnapshot['tasks'][number]; late: boolean }) {
+  const row = (k: string, v: ReactNode) => (
+    <div className="flex gap-2">
+      <dt className="w-28 shrink-0 text-au-muted">{k}</dt>
+      <dd className="min-w-0 flex-1">{v}</dd>
+    </div>
+  );
+  return (
+    <dl className="mt-2 ml-5 flex flex-col gap-1 rounded-au-ctl bg-au-card-2 px-3 py-2 text-xs">
+      {row('Tavsif', t.description?.trim() ? <span className="whitespace-pre-wrap">{t.description}</span> : <span className="text-au-muted">—</span>)}
+      {row('Muddat', t.due_at ? <span className={cn('tabular-nums', late && 'font-bold text-au-bad')}>{t.due_at}{late ? ' · muddati o‘tgan' : ''}</span> : 'Muddatsiz')}
+      {row('Berilgan', <span className="tabular-nums">{t.created}{t.assigner ? ` · ${t.assigner}` : ''}</span>)}
+      {t.done_at && row('Bajarilgan', <span className="tabular-nums">{t.done_at}</span>)}
+      {row('Mukofot', t.star_reward > 0 ? `+${t.star_reward} ★` : '—')}
+      {row(
+        'Jarima (minus)',
+        t.star_penalty > 0 ? (
+          <span className={t.penalty_applied ? 'font-bold text-au-bad' : undefined}>
+            −{t.star_penalty} ★ {t.penalty_applied ? '· yechilgan' : '· muddat o‘tsa yechiladi'}
+          </span>
+        ) : (
+          '—'
+        ),
+      )}
+      {t.requires_proof && row('Isbot', 'Fayl / rasm talab qilinadi')}
+    </dl>
+  );
+}
+
 export function WorkTab({ work, today, commenterId }: { work: WorkSnapshot; today: string; commenterId?: string }) {
   const open = work.tasks.filter((t) => t.status !== 'done').length;
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <Card title={`Vazifalar · ${open} ochiq, ${work.tasks.length - open} bu oy bajarildi`} icon={<CheckCircle2 className="size-4" />} i={0} className="lg:row-span-2">
@@ -456,15 +490,24 @@ export function WorkTab({ work, today, commenterId }: { work: WorkSnapshot; toda
               const late = t.deadline && t.deadline.slice(0, 10) < today && (t.status === 'pending' || t.status === 'in_progress');
               const [n, cls] = TASK_STATUS[t.status] ?? [t.status, CHIP_NEUTRAL];
               return (
-                <li key={t.id} style={{ ['--i' as string]: Math.min(i, 12) }} className="ms-rise flex items-center gap-2 py-2">
-                  <Link href="/tasks" className="min-w-0 flex-1 truncate text-sm font-semibold hover:underline">
-                    {t.title}
-                  </Link>
-                  {t.deadline && <span className={cn('text-[11px] tabular-nums', late ? 'font-bold text-au-bad' : 'text-au-muted')}>{t.deadline.slice(5, 10).replace('-', '.')}</span>}
-                  <span className={cls}>{n}</span>
-                  {commenterId && (
-                    <TaskCommentsDrawer taskId={t.id} taskTitle={t.title} currentUserId={commenterId} canComment commentCount={t.comments} />
-                  )}
+                <li key={t.id} style={{ ['--i' as string]: Math.min(i, 12) }} className="ms-rise flex flex-col py-2">
+                  <div className="flex items-center gap-2">
+                    {/* Title opens the details (owner, 2026-11-23: HR sees description, deadline, stars). */}
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(openId === t.id ? null : t.id)}
+                      className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-semibold hover:underline"
+                    >
+                      <ChevronDown className={cn('size-3.5 shrink-0 text-au-muted transition', openId === t.id && 'rotate-180')} />
+                      <span className="truncate">{t.title}</span>
+                    </button>
+                    {t.deadline && <span className={cn('text-[11px] tabular-nums', late ? 'font-bold text-au-bad' : 'text-au-muted')}>{t.deadline.slice(5, 10).replace('-', '.')}</span>}
+                    <span className={cls}>{n}</span>
+                    {commenterId && (
+                      <TaskCommentsDrawer taskId={t.id} taskTitle={t.title} currentUserId={commenterId} canComment commentCount={t.comments} />
+                    )}
+                  </div>
+                  {openId === t.id && <TaskDetails t={t} late={!!late} />}
                 </li>
               );
             })}
