@@ -148,7 +148,23 @@ export async function loadSkills(staffId: string): Promise<Skill[]> {
 }
 
 export type WorkSnapshot = {
-  tasks: { id: string; title: string; status: string; deadline: string | null; comments: number }[];
+  tasks: {
+    id: string;
+    title: string;
+    status: string;
+    deadline: string | null;
+    comments: number;
+    // Details for HR / CEO (owner, 2026-11-23): Tashkent-formatted times.
+    description: string | null;
+    due_at: string | null;
+    created: string;
+    done_at: string | null;
+    assigner: string | null;
+    star_reward: number;
+    star_penalty: number;
+    penalty_applied: boolean;
+    requires_proof: boolean;
+  }[];
   krs: { id: string; title: string; objective: string; progress: number | null }[];
   groups: { id: string; name: string }[];
 };
@@ -156,7 +172,15 @@ export type WorkSnapshot = {
 export async function loadWork(staffId: string): Promise<WorkSnapshot> {
   const [tasks, krs, groups] = await Promise.all([
     sql<WorkSnapshot['tasks']>`
-      select id, title, status, deadline, (select count(*) from task_comments c where c.task_id = tasks.id)::int as comments from tasks
+      select tasks.id, title, status, deadline, (select count(*) from task_comments c where c.task_id = tasks.id)::int as comments,
+        description,
+        to_char(deadline at time zone 'Asia/Tashkent', 'DD.MM.YYYY HH24:MI') as due_at,
+        to_char(tasks.created_at at time zone 'Asia/Tashkent', 'DD.MM.YYYY HH24:MI') as created,
+        to_char(completed_at at time zone 'Asia/Tashkent', 'DD.MM.YYYY HH24:MI') as done_at,
+        nullif(trim(concat(a.first_name, ' ', a.last_name)), '') as assigner,
+        coalesce(star_reward, 0)::int as star_reward, coalesce(star_penalty, 0)::int as star_penalty,
+        (star_penalty_applied_at is not null) as penalty_applied, coalesce(requires_proof, false) as requires_proof
+      from tasks left join profiles a on a.id = tasks.assigned_by
       where assigned_to = ${staffId} and (status <> 'done' or completed_at >= ${startOfTashkentMonthKey()})
       order by (status = 'done'), deadline nulls last limit 40`,
     sql<{ id: string; title: string; objective: string; start_value: number | null; target_value: number | null; current: number | null }[]>`
