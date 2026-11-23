@@ -26,7 +26,7 @@ import { DutiesCard } from '@/components/profile/duties-card';
 import { ContractsCard } from '@/components/profile/contracts-card';
 import { SectionErrorBoundary } from '@/components/profile/section-error-boundary';
 import { GlassCardSkeleton } from '@/components/skeletons/glass-skeletons';
-import { can } from '@/lib/permissions';
+import { can, canFor } from '@/lib/permissions';
 import { BgVideo } from '@/components/motion/bg-video';
 import { tashkentDayKey, startOfTashkentMonthKey } from '@/lib/time';
 import {
@@ -120,6 +120,10 @@ export async function ProfileDetailContent({
   const canSeeMoney = isSelf || isAdmin;
   const canManageWarnings = !isSelf && (isAdmin || isAdminManager);
   const canManage = !isSelf && isAdmin;
+  // HR: stars (stars.hrGrant) and task comments (tasks.monitor) — never on
+  // themselves or CEO/COO, which isHrView already rules out (owner, 2026-11-23).
+  const canAwardStars = canManage || (isHrView && canFor(viewerProfile, 'stars.hrGrant'));
+  const canCommentTasks = !isSelf && (isAdmin || (isHrView && canFor(viewerProfile, 'tasks.monitor')));
   // B-nuqta: same rules as /finance/[staffId] — see anyone's with
   // finance.viewAll, set anyone's with finance.manage, always your own.
   const canSeeBpoint = isSelf || can(viewerProfile!.role, 'finance.viewAll');
@@ -267,7 +271,7 @@ export async function ProfileDetailContent({
             <div className="enter-rise" style={{ animationDelay: '70ms' }}>
               <SectionErrorBoundary fallbackMessage={sectionErrorMessage}>
                 <Suspense fallback={<GlassCardSkeleton />}>
-                  <StarBalanceCard staffId={id} canManage={canManage} />
+                  <StarBalanceCard staffId={id} canManage={canAwardStars} />
                 </Suspense>
               </SectionErrorBoundary>
             </div>
@@ -320,7 +324,7 @@ export async function ProfileDetailContent({
             </>
           )}
 
-          {tab === 'work' && work && <WorkTab work={work} today={today} />}
+          {tab === 'work' && work && <WorkTab work={work} today={today} commenterId={canCommentTasks ? user!.id : undefined} />}
 
           {tab === 'people' && canViewCeoScoped && (
             <PeopleTab

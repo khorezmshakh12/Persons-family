@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
+import { TaskCommentsDrawer } from '@/components/tasks/task-comments-drawer';
 import { cn } from '@/lib/utils';
 import { CARD_TITLE, CHIP_ACCENT, CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import {
@@ -438,14 +439,17 @@ const TASK_STATUS: Record<string, [string, string]> = {
   in_progress: ['Jarayonda', CHIP_INFO],
   submitted: ['Tekshiruvda', CHIP_ACCENT],
   awaiting_upload: ['Isbot kutilmoqda', CHIP_ACCENT],
+  done: ['Bajarildi', CHIP_OK],
 };
 
-export function WorkTab({ work, today }: { work: WorkSnapshot; today: string }) {
+/** `commenterId`: HR / CEO viewing someone's work — each task gets its comment thread (owner, 2026-11-23). */
+export function WorkTab({ work, today, commenterId }: { work: WorkSnapshot; today: string; commenterId?: string }) {
+  const open = work.tasks.filter((t) => t.status !== 'done').length;
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <Card title={`Faol vazifalar · ${work.tasks.length}`} icon={<CheckCircle2 className="size-4" />} i={0} className="lg:row-span-2">
+      <Card title={`Vazifalar · ${open} ochiq, ${work.tasks.length - open} bu oy bajarildi`} icon={<CheckCircle2 className="size-4" />} i={0} className="lg:row-span-2">
         {work.tasks.length === 0 ? (
-          <p className="text-sm text-au-muted">Ochiq vazifa yo‘q</p>
+          <p className="text-sm text-au-muted">Bu oy vazifa yo‘q</p>
         ) : (
           <ul className="flex flex-col divide-y divide-au-line">
             {work.tasks.map((t, i) => {
@@ -458,6 +462,9 @@ export function WorkTab({ work, today }: { work: WorkSnapshot; today: string }) 
                   </Link>
                   {t.deadline && <span className={cn('text-[11px] tabular-nums', late ? 'font-bold text-au-bad' : 'text-au-muted')}>{t.deadline.slice(5, 10).replace('-', '.')}</span>}
                   <span className={cls}>{n}</span>
+                  {commenterId && (
+                    <TaskCommentsDrawer taskId={t.id} taskTitle={t.title} currentUserId={commenterId} canComment commentCount={t.comments} />
+                  )}
                 </li>
               );
             })}

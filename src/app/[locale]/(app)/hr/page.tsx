@@ -46,6 +46,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const leaveReviewer = !!profile && canFor(profile, 'leave.review');
   const hiring = !!profile && canFor(profile, 'hr.hiring');
   const overview = !!profile && can(profile.role, 'company.overview');
+  // Xodimlar task foizi: CEO + HR (tasks.monitor); HR CEO/COO qatorlarini ko'rmaydi (owner, 2026-11-23).
+  const taskStats = overview || (!!profile && canFor(profile, 'tasks.monitor'));
   // Davomat — CEO, COO and Admin Manager only (SECTION_ROLES.attendance).
   const marksAttendance = !!profile && canSeeFor(profile, 'attendance');
 
@@ -85,7 +87,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
   const onboarding = !native ? [] : await loadOnboarding(people.map((p) => p.id));
   const attendance = tab === 'attendance' ? await loadAttendanceRows(day) : null;
-  const stats = tab === 'analytics' && overview ? await loadEmployeeTaskStats() : null;
+  const stats = tab === 'analytics' && taskStats ? await loadEmployeeTaskStats({ hideLeadership: !overview }) : null;
   const [myLeave, teamLeave] = tab === 'leave' && profile ? await Promise.all([loadLeave(profile.id), leaveReviewer ? loadLeave() : Promise.resolve(null)]) : [[], null];
   const vacancies = tab === 'hiring' && hiring ? await loadVacancies() : null;
 
@@ -191,7 +193,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               tab={tab as HrTab}
               roleLabels={roleLabels}
               deptLabels={DEPT_LABEL}
-              analyticsExtra={overview ? <EmployeeStatsTable rows={stats} /> : undefined}
+              analyticsExtra={taskStats ? <EmployeeStatsTable rows={stats} /> : undefined}
               profileLinkIds={people
                 .filter(
                   (p) =>

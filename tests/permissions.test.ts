@@ -127,10 +127,11 @@ test('section access v2: function overrides (owner, 2026-11-13)', () => {
     }
   assert.equal(roleDefault('hr_manager', 'attendance'), true);
   assert.equal(roleDefault('hr_manager', 'selfDev.viewAll'), false);
-  // Checklist monitoring + feedback: CEO/COO by default, others via Section access.
+  // Checklist monitoring + feedback: CEO/COO + HR by default (owner, 2026-11-23), others via Section access.
   for (const cap of ['checklist.monitor', 'checklist.feedback'] as const) {
-    assert.deepEqual([...CAP_ROLES[cap]], ['ceo', 'coo'], cap);
-    assert.equal(canFor({ role: 'hr_manager', section_overrides: { [cap]: true } }, cap), true, cap);
+    assert.deepEqual([...CAP_ROLES[cap]], ['ceo', 'coo', 'hr_manager'], cap);
+    assert.equal(canFor({ role: 'hr_manager', section_overrides: { [cap]: false } }, cap), false, cap);
+    assert.equal(canFor({ role: 'office_manager', section_overrides: { [cap]: true } }, cap), true, cap);
     assert.ok(SECTION_FUNCTIONS.taskTracker!.some((f) => f.key === cap), cap);
   }
 });
