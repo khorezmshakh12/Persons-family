@@ -45,6 +45,8 @@ export type StudentRow = {
   installments: number;
   start: string | null;
   frozenUntil: string | null;
+  /** Frozen by «minus qolsin, qo'lda faollashtirilguncha»: activating starts a new pay day. */
+  restartOnActivate: boolean;
   archivedAt: string | null;
   leaveReason: string;
   leaveNote: string;
@@ -105,14 +107,14 @@ export async function loadStudentsData(opts: { money?: boolean } = {}): Promise<
   const [students, charges, payments, attendance, calls, log, templates, settings, reasons, kassa, payers] = await Promise.all([
     sql<{
       id: string; name: string; status: StudentRow['status']; balance: number; monthly_fee: number | null; billing_start: string | null;
-      discount_pct: number; discount_reason: string | null; installments: number; frozen_until: string | null; archived_at: string | null;
+      discount_pct: number; discount_reason: string | null; installments: number; frozen_until: string | null; restart: boolean; archived_at: string | null;
       leave_reason: string | null; leave_note: string | null; archived_by: string; phone: string; parent: string; tg: boolean;
       enr_fee: number; enr_start: string | null;
       pe_at: string | null; pe_source: string | null; pe_by: string;
       father: string; mother: string; tgu: string; first_paid: string | null;
     }[]>`
       select s.id, s.full_name as name, s.status, s.balance, s.monthly_fee, s.billing_start::text as billing_start,
-        s.discount_pct, s.discount_reason, s.installments, s.frozen_until::text as frozen_until,
+        s.discount_pct, s.discount_reason, s.installments, s.frozen_until::text as frozen_until, s.restart_on_activate as restart,
         to_char(s.archived_at at time zone 'Asia/Tashkent', 'YYYY-MM-DD') as archived_at, s.leave_reason, s.leave_note,
         coalesce(p.first_name || ' ' || p.last_name, '') as archived_by,
         coalesce((select c.phone from crm_contacts c where c.student_id = s.id and coalesce(c.phone, '') <> ''
@@ -224,6 +226,7 @@ export async function loadStudentsData(opts: { money?: boolean } = {}): Promise<
       installments: s.installments,
       start: s.billing_start ?? s.enr_start,
       frozenUntil: s.frozen_until,
+      restartOnActivate: s.restart,
       archivedAt: s.archived_at,
       leaveReason: s.leave_reason ?? '',
       leaveNote: s.leave_note ?? '',

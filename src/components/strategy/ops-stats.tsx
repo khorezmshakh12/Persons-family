@@ -7,6 +7,7 @@ import type { OpsMetrics, OpsPeriodKey } from '@/lib/ops-stats';
 import type { OpsData } from './operations-workspace';
 import { METHODS, dmy, som } from './ops-students-meta';
 import { OpsHealth } from './ops-health';
+import { BarChart, Legend, LineChart } from './ops-charts';
 
 const PERIODS: [OpsPeriodKey, string, string][] = [
   ['day', 'Kunlik', 'kecha'],
@@ -51,6 +52,16 @@ export function OpsStats({ data }: { data: OpsData }) {
   const methodMax = Math.max(1, ...p.cur.methods.map((m) => m.amount));
   const span = p.from === p.to ? dmy(p.from) : `${dmy(p.from)} – ${dmy(p.to)}`;
   const prevSpan = p.prevFrom === p.prevTo ? dmy(p.prevFrom) : `${dmy(p.prevFrom)} – ${dmy(p.prevTo)}`;
+  const t = s.trends[period];
+  const tSpan = period === 'day' ? 'oxirgi 31 kun' : period === 'week' ? 'oxirgi 12 hafta' : 'oxirgi 12 oy';
+  const states = [
+    { n: 'Faol', v: s.snapshot.active, c: 'var(--au-ok)' },
+    { n: 'Faol emas (to‘lov yoki oylik yo‘q)', v: Math.max(0, s.snapshot.open - s.snapshot.active), c: 'var(--au-info)' },
+    { n: 'Muzlatilgan', v: s.snapshot.frozen, c: 'var(--au-accent)' },
+  ];
+  const stateTotal = Math.max(1, states.reduce((a, x) => a + x.v, 0));
+  const reasonMax = Math.max(1, ...t.reasons.map((r) => r.n));
+  const debt = s.debtHistory;
 
   return (
     <div className="sx-grid">
@@ -108,7 +119,122 @@ export function OpsStats({ data }: { data: OpsData }) {
         <div className="v">{s.snapshot.frozen}</div>
         <div className="d">o‘quvchi · hozir</div>
       </div>
+
+      <div className="sx-card s8">
+        <div className="sx-h">
+          <h3>Faol o‘quvchilar soni</h3>
+          <small>{tSpan}</small>
+        </div>
+        <LineChart label="Faol o‘quvchilar soni" labels={t.labels} series={[{ name: 'Faol', data: t.active, color: 'var(--au-accent)', area: true }]} floor={Math.min(...t.active)} />
+        <div className="text-xs text-au-faint">Oxirgi nuqta — hozirgi son; oldingilari to‘lov va arxiv tarixidan tiklangan.</div>
+      </div>
+      <div className="sx-card s4">
+        <div className="sx-h">
+          <h3>Hozirgi holat</h3>
+          <small>{stateTotal} o‘quvchi</small>
+        </div>
+        <div className="flex h-3.5 gap-0.5 overflow-hidden rounded-full">
+          {states.map((x) => (x.v ? <i key={x.n} style={{ flex: x.v, background: x.c }} /> : null))}
+        </div>
+        <div className="mt-3.5 flex flex-col gap-2 text-[13px]">
+          {states.map((x) => (
+            <div key={x.n} className="grid grid-cols-[10px_1fr_auto] items-center gap-2.5">
+              <i className="size-2.5 rounded-[3px]" style={{ background: x.c }} />
+              <span className="text-au-ink">{x.n}</span>
+              <span className="tabular-nums text-au-muted">
+                {x.v} · {Math.round((x.v / stateTotal) * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="sx-card s6">
+        <div className="sx-h">
+          <h3>Keldi va ketdi</h3>
+          <small>{tSpan}</small>
+        </div>
+        <BarChart
+          label="Yangi o‘quvchilar va ketganlar"
+          labels={t.labels}
+          series={[
+            { name: 'Yangi o‘quvchi', data: t.newStudents, color: 'var(--au-ok)' },
+            { name: 'Ketdi', data: t.left, color: 'var(--au-bad)' },
+          ]}
+        />
+        <Legend items={[{ name: 'Yangi o‘quvchi', color: 'var(--au-ok)' }, { name: 'Ketdi', color: 'var(--au-bad)' }]} />
+      </div>
+      <div className="sx-card s6">
+        <div className="sx-h">
+          <h3>Lid → faol o‘quvchi</h3>
+          <small>{tSpan}</small>
+        </div>
+        <LineChart
+          label="Yangi lidlar va faol bo‘lganlar"
+          height={190}
+          labels={t.labels}
+          series={[
+            { name: 'Yangi lidlar', data: t.newLeads, color: 'var(--au-info)' },
+            { name: 'Faol bo‘ldi', data: t.activated, color: 'var(--au-accent)' },
+          ]}
+        />
+        <Legend items={[{ name: 'Yangi lidlar', color: 'var(--au-info)' }, { name: 'Faol bo‘ldi (birinchi to‘lov)', color: 'var(--au-accent)' }]} />
+      </div>
+
+      <div className="sx-card s6">
+        <div className="sx-h">
+          <h3>Qarzdorlar soni</h3>
+          <small>kunlik surat</small>
+        </div>
+        {debt.length >= 2 ? (
+          <LineChart label="Qarzdorlar soni" height={170} labels={debt.map((d) => d.day.slice(8, 10) + '.' + d.day.slice(5, 7))} series={[{ name: 'Qarzdorlar', data: debt.map((d) => d.debtors), color: 'var(--au-bad)' }]} />
+        ) : (
+          <div className="py-6 text-center text-2xl font-bold tabular-nums text-au-bad">{s.snapshot.debtors}</div>
+        )}
+        <div className="text-xs text-au-faint">Tarix 23.11.2026 dan yig‘iladi — har kuni ertalab bitta nuqta qo‘shiladi.</div>
+      </div>
+      <div className="sx-card s6">
+        <div className="sx-h">
+          <h3>Nega ketishdi</h3>
+          <small>{span}</small>
+        </div>
+        {t.reasons.length ? (
+          <div className="flex flex-col gap-2.5">
+            {t.reasons.map((r) => (
+              <div key={r.reason} className="grid grid-cols-[minmax(110px,200px)_1fr_auto] items-center gap-2.5 text-[13px]">
+                <span className="truncate text-au-ink" title={r.reason}>{r.reason}</span>
+                <span className="sx-hb">
+                  <i className="bg-au-accent" style={{ width: `${(r.n / reasonMax) * 100}%` }} />
+                </span>
+                <span className="tabular-nums text-au-muted">{r.n}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-au-faint">Bu davrda hech kim ketmadi</div>
+        )}
+      </div>
       </>
+      )}
+
+      {money && (
+      <div className="sx-card s12">
+        <div className="sx-h">
+          <h3>Tushum va yechim</h3>
+          <small>{tSpan}</small>
+        </div>
+        <LineChart
+          label="Tushum va yechilgan summa"
+          money
+          height={210}
+          labels={t.labels}
+          series={[
+            { name: 'Tushum', data: t.collected, color: 'var(--au-ok)', area: true },
+            { name: 'Yechilgan', data: t.charged, color: 'var(--au-bad)' },
+          ]}
+        />
+        <Legend items={[{ name: 'Tushum (to‘lovlar)', color: 'var(--au-ok)' }, { name: 'Yechilgan (oylik + qo‘lda)', color: 'var(--au-bad)' }]} />
+      </div>
       )}
 
       {money && (

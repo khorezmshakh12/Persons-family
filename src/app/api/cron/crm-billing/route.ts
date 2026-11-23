@@ -4,6 +4,7 @@ import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
 import { currentDueDate, daysBetween, feeAfterDiscount, nextDueDate, periodParts } from '@/lib/billing';
 import { renderMessage, sendToStudentContacts, studentVars } from '@/lib/student-messages';
+import { loadOpsSnapshot } from '@/lib/ops-stats';
 import { addDaysToKey, tashkentDayKey } from '@/lib/time';
 
 // Oylik avto-yechim + eslatma (2026-10-23, Operation HQ › O'quvchilar).
@@ -11,6 +12,8 @@ import { addDaysToKey, tashkentDayKey } from '@/lib/time';
 //   1. muzlatish muddati o'tganlar qayta faollashadi;
 //   2. to'lov kuni (aktiv bo'lgan sana) kelgan o'quvchiga shu davr charge'i
 //      yoziladi (chegirma bilan; bo'lib to'lashda ikki qism) va balans kamayadi;
+//   2b. bo'lib to'lashda to'lov sanasi surilgan bo'lsa, davom etayotgan davrning
+//      2-qismi eski sanasida yechiladi (2026-11-23);
 //   3. «before» shabloni to'lovdan remind_days kun oldin, «due» — to'lov kuni
 //      ota-onaga CRM bot orqali yuboriladi (bir davrga bir marta).
 //
@@ -104,6 +107,46 @@ async function handle(req: NextRequest): Promise<Response> {
     }
   }
 
+  // 2b) Bo'lib to'lash + to'lov sanasi surildi (owner, 2026-11-23): the 1st
+  // half of the running period was taken on the old day, the moved pay day
+  // no longer produces that period, so its 2nd half is taken here on its
+  // old date (period start + 15, inside the period). Only recent periods.
+  for (const s of students) {
+    const fee = feeAfterDiscount(s.fee, s.discount);
+    if (s.installments !== 2 || fee <= 0) continue;
+    const cur = s.start ? currentDueDate(s.start, today) : null;
+    const curKeys = cur && s.start ? periodParts(s.start, cur, fee, 2).map((x) => x.key) : [];
+    const open = await sql<{ key: string; start: string; end: string; second: string }[]>`
+      select c.period_key as key, c.period_start::text as start, c.period_end::text as end,
+        least(c.period_start + 15, c.period_end)::text as second
+      from crm_charges c
+      where c.student_id = ${s.id} and c.source = 'auto' and c.status <> 'waived' and c.period_key like '%#1'
+        and c.period_start >= ${cfg.start_date} and c.period_end >= ${addDaysToKey(today, -31)}
+        and least(c.period_start + 15, c.period_end) <= ${today}
+        and not exists (select 1 from crm_charges d where d.student_id = c.student_id and d.period_key = replace(c.period_key, '#1', '#2'))`;
+    for (const o of open) {
+      if (curKeys.includes(o.key)) continue;
+      const amount = fee - Math.ceil(fee / 2);
+      const key = o.key.replace('#1', '#2');
+      const done = await sql.begin(async (tx) => {
+        const [row] = await tx`
+          insert into crm_charges (student_id, period_start, period_end, amount, due_date, status, period_key, source, note)
+          values (${s.id}, ${o.start}, ${o.end}, ${amount}, ${o.second}, 'pending', ${key}, 'auto', ${`${dmy(o.start)} davri, 2-qism`})
+          on conflict (student_id, period_key) where period_key is not null do nothing
+          returning id`;
+        if (!row) return false;
+        await tx`update crm_students set balance = balance - ${amount}, updated_at = now() where id = ${s.id}`;
+        await tx`insert into crm_student_log (student_id, kind, text, amount)
+          values (${s.id}, 'charge', ${`${s.name} — ${som(amount)} oylik yechildi (2-qism)`}, ${amount})`;
+        return true;
+      });
+      if (done) {
+        charged++;
+        total += amount;
+      }
+    }
+  }
+
   // 3) Reminders from the «before» and «due» templates.
   const templates = await sql<{ id: string; name: string; body: string; trigger: 'before' | 'due' }[]>`
     select id, name, body, trigger from crm_message_templates where audience = 'student' and trigger in ('before', 'due') order by sort`;
@@ -136,6 +179,12 @@ async function handle(req: NextRequest): Promise<Response> {
       }
     }
   }
+
+  // 4) Kunlik surat for Statistika › Qarzdorlar soni (no history before 2026-11-23).
+  const snap = await loadOpsSnapshot();
+  await sql`
+    insert into crm_daily_stats (day, active, frozen, debtors, debt) values (${today}, ${snap.active}, ${snap.frozen}, ${snap.debtors}, ${snap.debt})
+    on conflict (day) do update set active = excluded.active, frozen = excluded.frozen, debtors = excluded.debtors, debt = excluded.debt`;
 
   return NextResponse.json({ ok: true, day: today, thawed: thawed.length, charged, total, reminders });
 }
