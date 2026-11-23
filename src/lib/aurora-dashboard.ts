@@ -739,7 +739,8 @@ export type EmployeeTaskStat = {
   stars: number;
 };
 
-export async function loadEmployeeTaskStats(): Promise<EmployeeTaskStat[] | null> {
+export async function loadEmployeeTaskStats(opts: { hideLeadership?: boolean } = {}): Promise<EmployeeTaskStat[] | null> {
+  const hide = opts.hideLeadership === true;
   return safe('employee-stats', async () => {
     const rows = await sql<
       {
@@ -764,6 +765,8 @@ export async function loadEmployeeTaskStats(): Promise<EmployeeTaskStat[] | null
       from profiles p
       left join tasks t on t.assigned_to = p.id
       where p.is_active = true and p.role <> 'ceo'
+        and (not ${hide} or (p.role::text <> 'coo'
+          and not exists (select 1 from profile_roles r where r.user_id = p.id and r.role::text in ('ceo', 'coo'))))
       group by p.id
       order by p.first_name asc
     `;

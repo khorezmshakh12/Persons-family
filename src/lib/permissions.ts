@@ -198,7 +198,9 @@ export type Capability =
   | 'growth.viewAll' // HR › Roadmap: har bir xodimnikini ko'rish (tasdiqsiz)
   | 'leave.review' // HR › Ta'til: so'rovlarni tasdiqlash / rad etish, jamoa ta'tillari
   | 'hr.hiring' // HR › Ishga olish: vakansiyalar va nomzodlar soni
-  | 'profiles.viewAll'; // boshqa xodimlar profilini ko'rish, moliyasiz (faqat o'qish)
+  | 'profiles.viewAll' // boshqa xodimlar profilini ko'rish, moliyasiz (faqat o'qish)
+  | 'tasks.monitor' // HR › Tahlil task foizi, profildagi barcha tasklar va ularga izoh (CEO/COO'nikidan tashqari)
+  | 'stars.hrGrant'; // HR yulduz qo'shadi / ayiradi — o'ziga va CEO/COO'ga emas, sabab majburiy
 
 export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Company-wide statistics: CEO only; everyone else (COO too) sees own.
@@ -242,8 +244,9 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // Checklist shablonlarini (rol x cadence) boshqarish — CEO va COO.
   'checklist.manage': ['ceo', 'coo'],
   // Kuzatish va feedback — CEO, COO; HR'ga Section access orqali (owner, 2026-11-13).
-  'checklist.monitor': ['ceo', 'coo'],
-  'checklist.feedback': ['ceo', 'coo'],
+  // HR ham — CEO/COO'nikidan tashqari (owner, 2026-11-23).
+  'checklist.monitor': ['ceo', 'coo', 'hr_manager'],
+  'checklist.feedback': ['ceo', 'coo', 'hr_manager'],
   // HR hub boshqaruvi — staff.manage egalari + HR (owner, 2026-11-12).
   'hr.manage': [...LEADERSHIP, 'admin_manager', 'it_developer', 'hr_manager'],
   // Xodim roadmap bosqichini faqat CEO tasdiqlaydi (owner, 2026-11-12).
@@ -257,6 +260,11 @@ export const CAP_ROLES: Record<Capability, readonly Role[]> = {
   // HR boshqa xodimlar profilini ko'radi — oylik, B-nuqta, bonus/jarima
   // summalarisiz, faqat o'qish; CEO/COO profillari yashirin (owner, 2026-11-23).
   'profiles.viewAll': ['ceo', 'hr_manager'],
+  // HR barcha xodim tasklari: foiz jadvali, profil › Ish tabida ro'yxat va
+  // izoh; CEO/COO'niki yashirin (owner, 2026-11-23).
+  'tasks.monitor': ['ceo', 'hr_manager'],
+  // HR yulduz qo'shadi / ayiradi (owner, 2026-11-23). CEO/COO stars.grant bilan.
+  'stars.hrGrant': ['hr_manager'],
 };
 
 /** Accepts any string so a stale DB value (an old enum label) just fails closed. */
@@ -371,7 +379,7 @@ export type AccessFunction = { key: Capability | SectionKey; ceoOnly?: boolean }
 export const SECTION_FUNCTIONS: Partial<Record<SectionKey, AccessFunction[]>> = {
   selfDevelopment: [{ key: 'selfDev.viewAll' }, { key: 'selfDev.review', ceoOnly: true }],
   taskTracker: [{ key: 'checklist.monitor' }, { key: 'checklist.feedback' }, { key: 'checklist.manage' }],
-  hr: [{ key: 'attendance' }, { key: 'growth.viewAll' }, { key: 'growth.review', ceoOnly: true }, { key: 'leave.review' }, { key: 'hr.hiring' }, { key: 'profiles.viewAll' }],
+  hr: [{ key: 'attendance' }, { key: 'growth.viewAll' }, { key: 'growth.review', ceoOnly: true }, { key: 'leave.review' }, { key: 'hr.hiring' }, { key: 'profiles.viewAll' }, { key: 'tasks.monitor' }, { key: 'stars.hrGrant', ceoOnly: true }],
   operations: [{ key: 'operations.stats' }, { key: 'operations.statsMoney', ceoOnly: true }],
 };
 export const FUNCTION_KEYS: string[] = Object.values(SECTION_FUNCTIONS).flatMap((fs) => fs!.map((f) => f.key));

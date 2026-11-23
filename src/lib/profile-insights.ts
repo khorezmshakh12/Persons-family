@@ -148,7 +148,7 @@ export async function loadSkills(staffId: string): Promise<Skill[]> {
 }
 
 export type WorkSnapshot = {
-  tasks: { id: string; title: string; status: string; deadline: string | null }[];
+  tasks: { id: string; title: string; status: string; deadline: string | null; comments: number }[];
   krs: { id: string; title: string; objective: string; progress: number | null }[];
   groups: { id: string; name: string }[];
 };
@@ -156,9 +156,9 @@ export type WorkSnapshot = {
 export async function loadWork(staffId: string): Promise<WorkSnapshot> {
   const [tasks, krs, groups] = await Promise.all([
     sql<WorkSnapshot['tasks']>`
-      select id, title, status, deadline from tasks
-      where assigned_to = ${staffId} and status <> 'done'
-      order by deadline nulls last limit 20`,
+      select id, title, status, deadline, (select count(*) from task_comments c where c.task_id = tasks.id)::int as comments from tasks
+      where assigned_to = ${staffId} and (status <> 'done' or completed_at >= ${startOfTashkentMonthKey()})
+      order by (status = 'done'), deadline nulls last limit 40`,
     sql<{ id: string; title: string; objective: string; start_value: number | null; target_value: number | null; current: number | null }[]>`
       select k.id, k.title, o.title as objective, k.start_value, k.target_value, k.current_value as current
       from strategy_key_results k join strategy_objectives o on o.id = k.objective_id

@@ -60,18 +60,27 @@ export async function awardStarsAction(
   formData: FormData,
 ): Promise<StarsActionState> {
   let actorId: string;
+  // HR (stars.hrGrant, owner 2026-11-23): not to themselves and not to CEO/COO.
+  let hr: Awaited<ReturnType<typeof requireCap>>['profile'] | null = null;
   try {
     ({
       user: { id: actorId },
     } = await requireCap('stars.grant'));
   } catch (error) {
-    return { error: authErrorCode(error) };
+    try {
+      const r = await requireCap('stars.hrGrant');
+      actorId = r.user.id;
+      hr = r.profile;
+    } catch {
+      return { error: authErrorCode(error) };
+    }
   }
 
   const parsed = awardSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
   const { userId, delta } = parsed.data;
+  if (hr && (userId === actorId || !(await hrCanViewProfile(hr, userId)))) return { error: 'forbidden' };
   const reason = parsed.data.reason?.trim() ? parsed.data.reason.trim() : null;
   const sourceType: StarSourceType = delta > 0 ? 'manual' : 'penalty';
 

@@ -7,7 +7,8 @@ import { sql } from '@/lib/db/client';
 import { getAuthState } from '@/lib/auth/session';
 import { resolveAvatarUrl } from '@/lib/gcp/avatarUrl';
 import { bumpBoardSignal } from '@/lib/gcp/firestoreAdmin';
-import { can } from '@/lib/permissions';
+import { can, canFor } from '@/lib/permissions';
+import { hrCanViewProfile } from '@/lib/profile-access';
 import { escapeTelegramText, sendTelegramAs } from '@/lib/telegram';
 
 export type TaskCommentActionState = { error?: string } | undefined;
@@ -29,12 +30,18 @@ export type TaskComment = {
  * thing standing between a signed-in employee and someone else's task
  * thread — every read *and* write below runs through it.
  */
-async function loadCommentableTask(taskId: string, uid: string, role: string | undefined) {
+async function loadCommentableTask(
+  taskId: string,
+  uid: string,
+  profile: { role: string | null | undefined; section_overrides?: Record<string, boolean> | null },
+) {
   const [task] = await sql<{ id: string; assigned_to: string; assigned_by: string }[]>`
     select id, assigned_to, assigned_by from tasks where id = ${taskId}
   `;
   if (!task) return null;
-  if (can(role, 'company.overview') || task.assigned_to === uid || task.assigned_by === uid) return task;
+  if (can(profile.role, 'company.overview') || task.assigned_to === uid || task.assigned_by === uid) return task;
+  // HR (tasks.monitor, owner 2026-11-23): any staff member's task thread but CEO/COO's.
+  if (canFor(profile, 'tasks.monitor') && (await hrCanViewProfile(profile, task.assigned_to))) return task;
   return null;
 }
 
@@ -97,7 +104,7 @@ export async function createTaskCommentAction(
   const parsed = createCommentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: 'invalidInput' };
 
-  const task = await loadCommentableTask(parsed.data.taskId, user.id, profile.role);
+  const task = await loadCommentableTask(parsed.data.taskId, user.id, profile);
   if (!task) return { error: 'forbidden' };
 
   try {
@@ -173,7 +180,7 @@ export async function getTaskCommentsAction(taskId: string): Promise<TaskComment
   const parsed = z.string().uuid().safeParse(taskId);
   if (!parsed.success) return [];
 
-  const task = await loadCommentableTask(parsed.data, user.id, profile.role);
+  const task = await loadCommentableTask(parsed.data, user.id, profile);
   if (!task) return [];
 
   const rows = await sql<
