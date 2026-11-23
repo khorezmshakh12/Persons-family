@@ -19,10 +19,12 @@ import {
   getStudentCardAction,
   logDebtCallAction,
   manualChargeAction,
+  pauseBillingAction,
   previewTemplateAction,
   recordPaymentAction,
   restoreStudentAction,
   sendStudentMessageAction,
+  shiftPayDateAction,
   updateStudentInfoAction,
   updateStudentTermsAction,
   type StudentCard,
@@ -34,7 +36,7 @@ import { PaymentEditor } from './ops-payments';
 import type { OpsData } from './operations-workspace';
 import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, som, when } from './ops-students-meta';
 
-type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'fix' | 'freeze' | 'out' | 'del' | 'call' | null;
+type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'fix' | 'shift' | 'freeze' | 'out' | 'del' | 'call' | null;
 const PARENT_LABEL: Record<string, string> = { father: 'Otasi', mother: 'Onasi', guardian: 'Ota-ona / vasiy', other: 'Boshqa kontakt' };
 const digits = (v: string) => v.replace(/\D/g, '');
 const grouped = (v: string) => (digits(v) ? formatUZS(Number(digits(v))) : '');
@@ -199,6 +201,11 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                   <PaneBtn p="terms" cur={pane} set={setPane}>
                     ✎ Summa, sana, chegirma
                   </PaneBtn>
+                  {data.money && s.status === 'active' && (
+                    <PaneBtn p="shift" cur={pane} set={setPane}>
+                      ⇥ To‘lov sanasini surish
+                    </PaneBtn>
+                  )}
                   <PaneBtn p="adj" cur={pane} set={setPane}>
                     − Qo‘lda yechish
                   </PaneBtn>
@@ -229,7 +236,8 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
           {pane === 'info' && card && <InfoPane s={s} card={card} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'terms' && <TermsPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'adj' && <AdjPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
-          {pane === 'fix' && <FixPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
+          {pane === 'fix' && <FixPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
+          {pane === 'shift' && <ShiftPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'freeze' && <FreezePane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'call' && <CallPane s={s} today={today} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
           {pane === 'out' && <OutPane s={s} onDone={done} onFail={fail} onCancel={() => setPane(null)} />}
@@ -342,7 +350,23 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                     </li>
                   ))}
                   {Math.round(opening) !== 0 && (
-                    <li className="py-2 text-xs text-au-faint">Boshlang‘ich qoldiq (eski tizimdan): {opening < 0 ? '−' : '+'}{som(Math.abs(opening))}</li>
+                    <li className="py-2 text-xs text-au-faint">
+                      Boshlang‘ich qoldiq (eski tizimdan): {opening < 0 ? '−' : '+'}
+                      {som(Math.abs(opening))}
+                      {opening < 0 && (
+                        <span className="mt-1.5 block rounded-lg bg-au-info/10 px-2.5 py-1.5 text-au-info">
+                          Bu minusning yechim yozuvi yo‘q (import), shuning uchun «Yechimni bekor qilish» chiqmaydi.
+                          {data.canFixBalance && s.balance < 0 && !archived ? (
+                            <>
+                              {' '}Xato bo‘lsa —{' '}
+                              <button className="font-semibold underline" onClick={() => setPane('fix')}>
+                                Balansni tuzatish
+                              </button>
+                            </>
+                          ) : null}
+                        </span>
+                      )}
+                    </li>
                   )}
                 </ul>
               )}
@@ -684,35 +708,51 @@ function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
   );
 }
 
-/** «Yechimni bekor qilish»: the charge stays in the history marked cancelled, its sum goes back to the balance. */
+/** «Yechimni bekor qilish»: the charge stays in the history marked cancelled, its sum goes back to the balance. Qisman: only part of it. */
 function ChargeCancel({ charge, onDone, onFail, onCancel }: { charge: StudentCard['ledger'][number]; onDone: (m: string) => void; onFail: (e: string) => void; onCancel: () => void }) {
   const [pending, start] = useTransition();
+  const [part, setPart] = useState(false);
+  const [amount, setAmount] = useState(grouped(String(Math.round(charge.amount / 2))));
   const [reason, setReason] = useState('Xato yechilgan');
-  const [other, setOther] = useState('');
-  const why = reason === 'Boshqa' ? other.trim() : reason;
+  const [note, setNote] = useState('');
+  const n = part ? Math.min(Number(digits(amount)), charge.amount) : charge.amount;
+  const why = [reason, note.trim()].filter(Boolean).join(': ');
   const ok = () =>
     start(async () => {
-      const r = await cancelChargeAction({ chargeId: charge.id, reason: why });
+      const r = await cancelChargeAction({ chargeId: charge.id, reason: why, amount: part ? n : undefined });
       if (r.error) return onFail(r.error);
-      onDone(`Yechim bekor qilindi: +${som(charge.amount)} balansga qaytdi`);
+      onDone(part ? `Yechimdan ${som(n)} qisman bekor qilindi — balansga qaytdi` : `Yechim bekor qilindi: +${som(charge.amount)} balansga qaytdi`);
     });
   return (
     <Panel title={`${dmy(charge.date)} dagi ${som(charge.amount)} yechimni bekor qilish`} danger>
-      <p className="text-xs text-au-muted">Yozuv o‘chmaydi — tarixda «Bekor qilingan» bo‘lib qoladi. Summa balansga qaytadi, avto-yechim shu oyni qayta yechmaydi.</p>
+      <p className="text-xs text-au-muted">Yozuv o‘chmaydi — tarixda qoladi, kim va nima sababdan bekor qilgani yoziladi. Avto-yechim shu oyni qayta yechmaydi.</p>
+      <div className="sx-seg self-start">
+        <button className={cn(!part && 'on')} onClick={() => setPart(false)}>
+          To‘liq
+        </button>
+        <button className={cn(part && 'on')} onClick={() => setPart(true)}>
+          Qisman
+        </button>
+      </div>
+      {part && (
+        <Field label={`Qancha qaytadi (eng ko‘pi ${formatUZS(charge.amount - 1)})`}>
+          <MoneyInput id="cc-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
+        </Field>
+      )}
       <Field label="Sabab">
         <select id="cc-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
-          {['Xato yechilgan', 'Ikki marta yechilgan', 'O‘quvchi shu oy o‘qimadi', 'Summa noto‘g‘ri edi', 'Boshqa'].map((r) => (
+          {['Xato yechilgan', 'Ikki marta yechilgan', 'O‘quvchi shu oy o‘qimadi', 'Oyning bir qismi o‘qidi', 'Summa noto‘g‘ri edi', 'Boshqa'].map((r) => (
             <option key={r}>{r}</option>
           ))}
         </select>
       </Field>
-      {reason === 'Boshqa' && (
-        <Field label="Izoh (majburiy)">
-          <input id="cc-o" className="sx-inp" maxLength={300} value={other} onChange={(e) => setOther(e.target.value)} />
-        </Field>
-      )}
-      {reason === 'Summa noto‘g‘ri edi' && <p className="text-xs text-au-muted">Bekor qilgach, to‘g‘ri summani «Qo‘lda yechish» bilan yeching.</p>}
-      <Actions pending={pending || why.length < 3} ok={ok} okText="Bekor qilish" onCancel={onCancel} danger />
+      <Field label="Izoh (majburiy)">
+        <input id="cc-o" className="sx-inp" maxLength={250} placeholder="Masalan: 2 hafta kasal bo‘ldi, ota-onasi bilan kelishildi" value={note} onChange={(e) => setNote(e.target.value)} />
+      </Field>
+      <div className="text-xs text-au-muted">
+        +{som(n)} balansga qaytadi{part && n < charge.amount ? ` · yechim ${som(charge.amount - n)} bo‘lib qoladi` : ''}
+      </div>
+      <Actions pending={pending || note.trim().length < 3 || n <= 0 || (part && n >= charge.amount)} ok={ok} okText="Bekor qilish" onCancel={onCancel} danger />
     </Panel>
   );
 }
@@ -741,41 +781,178 @@ function useOpenCharge(studentId: string) {
 }
 
 /** Balansni tuzatish: takes a wrong minus off — never past 0, reason required. */
-function FixPane({ s, onDone, onFail, onCancel }: PaneProps) {
+function FixPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
   const [pending, start] = useTransition();
   const max = Math.round(-s.balance);
+  const [mode, setMode] = useState<'zero' | 'keep'>('zero');
+  const [manual, setManual] = useState(false);
+  const [until, setUntil] = useState('');
   const [amount, setAmount] = useState(grouped(String(max)));
   const [reason, setReason] = useState('SchoolUp importidagi xato minus');
   const [other, setOther] = useState('');
   const n = Number(digits(amount));
   const why = reason === 'Boshqa' ? other.trim() : reason;
+  const frozen = s.status !== 'active';
   const ok = () =>
     start(async () => {
-      const r = await fixStudentBalanceAction({ studentId: s.id, amount: n, reason: why });
+      if (mode === 'zero') {
+        const r = await fixStudentBalanceAction({ studentId: s.id, amount: n, reason: why });
+        if (r.error) return onFail(r.error);
+        return onDone(`Balans tuzatildi: +${som(n)}`);
+      }
+      const r = await pauseBillingAction({ studentId: s.id, until: manual ? null : until, reason: why });
       if (r.error) return onFail(r.error);
-      onDone(`Balans tuzatildi: +${som(n)}`);
+      onDone(manual ? 'Minus qoldi — qo‘lda faollashtirilguncha muzlatildi' : `Minus qoldi — ${dmy(until)} gacha oylik yechilmaydi`);
     });
+  const reasons =
+    mode === 'zero'
+      ? ['SchoolUp importidagi xato minus', 'Ikki marta yechilgan oylik', 'Ortiqcha qo‘lda yechilgan', 'Boshqa']
+      : ['Darsga kelmayapti, keyin qaytadi', 'Kasal / safarda', 'To‘lov kelishuvi (CEO ruxsati)', 'Boshqa'];
   return (
-    <Panel title="Ortiqcha minusni olib tashlash">
-      <p className="text-xs text-au-muted">To‘lov emas: tushum, kassa, to‘lovlar soni va faollikka kirmaydi. Faqat balans o‘zgaradi, tarixda kim qilgani qoladi.</p>
-      <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
+    <Panel title="Balansni qo‘lda tuzatish">
+      <p className="text-xs text-au-muted">To‘lov emas: tushum, kassa, to‘lovlar soni va faollikka kirmaydi. Tarixda kim qilgani qoladi.</p>
+      <label className="flex items-start gap-2 text-sm text-au-ink">
+        <input id="fx-zero" type="radio" name="fx-mode" className="mt-1" checked={mode === 'zero'} onChange={() => { setMode('zero'); setReason('SchoolUp importidagi xato minus'); }} />
+        <span>
+          <b>Minusni yopish</b>
+          <span className="block text-xs text-au-muted">Balans eng ko‘pi 0 gacha ko‘tariladi, ortig‘i emas.</span>
+        </span>
+      </label>
+      <label className="flex items-start gap-2 text-sm text-au-ink">
+        <input id="fx-keep" type="radio" name="fx-mode" className="mt-1" disabled={frozen} checked={mode === 'keep'} onChange={() => { setMode('keep'); setReason('Darsga kelmayapti, keyin qaytadi'); }} />
+        <span>
+          <b>Minus qolsin, yechim to‘xtasin</b>
+          <span className="block text-xs text-au-muted">{frozen ? 'Muzlatilgan yoki arxivdagi o‘quvchida oylik allaqachon yechilmaydi.' : 'Qarz turaveradi, lekin yangi oylik yechilmaydi.'}</span>
+        </span>
+      </label>
+      {mode === 'zero' ? (
         <Field label={`Summa (eng ko‘pi ${formatUZS(max)})`}>
           <MoneyInput id="fix-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
-        <Field label="Sabab">
-          <select id="fix-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
-            {['SchoolUp importidagi xato minus', 'Ikki marta yechilgan oylik', 'Ortiqcha qo‘lda yechilgan', 'Boshqa'].map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-2 pl-6">
+          <label className="flex items-start gap-2 text-sm text-au-ink">
+            <input id="fk-date" type="radio" name="fx-keep" className="mt-1" checked={!manual} onChange={() => setManual(false)} />
+            <span>
+              Sanagacha yechilmasin
+              <span className="block text-xs text-au-muted">Shu sanada oylik yechiladi, keyin har oy shu sanada.</span>
+            </span>
+          </label>
+          {!manual && <input id="fk-until" type="date" className="sx-inp !w-[170px]" min={addDaysToKey(today, 1)} value={until} onChange={(e) => setUntil(e.target.value)} />}
+          <label className="flex items-start gap-2 text-sm text-au-ink">
+            <input id="fk-manual" type="radio" name="fx-keep" className="mt-1" checked={manual} onChange={() => setManual(true)} />
+            <span>
+              Qo‘lda «Faollashtirish» bosilguncha
+              <span className="block text-xs text-au-muted">O‘quvchi muzlatiladi. Faollashtirilgan kun yangi to‘lov kuni bo‘ladi.</span>
+            </span>
+          </label>
+        </div>
+      )}
+      <Field label="Sabab">
+        <select id="fix-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
+          {reasons.map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+        </select>
+      </Field>
       {reason === 'Boshqa' && (
         <Field label="Izoh (majburiy)">
           <input id="fix-o" className="sx-inp" maxLength={200} value={other} onChange={(e) => setOther(e.target.value)} />
         </Field>
       )}
-      <Actions pending={pending || n <= 0 || n > max || !why} ok={ok} okText="Tuzatish" onCancel={onCancel} />
+      <div className="text-xs text-au-muted">
+        {mode === 'zero'
+          ? `Balans: −${formatUZS(max)} → ${n >= max ? '0' : `−${formatUZS(max - n)}`}`
+          : manual
+            ? `Balans −${formatUZS(max)} qoladi · qo‘lda faollashtirilguncha yechim yo‘q`
+            : until
+              ? `Balans −${formatUZS(max)} qoladi · ${dmy(until)} gacha yechim yo‘q, keyin har oy ${Number(until.slice(8))}-sanada`
+              : 'Sanani tanlang'}
+      </div>
+      <Actions
+        pending={pending || why.length < 3 || (mode === 'zero' ? n <= 0 || n > max : !manual && !until)}
+        ok={ok}
+        okText="Saqlash"
+        onCancel={onCancel}
+      />
+    </Panel>
+  );
+}
+
+/** To'lov sanasini surish: a student who missed lessons pays later; the new day stays the pay day. */
+function ShiftPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
+  const [pending, start] = useTransition();
+  const next = s.start ? nextDueDate(s.start, today) : null;
+  const base = next && next > today ? next : addDaysToKey(today, 1);
+  const [days, setDays] = useState<number | null>(7);
+  const [date, setDate] = useState(addDaysToKey(base, 7));
+  const [reason, setReason] = useState('Darsga kelmadi');
+  const [other, setOther] = useState('');
+  const open = useOpenCharge(s.id);
+  const why = reason === 'Boshqa' ? other.trim() : reason;
+  // Before the old next charge only together with taking this period's charge back.
+  const minDate = open.cancelChargeId || !next || next <= today ? addDaysToKey(today, 1) : next;
+  const pick = (d: number) => {
+    setDays(d);
+    setDate(addDaysToKey(base, d));
+  };
+  const ok = () =>
+    start(async () => {
+      const r = await shiftPayDateAction({ studentId: s.id, date, reason: why, cancelChargeId: open.cancelChargeId });
+      if (r.error) return onFail(r.error);
+      onDone(`To‘lov sanasi surildi: keyingi yechim ${dmy(date)}${open.cancelChargeId ? ', shu davr yechimi bekor qilindi' : ''}`);
+    });
+  return (
+    <Panel title="To‘lov sanasini surish (darsga kelmadi)">
+      <div className="text-xs text-au-muted">
+        Hozirgi keyingi yechim: <b className="text-au-ink">{next ? dmy(next) : '—'}</b>. Necha kun o‘tkazib yuborgan bo‘lsa, to‘lov kuni shuncha suriladi.
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {[3, 7, 14, 30].map((d) => (
+          <button key={d} className={cn('sx-btn !px-2.5 !py-1 text-xs', days === d && 'primary')} onClick={() => pick(d)}>
+            +{d === 30 ? '1 oy' : `${d} kun`}
+          </button>
+        ))}
+      </div>
+      <Field label="Yangi to‘lov sanasi">
+        <input
+          id="sh-date"
+          type="date"
+          className="sx-inp !w-[170px]"
+          min={minDate}
+          value={date}
+          onChange={(e) => {
+            setDays(null);
+            setDate(e.target.value);
+          }}
+        />
+      </Field>
+      <Field label="Sabab">
+        <select id="sh-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
+          {['Darsga kelmadi', 'Kasal edi', 'Safarda edi', 'Guruh hali boshlanmadi', 'Boshqa'].map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+        </select>
+      </Field>
+      {reason === 'Boshqa' && (
+        <Field label="Izoh (majburiy)">
+          <input id="sh-o" className="sx-inp" maxLength={200} value={other} onChange={(e) => setOther(e.target.value)} />
+        </Field>
+      )}
+      {open.box}
+      <div className="text-xs text-au-muted">
+        {date ? (
+          <>
+            Keyingi yechim: <b className="text-au-ink">{next ? dmy(next) : '—'}</b> → <b className="text-au-ink">{dmy(date)}</b>, keyin har oy{' '}
+            {Number(date.slice(8))}-sanada. Eski sana tarixda qoladi.
+            {s.installments === 2 && ' Bo‘lib to‘lash: shu davrning 2-qismi eski sanasida yechiladi.'}
+          </>
+        ) : (
+          'Sanani tanlang'
+        )}
+      </div>
+      {date && date < minDate && <div className="text-xs font-semibold text-au-bad">Bu sana shu davr ichida — avval shu davr yechimini bekor qilishni belgilang yoki {dmy(minDate)} dan keyingi sanani tanlang.</div>}
+      <Actions pending={pending || !date || date < minDate || why.length < 3} ok={ok} okText="Surish" onCancel={onCancel} />
     </Panel>
   );
 }
@@ -794,7 +971,11 @@ function FreezePane({ s, today, onDone, onFail, onCancel }: PaneProps & { today:
   return (
     <Panel title={frozen ? 'Muzlatishni bekor qilish' : 'Muzlatish'}>
       {frozen ? (
-        <div className="text-sm text-au-muted">O‘quvchi bugundan qayta faol bo‘ladi va to‘lov kunida yechim davom etadi.</div>
+        <div className="text-sm text-au-muted">
+          {s.restartOnActivate
+            ? `O‘quvchi bugundan qayta faol bo‘ladi. To‘lov kuni endi ${dmy(today)} — keyingi yechim shu kundan boshlanadi.`
+            : 'O‘quvchi bugundan qayta faol bo‘ladi va to‘lov kunida yechim davom etadi.'}
+        </div>
       ) : (
         <>
           <div className="text-sm text-au-muted">Kasallik, safar yoki ta’til: shu sanagacha oylik yechilmaydi, keyin o‘zi faollashadi.</div>

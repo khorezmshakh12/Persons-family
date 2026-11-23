@@ -8,6 +8,7 @@ import { getAuthState } from '@/lib/auth/session';
 import { canFor, canSeeFor, canSeeOpsMoney } from '@/lib/permissions';
 import { sql } from '@/lib/db/client';
 import { formatUZS } from '@/lib/format-currency';
+import { nextDueDate } from '@/lib/billing';
 import { renderMessage, sendToStudentContacts, studentVars } from '@/lib/student-messages';
 import { addDaysToKey, tashkentDayKey } from '@/lib/time';
 
@@ -33,6 +34,11 @@ async function requireEditor(): Promise<{ id: string } | { error: string }> {
   } catch (error) {
     return { error: authErrorCode(error) };
   }
+}
+
+/** «Saqlab bo'lmadi» always leaves its real cause in the Cloud Run log (owner, 2026-11-23). */
+function logFail(error: unknown) {
+  console.error('[ops-students] write failed', error instanceof Error ? error.message : error);
 }
 
 async function nameOf(studentId: string): Promise<string | null> {
@@ -102,7 +108,10 @@ export async function getStudentCardAction(studentId: string): Promise<{ card?: 
           select c.id, 'charge' as type, c.due_date::text as date, c.amount, c.source as kind, coalesce(c.note, '') as note,
             coalesce(p.first_name || ' ' || p.last_name, case c.source when 'auto' then 'Avto-yechim' when 'import' then 'Import' else 'CRM' end) as actor,
             c.created_at::text as at,
-            case when c.status = 'waived' then concat_ws(' · ', 'Bekor qilindi', to_char(c.cancelled_at at time zone 'Asia/Tashkent', 'DD.MM.YYYY'),
+            case when c.status = 'waived' or c.cancelled_amount > 0 then concat_ws(' · ',
+              case when c.status = 'waived' then 'Bekor qilindi'
+                else 'Qisman bekor: ' || to_char(c.cancelled_amount, 'FM999,999,999,990') || ' qaytdi' end,
+              to_char(c.cancelled_at at time zone 'Asia/Tashkent', 'DD.MM.YYYY'),
               nullif(trim(coalesce(pc.first_name || ' ' || pc.last_name, '')), ''), c.cancel_reason) end as edit,
             c.status = 'waived' as cancelled, false as "isCancel"
           from crm_charges c left join crm_enrollments e on e.id = c.enrollment_id left join profiles p on p.id = c.created_by
@@ -216,7 +225,8 @@ export async function recordPaymentAction(input: z.input<typeof paymentSchema>):
       return true;
     });
     if (!ok) return {};
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   let sent: number | undefined;
@@ -279,7 +289,8 @@ export async function updatePaymentAction(input: z.input<typeof payEditSchema>):
     });
     if (res === 'notFound') return { error: 'notFound' };
     if (res === 'locked') return { error: 'paymentLocked' };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -319,7 +330,8 @@ export async function cancelPaymentAction(input: z.input<typeof payCancelSchema>
     });
     if (res === 'notFound') return { error: 'notFound' };
     if (res === 'locked') return { error: 'paymentLocked' };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -400,7 +412,8 @@ export async function manualChargeAction(input: z.input<typeof chargeSchema>): P
       return 'ok';
     });
     if (res === 'duplicate') return { error: 'duplicate' };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -409,7 +422,7 @@ export async function manualChargeAction(input: z.input<typeof chargeSchema>): P
 
 /** Charges older than this are cancelled by the CEO only (same limit as a backdated payment). */
 const CHARGE_CANCEL_DAYS = 60;
-type CancelRes = 'ok' | 'notFound' | 'locked' | 'tooOld';
+type CancelRes = 'ok' | 'notFound' | 'locked' | 'tooOld' | 'invalidInput';
 
 /**
  * Yechimni bekor qilish inside a transaction: nothing is deleted. The charge
@@ -417,7 +430,15 @@ type CancelRes = 'ok' | 'notFound' | 'locked' | 'tooOld';
  * balance, and its period_key stays — the daily billing never takes that
  * period again. Shared by the card button, archive and freeze.
  */
-async function cancelChargeTx(tx: TransactionSql, chargeId: string, reason: string, actor: string, oldOk: boolean, studentId?: string): Promise<CancelRes> {
+async function cancelChargeTx(
+  tx: TransactionSql,
+  chargeId: string,
+  reason: string,
+  actor: string,
+  oldOk: boolean,
+  studentId?: string,
+  part?: number,
+): Promise<CancelRes> {
   const [c] = await tx<{ sid: string | null; amount: number; due: string; status: string; source: string; name: string }[]>`
     select coalesce(c.student_id, e.student_id) as sid, c.amount, c.due_date::text as due, c.status, c.source, coalesce(s.full_name, '') as name
     from crm_charges c left join crm_enrollments e on e.id = c.enrollment_id
@@ -426,15 +447,27 @@ async function cancelChargeTx(tx: TransactionSql, chargeId: string, reason: stri
   if (!c || !c.sid || (studentId && c.sid !== studentId)) return 'notFound';
   if (c.status === 'waived') return 'locked';
   if (!oldOk && c.due < addDaysToKey(tashkentDayKey(), -CHARGE_CANCEL_DAYS)) return 'tooOld';
+  // Qisman (owner, 2026-11-23): only part of it goes back; the rest stays a charge.
+  const back = part != null && part < c.amount ? part : c.amount;
+  if (back <= 0) return 'invalidInput';
+  const full = back === c.amount;
   await tx`select 1 from crm_students where id = ${c.sid} for update`;
-  const res = await tx`
-    update crm_charges set status = 'waived', cancelled_at = now(), cancelled_by = ${actor}, cancel_reason = ${reason}
-    where id = ${chargeId} and status <> 'waived'`;
+  const res = full
+    ? await tx`
+        update crm_charges set status = 'waived', cancelled_at = now(), cancelled_by = ${actor}, cancel_reason = ${reason},
+          cancelled_amount = cancelled_amount + amount
+        where id = ${chargeId} and status <> 'waived'`
+    : await tx`
+        update crm_charges set amount = amount - ${back}, cancelled_amount = cancelled_amount + ${back},
+          cancelled_at = now(), cancelled_by = ${actor}, cancel_reason = ${reason}
+        where id = ${chargeId} and status <> 'waived' and amount > ${back}`;
   if (res.count === 0) return 'locked';
-  await tx`update crm_students set balance = balance + ${c.amount}, updated_at = now() where id = ${c.sid}`;
+  await tx`update crm_students set balance = balance + ${back}, updated_at = now() where id = ${c.sid}`;
   const what = c.source === 'manual' ? 'qo‘lda yechilgan' : 'oylik';
-  await tx`insert into crm_student_log (student_id, kind, text, amount, actor)
-    values (${c.sid}, 'chargecancel', ${`${c.name} — ${dmy(c.due)} dagi ${som(c.amount)} ${what} yechim bekor qilindi, balansga qaytdi. Sabab: ${reason}`}, ${c.amount}, ${actor})`;
+  const text = full
+    ? `${c.name} — ${dmy(c.due)} dagi ${som(c.amount)} ${what} yechim bekor qilindi, balansga qaytdi. Sabab: ${reason}`
+    : `${c.name} — ${dmy(c.due)} dagi ${som(c.amount)} ${what} yechimdan ${som(back)} qisman bekor qilindi, balansga qaytdi. Sabab: ${reason}`;
+  await tx`insert into crm_student_log (student_id, kind, text, amount, actor) values (${c.sid}, 'chargecancel', ${text}, ${back}, ${actor})`;
   return 'ok';
 }
 
@@ -451,7 +484,12 @@ async function requireChargeCanceller(): Promise<{ id: string; oldOk: boolean } 
   }
 }
 
-const chargeCancelSchema = z.object({ chargeId: uuid, reason: z.string().trim().min(3).max(300) });
+const chargeCancelSchema = z.object({
+  chargeId: uuid,
+  reason: z.string().trim().min(3).max(300),
+  /** Qisman: how much goes back; omitted = the whole charge. */
+  amount: money.optional(),
+});
 
 /** «Yechimni bekor qilish» — a monthly or manual minus taken by mistake. */
 export async function cancelChargeAction(input: z.input<typeof chargeCancelSchema>): Promise<Result> {
@@ -461,8 +499,9 @@ export async function cancelChargeAction(input: z.input<typeof chargeCancelSchem
   if (!p.success) return { error: 'invalidInput' };
   let res: CancelRes;
   try {
-    res = await sql.begin((tx) => cancelChargeTx(tx, p.data.chargeId, p.data.reason, me.id, me.oldOk));
-  } catch {
+    res = await sql.begin((tx) => cancelChargeTx(tx, p.data.chargeId, p.data.reason, me.id, me.oldOk, undefined, p.data.amount));
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   if (res === 'ok') refresh();
@@ -520,7 +559,109 @@ export async function fixStudentBalanceAction(input: z.input<typeof fixSchema>):
       return 'ok';
     });
     if (res !== 'ok') return { error: res };
-  } catch {
+  } catch (error) {
+    logFail(error);
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
+const shiftSchema = z.object({
+  studentId: uuid,
+  /** The new pay day — the next charge is taken on it, then every month on that day. */
+  date: dayKey,
+  reason: z.string().trim().min(3).max(200),
+  /** This period's charge, when the student did not come at all: it goes back and is taken on the new day. */
+  cancelChargeId: uuid.nullable().default(null),
+});
+
+/**
+ * To'lov sanasini surish (owner, 2026-11-23): a student who missed lessons
+ * pays later. billing_start becomes the new day, so nothing is charged
+ * before it and every next charge falls on that day of the month; the old
+ * day stays in the log. Bo'lib to'lash: a 2nd half already due in the
+ * running period is still taken on its old day (crm-billing cron).
+ */
+export async function shiftPayDateAction(input: z.input<typeof shiftSchema>): Promise<Result> {
+  const me = await requireChargeCanceller();
+  if ('error' in me) return me;
+  const p = shiftSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  const today = tashkentDayKey();
+  if (v.date <= today || v.date > addDaysToKey(today, 400)) return { error: 'invalidInput' };
+  try {
+    await sql.begin(async (tx) => {
+      const [s] = await tx<{ name: string; start: string | null }[]>`
+        select s.full_name as name, coalesce(s.billing_start,
+          (select min(e.activation_date) from crm_enrollments e where e.student_id = s.id and e.status = 'active'))::text as start
+        from crm_students s where s.id = ${v.studentId} and s.archived_at is null for update of s`;
+      if (!s) throw new CancelFailed('notFound');
+      const was = s.start ? nextDueDate(s.start, today) : null;
+      // Earlier than the old next charge only when this period's charge goes back too:
+      // otherwise the running period already covers the new day and the cron skips it.
+      if (!v.cancelChargeId && was && was > today && v.date < was) throw new CancelFailed('invalidInput');
+      await tx`update crm_students set billing_start = ${v.date}, updated_at = now() where id = ${v.studentId}`;
+      await tx`insert into crm_student_log (student_id, kind, text, actor)
+        values (${v.studentId}, 'shift', ${`${s.name} — to‘lov sanasi surildi: keyingi yechim ${was ? dmy(was) : '—'} → ${dmy(v.date)}${s.start ? ` (eski aktiv sana ${dmy(s.start)})` : ''}. Sabab: ${v.reason}`}, ${me.id})`;
+      if (v.cancelChargeId) {
+        const r = await cancelChargeTx(tx, v.cancelChargeId, `To‘lov sanasi ${dmy(v.date)} ga surildi: ${v.reason}`, me.id, me.oldOk, v.studentId);
+        if (r !== 'ok') throw new CancelFailed(r);
+      }
+    });
+  } catch (e) {
+    if (e instanceof CancelFailed) return cancelErr(e.res);
+    logFail(e);
+    return { error: 'updateFailed' };
+  }
+  refresh();
+  return {};
+}
+
+const pauseSchema = z.object({
+  studentId: uuid,
+  /** No charge before this day (it becomes the pay day); null = frozen until someone presses «Faollashtirish». */
+  until: dayKey.nullable(),
+  reason: z.string().trim().min(3).max(200),
+});
+
+/**
+ * Balansni tuzatish › «Minus qolsin, yechim to'xtasin» (owner, 2026-11-23):
+ * the debt stays, new monthly charges stop — until a day, or until the
+ * student is activated by hand (that day becomes the new pay day).
+ */
+export async function pauseBillingAction(input: z.input<typeof pauseSchema>): Promise<Result> {
+  let meId: string;
+  try {
+    meId = (await requireCap('operations.balanceFix')).profile.id;
+  } catch (error) {
+    return { error: authErrorCode(error) };
+  }
+  const p = pauseSchema.safeParse(input);
+  if (!p.success) return { error: 'invalidInput' };
+  const v = p.data;
+  const today = tashkentDayKey();
+  if (v.until && (v.until <= today || v.until > addDaysToKey(today, 400))) return { error: 'invalidInput' };
+  try {
+    const res = await sql.begin(async (tx) => {
+      const [s] = await tx<{ name: string; balance: number; status: string }[]>`
+        select full_name as name, balance, status from crm_students where id = ${v.studentId} and archived_at is null for update`;
+      if (!s) return 'notFound';
+      if (s.status === 'frozen') return 'frozen';
+      if (v.until) {
+        await tx`update crm_students set billing_start = ${v.until}, updated_at = now() where id = ${v.studentId}`;
+      } else {
+        await tx`update crm_students set status = 'frozen', frozen_until = null, restart_on_activate = true, updated_at = now() where id = ${v.studentId}`;
+      }
+      const tail = v.until ? `${dmy(v.until)} gacha oylik yechilmaydi, keyin har oy shu sanada` : 'qo‘lda faollashtirilguncha muzlatildi';
+      await tx`insert into crm_student_log (student_id, kind, text, actor)
+        values (${v.studentId}, ${v.until ? 'shift' : 'freeze'}, ${`${s.name} — minus qoldi (${som(Math.max(0, -s.balance))}), ${tail}. Sabab: ${v.reason}`}, ${meId})`;
+      return 'ok';
+    });
+    if (res !== 'ok') return { error: res };
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -566,7 +707,8 @@ export async function updateStudentTermsAction(input: z.input<typeof termsSchema
         where id = ${v.studentId}`;
       await tx`insert into crm_student_log (student_id, kind, text, actor) values (${v.studentId}, 'edit', ${`${old.name} — ${changes.join(', ')}`}, ${me.id})`;
     });
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -613,7 +755,8 @@ export async function markPaidElsewhereAction(input: z.input<typeof paidElsewher
     });
     refresh();
     return { done: list.length };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
 }
@@ -632,7 +775,8 @@ export async function unmarkPaidElsewhereAction(studentId: string): Promise<Resu
       if (res.count === 0) throw new Error('notFound');
       await tx`insert into crm_student_log (student_id, kind, text, actor) values (${studentId}, 'edit', ${`${name} — qo‘lda faollik bekor qilindi`}, ${me.id})`;
     });
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -653,19 +797,26 @@ export async function freezeStudentAction(input: z.input<typeof freezeSchema>): 
     const name = await nameOf(v.studentId);
     if (!name) return { error: 'notFound' };
     await sql.begin(async (tx) => {
-      const res = await tx`
-        update crm_students set status = ${v.until ? 'frozen' : 'active'}, frozen_until = ${v.until}, updated_at = now()
-        where id = ${v.studentId} and archived_at is null`;
-      if (res.count === 0) throw new Error('notFound');
+      // «Qo'lda faollashtirilguncha» freeze: today becomes the new pay day.
+      const [row] = await tx<{ restart: boolean }[]>`
+        update crm_students s set status = ${v.until ? 'frozen' : 'active'}, frozen_until = ${v.until},
+          billing_start = case when ${!v.until} and s.restart_on_activate then ${tashkentDayKey()}::date else s.billing_start end,
+          restart_on_activate = false, updated_at = now()
+        from crm_students o where o.id = s.id and s.id = ${v.studentId} and s.archived_at is null
+        returning o.restart_on_activate as restart`;
+      if (!row) throw new Error('notFound');
+      const restarted = !v.until && row.restart;
       await tx`insert into crm_student_log (student_id, kind, text, actor)
-        values (${v.studentId}, 'freeze', ${v.until ? `${name} — ${dmy(v.until)} gacha muzlatildi` : `${name} — muzlatish bekor qilindi`}, ${me.id})`;
+        values (${v.studentId}, 'freeze', ${v.until ? `${name} — ${dmy(v.until)} gacha muzlatildi` : `${name} — muzlatish bekor qilindi${restarted ? `, to‘lov kuni endi ${dmy(tashkentDayKey())}` : ''}`}, ${me.id})`;
       if (v.until && v.cancelChargeId) {
         const r = await cancelChargeTx(tx, v.cancelChargeId, `Muzlatildi (${dmy(v.until)} gacha)`, me.id, (me as { oldOk?: boolean }).oldOk === true, v.studentId);
         if (r !== 'ok') throw new CancelFailed(r);
       }
     });
   } catch (e) {
-    return e instanceof CancelFailed ? cancelErr(e.res) : { error: 'updateFailed' };
+    if (e instanceof CancelFailed) return cancelErr(e.res);
+    logFail(e);
+    return { error: 'updateFailed' };
   }
   refresh();
   return {};
@@ -711,7 +862,9 @@ export async function archiveStudentAction(input: z.input<typeof archiveSchema>)
     });
     if (!done) return { error: 'notFound' };
   } catch (e) {
-    return e instanceof CancelFailed ? cancelErr(e.res) : { error: 'updateFailed' };
+    if (e instanceof CancelFailed) return cancelErr(e.res);
+    logFail(e);
+    return { error: 'updateFailed' };
   }
   refresh();
   return {};
@@ -733,7 +886,8 @@ export async function restoreStudentAction(studentId: string): Promise<Result> {
       return true;
     });
     if (!done) return { error: 'notFound' };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -823,7 +977,8 @@ export async function updateStudentInfoAction(input: z.input<typeof infoSchema>)
       return true;
     });
     if (!done) return { error: 'notFound' };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -850,7 +1005,8 @@ export async function deleteStudentAction(studentId: string): Promise<Result> {
       return null;
     });
     if (res) return { error: res };
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -887,7 +1043,8 @@ export async function sendStudentMessageAction(input: z.input<typeof messageSche
     if (r.sent === 0) return { error: 'sendFailed' };
     refresh();
     return r;
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
 }
@@ -925,7 +1082,8 @@ export async function logDebtCallAction(input: z.input<typeof callSchema>): Prom
       await tx`insert into crm_student_log (student_id, kind, text, actor)
         values (${v.studentId}, 'call', ${`${name} — qo‘ng‘iroq: ${CALL_UZ[v.result]}${v.promisedDate ? ` (${dmy(v.promisedDate)})` : ''}${v.note ? ` · ${v.note}` : ''}`}, ${me.id})`;
     });
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -971,7 +1129,8 @@ export async function saveTemplatesAction(input: z.input<typeof templatesSchema>
       }
       await tx`insert into crm_student_log (kind, text, actor) values ('settings', ${`${audience === 'lead' ? 'Lid' : 'O‘quvchi'} xabar shablonlari yangilandi (${list.length} ta)`}, ${me.id})`;
     });
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();
@@ -1003,7 +1162,8 @@ export async function saveBillingSettingsAction(input: z.input<typeof settingsSc
       await tx`insert into crm_student_log (kind, text, actor)
         values ('settings', ${`Avto-yechim ${v.enabled ? 'yoqildi' : 'o‘chirildi'} · ${dmy(v.startDate)} dan · ${v.remindDays} kun oldin eslatma`}, ${me.id})`;
     });
-  } catch {
+  } catch (error) {
+    logFail(error);
     return { error: 'updateFailed' };
   }
   refresh();

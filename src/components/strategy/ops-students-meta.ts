@@ -79,7 +79,15 @@ export const errText = (e: string) =>
                       ? '60 kundan eski yechimni faqat CEO bekor qila oladi'
                       : e === 'duplicate'
                         ? 'Shu summa hozirgina yechildi — ikki marta yechilmadi'
-                        : "Saqlab bo'lmadi";
+                        : e === 'frozen'
+                          ? 'O‘quvchi muzlatilgan — oylik allaqachon yechilmaydi'
+                          : e === 'sessionExpired'
+                            ? 'Sessiya tugadi — sahifani yangilab, qayta kiring'
+                            : e === 'updateFailed'
+                              ? 'Bazaga yozib bo‘lmadi — qayta urinib ko‘ring. Takrorlansa, vaqtini IT’ga ayting (sababi logda bor)'
+                              : e === 'loadFailed'
+                                ? 'Ma’lumotni yuklab bo‘lmadi — sahifani yangilang'
+                                : `Saqlab bo‘lmadi (${e})`;
 
 /** A Postgres timestamptz text (any offset) as a Date. */
 export const tsDate = (s: string) => new Date(s.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));
