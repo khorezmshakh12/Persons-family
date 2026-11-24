@@ -5281,6 +5281,14 @@
     "desc": "Tavsif (ixtiyoriy)",
     "notify": "Jamoaga Telegram orqali xabar berish",
     "cancel": "Bekor",
-    "save": "Saqlash"
+    "save": "Saqlash",
+    "auto": {
+      "birthday": "{n} — tug‘ilgan kun",
+      "anniv": "{n} — {y} yil jamoada",
+      "away": "{n} — ishda emas",
+      "leave": "{n} — {k}",
+      "pending": " (kutilmoqda)",
+      "sdDue": "O‘zini rivojlantirish hisoboti — oxirgi kun"
+    }
   }
 }

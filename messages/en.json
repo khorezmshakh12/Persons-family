@@ -5281,6 +5281,14 @@
     "desc": "Description (optional)",
     "notify": "Notify the team on Telegram",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "auto": {
+      "birthday": "{n} — birthday",
+      "anniv": "{n} — {y} years on the team",
+      "away": "{n} — away",
+      "leave": "{n} — {k}",
+      "pending": " (pending)",
+      "sdDue": "Self-development report — last day"
+    }
   }
 }

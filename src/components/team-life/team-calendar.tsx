@@ -31,9 +31,27 @@ function useCal() {
   const tl = useTranslations('tc.layer');
   const td = useTranslations('tc.dow');
   const te = useTranslations('tl.ev');
+  const ta = useTranslations('tc.auto');
+  const tk = useTranslations('lh.kind');
   const locale = useLocale();
+  const KINDS: Record<string, 'vacation' | 'sick' | 'day_off' | 'remote'> = { 'Ta’til': 'vacation', Kasallik: 'sick', 'Bir kunlik ruxsat': 'day_off', 'Masofadan ish': 'remote' };
+  /** Server-built titles (birthdays, leave, deadlines) are Uzbek; re-word them. */
+  const title = (e: CalEvent): string => {
+    if (locale === 'uz') return e.title;
+    let m: RegExpMatchArray | null;
+    if (e.layer === 'birthday' && (m = e.title.match(/^(.*) — tug‘ilgan kun$/))) return ta('birthday', { n: m[1] });
+    if (e.layer === 'anniversary' && (m = e.title.match(/^(.*) — (\d+) yil jamoada$/))) return ta('anniv', { n: m[1], y: m[2] });
+    if (e.layer === 'deadline' && e.title === 'O‘zini rivojlantirish hisoboti — oxirgi kun') return ta('sdDue');
+    if (e.layer === 'leave' && (m = e.title.match(/^(.*) — (.*?)( \(kutilmoqda\))?$/))) {
+      const p = m[3] ? ta('pending') : '';
+      if (m[2] === 'ishda emas') return ta('away', { n: m[1] }) + p;
+      if (KINDS[m[2]]) return ta('leave', { n: m[1], k: tk(KINDS[m[2]]) }) + p;
+    }
+    return e.title;
+  };
   return {
     t,
+    title,
     layer: (l: Layer) => tl(l),
     dow: (i: number) => td(String(i)),
     kind: (k: EventKind) => te(k),
@@ -333,7 +351,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
           <section className={cn(SURFACE_CARD, 'ms-pop-in flex flex-col gap-3 p-4')}>
             <div className="flex items-start gap-2">
               <i className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: LAYER_META[openEv.layer].c }} />
-              <h3 className={cn(CARD_TITLE, 'flex-1')}>{openEv.title}</h3>
+              <h3 className={cn(CARD_TITLE, 'flex-1')}>{C.title(openEv)}</h3>
               <button onClick={() => setOpenEv(null)} className="text-au-muted hover:text-au-ink" aria-label={C.t('close')}>
                 <X className="size-4" />
               </button>
@@ -475,7 +493,7 @@ function Pill({ e, onClick, wide }: { e: CalEvent; onClick: () => void; wide?: b
         onClick();
       }}
       onKeyDown={(ev) => ev.key === 'Enter' && onClick()}
-      title={e.title}
+      title={C.title(e)}
       className={cn(
         'flex min-w-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] leading-5 font-semibold transition hover:brightness-95',
         wide ? 'py-1 text-xs' : '',
@@ -484,7 +502,7 @@ function Pill({ e, onClick, wide }: { e: CalEvent; onClick: () => void; wide?: b
     >
       <i className="size-1.5 shrink-0 rounded-full" style={{ background: LAYER_META[e.layer].c }} />
       {e.time && <span className="shrink-0 tabular-nums opacity-70">{e.time}</span>}
-      <span className="truncate">{e.title}</span>
+      <span className="truncate">{C.title(e)}</span>
       {wide && e.rsvp?.mine && <span className={cn(CHIP_NEUTRAL, 'ml-auto h-5')}>{e.rsvp.mine === 'yes' ? C.t('yes') : e.rsvp.mine === 'no' ? C.t('pNo') : C.t('maybe')}</span>}
     </span>
   );
