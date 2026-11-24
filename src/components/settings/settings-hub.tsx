@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { BellOff, LogOut, Moon, ShieldCheck } from 'lucide-react';
@@ -17,6 +18,9 @@ export function NotificationsPanel({ initial, telegram }: { initial: { muted: No
   const [from, setFrom] = useState(initial.quietFrom?.slice(0, 5) ?? '22:00');
   const [to, setTo] = useState(initial.quietTo?.slice(0, 5) ?? '08:00');
   const [busy, start] = useTransition();
+  const t = useTranslations('sh');
+  const tn = useTranslations('sh.n');
+  const th = useTranslations('sh.h');
   const dirty =
     [...muted].sort().join() !== [...initial.muted].sort().join() ||
     quiet !== !!initial.quietFrom ||
@@ -31,14 +35,14 @@ export function NotificationsPanel({ initial, telegram }: { initial: { muted: No
   const save = () =>
     start(async () => {
       const res = await saveNotificationPrefsAction({ muted: [...muted], quietFrom: quiet ? from : null, quietTo: quiet ? to : null });
-      if (res.error) return void toast.error('Saqlab bo‘lmadi');
-      toast.success('Bildirishnoma sozlamalari saqlandi');
+      if (res.error) return void toast.error(t('saveFail'));
+      toast.success(t('saved'));
     });
 
   return (
     <div className="flex flex-col gap-4">
       {!telegram && (
-        <p className="rounded-au-ctl bg-au-card-2 px-3 py-2 text-sm text-au-muted">Telegram ulanmagan — avval “Telegram” bo‘limida ulang, shunda bu sozlamalar ishlaydi.</p>
+        <p className="rounded-au-ctl bg-au-card-2 px-3 py-2 text-sm text-au-muted">{t('noTg')}</p>
       )}
       <ul className="flex flex-col divide-y divide-au-line rounded-au-ctl border border-au-line">
         {NOTIFY_KINDS.map((k) => {
@@ -46,11 +50,11 @@ export function NotificationsPanel({ initial, telegram }: { initial: { muted: No
           return (
             <li key={k} className="flex items-center gap-3 px-3 py-2.5">
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className="text-sm font-semibold">{NOTIFY_META[k].n}</span>
-                <span className="text-[11px] text-au-muted">{NOTIFY_META[k].hint}</span>
+                <span className="text-sm font-semibold">{tn(k)}</span>
+                <span className="text-[11px] text-au-muted">{th(k)}</span>
               </div>
               {NOTIFY_META[k].quiet && quiet && on && (
-                <span className={CHIP_NEUTRAL} title="Tinch soatlarda yuborilmaydi">
+                <span className={CHIP_NEUTRAL} title={t('quietTitle')}>
                   <Moon className="size-3" />
                 </span>
               )}
@@ -69,24 +73,24 @@ export function NotificationsPanel({ initial, telegram }: { initial: { muted: No
       <div className="flex flex-col gap-2 rounded-au-ctl border border-au-line p-3">
         <label className="flex items-center gap-2 text-sm font-semibold">
           <input type="checkbox" checked={quiet} onChange={(e) => setQuiet(e.target.checked)} />
-          <Moon className="size-4 text-au-muted" /> Tinch soatlar
+          <Moon className="size-4 text-au-muted" /> {t('quiet')}
         </label>
         {quiet && (
           <div className="ms-pop-in flex flex-wrap items-center gap-2 text-sm">
             <input type="time" value={from} onChange={(e) => setFrom(e.target.value)} className={cn(INPUT, 'h-9 w-auto')} />
-            <span className="text-au-muted">dan</span>
+            <span className="text-au-muted">{t('from')}</span>
             <input type="time" value={to} onChange={(e) => setTo(e.target.value)} className={cn(INPUT, 'h-9 w-auto')} />
-            <span className="text-au-muted">gacha — chat, e’lon, yulduz va hisobot xabarlari yuborilmaydi</span>
+            <span className="text-au-muted">{t('until')}</span>
           </div>
         )}
-        <p className="text-[11px] text-au-muted">Vazifa, oylik, KPI va muammo xabarlari tinch soatlarda ham keladi. Muhim e’lonlar har doim yuboriladi.</p>
+        <p className="text-[11px] text-au-muted">{t('quietHint')}</p>
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-xs text-au-muted">
-          <BellOff className="size-3.5" /> {muted.size ? `${muted.size} tur o‘chirilgan` : 'Hammasi yoqilgan'}
+          <BellOff className="size-3.5" /> {muted.size ? t('nOff', { n: muted.size }) : t('allOn')}
         </span>
         <button className={cn(BTN, 'bg-au-primary text-au-primary-ink hover:opacity-90')} disabled={busy || !dirty} onClick={save}>
-          Saqlash
+          {t('save')}
         </button>
       </div>
     </div>
@@ -96,26 +100,27 @@ export function NotificationsPanel({ initial, telegram }: { initial: { muted: No
 export function SecurityPanel({ lastSeen, revokedAt, mustChange }: { lastSeen: string | null; revokedAt: string | null; mustChange: boolean }) {
   const [armed, setArmed] = useState(false);
   const [busy, start] = useTransition();
+  const t = useTranslations('sh');
   const fmt = (s: string | null) => (s ? new Date(new Date(s).getTime() + 5 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ') : '—');
   return (
     <div className="flex flex-col gap-4">
       <dl className="flex flex-col divide-y divide-au-line rounded-au-ctl border border-au-line text-sm">
         <div className="flex justify-between gap-3 px-3 py-2.5">
-          <dt className="text-au-muted">Oxirgi faollik</dt>
+          <dt className="text-au-muted">{t('lastSeen')}</dt>
           <dd className="font-semibold tabular-nums">{fmt(lastSeen)}</dd>
         </div>
         <div className="flex justify-between gap-3 px-3 py-2.5">
-          <dt className="text-au-muted">Oxirgi marta hamma qurilmadan chiqilgan</dt>
+          <dt className="text-au-muted">{t('lastRevoke')}</dt>
           <dd className="font-semibold tabular-nums">{fmt(revokedAt)}</dd>
         </div>
         <div className="flex justify-between gap-3 px-3 py-2.5">
-          <dt className="text-au-muted">Parol holati</dt>
-          <dd>{mustChange ? <span className={CHIP_NEUTRAL}>Vaqtinchalik — almashtiring</span> : <span className={CHIP_OK}><ShieldCheck className="size-3" /> Shaxsiy</span>}</dd>
+          <dt className="text-au-muted">{t('pwState')}</dt>
+          <dd>{mustChange ? <span className={CHIP_NEUTRAL}>{t('pwTemp')}</span> : <span className={CHIP_OK}><ShieldCheck className="size-3" /> {t('pwOwn')}</span>}</dd>
         </div>
       </dl>
       <div className="flex flex-col gap-2 rounded-au-ctl border border-au-bad/30 bg-au-bad-soft/40 p-3">
-        <span className="text-sm font-semibold">Barcha qurilmalardan chiqish</span>
-        <span className="text-xs text-au-muted">Telefon yo‘qolsa yoki boshqa kompyuterda kirib qolgan bo‘lsangiz. Shu jumladan bu qurilmadan ham chiqasiz.</span>
+        <span className="text-sm font-semibold">{t('signOutAll')}</span>
+        <span className="text-xs text-au-muted">{t('signOutHint')}</span>
         {armed ? (
           <div className="flex gap-2">
             <button
@@ -124,19 +129,19 @@ export function SecurityPanel({ lastSeen, revokedAt, mustChange }: { lastSeen: s
               onClick={() =>
                 start(async () => {
                   const res = await signOutEverywhereAction();
-                  if (res?.error) toast.error('Bajarib bo‘lmadi');
+                  if (res?.error) toast.error(t('failed'));
                 })
               }
             >
-              <LogOut className="size-4" /> Ha, hammasidan chiqish
+              <LogOut className="size-4" /> {t('yesAll')}
             </button>
             <button className={cn(BTN, 'border border-au-line bg-au-card')} onClick={() => setArmed(false)}>
-              Bekor
+              {t('cancel')}
             </button>
           </div>
         ) : (
           <button className={cn(BTN, 'w-fit border border-au-bad/40 bg-au-card text-au-bad')} onClick={() => setArmed(true)}>
-            <LogOut className="size-4" /> Chiqish
+            <LogOut className="size-4" /> {t('signOut')}
           </button>
         )}
       </div>

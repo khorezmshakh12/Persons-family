@@ -5364,5 +5364,62 @@
     "empty": "Ko‘rsatkichlarni tanlab, o‘z hisobotingizni saqlang",
     "nMetrics": "{r} · {n} ko‘rsatkich",
     "shared": "Ulashilgan"
+  },
+  "sh": {
+    "n": {
+      "task": "Vazifalar",
+      "news": "E’lonlar va tadbirlar",
+      "kpi": "KPI",
+      "pay": "Oylik va avans",
+      "issue": "Muammolar",
+      "stars": "Yulduzlar va rag‘bat",
+      "lesson": "Dars rejalari",
+      "report": "Haftalik hisobotlar",
+      "goals": "Maqsadlar",
+      "checklist": "Checklist feedback"
+    },
+    "h": {
+      "task": "Yangi vazifa, muddat eslatmasi, tasdiq / qaytarish",
+      "news": "Kompaniya e’lonlari, tadbirlar",
+      "kpi": "Reja eslatmalari va baholar",
+      "pay": "To‘lovlar, avans qarorlari",
+      "issue": "Sizga biriktirilgan muammolar",
+      "stars": "Yulduz, bonus, ogohlantirish, market",
+      "lesson": "Reja tekshiruvi va izohlar",
+      "report": "Dushanba xulosalari",
+      "goals": "Kunlik hisobot (21:00) va muddat eslatmalari",
+      "checklist": "Checklistingizga yozilgan izohlar"
+    },
+    "saveFail": "Saqlab bo‘lmadi",
+    "saved": "Bildirishnoma sozlamalari saqlandi",
+    "noTg": "Telegram ulanmagan — avval “Telegram” bo‘limida ulang, shunda bu sozlamalar ishlaydi.",
+    "quietTitle": "Tinch soatlarda yuborilmaydi",
+    "quiet": "Tinch soatlar",
+    "from": "dan",
+    "until": "gacha — chat, e’lon, yulduz va hisobot xabarlari yuborilmaydi",
+    "quietHint": "Vazifa, oylik, KPI va muammo xabarlari tinch soatlarda ham keladi. Muhim e’lonlar har doim yuboriladi.",
+    "nOff": "{n} tur o‘chirilgan",
+    "allOn": "Hammasi yoqilgan",
+    "save": "Saqlash",
+    "lastSeen": "Oxirgi faollik",
+    "lastRevoke": "Oxirgi marta hamma qurilmadan chiqilgan",
+    "pwState": "Parol holati",
+    "pwTemp": "Vaqtinchalik — almashtiring",
+    "pwOwn": "Shaxsiy",
+    "signOutAll": "Barcha qurilmalardan chiqish",
+    "signOutHint": "Telefon yo‘qolsa yoki boshqa kompyuterda kirib qolgan bo‘lsangiz. Shu jumladan bu qurilmadan ham chiqasiz.",
+    "failed": "Bajarib bo‘lmadi",
+    "yesAll": "Ha, hammasidan chiqish",
+    "cancel": "Bekor",
+    "signOut": "Chiqish"
+  },
+  "wr": {
+    "already": "Qaytarib bo‘lmaydi — CEO allaqachon baholagan",
+    "fail": "Qaytarib olishda xatolik — qayta urinib ko‘ring",
+    "done": "Hisobot qaytarib olindi — tuzatib qayta yuboring",
+    "busy": "Qaytarilmoqda…",
+    "confirm": "Ha, qaytarib olaman",
+    "withdraw": "Qaytarib olish (tahrirlash)",
+    "cancel": "Bekor"
   }
 }

@@ -5364,5 +5364,62 @@
     "empty": "Pick metrics and save your own report",
     "nMetrics": "{r} · {n} metrics",
     "shared": "Shared"
+  },
+  "sh": {
+    "n": {
+      "task": "Tasks",
+      "news": "Announcements and events",
+      "kpi": "KPI",
+      "pay": "Pay and advances",
+      "issue": "Issues",
+      "stars": "Stars and rewards",
+      "lesson": "Lesson plans",
+      "report": "Weekly reports",
+      "goals": "Goals",
+      "checklist": "Checklist feedback"
+    },
+    "h": {
+      "task": "New task, deadline reminder, approval / return",
+      "news": "Company announcements, events",
+      "kpi": "Plan reminders and grades",
+      "pay": "Payments, advance decisions",
+      "issue": "Issues assigned to you",
+      "stars": "Stars, bonuses, warnings, market",
+      "lesson": "Plan review and comments",
+      "report": "Monday summaries",
+      "goals": "Daily report (21:00) and deadline reminders",
+      "checklist": "Comments on your checklist"
+    },
+    "saveFail": "Couldn't save",
+    "saved": "Notification settings saved",
+    "noTg": "Telegram isn't connected — connect it in the “Telegram” section first for these settings to work.",
+    "quietTitle": "Not sent during quiet hours",
+    "quiet": "Quiet hours",
+    "from": "to",
+    "until": "— chat, announcement, star and report messages aren't sent",
+    "quietHint": "Task, pay, KPI and issue messages still arrive during quiet hours. Important announcements are always sent.",
+    "nOff": "{n} types off",
+    "allOn": "All on",
+    "save": "Save",
+    "lastSeen": "Last active",
+    "lastRevoke": "Last signed out of all devices",
+    "pwState": "Password status",
+    "pwTemp": "Temporary — change it",
+    "pwOwn": "Personal",
+    "signOutAll": "Sign out of all devices",
+    "signOutHint": "If your phone is lost or you stayed signed in on another computer. This device signs out too.",
+    "failed": "Couldn't do it",
+    "yesAll": "Yes, sign out everywhere",
+    "cancel": "Cancel",
+    "signOut": "Sign out"
+  },
+  "wr": {
+    "already": "Can't withdraw — the CEO has already graded it",
+    "fail": "Couldn't withdraw — try again",
+    "done": "Report withdrawn — fix it and resubmit",
+    "busy": "Withdrawing…",
+    "confirm": "Yes, withdraw",
+    "withdraw": "Withdraw (edit)",
+    "cancel": "Cancel"
   }
 }
