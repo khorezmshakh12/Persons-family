@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { GitBranch, Pencil, Plus, Route, Save, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { AskHost, SuiteTabs, ask, toast } from '@/components/strategy/suite-shell';
 import '@/components/strategy/strategy.css';
@@ -24,20 +25,19 @@ import { GrowthMindView } from './growth-mind';
 export type GrowthView = 'roadmap' | 'mind';
 
 const ERR: Record<string, string> = {
-  locked: 'Bu bosqich hozir yopiq',
-  incomplete: 'Avval barcha mavzu va bandlarni bajaring',
-  notSubmitted: 'Avval o‘zgarishlarni CEO’ga yuboring',
-  alreadyDecided: 'Bu bosqich bo‘yicha qaror allaqachon qabul qilingan',
-  noteRequired: 'Qaytarish uchun izoh yozing',
-  empty: 'Avval roadmap yoki mind map’ga biror narsa qo‘shing',
-  nothingNew: 'Yangi o‘zgarish yo‘q — hammasi CEO’ga yuborilgan',
-  tooBig: 'Juda ko‘p band — ba’zilarini birlashtiring',
-  tooDeep: 'Juda chuqur shoxlanish',
-  invalidInput: 'Ma’lumot noto‘g‘ri',
-  forbidden: 'Ruxsat yo‘q',
-  notLastApproved: 'Faqat oxirgi tasdiqlangan bosqichni bekor qilish mumkin',
+  locked: 'eLocked',
+  incomplete: 'eIncomplete',
+  notSubmitted: 'eNotSubmitted',
+  alreadyDecided: 'eDecided',
+  noteRequired: 'eNote',
+  empty: 'eEmpty',
+  nothingNew: 'eNothingNew',
+  tooBig: 'eTooBig',
+  tooDeep: 'eTooDeep',
+  invalidInput: 'eInvalid',
+  forbidden: 'eForbidden',
+  notLastApproved: 'eNotLast',
 };
-const errText = (e: string) => ERR[e] ?? 'Saqlab bo‘lmadi';
 
 /**
  * HR › Roadmap va Mind map. Strategy'dagi Roadmap / Mind map ko'rinishida;
@@ -68,6 +68,8 @@ export function GrowthWorkspace({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const tw = useTranslations('gw');
+  const errText = (e: string) => tw(ERR[e] ?? 'eOther');
   const own = !viewed;
   const base = viewed ?? me;
   const [view, setView] = useState<GrowthView>(own ? initialView : 'roadmap');
@@ -101,7 +103,7 @@ export function GrowthWorkspace({
     router.push(`${pathname}?${q.toString()}`);
   };
 
-  async function saveRoadmap(next: GrowthRoadmap, msg = 'Saqlandi'): Promise<boolean> {
+  async function saveRoadmap(next: GrowthRoadmap, msg = tw('saved')): Promise<boolean> {
     const prev = roadmap;
     setRoadmap(next);
     const res = await saveGrowthRoadmapAction(next);
@@ -151,7 +153,7 @@ export function GrowthWorkspace({
     const res = await saveGrowthRoadmapAction(roadmap);
     setBusy(false);
     if ('error' in res) return void toast.error(errText(res.error));
-    if (okMind) toast.success('Qoralama saqlandi — CEO hali ko‘rmaydi');
+    if (okMind) toast.success(tw('draftSaved'));
   }
 
   // «CEO'ga yuborish» — the draft becomes what the CEO and HR see.
@@ -160,10 +162,8 @@ export function GrowthWorkspace({
       const prev = sent.roadmap.sections.find((x) => x.id === s.id);
       return prev && review[s.id]?.s === 'approved' && stageCanon(prev) !== stageCanon(s);
     }).length;
-    const msg = `${submittedAt ? 'O‘zgarishlar' : 'Roadmap'} CEO’ga yuborilsinmi? Shundan keyin CEO va HR uni ko‘radi (mind map faqat sizda qoladi).${
-      reapprove ? ` ${reapprove} ta tasdiqlangan bosqich o‘zgargan — u qayta CEO tasdig‘iga tushadi.` : ''
-    }`;
-    if (!(await ask(msg, { ok: 'Yuborish', danger: false }))) return;
+    const msg = `${tw('sendQ', { w: submittedAt ? tw('wChanges') : tw('wRoadmap') })}${reapprove ? tw('reapprove', { n: reapprove }) : ''}`;
+    if (!(await ask(msg, { ok: tw('send'), danger: false }))) return;
     setBusy(true);
     if (!(await flushMind())) return void setBusy(false);
     const res = await sendGrowthAction();
@@ -181,7 +181,7 @@ export function GrowthWorkspace({
       return n;
     });
     setSubmittedAt(new Date().toISOString());
-    toast.success('CEO’ga yuborildi');
+    toast.success(tw('sent'));
     router.refresh();
   }
 
@@ -195,7 +195,7 @@ export function GrowthWorkspace({
       return n;
     });
     addLog({ st: stageId, t: roadmap.sections.find((x) => x.id === stageId)?.t ?? '', s: done ? 'self_done' : 'unmarked', at: new Date().toISOString(), by: me.userId });
-    toast.success(done ? 'CEO tasdig‘iga yuborildi' : 'Qaytarib olindi');
+    toast.success(done ? tw('markSent') : tw('withdrawn'));
     router.refresh();
   }
 
@@ -208,7 +208,7 @@ export function GrowthWorkspace({
     const at = new Date().toISOString();
     setReview((m) => ({ ...m, [stageId]: approve ? { s: 'approved', at, by: me.userId, ...(note ? { note } : {}) } : { s: 'returned', at, by: me.userId, note } }));
     addLog({ st: stageId, t: roadmap.sections.find((x) => x.id === stageId)?.t ?? '', s: approve ? 'approved' : 'returned', at, by: me.userId, ...(note ? { note } : {}) });
-    toast.success(approve ? 'Tasdiqlandi — keyingi bosqich ochildi' : 'Qaytarildi');
+    toast.success(approve ? tw('approvedNext') : tw('returned'));
     router.refresh();
     return true;
   }
@@ -222,7 +222,7 @@ export function GrowthWorkspace({
     const at = new Date().toISOString();
     setReview((m) => ({ ...m, [stageId]: { s: 'self_done', at } }));
     addLog({ st: stageId, t: roadmap.sections.find((x) => x.id === stageId)?.t ?? '', s: 'unapproved', at, by: me.userId, ...(note ? { note } : {}) });
-    toast.success('Tasdiq bekor qilindi — bosqich qayta tasdiq kutmoqda');
+    toast.success(tw('unapproved'));
     router.refresh();
     return true;
   }
@@ -234,17 +234,17 @@ export function GrowthWorkspace({
         !unsent && submittedAt ? 'bg-au-ok-soft text-au-ok' : submittedAt ? 'bg-au-accent-soft text-au-accent-text' : 'bg-au-card-2 text-au-muted',
       )}
     >
-      {!submittedAt ? 'Qoralama — faqat sizga ko‘rinadi' : unsent ? 'Yuborilmagan o‘zgarishlar bor' : 'CEO’ga yuborilgan'}
+      {!submittedAt ? tw('stDraft') : unsent ? tw('stUnsent') : tw('stSent')}
     </div>
   );
   // «Saqlash» + «CEO'ga yuborish» — shown on both Roadmap and Mind map.
   const sendBar = own && (
     <div className="flex items-center gap-2">
       <button className="sx-btn sm" disabled={busy} onClick={saveDraft}>
-        <Save className="size-3.5" /> Saqlash
+        <Save className="size-3.5" /> {tw('save')}
       </button>
-      <button className="sx-btn sm primary" disabled={busy || !unsent} onClick={send} title={unsent ? undefined : 'Yangi o‘zgarish yo‘q'}>
-        <Send className="size-3.5" /> CEO’ga yuborish
+      <button className="sx-btn sm primary" disabled={busy || !unsent} onClick={send} title={unsent ? undefined : tw('noNew')}>
+        <Send className="size-3.5" /> {tw('sendCeo')}
       </button>
     </div>
   );
@@ -253,13 +253,13 @@ export function GrowthWorkspace({
   const ownCard = own && (
     <div className="sx-card rm-pick">
       <div className="px-1 pb-1">
-        <div className="text-sm font-bold text-au-ink">{roadmap.name || 'Mening roadmap’im'}</div>
+        <div className="text-sm font-bold text-au-ink">{roadmap.name || tw('myRoadmap')}</div>
         {roadmap.subtitle && <div className="text-xs text-au-muted">{roadmap.subtitle}</div>}
         {sendPill}
       </div>
       <div className="mt-1 flex gap-2 border-t border-au-line pt-2">
         <button className="sx-btn sm flex-1 justify-center" onClick={() => setDrawer({ kind: 'edit' })}>
-          {roadmap.sections.length ? <Pencil className="size-3.5" /> : <Plus className="size-3.5" />} {roadmap.sections.length ? 'Tahrirlash' : 'Yaratish'}
+          {roadmap.sections.length ? <Pencil className="size-3.5" /> : <Plus className="size-3.5" />} {roadmap.sections.length ? tw('edit') : tw('create')}
         </button>
       </div>
     </div>
@@ -269,8 +269,8 @@ export function GrowthWorkspace({
       <button className={cn(own && 'on')} onClick={() => go(null)}>
         <span className="ic">★</span>
         <span>
-          Mening rejam
-          <small>{own ? 'ochiq' : 'o‘zimniki'}</small>
+          {tw('myPlan')}
+          <small>{own ? tw('open') : tw('mine')}</small>
         </span>
       </button>
       {team
@@ -280,7 +280,7 @@ export function GrowthWorkspace({
             <span className="ic">{p.name.slice(0, 1)}</span>
             <span>
               {p.name}
-              <small>{p.submitted ? `${p.approved}/${p.stages} tasdiqlangan${p.waiting ? ` · ${p.waiting} kutilmoqda` : ''}` : 'yuborilmagan'}</small>
+              <small>{p.submitted ? `${tw('approvedOf', { a: p.approved, n: p.stages })}${p.waiting ? tw('waitingN', { n: p.waiting }) : ''}` : tw('notSent')}</small>
             </span>
           </button>
         ))}
@@ -291,7 +291,7 @@ export function GrowthWorkspace({
   const queue = canReview ? (team ?? []).flatMap((p) => p.waitingStages.map((st) => ({ p, st }))) : [];
   const queueCard = queue.length > 0 && (
     <div className="sx-card rm-pick max-h-[320px] overflow-y-auto">
-      <div className="px-1 pb-1 text-sm font-bold text-au-ink">Tasdiq kutmoqda · {queue.length}</div>
+      <div className="px-1 pb-1 text-sm font-bold text-au-ink">{tw('queue', { n: queue.length })}</div>
       {queue.map(({ p, st }) => (
         <button
           key={`${p.userId}-${st.id}`}
@@ -322,9 +322,9 @@ export function GrowthWorkspace({
       <div className="flex flex-wrap items-center gap-3 px-4 sm:px-7">
         <SuiteTabs tabs={tabs} value={view} onChange={(v) => setView(v as GrowthView)} />
         <div className="flex-1" />
-        {!own && <span className="text-sm text-au-muted">Ko‘rilmoqda: <b className="text-au-ink">{base.name}</b> · CEO’ga yuborilgan nusxa</span>}
+        {!own && <span className="text-sm text-au-muted">{tw.rich('viewing', { n: base.name, b: (c) => <b className="text-au-ink">{c}</b> })}</span>}
         {sendBar}
-        {canReview && waitingTotal > 0 && <span className="sx-pill bad">{waitingTotal} ta bosqich tasdiq kutmoqda</span>}
+        {canReview && waitingTotal > 0 && <span className="sx-pill bad">{tw('waitingStages', { n: waitingTotal })}</span>}
       </div>
 
       <section className={cn('sx-view mt-4', view === 'mind' ? 'canvas' : 'px-4 pb-8 sm:px-7')}>
@@ -338,8 +338,8 @@ export function GrowthWorkspace({
               editable={own}
               emptyText={
                 own
-                  ? 'Uzoq muddatli maqsadlaringiz: bosqichlar va har biridagi mavzular. Har bir bosqichni CEO tasdiqlagach keyingisi ochiladi.'
-                  : `${base.name} roadmap’ini hali CEO’ga yubormagan.`
+                  ? tw('emptyOwn')
+                  : tw('emptyOther', { n: base.name })
               }
               onNode={(id) => setDrawer({ kind: 'node', id })}
               onTick={own ? setNodeStatus : undefined}
@@ -366,7 +366,7 @@ export function GrowthWorkspace({
       </section>
 
       <div className={cn('sx-scrim', drawer && 'open')} onClick={() => drawer?.kind !== 'edit' && setDrawer(null)} />
-      <aside className={cn('sx-drawer', drawer && 'open')} aria-label="Tafsilotlar">
+      <aside className={cn('sx-drawer', drawer && 'open')} aria-label={tw('details')}>
         {drawer?.kind === 'node' && (
           <GrowthNodeDrawer
             key={drawer.id}
@@ -390,7 +390,7 @@ export function GrowthWorkspace({
           />
         )}
         {drawer?.kind === 'edit' && own && (
-          <GrowthRoadmapEditor roadmap={roadmap} phases={phases} onClose={() => setDrawer(null)} onSave={(r) => saveRoadmap(r, 'Roadmap saqlandi')} />
+          <GrowthRoadmapEditor roadmap={roadmap} phases={phases} onClose={() => setDrawer(null)} onSave={(r) => saveRoadmap(r, tw('rmSaved'))} />
         )}
       </aside>
       <AskHost />

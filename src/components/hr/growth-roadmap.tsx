@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, CornerDownRight, Lock, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { ask, toast } from '@/components/strategy/suite-shell';
 import { NODE_STATUSES, type NodeStatus } from '@/lib/strategy';
 import {
@@ -71,17 +72,28 @@ const path = (l: Link) =>
     : `M${l.x1} ${l.y1} C${(l.x1 + l.x2) / 2} ${l.y1}, ${(l.x1 + l.x2) / 2} ${l.y2}, ${l.x2} ${l.y2}`;
 
 const PHASE_CLASS: Record<StagePhase, string> = { approved: 'done', waiting: 'progress', current: 'todo', locked: 'skip' };
-const PHASE_LABEL: Record<StagePhase, string> = {
-  approved: 'CEO tasdiqlagan',
-  waiting: 'CEO tasdig‘i kutilmoqda',
-  current: 'Joriy bosqich',
-  locked: 'Yopiq — oldingi bosqich tasdiqlanmagan',
-};
+const PHASES: StagePhase[] = ['approved', 'waiting', 'current', 'locked'];
+const LOGS: GrowthLogEntry['s'][] = ['self_done', 'unmarked', 'approved', 'returned', 'unapproved'];
+
+/** Roadmap labels in the viewer's language. */
+function useGr() {
+  const t = useTranslations('gr');
+  const tp = useTranslations('gr.ph');
+  const tl = useTranslations('gr.log');
+  const tn = useTranslations('gr.ns');
+  return {
+    t,
+    ph: Object.fromEntries(PHASES.map((p) => [p, tp(p)])) as Record<StagePhase, string>,
+    log: Object.fromEntries(LOGS.map((p) => [p, tl(p)])) as Record<GrowthLogEntry['s'], string>,
+    ns: NODE_STATUSES.map(([k]) => [k, tn(k)] as [NodeStatus, string]),
+  };
+}
 
 /* A small pencil at the node's right edge. It used to cover the whole node
    (absolute inset-0), so every click renamed instead of opening the drawer —
    ticking topics and «Bosqichni yakunladim» were unreachable. */
 function InlineRename({ title, onSave }: { title: string; onSave: (t: string) => void }) {
+  const G = useGr();
   const [editing, setEditing] = useState(false);
   const [v, setV] = useState(title);
   const save = () => {
@@ -95,8 +107,8 @@ function InlineRename({ title, onSave }: { title: string; onSave: (t: string) =>
       <span
         role="button"
         tabIndex={-1}
-        aria-label="Nomini o‘zgartirish"
-        title="Nomini o‘zgartirish"
+        aria-label={G.t('rename')}
+        title={G.t('rename')}
         className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded bg-au-card opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
         onClick={(e) => {
           e.preventDefault();
@@ -159,6 +171,7 @@ export function GrowthRoadmapView({
   /** Right column top card (owner / person picker). */
   side: React.ReactNode;
 }) {
+  const G = useGr();
   const { nodes, links, H } = layout(roadmap);
   const stageOf = new Map(roadmap.sections.flatMap((s) => [...s.left, ...s.right].map((t) => [t.id, s.id] as const)));
   const dueOf = new Map(roadmap.sections.map((s) => [s.id, s.due]));
@@ -175,11 +188,11 @@ export function GrowthRoadmapView({
       <div className="sx-card rm">
         {stages === 0 ? (
           <div className="flex flex-col items-center gap-3 p-10 text-center">
-            <h3 className="text-base font-bold text-au-ink">Hali roadmap yo‘q</h3>
+            <h3 className="text-base font-bold text-au-ink">{G.t('noRoadmap')}</h3>
             <p className="max-w-md text-sm text-au-muted">{emptyText}</p>
             {editable && (
               <button className="sx-btn primary" onClick={onNew}>
-                <Plus className="size-4" /> Roadmap yaratish
+                <Plus className="size-4" /> {G.t('create')}
               </button>
             )}
           </div>
@@ -210,20 +223,20 @@ export function GrowthRoadmapView({
                 className={cn('rn group relative', n.main ? 'main' : 'topic', st(n), selected === n.id && 'sel', tick && '!pl-8')}
                 style={{ left: n.x, top: n.y, width: n.w, height: n.h, animationDelay: `${Math.min(i, 30) * 25}ms` }}
                 onClick={() => onNode(n.id)}
-                title={n.main ? PHASE_LABEL[phases[n.id] ?? 'current'] : undefined}
+                title={n.main ? G.ph[phases[n.id] ?? 'current'] : undefined}
               >
                 {n.main && (
                   <span className={cn('q', late && '!text-au-bad')}>
                     {phases[n.id] === 'locked' && <Lock className="mr-0.5 inline size-2.5" />}
-                    {n.q || PHASE_LABEL[phases[n.id] ?? 'current']}
-                    {due && ` · ${due.slice(8, 10)}.${due.slice(5, 7)}.${due.slice(0, 4)}${late ? ' — muddat o‘tgan' : ''}`}
+                    {n.q || G.ph[phases[n.id] ?? 'current']}
+                    {due && ` · ${due.slice(8, 10)}.${due.slice(5, 7)}.${due.slice(0, 4)}${late ? G.t('late') : ''}`}
                   </span>
                 )}
                 {tick && (
                   <span
                     role="checkbox"
                     aria-checked={done}
-                    aria-label={done ? 'Bajarilmagan deb belgilash' : 'Bajarildi deb belgilash'}
+                    aria-label={done ? G.t('unmark') : G.t('mark')}
                     tabIndex={0}
                     className={cn(
                       'absolute top-1/2 left-2 grid size-[18px] -translate-y-1/2 place-items-center rounded border',
@@ -257,9 +270,9 @@ export function GrowthRoadmapView({
         {side}
         <div className="sx-card rm-prog">
           <div className="ct">
-            <h3>Progress</h3>
+            <h3>{G.t('progress')}</h3>
             <small>
-              {approved}/{stages} bosqich tasdiqlangan
+              {G.t('stagesApproved', { a: approved, n: stages })}
             </small>
           </div>
           <div className="big tabular-nums">{pct}%</div>
@@ -267,37 +280,37 @@ export function GrowthRoadmapView({
             <span style={{ width: `${pct}%` }} />
           </div>
           <div className="text-xs text-au-muted">
-            <b className="text-au-ok">{doneN}</b> bajarildi · <b className="text-au-accent-text">{progN}</b> jarayonda · {topics.length - doneN - progN} qoldi
+            {G.t.rich('summary', { d: doneN, p: progN, l: topics.length - doneN - progN, ok: (c) => <b className="text-au-ok">{c}</b>, pr: (c) => <b className="text-au-accent-text">{c}</b> })}
           </div>
         </div>
         <div className="sx-card">
           <div className="ct">
-            <h3>Belgilar</h3>
+            <h3>{G.t('legend')}</h3>
           </div>
           <div className="rm-leg">
             <div>
               <i style={{ background: '#ffd166' }} />
-              Asosiy bosqich (joriy)
+              {G.t('lgMain')}
             </div>
             <div>
               <i style={{ background: 'var(--au-card)' }} />
-              Mavzu / maqsad
+              {G.t('lgTopic')}
             </div>
             <div>
               <i style={{ background: '#e3f5ea', borderColor: '#139a52' }} />
-              Bajarildi · CEO tasdiqlagan
+              {G.t('lgDone')}
             </div>
             <div>
               <i style={{ background: '#fff4e1', borderColor: '#ff9f1c' }} />
-              Jarayonda · tasdiq kutilmoqda
+              {G.t('lgProg')}
             </div>
             <div>
               <i style={{ background: 'var(--au-card)', opacity: 0.45 }} />
-              Yopiq bosqich · o‘tkazib yuborildi
+              {G.t('lgLocked')}
             </div>
           </div>
           <p className="mt-3 text-xs text-au-faint">
-            Mavzu yonidagi katakcha — bajarildi. Tugunni bosing: holat, ichki bandlar, bosqichni yakunlash. Bosqich: xodim yakunlaydi → CEO tasdiqlaydi → keyingisi ochiladi.
+            {G.t('help')}
           </p>
         </div>
       </div>
@@ -337,6 +350,7 @@ function SubTree({
   /** Replace the node `id` (null = delete). */
   onTree: (id: string, f: (n: GrowthNode) => GrowthNode | null) => void;
 }) {
+  const G = useGr();
   const [adding, setAdding] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -351,7 +365,7 @@ function SubTree({
               <button
                 type="button"
                 disabled={!canTick}
-                aria-label={done ? 'Bajarilmagan deb belgilash' : 'Bajarildi deb belgilash'}
+                aria-label={done ? G.t('unmark') : G.t('mark')}
                 onClick={() => onStatus(n.id, done ? 'todo' : 'done')}
                 className={cn(
                   'grid size-[18px] shrink-0 place-items-center rounded border',
@@ -382,18 +396,18 @@ function SubTree({
               )}
               {canEdit && (
                 <span className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <button className="sx-chipb" aria-label="Ichiga band" title="Ichiga band" onClick={() => (setAdding(n.id), setText(''))}>
+                  <button className="sx-chipb" aria-label={G.t('addInside')} title={G.t('addInside')} onClick={() => (setAdding(n.id), setText(''))}>
                     <CornerDownRight className="size-3" />
                   </button>
-                  <button className="sx-chipb" aria-label="Nomini o‘zgartirish" onClick={() => setRenaming(n.id)}>
+                  <button className="sx-chipb" aria-label={G.t('rename')} onClick={() => setRenaming(n.id)}>
                     <Pencil className="size-3" />
                   </button>
                   <button
                     className="sx-chipb text-au-bad"
-                    aria-label="O‘chirish"
+                    aria-label={G.t('delete')}
                     onClick={async () => {
                       const k = countNodes(n.ch);
-                      if (await ask(k ? `«${n.t}» va undagi ${k} ta band o‘chirilsinmi?` : `«${n.t}» o‘chirilsinmi?`)) onTree(n.id, () => null);
+                      if (await ask(k ? G.t('delWith', { t: n.t, n: k }) : G.t('delOne', { t: n.t }))) onTree(n.id, () => null);
                     }}
                   >
                     <X className="size-3" />
@@ -407,7 +421,7 @@ function SubTree({
                   autoFocus
                   className="sx-inp h-8 min-w-0 flex-1 text-[13px]"
                   maxLength={120}
-                  placeholder="Ichki band… (Enter)"
+                  placeholder={G.t('subPh')}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => {
@@ -419,7 +433,7 @@ function SubTree({
                     }
                   }}
                 />
-                <button className="sx-chipb" aria-label="Yopish" onClick={() => setAdding(null)}>
+                <button className="sx-chipb" aria-label={G.t('close')} onClick={() => setAdding(null)}>
                   <X className="size-3" />
                 </button>
               </div>
@@ -477,6 +491,7 @@ export function GrowthNodeDrawer({
   onReview: (stageId: string, approve: boolean, note: string) => Promise<boolean>;
   onUnapprove: (stageId: string, note: string) => Promise<boolean>;
 }) {
+  const G = useGr();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [text, setText] = useState('');
@@ -506,11 +521,11 @@ export function GrowthNodeDrawer({
   return (
     <>
       <div className="dr-h">
-        <span className="sx-node-chip">{main ? 'Bosqich' : 'Mavzu'}</span>
+        <span className="sx-node-chip">{main ? G.t('stage') : G.t('topic')}</span>
         <span className="text-xs text-au-faint">
           {roadmap.name || 'Roadmap'} · {sec.t}
         </span>
-        <button className="x" onClick={onClose} aria-label="Yopish">
+        <button className="x" onClick={onClose} aria-label={G.t('close')}>
           <X className="size-4" />
         </button>
       </div>
@@ -520,10 +535,10 @@ export function GrowthNodeDrawer({
           <>
             <p className="text-au-muted">
               {sec.q ? `${sec.q} · ` : ''}
-              {PHASE_LABEL[phase]}. Barcha mavzu va bandlar bajarilgach xodim bosqichni yakunlaydi, CEO tasdiqlagandan keyin keyingi bosqich ochiladi.
+              {G.t('stageHint', { p: G.ph[phase] })}
             </p>
             <div className="fld">
-              <label>Bajarilgan</label>
+              <label>{G.t('doneL')}</label>
               <div className="flex items-center gap-3">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-au-line">
                   <div className="h-full rounded-full bg-au-ok" style={{ width: `${ids.length ? (doneIds / ids.length) * 100 : 0}%` }} />
@@ -534,84 +549,84 @@ export function GrowthNodeDrawer({
               </div>
             </div>
             {rev?.s === 'returned' && phase === 'current' && (
-              <div className="rounded-au-ctl bg-au-bad-soft px-3 py-2 text-[13px] text-au-bad">CEO qaytardi: {rev.note}</div>
+              <div className="rounded-au-ctl bg-au-bad-soft px-3 py-2 text-[13px] text-au-bad">{G.t('ceoReturned', { n: rev.note ?? '' })}</div>
             )}
-            {rev?.s === 'approved' && rev.note && <div className="rounded-au-ctl bg-au-ok-soft px-3 py-2 text-[13px] text-au-ok">CEO izohi: {rev.note}</div>}
+            {rev?.s === 'approved' && rev.note && <div className="rounded-au-ctl bg-au-ok-soft px-3 py-2 text-[13px] text-au-ok">{G.t('ceoNote', { n: rev.note })}</div>}
             {sec.due && (
               <div className="fld">
-                <label>Tugash sanasi</label>
+                <label>{G.t('due')}</label>
                 <span className={cn('text-sm', sec.due < today && phase !== 'approved' ? 'font-semibold text-au-bad' : 'text-au-ink')}>
                   {fmtDay(sec.due)}
                 </span>
               </div>
             )}
-            <div className="dr-sec">Mavzular · {sec.left.length + sec.right.length}</div>
+            <div className="dr-sec">{G.t('topics', { n: sec.left.length + sec.right.length })}</div>
             <div className="linked">
               {[...sec.left, ...sec.right].map((t) => (
                 <div key={t.id} className="flex items-center gap-2 text-[13px]">
                   <StatusDot s={status[t.id] ?? 'todo'} />
                   <span className="flex-1">{t.t}</span>
-                  {t.ch.length > 0 && <span className="text-xs text-au-faint">{countNodes(t.ch)} band</span>}
+                  {t.ch.length > 0 && <span className="text-xs text-au-faint">{G.t('nItems', { n: countNodes(t.ch) })}</span>}
                 </div>
               ))}
             </div>
             {own && phase === 'current' && (
               <>
-                {!sent && <p className="text-xs text-au-faint">Avval o‘zgarishlarni «CEO’ga yuborish» bilan yuboring.</p>}
+                {!sent && <p className="text-xs text-au-faint">{G.t('sendFirst')}</p>}
                 <button className="sx-btn primary self-start" disabled={busy || !complete || !sent} onClick={() => run(() => onMark(sec.id, true))}>
-                  <Check className="size-4" /> Bosqichni yakunladim
+                  <Check className="size-4" /> {G.t('finish')}
                 </button>
-                {!complete && <p className="text-xs text-au-faint">Barcha mavzu va bandlar «Bajarildi» yoki «O‘tkazish» bo‘lishi kerak.</p>}
+                {!complete && <p className="text-xs text-au-faint">{G.t('allDone')}</p>}
               </>
             )}
             {own && phase === 'waiting' && !canReview && (
               <button className="sx-btn self-start" disabled={busy} onClick={() => run(() => onMark(sec.id, false))}>
-                Qaytarib olish
+                {G.t('withdraw')}
               </button>
             )}
             {canReview && phase === 'waiting' && (
               <div className="grid gap-2">
-                <div className="dr-sec">CEO qarori</div>
-                <textarea className="sx-inp min-h-[70px] py-2" maxLength={500} placeholder="Izoh (qaytarishda majburiy)" value={note} onChange={(e) => setNote(e.target.value)} />
+                <div className="dr-sec">{G.t('ceoDecision')}</div>
+                <textarea className="sx-inp min-h-[70px] py-2" maxLength={500} placeholder={G.t('notePh')} value={note} onChange={(e) => setNote(e.target.value)} />
                 <div className="flex gap-2">
                   <button className="sx-btn primary flex-1 justify-center" disabled={busy} onClick={() => run(async () => (await onReview(sec.id, true, note.trim())) && setNote(''))}>
-                    <Check className="size-4" /> Tasdiqlash
+                    <Check className="size-4" /> {G.t('approve')}
                   </button>
                   <button
                     className="sx-btn flex-1 justify-center text-au-bad"
                     disabled={busy || !note.trim()}
                     onClick={() => run(async () => (await onReview(sec.id, false, note.trim())) && setNote(''))}
                   >
-                    Qaytarish
+                    {G.t('return')}
                   </button>
                 </div>
               </div>
             )}
             {canUndo && (
               <div className="grid gap-2">
-                <div className="dr-sec">Tasdiqni bekor qilish</div>
-                <textarea className="sx-inp min-h-[56px] py-2" maxLength={500} placeholder="Sabab (ixtiyoriy) — xodimga yuboriladi" value={note} onChange={(e) => setNote(e.target.value)} />
+                <div className="dr-sec">{G.t('undo')}</div>
+                <textarea className="sx-inp min-h-[56px] py-2" maxLength={500} placeholder={G.t('undoPh')} value={note} onChange={(e) => setNote(e.target.value)} />
                 <button
                   className="sx-btn self-start text-au-bad"
                   disabled={busy}
                   onClick={() =>
                     run(async () => {
-                      if (!(await ask(`«${sec.t}» tasdig‘i bekor qilinsinmi? Bosqich qayta «tasdiq kutilmoqda» holatiga qaytadi, keyingi bosqich yopiladi (belgilangan bandlar saqlanadi).`, { ok: 'Bekor qilish' }))) return;
+                      if (!(await ask(G.t('undoQ', { t: sec.t }), { ok: G.t('cancel') }))) return;
                       if (await onUnapprove(sec.id, note.trim())) setNote('');
                     })
                   }
                 >
-                  Tasdiqni bekor qilish
+                  {G.t('undo')}
                 </button>
               </div>
             )}
             {hist.length > 0 && (
               <>
-                <div className="dr-sec">Tarix · {hist.length}</div>
+                <div className="dr-sec">{G.t('history', { n: hist.length })}</div>
                 <ul className="grid gap-1.5">
                   {hist.map((e, i) => (
                     <li key={`${e.at}-${i}`} className="text-[13px]">
-                      <b className="text-au-ink">{LOG_LABEL[e.s]}</b>
+                      <b className="text-au-ink">{G.log[e.s]}</b>
                       <span className="text-au-faint"> · {names[e.by] ?? '—'} · {fmtAt(e.at)}</span>
                       {e.note && <div className="text-au-muted">{e.note}</div>}
                     </li>
@@ -623,21 +638,21 @@ export function GrowthNodeDrawer({
         ) : (
           topic && (
             <>
-              <p className="text-au-muted">«{sec.t}» bosqichidagi maqsad. Ichiga istalgancha band va ularning ichiga yana band qo‘shish mumkin.</p>
+              <p className="text-au-muted">{G.t('topicHint', { t: sec.t })}</p>
               <div className="fld">
-                <label>Holat</label>
-                <Seg value={status[topic.id] ?? 'todo'} options={NODE_STATUSES} disabled={!canTick} onChange={(s) => onStatus(topic.id, s)} />
-                {!canTick && own && <p className="mt-1 text-xs text-au-faint">{phase === 'locked' ? 'Bu bosqich hali ochilmagan.' : 'Bosqich yakunlangan — o‘zgartirib bo‘lmaydi.'}</p>}
+                <label>{G.t('status')}</label>
+                <Seg value={status[topic.id] ?? 'todo'} options={G.ns} disabled={!canTick} onChange={(s) => onStatus(topic.id, s)} />
+                {!canTick && own && <p className="mt-1 text-xs text-au-faint">{phase === 'locked' ? G.t('notOpen') : G.t('finished')}</p>}
               </div>
-              <div className="dr-sec">Bandlar · {countNodes(topic.ch)}</div>
-              {topic.ch.length === 0 && <div className="text-[13px] text-au-faint">Hali band yo‘q</div>}
+              <div className="dr-sec">{G.t('items', { n: countNodes(topic.ch) })}</div>
+              {topic.ch.length === 0 && <div className="text-[13px] text-au-faint">{G.t('noItems')}</div>}
               <SubTree list={topic.ch} status={status} canTick={canTick} canEdit={canEdit} onStatus={onStatus} onTree={onTree} />
               {canEdit && (
                 <div className="flex gap-1.5">
                   <input
                     className="sx-inp h-9 min-w-0 flex-1 text-[13px]"
                     maxLength={120}
-                    placeholder="Yangi band… (Enter)"
+                    placeholder={G.t('newItemPh')}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => {
@@ -657,7 +672,7 @@ export function GrowthNodeDrawer({
                       setText('');
                     }}
                   >
-                    <Plus className="size-3.5" /> Band
+                    <Plus className="size-3.5" /> {G.t('item')}
                   </button>
                 </div>
               )}
@@ -669,13 +684,6 @@ export function GrowthNodeDrawer({
   );
 }
 
-const LOG_LABEL: Record<GrowthLogEntry['s'], string> = {
-  self_done: 'Yakunlandi — tasdiqqa yuborildi',
-  unmarked: 'Xodim qaytarib oldi',
-  approved: 'CEO tasdiqladi',
-  returned: 'CEO qaytardi',
-  unapproved: 'Tasdiq bekor qilindi',
-};
 const fmtDay = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
 /** ISO instant → "21.11.2026 14:05" in Tashkent. */
 const fmtAt = (iso: string) => {
@@ -713,10 +721,7 @@ export function updateRoadmapNode(r: GrowthRoadmap, id: string, f: (n: GrowthNod
    ===================================================================== */
 
 type Stage = GrowthStage & { isNew?: boolean };
-const SIDES = [
-  ['left', 'Chap'],
-  ['right', 'O‘ng'],
-] as const;
+const SIDES = ['left', 'right'] as const;
 
 export function GrowthRoadmapEditor({
   roadmap,
@@ -729,6 +734,7 @@ export function GrowthRoadmapEditor({
   onClose: () => void;
   onSave: (r: GrowthRoadmap) => Promise<boolean>;
 }) {
+  const G = useGr();
   const fresh = !roadmap.sections.length;
   const [name, setName] = useState(roadmap.name);
   const [subtitle, setSubtitle] = useState(roadmap.subtitle);
@@ -739,7 +745,7 @@ export function GrowthRoadmapEditor({
   const initial = useRef(JSON.stringify([name, subtitle, stages]));
   /** Closing with unsaved edits asks first (Saqlash keeps them). */
   const close = async () => {
-    if (JSON.stringify([name, subtitle, stages]) !== initial.current && !(await ask('Saqlanmagan o‘zgarishlar bekor qilinsinmi?', { ok: 'Bekor qilish' }))) return;
+    if (JSON.stringify([name, subtitle, stages]) !== initial.current && !(await ask(G.t('discardQ'), { ok: G.t('cancel') }))) return;
     onClose();
   };
 
@@ -764,7 +770,7 @@ export function GrowthRoadmapEditor({
         right: s.right.map((x) => ({ ...x, t: x.t.trim() })).filter((x) => x.t),
       }))
       .filter((s) => s.t);
-    if (!clean.length) return void toast.error('Kamida bitta bosqich kerak');
+    if (!clean.length) return void toast.error(G.t('needStage'));
     setBusy(true);
     const ok = await onSave({ name: name.trim(), subtitle: subtitle.trim(), sections: clean });
     setBusy(false);
@@ -775,16 +781,16 @@ export function GrowthRoadmapEditor({
     <>
       <div className="dr-h">
         <span className="sx-node-chip">Roadmap</span>
-        <span className="text-xs text-au-faint">{fresh ? 'Yangi roadmap' : 'Tahrirlash'}</span>
-        <button className="x" onClick={close} aria-label="Yopish">
+        <span className="text-xs text-au-faint">{fresh ? G.t('newRoadmap') : G.t('editing')}</span>
+        <button className="x" onClick={close} aria-label={G.t('close')}>
           <X className="size-4" />
         </button>
       </div>
       <div className="dr-b">
-        <input className="sx-inp" autoFocus={fresh} maxLength={80} placeholder="Nomi — masalan: Head teacher bo‘lish yo‘li" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="sx-inp" maxLength={80} placeholder="Qisqa tavsif — masalan: 2026 → 2028" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
+        <input className="sx-inp" autoFocus={fresh} maxLength={80} placeholder={G.t('namePh')} value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="sx-inp" maxLength={80} placeholder={G.t('subPh2')} value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
 
-        <div className="dr-sec">Bosqichlar · {stages.length}</div>
+        <div className="dr-sec">{G.t('stages', { n: stages.length })}</div>
         <div className="grid gap-3">
           {stages.map((s, i) => {
             const ph = phases[s.id];
@@ -794,20 +800,20 @@ export function GrowthRoadmapEditor({
                   <span className="grid size-6 shrink-0 place-items-center rounded-full bg-au-ink text-[11px] font-bold text-au-card">
                     {i + 1}
                   </span>
-                  <input className="sx-inp !w-24 shrink-0" maxLength={30} placeholder="2027 · Q1" value={s.q} onChange={(e) => patch(i, { q: e.target.value })} aria-label="Muddat" />
-                  <input className="sx-inp min-w-0 flex-1 font-semibold" maxLength={120} placeholder="Bosqich nomi" value={s.t} onChange={(e) => patch(i, { t: e.target.value })} />
-                  <button className="sx-chipb" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Yuqoriga">
+                  <input className="sx-inp !w-24 shrink-0" maxLength={30} placeholder="2027 · Q1" value={s.q} onChange={(e) => patch(i, { q: e.target.value })} aria-label={G.t('period')} />
+                  <input className="sx-inp min-w-0 flex-1 font-semibold" maxLength={120} placeholder={G.t('stageName')} value={s.t} onChange={(e) => patch(i, { t: e.target.value })} />
+                  <button className="sx-chipb" disabled={i === 0} onClick={() => move(i, -1)} aria-label={G.t('up')}>
                     <ArrowUp className="size-3.5" />
                   </button>
-                  <button className="sx-chipb" disabled={i === stages.length - 1} onClick={() => move(i, 1)} aria-label="Pastga">
+                  <button className="sx-chipb" disabled={i === stages.length - 1} onClick={() => move(i, 1)} aria-label={G.t('down')}>
                     <ArrowDown className="size-3.5" />
                   </button>
                   <button
                     className="sx-chipb text-au-bad"
-                    aria-label="Bosqichni o‘chirish"
+                    aria-label={G.t('delStage')}
                     onClick={async () => {
                       const n = countNodes([...s.left, ...s.right]);
-                      if (!s.isNew && !(await ask(`«${s.t || 'Bosqich'}»${n ? ` va undagi ${n} ta mavzu/band` : ''} o‘chirilsinmi?`))) return;
+                      if (!s.isNew && !(await ask(G.t('delStageQ', { t: s.t || G.t('stage'), x: n ? G.t('andN', { n }) : '' })))) return;
                       setStages((x) => x.filter((_, j) => j !== i));
                     }}
                   >
@@ -815,29 +821,29 @@ export function GrowthRoadmapEditor({
                   </button>
                 </div>
                 <label className="flex items-center gap-2 pl-8 text-[11px] font-semibold text-au-faint">
-                  Tugash sanasi
+                  {G.t('due')}
                   <input type="date" className="sx-inp h-8 !w-40 text-[13px]" value={s.due ?? ''} onChange={(e) => patch(i, { due: e.target.value || undefined })} />
                 </label>
                 {(ph === 'approved' || ph === 'waiting') && (
                   <span className="pl-8 text-[11px] text-au-faint">
-                    {ph === 'approved' ? 'CEO tasdiqlagan' : 'CEO tasdig‘ida'} — o‘zgartirsangiz, «CEO’ga yuborish»dan keyin qayta tasdiqqa tushadi
+                    {G.t('reReview', { s: ph === 'approved' ? G.ph.approved : G.t('inReview') })}
                   </span>
                 )}
                 <div className="grid gap-2 pl-8">
-                  {SIDES.map(([side, label]) => (
+                  {SIDES.map((side) => (
                     <div key={side} className="grid content-start gap-1.5">
-                      <span className="text-[11px] font-semibold text-au-faint">{label} tomon</span>
+                      <span className="text-[11px] font-semibold text-au-faint">{G.t('side', { s: G.t(side) })}</span>
                       {s[side].map((x, j) => (
                         <div key={x.id} className="flex items-center gap-1">
-                          <input className="sx-inp h-8 min-w-0 flex-1 text-[13px]" maxLength={120} placeholder="Mavzu / maqsad" value={x.t} onChange={(e) => setTopic(i, side, j, e.target.value)} />
-                          {x.ch.length > 0 && <span className="shrink-0 text-[11px] text-au-faint">{countNodes(x.ch)} band</span>}
-                          <button className="sx-chipb" aria-label="Mavzuni o‘chirish" onClick={() => patch(i, { [side]: s[side].filter((_, k) => k !== j) })}>
+                          <input className="sx-inp h-8 min-w-0 flex-1 text-[13px]" maxLength={120} placeholder={G.t('topicPh')} value={x.t} onChange={(e) => setTopic(i, side, j, e.target.value)} />
+                          {x.ch.length > 0 && <span className="shrink-0 text-[11px] text-au-faint">{G.t('nItems', { n: countNodes(x.ch) })}</span>}
+                          <button className="sx-chipb" aria-label={G.t('delTopic')} onClick={() => patch(i, { [side]: s[side].filter((_, k) => k !== j) })}>
                             <X className="size-3" />
                           </button>
                         </div>
                       ))}
                       <button className="sx-btn sm justify-self-start text-au-muted" onClick={() => patch(i, { [side]: [...s[side], { id: growthId(), t: '', ch: [] }] })}>
-                        <Plus className="size-3" /> Mavzu
+                        <Plus className="size-3" /> {G.t('topic')}
                       </button>
                     </div>
                   ))}
@@ -849,13 +855,13 @@ export function GrowthRoadmapEditor({
             className="sx-btn justify-self-start"
             onClick={() => setStages((x) => [...x, { id: growthId(), t: '', q: '', left: [{ id: growthId(), t: '', ch: [] }], right: [], isNew: true }])}
           >
-            <Plus className="size-4" /> Bosqich qo‘shish
+            <Plus className="size-4" /> {G.t('addStage')}
           </button>
         </div>
       </div>
       <div className="dr-f">
         <button className="sx-btn primary flex-1 justify-center" disabled={busy} onClick={save}>
-          {fresh ? 'Yaratish' : 'Saqlash'}
+          {fresh ? G.t('createBtn') : G.t('save')}
         </button>
       </div>
     </>
