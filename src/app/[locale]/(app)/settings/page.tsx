@@ -18,14 +18,6 @@ export const dynamic = 'force-dynamic';
 
 const SECTIONS = ['profile', 'security', 'notifications', 'appearance', 'telegram', 'system'] as const;
 type Section = (typeof SECTIONS)[number];
-const LABEL: Record<Section, string> = {
-  profile: 'Profil',
-  security: 'Xavfsizlik',
-  notifications: 'Bildirishnomalar',
-  appearance: 'Ko‘rinish',
-  telegram: 'Telegram',
-  system: 'Tizim (CEO)',
-};
 
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -45,6 +37,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const tTheme = await getTranslations('themeSettings');
   const tMotion = await getTranslations('motionSettings');
   const tBg = await getTranslations('bgSettings');
+  const tp = await getTranslations('pg.set');
   const { profile } = await getAuthState();
   if (!profile) return null; // layout redirects to /login
   const isCeo = can(profile!.role, 'news.publish');
@@ -63,7 +56,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const [row] = await sql<{ last_seen_at: string | null; sessions_revoked_at: string | null }[]>`
       select last_seen_at, sessions_revoked_at from profiles where id = ${profile!.id}`;
     content = (
-      <Card title="Xavfsizlik" subtitle="Kirish holati va barcha qurilmalardan chiqish. Parolni “Profil” bo‘limida almashtirasiz.">
+      <Card title={tp('security')} subtitle={tp('securitySub')}>
         <SecurityPanel lastSeen={row?.last_seen_at ?? null} revokedAt={row?.sessions_revoked_at ?? null} mustChange={profile!.must_change_password} />
       </Card>
     );
@@ -71,7 +64,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const [row] = await sql<{ muted: string[]; quiet_from: string | null; quiet_to: string | null }[]>`
       select muted, quiet_from::text as quiet_from, quiet_to::text as quiet_to from notification_prefs where user_id = ${profile!.id}`;
     content = (
-      <Card title="Bildirishnomalar" subtitle="Telegram’da qaysi xabarlar kelishini o‘zingiz tanlaysiz. Saytdagi belgilar o‘zgarmaydi.">
+      <Card title={tp('notifications')} subtitle={tp('notifSub')}>
         <NotificationsPanel
           initial={{ muted: (row?.muted ?? []).filter((k): k is NotifyKind => (NOTIFY_KINDS as readonly string[]).includes(k)), quietFrom: row?.quiet_from ?? null, quietTo: row?.quiet_to ?? null }}
           telegram={profile!.telegram_id !== null}
@@ -114,7 +107,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-5 px-4 pt-1 pb-8 sm:px-7 md:grid-cols-[200px_minmax(0,1fr)]">
-      <nav aria-label="Sozlamalar" className="flex gap-1 overflow-x-auto md:sticky md:top-4 md:flex-col md:self-start">
+      <nav aria-label={tp('navAria')} className="flex gap-1 overflow-x-auto md:sticky md:top-4 md:flex-col md:self-start">
         {sections.map((k) => (
           <Link
             key={k}
@@ -125,7 +118,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               sec === k ? 'bg-au-accent-soft text-au-accent-text' : 'text-au-muted hover:bg-au-card-2 hover:text-au-ink',
             )}
           >
-            {LABEL[k]}
+            {tp(k)}
           </Link>
         ))}
       </nav>

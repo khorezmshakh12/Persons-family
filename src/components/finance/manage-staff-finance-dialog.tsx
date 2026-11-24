@@ -100,7 +100,7 @@ export function ManageStaffFinanceDialog({ staffId, month }: { staffId: string; 
             >
               {ENTRY_TYPES.map((x) => (
                 <option key={x.v} value={x.v}>
-                  {x.label}
+                  {t(`et.${x.v}`)}
                 </option>
               ))}
             </select>

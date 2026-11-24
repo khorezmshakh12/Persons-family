@@ -1,17 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import {
   OP_META,
   YM_RE,
   calculateEmployeeMonthSummary,
-  formatMonthNameOnly,
-  formatMonthUz,
   formatUZS,
   getInitials,
   getPreviousMonth,
-  getStatusText,
   shiftYearMonth,
   toSafeIntegerAmount,
   type MonEmp,
@@ -25,6 +22,8 @@ import {
   monitorToggleRequestAction,
 } from '@/lib/actions/finance-monitor';
 import { MoneyInput } from '@/components/ui/money-input';
+import { useLocale, useTranslations } from 'next-intl';
+import { monthName } from '@/lib/month-names';
 import './monitor.css';
 
 /**
@@ -36,23 +35,31 @@ import './monitor.css';
 type Filter = 'ALL' | 'REQUESTED' | 'PARTIAL' | 'UNPAID' | 'PAID';
 type Row = { emp: MonEmp; curr: MonSummary; prev: MonSummary };
 
-const PLACEHOLDERS: Record<MonOp, string> = {
-  AVANS: "Masalan: Noyabr oyi 1-qism avansi (xodim so'roviga asosan)...",
-  SALARY_PAY: "Masalan: Oy yakuni bo'yicha qolgan oylik maosh to'lab berildi...",
-  BONUS: 'Masalan: Yuqori natijali o‘quvchilar va yangi guruh uchun bonus...',
-  PENALTY: 'Masalan: Darsga kechikkani yoki hisobot topshirmagani uchun jarima...',
-};
-
+const PLACEHOLDERS: Record<MonOp, string> = { AVANS: 'phAvans', SALARY_PAY: 'phSalary', BONUS: 'phBonus', PENALTY: 'phPenalty' };
 const ERRORS: Record<string, string> = {
-  reasonRequired: "Buxgalteriya tartibiga ko'ra izoh (sabab) yozish majburiy!",
-  periodLocked: 'Bu oy yopilgan — o‘zgartirib bo‘lmaydi.',
-  systemEntry: 'Bu yozuv boshqa bo‘limdan keladi — o‘sha yerda o‘zgartiring.',
-  notFound: 'Yozuv topilmadi.',
-  forbidden: 'Ruxsat yo‘q.',
-  sessionExpired: 'Sessiya tugagan — qayta kiring.',
-  invalidInput: "Ma'lumot noto'g'ri.",
+  reasonRequired: 'eReason',
+  periodLocked: 'eLocked',
+  systemEntry: 'eSystem',
+  notFound: 'eNotFound',
+  forbidden: 'eForbidden',
+  sessionExpired: 'eSession',
+  invalidInput: 'eInvalid',
 };
-const errText = (e: string) => ERRORS[e] ?? 'Saqlab bo‘lmadi. Qayta urinib ko‘ring.';
+const OP_KEY: Record<MonOp, string> = { AVANS: 'opAvans', SALARY_PAY: 'opSalary', BONUS: 'opBonus', PENALTY: 'opPenalty' };
+
+/** Month names, money and labels in the UI language. */
+function useMon() {
+  const t = useTranslations('mon');
+  const locale = useLocale();
+  const okYm = (ym: string) => !!ym && YM_RE.test(ym);
+  const fmn = (ym: string) => (okYm(ym) ? monthName(locale, parseInt(ym.split('-')[1], 10)) : '—');
+  const fm = (ym: string) => (okYm(ym) ? `${fmn(ym)} ${ym.slice(0, 4)}` : '—');
+  const money = (n: number) => `${formatUZS(n, false)} ${t('uzs')}`;
+  const statusText = (c: MonSummary) => t(c.status === 'PAID' ? 'stPaid' : c.status === 'PARTIAL' ? 'stPartial' : 'stUnpaid');
+  const opLabel = (op: MonOp) => t(OP_KEY[op]);
+  const errText = (e: string) => t(ERRORS[e] ?? 'eOther');
+  return { t, fm, fmn, money, statusText, opLabel, errText };
+}
 
 function groupInput(v: string) {
   const n = toSafeIntegerAmount(v);
@@ -61,6 +68,7 @@ function groupInput(v: string) {
 
 /** Monitor's animateKpiValue: 280 ms ease-out count-up between values. */
 function KpiValue({ value, className }: { value: number; className?: string }) {
+  const { t } = useMon();
   const [shown, setShown] = useState(value);
   const from = useRef(value);
   useEffect(() => {
@@ -79,7 +87,7 @@ function KpiValue({ value, className }: { value: number; className?: string }) {
   }, [value]);
   return (
     <strong className={`k-val num ${className ?? ''}`}>
-      {formatUZS(shown, false)} <small>so&apos;m</small>
+      {formatUZS(shown, false)} <small>{t('uzs')}</small>
     </strong>
   );
 }
@@ -96,11 +104,12 @@ export function MonitorView({ month, employees, transactions }: { month: string;
   const [empModal, setEmpModal] = useState<{ id: string | null } | null>(null);
   const [drawer, setDrawer] = useState<string | null>(null);
   const toastId = useRef(0);
+  const { t, fm, fmn, statusText, errText } = useMon();
 
   const currM = month;
   const prevM = getPreviousMonth(currM);
-  const currMonthName = formatMonthNameOnly(currM);
-  const prevMonthName = formatMonthNameOnly(prevM);
+  const currMonthName = fmn(currM);
+  const prevMonthName = fmn(prevM);
 
   const showToast = (msg: string) => {
     const id = ++toastId.current;
@@ -134,15 +143,11 @@ export function MonitorView({ month, employees, transactions }: { month: string;
     return () => document.removeEventListener('keydown', kd);
   }, []);
 
-  const rowsData: Row[] = useMemo(
-    () =>
-      employees.map((emp) => ({
-        emp,
-        curr: calculateEmployeeMonthSummary(emp, transactions, currM),
-        prev: calculateEmployeeMonthSummary(emp, transactions, prevM),
-      })),
-    [employees, transactions, currM, prevM],
-  );
+  const rowsData: Row[] = employees.map((emp) => ({
+    emp,
+    curr: calculateEmployeeMonthSummary(emp, transactions, currM),
+    prev: calculateEmployeeMonthSummary(emp, transactions, prevM),
+  }));
 
   let allNet = 0;
   let allPrevNet = 0;
@@ -184,14 +189,14 @@ export function MonitorView({ month, employees, transactions }: { month: string;
     refresh(emp.id);
     showToast(
       res.flagged
-        ? `${emp.firstName}: "${formatMonthUz(currM)}" uchun Avans so'raldi deb belgilandi`
-        : `${emp.firstName}: "Avans so'raldi" belgisi olib tashlandi`,
+        ? t('flagged', { name: emp.firstName, month: fm(currM) })
+        : t('unflagged', { name: emp.firstName }),
     );
   }
 
   function openOperationModal(type: MonOp = 'AVANS', empId: string | null = null) {
     if (employees.length === 0) {
-      showToast("Avval kamida bitta xodim qo'shing");
+      showToast(t('addStaffFirst'));
       return;
     }
     setOpModal({ type, empId: empId || employees[0].id });
@@ -209,130 +214,130 @@ export function MonitorView({ month, employees, transactions }: { month: string;
             </div>
             <div>
               <div className="title-row">
-                <h1>O&apos;quv Markazi Moliya Bo&apos;limi</h1>
-                <span className="tag">Minimal</span>
+                <h1>{t('title')}</h1>
+                <span className="tag">{t('tag')}</span>
               </div>
-              <p className="sub">Oylik = oy davomida berilgan avans va oylik + bonus − jarima. Fix oylik yo&apos;q.</p>
+              <p className="sub">{t('sub')}</p>
             </div>
           </div>
 
           <div className="actions">
-            <div className="month-pill num" role="group" aria-label="Hisobot oyi tanlovi">
-              <button type="button" className="m-nav" title="Oldingi oyga o'tish" aria-label="Oldingi oy" onClick={() => goMonth(shiftYearMonth(currM, -1))}>
+            <div className="month-pill num" role="group" aria-label={t('monthPick')}>
+              <button type="button" className="m-nav" title={t('prevTip')} aria-label={t('prev')} onClick={() => goMonth(shiftYearMonth(currM, -1))}>
                 ‹
               </button>
-              <label className="month-picker-wrap" title="Kalendardan istalgan oyni tanlash">
-                <span className="month-display-text">{formatMonthUz(currM)}</span>
-                <span className="month-prev-inline">(Oldingi: {prevMonthName})</span>
-                <input type="month" className="month-native-input" aria-label="Hisobot oyi" value={currM} onChange={(e) => goMonth(e.target.value)} />
+              <label className="month-picker-wrap" title={t('calTip')}>
+                <span className="month-display-text">{fm(currM)}</span>
+                <span className="month-prev-inline">{t('prevInline', { m: prevMonthName })}</span>
+                <input type="month" className="month-native-input" aria-label={t('reportMonth')} value={currM} onChange={(e) => goMonth(e.target.value)} />
               </label>
-              <button type="button" className="m-nav" title="Keyingi (yangi) oyga o'tish" aria-label="Keyingi oy" onClick={() => goMonth(shiftYearMonth(currM, 1))}>
+              <button type="button" className="m-nav" title={t('nextTip')} aria-label={t('next')} onClick={() => goMonth(shiftYearMonth(currM, 1))}>
                 ›
               </button>
             </div>
 
             <button type="button" className="btn-ghost" onClick={() => setEmpModal({ id: null })}>
-              + Xodim
+              {t('addStaff')}
             </button>
             <button type="button" className="btn-main" onClick={() => openOperationModal('AVANS')}>
-              + Avans / Amal qo&apos;shish
+              {t('addOp')}
             </button>
           </div>
         </header>
 
-        <section className="kpis" aria-label="Asosiy moliyaviy ko'rsatkichlar">
+        <section className="kpis" aria-label={t('kpis')}>
           <div className="kpi">
-            <span className="k-label">{currMonthName} oyligi (jami)</span>
+            <span className="k-label">{t('salaryTotal', { m: currMonthName })}</span>
             <KpiValue value={allNet} />
             <div className="k-sub num">
-              <span>{employees.length} ta faol xodim</span>
+              <span>{t('activeStaff', { n: employees.length })}</span>
               <span>•</span>
-              <span>berilgan + bonus − jarima</span>
+              <span>{t('formula')}</span>
             </div>
           </div>
           <div className="kpi">
-            <span className="k-label">Bonus va Jarimalar</span>
+            <span className="k-label">{t('bonusPenalty')}</span>
             <strong className={`k-val num ${netAdj > 0 ? 'accent-pos' : netAdj < 0 ? 'accent-neg' : ''}`}>
               {netAdj > 0 ? '+' : ''}
-              {formatUZS(netAdj, false)} <small>so&apos;m</small>
+              {formatUZS(netAdj, false)} <small>{t('uzs')}</small>
             </strong>
             <div className="k-sub num">
-              <span className="accent-pos">+{formatUZS(allBonus, false)} bonus</span>
+              <span className="accent-pos">{t('bonusN', { n: formatUZS(allBonus, false) })}</span>
               <span>•</span>
-              <span className="accent-neg">−{formatUZS(allPenalty, false)} jarima</span>
+              <span className="accent-neg">{t('penaltyN', { n: formatUZS(allPenalty, false) })}</span>
             </div>
           </div>
           <div className="kpi">
-            <span className="k-label">{currMonthName} oyida berilgan</span>
+            <span className="k-label">{t('givenIn', { m: currMonthName })}</span>
             <KpiValue value={allPaid} />
             <div className="k-sub num">
-              <span>Shundan avans: {formatUZS(allAvans, false)}</span>
+              <span>{t('ofAdvance', { n: formatUZS(allAvans, false) })}</span>
               <button
                 type="button"
                 className="k-req-chip"
-                title="Avans so'ragan xodimlarni filtrlash"
+                title={t('reqTip')}
                 style={{ display: countRequested > 0 ? 'inline-flex' : 'none' }}
                 onClick={() => setFilter((f) => (f === 'REQUESTED' ? 'ALL' : 'REQUESTED'))}
               >
-                Avans so&apos;ralgan: {countRequested}
+                {t('requested', { n: countRequested })}
               </button>
             </div>
           </div>
           <div className="kpi">
-            <span className="k-label">{prevMonthName} oyligi (jami)</span>
+            <span className="k-label">{t('salaryTotal', { m: prevMonthName })}</span>
             <KpiValue value={allPrevNet} />
             <div className="k-sub num">
-              <span>Oldingi oy, taqqoslash uchun</span>
+              <span>{t('prevCompare')}</span>
             </div>
           </div>
         </section>
 
         <section className="card">
           <div className="bar">
-            <div className="tabs" role="tablist" aria-label="Xodimlar holati filtri">
+            <div className="tabs" role="tablist" aria-label={t('filterLabel')}>
               <button type="button" className={`tab ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>
-                Barchasi ({rowsData.length})
+                {t('fAll', { n: rowsData.length })}
               </button>
               <button type="button" className={`tab ${filter === 'REQUESTED' ? 'active' : ''}`} onClick={() => setFilter('REQUESTED')}>
                 <span className="tab-dot-amber" />
-                <span>Avans so&apos;ralgan ({countRequested})</span>
+                <span>{t('fReq', { n: countRequested })}</span>
               </button>
               <button type="button" className={`tab ${filter === 'PARTIAL' ? 'active' : ''}`} onClick={() => setFilter('PARTIAL')}>
-                Avans olgan ({countPartial})
+                {t('fPartial', { n: countPartial })}
               </button>
               <button type="button" className={`tab ${filter === 'UNPAID' ? 'active' : ''}`} onClick={() => setFilter('UNPAID')}>
-                Hali berilmagan ({countUnpaid})
+                {t('fUnpaid', { n: countUnpaid })}
               </button>
               <button type="button" className={`tab ${filter === 'PAID' ? 'active' : ''}`} onClick={() => setFilter('PAID')}>
-                Oylik berilgan ({countPaid})
+                {t('fPaid', { n: countPaid })}
               </button>
             </div>
             <div className="search-wrap">
-              <input type="text" className="search-input" placeholder="Ism yoki lavozim izlash..." autoComplete="off" value={search} onChange={(e) => setSearch(e.target.value)} />
-              <button type="button" className={`search-clear ${q ? 'show' : ''}`} title="Tozalash" aria-label="Qidiruvni tozalash" onClick={() => setSearch('')}>
+              <input type="text" className="search-input" placeholder={t('searchPh')} autoComplete="off" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <button type="button" className={`search-clear ${q ? 'show' : ''}`} title={t('clear')} aria-label={t('clearSearch')} onClick={() => setSearch('')}>
                 ×
               </button>
             </div>
           </div>
 
           <div className="table-wrap">
-            <table aria-label="Xodimlar oylik hisob-kitob jadvali">
+            <table aria-label={t('tableLabel')}>
               <thead>
                 <tr>
-                  <th>Xodim</th>
-                  <th>Oylik ({currMonthName})</th>
-                  <th>Oldingi oy ({prevMonthName})</th>
-                  <th>Bonus / Jarima</th>
-                  <th>Berilgan ({currMonthName})</th>
-                  <th>Holat</th>
-                  <th style={{ textAlign: 'right' }}>Amallar</th>
+                  <th>{t('colStaff')}</th>
+                  <th>{t('colSalary', { m: currMonthName })}</th>
+                  <th>{t('colPrev', { m: prevMonthName })}</th>
+                  <th>{t('colBP')}</th>
+                  <th>{t('colGiven', { m: currMonthName })}</th>
+                  <th>{t('colState')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={7}>
-                      <div className="empty-box">Tanlangan filtr yoki qidiruv bo&apos;yicha xodimlar topilmadi.</div>
+                      <div className="empty-box">{t('empty')}</div>
                     </td>
                   </tr>
                 ) : (
@@ -344,7 +349,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                           <div className="emp">
                             <span className="av">{getInitials(emp.firstName, emp.lastName)}</span>
                             <div>
-                              <div className="e-name" title="Batafsil tarix va oylar hisobi" onClick={() => setDrawer(emp.id)}>
+                              <div className="e-name" title={t('detailTip')} onClick={() => setDrawer(emp.id)}>
                                 {emp.firstName} {emp.lastName}
                               </div>
                               <div className="e-role">{emp.role}</div>
@@ -356,15 +361,15 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                             <div className="sal-main-line">
                               <span className="strong">{formatUZS(curr.netPayable, false)}</span>
                             </div>
-                            {salDiff > 0 && <span className="sal-delta accent-pos num">+{formatUZS(salDiff, false)} o&apos;sgan</span>}
-                            {salDiff < 0 && <span className="sal-delta accent-neg num">{formatUZS(salDiff, false)} kamaygan</span>}
+                            {salDiff > 0 && <span className="sal-delta accent-pos num">{t('grew', { n: formatUZS(salDiff, false) })}</span>}
+                            {salDiff < 0 && <span className="sal-delta accent-neg num">{t('fell', { n: formatUZS(salDiff, false) })}</span>}
                           </div>
                         </td>
-                        <td className="num prev-cell" title="Oldingi va hozirgi oy taqqoslamasini ko'rish" onClick={() => setDrawer(emp.id)}>
+                        <td className="num prev-cell" title={t('compareTip')} onClick={() => setDrawer(emp.id)}>
                           <div>
-                            Oylik: <b>{formatUZS(prev.netPayable, false)}</b>
+                            {t('salaryOf')} <b>{formatUZS(prev.netPayable, false)}</b>
                           </div>
-                          <div className="muted">Berilgan: {formatUZS(prev.totalPaid, false)}</div>
+                          <div className="muted">{t('givenOf', { n: formatUZS(prev.totalPaid, false) })}</div>
                         </td>
                         <td className="num">
                           {curr.bonusTotal > 0 && <span className="pill pos num">+{formatUZS(curr.bonusTotal, false)}</span>}
@@ -377,14 +382,14 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                           </div>
                           {curr.totalPaid > 0 && (
                             <div className="paid-breakdown num">
-                              Avans: {formatUZS(curr.avansTotal, false)} • Oylik: {formatUZS(curr.salaryPayTotal, false)}
+                              {t('breakdown', { a: formatUZS(curr.avansTotal, false), s: formatUZS(curr.salaryPayTotal, false) })}
                             </div>
                           )}
                         </td>
                         <td className="num">
                           <div className="st-row">
-                            <span className="st">{getStatusText(curr)}</span>
-                            {curr.avansRequested && <span className="req-badge">✓ Avans so&apos;raldi</span>}
+                            <span className="st">{statusText(curr)}</span>
+                            {curr.avansRequested && <span className="req-badge">{t('reqBadge')}</span>}
                           </div>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -392,25 +397,25 @@ export function MonitorView({ month, employees, transactions }: { month: string;
                             <button
                               type="button"
                               className={curr.avansRequested ? 'rbtn req-toggle is-requested' : 'rbtn req-toggle'}
-                              title="Xodim avans so'raganini belgilash yoki bekor qilish"
+                              title={t('reqToggleTip')}
                               onClick={() => toggleReq(emp)}
                             >
-                              {curr.avansRequested ? "✓ Avans so'raldi" : "Avans so'raldi"}
+                              {curr.avansRequested ? t('reqOn') : t('reqOff')}
                             </button>
                             <button type="button" className="rbtn primary-soft" onClick={() => openOperationModal('AVANS', emp.id)}>
-                              + Avans
+                              {t('bAvans')}
                             </button>
                             <button type="button" className="rbtn" onClick={() => openOperationModal('SALARY_PAY', emp.id)}>
-                              + Oylik
+                              {t('bSalary')}
                             </button>
                             <button type="button" className="rbtn" onClick={() => openOperationModal('BONUS', emp.id)}>
-                              + Bonus
+                              {t('bBonus')}
                             </button>
                             <button type="button" className="rbtn" onClick={() => openOperationModal('PENALTY', emp.id)}>
-                              − Jarima
+                              {t('bPenalty')}
                             </button>
                             <button type="button" className="rbtn" onClick={() => setDrawer(emp.id)}>
-                              Tarix
+                              {t('bHistory')}
                             </button>
                           </div>
                         </td>
@@ -468,7 +473,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
             }}
             onDeleted={() => {
               refresh(drawerEmp.id);
-              showToast("Operatsiya o'chirildi va barcha hisoblar yangilandi");
+              showToast(t('deleted'));
             }}
             onError={(e) => showToast(errText(e))}
           />
@@ -487,6 +492,7 @@ export function MonitorView({ month, employees, transactions }: { month: string;
 }
 
 function TableFoot({ rows, prevMonthName }: { rows: Row[]; prevMonthName: string }) {
+  const { t, money } = useMon();
   let sumNet = 0;
   let sumPrevNet = 0;
   let sumBonus = 0;
@@ -504,23 +510,23 @@ function TableFoot({ rows, prevMonthName }: { rows: Row[]; prevMonthName: string
   return (
     <tfoot>
       <tr className="num">
-        <td>JAMI XULOSA ({rows.length} xodim)</td>
+        <td>{t('footTotal', { n: rows.length })}</td>
         <td>{formatUZS(sumNet, false)}</td>
         <td>
-          {prevMonthName} oyligi: {formatUZS(sumPrevNet, false)}
+          {t('footPrev', { m: prevMonthName, n: formatUZS(sumPrevNet, false) })}
         </td>
         <td>
           <span className="accent-pos">+{formatUZS(sumBonus, false)}</span> / <span className="accent-neg">−{formatUZS(sumPenalty, false)}</span>
         </td>
-        <td>{formatUZS(sumPaid)}</td>
+        <td>{money(sumPaid)}</td>
         <td />
         <td style={{ textAlign: 'right', fontWeight: 500 }} className="muted">
           {sumReq > 0 ? (
             <>
-              Avans so&apos;raganlar: <b className="accent-amber">{sumReq} ta</b>
+              {t('footReq')} <b className="accent-amber">{t('footReqN', { n: sumReq })}</b>
             </>
           ) : (
-            "So'rovlar yopilgan"
+            t('footClosed')
           )}
         </td>
       </tr>
@@ -546,6 +552,7 @@ function OperationModal({
   onDone: (empId: string, msg: string) => void;
 }) {
   const prevM = getPreviousMonth(currM);
+  const { t, fm, money, opLabel, errText } = useMon();
   const [type, setType] = useState<MonOp>(init.type);
   const [empId, setEmpId] = useState(init.empId);
   const [target, setTarget] = useState(currM);
@@ -566,49 +573,49 @@ function OperationModal({
   const amt = toSafeIntegerAmount(amount);
   // Every operation moves the month's pay: avans / oylik / bonus add, jarima subtracts.
   const nextNet = summary ? summary.netPayable + (type === 'PENALTY' ? -amt : amt) : null;
-  const periodText = `${formatMonthUz(target)}${target === currM ? ' (Hozirgi oy)' : target === prevM ? ' (Oldingi oy)' : ''}`;
+  const periodText = `${fm(target)}${target === currM ? t('curMonth') : target === prevM ? t('prevMonth') : ''}`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
-    if (!emp) return setErr({ field: null, msg: 'Iltimos, xodimni tanlang.' });
-    if (!YM_RE.test(target)) return setErr({ field: null, msg: 'Iltimos, amal qaysi oyga tegishli ekanligini tanlang.' });
+    if (!emp) return setErr({ field: null, msg: t('pickStaff') });
+    if (!YM_RE.test(target)) return setErr({ field: null, msg: t('pickMonth') });
     if (amt <= 0) {
       amountRef.current?.focus();
-      return setErr({ field: 'amount', msg: "Miqdor 0 dan katta so'm bo'lishi shart." });
+      return setErr({ field: 'amount', msg: t('amountGt0') });
     }
     if (reason.trim().length < 3) {
       reasonRef.current?.focus();
       return setErr({
         field: 'reason',
-        msg: type === 'AVANS' ? "Avans qo'shayotganda izoh (sabab) yozish majburiy! Kamida 3 ta belgi kiriting." : "Buxgalteriya tartibiga ko'ra izoh (sabab) yozish majburiy!",
+        msg: type === 'AVANS' ? t('reasonAvans') : t('eReason'),
       });
     }
     setBusy(true);
     const res = await monitorAddOperationAction({ staffId: emp.id, type, amount: amt, month: target, reason: reason.trim() });
     setBusy(false);
     if ('error' in res) return setErr({ field: null, msg: errText(res.error) });
-    const extra = res.clearedRequest ? " ('Avans so'raldi' belgisi yopildi)" : '';
-    onDone(emp.id, `${emp.firstName}: ${formatMonthUz(target)} hisobiga ${formatUZS(amt)} (${OP_META[type].label}) yozildi${extra}`);
+    const extra = res.clearedRequest ? t('clearedReq') : '';
+    onDone(emp.id, `${t('written', { name: emp.firstName, month: fm(target), sum: money(amt), op: opLabel(type) })}${extra}`);
   }
 
   return (
     <div className="backdrop open" role="dialog" aria-modal="true" aria-labelledby="opModalTitle" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="m-head">
-          <h2 id="opModalTitle">Avans va Moliyaviy Amal Qo&apos;shish</h2>
-          <button type="button" className="m-close" aria-label="Yopish" onClick={onClose}>
+          <h2 id="opModalTitle">{t('opTitle')}</h2>
+          <button type="button" className="m-close" aria-label={t('close')} onClick={onClose}>
             ×
           </button>
         </div>
         <form noValidate onSubmit={submit}>
           <div className="m-body">
             <div className="f-group">
-              <span className="f-label">Amal turini tanlang</span>
+              <span className="f-label">{t('pickType')}</span>
               <div className="op-grid">
-                {(['AVANS', 'SALARY_PAY', 'BONUS', 'PENALTY'] as const).map((t) => (
-                  <button key={t} type="button" className={`op-btn ${type === t ? 'selected' : ''}`} onClick={() => setType(t)}>
-                    {t === 'AVANS' ? 'Avans berish' : t === 'SALARY_PAY' ? "Oylik to'lov" : t === 'BONUS' ? '+ Bonus' : '− Jarima'}
+                {(['AVANS', 'SALARY_PAY', 'BONUS', 'PENALTY'] as const).map((op) => (
+                  <button key={op} type="button" className={`op-btn ${type === op ? 'selected' : ''}`} onClick={() => setType(op)}>
+                    {t(op === 'AVANS' ? 'tAvans' : op === 'SALARY_PAY' ? 'tSalary' : op === 'BONUS' ? 'tBonus' : 'tPenalty')}
                   </button>
                 ))}
               </div>
@@ -616,7 +623,7 @@ function OperationModal({
 
             <div className="f-group">
               <label className="f-label" htmlFor="opEmployeeSelect">
-                Xodim (Ism va Familiya)
+                {t('staffName')}
               </label>
               <select id="opEmployeeSelect" className="f-select" required value={empId} onChange={(e) => setEmpId(e.target.value)}>
                 {employees.map((x) => (
@@ -628,21 +635,21 @@ function OperationModal({
             </div>
 
             <div className={`req-notice ${summary?.avansRequested && type === 'AVANS' ? 'show' : ''}`}>
-              <span>Ushbu xodim uchun &quot;Avans so&apos;raldi&quot; belgisi yoqilgan. Avans yozilgach so&apos;rov bajarildi deb yopiladi.</span>
+              <span>{t('reqNotice')}</span>
             </div>
 
             <div className="f-group">
               <label className="f-label" htmlFor="opTargetMonth">
-                Qaysi oy hisobiga yoziladi?
+                {t('whichMonth')}
               </label>
               <div className="period-chips">
                 <button type="button" className={`p-chip ${target === prevM ? 'active' : ''}`} onClick={() => setTarget(prevM)}>
-                  <small>Oldingi oyga</small>
-                  <strong className="num">{formatMonthUz(prevM)}</strong>
+                  <small>{t('toPrev')}</small>
+                  <strong className="num">{fm(prevM)}</strong>
                 </button>
                 <button type="button" className={`p-chip ${target === currM ? 'active' : ''}`} onClick={() => setTarget(currM)}>
-                  <small>Hozirgi oyga</small>
-                  <strong className="num">{formatMonthUz(currM)}</strong>
+                  <small>{t('toCurr')}</small>
+                  <strong className="num">{fm(currM)}</strong>
                 </button>
                 <input type="month" id="opTargetMonth" className="f-input num" style={{ minWidth: 142 }} required value={target} onChange={(e) => setTarget(e.target.value)} />
               </div>
@@ -651,14 +658,14 @@ function OperationModal({
             <div className="f-group">
               <div className="f-label">
                 <label htmlFor="opAmountInput">
-                  Miqdori (so&apos;mda) <span className="req-star">*</span>
+                  {t('amountLabel')} <span className="req-star">*</span>
                 </label>
               </div>
               <MoneyInput
                 ref={amountRef}
                 id="opAmountInput"
                 className={`f-input num strong ${err?.field === 'amount' ? 'input-invalid' : ''}`}
-                placeholder="Masalan: 1,500,000"
+                placeholder={t('amountPh')}
                 required
                 value={toSafeIntegerAmount(amount) || null}
                 onValue={(v) => {
@@ -671,10 +678,10 @@ function OperationModal({
             <div className="f-group">
               <div className="f-label">
                 <label htmlFor="opReasonInput">
-                  Izoh / Sababi (Albatta yozilishi shart) <span className="req-star">*</span>
+                  {t('reasonLabel')} <span className="req-star">*</span>
                 </label>
                 <span className="muted" style={{ fontSize: 11 }}>
-                  Majburiy maydon
+                  {t('required')}
                 </span>
               </div>
               <textarea
@@ -682,7 +689,7 @@ function OperationModal({
                 id="opReasonInput"
                 className={`f-textarea ${err?.field === 'reason' ? 'input-invalid' : ''}`}
                 rows={2}
-                placeholder={PLACEHOLDERS[type]}
+                placeholder={t(PLACEHOLDERS[type])}
                 required
                 value={reason}
                 onChange={(e) => {
@@ -694,16 +701,16 @@ function OperationModal({
 
             <div className="preview-box num">
               <div className="preview-line">
-                <span className="muted">Ta&apos;sir qiladigan davr:</span>
+                <span className="muted">{t('affects')}</span>
                 <strong>{periodText}</strong>
               </div>
               <div className="preview-line">
-                <span className="muted">Shu oy oyligi (hozir):</span>
-                <strong>{summary ? formatUZS(summary.netPayable) : '—'}</strong>
+                <span className="muted">{t('nowSalary')}</span>
+                <strong>{summary ? money(summary.netPayable) : '—'}</strong>
               </div>
               <div className="preview-line">
-                <span className="muted">Amaldan keyin oylik:</span>
-                <strong>{nextNet === null ? '—' : formatUZS(nextNet)}</strong>
+                <span className="muted">{t('afterSalary')}</span>
+                <strong>{nextNet === null ? '—' : money(nextNet)}</strong>
               </div>
             </div>
 
@@ -715,10 +722,10 @@ function OperationModal({
           <div className="m-foot">
             <div className="m-foot-right">
               <button type="button" className="btn-ghost" onClick={onClose}>
-                Bekor qilish
+                {t('cancel')}
               </button>
               <button type="submit" className="btn-main" disabled={busy}>
-                Tasdiqlash va hisobga yozish
+                {t('confirm')}
               </button>
             </div>
           </div>
@@ -738,13 +745,13 @@ function EmployeeModal({
   emp: MonEmp | undefined;
   onClose: () => void;
 }) {
-
+  const { t } = useMon();
   return (
     <div className="backdrop open" role="dialog" aria-modal="true" aria-labelledby="empModalTitle" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="m-head">
-          <h2 id="empModalTitle">{emp ? "Xodim Ma'lumotlarini Tahrirlash" : "Yangi Xodim Qo'shish"}</h2>
-          <button type="button" className="m-close" aria-label="Yopish" onClick={onClose}>
+          <h2 id="empModalTitle">{emp ? t('editStaff') : t('newStaff')}</h2>
+          <button type="button" className="m-close" aria-label={t('close')} onClick={onClose}>
             ×
           </button>
         </div>
@@ -755,45 +762,45 @@ function EmployeeModal({
                 <div className="f-row-2">
                   <div className="f-group">
                     <label className="f-label" htmlFor="empFirstName">
-                      Ismi
+                      {t('firstName')}
                     </label>
                     <input type="text" id="empFirstName" className="f-input" value={emp.firstName} disabled />
                   </div>
                   <div className="f-group">
                     <label className="f-label" htmlFor="empLastName">
-                      Familiyasi
+                      {t('lastName')}
                     </label>
                     <input type="text" id="empLastName" className="f-input" value={emp.lastName} disabled />
                   </div>
                 </div>
                 <div className="f-group">
                   <label className="f-label" htmlFor="empRole">
-                    Lavozimi / Yo&apos;nalishi
+                    {t('role')}
                   </label>
                   <input type="text" id="empRole" className="f-input" value={emp.role} disabled />
                 </div>
               </>
             ) : (
               <div className="ceo-note">
-                Yangi xodim akkaunti (login, lavozim, shartnoma) Xodimlar bo&apos;limida ochiladi. Qo&apos;shilgach u shu jadvalda paydo bo&apos;ladi — avans, oylik, bonus va jarimani «+ Avans / Amal qo&apos;shish» orqali yozing.
+                {t('ceoNote')}
               </div>
             )}
           </div>
           <div className="m-foot">
             {emp ? (
               <Link href={`/profile/${emp.id}`} className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                Profilni ochish
+                {t('openProfile')}
               </Link>
             ) : (
               <span />
             )}
             <div className="m-foot-right">
               <button type="button" className="btn-ghost" onClick={onClose}>
-                Bekor qilish
+                {t('cancel')}
               </button>
               {emp ? null : (
                 <Link href="/staff" className="btn-main" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  Xodimlar bo&apos;limiga o&apos;tish
+                  {t('toStaff')}
                 </Link>
               )}
             </div>
@@ -826,6 +833,7 @@ function HistoryDrawer({
   onError: (e: string) => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const { t, fm, money, opLabel } = useMon();
   const prevM = getPreviousMonth(currM);
   const curr = calculateEmployeeMonthSummary(emp, transactions, currM);
   const prev = calculateEmployeeMonthSummary(emp, transactions, prevM);
@@ -834,27 +842,27 @@ function HistoryDrawer({
   const card = (label: string, sum: MonSummary, isCurrent: boolean) => (
     <div className={`d-card ${isCurrent ? 'curr' : ''} num`}>
       <div className="d-card-title">
-        {label} — {formatMonthUz(sum.period)}
+        {label} — {fm(sum.period)}
       </div>
       <div className="d-line">
-        <span className="muted">Avans berilgan:</span>
-        <strong>{formatUZS(sum.avansTotal)}</strong>
+        <span className="muted">{t('dAvans')}</span>
+        <strong>{money(sum.avansTotal)}</strong>
       </div>
       <div className="d-line">
-        <span className="muted">Oylik berilgan:</span>
-        <strong>{formatUZS(sum.salaryPayTotal)}</strong>
+        <span className="muted">{t('dSalary')}</span>
+        <strong>{money(sum.salaryPayTotal)}</strong>
       </div>
       <div className="d-line">
-        <span className="muted">Bonus (+):</span>
-        <strong className="accent-pos">+{formatUZS(sum.bonusTotal)}</strong>
+        <span className="muted">{t('dBonus')}</span>
+        <strong className="accent-pos">+{money(sum.bonusTotal)}</strong>
       </div>
       <div className="d-line">
-        <span className="muted">Jarima (−):</span>
-        <strong className="accent-neg">−{formatUZS(sum.penaltyTotal)}</strong>
+        <span className="muted">{t('dPenalty')}</span>
+        <strong className="accent-neg">−{money(sum.penaltyTotal)}</strong>
       </div>
       <div className="d-line sep">
-        <span>Oylik:</span>
-        <span>{formatUZS(sum.netPayable)}</span>
+        <span>{t('dNet')}</span>
+        <span>{money(sum.netPayable)}</span>
       </div>
     </div>
   );
@@ -867,18 +875,18 @@ function HistoryDrawer({
             {emp.firstName} {emp.lastName}
           </h2>
           <p className="sub">
-            {emp.role} • {formatMonthUz(currM)} oyligi: {formatUZS(curr.netPayable)}
-            {curr.avansRequested ? " • ✓ Avans so'ralgan" : ''}
+            {emp.role} • {t('drawerSub', { m: fm(currM), n: money(curr.netPayable) })}
+            {curr.avansRequested ? t('drawerReq') : ''}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button type="button" className="rbtn primary-soft" onClick={onAvans}>
-            + Avans
+            {t('bAvans')}
           </button>
           <button type="button" className="rbtn" onClick={onEdit}>
-            Tahrirlash
+            {t('edit')}
           </button>
-          <button type="button" className="m-close" aria-label="Yopish" onClick={onClose}>
+          <button type="button" className="m-close" aria-label={t('close')} onClick={onClose}>
             ×
           </button>
         </div>
@@ -886,18 +894,18 @@ function HistoryDrawer({
 
       <div className="d-body">
         <div className="d-compare">
-          {card('Oldingi oy', prev, false)}
-          {card('Hozirgi oy', curr, true)}
+          {card(t('cardPrev'), prev, false)}
+          {card(t('cardCurr'), curr, true)}
         </div>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <strong style={{ fontSize: 13.5 }}>Barcha Operatsiyalar Jurnali (Izohi va Oyi bilan)</strong>
-            <span className="tag num">{empTxs.length} ta yozuv</span>
+            <strong style={{ fontSize: 13.5 }}>{t('journal')}</strong>
+            <span className="tag num">{t('nRecords', { n: empTxs.length })}</span>
           </div>
           <div className="tx-list">
             {empTxs.length === 0 ? (
               <div className="empty-box" style={{ padding: 22 }}>
-                Hozircha operatsiyalar yo&apos;q.
+                {t('noOps')}
               </div>
             ) : (
               empTxs.map((tx) => {
@@ -909,24 +917,24 @@ function HistoryDrawer({
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span className={`pill ${meta.pillCls}`} style={{ border: '1px solid var(--border-light)' }}>
-                          {tx.shift ? 'Avans hisobi' : meta.label}
+                          {tx.shift ? t('advAccount') : opLabel(tx.type)}
                         </span>
-                        <span className="tag num">{formatMonthUz(tx.month)} hisobiga</span>
-                        {tx.auto && <span className="tag">avtomatik</span>}
+                        <span className="tag num">{t('forMonth', { m: fm(tx.month) })}</span>
+                        {tx.auto && <span className="tag">{t('auto')}</span>}
                       </div>
-                      <div className="tx-reason">Izoh: {tx.reason}</div>
-                      <div className="tx-date num">Sana: {tx.createdAt || '—'}</div>
+                      <div className="tx-reason">{t('noteOf', { n: tx.reason })}</div>
+                      <div className="tx-date num">{t('dateOf', { n: tx.createdAt || '—' })}</div>
                     </div>
                     <div className="tx-right num">
                       <strong className={colorCls} style={{ fontSize: 14 }}>
                         {prefix}
-                        {formatUZS(tx.amount)}
+                        {money(tx.amount)}
                       </strong>
                       {tx.entryId && (
                         <button
                           type="button"
                           className="tx-del"
-                          title="Ushbu yozuvni o'chirish"
+                          title={t('delTip')}
                           disabled={busy === tx.entryId}
                           onClick={async () => {
                             setBusy(tx.entryId);
@@ -936,7 +944,7 @@ function HistoryDrawer({
                             else onDeleted();
                           }}
                         >
-                          O&apos;chirish
+                          {t('delete')}
                         </button>
                       )}
                     </div>

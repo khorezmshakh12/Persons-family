@@ -23,14 +23,7 @@ import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-const DEPT_LABEL: Record<Department, string> = {
-  top: 'Rahbariyat',
-  acad: 'Akademik',
-  com: 'Tijorat',
-  ops: 'Operatsiya',
-  fin: 'Moliya',
-  hr: 'HR',
-};
+const DEPTS: Department[] = ['top', 'acad', 'com', 'ops', 'fin', 'hr'];
 
 /**
  * HR hub — all native. Leave and hiring moved off Core on 2026-11-21 (the
@@ -53,22 +46,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
   const allTabs: { k: Tab; n: string }[] = isManager
     ? [
-        { k: 'people', n: 'Xodimlar' },
-        { k: 'org', n: 'Tuzilma' },
-        { k: 'roadmap', n: 'Rivojlanish' },
-        { k: 'growth', n: 'Roadmap · Mind map' },
-        { k: 'onboarding', n: 'Onboarding' },
-        { k: 'analytics', n: 'Tahlil' },
-        { k: 'attendance', n: 'Davomat' },
-        { k: 'leave', n: 'Ta’til' },
-        { k: 'hiring', n: 'Ishga olish' },
+        { k: 'people', n: 'people' },
+        { k: 'org', n: 'org' },
+        { k: 'roadmap', n: 'roadmap' },
+        { k: 'growth', n: 'growth' },
+        { k: 'onboarding', n: 'onboarding' },
+        { k: 'analytics', n: 'analytics' },
+        { k: 'attendance', n: 'attendance' },
+        { k: 'leave', n: 'leave' },
+        { k: 'hiring', n: 'hiring' },
       ]
     : [
-        { k: 'people', n: 'Mening profilim' },
-        { k: 'roadmap', n: 'Rivojlanish' },
-        { k: 'growth', n: 'Roadmap · Mind map' },
-        { k: 'leave', n: 'Ta’til' },
-        ...(hiring ? [{ k: 'hiring' as const, n: 'Ishga olish' }] : []),
+        { k: 'people', n: 'me' },
+        { k: 'roadmap', n: 'roadmap' },
+        { k: 'growth', n: 'growth' },
+        { k: 'leave', n: 'leave' },
+        ...(hiring ? [{ k: 'hiring' as const, n: 'hiring' }] : []),
       ];
   // Core's per-person ACL can hide HR; Roadmap · Mind map stays open to
   // everyone (owner, 2026-11-16) and so does asking for leave.
@@ -82,6 +75,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const day = dayParam && DAY_RE.test(dayParam) ? dayParam : today;
 
   const tStaff = await getTranslations('staff');
+  const tp = await getTranslations('pg.hr');
+  const tDept = await getTranslations('att.dept');
+  const DEPT_LABEL = Object.fromEntries(DEPTS.map((d) => [d, d === 'hr' ? 'HR' : tDept(d)])) as Record<Department, string>;
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabel(tStaff, r)]));
   const native = tab === 'people' || tab === 'org' || tab === 'onboarding' || tab === 'analytics';
   const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
@@ -127,11 +123,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           <div className="relative z-10">
             <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">HR</h1>
             <p className="mt-1 text-sm text-au-muted">
-              {isManager ? 'Jamoa, tuzilma, yangi xodimlar va 360° profil — barcha bo‘limlar ma’lumoti bir joyda' : 'Profilingiz, onboarding va ta’til so‘rovlari'}
+              {isManager ? tp('subManager') : tp('subStaff')}
             </p>
           </div>
         </header>
-        <nav aria-label="HR bo‘limlari" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <nav aria-label={tp('navAria')} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div className="inline-flex rounded-au-ctl border border-au-line bg-au-card-2 p-1">
             {tabs.map((t) => (
               <Link
@@ -140,7 +136,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
                 aria-current={t.k === tab ? 'page' : undefined}
                 className={cn('inline-flex h-8 items-center rounded-[8px] px-3.5 text-sm font-semibold whitespace-nowrap transition-colors', t.k === tab ? 'bg-au-card text-au-ink shadow-au-card' : 'text-au-muted hover:text-au-ink')}
               >
-                {t.n}
+                {tp(t.n)}
               </Link>
             ))}
           </div>

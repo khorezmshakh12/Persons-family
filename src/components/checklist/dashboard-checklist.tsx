@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useTransition, type JSX } from 'react';
 import { Check, ListChecks } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ export function DashboardChecklist({
     Object.fromEntries(items.map((i) => [i.id, i.done])),
   );
   const [, start] = useTransition();
+  const tc = useTranslations('cl');
 
   const done = items.filter((i) => ticks[i.id]).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -39,20 +41,20 @@ export function DashboardChecklist({
       const res = await toggleTemplateTickAction(id, 'daily', next);
       if ('error' in res) {
         setTicks((prev) => ({ ...prev, [id]: !next }));
-        toast.error('Saqlanmadi. Qayta urinib ko‘ring.');
+        toast.error(tc('saveFail'));
       }
     });
   };
 
   return (
-    <section className={cn(SURFACE_CARD, 'flex min-w-0 flex-col gap-3 p-5')} aria-label="Bugungi checklist">
+    <section className={cn(SURFACE_CARD, 'flex min-w-0 flex-col gap-3 p-5')} aria-label={tc('today')}>
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-au-accent-soft text-au-accent-text">
           <ListChecks className="size-4" />
         </span>
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-bold text-au-ink">Bugungi checklist</h2>
-          <p className="text-xs text-au-muted">Kunlik rol vazifalaringiz</p>
+          <h2 className="text-base font-bold text-au-ink">{tc('today')}</h2>
+          <p className="text-xs text-au-muted">{tc('roleTasks')}</p>
         </div>
         {!noLessonToday && total > 0 && (
           <span className="shrink-0 text-xs font-semibold tabular-nums text-au-muted">
@@ -62,9 +64,9 @@ export function DashboardChecklist({
       </div>
 
       {noLessonToday ? (
-        <p className="text-sm text-au-muted">Bugun dars yo‘q — checklist shart emas.</p>
+        <p className="text-sm text-au-muted">{tc('noLesson')}</p>
       ) : total === 0 ? (
-        <p className="text-sm text-au-muted">Checklist topilmadi</p>
+        <p className="text-sm text-au-muted">{tc('notFound')}</p>
       ) : (
         <>
           <div className="h-1.5 overflow-hidden rounded-full bg-au-line">
@@ -100,7 +102,7 @@ export function DashboardChecklist({
       )}
 
       <Link href={href} className="mt-1 text-xs font-semibold text-au-muted transition-colors hover:text-au-ink">
-        Batafsil →
+        {tc('more')}
       </Link>
     </section>
   );

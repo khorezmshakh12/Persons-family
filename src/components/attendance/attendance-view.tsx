@@ -27,11 +27,12 @@ import {
   X,
 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import type { Department } from '@/lib/permissions';
 import {
+  ATTENDANCE_STATUSES,
   LATE_AFTER,
-  STATUS_LABEL,
   WORK_END,
   WORK_START,
   formatUzbekDay,
@@ -50,14 +51,29 @@ export type AttendanceRow = AttendanceRecord & {
 
 type Filter = 'all' | 'office' | 'late' | 'remote' | 'absent';
 
-const DEPT_LABEL: Record<Department, string> = {
-  top: 'Rahbariyat',
-  acad: 'Akademik',
-  com: 'Tijorat',
-  ops: 'Operatsiya',
-  fin: 'Moliya',
-  hr: 'HR va Boshqaruv',
-};
+const DEPTS: Department[] = ['top', 'acad', 'com', 'ops', 'fin', 'hr'];
+const rec = <K extends string>(keys: readonly K[], f: (k: K) => string) => Object.fromEntries(keys.map((k) => [k, f(k)])) as Record<K, string>;
+
+/** Labels, the day title and worked hours in the viewer's language. */
+function useAt() {
+  const t = useTranslations('att');
+  const ts = useTranslations('att.st');
+  const to = useTranslations('att.opt');
+  const td = useTranslations('att.dept');
+  const locale = useLocale();
+  const dayFmt = locale === 'uz' ? null : new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long', timeZone: 'UTC' });
+  return {
+    t,
+    st: rec(ATTENDANCE_STATUSES, (k) => ts(k)),
+    opt: rec(ATTENDANCE_STATUSES, (k) => to(k)),
+    dept: rec(DEPTS, (k) => td(k)),
+    day: (d: string) => (dayFmt && /^\d{4}-\d{2}-\d{2}$/.test(d) ? dayFmt.format(new Date(`${d}T00:00:00Z`)) : formatUzbekDay(d)),
+    wh: (a: string, b: string) => {
+      const s = workedHours(a, b);
+      return locale === 'uz' ? s : s.replace(/(\d+) s\b/, `$1 ${t('h')}`).replace(/(\d+) daq/, `$1 ${t('min')}`);
+    },
+  };
+}
 
 const AVATAR_COLORS = [
   'from-indigo-500 to-violet-600',
@@ -74,14 +90,6 @@ const STATUS_STYLE: Record<AttendanceStatus, { bg: string; dot: string }> = {
   remote: { bg: 'bg-sky-50 text-sky-700 border-sky-200', dot: 'bg-sky-500' },
   left: { bg: 'bg-slate-100 text-slate-700 border-slate-300', dot: 'bg-slate-500' },
   absent: { bg: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' },
-};
-
-const STATUS_OPTION: Record<AttendanceStatus, string> = {
-  office: '🟢 Ofisda (Kelgan)',
-  late: '🟡 Kechikdi',
-  remote: '🔵 Masofadan (Onlayn)',
-  left: '⚪ Ishdan ketgan',
-  absent: '🔴 Kelmadi (Yo‘q)',
 };
 
 const clockFmt = new Intl.DateTimeFormat('en-GB', {
@@ -127,6 +135,7 @@ const FIELD =
   'w-full rounded-xl border border-au-line bg-au-card px-3.5 py-2.5 text-sm text-au-ink focus:ring-2 focus:ring-indigo-500 focus:outline-none';
 
 export function AttendanceView({ day, today, initialRows }: { day: string; today: string; initialRows: AttendanceRow[] }) {
+  const A = useAt();
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
   const [filter, setFilter] = useState<Filter>('all');
@@ -169,7 +178,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
       });
       if (res.error) {
         setRows((rs) => rs.map((r) => (r.id === id ? before : r)));
-        toast.error('Saqlab bo‘lmadi — qayta urinib ko‘ring');
+        toast.error(A.t('saveFail'));
       } else if (kind === 'info') toast.info(message);
       else toast.success(message);
     });
@@ -182,15 +191,15 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
       if (value > LATE_AFTER) patch.status = 'late';
       else if (r.status === 'absent') patch.status = 'office';
     }
-    commit(r.id, patch, `${r.name}ning ${field === 'checkIn' ? 'kelish' : 'ketish'} vaqti (${value || 'bo‘sh'}) saqlandi`);
+    commit(r.id, patch, A.t('timeSaved', { n: r.name, f: field === 'checkIn' ? A.t('fIn') : A.t('fOut'), v: value || A.t('empty') }));
   }
 
   function quickNow(r: AttendanceRow, field: 'checkIn' | 'checkOut') {
     const t = nowHm();
     if (field === 'checkIn') {
-      commit(r.id, { checkIn: t, status: t > LATE_AFTER ? 'late' : 'office' }, `${r.name} soat ${t} da ishga keldi deb belgilandi`);
+      commit(r.id, { checkIn: t, status: t > LATE_AFTER ? 'late' : 'office' }, A.t('cameAt', { n: r.name, t }));
     } else {
-      commit(r.id, { checkOut: t, status: 'left' }, `${r.name} soat ${t} da ishdan ketdi deb belgilandi`, 'info');
+      commit(r.id, { checkOut: t, status: 'left' }, A.t('leftAt', { n: r.name, t }), 'info');
     }
   }
 
@@ -202,12 +211,12 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
     } else if ((status === 'office' || status === 'late') && !r.checkIn) {
       patch.checkIn = status === 'late' ? '09:15' : WORK_START;
     }
-    commit(r.id, patch, `${r.name} statusi "${STATUS_LABEL[status]}" ga o‘zgartirildi`);
+    commit(r.id, patch, A.t('statusChanged', { n: r.name, s: A.st[status] }));
   }
 
   function updateNote(r: AttendanceRow, note: string) {
     if (note.trim() === r.note) return;
-    commit(r.id, { note: note.trim() }, `${r.name} uchun izoh yangilandi`, 'info');
+    commit(r.id, { note: note.trim() }, A.t('noteUpdated', { n: r.name }), 'info');
   }
 
   function markAll() {
@@ -217,8 +226,8 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
       const res = await markAllPresentAction(day);
       if (res.error) {
         setRows(before);
-        toast.error('Saqlab bo‘lmadi — qayta urinib ko‘ring');
-      } else toast.success('Barcha xodimlar "Ofisda" deb belgilandi');
+        toast.error(A.t('saveFail'));
+      } else toast.success(A.t('allOffice'));
     });
   }
 
@@ -232,20 +241,20 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
       const res = await clearAttendanceAction(target.id, day);
       if (res.error) {
         setRows((rs) => rs.map((r) => (r.id === target.id ? before : r)));
-        toast.error('O‘chirib bo‘lmadi — qayta urinib ko‘ring');
-      } else toast.error(`${target.name} davomat yozuvi o‘chirildi`);
+        toast.error(A.t('delFail'));
+      } else toast.error(A.t('deleted', { n: target.name }));
     });
   }
 
   function exportCsv() {
     if (!rows.length) {
-      toast.error('Eksport qilish uchun ma‘lumot yo‘q');
+      toast.error(A.t('noExport'));
       return;
     }
     const q = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
-    const headers = ['ID', 'F.I.Sh', 'Bo‘lim', 'Lavozim', 'Sana', 'Kelgan vaqti', 'Ketgan vaqti', 'Status', 'Izoh'];
+    const headers = A.t('csvHead').split(',');
     const lines = rows.map((r) =>
-      [r.id, q(r.name), q(DEPT_LABEL[r.dept]), q(r.roleLabel), day, r.checkIn || '-', r.checkOut || '-', STATUS_LABEL[r.status], q(r.note)].join(','),
+      [r.id, q(r.name), q(A.dept[r.dept]), q(r.roleLabel), day, r.checkIn || '-', r.checkOut || '-', A.st[r.status], q(r.note)].join(','),
     );
     const blob = new Blob(['﻿' + [headers.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -256,7 +265,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    toast.success(`Davomat jadvali (davomat_${day}.csv) yuklab olindi!`);
+    toast.success(A.t('exported', { f: `davomat_${day}.csv` }));
   }
 
   function resetFilters() {
@@ -292,7 +301,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
       (!q ||
         r.name.toLowerCase().includes(q) ||
         r.roleLabel.toLowerCase().includes(q) ||
-        DEPT_LABEL[r.dept].toLowerCase().includes(q) ||
+        A.dept[r.dept].toLowerCase().includes(q) ||
         r.note.toLowerCase().includes(q)),
   );
 
@@ -304,11 +313,11 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
     absent: stats.absent,
   };
   const TABS: [Filter, string][] = [
-    ['all', 'Barchasi'],
-    ['office', 'Ofisda'],
-    ['late', 'Kechikkanlar'],
-    ['remote', 'Masofadan / Ketgan'],
-    ['absent', 'Kelmaganlar'],
+    ['all', A.t('tAll')],
+    ['office', A.t('tOffice')],
+    ['late', A.t('tLate')],
+    ['remote', A.t('tRemote')],
+    ['absent', A.t('tAbsent')],
   ];
 
   const editing = rows.find((r) => r.id === editId) ?? null;
@@ -324,14 +333,14 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Xodimlar Davomati</h1>
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{A.t('title')}</h1>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                 <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                Jonli tizim
+                {A.t('live')}
               </span>
             </div>
             <p className="text-xs text-au-muted sm:text-sm">
-              Xodimlarning kelish-ketish vaqtlarini istalgan paytda kiritish, tahrirlash va nazorat qilish
+              {A.t('sub')}
             </p>
           </div>
         </div>
@@ -348,7 +357,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
             <button
               type="button"
               onClick={() => goTo(shiftDay(day, -1))}
-              title="Oldingi kun"
+              title={A.t('prevDay')}
               className="flex size-8 items-center justify-center rounded-lg text-au-muted transition hover:bg-au-card hover:text-indigo-600 hover:shadow-sm"
             >
               <ChevronLeft className="size-3.5" />
@@ -362,7 +371,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
             <button
               type="button"
               onClick={() => goTo(shiftDay(day, 1))}
-              title="Keyingi kun"
+              title={A.t('nextDay')}
               className="flex size-8 items-center justify-center rounded-lg text-au-muted transition hover:bg-au-card hover:text-indigo-600 hover:shadow-sm"
             >
               <ChevronRight className="size-3.5" />
@@ -372,18 +381,18 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
               onClick={() => goTo(today)}
               className="ml-1 rounded-lg border border-au-line bg-au-card px-2.5 py-1 text-xs font-semibold text-indigo-600 shadow-sm transition hover:bg-indigo-50"
             >
-              Bugun
+              {A.t('today')}
             </button>
           </div>
 
           <button
             type="button"
             onClick={exportCsv}
-            title="Excel / CSV formatda yuklab olish"
+            title={A.t('exportTitle')}
             className="flex items-center gap-2 rounded-xl border border-au-line bg-au-card px-3.5 py-2.5 text-sm font-medium shadow-sm transition hover:bg-au-card-2"
           >
             <FileDown className="size-4 text-au-muted" />
-            <span className="hidden sm:inline">Eksport</span>
+            <span className="hidden sm:inline">{A.t('export')}</span>
           </button>
         </div>
       </div>
@@ -393,71 +402,71 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
         <StatCard
           onClick={() => setFilter('all')}
           hover="hover:border-indigo-300"
-          label="Jami Ro‘yxatda"
+          label={A.t('sTotal')}
           value={stats.total}
           valueClass=""
           icon={<Users className="size-5" />}
           iconClass="bg-indigo-50 text-indigo-600"
-          foot="Shu sanadagi xodimlar"
-          right={<span className="font-medium text-indigo-600">Barchasi &rarr;</span>}
+          foot={A.t('sTotalFoot')}
+          right={<span className="font-medium text-indigo-600">{A.t('all')}</span>}
         />
         <StatCard
           onClick={() => setFilter('office')}
           hover="hover:border-emerald-300"
-          label="Ofisda / Faol"
+          label={A.t('sOffice')}
           value={stats.office}
           valueClass="text-emerald-600"
           icon={<UserCheck className="size-5" />}
           iconClass="bg-emerald-50 text-emerald-600"
-          foot="O‘z vaqtida kelgan"
+          foot={A.t('sOfficeFoot')}
           right={<span className="font-semibold text-emerald-600">{stats.officePct}%</span>}
         />
         <StatCard
           onClick={() => setFilter('late')}
           hover="hover:border-amber-300"
-          label="Kechikkanlar"
+          label={A.t('sLate')}
           value={stats.late}
           valueClass="text-amber-500"
           icon={<AlarmClock className="size-5" />}
           iconClass="bg-amber-50 text-amber-500"
-          foot={`${LATE_AFTER} dan keyin kelgan`}
-          right={<span className="font-medium text-amber-600">Ko‘rish &rarr;</span>}
+          foot={A.t('sLateFoot', { t: LATE_AFTER })}
+          right={<span className="font-medium text-amber-600">{A.t('view')}</span>}
         />
         <StatCard
           onClick={() => setFilter('remote')}
           hover="hover:border-sky-300"
-          label="Masofadan / Ketgan"
+          label={A.t('sRemote')}
           value={stats.remote}
           valueClass="text-sky-600"
           icon={<Laptop className="size-5" />}
           iconClass="bg-sky-50 text-sky-600"
-          foot="Onlayn yoki ishni tugatgan"
-          right={<span className="font-medium text-sky-600">Ko‘rish &rarr;</span>}
+          foot={A.t('sRemoteFoot')}
+          right={<span className="font-medium text-sky-600">{A.t('view')}</span>}
         />
         <StatCard
           onClick={() => setFilter('absent')}
           hover="hover:border-rose-300"
-          label="Kelmaganlar"
+          label={A.t('sAbsent')}
           value={stats.absent}
           valueClass="text-rose-600"
           icon={<UserX className="size-5" />}
           iconClass="bg-rose-50 text-rose-600"
-          foot="Sababli / Sababsiz yo‘q"
-          right={<span className="font-medium text-rose-600">Ko‘rish &rarr;</span>}
+          foot={A.t('sAbsentFoot')}
+          right={<span className="font-medium text-rose-600">{A.t('view')}</span>}
         />
       </div>
 
       {/* Umumiy davomat ko‘rsatkichi */}
       <div className={cn(CARD, 'flex flex-col justify-between gap-4 px-5 py-4 sm:flex-row sm:items-center')}>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold">Kunlik faollik ko‘rsatkichi:</span>
-          <span className="rounded-lg bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">{stats.rate}% ishtirok</span>
+          <span className="text-sm font-semibold">{A.t('rateLabel')}</span>
+          <span className="rounded-lg bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">{A.t('rate', { n: stats.rate })}</span>
         </div>
         <div className="flex h-2.5 w-full max-w-xl flex-1 overflow-hidden rounded-full bg-au-card-2">
-          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${stats.w.office}%` }} title="Ofisda" />
-          <div className="h-full bg-amber-400 transition-all duration-500" style={{ width: `${stats.w.late}%` }} title="Kechikdi" />
-          <div className="h-full bg-sky-500 transition-all duration-500" style={{ width: `${stats.w.remote}%` }} title="Masofadan / Ketgan" />
-          <div className="h-full bg-rose-400 transition-all duration-500" style={{ width: `${stats.w.absent}%` }} title="Kelmadi" />
+          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${stats.w.office}%` }} title={A.st.office} />
+          <div className="h-full bg-amber-400 transition-all duration-500" style={{ width: `${stats.w.late}%` }} title={A.st.late} />
+          <div className="h-full bg-sky-500 transition-all duration-500" style={{ width: `${stats.w.remote}%` }} title={A.t('tRemote')} />
+          <div className="h-full bg-rose-400 transition-all duration-500" style={{ width: `${stats.w.absent}%` }} title={A.st.absent} />
         </div>
         <div className="flex items-center gap-3 text-xs">
           <button
@@ -465,7 +474,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
             onClick={markAll}
             className="flex items-center gap-1 font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
           >
-            <CheckCheck className="size-3.5" /> Barchani &quot;Ofisda&quot; qilish
+            <CheckCheck className="size-3.5" /> {A.t('markAll')}
           </button>
         </div>
       </div>
@@ -506,10 +515,10 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
               onChange={(e) => setDept(e.target.value as 'all' | Department)}
               className="rounded-xl border border-au-line bg-au-card px-3.5 py-2 text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
-              <option value="all">Barcha bo‘limlar</option>
-              {(Object.keys(DEPT_LABEL) as Department[]).map((d) => (
+              <option value="all">{A.t('allDepts')}</option>
+              {(DEPTS).map((d) => (
                 <option key={d} value={d}>
-                  {DEPT_LABEL[d]}
+                  {A.dept[d]}
                 </option>
               ))}
             </select>
@@ -518,7 +527,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ism, lavozim yoki izoh..."
+                placeholder={A.t('searchPh')}
                 className="w-full rounded-xl border border-au-line bg-au-card py-2 pr-8 pl-9 text-sm placeholder:text-au-faint focus:border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
               <Search className="absolute top-2.5 left-3.5 size-4 text-au-faint" />
@@ -535,12 +544,11 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-indigo-600" />
             <span>
-              <strong>Tezkor boshqaruv:</strong> Vaqt katakchalarini yoki statusni to‘g‘ridan-to‘g‘ri jadvalning o‘zida
-              o‘zgartirishingiz mumkin — o‘zgarishlar avtomatik saqlanadi!
+              <strong>{A.t('quick')}</strong> {A.t('quickHint')}
             </span>
           </div>
           <span className="flex items-center gap-1 font-semibold text-indigo-700">
-            <CalendarCheck className="size-3.5" /> {formatUzbekDay(day)}
+            <CalendarCheck className="size-3.5" /> {A.day(day)}
           </span>
         </div>
 
@@ -548,14 +556,14 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-au-line bg-au-card-2/80 text-[11px] font-bold tracking-wider text-au-muted uppercase">
-                <th className="px-5 py-3.5">Xodim</th>
-                <th className="px-4 py-3.5">Bo‘lim / Lavozim</th>
-                <th className="px-4 py-3.5">Kelgan vaqti (Kirish)</th>
-                <th className="px-4 py-3.5">Ketgan vaqti (Chiqish)</th>
-                <th className="px-4 py-3.5">Ishlagan soati</th>
-                <th className="px-4 py-3.5">Status (Holati)</th>
-                <th className="px-4 py-3.5">Izoh</th>
-                <th className="px-5 py-3.5 text-right">Boshqarish</th>
+                <th className="px-5 py-3.5">{A.t('hStaff')}</th>
+                <th className="px-4 py-3.5">{A.t('hDept')}</th>
+                <th className="px-4 py-3.5">{A.t('hIn')}</th>
+                <th className="px-4 py-3.5">{A.t('hOut')}</th>
+                <th className="px-4 py-3.5">{A.t('hHours')}</th>
+                <th className="px-4 py-3.5">{A.t('hStatus')}</th>
+                <th className="px-4 py-3.5">{A.t('hNote')}</th>
+                <th className="px-5 py-3.5 text-right">{A.t('hManage')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-au-line text-sm">
@@ -581,7 +589,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="text-xs font-medium sm:text-sm">{r.roleLabel}</div>
-                      <div className="text-xs text-au-faint">{DEPT_LABEL[r.dept]}</div>
+                      <div className="text-xs text-au-faint">{A.dept[r.dept]}</div>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5">
@@ -595,10 +603,10 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                         <button
                           type="button"
                           onClick={() => quickNow(r, 'checkIn')}
-                          title="Hozirgi vaqtda keldi deb belgilash"
+                          title={A.t('cameNow')}
                           className="rounded-lg bg-emerald-50 px-2 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                         >
-                          Keldi
+                          {A.t('came')}
                         </button>
                       </div>
                     </td>
@@ -614,17 +622,17 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                         <button
                           type="button"
                           onClick={() => quickNow(r, 'checkOut')}
-                          title="Hozirgi vaqtda ketdi deb belgilash"
+                          title={A.t('leftNow')}
                           className="rounded-lg bg-au-card-2 px-2 py-1.5 text-xs font-semibold transition hover:bg-au-line"
                         >
-                          Ketdi
+                          {A.t('leftB')}
                         </button>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-au-card-2 px-2.5 py-1 text-xs font-semibold whitespace-nowrap">
                         <Hourglass className="size-3 text-au-faint" />
-                        {workedHours(r.checkIn, r.checkOut)}
+                        {A.wh(r.checkIn, r.checkOut)}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
@@ -637,9 +645,9 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                             st.bg,
                           )}
                         >
-                          {(Object.keys(STATUS_LABEL) as AttendanceStatus[]).map((s) => (
+                          {(ATTENDANCE_STATUSES).map((s) => (
                             <option key={s} value={s}>
-                              {STATUS_LABEL[s]}
+                              {A.st[s]}
                             </option>
                           ))}
                         </select>
@@ -652,7 +660,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                         key={`note-${r.note}`}
                         type="text"
                         defaultValue={r.note}
-                        placeholder="Izoh yozish..."
+                        placeholder={A.t('notePh')}
                         onBlur={(e) => updateNote(r, e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                         className="w-full min-w-[140px] rounded-lg border border-transparent bg-transparent px-2.5 py-1.5 text-xs text-au-muted transition hover:border-au-line hover:bg-au-card-2 focus:border-indigo-400 focus:bg-au-card focus:text-au-ink focus:outline-none"
@@ -663,7 +671,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                         <button
                           type="button"
                           onClick={() => setEditId(r.id)}
-                          title="To‘liq tahrirlash"
+                          title={A.t('fullEdit')}
                           className="flex size-8 items-center justify-center rounded-lg text-au-muted transition hover:bg-indigo-50 hover:text-indigo-600"
                         >
                           <SquarePen className="size-4" />
@@ -671,7 +679,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                         <button
                           type="button"
                           onClick={() => setDeleteId(r.id)}
-                          title="O‘chirish"
+                          title={A.t('delete')}
                           className="flex size-8 items-center justify-center rounded-lg text-au-muted transition hover:bg-rose-50 hover:text-rose-600"
                         >
                           <Trash2 className="size-4" />
@@ -690,9 +698,9 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
             <div className="mx-auto mb-3 flex size-16 items-center justify-center rounded-2xl bg-au-card-2 text-au-faint">
               <FolderOpen className="size-7" />
             </div>
-            <h3 className="text-base font-bold">Ma‘lumot topilmadi</h3>
+            <h3 className="text-base font-bold">{A.t('notFound')}</h3>
             <p className="mx-auto mt-1 max-w-md text-xs text-au-muted sm:text-sm">
-              Ushbu qidiruv yoki filtr bo‘yicha xodimlar mavjud emas. Filtrlarni tozalashingiz mumkin.
+              {A.t('notFoundSub')}
             </p>
             <div className="mt-4 flex items-center justify-center gap-3">
               <button
@@ -700,7 +708,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                 onClick={resetFilters}
                 className="rounded-xl border border-au-line px-4 py-2 text-xs font-semibold transition hover:bg-au-card-2"
               >
-                Filtrlarni tozalash
+                {A.t('clear')}
               </button>
             </div>
           </div>
@@ -708,14 +716,14 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
 
         <div className="flex flex-col items-center justify-between gap-2 border-t border-au-line bg-au-card-2/70 px-5 py-3.5 text-xs text-au-muted sm:flex-row">
           <div>
-            Jami {rows.length} ta xodimdan {filtered.length} tasi ko‘rsatilmoqda
+            {A.t('showing', { t: rows.length, n: filtered.length })}
           </div>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-emerald-500" /> Ish boshlanishi: <strong>{WORK_START}</strong>
+              <span className="size-2 rounded-full bg-emerald-500" /> {A.t('workStart')} <strong>{WORK_START}</strong>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-indigo-500" /> Ish tugashi: <strong>{WORK_END}</strong>
+              <span className="size-2 rounded-full bg-indigo-500" /> {A.t('workEnd')} <strong>{WORK_END}</strong>
             </span>
           </div>
         </div>
@@ -728,7 +736,7 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
           onClose={() => setEditId(null)}
           onSave={(rec) => {
             setEditId(null);
-            commit(editing.id, rec, `${editing.name} ma‘lumotlari muvaffaqiyatli yangilandi!`);
+            commit(editing.id, rec, A.t('updated', { n: editing.name }));
           }}
         />
       )}
@@ -742,9 +750,9 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
             <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
               <Trash2 className="size-6" />
             </div>
-            <h3 className="text-lg font-bold">Yozuvni o‘chirasizmi?</h3>
+            <h3 className="text-lg font-bold">{A.t('delQ')}</h3>
             <p className="mt-1.5 text-xs text-au-muted sm:text-sm">
-              Siz rostdan ham <strong className="text-au-ink">{deleting.name}</strong>ning shu kungi davomat yozuvini o‘chirmoqchimisiz?
+              {A.t.rich('delSure', { n: deleting.name, b: (c) => <strong className="text-au-ink">{c}</strong> })}
             </p>
             <div className="mt-6 flex items-center justify-center gap-3">
               <button
@@ -752,14 +760,14 @@ export function AttendanceView({ day, today, initialRows }: { day: string; today
                 onClick={() => setDeleteId(null)}
                 className="flex-1 rounded-xl border border-au-line px-4 py-2.5 text-sm font-semibold transition hover:bg-au-card-2"
               >
-                Yo‘q, qolsin
+                {A.t('keep')}
               </button>
               <button
                 type="button"
                 onClick={confirmDelete}
                 className="flex-1 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-rose-500/20 transition hover:bg-rose-700"
               >
-                Ha, o‘chirilsin
+                {A.t('yesDel')}
               </button>
             </div>
           </div>
@@ -810,6 +818,7 @@ function StatCard({
 /** Full edit of one day's record. Name, department and position come from
  * the staff profile and are shown read-only — no adding people here. */
 function EditModal({ row, onClose, onSave }: { row: AttendanceRow; onClose: () => void; onSave: (r: AttendanceRecord) => void }) {
+  const A = useAt();
   const [checkIn, setCheckIn] = useState(row.checkIn);
   const [checkOut, setCheckOut] = useState(row.checkOut);
   const [status, setStatus] = useState<AttendanceStatus>(row.status);
@@ -832,8 +841,8 @@ function EditModal({ row, onClose, onSave }: { row: AttendanceRow; onClose: () =
               <UserRoundCog className="size-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold">Xodim davomatini tahrirlash</h3>
-              <p className="text-xs text-au-muted">Barcha ma‘lumotlarni istalgan payt o‘zgartirish mumkin</p>
+              <h3 className="text-base font-bold">{A.t('editTitle')}</h3>
+              <p className="text-xs text-au-muted">{A.t('editSub')}</p>
             </div>
           </div>
           <button
@@ -854,52 +863,52 @@ function EditModal({ row, onClose, onSave }: { row: AttendanceRow; onClose: () =
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-semibold">Xodimning F.I.Sh</label>
+              <label className="mb-1 block text-xs font-semibold">{A.t('fullName')}</label>
               <input value={row.name} readOnly className={cn(FIELD, 'bg-au-card-2 text-au-muted')} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold">Bo‘lim</label>
-              <input value={DEPT_LABEL[row.dept]} readOnly className={cn(FIELD, 'bg-au-card-2 text-au-muted')} />
+              <label className="mb-1 block text-xs font-semibold">{A.t('dept')}</label>
+              <input value={A.dept[row.dept]} readOnly className={cn(FIELD, 'bg-au-card-2 text-au-muted')} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold">Lavozimi</label>
+              <label className="mb-1 block text-xs font-semibold">{A.t('position')}</label>
               <input value={row.roleLabel} readOnly className={cn(FIELD, 'bg-au-card-2 text-au-muted')} />
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="block text-xs font-semibold">Kelgan vaqti (Kirish)</label>
+                <label className="block text-xs font-semibold">{A.t('hIn')}</label>
                 <button type="button" onClick={() => setCheckIn(nowHm())} className="text-[11px] font-semibold text-indigo-600 hover:underline">
-                  Hozirgi vaqt
+                  {A.t('now')}
                 </button>
               </div>
               <input type="time" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className={FIELD} />
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className="block text-xs font-semibold">Ketgan vaqti (Chiqish)</label>
+                <label className="block text-xs font-semibold">{A.t('hOut')}</label>
                 <button type="button" onClick={() => setCheckOut(nowHm())} className="text-[11px] font-semibold text-indigo-600 hover:underline">
-                  Hozirgi vaqt
+                  {A.t('now')}
                 </button>
               </div>
               <input type="time" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} className={FIELD} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold">Davomat holati (Status)</label>
+              <label className="mb-1 block text-xs font-semibold">{A.t('statusL')}</label>
               <select value={status} onChange={(e) => onStatus(e.target.value as AttendanceStatus)} className={cn(FIELD, 'font-medium')}>
-                {(Object.keys(STATUS_OPTION) as AttendanceStatus[]).map((s) => (
+                {(ATTENDANCE_STATUSES).map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_OPTION[s]}
+                    {A.opt[s]}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold">Izoh / Sabab (Ixtiyoriy)</label>
+              <label className="mb-1 block text-xs font-semibold">{A.t('noteL')}</label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Masalan: Tirbandlik sababli, Ta‘tilda..."
+                placeholder={A.t('noteEx')}
                 className={FIELD}
               />
             </div>
@@ -911,14 +920,14 @@ function EditModal({ row, onClose, onSave }: { row: AttendanceRow; onClose: () =
               onClick={onClose}
               className="rounded-xl border border-au-line px-4 py-2.5 text-sm font-semibold transition hover:bg-au-card-2"
             >
-              Bekor qilish
+              {A.t('cancel')}
             </button>
             <button
               type="submit"
               className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700"
             >
               <Check className="size-4" />
-              O‘zgarishlarni saqlash
+              {A.t('saveChanges')}
             </button>
           </div>
         </form>

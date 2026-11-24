@@ -76,7 +76,8 @@ export function carryLabel(scope: GoalScope, carry: number): string {
   return `↻ ${carry}-${CARRY_UNIT[scope]} ko‘chmoqda`;
 }
 
-export type DueChip = { text: string; tone: 'neutral' | 'soon' | 'late' | 'ok' };
+/** `k` + `v`: a messages key (goals.chip.*) and its values for the UI language; `text` is the Uzbek fallback. */
+export type DueChip = { text: string; tone: 'neutral' | 'soon' | 'late' | 'ok'; k?: string; v?: Record<string, string | number> };
 
 /** The deadline chip. `now` is null before the client has a clock (SSR),
  * which renders the plain deadline only — no "qoldi" that could mismatch. */
@@ -84,22 +85,24 @@ export function dueChip(g: GoalItem, now: { day: string; clock: string } | null)
   if (!g.dueDate) return null;
   if (g.done) {
     const late = g.doneAt && g.dueTime ? g.doneAt > g.dueTime : false;
-    return late ? { text: 'kechikib bajarildi', tone: 'neutral' } : { text: '✓ muddatida', tone: 'ok' };
+    return late ? { text: 'kechikib bajarildi', tone: 'neutral', k: 'doneLate' } : { text: '✓ muddatida', tone: 'ok', k: 'doneOnTime' };
   }
   const [, m, d] = g.dueDate.split('-');
   if (g.dueTime && (g.scope === 'day' || (now && g.dueDate === now.day))) {
-    if (!now) return { text: `⏰ ${g.dueTime}`, tone: 'neutral' };
-    if (g.dueDate < now.day || (g.dueDate === now.day && g.dueTime <= now.clock)) return { text: `${g.dueTime} · muddat o‘tdi`, tone: 'late' };
-    if (g.dueDate > now.day) return { text: `⏰ ${d}.${m} ${g.dueTime}`, tone: 'neutral' };
+    if (!now) return { text: `⏰ ${g.dueTime}`, tone: 'neutral', k: 'time', v: { t: g.dueTime } };
+    if (g.dueDate < now.day || (g.dueDate === now.day && g.dueTime <= now.clock)) return { text: `${g.dueTime} · muddat o‘tdi`, tone: 'late', k: 'timeLate', v: { t: g.dueTime } };
+    if (g.dueDate > now.day) return { text: `⏰ ${d}.${m} ${g.dueTime}`, tone: 'neutral', k: 'dateTime', v: { d: `${d}.${m}`, t: g.dueTime } };
     const mins = toMin(g.dueTime) - toMin(now.clock);
-    if (mins > 120) return { text: `⏰ ${g.dueTime}`, tone: 'neutral' };
-    return { text: `⏰ ${g.dueTime} · ${mins >= 60 ? `${Math.floor(mins / 60)} soat ` : ''}${mins % 60} daq qoldi`, tone: 'soon' };
+    if (mins > 120) return { text: `⏰ ${g.dueTime}`, tone: 'neutral', k: 'time', v: { t: g.dueTime } };
+    return mins >= 60
+      ? { text: `⏰ ${g.dueTime} · ${Math.floor(mins / 60)} soat ${mins % 60} daq qoldi`, tone: 'soon', k: 'leftHM', v: { t: g.dueTime, h: Math.floor(mins / 60), m: mins % 60 } }
+      : { text: `⏰ ${g.dueTime} · ${mins % 60} daq qoldi`, tone: 'soon', k: 'leftM', v: { t: g.dueTime, m: mins % 60 } };
   }
-  if (!now) return { text: `📅 ${d}.${m}`, tone: 'neutral' };
+  if (!now) return { text: `📅 ${d}.${m}`, tone: 'neutral', k: 'date', v: { d: `${d}.${m}` } };
   const days = Math.round((Date.parse(`${g.dueDate}T00:00:00Z`) - Date.parse(`${now.day}T00:00:00Z`)) / 86_400_000);
-  if (days < 0) return { text: `📅 ${d}.${m} · muddat o‘tdi`, tone: 'late' };
-  if (days === 0) return { text: `📅 bugun`, tone: 'soon' };
-  return { text: `📅 ${d}.${m} · ${days} kun qoldi`, tone: days <= 2 ? 'soon' : 'neutral' };
+  if (days < 0) return { text: `📅 ${d}.${m} · muddat o‘tdi`, tone: 'late', k: 'dateLate', v: { d: `${d}.${m}` } };
+  if (days === 0) return { text: `📅 bugun`, tone: 'soon', k: 'today' };
+  return { text: `📅 ${d}.${m} · ${days} kun qoldi`, tone: days <= 2 ? 'soon' : 'neutral', k: 'daysLeft', v: { d: `${d}.${m}`, n: days } };
 }
 
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));

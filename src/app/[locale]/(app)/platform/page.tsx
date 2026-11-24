@@ -30,6 +30,7 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
   const tg = canSeeFor(profile!, 'telegramSetup');
   if (!lead && !tg) redirect({ href: '/dashboard', locale });
   const t = await getTranslations('platform');
+  const tp = await getTranslations('pg.plat');
   const q = (await searchParams).tab;
   const tab = !lead ? 'telegram' : (TABS as readonly string[]).includes(q ?? '') ? (q as (typeof TABS)[number]) : 'roles';
 
@@ -96,9 +97,9 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
                 roles: t('tabs.roles'),
                 access: t('tabs.access'),
                 targets: t('tabs.targets'),
-                health: 'Tizim holati',
-                quality: 'Ma’lumot sifati',
-                journal: 'Jurnal',
+                health: tp('health'),
+                quality: tp('quality'),
+                journal: tp('journal'),
                 ...(tg ? { telegram: 'Telegram' } : {}),
               }
             : { telegram: 'Telegram' }

@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server';
 import { getAuthState } from '@/lib/auth/session';
 import { can } from '@/lib/permissions';
 import { tashkentDayKey, addDaysToKey } from '@/lib/time';
@@ -18,6 +19,7 @@ export default async function CompanyNewsPage({ searchParams }: { searchParams: 
   const tab = (await searchParams).tab === 'calendar' ? 'calendar' : 'news';
   const isAdmin = can(profile!.role, 'news.publish');
   const today = tashkentDayKey();
+  const t = await getTranslations('pg.news');
 
   let body: React.ReactNode;
   if (tab === 'calendar') {
@@ -36,14 +38,14 @@ export default async function CompanyNewsPage({ searchParams }: { searchParams: 
       {tab === 'news' && <MarkCompanyNewsSeen />}
       <div className="relative flex flex-col gap-1 overflow-hidden rounded-au-card bg-au-hero px-6 py-6 sm:px-[30px] sm:py-7">
         <BgVideo variant="hero" />
-        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">Jamoa hayoti</h1>
-        <p className="text-au-muted">E’lonlar, tadbirlar, muddatlar, ta’tillar va bayramlar — bir joyda.</p>
+        <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
+        <p className="text-au-muted">{t('sub')}</p>
       </div>
-      <nav className="inline-flex self-start rounded-au-ctl border border-au-line bg-au-card-2 p-1" aria-label="Jamoa hayoti">
+      <nav className="inline-flex self-start rounded-au-ctl border border-au-line bg-au-card-2 p-1" aria-label={t('title')}>
         {(
           [
-            ['news', 'E’lonlar', '/company-news'],
-            ['calendar', 'Kalendar', '/company-news?tab=calendar'],
+            ['news', t('news'), '/company-news'],
+            ['calendar', t('calendar'), '/company-news?tab=calendar'],
           ] as const
         ).map(([k, n, href]) => (
           <Link

@@ -53,11 +53,9 @@ import { getBpointSnapshotAction } from '@/lib/actions/bpoint';
 import type { BpointGoalView } from '@/lib/bpoint-data';
 import {
   blockers,
-  COMPONENT_LABEL,
   EDITABLE_SOURCES,
   FLAG_META,
   isRelevant,
-  monthLabel,
   REVERSIBLE,
   shiftMonth,
   totals,
@@ -66,6 +64,8 @@ import {
 } from '@/lib/pay-run';
 import type { AdvanceRequest, MonthPoint, PayRun, PayRunLogEntry, RecentEntry, Reimbursement } from '@/lib/pay-run-data';
 import type { CashBox } from '@/lib/pay-cash';
+import { useLocale, useTranslations } from 'next-intl';
+import { monthYear } from '@/lib/month-names';
 import { downloadPayslips } from './payslip';
 import { MonthBars } from './month-bars';
 
@@ -90,52 +90,42 @@ const ICON_BTN =
   'inline-grid size-9 shrink-0 place-items-center rounded-xl text-au-muted transition hover:bg-au-card-2 hover:text-au-ink disabled:pointer-events-none disabled:opacity-35';
 const CHIP = 'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-bold';
 
-const ERR: Record<string, string> = {
-  overLimit: 'Bu oy avanslar jami maoshdan oshib ketadi',
-  noSalary: 'Bu oy uchun maosh belgilanmagan — avval maoshni kiriting',
-  pastMonth: 'O‘tib ketgan oyni tanlab bo‘lmaydi',
-  nothingOwed: 'To‘lanadigan qoldiq yo‘q',
-  systemEntry: 'Bu yozuvni tizim yaratgan — uni o‘z bo‘limida o‘zgartiring',
-  groupedAdvance: 'Bo‘lib ushlanadigan avans bir butun — o‘chirib, qaytadan kiriting',
-  alreadyDecided: 'Bu so‘rov allaqachon hal qilingan',
-  reasonRequired: 'Sababini yozing',
-  aiDisabled: 'Jev ulanmagan',
-  aiFailed: 'Jev javob bermadi — keyinroq urinib ko‘ring',
-  forbidden: 'Ruxsat yo‘q',
-  notFound: 'Yozuv topilmadi — sahifani yangilang',
-  invalidInput: 'Ma’lumotni tekshiring',
-};
-const errText = (c: string) => ERR[c] ?? 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
+type Tr = ReturnType<typeof useTranslations>;
+const ERR_KEYS = ['overLimit', 'noSalary', 'pastMonth', 'nothingOwed', 'systemEntry', 'groupedAdvance', 'alreadyDecided', 'reasonRequired', 'aiDisabled', 'aiFailed', 'forbidden', 'notFound', 'invalidInput'];
+/** Translated texts shared by every part of the screen. */
+function usePayText() {
+  const t = useTranslations('pay');
+  const tAll = useTranslations();
+  const locale = useLocale();
+  const mL = (p: string) => monthYear(locale, p);
+  const errText = (c: string) => (ERR_KEYS.includes(c) ? tAll(`pay.err.${c}`) : tAll('pay.err.other'));
+  return { t, tAll, mL, errText };
+}
 const UNDO_MS = 15000;
 
 /** Kinds the add form offers → what finance_entries stores. */
 const ADD_KINDS = {
-  bonus: { n: 'Bonus', kind: 'adjustment', sign: 1 },
-  penalty: { n: 'Jarima', kind: 'penalty', sign: -1 },
-  advance: { n: 'Avans', kind: 'advance', sign: 1 },
-  salary: { n: 'Oylik to‘lovi', kind: 'salary', sign: 1 },
+  bonus: { n: 'bonus', kind: 'adjustment', sign: 1 },
+  penalty: { n: 'penalty', kind: 'penalty', sign: -1 },
+  advance: { n: 'advance', kind: 'advance', sign: 1 },
+  salary: { n: 'salary', kind: 'salary', sign: 1 },
 } as const;
 type AddKind = keyof typeof ADD_KINDS;
+const UZ_KIND: Record<AddKind, string> = { bonus: 'Bonus', penalty: 'Jarima', advance: 'Avans', salary: 'Oylik to‘lovi' };
 
 type Filter = 'all' | 'owed' | 'done' | 'over' | 'flags';
 const COLS = 'grid-cols-[28px_minmax(200px,1.6fr)_repeat(3,minmax(110px,1fr))_112px_96px]';
 const METHOD_KEY = 'pv2-method';
-const FILTERS: [Filter, string][] = [
-  ['all', 'Hammasi'],
-  ['owed', 'Qarzdor'],
-  ['done', 'To‘langan'],
-  ['over', 'Avans berilgan'],
-  ['flags', 'Ogohlantirish'],
-];
+const FILTERS: Filter[] = ['all', 'owed', 'done', 'over', 'flags'];
 
 const owedOf = (l: PayLine) => Math.max(0, l.remaining);
 const overOf = (l: PayLine) => Math.max(0, -l.remaining);
 
 function lineState(l: PayLine): { n: string; cls: string } {
-  if (l.remaining < 0) return { n: 'Keyingi oyga avans', cls: 'bg-au-info-soft text-au-info' };
-  if (l.remaining === 0) return { n: 'To‘langan', cls: 'bg-au-ok-soft text-au-ok' };
-  if (l.paid > 0) return { n: 'Qisman', cls: 'bg-au-accent-soft text-au-accent-text' };
-  return { n: 'To‘lanmagan', cls: 'bg-au-card-2 text-au-muted' };
+  if (l.remaining < 0) return { n: 'advance', cls: 'bg-au-info-soft text-au-info' };
+  if (l.remaining === 0) return { n: 'paid', cls: 'bg-au-ok-soft text-au-ok' };
+  if (l.paid > 0) return { n: 'partial', cls: 'bg-au-accent-soft text-au-accent-text' };
+  return { n: 'unpaid', cls: 'bg-au-card-2 text-au-muted' };
 }
 
 const initials = (name: string) =>
@@ -162,37 +152,38 @@ const hhmm = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', day: 
 const when = (at: string | null | undefined) => (at ? hhmm.format(new Date(at)) : '');
 
 /** Human line for one pay_run_log row. */
-function logLabel(e: PayRunLogEntry): string {
+function logLabel(e: PayRunLogEntry, tAll: Tr, mL: (p: string) => string): string {
+  const t = (k: string, v?: Record<string, string | number>) => tAll(`pay.log.${k}`, v);
   const d = e.detail as Record<string, unknown>;
   const n = (v: unknown) => som(Math.abs(Number(v ?? 0)));
   switch (e.action) {
     case 'entry.add':
-      return `${String(d.title ?? 'Yozuv')} qo‘shildi: ${n(d.amount)} so‘m`;
+      return t('added', { title: String(d.title ?? t('entry')), sum: n(d.amount) });
     case 'entry.edit':
-      return `«${String(d.title ?? '')}» ${n(d.from)} → ${n(d.to)} so‘m${d.movedTo ? ` · ${monthLabel(String(d.movedTo))} ga ko‘chirildi` : ''}`;
+      return `${t('edited', { title: String(d.title ?? ''), from: n(d.from), to: n(d.to) })}${d.movedTo ? t('moved', { month: mL(String(d.movedTo)) }) : ''}`;
     case 'entry.delete':
-      return `«${String(d.title ?? '')}» o‘chirildi (${n(d.amount)} so‘m)`;
+      return t('deleted', { title: String(d.title ?? ''), sum: n(d.amount) });
     case 'salary.set':
-      return `Asosiy maosh: ${n(d.amount)} so‘m${d.months ? ` (${String(d.months)} oyga)` : ''}`;
+      return `${t('salary', { sum: n(d.amount) })}${d.months ? t('salaryMonths', { n: String(d.months) }) : ''}`;
     case 'salary.copy':
-      return `${String(d.count)} xodimga maosh o‘tgan oydan ko‘chirildi`;
+      return t('copy', { n: String(d.count) });
     case 'reimburse.approve':
-      return `Xarajat qoplash tasdiqlandi: ${String(d.title ?? '')} (${n(d.amount)} so‘m)`;
+      return t('rApprove', { title: String(d.title ?? ''), sum: n(d.amount) });
     case 'reimburse.reject':
-      return `Xarajat qoplash rad etildi: ${String(d.title ?? '')}`;
+      return t('rReject', { title: String(d.title ?? '') });
     case 'correction':
     case 'reversal':
-      return `${String(d.title ?? 'Tuzatish')} (${signed(Number(d.amount ?? 0))})`;
+      return `${String(d.title ?? t('correction'))} (${signed(Number(d.amount ?? 0))})`;
     case 'settle':
     case 'topup':
-      return d.paid ? `Qoldiq to‘landi: ${String(d.paid)} xodim` : 'Hisob-kitob yangilandi';
+      return d.paid ? t('settled', { n: String(d.paid) }) : t('updated');
   }
   // Status moves from before the month lock was removed (2026-10-21).
   const b = e.action.split('→')[1];
   if (!b) return e.action;
-  if (b === 'draft') return 'Oy qayta ochildi';
-  if (b === 'approved') return 'Oy tasdiqlandi';
-  if (b === 'paid') return `Qoldiqlar to‘landi${d.paid ? ` (${String(d.paid)} xodim)` : ''}`;
+  if (b === 'draft') return t('reopened');
+  if (b === 'approved') return t('approved');
+  if (b === 'paid') return `${t('paidAll')}${d.paid ? t('paidN', { n: String(d.paid) }) : ''}`;
   return e.action;
 }
 
@@ -223,6 +214,7 @@ export function PayrollV2({
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const { t, tAll, mL, errText } = usePayText();
   const lines = useMemo(() => allLines.filter(isRelevant), [allLines]);
   const sum = totals(lines);
   const owed = lines.reduce((t, l) => t + owedOf(l), 0);
@@ -282,7 +274,7 @@ export function PayrollV2({
       fd.set('entryId', entryId);
       const res = await deleteFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
-      toast.success(`Qaytarildi: ${what}`);
+      toast.success(t('undone', { what }));
       setShowRecent(false);
       refresh();
     });
@@ -292,7 +284,7 @@ export function PayrollV2({
       const res = await payAllRemainingAction({ period, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
       toast.success(
-        `${res.paidCount ? `${res.paidCount} xodimga qoldiq to‘landi` : 'Hisob-kitob yangilandi'}${res.carried ? ` · ${res.carried} xodimga berilgan avans keyingi oydan ushlanadi` : ''}`,
+        `${res.paidCount ? t('paidAllN', { n: res.paidCount }) : t('settleUpdated')}${res.carried ? t('carried', { n: res.carried }) : ''}`,
       );
       refresh();
     });
@@ -301,17 +293,17 @@ export function PayrollV2({
     start(async () => {
       const fd = new FormData();
       fd.set('staffId', l.staffId);
-      fd.set('title', `${monthLabel(period)} oyligi`);
+      fd.set('title', `${monthYear('uz', period)} oyligi`);
       fd.set('amount', String(owedOf(l)));
       fd.set('kind', 'salary');
       fd.set('period', period);
       if (method) fd.set('method', method);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
-      const what = `${l.name} · ${som(owedOf(l))} so‘m`;
-      toast.success(`${l.name}: ${som(owedOf(l))} so‘m to‘landi`, {
+      const what = `${l.name} · ${som(owedOf(l))} ${t('uzs')}`;
+      toast.success(t('paidToast', { name: l.name, sum: som(owedOf(l)) }), {
         duration: UNDO_MS,
-        action: res?.entryId ? { label: 'Qaytarish', onClick: () => undo(res.entryId!, what) } : undefined,
+        action: res?.entryId ? { label: t('undo'), onClick: () => undo(res.entryId!, what) } : undefined,
       });
       refresh();
     });
@@ -320,7 +312,7 @@ export function PayrollV2({
     start(async () => {
       const res = await decideAdvanceAction({ id: a.id, approve, note, targetPeriod, method: method || undefined });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(approve ? `Avans tasdiqlandi: ${som(a.amount)} so‘m` : 'Avans rad etildi');
+      toast.success(approve ? t('advOk', { sum: som(a.amount) }) : t('advNo'));
       refresh();
     });
 
@@ -328,7 +320,7 @@ export function PayrollV2({
     start(async () => {
       const res = await decideReimbursementAction({ id: r.id, approve, note, targetPeriod });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(approve ? `Qoplash tasdiqlandi: ${som(r.amount)} so‘m` : 'So‘rov rad etildi');
+      toast.success(approve ? t('rOk', { sum: som(r.amount) }) : t('rNo'));
       refresh();
     });
 
@@ -336,7 +328,7 @@ export function PayrollV2({
     start(async () => {
       const res = await copyBasesFromPrevAction(period);
       if (res.error) return void toast.error(errText(res.error));
-      toast.success(res.count ? `${res.count} xodimga o‘tgan oydagi maosh qo‘yildi` : 'O‘tgan oyda maosh topilmadi — qo‘lda kiriting');
+      toast.success(res.count ? t('basesCopied', { n: res.count }) : t('noPrev'));
       refresh();
     });
 
@@ -349,7 +341,7 @@ export function PayrollV2({
         const res = await deleteFinanceEntryAction(undefined, fd);
         if (res?.error) return void toast.error(errText(res.error));
       }
-      toast.success(`Qaytarildi: ${ids.length} yozuv`);
+      toast.success(t('undoneN', { n: ids.length }));
       refresh();
     });
 
@@ -359,16 +351,16 @@ export function PayrollV2({
       if (res.error !== undefined) return void toast.error(errText(res.error));
       setJev(Object.fromEntries(res.verdicts.map((v) => [v.staffId, v])));
       const n = res.verdicts.filter((v) => v.verdict === 'check').length;
-      toast.success(n ? `Jev ${n} xodimni tekshirishni tavsiya qildi` : 'Jev: hammasi odatdagidek');
+      toast.success(n ? t('jevN', { n }) : t('jevOk'));
       if (n) setFilter('flags');
     });
 
   const paidPct = sum.payable > 0 ? Math.round((sum.paid / sum.payable) * 100) : 0;
   const tiles = [
-    { n: 'Hisoblangan fond', v: sum.payable, hint: 'Maosh + KPI + bonus − jarima', dot: 'bg-au-ink' },
-    { n: 'To‘langan', v: sum.paid, hint: `${paidPct}% fonddan to‘landi`, dot: 'bg-au-ok' },
-    { n: 'Qolgan qarz', v: owed, hint: `${owedCount} xodimga to‘lanishi kerak`, dot: 'bg-au-accent' },
-    { n: 'Keyingi oy uchun avans', v: over, hint: 'Oldindan berildi · keyingi oy oyligidan ushlanadi', dot: 'bg-au-info' },
+    { n: t('tFund'), v: sum.payable, hint: t('tFundHint'), dot: 'bg-au-ink' },
+    { n: t('tPaid'), v: sum.paid, hint: t('tPaidHint', { n: paidPct }), dot: 'bg-au-ok' },
+    { n: t('tOwed'), v: owed, hint: t('tOwedHint', { n: owedCount }), dot: 'bg-au-accent' },
+    { n: t('tOver'), v: over, hint: t('tOverHint'), dot: 'bg-au-info' },
   ];
   const monthLog = log.filter((e) => !(e.detail as { staffId?: string }).staffId).slice(0, 8);
 
@@ -377,15 +369,15 @@ export function PayrollV2({
       {/* Month, state and the one main action */}
       <section className={cn(CARD, 'flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5')}>
         <div className="flex items-center gap-2.5">
-          <Link href={`/finance?period=${shiftMonth(period, -1)}`} className={cn(ICON_BTN, 'size-11 border border-au-line')} aria-label="Oldingi oy">
+          <Link href={`/finance?period=${shiftMonth(period, -1)}`} className={cn(ICON_BTN, 'size-11 border border-au-line')} aria-label={t('prevMonth')}>
             <ChevronLeft className="size-5" />
           </Link>
           <div className="min-w-40 text-center">
-            <div className="text-[11px] font-bold tracking-widest text-au-muted uppercase">Ish oyi</div>
-            <h1 className="text-xl font-extrabold text-au-ink sm:text-2xl">{monthLabel(period).split(' ')[0]} ishi</h1>
-            <div className="text-xs text-au-faint">to‘lov oyi: {monthLabel(shiftMonth(period, 1))}</div>
+            <div className="text-[11px] font-bold tracking-widest text-au-muted uppercase">{t('workMonth')}</div>
+            <h1 className="text-xl font-extrabold text-au-ink sm:text-2xl">{t('workOf', { m: mL(period).split(' ')[0] })}</h1>
+            <div className="text-xs text-au-faint">{t('payMonth', { m: mL(shiftMonth(period, 1)) })}</div>
           </div>
-          <Link href={`/finance?period=${shiftMonth(period, 1)}`} className={cn(ICON_BTN, 'size-11 border border-au-line')} aria-label="Keyingi oy">
+          <Link href={`/finance?period=${shiftMonth(period, 1)}`} className={cn(ICON_BTN, 'size-11 border border-au-line')} aria-label={t('nextMonth')}>
             <ChevronRight className="size-5" />
           </Link>
         </div>
@@ -394,12 +386,12 @@ export function PayrollV2({
           {boxes.length > 0 && (
             <label className="flex h-11 items-center gap-2 rounded-2xl border border-au-line bg-au-card pr-1 pl-3 text-[13px] font-semibold text-au-muted">
               <Wallet className="size-4" />
-              <span className="sr-only sm:not-sr-only">To‘lov:</span>
+              <span className="sr-only sm:not-sr-only">{t('payFrom')}</span>
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
                 className="h-9 rounded-xl bg-transparent pr-1 text-sm font-bold text-au-ink outline-none"
-                aria-label="To‘lov qaysi kassadan"
+                aria-label={t('payFromLabel')}
               >
                 {boxes.map((b) => (
                   <option key={b.code} value={b.code}>
@@ -411,7 +403,7 @@ export function PayrollV2({
           )}
           {toSettle && (
             <button className={BTN_OK} disabled={busy} onClick={payAll}>
-              <Check className="size-4" /> {owedCount ? `Hammaga qoldiqni to‘lash (${owedCount} kishi)` : 'Avansni keyingi oyga o‘tkazish'}
+              <Check className="size-4" /> {owedCount ? t('payAllN', { n: owedCount }) : t('carryOver')}
             </button>
           )}
         </div>
@@ -421,7 +413,7 @@ export function PayrollV2({
         <div className="flex items-start gap-3 rounded-[20px] bg-au-bad-soft px-4 py-3.5 text-sm font-semibold text-au-ink">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-au-bad" />
           <span>
-            Tekshirib qo‘ying: {block.map((l) => l.name).join(', ')} — {[...new Set(block.flatMap((l) => l.flags.filter((f) => FLAG_META[f].blocking).map((f) => FLAG_META[f].n)))].join(', ')}.
+            {t('checkIt')} {block.map((l) => l.name).join(', ')} — {[...new Set(block.flatMap((l) => l.flags.filter((f) => FLAG_META[f].blocking).map((f) => tAll(`pay.flag.${f}`))))].join(', ')}.
           </span>
         </div>
       )}
@@ -429,10 +421,10 @@ export function PayrollV2({
       {noBase.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-au-line bg-au-card px-4 py-3 text-sm text-au-ink">
           <span>
-            <b>{noBase.length} xodimning</b> {monthLabel(period)} maoshi kiritilmagan.
+            <b>{t('noBaseN', { n: noBase.length })}</b> {t('noBaseMsg', { m: mL(period) })}
           </span>
           <button className={cn(BTN_SOFT, SM)} disabled={busy} onClick={copyBases}>
-            <Copy className="size-4" /> O‘tgan oydagidek qo‘yish
+            <Copy className="size-4" /> {t('copyPrev')}
           </button>
         </div>
       )}
@@ -441,7 +433,7 @@ export function PayrollV2({
       {reimbursements.length > 0 && (
         <section className={cn(CARD, 'flex flex-col gap-3 p-4 sm:p-5')}>
           <h2 className="flex items-center gap-2 text-base font-extrabold text-au-ink">
-            <Receipt className="size-4" /> Xarajatni qoplash so‘rovlari <span className="font-semibold text-au-muted">· {reimbursements.length}</span>
+            <Receipt className="size-4" /> {t('reimb')} <span className="font-semibold text-au-muted">· {reimbursements.length}</span>
           </h2>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {reimbursements.map((r) => (
@@ -449,10 +441,10 @@ export function PayrollV2({
                 key={r.id}
                 name={r.staff_name}
                 amount={r.amount}
-                text={[r.title, r.note, r.spent_on && `Sana: ${r.spent_on}`].filter(Boolean).join(' · ')}
+                text={[r.title, r.note, r.spent_on && t('dateOf', { d: r.spent_on })].filter(Boolean).join(' · ')}
                 period={period}
                 busy={busy}
-                approveLabel="Oyligiga qo‘shish"
+                approveLabel={t('addToSalary')}
                 onDecide={(ok, per, note) => decideReimburse(r, ok, per, note)}
               />
             ))}
@@ -464,7 +456,7 @@ export function PayrollV2({
       {pending.length > 0 && (
         <section className={cn(CARD, 'flex flex-col gap-3 p-4 sm:p-5')}>
           <h2 className="text-base font-extrabold text-au-ink">
-            Avans so‘rovlari <span className="font-semibold text-au-muted">· {pending.length}</span>
+            {t('advReqs')} <span className="font-semibold text-au-muted">· {pending.length}</span>
           </h2>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {pending.map((a) => (
@@ -476,7 +468,7 @@ export function PayrollV2({
                 period={period}
                 initial={a.period}
                 busy={busy}
-                approveLabel="Tasdiqlash"
+                approveLabel={t('approve')}
                 onDecide={(ok, per, note) => decide(a, ok, per, note)}
               />
             ))}
@@ -486,16 +478,16 @@ export function PayrollV2({
 
       {/* Totals */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {tiles.map((t) => (
-          <div key={t.n} className={cn(CARD, 'flex flex-col gap-2 p-5')}>
+        {tiles.map((x) => (
+          <div key={x.n} className={cn(CARD, 'flex flex-col gap-2 p-5')}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-au-muted">{t.n}</span>
-              <span className={cn('size-2.5 rounded-full', t.dot)} />
+              <span className="text-xs font-semibold text-au-muted">{x.n}</span>
+              <span className={cn('size-2.5 rounded-full', x.dot)} />
             </div>
             <div className="text-2xl font-extrabold tracking-tight break-words text-au-ink tabular-nums">
-              {som(t.v)} <span className="text-sm font-semibold text-au-muted">so‘m</span>
+              {som(x.v)} <span className="text-sm font-semibold text-au-muted">{t('uzs')}</span>
             </div>
-            <div className="text-xs text-au-muted">{t.hint}</div>
+            <div className="text-xs text-au-muted">{x.hint}</div>
           </div>
         ))}
       </div>
@@ -505,22 +497,22 @@ export function PayrollV2({
         <section className={cn(CARD, 'flex min-w-0 flex-col gap-3 p-3 sm:p-4')}>
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 pt-1">
             <h2 className="text-lg font-extrabold text-au-ink">
-              Xodimlar <span className="font-semibold text-au-muted">· {shown.length}</span>
+              {t('staff')} <span className="font-semibold text-au-muted">· {shown.length}</span>
             </h2>
             <label className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-au-muted" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism yoki lavozim" className={cn(FIELD, 'h-10 pl-9 font-medium')} aria-label="Qidirish" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPh')} className={cn(FIELD, 'h-10 pl-9 font-medium')} aria-label={t('search')} />
             </label>
           </div>
           <div className="flex flex-wrap gap-1.5 px-1">
-            {FILTERS.map(([f, n]) => (
+            {FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 aria-pressed={filter === f}
                 className={cn('h-9 rounded-full px-3.5 text-[13px] font-semibold transition', filter === f ? 'bg-au-ink text-au-card' : 'bg-au-card-2 text-au-muted hover:text-au-ink')}
               >
-                {n}
+                {tAll(`pay.f.${f}`)}
               </button>
             ))}
           </div>
@@ -535,9 +527,9 @@ export function PayrollV2({
                   const res = await bulkAddEntriesAction({ staffIds: [...picked], kind, amount, title, period: per });
                   if (res.error) return void toast.error(errText(res.error));
                   const ids = res.ids ?? [];
-                  toast.success(`${title}: ${ids.length} xodimga ${som(amount)} so‘m`, {
+                  toast.success(t('bulkDone', { title, n: ids.length, sum: som(amount) }), {
                     duration: UNDO_MS,
-                    action: ids.length ? { label: 'Qaytarish', onClick: () => undoMany(ids) } : undefined,
+                    action: ids.length ? { label: t('undo'), onClick: () => undoMany(ids) } : undefined,
                   });
                   setPicked(new Set());
                   refresh();
@@ -554,16 +546,16 @@ export function PayrollV2({
                   className="size-4 accent-[var(--au-accent)]"
                   checked={shown.length > 0 && shown.every((l) => picked.has(l.staffId))}
                   onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((l) => l.staffId)) : new Set())}
-                  aria-label="Hammasini tanlash"
+                  aria-label={t('pickAll')}
                 />
-                <span>Xodim</span>
-                <span className="text-right">Hisoblangan</span>
-                <span className="text-right">To‘langan</span>
-                <span className="text-right">Qoldiq</span>
-                <span>Holat</span>
+                <span>{t('colStaff')}</span>
+                <span className="text-right">{t('colPayable')}</span>
+                <span className="text-right">{t('colPaid')}</span>
+                <span className="text-right">{t('colLeft')}</span>
+                <span>{t('colState')}</span>
                 <span />
               </div>
-              {shown.length === 0 && <p className="px-3 py-8 text-center text-sm text-au-muted">Bu filtrda hech kim yo‘q</p>}
+              {shown.length === 0 && <p className="px-3 py-8 text-center text-sm text-au-muted">{t('nobody')}</p>}
               {shown.map((l) => {
                 const st = lineState(l);
                 const on = selLine?.staffId === l.staffId;
@@ -588,7 +580,7 @@ export function PayrollV2({
                           return next;
                         })
                       }
-                      aria-label={`${l.name} — tanlash`}
+                      aria-label={t('pick', { name: l.name })}
                     />
                     <button onClick={() => setSel(l.staffId)} className="flex min-w-0 items-center gap-3 text-left" aria-pressed={on}>
                       <Avatar name={l.name} />
@@ -596,7 +588,7 @@ export function PayrollV2({
                         <span className="block truncate font-bold text-au-ink">{l.name}</span>
                         <span className="flex items-center gap-1.5 text-xs text-au-muted">
                           {roleNames[l.role] ?? l.role}
-                          {(l.flags.length > 0 || jev[l.staffId]?.verdict === 'check') && <AlertTriangle className="size-3.5 text-au-bad" aria-label="Ogohlantirish bor" />}
+                          {(l.flags.length > 0 || jev[l.staffId]?.verdict === 'check') && <AlertTriangle className="size-3.5 text-au-bad" aria-label={t('hasWarn')} />}
                         </span>
                       </span>
                     </button>
@@ -606,12 +598,12 @@ export function PayrollV2({
                       {som(l.remaining)}
                     </span>
                     <span>
-                      <span className={cn(CHIP, st.cls)}>{st.n}</span>
+                      <span className={cn(CHIP, st.cls)}>{tAll(`pay.st.${st.n}`)}</span>
                     </span>
                     <span className="text-right">
                       {l.remaining > 0 && (
                         <button className={cn(BTN_OK, SM)} disabled={busy} onClick={() => quickPay(l)}>
-                          To‘lash
+                          {t('payBtn')}
                         </button>
                       )}
                     </span>
@@ -621,7 +613,7 @@ export function PayrollV2({
               {shown.length > 0 && (
                 <div className={cn('grid gap-3 border-t border-au-line px-3 pt-3 text-sm font-extrabold text-au-ink', COLS)}>
                   <span />
-                  <span>Jami (ko‘rsatilgan)</span>
+                  <span>{t('totalShown')}</span>
                   <span className="text-right tabular-nums">{som(shown.reduce((t, l) => t + l.payable, 0))}</span>
                   <span className="text-right text-au-ok tabular-nums">{som(shown.reduce((t, l) => t + l.paid, 0))}</span>
                   <span className="text-right tabular-nums">{som(shown.reduce((t, l) => t + l.remaining, 0))}</span>
@@ -646,21 +638,21 @@ export function PayrollV2({
             boxName={boxName}
           />
         ) : (
-          <section className={cn(CARD, 'p-6 text-sm text-au-muted')}>Bu oy uchun xodim yo‘q</section>
+          <section className={cn(CARD, 'p-6 text-sm text-au-muted')}>{t('noStaff')}</section>
         )}
       </div>
 
       {/* Tools, month history, journal and note */}
       <section className={cn(CARD, 'flex flex-wrap items-center gap-2 p-3 sm:p-4')}>
-        <span className="mr-1 text-xs font-bold tracking-wider text-au-muted uppercase">Asboblar</span>
+        <span className="mr-1 text-xs font-bold tracking-wider text-au-muted uppercase">{t('tools')}</span>
         {recent.length > 0 && (
           <div className="relative">
             <button className={cn(BTN_SOFT, SM)} disabled={busy} aria-expanded={showRecent} onClick={() => setShowRecent((v) => !v)}>
-              <History className="size-4" /> Oxirgi amallarim ({recent.length})
+              <History className="size-4" /> {t('recent', { n: recent.length })}
             </button>
             {showRecent && (
               <div className="absolute bottom-full left-0 z-30 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-[20px] border border-au-line bg-au-card p-2 shadow-[var(--au-shadow-pop)]">
-                <p className="px-2 pb-1.5 text-[11px] text-au-muted">So‘nggi 24 soatda qo‘lda kiritganlaringiz. Xato bo‘lsa — qaytaring.</p>
+                <p className="px-2 pb-1.5 text-[11px] text-au-muted">{t('recentHint')}</p>
                 <ul className="flex flex-col">
                   {recent.map((r) => (
                     <li key={r.id} className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-au-card-2">
@@ -674,9 +666,9 @@ export function PayrollV2({
                       <button
                         className="shrink-0 rounded-lg border border-au-line px-2 py-1 text-[11px] font-semibold text-au-bad hover:bg-au-bad-soft"
                         disabled={busy}
-                        onClick={() => undo(r.id, `${r.staffName} · ${som(Math.abs(r.amount))} so‘m`)}
+                        onClick={() => undo(r.id, `${r.staffName} · ${som(Math.abs(r.amount))} ${t('uzs')}`)}
                       >
-                        Qaytarish
+                        {t('undo')}
                       </button>
                     </li>
                   ))}
@@ -686,38 +678,38 @@ export function PayrollV2({
           </div>
         )}
         <button className={cn(BTN_SOFT, SM)} disabled={busy || !lines.length} onClick={() => downloadPayslips(lines, period)}>
-          <FileDown className="size-4" /> Kvitansiyalar PDF
+          <FileDown className="size-4" /> {t('payslips')}
         </button>
         <button className={cn(BTN_SOFT, SM)} disabled={busy} onClick={askJev}>
-          <Bot className="size-4" /> Jev tekshiruvi
+          <Bot className="size-4" /> {t('jevCheck')}
         </button>
         <button
             className={cn(BTN_SOFT, SM)}
             disabled={busy}
-            title="Ish haqini Hisob-kitob jurnaliga yozadi (qayta bosilsa almashtiradi)"
+            title={t('postTip')}
             onClick={() =>
               start(async () => {
                 const res = await postPayrollAction(period.slice(0, 7));
                 if (res.error !== undefined) return void toast.error(errText(res.error));
-                toast.success(`Hisob-kitobga o‘tkazildi (${res.count ?? 0} yozuv)`);
+                toast.success(t('posted', { n: res.count ?? 0 }));
               })
             }
           >
-            <BookOpenCheck className="size-4" /> Hisob-kitobga o‘tkazish
+            <BookOpenCheck className="size-4" /> {t('post')}
           </button>
         <ExportButtons
           filename={`oylik-${period.slice(0, 7)}`}
           columns={[
-            { header: 'Xodim', key: 'name' },
-            { header: 'Maosh', key: 'base' },
-            { header: 'KPI', key: 'kpi' },
-            { header: 'Bonus', key: 'bonuses' },
-            { header: 'Ushlanma', key: 'deductions' },
-            { header: 'O‘tgan oyda berilgan avans', key: 'carry' },
-            { header: 'Avans ulushi', key: 'advanceShift' },
-            { header: 'Hisoblangan', key: 'payable' },
-            { header: 'To‘langan', key: 'paid' },
-            { header: 'Qoldiq', key: 'remaining' },
+            { header: t('colStaff'), key: 'name' },
+            { header: t('xBase'), key: 'base' },
+            { header: t('xKpi'), key: 'kpi' },
+            { header: t('xBonus'), key: 'bonuses' },
+            { header: t('xDed'), key: 'deductions' },
+            { header: t('xCarry'), key: 'carry' },
+            { header: t('xAdv'), key: 'advanceShift' },
+            { header: t('colPayable'), key: 'payable' },
+            { header: t('colPaid'), key: 'paid' },
+            { header: t('colLeft'), key: 'remaining' },
           ]}
           rows={lines.map((l) => ({ ...l }))}
         />
@@ -725,21 +717,21 @@ export function PayrollV2({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <section className={cn(CARD, 'flex flex-col gap-3 p-5')}>
-          <h2 className="text-base font-extrabold text-au-ink">12 oy</h2>
+          <h2 className="text-base font-extrabold text-au-ink">{t('m12')}</h2>
           <MonthBars points={history} current={period} />
           <YearForecast history={history} period={period} payable={sum.payable} />
         </section>
         <section className={cn(CARD, 'flex flex-col gap-3 p-5')}>
-          <h2 className="text-base font-extrabold text-au-ink">Oy jurnali</h2>
+          <h2 className="text-base font-extrabold text-au-ink">{t('monthLog')}</h2>
           {monthLog.length === 0 ? (
-            <p className="text-sm text-au-muted">Hali hech narsa bo‘lmadi</p>
+            <p className="text-sm text-au-muted">{t('nothingYet')}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {monthLog.map((e) => (
                 <li key={e.id} className="flex gap-3 text-sm">
                   <span className="w-20 shrink-0 text-xs text-au-muted tabular-nums">{when(e.at)}</span>
                   <span className="min-w-0 text-au-ink">
-                    {logLabel(e)}
+                    {logLabel(e, tAll, mL)}
                     {e.actor && <span className="text-au-muted"> · {e.actor}</span>}
                   </span>
                 </li>
@@ -780,6 +772,7 @@ function RequestItem({
   const [per, setPer] = useState(initial && months.includes(initial) ? initial : period);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
+  const { t, mL } = usePayText();
   return (
     <li className="flex flex-col gap-2.5 rounded-[20px] border border-au-line bg-au-card-2 p-3.5">
       <div className="flex items-center justify-between gap-2">
@@ -789,20 +782,20 @@ function RequestItem({
       {text && <p className="text-xs text-au-muted">{text}</p>}
       {rejecting ? (
         <div className="flex gap-2">
-          <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="Rad etish sababi" className={cn(FIELD, 'h-9 font-medium')} />
+          <input autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('rejectReason')} className={cn(FIELD, 'h-9 font-medium')} />
           <button className={cn(BTN, SM, 'bg-au-bad text-white')} disabled={busy || note.trim().length < 3} onClick={() => onDecide(false, undefined, note.trim())}>
-            Rad
+            {t('rejectShort')}
           </button>
-          <button className={ICON_BTN} onClick={() => setRejecting(false)} aria-label="Bekor">
+          <button className={ICON_BTN} onClick={() => setRejecting(false)} aria-label={t('cancel')}>
             <X className="size-4" />
           </button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'h-9 w-auto flex-1 font-medium')} aria-label="Qaysi oy hisobidan">
+          <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'h-9 w-auto flex-1 font-medium')} aria-label={t('fromMonth')}>
             {months.map((m) => (
               <option key={m} value={m}>
-                {monthLabel(m)} hisobidan
+                {t('fromMonthOpt', { m: mL(m) })}
               </option>
             ))}
           </select>
@@ -810,7 +803,7 @@ function RequestItem({
             {approveLabel}
           </button>
           <button className={cn(BTN_SOFT, SM)} disabled={busy} onClick={() => setRejecting(true)}>
-            Rad etish
+            {t('reject')}
           </button>
         </div>
       )}
@@ -837,10 +830,11 @@ function BulkBar({
   const [title, setTitle] = useState('');
   const [per, setPer] = useState(period);
   const num = Number(digits(amount));
-  const name = title.trim() || (kind === 'penalty' ? 'Jarima' : 'Bonus');
+  const { t, tAll, mL } = usePayText();
+  const name = title.trim() || tAll(kind === 'penalty' ? 'pay.kind.penalty' : 'pay.kind.bonus');
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-[20px] border border-au-accent/30 bg-au-accent-soft p-2.5">
-      <span className="px-1 text-sm font-bold text-au-ink">{count} kishi tanlandi</span>
+      <span className="px-1 text-sm font-bold text-au-ink">{t('nPicked', { n: count })}</span>
       <div className="flex rounded-xl bg-au-card p-0.5">
         {(['adjustment', 'penalty'] as const).map((k) => (
           <button
@@ -849,26 +843,26 @@ function BulkBar({
             aria-pressed={kind === k}
             className={cn('h-8 rounded-lg px-3 text-[13px] font-semibold', kind === k ? 'bg-au-ink text-au-card' : 'text-au-muted')}
           >
-            {k === 'penalty' ? 'Jarima' : 'Bonus'}
+            {tAll(k === 'penalty' ? 'pay.kind.penalty' : 'pay.kind.bonus')}
           </button>
         ))}
       </div>
-      <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa" className={cn(FIELD, 'h-9 w-32 text-right')} aria-label="Summa" />
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nomi (masalan: Bayram bonusi)" className={cn(FIELD, 'h-9 w-56 flex-1 font-medium')} aria-label="Nomi" />
-      <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'h-9 w-auto font-medium')} aria-label="Qaysi oy uchun">
+      <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder={t('amount')} className={cn(FIELD, 'h-9 w-32 text-right')} aria-label={t('amount')} />
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('titlePh')} className={cn(FIELD, 'h-9 w-56 flex-1 font-medium')} aria-label={t('title')} />
+      <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'h-9 w-auto font-medium')} aria-label={t('forMonth')}>
         {[0, 1, 2, 3].map((n) => {
           const m = shiftMonth(period, n);
           return (
             <option key={m} value={m}>
-              {monthLabel(m)}
+              {mL(m)}
             </option>
           );
         })}
       </select>
       <button className={cn(BTN_DARK, SM)} disabled={busy || !num} onClick={() => onAdd(kind, num, name, per)}>
-        Hammaga qo‘shish
+        {t('addAll')}
       </button>
-      <button className={ICON_BTN} onClick={onClear} aria-label="Tanlovni bekor qilish">
+      <button className={ICON_BTN} onClick={onClear} aria-label={t('clearPick')}>
         <X className="size-4" />
       </button>
     </div>
@@ -882,11 +876,12 @@ function YearForecast({ history, period, payable }: { history: MonthPoint[]; per
   const year = period.slice(0, 4);
   const left = 12 - Number(period.slice(5, 7)) + 1;
   const before = history.filter((p) => p.period.startsWith(year) && p.period < period).reduce((t, p) => t + p.planned, 0);
+  const { t } = usePayText();
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-au-card-2 px-3.5 py-2.5 text-sm">
       <span className="text-au-muted">
-        {year} yil oxirigacha fond (prognoz)
-        <span className="block text-[11px]">O‘tgan oylar hisoblangani + shu oy × {left} oy</span>
+        {t('yearFund', { y: year })}
+        <span className="block text-[11px]">{t('yearHint', { n: left })}</span>
       </span>
       <b className="text-au-ink tabular-nums">{som(before + payable * left)}</b>
     </div>
@@ -896,11 +891,12 @@ function YearForecast({ history, period, payable }: { history: MonthPoint[]; per
 function NotePanel({ period, initial }: { period: string; initial: string }) {
   const [note, setNote] = useState(initial);
   const [busy, start] = useTransition();
+  const { t, mL, errText } = usePayText();
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <label htmlFor="pv2-note" className="flex items-center gap-2 text-base font-extrabold text-au-ink">
-          <NotebookPen className="size-4" /> Oy bo‘yicha izoh
+          <NotebookPen className="size-4" /> {t('monthNote')}
         </label>
         {note !== initial && (
           <button
@@ -910,11 +906,11 @@ function NotePanel({ period, initial }: { period: string; initial: string }) {
               start(async () => {
                 const res = await savePayRunNoteAction({ period, note });
                 if (res.error !== undefined) toast.error(errText(res.error));
-                else toast.success('Izoh saqlandi');
+                else toast.success(t('noteSaved'));
               })
             }
           >
-            Saqlash
+            {t('save')}
           </button>
         )}
       </div>
@@ -923,7 +919,7 @@ function NotePanel({ period, initial }: { period: string; initial: string }) {
         value={note}
         onChange={(e) => setNote(e.target.value)}
         rows={4}
-        placeholder={`${monthLabel(period)} bo‘yicha eslatma…`}
+        placeholder={t('notePh', { m: mL(period) })}
         className="w-full resize-y rounded-2xl border border-au-line bg-au-card-2 p-3 text-sm text-au-ink placeholder:text-au-muted focus:border-au-accent focus:outline-none"
       />
     </div>
@@ -964,6 +960,8 @@ function StaffPanel({
   const [forward, setForward] = useState(false);
   const [split, setSplit] = useState(1);
   const [att, setAtt] = useState<AttendanceProration | null>(null);
+  const { t, tAll, mL, errText } = usePayText();
+  const kindName = (k: AddKind) => tAll(`pay.kind.${ADD_KINDS[k].n}`);
 
   // B-nuqta for this person; re-read when their pay changes. Async only —
   // the panel remounts per person (key), so no reset is needed here.
@@ -991,7 +989,7 @@ function StaffPanel({
   const months = [0, 1, 2, 3].map((n) => shiftMonth(period, n));
   const num = Number(digits(amount));
   const done = (msg: string, entryId?: string, what?: string) => {
-    toast.success(msg, entryId && what ? { duration: UNDO_MS, action: { label: 'Qaytarish', onClick: () => onUndo(entryId, what) } } : undefined);
+    toast.success(msg, entryId && what ? { duration: UNDO_MS, action: { label: t('undo'), onClick: () => onUndo(entryId, what) } } : undefined);
     router.refresh();
   };
 
@@ -1001,7 +999,7 @@ function StaffPanel({
         const res = await setSalaryFromAction({ staffId: line.staffId, period, grossAmount: Number(value) });
         if (res.error) return void toast.error(errText(res.error));
         setForward(false);
-        return done(`Yangi maosh ${monthLabel(period)}dan boshlab ${res.count ?? 0} oyga qo‘yildi`);
+        return done(t('salaryFrom', { m: mL(period), n: res.count ?? 0 }));
       }
       const fd = new FormData();
       fd.set('staffId', line.staffId);
@@ -1009,20 +1007,21 @@ function StaffPanel({
       fd.set('grossAmount', value);
       const res = await setSalaryMonthAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
-      done('Asosiy maosh saqlandi');
+      done(t('baseSaved'));
     });
   const prorated = att && att.workDays > 0 && line.base > 0 && att.present < att.workDays ? Math.round((line.base * att.present) / att.workDays) : null;
 
   const add = () =>
     start(async () => {
       const k = ADD_KINDS[kind];
-      const name = title.trim() || `${k.n}${per === period ? '' : ` · ${monthLabel(per)} uchun`}`;
+      // The stored title stays Uzbek (ledger text), whatever the UI language.
+      const name = title.trim() || `${UZ_KIND[kind]}${per === period ? '' : ` · ${monthYear('uz', per)} uchun`}`;
       if (kind === 'advance' && split > 1) {
         const res = await addAdvanceInstallmentsAction({ staffId: line.staffId, period: per, amount: num, months: split, title: title.trim(), method: method || undefined });
         if (res.error) return void toast.error(errText(res.error));
         setAmount('');
         setTitle('');
-        return done(`Avans ${som(num)} so‘m — ${split} oyga bo‘lib ushlanadi`);
+        return done(t('advSplit', { sum: som(num), n: split }));
       }
       const fd = new FormData();
       fd.set('staffId', line.staffId);
@@ -1035,7 +1034,7 @@ function StaffPanel({
       if (res?.error) return void toast.error(errText(res.error));
       setAmount('');
       setTitle('');
-      done(`${name}: ${som(num)} so‘m qo‘shildi`, res?.entryId, `${line.name} · ${name}`);
+      done(t('addedToast', { name, sum: som(num) }), res?.entryId, `${line.name} · ${name}`);
     });
 
   const saveEdit = () =>
@@ -1048,7 +1047,7 @@ function StaffPanel({
       const res = await updateFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
       setEdit(null);
-      done('Summa o‘zgartirildi');
+      done(t('amountChanged'));
     });
 
   // A system component (KPI, rag‘bat, missiya…) is cancelled with an
@@ -1065,7 +1064,7 @@ function StaffPanel({
       if (c.ref) fd.set('reversalOf', c.ref);
       const res = await addFinanceEntryAction(undefined, fd);
       if (res?.error) return void toast.error(errText(res.error));
-      done(`«${c.title}» bekor qilindi`, res?.entryId, `«${c.title}» bekor qilish`);
+      done(t('cancelledToast', { title: c.title }), res?.entryId, t('cancelWhat', { title: c.title }));
     });
   // Older cancels were matched by title only (before reversal_of was written).
   const cancelled = new Set(line.components.filter((c) => c.kind !== 'correction' && c.title.startsWith('Bekor: ')).map((c) => c.title.slice(7)));
@@ -1080,15 +1079,15 @@ function StaffPanel({
 
   // A split-advance share is part of one whole: it can only be removed
   // together with the advance (server deletes the group), not edited alone.
-  const rowBtns = (id: string, t: string, amt: number, src?: string, whole = false) =>
+  const rowBtns = (id: string, tt: string, amt: number, src?: string, whole = false) =>
     editable(src) && (
       <>
         {!whole && (
-          <button className={ICON_BTN} onClick={() => setEdit({ id, title: t, value: String(Math.abs(amt)) })} aria-label="Tahrirlash">
+          <button className={ICON_BTN} onClick={() => setEdit({ id, title: tt, value: String(Math.abs(amt)) })} aria-label={t('edit')}>
             <Pencil className="size-4" />
           </button>
         )}
-        <button className={ICON_BTN} disabled={busy} onClick={() => onUndo(id, `«${t}» ${som(Math.abs(amt))} so‘m`)} aria-label="O‘chirish">
+        <button className={ICON_BTN} disabled={busy} onClick={() => onUndo(id, `«${tt}» ${som(Math.abs(amt))} ${t('uzs')}`)} aria-label={t('delete')}>
           <Trash2 className="size-4" />
         </button>
       </>
@@ -1102,12 +1101,12 @@ function StaffPanel({
           onValue={(v) => setEdit({ ...edit, value: v == null ? '' : String(v) })}
           placeholder=""
           className={cn(FIELD, 'h-9 w-32 text-right')}
-          aria-label="Yangi summa"
+          aria-label={t('newAmount')}
         />
         <button className={cn(BTN_DARK, SM)} disabled={busy || !digits(edit.value)} onClick={saveEdit}>
-          Saqlash
+          {t('save')}
         </button>
-        <button className={ICON_BTN} onClick={() => setEdit(null)} aria-label="Bekor">
+        <button className={ICON_BTN} onClick={() => setEdit(null)} aria-label={t('cancel')}>
           <X className="size-4" />
         </button>
       </div>
@@ -1120,10 +1119,10 @@ function StaffPanel({
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-extrabold text-au-ink">{line.name}</h2>
           <p className="text-[13px] text-au-muted">
-            {role} · {monthLabel(period)}
+            {role} · {mL(period)}
           </p>
         </div>
-        <Link href={`/finance/${line.staffId}?month=${period.slice(0, 7)}`} className={ICON_BTN} aria-label="Xodim moliyasi">
+        <Link href={`/finance/${line.staffId}?month=${period.slice(0, 7)}`} className={ICON_BTN} aria-label={t('staffFinance')}>
           <ArrowRight className="size-4" />
         </Link>
       </div>
@@ -1132,12 +1131,12 @@ function StaffPanel({
         <div className="flex flex-wrap gap-1.5">
           {line.flags.map((f) => (
             <span key={f} className={cn(CHIP, FLAG_META[f].blocking ? 'bg-au-bad-soft text-au-bad' : 'bg-au-card-2 text-au-muted')}>
-              <AlertTriangle className="size-3" /> {FLAG_META[f].n}
+              <AlertTriangle className="size-3" /> {tAll(`pay.flag.${f}`)}
             </span>
           ))}
           {jev?.verdict === 'check' && (
             <span className={cn(CHIP, 'bg-au-info-soft text-au-info')}>
-              <Bot className="size-3" /> Jev: tekshiring
+              <Bot className="size-3" /> {t('jevCheckIt')}
             </span>
           )}
         </div>
@@ -1146,18 +1145,18 @@ function StaffPanel({
       {/* How the pay is made up — every line, top to bottom */}
       <div className="flex flex-col gap-2.5 rounded-[20px] bg-au-card-2 p-4">
         <label className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-au-ink">Asosiy maosh</span>
+          <span className="text-sm font-semibold text-au-ink">{t('base')}</span>
           <span className="flex items-center gap-2">
             <MoneyInput
               value={base ? Number(digits(base)) : null}
               onValue={(v) => setBase(v == null ? '' : String(v))}
               placeholder=""
               className={cn(FIELD, 'h-10 w-36 text-right')}
-              aria-label="Asosiy maosh"
+              aria-label={t('base')}
             />
             {digits(base) !== String(line.base || '') && (
               <button className={cn(BTN_DARK, SM)} disabled={busy} onClick={() => saveBase()}>
-                Saqlash
+                {t('save')}
               </button>
             )}
           </span>
@@ -1165,16 +1164,16 @@ function StaffPanel({
         {digits(base) !== String(line.base || '') && (
           <label className="flex items-center gap-2 text-xs text-au-muted">
             <input type="checkbox" className="size-4 accent-[var(--au-accent)]" checked={forward} onChange={(e) => setForward(e.target.checked)} />
-            Keyingi oylarga ham (doimiy o‘zgarish, 12 oy)
+            {t('forward')}
           </label>
         )}
         {prorated !== null && att && (
           <div className="flex items-center justify-between gap-2 rounded-xl bg-au-card px-3 py-2 text-xs text-au-muted">
             <span>
-              Davomat: <b className="text-au-ink">{att.present}</b> / {att.workDays} kun → <b className="text-au-ink tabular-nums">{som(prorated)}</b>
+              {t('attendance')} <b className="text-au-ink">{att.present}</b> {t('daysTo', { n: att.workDays })} <b className="text-au-ink tabular-nums">{som(prorated)}</b>
             </span>
             <button className="font-semibold text-au-accent-text hover:underline" disabled={busy} onClick={() => setBase(String(prorated))}>
-              Qo‘llash
+              {t('apply')}
             </button>
           </div>
         )}
@@ -1183,13 +1182,13 @@ function StaffPanel({
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="min-w-0">
                 <span className={cn('block truncate text-au-ink', c.reversed && 'line-through opacity-60')}>{c.title}</span>
-                <span className="block text-[11px] text-au-muted">{COMPONENT_LABEL[c.kind]}</span>
+                <span className="block text-[11px] text-au-muted">{tAll(`pay.comp.${c.kind}`)}</span>
               </span>
               <span className="flex shrink-0 items-center gap-0.5">
                 <span className={cn('mr-1 font-bold tabular-nums', c.amount >= 0 ? 'text-au-ok' : 'text-au-bad', c.reversed && 'line-through opacity-60')}>{signed(c.amount)}</span>
                 {c.entryId && rowBtns(c.entryId, c.title, c.amount, c.source, c.kind === 'advshift')}
                 {!editable(c.source) && !c.reversed && REVERSIBLE.has(c.kind) && !cancelled.has(c.title) && (
-                  <button className={ICON_BTN} disabled={busy} onClick={() => cancel(c)} aria-label="Bekor qilish" title="Teskari yozuv bilan bekor qilish">
+                  <button className={ICON_BTN} disabled={busy} onClick={() => cancel(c)} aria-label={t('cancelRev')} title={t('cancelRevTip')}>
                     <Undo2 className="size-4" />
                   </button>
                 )}
@@ -1200,7 +1199,7 @@ function StaffPanel({
         ))}
         <div className="h-px bg-au-line" />
         <div className="flex justify-between text-[15px] font-extrabold text-au-ink">
-          <span>Hisoblangan</span>
+          <span>{t('payable')}</span>
           <span className="tabular-nums">{som(line.payable)}</span>
         </div>
 
@@ -1208,14 +1207,14 @@ function StaffPanel({
           <div key={p.id} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="min-w-0">
-                <span className="block truncate text-au-ink">− {p.kind === 'advance' ? 'Avans' : 'Oylik to‘lovi'}</span>
+                <span className="block truncate text-au-ink">{p.kind === 'advance' ? t('pAdvance') : t('pSalary')}</span>
                 <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-au-muted">
                   {when(p.at)}
                   {boxName(p.method) && <span>· {boxName(p.method)}</span>}
-                  {p.receipt?.status === 'received' && <span className="font-semibold text-au-ok">· ✓ Oldi</span>}
+                  {p.receipt?.status === 'received' && <span className="font-semibold text-au-ok">{t('gotIt')}</span>}
                   {p.receipt?.status === 'disputed' && (
                     <span className="font-semibold text-au-bad" title={p.receipt.note}>
-                      · ⚠ Muammo: {p.receipt.note}
+                      {t('issue', { n: p.receipt.note ?? '' })}
                     </span>
                   )}
                 </span>
@@ -1230,24 +1229,24 @@ function StaffPanel({
         ))}
         <div className="h-px bg-au-line" />
         <div className="flex items-center justify-between text-base font-extrabold">
-          <span className="text-au-ink">{line.remaining > 0 ? 'Qoldiq (to‘lanadi)' : line.remaining < 0 ? 'Keyingi oy uchun avans' : 'Hisob yopilgan'}</span>
+          <span className="text-au-ink">{line.remaining > 0 ? t('leftToPay') : line.remaining < 0 ? t('nextAdvance') : t('closed')}</span>
           <span className={cn('tabular-nums', line.remaining > 0 ? 'text-au-accent-text' : line.remaining < 0 ? 'text-au-bad' : 'text-au-ok')}>
             {som(Math.abs(line.remaining))}
           </span>
         </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-au-line" role="img" aria-label={`${pct}% to‘langan`}>
+        <div className="h-2.5 overflow-hidden rounded-full bg-au-line" role="img" aria-label={t('pctPaid', { n: pct })}>
           <div className={cn('h-full rounded-full', line.remaining < 0 ? 'bg-au-bad' : 'bg-au-ok')} style={{ width: `${pct}%` }} />
         </div>
         {line.prevPayable !== null && (
           <p className="text-[11px] text-au-muted">
-            O‘tgan oy: {som(line.prevPayable)} so‘m{line.delta !== null && ` (${line.delta > 0 ? '+' : ''}${Math.round(line.delta * 100)}%)`}
+            {t('lastMonth', { sum: som(line.prevPayable) })}{line.delta !== null && ` (${line.delta > 0 ? '+' : ''}${Math.round(line.delta * 100)}%)`}
           </p>
         )}
       </div>
 
       {/* Add a row for this month or a later one */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-[15px] font-extrabold text-au-ink">Yozuv qo‘shish</h3>
+        <h3 className="text-[15px] font-extrabold text-au-ink">{t('addEntry')}</h3>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(ADD_KINDS) as AddKind[]).map((k) => (
             <button
@@ -1256,26 +1255,26 @@ function StaffPanel({
               aria-pressed={kind === k}
               className={cn('h-9 rounded-full px-3.5 text-[13px] font-semibold transition', kind === k ? 'bg-au-ink text-au-card' : 'bg-au-card-2 text-au-muted hover:text-au-ink')}
             >
-              {ADD_KINDS[k].n}
+              {kindName(k)}
             </button>
           ))}
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'font-medium')} aria-label="Qaysi oy uchun">
+          <select value={per} onChange={(e) => setPer(e.target.value)} className={cn(FIELD, 'font-medium')} aria-label={t('forMonth')}>
             {months.map((m, i) => (
               <option key={m} value={m}>
-                {monthLabel(m)}
-                {i === 0 ? ' (shu oy)' : ' uchun'}
+                {mL(m)}
+                {i === 0 ? t('thisMonth') : t('forSuffix')}
               </option>
             ))}
           </select>
-          <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa, so‘m" className={cn(FIELD, 'text-right')} aria-label="Summa" />
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Nomi (ixtiyoriy): ${ADD_KINDS[kind].n}`} className={cn(FIELD, 'col-span-2 font-medium')} aria-label="Nomi" />
+          <MoneyInput value={amount ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder={t('amountUzs')} className={cn(FIELD, 'text-right')} aria-label={t('amount')} />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('titleOpt', { k: kindName(kind) })} className={cn(FIELD, 'col-span-2 font-medium')} aria-label={t('title')} />
           {kind === 'advance' && (
-            <select value={split} onChange={(e) => setSplit(Number(e.target.value))} className={cn(FIELD, 'col-span-2 font-medium')} aria-label="Qanday ushlanadi">
+            <select value={split} onChange={(e) => setSplit(Number(e.target.value))} className={cn(FIELD, 'col-span-2 font-medium')} aria-label={t('howDeduct')}>
               {[1, 2, 3, 4, 6].map((n) => (
                 <option key={n} value={n}>
-                  {n === 1 ? 'Bir oyda ushlanadi' : `${n} oyga bo‘lib ushlanadi (oyiga ${num ? som(Math.floor(num / n)) : '…'})`}
+                  {n === 1 ? t('oneMonth') : t('splitN', { n, per: num ? som(Math.floor(num / n)) : '…' })}
                 </option>
               ))}
             </select>
@@ -1283,48 +1282,48 @@ function StaffPanel({
         </div>
         <p className="text-xs text-au-muted">
           {per === period
-            ? 'Shu oy hisobiga yoziladi.'
-            : `${monthLabel(per)} oyligiga yoziladi — ${kind === 'advance' ? 'o‘sha oy qoldig‘idan ushlanadi' : 'o‘sha oy hisobida ko‘rinadi'}.`}
-          {(kind === 'advance' || kind === 'salary') && boxName(method) && ` To‘lov: ${boxName(method)}.`}
+            ? t('inThis')
+            : t('inOther', { m: mL(per), how: kind === 'advance' ? t('howAdv') : t('howOther') })}
+          {(kind === 'advance' || kind === 'salary') && boxName(method) && t('payWith', { b: boxName(method) ?? '' })}
         </p>
         <button className={BTN_DARK} disabled={busy || !num} onClick={add}>
-          {ADD_KINDS[kind].n} qo‘shish{num ? ` · ${som(num)} so‘m` : ''}
+          {t('addKind', { k: kindName(kind) })}{num ? ` · ${som(num)} ${t('uzs')}` : ''}
         </button>
       </div>
 
       {/* B-nuqta: every goal that is set (yarim yil / 1 yil / 3 yil) */}
       <div className="flex flex-col gap-2.5 rounded-[20px] border border-au-accent/25 bg-au-accent-soft p-4">
         <span className="flex items-center gap-2 text-[15px] font-extrabold text-au-ink">
-          <Target className="size-4 text-au-accent-text" /> B-nuqta
+          <Target className="size-4 text-au-accent-text" /> {t('bpoint')}
         </span>
         {!bp ? (
           <div className="h-12 animate-pulse rounded-xl bg-au-card/60" />
         ) : bGoals.length === 0 ? (
-          <p className="text-xs text-au-muted">B-nuqta belgilanmagan — xodim sahifasida qo‘yiladi.</p>
+          <p className="text-xs text-au-muted">{t('noBpoint')}</p>
         ) : (
           bGoals.map((g) => {
             const p = g.progress;
             return (
               <div key={g.horizon} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <b className="text-au-ink">{g.label}</b>
+                  <b className="text-au-ink">{tAll(`bp.h.${g.horizon}`)}</b>
                   <b className="text-au-accent-text tabular-nums">{p.pct}%</b>
                 </div>
-                <div className="relative h-3 overflow-hidden rounded-full bg-au-card" role="img" aria-label={`B-nuqta ${g.label} ${p.pct}%`}>
+                <div className="relative h-3 overflow-hidden rounded-full bg-au-card" role="img" aria-label={`${t('bpoint')} ${tAll(`bp.h.${g.horizon}`)} ${p.pct}%`}>
                   <div className="absolute inset-y-0 left-0 rounded-full bg-au-accent" style={{ width: `${Math.min(100, p.pct)}%` }} />
                   {p.start > 0 && (
-                    <div className="absolute inset-y-0 w-0.5 bg-au-ink" style={{ left: `${Math.min(100, Math.round((p.start / p.target) * 100))}%` }} title="A-nuqta (boshlanish)" />
+                    <div className="absolute inset-y-0 w-0.5 bg-au-ink" style={{ left: `${Math.min(100, Math.round((p.start / p.target) * 100))}%` }} title={t('aPoint')} />
                   )}
                 </div>
                 <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-au-muted">
                   <span>
-                    Hozir <b className="text-au-ink tabular-nums">{som(p.current)}</b> / {som(p.target)} so‘m oyiga
+                    {t('now')} <b className="text-au-ink tabular-nums">{som(p.current)}</b> / {som(p.target)} {t('perMonth')}
                   </span>
                   {p.current >= p.target ? (
-                    <span className="font-semibold text-au-ok">B-nuqtaga yetildi</span>
+                    <span className="font-semibold text-au-ok">{t('reached')}</span>
                   ) : (
                     <span>
-                      yana <b className="text-au-ink tabular-nums">{som(p.gap)}</b> so‘m
+                      {t('more')} <b className="text-au-ink tabular-nums">{som(p.gap)}</b> {t('uzs')}
                     </span>
                   )}
                 </div>
@@ -1336,16 +1335,16 @@ function StaffPanel({
 
       {/* This person's history this month */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-[15px] font-extrabold text-au-ink">O‘zgarishlar tarixi</h3>
+        <h3 className="text-[15px] font-extrabold text-au-ink">{t('history')}</h3>
         {log.length === 0 ? (
-          <p className="text-xs text-au-muted">Bu oyda o‘zgarish bo‘lmagan</p>
+          <p className="text-xs text-au-muted">{t('noChanges')}</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {log.slice(0, 10).map((e) => (
               <li key={e.id} className="flex gap-3 text-[13px]">
                 <span className="w-20 shrink-0 text-au-muted tabular-nums">{when(e.at)}</span>
                 <span className="min-w-0 text-au-ink">
-                  {logLabel(e)}
+                  {logLabel(e, tAll, mL)}
                   {e.actor && <span className="text-au-muted"> · {e.actor}</span>}
                 </span>
               </li>
@@ -1355,7 +1354,7 @@ function StaffPanel({
       </div>
 
       <button className={cn(BTN_SOFT, SM, 'self-start')} onClick={() => downloadPayslips([line], period)}>
-        <FileDown className="size-4" /> Hisob varaqasi PDF
+        <FileDown className="size-4" /> {t('statement')}
       </button>
     </aside>
   );

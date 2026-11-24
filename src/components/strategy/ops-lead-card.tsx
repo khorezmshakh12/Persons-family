@@ -22,8 +22,9 @@ import {
 import { ask, playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
 import { CommentList } from './ops-comments';
-import { ago, dmy, when } from './ops-students-meta';
-import { LEVELS, LOST_FIX, PREF_DAYS, TELEGRAM_COL, columnOf, firstOpenStage, leadErr, sourceName } from './ops-sales-meta';
+import { useTranslations } from 'next-intl';
+import { dmy, useOpsMeta, when } from './ops-students-meta';
+import { LEVELS, LOST_REASONS, TELEGRAM_COL, columnOf, firstOpenStage, useSalesMeta } from './ops-sales-meta';
 
 type Pane = 'msg' | 'convert' | null;
 const digits = (v: string) => v.replace(/\D/g, '');
@@ -39,6 +40,10 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
   const d = data.sales;
   const canEdit = data.canEdit;
   const first = firstOpenStage(d);
+  const t = useTranslations('ops.lead');
+  const to = useTranslations('ops');
+  const { ago } = useOpsMeta();
+  const { PREF_DAYS, sourceName, leadErr, lostLabel, levelLabel } = useSalesMeta();
 
   const [f, setF] = useState({
     name: l.name,
@@ -107,20 +112,20 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
       if (col !== columnOf(l, first)) {
         if (stageKind(col) === 'joined' && !l.studentId) {
           setPane('convert');
-          return void toast.message('Ma’lumotlar saqlandi. O‘quvchiga aylantirish uchun summa va sanani kiriting');
+          return void toast.message(t('savedConvert'));
         }
         const m = await moveLeadAction({ id: l.id, sectionId: col === TELEGRAM_COL ? null : col, lostReason });
         if (m.error) return void toast.error(leadErr(m.error));
       }
-      done('Saqlandi');
+      done(t('saved'));
     });
 
   const archive = async () => {
-    if (!(await ask(`«${l.name || l.phone}» o‘chirilsinmi? Lid arxivga tushadi, keyin qaytarsa bo‘ladi.`, { ok: 'O‘chirish', danger: true }))) return;
+    if (!(await ask(t('askDelete', { name: l.name || l.phone }), { ok: to('c.delete'), danger: true }))) return;
     start(async () => {
       const r = await archiveLeadAction(l.id);
       if (r.error) return void toast.error(leadErr(r.error));
-      toast.success('Lid arxivga o‘tkazildi');
+      toast.success(t('archived'));
       router.refresh();
       onClose();
     });
@@ -140,14 +145,14 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
             <h2 className="text-xl font-extrabold text-au-ink">{l.name || l.phone}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-au-faint">
               {l.source === 'telegram' ? <span className="sx-pl info">Telegram</span> : <span className="sx-pl mute">{sourceName(l.source)}</span>}
-              {l.tg && l.source !== 'telegram' && <span className="sx-pl info">Telegram ulangan</span>}
+              {l.tg && l.source !== 'telegram' && <span className="sx-pl info">{t('tgLinked')}</span>}
               {l.tgUser && <span>@{l.tgUser}</span>}
               <span>· {ago(l.createdAt)}</span>
-              {l.owner && <span>· mas’ul: {l.owner}</span>}
-              {l.studentId && <span className="sx-pl ok">O‘quvchi bo‘ldi</span>}
+              {l.owner && <span>{t('owner', { n: l.owner })}</span>}
+              {l.studentId && <span className="sx-pl ok">{t('becameStudent')}</span>}
             </div>
           </div>
-          <button className="sx-btn sm" onClick={onClose} aria-label="Yopish">
+          <button className="sx-btn sm" onClick={onClose} aria-label={to('c.close')}>
             <X className="size-4" />
           </button>
         </div>
@@ -157,21 +162,21 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
             <div className="flex flex-wrap gap-2">
               {l.tg ? (
                 <button className={cn('sx-btn sm text-au-info', pane === 'msg' && 'border-au-accent')} onClick={() => setPane(pane === 'msg' ? null : 'msg')}>
-                  ✈ Telegram xabar
+                  {t('tgMsg')}
                 </button>
               ) : (
-                <span className="sx-pl mute" title="Lid botda /start bosib telefon raqamini yuborsa, avtomatik ulanadi">
-                  Telegram yo‘q — botga start bossa ulanadi
+                <span className="sx-pl mute" title={t('noTgTip')}>
+                  {t('noTg')}
                 </span>
               )}
               {!l.studentId && (
                 <button className={cn('sx-btn sm', pane === 'convert' && 'border-au-accent')} onClick={() => setPane(pane === 'convert' ? null : 'convert')}>
-                  → O‘quvchi qilish
+                  {t('toStudent')}
                 </button>
               )}
               <span className="flex-1" />
               <button className="sx-btn sm text-au-bad" disabled={pending} onClick={archive}>
-                O‘chirish
+                {to('c.delete')}
               </button>
             </div>
           )}
@@ -179,18 +184,18 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
           {pane === 'msg' && <MessagePane l={l} data={data} onDone={(m) => { setPane(null); done(m); }} onCancel={() => setPane(null)} />}
           {pane === 'convert' && <ConvertPane l={l} data={data} onDone={(m) => { setPane(null); done(m); }} onCancel={() => setPane(null)} />}
 
-          <Sec>Ma’lumotlar</Sec>
+          <Sec>{t('details')}</Sec>
           <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-            <Field label="Ism familiya">
+            <Field label={to('c.name')}>
               <input id="ld-name" className="sx-inp" maxLength={120} disabled={!canEdit} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
             </Field>
-            <Field label="Telefon">
+            <Field label={to('c.phone')}>
               <input id="ld-phone" className="sx-inp tabular-nums" maxLength={25} disabled={!canEdit} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
             </Field>
-            <Field label="Yoshi">
+            <Field label={t('age')}>
               <input id="ld-age" className="sx-inp tabular-nums" inputMode="numeric" disabled={!canEdit} value={f.age} onChange={(e) => setF({ ...f, age: digits(e.target.value).slice(0, 2) })} />
             </Field>
-            <Field label="Kurs">
+            <Field label={t('course')}>
               <input id="ld-course" className="sx-inp" list="ld-courses" maxLength={120} disabled={!canEdit} value={f.course} onChange={(e) => setF({ ...f, course: e.target.value })} />
               <datalist id="ld-courses">
                 {d.courses.map((c) => (
@@ -198,15 +203,15 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
                 ))}
               </datalist>
             </Field>
-            <Field label="Daraja">
+            <Field label={t('level')}>
               <input id="ld-level" className="sx-inp" list="ld-levels" maxLength={40} disabled={!canEdit} value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} />
               <datalist id="ld-levels">
                 {LEVELS.map((c) => (
-                  <option key={c} value={c} />
+                  <option key={c} value={c}>{levelLabel(c)}</option>
                 ))}
               </datalist>
             </Field>
-            <Field label="Qulay kunlar">
+            <Field label={t('prefDays')}>
               <select id="ld-days" className="sx-inp" disabled={!canEdit} value={f.prefDays} onChange={(e) => setF({ ...f, prefDays: e.target.value })}>
                 <option value="">—</option>
                 {Object.entries(PREF_DAYS).map(([k, v]) => (
@@ -216,12 +221,12 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
                 ))}
               </select>
             </Field>
-            <Field label="Qulay vaqt">
+            <Field label={t('prefTime')}>
               <input id="ld-ptime" type="time" className="sx-inp" disabled={!canEdit} value={f.prefTime} onChange={(e) => setF({ ...f, prefTime: e.target.value })} />
             </Field>
-            <Field label="Guruh">
+            <Field label={t('group')}>
               <select id="ld-group" className="sx-inp" disabled={!canEdit} value={f.groupId} onChange={(e) => setF({ ...f, groupId: e.target.value })}>
-                <option value="">— guruhsiz —</option>
+                <option value="">{t('noGroup')}</option>
                 {d.groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -229,7 +234,7 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
                 ))}
               </select>
             </Field>
-            <Field label="Bosqich">
+            <Field label={t('stage')}>
               <select id="ld-stage" className="sx-inp" disabled={!canEdit} value={col} onChange={(e) => setCol(e.target.value)}>
                 {stageOptions.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -239,18 +244,18 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
               </select>
             </Field>
             {stageKind(col) === 'lost' && col !== columnOf(l, first) && (
-              <Field label="Rad etish sababi (majburiy)" className="col-span-full">
+              <Field label={t('lostReq')} className="col-span-full">
                 <select id="ld-lost" className="sx-inp" value={lostReason} onChange={(e) => setLostReason(e.target.value)}>
-                  <option value="">— tanlang —</option>
-                  {Object.keys(LOST_FIX).map((x) => (
-                    <option key={x}>{x}</option>
+                  <option value="">{t('pick')}</option>
+                  {LOST_REASONS.map((x) => (
+                    <option key={x} value={x}>{lostLabel(x)}</option>
                   ))}
                 </select>
               </Field>
             )}
-            <Field label="Mas’ul xodim">
+            <Field label={t('ownerF')}>
               <select id="ld-owner" className="sx-inp" disabled={!canEdit} value={f.ownerId} onChange={(e) => setF({ ...f, ownerId: e.target.value })}>
-                <option value="">— belgilanmagan —</option>
+                <option value="">{t('unassigned')}</option>
                 {d.staff.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -258,25 +263,25 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
                 ))}
               </select>
             </Field>
-            <Field label="Keyingi qadam sanasi">
+            <Field label={t('nextAt')}>
               <input id="ld-next-at" type="date" className="sx-inp" disabled={!canEdit} value={f.nextAt} onChange={(e) => setF({ ...f, nextAt: e.target.value })} />
             </Field>
-            <Field label="Keyingi qadam" className="col-span-full">
-              <input id="ld-next" className="sx-inp" maxLength={200} placeholder="Masalan: onasiga qo‘ng‘iroq qilish, narxni aytish" disabled={!canEdit} value={f.nextAction} onChange={(e) => setF({ ...f, nextAction: e.target.value })} />
+            <Field label={t('next')} className="col-span-full">
+              <input id="ld-next" className="sx-inp" maxLength={200} placeholder={t('nextPh')} disabled={!canEdit} value={f.nextAction} onChange={(e) => setF({ ...f, nextAction: e.target.value })} />
             </Field>
-            <Field label="Sinov darsi sanasi">
+            <Field label={t('trialDate')}>
               <input id="ld-trial-d" type="date" className="sx-inp" disabled={!canEdit} value={f.trialDate} onChange={(e) => setF({ ...f, trialDate: e.target.value })} />
             </Field>
-            <Field label="Sinov darsi vaqti">
+            <Field label={t('trialTime')}>
               <input id="ld-trial-t" type="time" className="sx-inp" disabled={!canEdit} value={f.trialTime} onChange={(e) => setF({ ...f, trialTime: e.target.value })} />
             </Field>
           </div>
           {canEdit && (
             <div className="flex flex-wrap items-center gap-2">
               <button className="sx-btn primary" disabled={pending || !f.name.trim() || !f.phone.trim() || (stageKind(col) === 'lost' && col !== columnOf(l, first) && !lostReason)} onClick={save}>
-                Saqlash
+                {to('c.save')}
               </button>
-              {f.trialDate && l.tg && <span className="text-xs text-au-faint">Sinovdan 1 kun oldin lidga Telegram eslatma boradi.</span>}
+              {f.trialDate && l.tg && <span className="text-xs text-au-faint">{t('trialRem')}</span>}
             </div>
           )}
 
@@ -284,12 +289,12 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
 
           {card && card.messages.length > 0 && (
             <>
-              <Sec>Telegram xabarlar</Sec>
+              <Sec>{t('tgMsgs')}</Sec>
               <ul className="flex flex-col gap-2">
                 {card.messages.map((m) => (
                   <li key={m.id} className="rounded-xl border border-au-line px-3 py-2">
                     <div className="flex items-center gap-2 text-xs text-au-faint">
-                      <span className={cn('sx-pl', m.status === 'sent' ? 'ok' : 'bad')}>{m.status === 'sent' ? 'yetkazildi' : 'yetmadi'}</span>
+                      <span className={cn('sx-pl', m.status === 'sent' ? 'ok' : 'bad')}>{m.status === 'sent' ? t('delivered') : t('notDelivered')}</span>
                       <span>
                         {m.by} · {when(m.at)}
                       </span>
@@ -301,11 +306,11 @@ export function LeadDrawer({ l, data, onClose }: { l: SalesLead; data: OpsData; 
             </>
           )}
 
-          <Sec>Tarix</Sec>
+          <Sec>{t('history')}</Sec>
           {!card ? (
-            <div className="text-sm text-au-faint">Yuklanmoqda…</div>
+            <div className="text-sm text-au-faint">{to('c.loading')}</div>
           ) : card.log.length === 0 ? (
-            <div className="text-sm text-au-faint">Hali yozuv yo‘q</div>
+            <div className="text-sm text-au-faint">{t('noEntries')}</div>
           ) : (
             <ul className="flex flex-col">
               {card.log.map((h) => (
@@ -334,19 +339,21 @@ const Field = ({ label, children, className }: { label: string; children: React.
 
 function Comments({ leadId, card, meId, canEdit, onChange }: { leadId: string; card: LeadCard | null; meId: string | null; canEdit: boolean; onChange: () => void }) {
   const router = useRouter();
+  const t = useTranslations('ops.lead');
+  const { leadErr } = useSalesMeta();
   return (
     <CommentList
       items={card ? card.comments : null}
       meId={meId}
       canEdit={canEdit}
-      placeholder="Izoh yozing… (masalan: onasi kechqurun qo‘ng‘iroq qilishni so‘radi)"
+      placeholder={t('notePh')}
       onAdd={async (body) => {
         const r = await addLeadCommentAction({ leadId, body });
         if (r.error) {
           toast.error(leadErr(r.error));
           return false;
         }
-        toast.success('Izoh qo‘shildi');
+        toast.success(t('noteAdded'));
         onChange();
         router.refresh();
         return true;
@@ -354,10 +361,10 @@ function Comments({ leadId, card, meId, canEdit, onChange }: { leadId: string; c
       onEdit={async (id, body) => {
         const r = await editLeadCommentAction({ id, body });
         if (r.error) {
-          toast.error(r.error === 'forbidden' ? 'Faqat o‘zingiz yozgan izohni tahrirlay olasiz' : leadErr(r.error));
+          toast.error(r.error === 'forbidden' ? t('ownNoteOnly') : leadErr(r.error));
           return false;
         }
-        toast.success('Izoh tahrirlandi');
+        toast.success(t('noteEdited'));
         onChange();
         return true;
       }}
@@ -368,6 +375,8 @@ function Comments({ leadId, card, meId, canEdit, onChange }: { leadId: string; c
 function MessagePane({ l, data, onDone, onCancel }: { l: SalesLead; data: OpsData; onDone: (m: string) => void; onCancel: () => void }) {
   const [pending, start] = useTransition();
   const tpls = data.sales.templates;
+  const tr = useTranslations('ops.lead');
+  const { leadErr } = useSalesMeta();
   const vars = {
     ism: l.name.split(' ')[0] || l.name,
     kurs: l.course || 'tanlangan',
@@ -383,12 +392,12 @@ function MessagePane({ l, data, onDone, onCancel }: { l: SalesLead; data: OpsDat
         playSound('err');
         return void toast.error(leadErr(r.error));
       }
-      onDone('Telegram xabar yuborildi');
+      onDone(tr('tgSent'));
     });
   return (
     <div className="flex flex-col gap-2.5 rounded-2xl border border-au-accent/50 bg-au-accent-soft/60 p-3.5">
-      <b className="text-au-ink">Telegram xabar</b>
-      <Field label="Shablon">
+      <b className="text-au-ink">{tr('tgMsgTitle')}</b>
+      <Field label={tr('template')}>
         <select
           id="lm-tpl"
           className="sx-inp"
@@ -399,7 +408,7 @@ function MessagePane({ l, data, onDone, onCancel }: { l: SalesLead; data: OpsDat
             setText(t ? fillTemplate(t.body, vars) : '');
           }}
         >
-          <option value="">— shablonsiz —</option>
+          <option value="">{tr('noTemplate')}</option>
           {tpls.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -407,15 +416,15 @@ function MessagePane({ l, data, onDone, onCancel }: { l: SalesLead; data: OpsDat
           ))}
         </select>
       </Field>
-      <Field label="Matn (o‘zgartirish mumkin)">
+      <Field label={tr('text')}>
         <textarea id="lm-text" className="sx-inp min-h-[110px] leading-relaxed" maxLength={3000} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
       <div className="flex gap-2">
         <button className="sx-btn primary" disabled={pending || !text.trim()} onClick={send}>
-          Yuborish
+          {tr('send')}
         </button>
         <button className="sx-btn" onClick={onCancel}>
-          Bekor
+          {tr('cancel')}
         </button>
       </div>
     </div>
@@ -426,30 +435,32 @@ function ConvertPane({ l, data, onDone, onCancel }: { l: SalesLead; data: OpsDat
   const [pending, start] = useTransition();
   const [fee, setFee] = useState('');
   const [startDate, setStart] = useState(data.today.day);
+  const t = useTranslations('ops.lead');
+  const { leadErr } = useSalesMeta();
   const go = () =>
     start(async () => {
       const r = await convertLeadAction({ id: l.id, fee: Number(digits(fee)) || 0, start: startDate });
       if (r.error) return void toast.error(leadErr(r.error));
-      onDone(`${l.name} o‘quvchi bo‘ldi — «O‘quvchilar» ro‘yxatida`);
+      onDone(t('converted', { name: l.name }));
     });
   return (
     <div className="flex flex-col gap-2.5 rounded-2xl border border-au-ok/50 bg-au-ok-soft/60 p-3.5">
-      <b className="text-au-ink">O‘quvchi qilish</b>
-      <div className="text-sm text-au-muted">CRM’da o‘quvchi ochiladi (telefon va Telegram bilan), «O‘quvchilar»ga tushadi va har oy shu sanada to‘lov yechiladi.</div>
+      <b className="text-au-ink">{t('convertTitle')}</b>
+      <div className="text-sm text-au-muted">{t('convertNote')}</div>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-        <Field label="Oylik to‘lov">
-          <MoneyInput id="cv-fee" className="sx-inp tabular-nums" placeholder="masalan 600,000" value={digits(fee) ? Number(digits(fee)) : null} onValue={(v) => setFee(v == null ? '' : formatUZS(v))} />
+        <Field label={t('fee')}>
+          <MoneyInput id="cv-fee" className="sx-inp tabular-nums" placeholder={t('feePh')} value={digits(fee) ? Number(digits(fee)) : null} onValue={(v) => setFee(v == null ? '' : formatUZS(v))} />
         </Field>
-        <Field label="Aktiv bo‘lgan sana (to‘lov kuni)">
+        <Field label={t('activeDate')}>
           <input id="cv-start" type="date" className="sx-inp" value={startDate} onChange={(e) => setStart(e.target.value)} />
         </Field>
       </div>
       <div className="flex gap-2">
         <button className="sx-btn primary" disabled={pending || !digits(fee) || !startDate} onClick={go}>
-          O‘quvchi qilish
+          {t('convertTitle')}
         </button>
         <button className="sx-btn" onClick={onCancel}>
-          Bekor
+          {t('cancel')}
         </button>
       </div>
     </div>

@@ -95,9 +95,9 @@ const LIVE_KIND: Record<string, LiveEventKind> = { task: 'task', issue: 'issue',
 
 type View = 'action' | 'unread' | 'all';
 const VIEWS: { v: View; n: string }[] = [
-  { v: 'action', n: 'Harakat kerak' },
-  { v: 'unread', n: 'O‘qilmagan' },
-  { v: 'all', n: 'Hammasi' },
+  { v: 'action', n: 'v.action' },
+  { v: 'unread', n: 'v.unread' },
+  { v: 'all', n: 'v.all' },
 ];
 
 export function NotificationBell({
@@ -184,7 +184,7 @@ export function NotificationBell({
       markTasksSeenAction().catch(fail(() => setUnseenTasks(removed)));
     };
     for (const x of unseenTasks)
-      out.push({ key: `task:${x.id}`, kind: 'task', title: 'Yangi vazifa', body: x.title, href: '/tasks', at: x.createdAt, unread: true, action: true, open: clearTasks });
+      out.push({ key: `task:${x.id}`, kind: 'task', title: t('newTask'), body: x.title, href: '/tasks', at: x.createdAt, unread: true, action: true, open: clearTasks });
     const clearWarnings = () => {
       const removed = unseenWarnings;
       setUnseenWarnings([]);
@@ -194,7 +194,7 @@ export function NotificationBell({
       out.push({
         key: `warn:${x.id}`,
         kind: 'warning',
-        title: 'Sizga ogohlantirish berildi',
+        title: t('warned'),
         body: x.reason,
         href: `/profile/${userId}`,
         at: x.createdAt,
@@ -324,7 +324,7 @@ export function NotificationBell({
                     disabled={!unreadCount}
                     className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-au-muted hover:bg-au-card-2 hover:text-au-ink disabled:opacity-40"
                   >
-                    <CheckCheck className="size-3.5" /> Hammasi o‘qildi
+                    <CheckCheck className="size-3.5" /> {t('allRead')}
                   </button>
                   <button
                     type="button"
@@ -354,7 +354,7 @@ export function NotificationBell({
                         view === v ? 'bg-au-primary text-white' : 'text-au-muted hover:bg-au-card-2 hover:text-au-ink',
                       )}
                     >
-                      {n}
+                      {t(n)}
                       {c > 0 && (
                         <span className={cn('rounded-full px-1.5 text-[10px] tabular-nums', view === v ? 'bg-white/20' : v === 'action' ? 'bg-au-bad-soft text-au-bad' : 'bg-au-card-2')}>
                           {c}
@@ -368,7 +368,7 @@ export function NotificationBell({
               <div className="max-h-[min(28rem,65vh)] overflow-y-auto overscroll-contain p-1.5">
                 {shown.length === 0 ? (
                   <p className="px-3 py-10 text-center text-sm text-au-muted">
-                    {view === 'action' ? 'Sizdan hech narsa kutilmayapti 🎉' : view === 'unread' ? 'Hammasi o‘qilgan.' : t('empty')}
+                    {view === 'action' ? t('noAction') : view === 'unread' ? t('noUnread') : t('empty')}
                   </p>
                 ) : (
                   shown.map((r) => {
@@ -383,10 +383,10 @@ export function NotificationBell({
                           {r.body && <span className="line-clamp-2 text-xs leading-snug whitespace-pre-line text-au-muted">{r.body}</span>}
                           <span className="flex items-center gap-1.5 text-[11px] text-au-faint">
                             {format.relativeTime(new Date(r.at), now)}
-                            {r.action && <span className="rounded bg-au-bad-soft px-1 font-semibold text-au-bad">Harakat kerak</span>}
+                            {r.action && <span className="rounded bg-au-bad-soft px-1 font-semibold text-au-bad">{t('needsAction')}</span>}
                           </span>
                         </span>
-                        {r.unread && <span aria-label="o‘qilmagan" className="mt-2 size-2 shrink-0 rounded-full bg-au-info" />}
+                        {r.unread && <span aria-label={t('unreadDot')} className="mt-2 size-2 shrink-0 rounded-full bg-au-info" />}
                       </>
                     );
                     const cls = cn('flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-au-card-2', r.unread && 'bg-au-card-2/50');
@@ -412,7 +412,7 @@ export function NotificationBell({
               </div>
 
               <div className="flex items-center justify-between border-t border-au-line bg-au-card-2 px-4 py-2 text-[11px] text-au-muted">
-                <span>90 kun saqlanadi</span>
+                <span>{t('kept90')}</span>
                 <Link href="/settings?s=notifications" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 font-semibold hover:text-au-ink">
                   <Settings2 className="size-3.5" /> Telegram sozlamalari
                 </Link>

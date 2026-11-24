@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { BellRing, CalendarClock, CheckCheck, Eye, Megaphone, Pencil, Pin, PinOff, Plus, Send, Trash2, X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { CARD_TITLE, CHIP_ACCENT, CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import {
   ackNewsAction,
@@ -16,7 +17,7 @@ import {
   saveNewsAction,
   togglePinNewsAction,
 } from '@/lib/actions/team-life';
-import { NEWS_CATEGORIES, NEWS_CATEGORY_LABEL, NEWS_TEMPLATES, type NewsCategory } from '@/lib/team-life';
+import { NEWS_CATEGORIES, NEWS_TEMPLATES, type NewsCategory } from '@/lib/team-life';
 import type { FeedNews } from '@/lib/team-life-data';
 
 const BTN =
@@ -44,17 +45,9 @@ function Linkified({ text }: { text: string }) {
     );
   });
 }
-const AUD: [string, string][] = [
-  ['all', 'Hamma'],
-  ['top', 'Rahbariyat'],
-  ['acad', 'Akademik'],
-  ['com', 'Tijorat'],
-  ['ops', 'Operatsiya'],
-  ['fin', 'Moliya'],
-  ['hr', 'HR'],
-];
+const AUD = ['all', 'top', 'acad', 'com', 'ops', 'fin', 'hr'] as const;
 const fmt = (iso: string) => new Date(new Date(iso).getTime() + 5 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
-const errText = (c: string) => ({ forbidden: 'Ruxsat yo‘q', invalidInput: 'Ma’lumotni tekshiring', notFound: 'Topilmadi' } as Record<string, string>)[c] ?? 'Saqlab bo‘lmadi';
+const ERR: Record<string, string> = { forbidden: 'eForbidden', invalidInput: 'eInvalid', notFound: 'eNotFound' };
 
 type Draft = {
   id?: string;
@@ -77,6 +70,10 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
   const [draft, setDraft] = useState<Draft | null>(null);
   const [panel, setPanel] = useState<{ id: string; acked: string[]; read: string[]; pending: string[] } | null>(null);
   const [busy, start] = useTransition();
+  const t = useTranslations('nf');
+  const tc = useTranslations('tl.cat');
+  const ta = useTranslations('tl.aud');
+  const errText = (c: string) => t(ERR[c] ?? 'eOther');
 
   const shown = useMemo(
     () => news.filter((n) => (cat === 'all' ? true : cat === 'unacked' ? n.must_ack && !n.acked : n.category === cat)),
@@ -100,7 +97,7 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
         imageUrl: draft.imageUrl.trim(),
       });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(draft.id ? 'E’lon yangilandi' : draft.publishAt ? 'E’lon rejalashtirildi' : 'E’lon chop etildi');
+      toast.success(draft.id ? t('updated') : draft.publishAt ? t('scheduled') : t('published'));
       setDraft(null);
       router.refresh();
     });
@@ -110,10 +107,10 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
       const res = await deleteNewsSoftAction(n.id);
       if (res.error !== undefined) return void toast.error(errText(res.error));
       setNews((l) => l.filter((x) => x.id !== n.id));
-      toast.success('E’lon o‘chirildi', {
+      toast.success(t('deleted'), {
         duration: 6000,
         action: {
-          label: 'Bekor qilish',
+          label: t('undo'),
           onClick: () =>
             void restoreNewsAction(n.id).then((r) => {
               if (r.error === undefined) setNews((l) => [n, ...l]);
@@ -161,7 +158,7 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
     start(async () => {
       const res = await remindUnackedAction(id);
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      toast.success(`${res.sent} kishiga eslatma yuborildi`);
+      toast.success(t('reminded', { n: res.sent }));
     });
 
   return (
@@ -173,24 +170,24 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
             onClick={() => setCat(c)}
             className={cn('h-8 rounded-full px-3 text-xs font-semibold transition', cat === c ? 'bg-au-ink text-au-card' : 'bg-au-card-2 text-au-muted hover:text-au-ink')}
           >
-            {c === 'all' ? 'Hammasi' : NEWS_CATEGORY_LABEL[c]}
+            {c === 'all' ? t('all') : tc(c)}
           </button>
         ))}
         {unacked > 0 && (
           <button onClick={() => setCat('unacked')} className={cn('h-8 rounded-full px-3 text-xs font-semibold', cat === 'unacked' ? 'bg-au-bad text-white' : 'bg-au-bad-soft text-au-bad')}>
-            Tanishishim kerak · {unacked}
+            {t('mustRead', { n: unacked })}
           </button>
         )}
         {isAdmin && !draft && (
           <button className={cn(BTN_PRIMARY, 'ml-auto h-9')} onClick={() => setDraft({ ...EMPTY })}>
-            <Plus className="size-4" /> Yangi e’lon
+            <Plus className="size-4" /> {t('new')}
           </button>
         )}
       </div>
 
       {draft && <Composer draft={draft} setDraft={setDraft} busy={busy} onSave={save} />}
 
-      {shown.length === 0 && <p className={cn(SURFACE_CARD, 'p-6 text-center text-sm text-au-muted')}>E’lon yo‘q</p>}
+      {shown.length === 0 && <p className={cn(SURFACE_CARD, 'p-6 text-center text-sm text-au-muted')}>{t('none')}</p>}
 
       {shown.map((n, i) => (
         <article
@@ -201,23 +198,23 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
           <div className="flex flex-wrap items-center gap-1.5">
             {n.pinned && (
               <span className={CHIP_ACCENT}>
-                <Pin className="size-3" /> Mahkamlangan
+                <Pin className="size-3" /> {t('pinned')}
               </span>
             )}
-            <span className={CHIP_NEUTRAL}>{NEWS_CATEGORY_LABEL[n.category] ?? n.category}</span>
-            {n.audience !== 'all' && <span className={CHIP_INFO}>{AUD.find(([k]) => k === n.audience)?.[1]}</span>}
+            <span className={CHIP_NEUTRAL}>{(NEWS_CATEGORIES as readonly string[]).includes(n.category) ? tc(n.category) : n.category}</span>
+            {n.audience !== 'all' && <span className={CHIP_INFO}>{(AUD as readonly string[]).includes(n.audience) ? ta(n.audience as (typeof AUD)[number]) : n.audience}</span>}
             {n.must_ack && (
               <span className={n.acked ? CHIP_OK : CHIP_BAD}>
-                <Megaphone className="size-3" /> {n.acked ? 'Tanishgansiz' : 'Muhim'}
+                <Megaphone className="size-3" /> {n.acked ? t('acked') : t('important')}
               </span>
             )}
             {n.scheduled && n.publish_at && (
               <span className={CHIP_INFO}>
-                <CalendarClock className="size-3" /> {fmt(n.publish_at)} da chiqadi
+                <CalendarClock className="size-3" /> {t('goesOut', { d: fmt(n.publish_at) })}
               </span>
             )}
             <span className="ml-auto text-[11px] text-au-muted">
-              {n.author ?? 'Rahbariyat'} · {fmt(n.publish_at ?? n.created_at)}
+              {n.author ?? t('mgmt')} · {fmt(n.publish_at ?? n.created_at)}
             </span>
           </div>
           <h3 className={cn(CARD_TITLE, 'text-lg')}>{n.title}</h3>
@@ -231,7 +228,7 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
 
           {n.must_ack && !n.acked && !n.scheduled && (
             <button className={cn(BTN, 'h-10 w-full bg-au-bad text-sm text-white sm:w-fit')} disabled={busy} onClick={() => ack(n)}>
-              <CheckCheck className="size-4" /> Tanishdim
+              <CheckCheck className="size-4" /> {t('ack')}
             </button>
           )}
 
@@ -251,12 +248,12 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
             })}
             {(isAdmin || n.created_by === me) && (
               <span className="ml-auto flex flex-wrap items-center gap-1.5">
-                <button className={BTN_GHOST} onClick={() => openPanel(n)} title="Kim o‘qidi">
+                <button className={BTN_GHOST} onClick={() => openPanel(n)} title={t('whoRead')}>
                   <Eye className="size-3.5" /> {n.reads}/{audience}
                   {n.must_ack && <span className="text-au-muted"> · ✓{n.acks}</span>}
                 </button>
                 {isAdmin && (
-                  <button className={BTN_GHOST} onClick={() => pin(n)} aria-label={n.pinned ? 'Yechish' : 'Mahkamlash'}>
+                  <button className={BTN_GHOST} onClick={() => pin(n)} aria-label={n.pinned ? t('unpin') : t('pin')}>
                     {n.pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
                   </button>
                 )}
@@ -276,11 +273,11 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
                       imageUrl: n.image_url ?? '',
                     })
                   }
-                  aria-label="Tahrirlash"
+                  aria-label={t('edit')}
                 >
                   <Pencil className="size-3.5" />
                 </button>
-                <button className={cn(BTN_GHOST, 'hover:text-au-bad')} onClick={() => del(n)} aria-label="O‘chirish">
+                <button className={cn(BTN_GHOST, 'hover:text-au-bad')} onClick={() => del(n)} aria-label={t('delete')}>
                   <Trash2 className="size-3.5" />
                 </button>
               </span>
@@ -290,13 +287,13 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
           {panel?.id === n.id && (
             <div className="ms-pop-in grid gap-3 rounded-au-ctl border border-au-line bg-au-card-2 p-3 text-xs sm:grid-cols-3">
               {[
-                ['Tasdiqladi', panel.acked, 'text-au-ok'],
-                ['Faqat o‘qidi', panel.read, 'text-au-info'],
-                ['O‘qimagan', panel.pending, 'text-au-bad'],
-              ].map(([t, list, c]) => (
-                <div key={t as string} className="flex flex-col gap-1">
+                [t('pAcked'), panel.acked, 'text-au-ok'],
+                [t('pRead'), panel.read, 'text-au-info'],
+                [t('pPending'), panel.pending, 'text-au-bad'],
+              ].map(([h, list, c]) => (
+                <div key={h as string} className="flex flex-col gap-1">
                   <b className={c as string}>
-                    {t as string} · {(list as string[]).length}
+                    {h as string} · {(list as string[]).length}
                   </b>
                   <span className="text-au-muted">{(list as string[]).join(', ') || '—'}</span>
                 </div>
@@ -304,7 +301,7 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
               <div className="col-span-full flex justify-end gap-2">
                 {n.must_ack && isAdmin && panel.pending.length + panel.read.length > 0 && (
                   <button className={BTN_PRIMARY} disabled={busy} onClick={() => remind(n.id)}>
-                    <BellRing className="size-3.5" /> Tanishmaganlarga eslatma
+                    <BellRing className="size-3.5" /> {t('remind')}
                   </button>
                 )}
                 <button className={BTN_GHOST} onClick={() => setPanel(null)}>
@@ -321,65 +318,68 @@ export function NewsFeed({ initial, audience, isAdmin, me }: { initial: FeedNews
 
 function Composer({ draft, setDraft, busy, onSave }: { draft: Draft; setDraft: (d: Draft | null) => void; busy: boolean; onSave: () => void }) {
   const set = (p: Partial<Draft>) => setDraft({ ...draft, ...p });
+  const t = useTranslations('nf');
+  const tc = useTranslations('tl.cat');
+  const ta = useTranslations('tl.aud');
   return (
     <section className={cn(SURFACE_CARD, 'ms-pop-in flex flex-col gap-3 p-4 sm:p-5')}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <b className="mr-1 text-sm">{draft.id ? 'E’lonni tahrirlash' : 'Yangi e’lon'}</b>
+        <b className="mr-1 text-sm">{draft.id ? t('editNews') : t('new')}</b>
         {!draft.id &&
-          NEWS_TEMPLATES.map((t) => (
-            <button key={t.n} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')} onClick={() => set({ title: t.title, content: t.content, category: t.category, mustAck: t.mustAck })}>
-              {t.n}
+          NEWS_TEMPLATES.map((tp, i) => (
+            <button key={tp.n} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')} onClick={() => set({ title: tp.title, content: tp.content, category: tp.category, mustAck: tp.mustAck })}>
+              {t(`tpl${i}`)}
             </button>
           ))}
       </div>
-      <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="Sarlavha" className={cn(INPUT, 'text-base font-semibold')} maxLength={200} />
-      <textarea value={draft.content} onChange={(e) => set({ content: e.target.value })} rows={6} placeholder="Matn" className={cn(INPUT, 'py-2')} maxLength={8000} />
-      <input value={draft.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder="Rasm havolasi (https://…, ixtiyoriy)" className={INPUT} />
+      <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder={t('titlePh')} className={cn(INPUT, 'text-base font-semibold')} maxLength={200} />
+      <textarea value={draft.content} onChange={(e) => set({ content: e.target.value })} rows={6} placeholder={t('textPh')} className={cn(INPUT, 'py-2')} maxLength={8000} />
+      <input value={draft.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder={t('imgPh')} className={INPUT} />
       <div className="grid gap-2 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Toifa
+          {t('category')}
           <select value={draft.category} onChange={(e) => set({ category: e.target.value as NewsCategory })} className={cn(INPUT, 'h-9')}>
             {NEWS_CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {NEWS_CATEGORY_LABEL[c]}
+                {tc(c)}
               </option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Kimlar uchun
+          {t('audience')}
           <select value={draft.audience} onChange={(e) => set({ audience: e.target.value })} className={cn(INPUT, 'h-9')}>
-            {AUD.map(([k, n]) => (
+            {AUD.map((k) => (
               <option key={k} value={k}>
-                {n}
+                {ta(k)}
               </option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Chiqish vaqti (bo‘sh = hozir)
+          {t('publishAt')}
           <input type="datetime-local" value={draft.publishAt} onChange={(e) => set({ publishAt: e.target.value })} className={cn(INPUT, 'h-9')} />
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={draft.mustAck} onChange={(e) => set({ mustAck: e.target.checked })} /> Muhim — “Tanishdim” majburiy
+          <input type="checkbox" checked={draft.mustAck} onChange={(e) => set({ mustAck: e.target.checked })} /> {t('mustAck')}
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={draft.pinned} onChange={(e) => set({ pinned: e.target.checked })} /> Tepaga mahkamlash
+          <input type="checkbox" checked={draft.pinned} onChange={(e) => set({ pinned: e.target.checked })} /> {t('pinTop')}
         </label>
         {!draft.id && (
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={draft.notify} onChange={(e) => set({ notify: e.target.checked })} /> Telegram’ga yuborish
+            <input type="checkbox" checked={draft.notify} onChange={(e) => set({ notify: e.target.checked })} /> {t('toTg')}
           </label>
         )}
       </div>
       <div className="flex justify-end gap-2">
         <button className={BTN_GHOST} onClick={() => setDraft(null)}>
-          Bekor
+          {t('cancel')}
         </button>
         <button className={cn(BTN_PRIMARY, 'h-9 px-4 text-sm')} disabled={busy || !draft.title.trim() || !draft.content.trim()} onClick={onSave}>
-          <Send className="size-4" /> {draft.id ? 'Saqlash' : draft.publishAt ? 'Rejalashtirish' : 'Chop etish'}
+          <Send className="size-4" /> {draft.id ? t('save') : draft.publishAt ? t('schedule') : t('publish')}
         </button>
       </div>
     </section>

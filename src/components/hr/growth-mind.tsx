@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Maximize, Minus, Pencil, Plus, X } from 'lucide-react';
 import { ask, toast } from '@/components/strategy/suite-shell';
@@ -154,6 +155,7 @@ export function GrowthMindView({
   readonly: boolean;
   onChange: (m: GrowthMind) => void;
 }) {
+  const tm = useTranslations('gm');
   const [sel, setSel] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [vp, setVp] = useState(HOME);
@@ -200,7 +202,7 @@ export function GrowthMindView({
   }
 
   function startRename() {
-    if (!sel) return toast.message('Avval shox yoki markazni tanlang');
+    if (!sel) return toast.message(tm('pickFirst'));
     setText(selName ?? '');
     setRenaming(true);
   }
@@ -212,14 +214,14 @@ export function GrowthMindView({
     else onChange({ ...mind, ch: mapNode(mind.ch, sel, (n) => ({ ...n, t: v })) });
     setRenaming(false);
     setText('');
-    toast.success('Nomi o‘zgartirildi');
+    toast.success(tm('renamed'));
   }
 
   function add() {
     if (renaming) return rename();
     const v = text.trim();
     if (!v) return;
-    if (!sel) return toast.message('Avval shox yoki markazni tanlang');
+    if (!sel) return toast.message(tm('pickFirst'));
     const node: MindNode = { id: growthId(), t: v, ch: [] };
     if (sel === ROOT) {
       onChange({ ...mind, ch: [...mind.ch, { ...node, c: MIND_COLORS[mind.ch.length % MIND_COLORS.length] }] });
@@ -228,13 +230,13 @@ export function GrowthMindView({
       setCollapsed((c) => ({ ...c, [sel]: false }));
     }
     setText('');
-    toast.success(`«${v}» qo‘shildi`);
+    toast.success(tm('added', { v }));
   }
 
   async function remove() {
     if (!sel || sel === ROOT || !selNode) return;
     const kids = countNodes(selNode.ch);
-    if (!(await ask(kids ? `«${selName}» va undagi ${kids} ta shox o'chirilsinmi?` : `«${selName}» o'chirilsinmi?`))) return;
+    if (!(await ask(kids ? tm('delWith', { n: selName ?? '', k: kids }) : tm('delOne', { n: selName ?? '' })))) return;
     onChange({ ...mind, ch: mapNode(mind.ch, sel, () => null) });
     setSel(null);
   }
@@ -291,31 +293,25 @@ export function GrowthMindView({
 
       <div className="sx-mm-tools">
         <div className="sx-card zoom">
-          <button onClick={() => setVp((m) => ({ ...m, k: Math.max(0.2, m.k * 0.87) }))} title="Kichraytirish">
+          <button onClick={() => setVp((m) => ({ ...m, k: Math.max(0.2, m.k * 0.87) }))} title={tm('zoomOut')}>
             <Minus className="size-4" />
           </button>
           <span className="tabular-nums">{Math.round(vp.k * 100)}%</span>
-          <button onClick={() => setVp((m) => ({ ...m, k: Math.min(2.2, m.k * 1.15) }))} title="Kattalashtirish">
+          <button onClick={() => setVp((m) => ({ ...m, k: Math.min(2.2, m.k * 1.15) }))} title={tm('zoomIn')}>
             <Plus className="size-4" />
           </button>
-          <button onClick={() => setVp(HOME)} title="Markazga">
+          <button onClick={() => setVp(HOME)} title={tm('center')}>
             <Maximize className="size-4" />
           </button>
         </div>
         {readonly ? (
           <div className="sx-card edit">
-            <span className="selname">{selName ? <>Tanlangan: <b>{selName}</b></> : 'Faqat ko‘rish'}</span>
+            <span className="selname">{selName ? tm.rich('selected', { n: selName, b: (c) => <b>{c}</b> }) : tm('viewOnly')}</span>
           </div>
         ) : (
           <div className="sx-card edit">
             <span className="selname">
-              {selName ? (
-                <>
-                  Tanlangan: <b>{selName}</b>
-                </>
-              ) : (
-                'Shox tanlang'
-              )}
+              {selName ? tm.rich('selected', { n: selName, b: (c) => <b>{c}</b> }) : tm('pickBranch')}
             </span>
             <input
               value={text}
@@ -328,22 +324,22 @@ export function GrowthMindView({
                 }
               }}
               maxLength={120}
-              placeholder={renaming ? 'Yangi nom… (Enter)' : !sel ? 'Avval shox tanlang' : sel === ROOT ? 'Yangi asosiy shox… (Enter)' : 'Ichiga yangi shox… (Enter)'}
+              placeholder={renaming ? tm('newName') : !sel ? tm('pickBranchFirst') : sel === ROOT ? tm('newMain') : tm('newChild')}
             />
-            <button className="sx-btn sm" onClick={add} disabled={!sel || !text.trim()} title={renaming ? 'Nomni saqlash' : "Qo'shish"}>
-              {renaming ? 'Saqlash' : <Plus className="size-3.5" />}
+            <button className="sx-btn sm" onClick={add} disabled={!sel || !text.trim()} title={renaming ? tm('saveName') : tm('add')}>
+              {renaming ? tm('save') : <Plus className="size-3.5" />}
             </button>
-            <button className="sx-btn sm" onClick={startRename} disabled={!sel} title="Nomini o'zgartirish" aria-label="Nomini o'zgartirish">
+            <button className="sx-btn sm" onClick={startRename} disabled={!sel} title={tm('rename')} aria-label={tm('rename')}>
               <Pencil className="size-3.5" />
             </button>
-            <button className="sx-btn sm" onClick={remove} title="O'chirish" aria-label="O'chirish" disabled={!sel || sel === ROOT}>
+            <button className="sx-btn sm" onClick={remove} title={tm('delete')} aria-label={tm('delete')} disabled={!sel || sel === ROOT}>
               <X className="size-3.5" />
             </button>
           </div>
         )}
       </div>
       <div className="sx-mm-hint">
-        Sudrab siljiting · <kbd>scroll</kbd> zoom · shoxni <kbd>2×</kbd> bosing — yig‘ish
+        {tm.rich('hint', { k: (c) => <kbd>{c}</kbd> })}
       </div>
     </div>
   );

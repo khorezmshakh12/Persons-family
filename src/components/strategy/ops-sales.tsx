@@ -8,8 +8,9 @@ import type { SalesLead } from '@/lib/ops-sales';
 import { moveLeadAction } from '@/lib/actions/sales';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
-import { ago, tsDate } from './ops-students-meta';
-import { GROUP_TONE, LOST_FIX, PREF_DAYS, TELEGRAM_COL, columnOf, daysInStage, firstOpenStage, isOpenLead, isWaiting, leadErr, sourceName } from './ops-sales-meta';
+import { useTranslations } from 'next-intl';
+import { tsDate, useOpsMeta } from './ops-students-meta';
+import { GROUP_TONE, LOST_REASONS, TELEGRAM_COL, columnOf, daysInStage, firstOpenStage, isOpenLead, isWaiting, useSalesMeta } from './ops-sales-meta';
 import { LeadDrawer } from './ops-lead-card';
 import { CallList, GroupBuilder } from './ops-sales-views';
 import { AddLeadModal, ArchiveModal, GroupsModal, StagesModal } from './ops-sales-admin';
@@ -36,6 +37,8 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
   const [now] = useState(() => Date.now());
   const [view, setView] = useState<'board' | 'bundle' | 'calls'>('board');
   const first = firstOpenStage(d);
+  const t = useTranslations('ops.sales');
+  const { leadErr } = useSalesMeta();
 
   // Optimistic moves until the refreshed data arrives.
   const leads = useMemo(() => d.leads.map((l) => (l.id in moved ? { ...l, sectionId: moved[l.id] } : l)), [d.leads, moved]);
@@ -54,7 +57,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
     const l = leads.find((x) => x.id === id);
     if (!l || columnOf(l, first) === colId) return;
     if (colId === TELEGRAM_COL && l.source !== 'telegram') {
-      toast.error('«Telegram» ustuniga faqat botdan kelgan lidlar qaytadi');
+      toast.error(t('tgOnlyBot'));
       return;
     }
     const col = cols.find((c) => c.id === colId);
@@ -64,7 +67,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
     }
     if (col?.kind === 'joined' && !l.studentId) {
       onOpenChange(id);
-      toast.message('O‘quvchiga aylantirish uchun oylik summa va sanani kiriting');
+      toast.message(t('enterFee'));
       return;
     }
     const sectionId = colId === TELEGRAM_COL ? null : colId;
@@ -82,7 +85,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
         return;
       }
       playSound('ok');
-      toast.success(`«${col?.name}» ga o‘tkazildi`);
+      toast.success(t('movedTo', { name: col?.name ?? '' }));
       router.refresh();
     });
   };
@@ -103,25 +106,25 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
     <div className="flex flex-col gap-[18px]">
       <div className="sx-grid">
         <div className="sx-card sx-stat dark s3">
-          <div className="l">Oxirgi 24 soatda yangi lid</div>
+          <div className="l">{t('new24')}</div>
           <div className="v">{newToday}</div>
-          <div className="d">Telegram botdan haftada {tgWeek} ta</div>
+          <div className="d">{t('tgWeek', { n: tgWeek })}</div>
         </div>
         <div className="sx-card sx-stat s3">
-          <div className="l">Javob kutmoqda</div>
+          <div className="l">{t('waitReply')}</div>
           <div className={cn('v', waiting.length > 0 && 'text-au-bad')}>{waiting.length}</div>
-          <div className="d">15 daqiqadan ko‘p bog‘lanilmagan</div>
+          <div className="d">{t('waitHint')}</div>
         </div>
         <div className="sx-card sx-stat s3">
-          <div className="l">Bugungi sinov darslari</div>
+          <div className="l">{t('trialsToday')}</div>
           <div className="v">{trialsToday}</div>
-          <div className="d">{leads.filter((l) => l.trialDate && l.trialDate > today && !l.studentId).length} tasi keyingi kunlarda</div>
+          <div className="d">{t('trialsLater', { n: leads.filter((l) => l.trialDate && l.trialDate > today && !l.studentId).length })}</div>
         </div>
         <div className="sx-card sx-stat s3">
-          <div className="l">Konversiya (60 kun)</div>
+          <div className="l">{t('conversion')}</div>
           <div className="v">{won + lost ? Math.round((won / (won + lost)) * 100) : 0}%</div>
           <div className="d">
-            {won} o‘quvchi · {lost} rad etdi
+            {t('wonLost', { won, lost })}
           </div>
         </div>
       </div>
@@ -130,38 +133,38 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
         <div className="flex flex-wrap items-center gap-2">
           {data.canEdit && (
             <button className="sx-btn primary" onClick={() => setModal('add')}>
-              <Plus className="size-4" /> Lid qo‘shish
+              <Plus className="size-4" /> {t('addLead')}
             </button>
           )}
           <label className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-au-faint" />
-            <input id="sales-q" className="sx-inp !w-[230px] !pl-8" placeholder="Ism, telefon yoki kurs" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input id="sales-q" className="sx-inp !w-[230px] !pl-8" placeholder={t('searchPh')} value={q} onChange={(e) => setQ(e.target.value)} />
           </label>
           <label className="flex items-center gap-1.5 text-sm text-au-muted">
-            <input id="sales-mine" type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Mening lidlarim
+            <input id="sales-mine" type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> {t('mine')}
           </label>
           <span className="flex-1" />
           {data.canEdit && (
             <>
               <button className="sx-btn sm" onClick={() => setModal('groups')}>
-                <Tags className="size-4" /> Guruhlar
+                <Tags className="size-4" /> {t('groups')}
               </button>
               <button className="sx-btn sm" onClick={() => setModal('stages')}>
-                <Settings2 className="size-4" /> Bosqichlar
+                <Settings2 className="size-4" /> {t('stages')}
               </button>
               <button className="sx-btn sm" onClick={() => setModal('tpl')}>
-                <Mail className="size-4" /> Xabar shablonlari
+                <Mail className="size-4" /> {t('templates')}
               </button>
             </>
           )}
           <button className="sx-btn sm" onClick={() => setModal('archive')}>
-            <Archive className="size-4" /> Arxiv · {d.archived.length}
+            <Archive className="size-4" /> {t('archive', { n: d.archived.length })}
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs text-au-faint">Guruhlar:</span>
+          <span className="mr-1 text-xs text-au-faint">{t('groupsLabel')}</span>
           <Chip on={group === 'all'} onClick={() => setGroup('all')}>
-            Hammasi · {leads.length}
+            {t('all', { n: leads.length })}
           </Chip>
           {d.groups.map((g) => (
             <Chip key={g.id} on={group === g.id} onClick={() => setGroup(g.id)}>
@@ -170,17 +173,17 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
             </Chip>
           ))}
           <Chip on={group === 'none'} onClick={() => setGroup('none')}>
-            Guruhsiz · {leads.filter((l) => !l.groupId).length}
+            {t('noGroup', { n: leads.filter((l) => !l.groupId).length })}
           </Chip>
         </div>
       </div>
 
-      <div className="inline-flex self-start rounded-au-ctl border border-au-line bg-au-card-2 p-0.5" role="tablist" aria-label="Ko‘rinish">
+      <div className="inline-flex self-start rounded-au-ctl border border-au-line bg-au-card-2 p-0.5" role="tablist" aria-label={t('view')}>
         {(
           [
-            ['board', 'Kanban'],
-            ['bundle', 'Guruh yig‘ish'],
-            ['calls', `Bugun qo‘ng‘iroq · ${leads.filter((l) => visible(l) && isOpenLead(l, d) && ((l.nextAt && l.nextAt <= today) || isWaiting(l, now))).length}`],
+            ['board', t('kanban')],
+            ['bundle', t('bundle')],
+            ['calls', t('calls', { n: leads.filter((l) => visible(l) && isOpenLead(l, d) && ((l.nextAt && l.nextAt <= today) || isWaiting(l, now))).length })],
           ] as const
         ).map(([k, label]) => (
           <button
@@ -218,7 +221,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
                 <b className="text-sm text-au-ink">{c.name}</b>
                 <span className="text-xs tabular-nums text-au-faint">{list.length}</span>
               </div>
-              {list.length === 0 && <div className="px-1 py-2 text-xs text-au-faint">{c.kind === 'telegram' ? 'Botdan kelgan yangi lidlar shu yerga tushadi' : 'Bo‘sh — kartani shu yerga sudrang'}</div>}
+              {list.length === 0 && <div className="px-1 py-2 text-xs text-au-faint">{c.kind === 'telegram' ? t('tgEmpty') : t('emptyCol')}</div>}
               {list.map((l) => (
                 <LeadCardItem
                   key={l.id}
@@ -255,7 +258,7 @@ export function OpsSales({ data, openId, onOpenChange }: { data: OpsData; openId
             toast.error(leadErr(r.error));
             return;
           }
-          toast.success('Rad etdi deb belgilandi');
+          toast.success(t('markedLost'));
           router.refresh();
         });
       }} />}
@@ -299,6 +302,9 @@ function LeadCardItem({
   const stuck = daysInStage(l, now);
   const fresh = now - tsDate(l.createdAt).getTime() < 86_400_000;
   const closed = !!l.studentId || !!l.lostReason;
+  const t = useTranslations('ops.sales');
+  const { ago } = useOpsMeta();
+  const { PREF_DAYS, sourceName, lostLabel, levelLabel } = useSalesMeta();
   return (
     <article
       tabIndex={0}
@@ -314,31 +320,31 @@ function LeadCardItem({
     >
       {fresh && <i className="absolute bottom-2.5 left-[-1px] top-2.5 w-[3px] rounded bg-au-accent" />}
       <div className="flex items-center gap-1.5">
-        <b className="min-w-0 flex-1 truncate text-sm text-au-ink">{l.name || l.phone || 'Ismsiz'}</b>
+        <b className="min-w-0 flex-1 truncate text-sm text-au-ink">{l.name || l.phone || t('noName')}</b>
         {l.source === 'telegram' && <span className="sx-pl info">Telegram</span>}
         {l.source !== 'telegram' && l.tg && <span className="sx-pl info">TG</span>}
       </div>
       <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-xs text-au-muted">
-        {l.age != null && <span>{l.age} yosh</span>}
+        {l.age != null && <span>{t('age', { n: l.age })}</span>}
         {l.course && <span>{l.course}</span>}
-        {l.level && <span>{l.level}</span>}
+        {l.level && <span>{levelLabel(l.level)}</span>}
         {(l.prefDays || l.prefTime) && <span>{[PREF_DAYS[l.prefDays], l.prefTime].filter(Boolean).join(' ')}</span>}
         {l.phone && <span className="tabular-nums">{l.phone}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {g && <span className={cn('sx-pl', GROUP_TONE[g.color]?.pill)}>{g.name}</span>}
         {l.source !== 'telegram' && <span className="sx-pl mute">{sourceName(l.source)}</span>}
-        {waiting && <span className="sx-pl bad">Javob kutmoqda</span>}
-        {l.lostReason && <span className="sx-pl bad">{l.lostReason}</span>}
-        {l.studentId && <span className="sx-pl ok">O‘quvchi</span>}
-        {!closed && stuck >= 5 && <span className="sx-pl warn">bosqichda {stuck} kun</span>}
+        {waiting && <span className="sx-pl bad">{t('waitReply')}</span>}
+        {l.lostReason && <span className="sx-pl bad">{lostLabel(l.lostReason)}</span>}
+        {l.studentId && <span className="sx-pl ok">{t('student')}</span>}
+        {!closed && stuck >= 5 && <span className="sx-pl warn">{t('inStage', { n: stuck })}</span>}
         {l.nextAt && !closed && <span className={cn('sx-pl', l.nextAt <= data.today.day ? 'warn' : 'mute')}>☎ {l.nextAt.slice(8, 10)}.{l.nextAt.slice(5, 7)}</span>}
-        {l.trialDate && !closed && <span className="sx-pl info">Sinov {l.trialDate.slice(8, 10)}.{l.trialDate.slice(5, 7)}</span>}
+        {l.trialDate && !closed && <span className="sx-pl info">{t('trial', { d: `${l.trialDate.slice(8, 10)}.${l.trialDate.slice(5, 7)}` })}</span>}
         {l.comments > 0 && <span className="text-xs text-au-faint">💬 {l.comments}</span>}
         <span className="flex-1" />
         <span className="text-[11px] text-au-faint">{ago(l.createdAt, now)}</span>
       </div>
-      {l.owner && <div className="text-[11px] text-au-faint">Mas’ul: {l.owner}</div>}
+      {l.owner && <div className="text-[11px] text-au-faint">{t('owner', { n: l.owner })}</div>}
     </article>
   );
 }
@@ -424,7 +430,7 @@ function useBoardDrag(onDrop: (id: string, col: string) => void) {
       className="pointer-events-none fixed z-[70] max-w-[240px] -translate-x-1/2 -translate-y-1/2 rotate-2 truncate rounded-xl border border-au-accent bg-au-card px-3 py-2 text-sm font-bold text-au-ink shadow-[var(--au-shadow-pop)]"
       style={{ left: state.x, top: state.y }}
     >
-      {state.name || 'Lid'}
+      {state.name || '…'}
     </div>
   ) : null;
 
@@ -433,25 +439,27 @@ function useBoardDrag(onDrop: (id: string, col: string) => void) {
 
 function LostReasonModal({ onClose, onPick }: { onClose: () => void; onPick: (r: string) => void }) {
   const [r, setR] = useState('');
+  const t = useTranslations('ops.sales');
+  const { lostLabel } = useSalesMeta();
   return (
     <div className="sx-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sx-modal !w-[min(440px,100%)]" role="dialog" aria-modal="true" aria-label="Rad etish sababi">
+      <div className="sx-modal !w-[min(440px,100%)]" role="dialog" aria-modal="true" aria-label={t('lostTitle')}>
         <div className="sx-h">
-          <h3>Rad etish sababi</h3>
+          <h3>{t('lostTitle')}</h3>
         </div>
-        <p className="mb-3 text-sm text-au-muted">Sabab majburiy — statistikaga tushadi va takrorlansa yechim taklif qilinadi.</p>
+        <p className="mb-3 text-sm text-au-muted">{t('lostNote')}</p>
         <select id="lost-r" className="sx-inp" value={r} onChange={(e) => setR(e.target.value)}>
-          <option value="">— tanlang —</option>
-          {Object.keys(LOST_FIX).map((x) => (
-            <option key={x}>{x}</option>
+          <option value="">{t('pick')}</option>
+          {LOST_REASONS.map((x) => (
+            <option key={x} value={x}>{lostLabel(x)}</option>
           ))}
         </select>
         <div className="mt-4 flex justify-end gap-2">
           <button className="sx-btn" onClick={onClose}>
-            Bekor
+            {t('cancel')}
           </button>
           <button className="sx-btn text-au-bad" disabled={!r} onClick={() => onPick(r)}>
-            Rad etdi deb belgilash
+            {t('markLost')}
           </button>
         </div>
       </div>
@@ -466,18 +474,21 @@ function SalesStats({ data }: { data: OpsData }) {
   const tg = d.leads.filter((l) => columnOf(l, first) === TELEGRAM_COL).length;
   const max = Math.max(1, tg, ...funnel.map((f) => f.n));
   const lostMax = Math.max(1, ...d.stats.lostReasons.map((r) => r.n));
+  const t = useTranslations('ops.sales');
+  const to = useTranslations('ops');
+  const { sourceName, lostLabel, lostFix } = useSalesMeta();
   return (
     <div className="sx-grid">
       <div className="sx-card s12 !pb-2">
         <div className="sx-h !mb-0">
-          <h3>Sotuv statistikasi</h3>
-          <small>voronka, manbalar, rad etish sabablari</small>
+          <h3>{t('statsTitle')}</h3>
+          <small>{t('statsSub')}</small>
         </div>
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Voronka</h3>
-          <small>hozir har bosqichda</small>
+          <h3>{t('funnel')}</h3>
+          <small>{t('funnelSub')}</small>
         </div>
         <div className="flex flex-col gap-2.5">
           {[{ name: 'Telegram', n: tg, tone: 'bg-au-info' }, ...funnel.map((f) => ({ name: f.s.name, n: f.n, tone: f.s.kind === 'joined' ? 'bg-au-ok' : f.s.kind === 'lost' ? 'bg-au-bad' : 'bg-au-accent' }))].map((f) => (
@@ -493,19 +504,19 @@ function SalesStats({ data }: { data: OpsData }) {
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Manbalar</h3>
-          <small>oxirgi 30 kun · lid → o‘quvchi</small>
+          <h3>{t('sources')}</h3>
+          <small>{t('sourcesSub')}</small>
         </div>
         {d.stats.sources.length === 0 ? (
-          <div className="sx-empty">30 kunda lid yo‘q</div>
+          <div className="sx-empty">{t('noLeads30')}</div>
         ) : (
           <table className="sx-tbl lt">
             <tbody>
               {d.stats.sources.map((s) => (
                 <tr key={s.source}>
                   <td className="text-au-ink">{sourceName(s.source)}</td>
-                  <td className="text-right tabular-nums">{s.leads} lid</td>
-                  <td className="text-right tabular-nums">{s.won} o‘quvchi</td>
+                  <td className="text-right tabular-nums">{t('nLeads', { n: s.leads })}</td>
+                  <td className="text-right tabular-nums">{t('nStudents', { n: s.won })}</td>
                   <td className="text-right">
                     <span className={cn('sx-pl', s.leads && s.won / s.leads >= 0.2 ? 'ok' : 'mute')}>{s.leads ? Math.round((s.won / s.leads) * 100) : 0}%</span>
                   </td>
@@ -517,23 +528,23 @@ function SalesStats({ data }: { data: OpsData }) {
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Rad etish sabablari</h3>
-          <small>oxirgi 90 kun</small>
+          <h3>{t('lostReasons')}</h3>
+          <small>{t('last90')}</small>
         </div>
         {d.stats.lostReasons.length === 0 ? (
-          <div className="sx-empty">Rad etgan lid yo‘q</div>
+          <div className="sx-empty">{t('noLost')}</div>
         ) : (
           <div className="flex flex-col gap-2.5">
             {d.stats.lostReasons.map((r) => (
               <div key={r.reason}>
                 <div className="grid grid-cols-[minmax(110px,150px)_1fr_auto] items-center gap-2.5 text-[13px]">
-                  <span className="truncate text-au-ink">{r.reason}</span>
+                  <span className="truncate text-au-ink">{lostLabel(r.reason)}</span>
                   <span className="sx-hb">
                     <i className={r.n >= 3 ? 'bg-au-bad' : 'bg-au-faint'} style={{ width: `${(r.n / lostMax) * 100}%` }} />
                   </span>
-                  <span className="tabular-nums text-au-muted">{r.n} ta</span>
+                  <span className="tabular-nums text-au-muted">{to('c.count', { n: r.n })}</span>
                 </div>
-                {r.n >= 2 && <div className="mt-1 text-xs leading-snug text-au-muted">💡 {LOST_FIX[r.reason] ?? LOST_FIX.Boshqa}</div>}
+                {r.n >= 2 && <div className="mt-1 text-xs leading-snug text-au-muted">💡 {lostFix(r.reason)}</div>}
               </div>
             ))}
           </div>

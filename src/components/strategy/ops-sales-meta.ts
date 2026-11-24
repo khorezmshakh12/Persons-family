@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import type { SalesData, SalesLead } from '@/lib/ops-sales';
 import { tsDate } from './ops-students-meta';
 
@@ -73,3 +75,22 @@ export const isOpenLead = (l: SalesLead, d: SalesData) => {
   const kind = d.stages.find((s) => s.id === l.sectionId)?.kind;
   return kind !== 'joined' && kind !== 'lost';
 };
+
+const SOURCE_KEYS = ['telegram', 'insta', 'ref', 'walk', 'call', 'site', 'other'];
+const LEAD_ERR_KEYS = ['invalidInput', 'forbidden', 'reasonRequired', 'noTelegram', 'sendFailed', 'notFound'];
+
+/** Sales labels in the UI language. LOST_REASONS / PREF_DAYS keys stay the stored values. */
+export function useSalesMeta() {
+  const t = useTranslations('ops');
+  return useMemo(() => {
+    const SOURCES_T = Object.fromEntries(SOURCE_KEYS.map((k) => [k, t(`src.${k}`)])) as Record<string, string>;
+    const sourceName = (s: string) => SOURCES_T[s] ?? (s || t('src.other'));
+    const lostIdx = (v: string) => LOST_REASONS.indexOf(v);
+    const lostLabel = (v: string) => (lostIdx(v) >= 0 ? t(`lost.l${lostIdx(v)}`) : v);
+    const lostFix = (v: string) => t(`lostFix.l${lostIdx(v) >= 0 ? lostIdx(v) : LOST_REASONS.length - 1}`);
+    const leadErr = (e: string) => (LEAD_ERR_KEYS.includes(e) ? t(`leadErr.${e}`) : t('leadErr.other'));
+    const PREF_DAYS_T = Object.fromEntries(Object.keys(PREF_DAYS).map((k) => [k, t(`days.${k}`)])) as Record<string, string>;
+    const levelLabel = (v: string) => (v === 'Bilmayman' ? t('level.dunno') : v);
+    return { SOURCES: SOURCES_T, sourceName, lostLabel, lostFix, leadErr, PREF_DAYS: PREF_DAYS_T, levelLabel };
+  }, [t]);
+}

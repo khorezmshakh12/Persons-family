@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Briefcase, Check, Palmtree, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { SURFACE_CARD } from '@/lib/glass';
 import { AskHost, ask } from '@/components/strategy/suite-shell';
 import '@/components/strategy/suite.css';
@@ -17,20 +18,33 @@ import {
   saveVacancyAction,
   setVacancyOpenAction,
 } from '@/lib/actions/hr-leave';
-import { LEAVE_KINDS, LEAVE_KIND_LABEL, LEAVE_STATUS_LABEL, fmtDayKey, leaveDays, type LeaveKind, type LeaveRow, type Vacancy } from '@/lib/hr-leave';
+import { LEAVE_KINDS, fmtDayKey, leaveDays, type LeaveKind, type LeaveRow, type Vacancy } from '@/lib/hr-leave';
 
 const ERR: Record<string, string> = {
-  overlap: 'Bu kunlarga sizda allaqachon so‘rov bor',
-  badRange: 'Tugash sanasi boshlanishdan oldin bo‘lmasin',
-  tooOld: '60 kundan eski sana tanlab bo‘lmaydi',
-  tooLong: 'Bir so‘rov ko‘pi bilan 90 kun',
-  locked: 'Bu holatda o‘zgartirib bo‘lmaydi',
-  alreadyDecided: 'Qaror allaqachon qabul qilingan',
-  noteRequired: 'Rad etish sababini yozing',
-  forbidden: 'Ruxsat yo‘q',
-  invalidInput: 'Ma’lumot noto‘g‘ri',
+  overlap: 'eOverlap',
+  badRange: 'eBadRange',
+  tooOld: 'eTooOld',
+  tooLong: 'eTooLong',
+  locked: 'eLocked',
+  alreadyDecided: 'eDecided',
+  noteRequired: 'eNote',
+  forbidden: 'eForbidden',
+  invalidInput: 'eInvalid',
 };
-const errText = (e: string) => ERR[e] ?? 'Saqlab bo‘lmadi';
+
+/** Leave / hiring labels in the viewer's language. */
+function useLh() {
+  const t = useTranslations('lh');
+  const tk = useTranslations('lh.kind');
+  const ts = useTranslations('lh.st');
+  return {
+    t,
+    kind: (k: LeaveKind) => tk(k),
+    st: (s: LeaveRow['status']) => ts(s),
+    err: (e: string) => t(ERR[e] ?? 'eOther'),
+    span: (l: LeaveRow) => `${fmtDayKey(l.from)} – ${fmtDayKey(l.to)} · ${t('days', { n: l.days })}`,
+  };
+}
 
 const INP = 'h-9 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-sm text-au-ink';
 const BTN = 'inline-flex h-9 items-center gap-1.5 rounded-au-ctl px-3 text-sm font-semibold disabled:opacity-40';
@@ -44,10 +58,11 @@ const TONE: Record<LeaveRow['status'], string> = {
 function useRun() {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const L = useLh();
   const run = (fn: () => Promise<{ error: string } | { ok: true }>, ok: string, after?: () => void) =>
     start(async () => {
       const r = await fn();
-      if ('error' in r) return void toast.error(errText(r.error));
+      if ('error' in r) return void toast.error(L.err(r.error));
       toast.success(ok);
       after?.();
       router.refresh();
@@ -56,15 +71,15 @@ function useRun() {
 }
 
 function Pill({ s }: { s: LeaveRow['status'] }) {
-  return <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', TONE[s])}>{LEAVE_STATUS_LABEL[s]}</span>;
+  const L = useLh();
+  return <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', TONE[s])}>{L.st(s)}</span>;
 }
-
-const spanText = (l: LeaveRow) => `${fmtDayKey(l.from)} – ${fmtDayKey(l.to)} · ${l.days} kun`;
 
 /* ------------------------------------------------------------ leave */
 
 export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]; team: LeaveRow[] | null; meId: string; isCeo: boolean; today: string }) {
   const { busy, run } = useRun();
+  const L = useLh();
   const [kind, setKind] = useState<LeaveKind>('vacation');
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
@@ -84,29 +99,29 @@ export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]
       <div className="flex flex-col gap-5">
         <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-5')}>
           <div className="flex items-center gap-2 text-sm font-bold text-au-ink">
-            <Palmtree className="size-4 text-au-accent-text" /> Ta’til / ruxsat so‘rash
+            <Palmtree className="size-4 text-au-accent-text" /> {L.t('request')}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="col-span-2 grid gap-1 text-xs font-semibold text-au-muted">
-              Turi
+              {L.t('kind')}
               <select className={INP} value={kind} onChange={(e) => setKind(e.target.value as LeaveKind)}>
                 {LEAVE_KINDS.map((k) => (
                   <option key={k} value={k}>
-                    {LEAVE_KIND_LABEL[k]}
+                    {L.kind(k)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold text-au-muted">
-              Boshlanish
+              {L.t('from')}
               <input type="date" className={INP} value={from} onChange={(e) => (setFrom(e.target.value), e.target.value > to && setTo(e.target.value))} />
             </label>
             <label className="grid gap-1 text-xs font-semibold text-au-muted">
-              Tugash
+              {L.t('to')}
               <input type="date" className={INP} value={to} min={from} onChange={(e) => setTo(e.target.value)} />
             </label>
             <label className="col-span-2 grid gap-1 text-xs font-semibold text-au-muted">
-              Sabab / izoh (ixtiyoriy)
+              {L.t('reason')}
               <input className={INP} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
             </label>
           </div>
@@ -114,21 +129,21 @@ export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]
             type="button"
             disabled={busy || !from || !to || okDays < 1}
             className={cn(BTN, 'self-start bg-au-accent text-white')}
-            onClick={() => run(() => requestLeaveAction({ kind, from, to, reason: reason || undefined }), 'So‘rov yuborildi — rahbariyat va HR ko‘radi', () => setReason(''))}
+            onClick={() => run(() => requestLeaveAction({ kind, from, to, reason: reason || undefined }), L.t('sent'), () => setReason(''))}
           >
-            <Plus className="size-4" /> Yuborish{okDays > 0 ? ` · ${okDays} kun` : ''}
+            <Plus className="size-4" /> {L.t('send')}{okDays > 0 ? ` · ${L.t('days', { n: okDays })}` : ''}
           </button>
         </section>
 
         <section className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-5')}>
-          <div className="text-sm font-bold text-au-ink">Mening so‘rovlarim</div>
-          {mine.length === 0 && <p className="text-sm text-au-muted">Hali so‘rov yo‘q</p>}
+          <div className="text-sm font-bold text-au-ink">{L.t('mine')}</div>
+          {mine.length === 0 && <p className="text-sm text-au-muted">{L.t('noMine')}</p>}
           {mine.map((l) => (
             <div key={l.id} className="flex flex-wrap items-center gap-2 rounded-au-ctl border border-au-line p-3 text-sm">
               <div className="min-w-0 flex-1">
-                <b className="text-au-ink">{LEAVE_KIND_LABEL[l.kind]}</b> <span className="text-au-muted">· {spanText(l)}</span>
+                <b className="text-au-ink">{L.kind(l.kind)}</b> <span className="text-au-muted">· {L.span(l)}</span>
                 {l.reason && <div className="text-xs text-au-muted">{l.reason}</div>}
-                {l.note && <div className={cn('text-xs', l.status === 'rejected' ? 'text-au-bad' : 'text-au-muted')}>{l.decidedBy ?? 'Rahbariyat'}: {l.note}</div>}
+                {l.note && <div className={cn('text-xs', l.status === 'rejected' ? 'text-au-bad' : 'text-au-muted')}>{l.decidedBy ?? L.t('mgmt')}: {l.note}</div>}
               </div>
               <Pill s={l.status} />
               {canCancel(l) && (
@@ -137,11 +152,11 @@ export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]
                   disabled={busy}
                   className={cn(BTN, 'h-8 border border-au-line text-au-muted hover:text-au-bad')}
                   onClick={async () => {
-                    if (!(await ask(l.status === 'approved' ? 'Tasdiqlangan ta’til bekor qilinsinmi? Rahbariyatga xabar boradi.' : 'So‘rov qaytarib olinsinmi?', { ok: 'Ha' }))) return;
-                    run(() => cancelLeaveAction(l.id), 'Bekor qilindi');
+                    if (!(await ask(l.status === 'approved' ? L.t('cancelApproved') : L.t('withdraw'), { ok: L.t('yes') }))) return;
+                    run(() => cancelLeaveAction(l.id), L.t('cancelled'));
                   }}
                 >
-                  Bekor qilish
+                  {L.t('cancel')}
                 </button>
               )}
             </div>
@@ -152,38 +167,38 @@ export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]
       {team && (
         <div className="flex flex-col gap-5">
           <section className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-5')}>
-            <div className="text-sm font-bold text-au-ink">Tasdiq kutmoqda · {pending.length}</div>
-            {pending.length === 0 && <p className="text-sm text-au-muted">Kutilayotgan so‘rov yo‘q</p>}
+            <div className="text-sm font-bold text-au-ink">{L.t('pending', { n: pending.length })}</div>
+            {pending.length === 0 && <p className="text-sm text-au-muted">{L.t('noPending')}</p>}
             {pending.map((l) => {
               const own = l.userId === meId && !isCeo;
               return (
                 <div key={l.id} className="flex flex-wrap items-center gap-2 rounded-au-ctl border border-au-line p-3 text-sm">
                   <div className="min-w-0 flex-1">
-                    <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {LEAVE_KIND_LABEL[l.kind]} · {spanText(l)}</span>
+                    <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {L.kind(l.kind)} · {L.span(l)}</span>
                     {l.reason && <div className="text-xs text-au-muted">{l.reason}</div>}
                   </div>
                   {own ? (
-                    <span className="text-xs text-au-faint">O‘z so‘rovingizni boshqa rahbar tasdiqlaydi</span>
+                    <span className="text-xs text-au-faint">{L.t('own')}</span>
                   ) : (
                     <>
-                      <button type="button" disabled={busy} className={cn(BTN, 'h-8 bg-au-accent text-white')} onClick={() => run(() => decideLeaveAction({ id: l.id, approve: true }), 'Tasdiqlandi')}>
-                        <Check className="size-4" /> Tasdiqlash
+                      <button type="button" disabled={busy} className={cn(BTN, 'h-8 bg-au-accent text-white')} onClick={() => run(() => decideLeaveAction({ id: l.id, approve: true }), L.t('approved'))}>
+                        <Check className="size-4" /> {L.t('approve')}
                       </button>
                       <button type="button" disabled={busy} className={cn(BTN, 'h-8 border border-au-line text-au-muted hover:text-au-bad')} onClick={() => (setRejecting(rejecting === l.id ? null : l.id), setNote(''))}>
-                        <X className="size-4" /> Rad
+                        <X className="size-4" /> {L.t('rejectShort')}
                       </button>
                     </>
                   )}
                   {rejecting === l.id && (
                     <div className="flex basis-full gap-2">
-                      <input autoFocus className={cn(INP, 'min-w-0 flex-1')} maxLength={300} placeholder="Rad etish sababi — xodimga yuboriladi" value={note} onChange={(e) => setNote(e.target.value)} />
+                      <input autoFocus className={cn(INP, 'min-w-0 flex-1')} maxLength={300} placeholder={L.t('rejectPh')} value={note} onChange={(e) => setNote(e.target.value)} />
                       <button
                         type="button"
                         disabled={busy || !note.trim()}
                         className={cn(BTN, 'bg-au-bad text-white')}
-                        onClick={() => run(() => decideLeaveAction({ id: l.id, approve: false, note: note.trim() }), 'Rad etildi', () => setRejecting(null))}
+                        onClick={() => run(() => decideLeaveAction({ id: l.id, approve: false, note: note.trim() }), L.t('rejected'), () => setRejecting(null))}
                       >
-                        Rad etish
+                        {L.t('reject')}
                       </button>
                     </div>
                   )}
@@ -194,32 +209,32 @@ export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]
 
           <section className={cn(SURFACE_CARD, 'grid gap-4 p-5 sm:grid-cols-2')}>
             <div className="grid content-start gap-1.5">
-              <div className="text-sm font-bold text-au-ink">Bugun ishda emas · {away.length}</div>
-              {away.length === 0 && <p className="text-sm text-au-muted">Hamma ishda</p>}
+              <div className="text-sm font-bold text-au-ink">{L.t('away', { n: away.length })}</div>
+              {away.length === 0 && <p className="text-sm text-au-muted">{L.t('allIn')}</p>}
               {away.map((l) => (
                 <div key={l.id} className="text-sm">
-                  <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {LEAVE_KIND_LABEL[l.kind]} · {fmtDayKey(l.to)} gacha</span>
+                  <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {L.kind(l.kind)} · {L.t('until', { d: fmtDayKey(l.to) })}</span>
                 </div>
               ))}
             </div>
             <div className="grid content-start gap-1.5">
-              <div className="text-sm font-bold text-au-ink">Yaqinda · {soon.length}</div>
-              {soon.length === 0 && <p className="text-sm text-au-muted">Rejalashtirilgan ta’til yo‘q</p>}
+              <div className="text-sm font-bold text-au-ink">{L.t('soon', { n: soon.length })}</div>
+              {soon.length === 0 && <p className="text-sm text-au-muted">{L.t('noSoon')}</p>}
               {soon.slice(0, 12).map((l) => (
                 <div key={l.id} className="text-sm">
-                  <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {spanText(l)}</span>
+                  <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {L.span(l)}</span>
                 </div>
               ))}
             </div>
           </section>
 
           <section className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-5')}>
-            <div className="text-sm font-bold text-au-ink">Qarorlar</div>
-            {decided.length === 0 && <p className="text-sm text-au-muted">Hali qaror yo‘q</p>}
+            <div className="text-sm font-bold text-au-ink">{L.t('decisions')}</div>
+            {decided.length === 0 && <p className="text-sm text-au-muted">{L.t('noDecisions')}</p>}
             {decided.map((l) => (
               <div key={l.id} className="flex flex-wrap items-center gap-2 border-b border-au-line py-2 text-sm last:border-0">
                 <div className="min-w-0 flex-1">
-                  <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {LEAVE_KIND_LABEL[l.kind]} · {spanText(l)}</span>
+                  <b className="text-au-ink">{l.name}</b> <span className="text-au-muted">· {L.kind(l.kind)} · {L.span(l)}</span>
                   {(l.decidedBy || l.note) && (
                     <div className="text-xs text-au-muted">
                       {l.decidedBy}
@@ -231,12 +246,12 @@ export function LeaveView({ mine, team, meId, isCeo, today }: { mine: LeaveRow[]
                 <button
                   type="button"
                   disabled={busy}
-                  title="Qarorni bekor qilish — yana «kutilmoqda»"
-                  aria-label="Qarorni bekor qilish"
+                  title={L.t('undoTitle')}
+                  aria-label={L.t('undo')}
                   className="grid size-8 place-items-center rounded-au-ctl text-au-muted hover:bg-au-card-2 hover:text-au-ink"
                   onClick={async () => {
-                    if (!(await ask(`${l.name}: qaror bekor qilinsinmi? So‘rov yana «kutilmoqda» bo‘ladi, xodimga xabar boradi.`, { ok: 'Bekor qilish' }))) return;
-                    run(() => reopenLeaveAction(l.id), 'Qaror bekor qilindi');
+                    if (!(await ask(L.t('undoQ', { n: l.name }), { ok: L.t('cancel') }))) return;
+                    run(() => reopenLeaveAction(l.id), L.t('undone'));
                   }}
                 >
                   <RotateCcw className="size-4" />
@@ -259,6 +274,7 @@ const daysSince = (iso: string, until?: string | null) => Math.max(0, Math.round
 
 export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; deptLabels: Record<string, string> }) {
   const { busy, run } = useRun();
+  const L = useLh();
   const [draft, setDraft] = useState<Draft | null>(null);
   const open = vacancies.filter((v) => v.status === 'open');
   const closed = vacancies.filter((v) => v.status === 'closed');
@@ -274,14 +290,14 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
 
   const editor = draft && (
     <section className={cn(SURFACE_CARD, 'grid gap-2 p-5')}>
-      <div className="text-sm font-bold text-au-ink">{draft.id ? 'Vakansiyani tahrirlash' : 'Yangi vakansiya'}</div>
+      <div className="text-sm font-bold text-au-ink">{draft.id ? L.t('editVac') : L.t('newVac')}</div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <label className="col-span-2 grid gap-1 text-xs font-semibold text-au-muted">
-          Lavozim
-          <input autoFocus className={INP} maxLength={120} placeholder="IELTS o‘qituvchisi" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+          {L.t('position')}
+          <input autoFocus className={INP} maxLength={120} placeholder={L.t('posPh')} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
         </label>
         <label className="grid gap-1 text-xs font-semibold text-au-muted">
-          Bo‘lim
+          {L.t('dept')}
           <select className={INP} value={draft.dept} onChange={(e) => setDraft({ ...draft, dept: e.target.value })}>
             {Object.entries(deptLabels)
               .filter(([k]) => k !== 'top')
@@ -292,12 +308,12 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
               ))}
           </select>
         </label>
-        {num('seats', 'O‘rinlar')}
-        {num('applicants', 'Arizalar')}
-        {num('interviews', 'Suhbatlar')}
-        {num('offers', 'Offerlar')}
+        {num('seats', L.t('seats'))}
+        {num('applicants', L.t('applicants'))}
+        {num('interviews', L.t('interviews'))}
+        {num('offers', L.t('offers'))}
         <label className="col-span-2 grid gap-1 text-xs font-semibold text-au-muted sm:col-span-4">
-          Izoh
+          {L.t('note')}
           <input className={INP} maxLength={500} value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
         </label>
       </div>
@@ -309,15 +325,15 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
           onClick={() =>
             run(
               () => saveVacancyAction({ ...draft, dept: draft.dept as 'acad', title: draft.title.trim(), note: draft.note.trim() || undefined }),
-              draft.id ? 'Saqlandi' : 'Vakansiya ochildi',
+              draft.id ? L.t('saved') : L.t('opened'),
               () => setDraft(null),
             )
           }
         >
-          Saqlash
+          {L.t('save')}
         </button>
         <button type="button" className={cn(BTN, 'border border-au-line text-au-muted')} onClick={() => setDraft(null)}>
-          Bekor qilish
+          {L.t('cancel')}
         </button>
       </div>
     </section>
@@ -329,10 +345,10 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
         <b className="text-au-ink">{v.title}</b>
         <span className="text-au-muted">
           {' '}
-          · {deptLabels[v.dept] ?? v.dept} · {v.seats} o‘rin · {v.status === 'open' ? `${daysSince(v.openedAt)} kun ochiq` : `${daysSince(v.openedAt, v.closedAt)} kunda yopildi`}
+          {L.t('vacMeta', { d: deptLabels[v.dept] ?? v.dept, s: v.seats, st: v.status === 'open' ? L.t('openFor', { n: daysSince(v.openedAt) }) : L.t('closedIn', { n: daysSince(v.openedAt, v.closedAt) }) })}
         </span>
         <div className="text-xs text-au-muted">
-          {v.applicants} ariza · {v.interviews} suhbat · {v.offers} offer{v.note ? ` · ${v.note}` : ''}
+          {L.t('funnel', { a: v.applicants, i: v.interviews, o: v.offers })}{v.note ? ` · ${v.note}` : ''}
         </div>
       </div>
       <button
@@ -340,24 +356,24 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
         className={cn(BTN, 'h-8 border border-au-line text-au-ink')}
         onClick={() => setDraft({ id: v.id, title: v.title, dept: v.dept, seats: v.seats, applicants: v.applicants, interviews: v.interviews, offers: v.offers, note: v.note ?? '' })}
       >
-        Tahrirlash
+        {L.t('edit')}
       </button>
       <button
         type="button"
         disabled={busy}
         className={cn(BTN, 'h-8 border border-au-line', v.status === 'open' ? 'text-au-ok' : 'text-au-muted')}
-        onClick={() => run(() => setVacancyOpenAction(v.id, v.status !== 'open'), v.status === 'open' ? 'Vakansiya yopildi' : 'Qayta ochildi')}
+        onClick={() => run(() => setVacancyOpenAction(v.id, v.status !== 'open'), v.status === 'open' ? L.t('vacClosed') : L.t('reopened'))}
       >
-        {v.status === 'open' ? 'Yopish' : 'Qayta ochish'}
+        {v.status === 'open' ? L.t('close') : L.t('reopen')}
       </button>
       <button
         type="button"
         disabled={busy}
-        aria-label="O‘chirish"
+        aria-label={L.t('delete')}
         className="grid size-8 place-items-center rounded-au-ctl text-au-muted hover:bg-au-card-2 hover:text-au-bad"
         onClick={async () => {
-          if (!(await ask(`«${v.title}» vakansiyasi butunlay o‘chirilsinmi? Faqat xato ochilgan bo‘lsa — to‘lgan vakansiyani «Yopish» bilan yoping.`))) return;
-          run(() => deleteVacancyAction(v.id), 'O‘chirildi');
+          if (!(await ask(L.t('delQ', { t: v.title })))) return;
+          run(() => deleteVacancyAction(v.id), L.t('deleted'));
         }}
       >
         <Trash2 className="size-4" />
@@ -369,10 +385,10 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          ['Ochiq vakansiya', open.length],
-          ['Arizalar (ochiq)', totals.app],
-          ['Suhbat · offer', `${totals.int} · ${totals.off}`],
-          ['O‘rtacha yopilish', avgClose === null ? '—' : `${avgClose} kun`],
+          [L.t('kOpen'), open.length],
+          [L.t('kApps'), totals.app],
+          [L.t('kInt'), `${totals.int} · ${totals.off}`],
+          [L.t('kAvg'), avgClose === null ? '—' : L.t('days', { n: avgClose })],
         ].map(([k, v]) => (
           <div key={String(k)} className={cn(SURFACE_CARD, 'p-4')}>
             <div className="text-xs text-au-muted">{k}</div>
@@ -384,19 +400,19 @@ export function HiringView({ vacancies, deptLabels }: { vacancies: Vacancy[]; de
       <section className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-5')}>
         <div className="flex items-center gap-2">
           <Briefcase className="size-4 text-au-accent-text" />
-          <span className="flex-1 text-sm font-bold text-au-ink">Ochiq vakansiyalar · {open.length}</span>
+          <span className="flex-1 text-sm font-bold text-au-ink">{L.t('openList', { n: open.length })}</span>
           {!draft && (
             <button type="button" className={cn(BTN, 'h-8 bg-au-accent text-white')} onClick={() => setDraft({ ...blank })}>
-              <Plus className="size-4" /> Vakansiya
+              <Plus className="size-4" /> {L.t('vacancy')}
             </button>
           )}
         </div>
-        {open.length === 0 && <p className="text-sm text-au-muted">Ochiq vakansiya yo‘q</p>}
+        {open.length === 0 && <p className="text-sm text-au-muted">{L.t('noOpen')}</p>}
         {open.map(row)}
       </section>
       {closed.length > 0 && (
         <section className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-5')}>
-          <div className="text-sm font-bold text-au-ink">Yopilgan · {closed.length}</div>
+          <div className="text-sm font-bold text-au-ink">{L.t('closedList', { n: closed.length })}</div>
           {closed.map(row)}
         </section>
       )}

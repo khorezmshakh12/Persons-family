@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Database, GitCommit, History, ListChecks, Undo2 } from 'lucide-react';
@@ -10,10 +11,10 @@ import { revertPlatformChangeAction } from '@/lib/actions/platform';
 import type { Health, JournalRow, QualityIssue } from '@/lib/platform-health';
 
 const fmt = (s: string | null) => (s ? new Date(new Date(s).getTime() + 5 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ') : '—');
-const ago = (s: string | null) => {
-  if (!s) return 'hech qachon';
+const ago = (s: string | null, t: ReturnType<typeof useTranslations>) => {
+  if (!s) return t('never');
   const m = Math.round((Date.now() - new Date(s).getTime()) / 60_000);
-  return m < 60 ? `${m} daq oldin` : m < 1440 ? `${Math.round(m / 60)} soat oldin` : `${Math.round(m / 1440)} kun oldin`;
+  return m < 60 ? t('minAgo', { n: m }) : m < 1440 ? t('hAgo', { n: Math.round(m / 60) }) : t('dAgo', { n: Math.round(m / 1440) });
 };
 
 function Card({ title, icon, children, i = 0 }: { title: string; icon: React.ReactNode; children: React.ReactNode; i?: number }) {
@@ -30,14 +31,15 @@ function Card({ title, icon, children, i = 0 }: { title: string; icon: React.Rea
 
 export function HealthPanel({ h }: { h: Health }) {
   const bad = h.crons.filter((c) => c.stale || c.ok === false).length;
+  const t = useTranslations('po');
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { n: 'Joriy versiya', v: h.revision.replace('persons-staff-app-', ''), icon: <GitCommit className="size-4" /> },
-          { n: 'Cron muammolari', v: String(bad), icon: <Clock3 className="size-4" />, tone: bad ? 'text-au-bad' : 'text-au-ok' },
-          { n: 'Brauzer xatolari (24 soat)', v: String(h.clientErrors24h), icon: <AlertTriangle className="size-4" />, tone: h.clientErrors24h > 20 ? 'text-au-bad' : '' },
-          { n: 'Baza ulanishlari', v: h.dbConnections === null || h.dbConnections < 0 ? '—' : String(h.dbConnections), icon: <Database className="size-4" /> },
+          { n: t('version'), v: h.revision.replace('persons-staff-app-', ''), icon: <GitCommit className="size-4" /> },
+          { n: t('cronBad'), v: String(bad), icon: <Clock3 className="size-4" />, tone: bad ? 'text-au-bad' : 'text-au-ok' },
+          { n: t('clientErr'), v: String(h.clientErrors24h), icon: <AlertTriangle className="size-4" />, tone: h.clientErrors24h > 20 ? 'text-au-bad' : '' },
+          { n: t('db'), v: h.dbConnections === null || h.dbConnections < 0 ? '—' : String(h.dbConnections), icon: <Database className="size-4" /> },
         ].map((k, i) => (
           <div key={k.n} style={{ ['--i' as string]: i }} className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-1 p-4')}>
             <span className="flex items-center gap-1.5 text-xs font-semibold text-au-muted">
@@ -47,16 +49,16 @@ export function HealthPanel({ h }: { h: Health }) {
           </div>
         ))}
       </div>
-      <Card title="Fon jarayonlari (cron)" icon={<Activity className="size-4" />} i={1}>
+      <Card title={t('cron')} icon={<Activity className="size-4" />} i={1}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="text-left text-[11px] font-bold tracking-wide text-au-muted uppercase">
-                <th className="py-2">Jarayon</th>
-                <th className="py-2">Jadval</th>
-                <th className="py-2">Oxirgi ishga tushish</th>
-                <th className="py-2 text-right">7 kun</th>
-                <th className="py-2">Holat</th>
+                <th className="py-2">{t('job')}</th>
+                <th className="py-2">{t('schedule')}</th>
+                <th className="py-2">{t('lastRun')}</th>
+                <th className="py-2 text-right">{t('d7')}</th>
+                <th className="py-2">{t('status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -64,19 +66,19 @@ export function HealthPanel({ h }: { h: Health }) {
                 <tr key={c.job} className="border-t border-au-line" title={c.detail ?? undefined}>
                   <td className="py-2 font-semibold">{c.n}</td>
                   <td className="py-2 text-au-muted">{c.every}</td>
-                  <td className="py-2 tabular-nums">{ago(c.last)}</td>
+                  <td className="py-2 tabular-nums">{ago(c.last, t)}</td>
                   <td className="py-2 text-right tabular-nums">
                     {c.runs7d}
-                    {c.fails7d > 0 && <span className="text-au-bad"> / {c.fails7d} xato</span>}
+                    {c.fails7d > 0 && <span className="text-au-bad">{t('fails', { n: c.fails7d })}</span>}
                   </td>
                   <td className="py-2">
                     {c.ok === false ? (
-                      <span className={CHIP_BAD}>Xato</span>
+                      <span className={CHIP_BAD}>{t('err')}</span>
                     ) : c.stale ? (
-                      <span className={CHIP_NEUTRAL}>{c.last ? 'Kechikmoqda' : 'Hali qayd yo‘q'}</span>
+                      <span className={CHIP_NEUTRAL}>{c.last ? t('late') : t('noLog')}</span>
                     ) : (
                       <span className={CHIP_OK}>
-                        <CheckCircle2 className="size-3" /> Ishlayapti
+                        <CheckCircle2 className="size-3" /> {t('ok')}
                       </span>
                     )}
                   </td>
@@ -85,12 +87,12 @@ export function HealthPanel({ h }: { h: Health }) {
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-au-muted">Qayd yangi versiyadan boshlab yig‘iladi — birinchi kunlarda “Hali qayd yo‘q” ko‘rinishi normal.</p>
+        <p className="text-[11px] text-au-muted">{t('logHint')}</p>
       </Card>
-      <Card title="Ko‘p uchragan brauzer xatolari (24 soat)" icon={<AlertTriangle className="size-4" />} i={2}>
+      <Card title={t('topErr')} icon={<AlertTriangle className="size-4" />} i={2}>
         {h.topErrors.length === 0 ? (
           <p className="flex items-center gap-2 text-sm text-au-ok">
-            <CheckCircle2 className="size-4" /> Xato yo‘q
+            <CheckCircle2 className="size-4" /> {t('noErr')}
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5 text-sm">
@@ -109,11 +111,12 @@ export function HealthPanel({ h }: { h: Health }) {
 
 export function QualityPanel({ issues }: { issues: QualityIssue[] }) {
   const [open, setOpen] = useState<string | null>(null);
+  const t = useTranslations('po');
   return (
-    <Card title="Ma’lumot sifati" icon={<ListChecks className="size-4" />}>
+    <Card title={t('quality')} icon={<ListChecks className="size-4" />}>
       {issues.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-au-ok">
-          <CheckCircle2 className="size-4" /> Hamma ma’lumot to‘liq
+          <CheckCircle2 className="size-4" /> {t('allFull')}
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-au-line">
@@ -133,7 +136,7 @@ export function QualityPanel({ issues }: { issues: QualityIssue[] }) {
                     ))}
                   </div>
                   <Link href={q.href} className="text-xs font-semibold text-au-accent-text hover:underline">
-                    Tuzatish: {q.fix} →
+                    {t('fix', { f: q.fix })}
                   </Link>
                 </div>
               )}
@@ -145,22 +148,24 @@ export function QualityPanel({ issues }: { issues: QualityIssue[] }) {
   );
 }
 
-const SECTION_N: Record<string, string> = { default: 'rol bo‘yicha', allow: 'ochiq', deny: 'yopiq' };
+const SECTION_N: Record<string, string> = { default: 'byRole', allow: 'open', deny: 'closed' };
 
 export function JournalPanel({ rows }: { rows: JournalRow[] }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const t = useTranslations('po');
+  const sn = (v: string | null) => (SECTION_N[v ?? ''] ? t(SECTION_N[v ?? '']) : (v ?? ''));
   const revert = (id: string) =>
     start(async () => {
       const res = await revertPlatformChangeAction(id);
-      if (res?.error) return void toast.error(res.error === 'alreadyReverted' ? 'Allaqachon qaytarilgan' : 'Qaytarib bo‘lmadi');
-      toast.success('O‘zgarish qaytarildi');
+      if (res?.error) return void toast.error(res.error === 'alreadyReverted' ? t('already') : t('revertFail'));
+      toast.success(t('reverted'));
       router.refresh();
     });
   return (
-    <Card title="O‘zgarishlar jurnali" icon={<History className="size-4" />}>
+    <Card title={t('journal')} icon={<History className="size-4" />}>
       {rows.length === 0 ? (
-        <p className="text-sm text-au-muted">Hali yozuv yo‘q</p>
+        <p className="text-sm text-au-muted">{t('noRows')}</p>
       ) : (
         <ol className="flex flex-col gap-2">
           {rows.map((r, i) => (
@@ -168,11 +173,11 @@ export function JournalPanel({ rows }: { rows: JournalRow[] }) {
               <div className="flex min-w-0 flex-1 flex-col">
                 {r.kind === 'section_access' ? (
                   <span className="text-sm">
-                    <b>{r.target}</b>: «{r.key}» bo‘limi {SECTION_N[r.before ?? ''] ?? r.before} → <b>{SECTION_N[r.after ?? ''] ?? r.after}</b>
+                    {t.rich('secRow', { t: r.target ?? '', k: r.key, a: sn(r.before), b2: sn(r.after), b: (c) => <b>{c}</b> })}
                   </span>
                 ) : r.kind === 'role_access' ? (
                   <span className="text-sm">
-                    Rol <b>{r.key.split('|')[0]}</b>: «{r.key.split('|')[1]}» {SECTION_N[r.before ?? ''] ?? r.before} → <b>{SECTION_N[r.after ?? ''] ?? r.after}</b>
+                    {t.rich('roleRow', { r: r.key.split('|')[0], k: r.key.split('|')[1], a: sn(r.before), b2: sn(r.after), b: (c) => <b>{c}</b> })}
                   </span>
                 ) : (
                   <span className="text-sm break-words">
@@ -181,19 +186,19 @@ export function JournalPanel({ rows }: { rows: JournalRow[] }) {
                   </span>
                 )}
                 <span className="text-[11px] text-au-muted">
-                  {r.actor ?? 'Tizim'} · {fmt(r.at)}
+                  {r.actor ?? t('system')} · {fmt(r.at)}
                 </span>
               </div>
               {(r.kind === 'section_access' || r.kind === 'role_access') &&
                 (r.reverted ? (
-                  <span className={CHIP_NEUTRAL}>Qaytarilgan</span>
+                  <span className={CHIP_NEUTRAL}>{t('revertedChip')}</span>
                 ) : (
                   <button
                     disabled={busy}
                     onClick={() => revert(r.id)}
                     className="inline-flex h-7 shrink-0 items-center gap-1 rounded-au-ctl border border-au-line px-2 text-xs font-semibold hover:bg-au-card-2"
                   >
-                    <Undo2 className="size-3.5" /> Qaytarish
+                    <Undo2 className="size-3.5" /> {t('revert')}
                   </button>
                 ))}
             </li>

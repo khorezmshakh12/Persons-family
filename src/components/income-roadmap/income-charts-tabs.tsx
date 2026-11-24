@@ -152,6 +152,7 @@ export function IncomeChartsTabs({
   bpoint?: number;
 }) {
   const t = useTranslations('incomeRoadmap');
+  const tFin = useTranslations('fin.nav');
   const format = useFormatter();
   const [tab, setTab] = useState<'monthly' | 'cumulative'>('monthly');
   const anim = useChartAnimation();
@@ -276,7 +277,7 @@ export function IncomeChartsTabs({
                     stroke="var(--au-accent)"
                     strokeWidth={2}
                     strokeDasharray="6 4"
-                    label={{ value: `B-nuqta · ${compact(bpoint)}/oy`, position: 'insideTopRight', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
+                    label={{ value: tFin('bpLine', { n: compact(bpoint) }), position: 'insideTopRight', fontSize: 10, fontWeight: 600, fill: 'var(--au-accent-text)' }}
                   />
                 )}
 

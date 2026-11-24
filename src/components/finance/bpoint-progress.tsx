@@ -7,6 +7,8 @@ import { formatUZS } from '@/lib/format-currency';
 import { monthName } from '@/lib/bpoint';
 import type { BpointGoalView } from '@/lib/bpoint-data';
 import { cn } from '@/lib/utils';
+import { useLocale, useTranslations } from 'next-intl';
+import { localizeMonths } from '@/lib/month-names';
 
 /** B-nuqta sari: each month's OWN pay (bars, not a running total) against the
  * monthly B-nuqta line and the A-nuqta (first paid month) line, over the
@@ -14,6 +16,11 @@ import { cn } from '@/lib/utils';
  * has `amount: null`. */
 export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element {
   const [hover, setHover] = useState<number | null>(null);
+  const t = useTranslations('bpp');
+  const th = useTranslations('bp.h');
+  const locale = useLocale();
+  const lm = (s: string) => localizeMonths(s, locale);
+  const hLabel = th(goal.horizon);
   const { target, start, current, currentMonth } = goal.progress;
   const months = goal.bars;
   // 36 bars are too narrow for numbers on each and a label under each.
@@ -25,9 +32,9 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
         <Target className="size-4" />
       </span>
       <div className="flex-1">
-        <h2 className="text-base font-bold text-au-ink">B-nuqta sari</h2>
+        <h2 className="text-base font-bold text-au-ink">{t('title')}</h2>
         <p className="text-xs text-au-muted">
-          {goal.label} · {monthName(goal.start)} → {monthName(goal.end)} · har oy olingan oylik{dense ? '' : ' · ustunlarda mln so‘m'}
+          {t('sub', { h: hLabel, from: lm(monthName(goal.start)), to: lm(monthName(goal.end)) })}{dense ? '' : t('subMln')}
         </p>
       </div>
     </div>
@@ -37,7 +44,7 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
     return (
       <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-5')}>
         {Header}
-        <p className="text-sm text-au-muted">{goal.label}lik B-nuqta belgilanmagan — grafik uchun avval oylik maqsadni kiriting.</p>
+        <p className="text-sm text-au-muted">{t('notSet', { h: hLabel })}</p>
       </section>
     );
   }
@@ -62,21 +69,21 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
 
       <div className="flex min-h-5 flex-wrap items-baseline justify-between gap-x-2 text-xs">
         <span className="font-semibold text-au-ink">
-          {f.label} 20{f.year}
+          {lm(f.label)} 20{f.year}
         </span>
         <span className="text-au-muted tabular-nums">
           {f.amount !== null ? (
             <>
-              oylik {formatUZS(f.amount)}
+              {t('pay', { n: formatUZS(f.amount) })}
               {fPct !== null && (
                 <>
                   {' '}
-                  · <b className="text-au-ink">B-nuqtaning {fPct}%</b>
+                  · <b className="text-au-ink">{t('ofB', { n: fPct })}</b>
                 </>
               )}
             </>
           ) : (
-            'hali kelmagan oy'
+            t('future')
           )}
         </span>
       </div>
@@ -86,7 +93,7 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
         <div className="pointer-events-none absolute inset-x-0 z-10" style={{ bottom: h(target) }}>
           <div className="border-t-2 border-dashed border-au-ok" />
           <span className="absolute right-0 bottom-0.5 rounded-au-ctl bg-au-ok-soft px-1.5 py-0.5 text-[9px] font-semibold text-au-ok">
-            B-nuqta · {formatUZS(target)}/oy
+            {t('bLine', { n: formatUZS(target) })}
           </span>
         </div>
         {/* A-nuqta line */}
@@ -94,7 +101,7 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
           <div className="pointer-events-none absolute inset-x-0 z-10" style={{ bottom: h(start) }}>
             <div className="border-t border-dotted border-au-muted" />
             <span className="absolute left-0 bottom-0.5 rounded-au-ctl bg-au-card px-1.5 py-0.5 text-[9px] font-semibold text-au-muted">
-              A-nuqta · {formatUZS(start)}
+              {t('aLine', { n: formatUZS(start) })}
             </span>
           </div>
         )}
@@ -106,7 +113,7 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
               type="button"
               onMouseEnter={() => setHover(i)}
               onFocus={() => setHover(i)}
-              aria-label={`${m.label} 20${m.year}: ${m.amount !== null ? `oylik ${m.amount}` : 'hali kelmagan'}`}
+              aria-label={`${lm(m.label)} 20${m.year}: ${m.amount !== null ? t('pay', { n: m.amount }) : t('futureShort')}`}
               className={cn('relative flex h-full flex-1 items-end rounded-[3px]', focus === i && 'bg-au-accent/5')}
             >
               {m.amount === null ? (
@@ -142,39 +149,39 @@ export function BpointProgress({ goal }: { goal: BpointGoalView }): JSX.Element 
         {months.map((m, i) => (
           <span key={i} className={cn('flex-1 whitespace-nowrap', i === currentMonth && 'font-bold text-au-accent-text')}>
             {/* dense (36 oy): every 3rd month, with the year on January */}
-            {!dense ? m.label : i % 3 === 0 ? (m.label === 'Yan' || i === 0 ? `${m.label}’${m.year}` : m.label) : ''}
+            {!dense ? lm(m.label) : i % 3 === 0 ? (m.label === 'Yan' || i === 0 ? `${lm(m.label)}’${m.year}` : lm(m.label)) : ''}
           </span>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-[10px] text-au-muted">
         <span className="inline-flex items-center gap-1">
-          <i className="size-2 rounded-xs bg-au-accent" /> Oy oyligi
+          <i className="size-2 rounded-xs bg-au-accent" /> {t('lgPay')}
         </span>
         <span className="inline-flex items-center gap-1">
-          <i className="size-2 rounded-xs bg-au-ok" /> B-nuqtaga yetgan oy
+          <i className="size-2 rounded-xs bg-au-ok" /> {t('lgHit')}
         </span>
         <span className="inline-flex items-center gap-1">
-          <i className="size-2 rounded-xs border border-dashed border-au-line" /> Hali kelmagan
+          <i className="size-2 rounded-xs border border-dashed border-au-line" /> {t('lgFuture')}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-au-muted">
         <span>
-          Hozir: <b className="text-au-ink tabular-nums">{current > 0 ? formatUZS(current) : '—'}</b>
+          {t('now')} <b className="text-au-ink tabular-nums">{current > 0 ? formatUZS(current) : '—'}</b>
         </span>
         <span className="text-right">
-          Eng yuqori oy: <b className="text-au-ink tabular-nums">{best > 0 ? formatUZS(best) : '—'}</b>
+          {t('best')} <b className="text-au-ink tabular-nums">{best > 0 ? formatUZS(best) : '—'}</b>
         </span>
         <span>
-          O‘rtacha oyiga: <b className="text-au-ink tabular-nums">{avg > 0 ? formatUZS(avg) : '—'}</b>
+          {t('avg')} <b className="text-au-ink tabular-nums">{avg > 0 ? formatUZS(avg) : '—'}</b>
         </span>
         <span className="text-right">
           {current >= target ? (
-            <b className="text-au-ok">B-nuqtaga yetildi</b>
+            <b className="text-au-ok">{t('reached')}</b>
           ) : (
             <>
-              Yana kerak: <b className="tabular-nums text-au-bad">{formatUZS(target - current)}</b>
+              {t('need')} <b className="tabular-nums text-au-bad">{formatUZS(target - current)}</b>
             </>
           )}
         </span>

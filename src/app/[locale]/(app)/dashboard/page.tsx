@@ -333,6 +333,7 @@ async function BpointReminderSection({ userId }: { userId: string }) {
   // Any of the three B-nuqta goals (yarim yil / 1 yil / 3 yil) set → no reminder.
   const rows = await sql<{ n: number }[]>`select 1 as n from staff_bpoint_goals where user_id = ${userId} and amount > 0 limit 1`.catch(() => []);
   if (rows.length) return null; // belgilangan — eslatma kerak emas
+  const t = await getTranslations('pg.dash');
   return (
     <Link
       href={`/finance/${userId}`}
@@ -342,8 +343,8 @@ async function BpointReminderSection({ userId }: { userId: string }) {
         <Target className="size-4" />
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="text-sm font-bold text-au-ink">B-nuqtangizni belgilang</span>
-        <span className="text-xs text-au-muted">Yarim yil, 1 yil va 3 yil uchun oylik maosh maqsadingizni kiriting →</span>
+        <span className="text-sm font-bold text-au-ink">{t('bpTitle')}</span>
+        <span className="text-xs text-au-muted">{t('bpSub')}</span>
       </span>
     </Link>
   );

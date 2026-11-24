@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ArrowRight, Check, Flame, Pencil, Plus, RotateCw, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
+import { useLocale, useTranslations } from 'next-intl';
+import { localizeMonths, monthName } from '@/lib/month-names';
 import { cn } from '@/lib/utils';
 import { toggleTemplateTickAction } from '@/lib/actions/checklist-templates';
 import { addGoalAction, deleteGoalAction, editGoalAction, toggleGoalAction } from '@/lib/actions/goals';
@@ -36,11 +38,22 @@ import {
 const CARD = 'rounded-au-card border border-qp-line bg-qp-card text-qp-ink shadow-au-card';
 const TILE = 'rounded-[14px] bg-qp-card-2 p-3.5';
 const MONO = 'font-mono tabular-nums';
-const SCOPES: { k: GoalScope; n: string }[] = [
-  { k: 'day', n: 'Kunlik' },
-  { k: 'week', n: 'Haftalik' },
-  { k: 'month', n: 'Oylik' },
-];
+const SCOPES: { k: GoalScope }[] = [{ k: 'day' }, { k: 'week' }, { k: 'month' }];
+
+/** Labels and dates for the boards in the viewer's language. */
+function usePb() {
+  const t = useTranslations('pb');
+  const ts = useTranslations('goals.scope');
+  const locale = useLocale();
+  const wdFmt = locale === 'uz' ? null : new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+  return {
+    t,
+    sc: (s: GoalScope) => ts(s),
+    dl: (key: string) => (locale === 'uz' ? dayLabel(key) : `${Number(key.slice(8, 10))} ${monthName(locale, Number(key.slice(5, 7)), true)}`),
+    wd: (d: BoardDay) => (wdFmt ? wdFmt.format(new Date(`${d.key}T00:00:00Z`)).slice(0, 2) : d.w),
+    mt: (s: string) => localizeMonths(s, locale),
+  };
+}
 
 function addDays(key: string, n: number): string {
   const d = new Date(`${key}T00:00:00Z`);
@@ -50,6 +63,7 @@ function addDays(key: string, n: number): string {
 
 /** Shared live state: ticks and goals change optimistically, then save. */
 function useBoard(data: ProgressBoardData) {
+  const P = usePb();
   const [ticks, setTicks] = useState(() => new Set(data.ticks));
   const [goals, setGoals] = useState<BoardGoal[]>(data.goals);
   const [, start] = useTransition();
@@ -69,7 +83,7 @@ function useBoard(data: ProgressBoardData) {
       const res = await toggleTemplateTickAction(itemId, 'daily', next, day);
       if ('error' in res) {
         apply(!next);
-        toast.error('Saqlab bo‘lmadi');
+        toast.error(P.t('saveFail'));
       }
     });
   };
@@ -84,7 +98,7 @@ function useBoard(data: ProgressBoardData) {
       const res = await toggleGoalAction(id, next);
       if ('error' in res) {
         set(g.doneDay);
-        toast.error('Saqlab bo‘lmadi');
+        toast.error(P.t('saveFail'));
       }
     });
   };
@@ -95,7 +109,7 @@ function useBoard(data: ProgressBoardData) {
     start(async () => {
       const periodKey = data.periodKeys[scope];
       const res = await addGoalAction(scope, periodKey, title);
-      if ('error' in res || !res.id) return void toast.error('Qo‘shib bo‘lmadi');
+      if ('error' in res || !res.id) return void toast.error(P.t('addFail'));
       setGoals((p) => [...p, { id: res.id!, scope, title, periodKey, startDay: data.today, dueDay: dueOf(scope), doneDay: null }]);
     });
 
@@ -109,7 +123,7 @@ function useBoard(data: ProgressBoardData) {
       const res = await (moved ? editGoalAction(id, title, scope, data.periodKeys[scope]) : editGoalAction(id, title));
       if ('error' in res) {
         setGoals((p) => p.map((g) => (g.id === id ? old : g)));
-        toast.error('Saqlab bo‘lmadi');
+        toast.error(P.t('saveFail'));
       }
     });
   };
@@ -123,16 +137,16 @@ function useBoard(data: ProgressBoardData) {
       const res = await deleteGoalAction(id);
       if ('error' in res) {
         setGoals((p) => [...p, old]);
-        return void toast.error('O‘chirib bo‘lmadi');
+        return void toast.error(P.t('delFail'));
       }
-      toast.success('Maqsad o‘chirildi', {
+      toast.success(P.t('deleted'), {
         duration: 5000,
         action: {
-          label: 'Qaytarish',
+          label: P.t('undo'),
           onClick: () =>
             start(async () => {
               const r = await addGoalAction(old.scope, old.periodKey, old.title);
-              if (!('ok' in r) || !r.id) return void toast.error('Qaytarib bo‘lmadi');
+              if (!('ok' in r) || !r.id) return void toast.error(P.t('undoFail'));
               if (old.doneDay) await toggleGoalAction(r.id, true);
               setGoals((p) => [...p, { ...old, id: r.id! }]);
             }),
@@ -178,6 +192,7 @@ function Ring({ pct, size = 150, label }: { pct: number; size?: number; label: R
 }
 
 function WeekBars({ week, today, value }: { week: BoardDay[]; today: string; value: (d: BoardDay) => number | null }) {
+  const P = usePb();
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="flex h-[110px] items-end gap-3 border-b border-qp-line pb-2">
@@ -197,7 +212,7 @@ function WeekBars({ week, today, value }: { week: BoardDay[]; today: string; val
       <div className="flex gap-3 pt-1.5">
         {week.map((d) => (
           <span key={d.key} className={cn('flex-1 text-center text-[11px] font-semibold', d.key === today ? 'text-qp-mint' : 'text-qp-muted')}>
-            {d.w}
+            {P.wd(d)}
           </span>
         ))}
       </div>
@@ -209,6 +224,7 @@ type Series = { values: (number | null)[]; color: string; dashed?: boolean; area
 
 /** Month line: one point per day that has a value; moves as data changes. */
 function MonthLine({ days, series, height = 200, label }: { days: BoardDay[]; series: Series[]; height?: number; label: string }) {
+  const P = usePb();
   const W = 1000;
   const base = height - 40;
   const x = (i: number) => 34 + (i * (W - 50)) / Math.max(1, days.length - 1);
@@ -244,7 +260,7 @@ function MonthLine({ days, series, height = 200, label }: { days: BoardDay[]; se
       })}
       {[0, Math.floor((days.length - 1) / 2), days.length - 1].map((i) => (
         <text key={i} x={x(i) - 20} y={height - 10} fill="var(--qp-muted)" fontSize="11" className="font-mono">
-          {dayLabel(days[i].key)}
+          {P.dl(days[i].key)}
         </text>
       ))}
     </svg>
@@ -280,15 +296,16 @@ const FOOT = cn(MONO, 'h-6 w-7 rounded-md text-center text-[11px] leading-6 font
 /* ------------------------------------------------------------ boards */
 
 export function ProgressBoard({ data, roleLabel }: { data: ProgressBoardData; roleLabel: string }) {
+  const P = usePb();
   const board = useBoard(data);
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label="Checklist statistikasi">
-        <BoardHeader kicker={`CHECKLIST · ${roleLabel.toUpperCase()}`} title={`${data.monthTitle} — checklist`} hint="Katakni bossangiz — chiziq, foizlar va tahlil darhol o‘zgaradi." />
+      <section className="flex flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label={P.t('clAria')}>
+        <BoardHeader kicker={`CHECKLIST · ${roleLabel.toUpperCase()}`} title={`${P.mt(data.monthTitle)} — checklist`} hint={P.t('clHint')} />
         <ChecklistBoard data={data} board={board} />
       </section>
-      <section id="maqsadlar" className="flex scroll-mt-4 flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label="Maqsadlar statistikasi">
-        <BoardHeader kicker="MAQSADLAR" title={`${data.monthTitle} — maqsadlar`} hint="Bajarilmagan maqsad o‘chmaydi: qaysi kuni qolib ketgani shu yerda ko‘rinadi va bajarilguncha ko‘chib yuradi." />
+      <section id="maqsadlar" className="flex scroll-mt-4 flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label={P.t('goalsAria')}>
+        <BoardHeader kicker={P.t('goalsKicker')} title={P.t('goalsTitle', { m: P.mt(data.monthTitle) })} hint={P.t('goalsHint')} />
         <GoalsBoard data={data} board={board} />
       </section>
     </div>
@@ -308,6 +325,7 @@ function BoardHeader({ kicker, title, hint }: { kicker: string; title: string; h
 type Board = ReturnType<typeof useBoard>;
 
 function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board }) {
+  const P = usePb();
   const { ticks, goals } = board;
   const { today, items, days } = data;
   const work = days.filter((d) => isWorkDay(d, today));
@@ -320,28 +338,28 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
   const todayGoals = openToday(goals, 'day', today);
 
   if (!items.length)
-    return <p className={cn(CARD, 'p-6 text-sm text-qp-muted')}>Rolingiz uchun kunlik checklist hali yo‘q — CEO/COO qo‘shganda statistika shu yerda chiqadi.</p>;
+    return <p className={cn(CARD, 'p-6 text-sm text-qp-muted')}>{P.t('noItems')}</p>;
 
   return (
     <>
       <div className="flex flex-wrap gap-4">
         <div className={cn(CARD, 'flex flex-[1_1_300px] flex-col justify-between gap-4 p-5')}>
           <div>
-            <h3 className="text-lg font-bold">Bugun · {dayLabel(today)}</h3>
-            <p className="text-[13px] text-qp-muted">{todayDay?.off ? 'Bugun dam olish (yoki dars yo‘q) kuni.' : 'Kunlik vazifalar, maqsadlar va odatlar bir joyda.'}</p>
+            <h3 className="text-lg font-bold">{P.t('today', { d: P.dl(today) })}</h3>
+            <p className="text-[13px] text-qp-muted">{todayDay?.off ? P.t('offToday') : P.t('allInOne')}</p>
           </div>
           <div className="grid grid-cols-3 gap-2.5">
-            <Stat label="Ketma-ket" value={`${streak} kun`} tone="mint" />
-            <Stat label="Oy o‘rtachasi" value={`${avg}%`} />
-            <Stat label="Eng yaxshi kun" value={best ? `${best.n} · ${day(best.key).pct}%` : '—'} />
+            <Stat label={P.t('streak')} value={P.t('nDays', { n: streak })} tone="mint" />
+            <Stat label={P.t('monthAvg')} value={`${avg}%`} />
+            <Stat label={P.t('bestDay')} value={best ? `${best.n} · ${day(best.key).pct}%` : '—'} />
           </div>
         </div>
         <div className={cn(CARD, 'flex flex-[2_1_560px] flex-wrap items-center gap-8 p-5')}>
           <div className="flex min-w-[280px] flex-1 flex-col gap-3">
-            <h3 className="text-lg font-bold">Umumiy bajarilish · shu hafta</h3>
+            <h3 className="text-lg font-bold">{P.t('weekTotal')}</h3>
             <WeekBars week={data.week} today={today} value={(d) => (d.off ? null : day(d.key).pct)} />
           </div>
-          <Ring pct={t.pct} label={`${t.done}/${t.total} bajarildi`} />
+          <Ring pct={t.pct} label={P.t('doneOf', { d: t.done, t: t.total })} />
         </div>
       </div>
 
@@ -349,12 +367,12 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
         <div className="flex min-w-0 flex-[999_1_760px] flex-col gap-4">
           <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
             <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <h3 className="text-lg font-bold">Kunlik checklist jadvali</h3>
+              <h3 className="text-lg font-bold">{P.t('clTable')}</h3>
               <Legend
                 items={[
-                  ['border-qp-mint bg-qp-mint', 'Bajarildi'],
-                  ['border-qp-red/50 bg-qp-red-soft', 'Bajarilmadi'],
-                  ['qp-hatch border-transparent', 'Dam olish / dars yo‘q'],
+                  ['border-qp-mint bg-qp-mint', P.t('done')],
+                  ['border-qp-red/50 bg-qp-red-soft', P.t('notDone')],
+                  ['qp-hatch border-transparent', P.t('offLegend')],
                 ]}
               />
             </div>
@@ -362,12 +380,12 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
               <table className="border-separate border-spacing-[3px] text-xs">
                 <thead>
                   <tr>
-                    <th className="w-[230px] min-w-[230px] pr-2.5 text-left font-semibold text-qp-muted">Vazifa</th>
+                    <th className="w-[230px] min-w-[230px] pr-2.5 text-left font-semibold text-qp-muted">{P.t('task')}</th>
                     {days.map((d) => (
                       <th key={d.key} className="p-0 font-semibold">
                         <div className={DAY_HEAD(d, today)}>
                           <span className={cn(MONO, 'text-[11px]')}>{d.n}</span>
-                          <span className="text-[9px]">{d.w}</span>
+                          <span className="text-[9px]">{P.wd(d)}</span>
                         </div>
                       </th>
                     ))}
@@ -390,8 +408,8 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
                               disabled={!can}
                               onClick={() => board.tick(it.id, d.key)}
                               aria-pressed={on}
-                              aria-label={`${it.title}, ${dayLabel(d.key)}`}
-                              title={can ? undefined : d.key > today ? 'Hali kelmagan kun' : d.off ? 'Dam olish kuni' : 'Faqat bugun va kecha belgilanadi'}
+                              aria-label={`${it.title}, ${P.dl(d.key)}`}
+                              title={can ? undefined : d.key > today ? P.t('futureDay') : d.off ? P.t('offDay') : P.t('onlyRecent')}
                               className={cn(
                                 'grid size-7 place-items-center rounded-[7px] border transition enabled:hover:scale-110 disabled:cursor-default',
                                 state === 'done' && 'qp-glow border-qp-mint bg-qp-mint',
@@ -407,7 +425,7 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
                     </tr>
                   ))}
                   <tr>
-                    <td className="pr-2.5 font-semibold text-qp-cyan">Kunlik maqsadlar</td>
+                    <td className="pr-2.5 font-semibold text-qp-cyan">{P.t('dailyGoals')}</td>
                     {days.map((d) => {
                       const g = dayGoals(goals, d.key, today);
                       return (
@@ -418,7 +436,7 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
                               'grid size-7 place-items-center rounded-[7px] text-[10px] font-bold',
                               !g.total ? 'bg-qp-card-2 text-qp-dim' : g.onTime === g.total ? 'bg-qp-cyan-soft text-qp-cyan' : g.left ? 'bg-qp-red-soft text-qp-red' : 'bg-qp-yellow-soft text-qp-yellow',
                             )}
-                            title={g.total ? `${g.onTime} / ${g.total} maqsad shu kuni bajarildi${g.left ? `, ${g.left} ta qolib ketdi` : ''}` : undefined}
+                            title={g.total ? `${P.t('dayGoalsTitle', { o: g.onTime, t: g.total })}${g.left ? P.t('dayGoalsLeft', { n: g.left }) : ''}` : undefined}
                           >
                             {g.total ? `${g.onTime}/${g.total}` : ''}
                           </span>
@@ -429,22 +447,22 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
                 </tbody>
                 <tfoot>
                   <FootRow label="Progress %" days={days} today={today} value={(d) => (isWorkDay(d, today) ? day(d.key).pct : null)} pct />
-                  <FootRow label="Bajarildi" tone="mint" days={days} today={today} value={(d) => (isWorkDay(d, today) ? day(d.key).done : null)} />
-                  <FootRow label="Bajarilmadi" tone="red" days={days} today={today} value={(d) => (isWorkDay(d, today) ? items.length - day(d.key).done : null)} />
+                  <FootRow label={P.t('done')} tone="mint" days={days} today={today} value={(d) => (isWorkDay(d, today) ? day(d.key).done : null)} />
+                  <FootRow label={P.t('notDone')} tone="red" days={days} today={today} value={(d) => (isWorkDay(d, today) ? items.length - day(d.key).done : null)} />
                 </tfoot>
               </table>
             </div>
-            <p className="text-[11px] text-qp-muted">Bugungi va kechagi kataklarni shu yerda belgilash mumkin; oldingi kunlar faqat ko‘rish uchun.</p>
+            <p className="text-[11px] text-qp-muted">{P.t('editHint')}</p>
           </div>
 
           <div className={cn(CARD, 'flex flex-col gap-2.5 p-5')}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-lg font-bold">Kunlik bajarilish dinamikasi</h3>
-              <span className={cn(MONO, 'text-[13px] font-bold text-qp-mint')}>O‘rtacha: {avg}%</span>
+              <h3 className="text-lg font-bold">{P.t('dynamics')}</h3>
+              <span className={cn(MONO, 'text-[13px] font-bold text-qp-mint')}>{P.t('avg', { n: avg })}</span>
             </div>
             <MonthLine
               days={days}
-              label="Kunlar bo‘yicha checklist foizi"
+              label={P.t('clLineAria')}
               series={[
                 { values: days.map((d) => (isWorkDay(d, today) ? day(d.key).pct : null)), color: 'var(--qp-mint)', area: true },
                 { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)), color: 'var(--qp-cyan)', dashed: true },
@@ -452,14 +470,14 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
             />
             <div className="flex gap-4 text-[11px] font-semibold">
               <span className="text-qp-mint">— Checklist %</span>
-              <span className="text-qp-cyan">- - Kunlik maqsadlar %</span>
+              <span className="text-qp-cyan">{P.t('dailyGoalsPct')}</span>
             </div>
           </div>
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
           <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
-            <h3 className="text-lg font-bold">Tahlil</h3>
+            <h3 className="text-lg font-bold">{P.t('analysis')}</h3>
             {items.map((it) => {
               const done = work.filter((d) => ticks.has(tickKey(it.id, d.key))).length;
               const pct = work.length ? Math.round((done / work.length) * 100) : 0;
@@ -474,19 +492,19 @@ function ChecklistBoard({ data, board }: { data: ProgressBoardData; board: Board
                     <div className={cn('h-full rounded-full transition-[width] duration-500', tone.split(' ')[0])} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="text-[11px] text-qp-muted">
-                    {done} / {work.length} ish kuni
+                    {P.t('workDays', { d: done, t: work.length })}
                   </span>
                 </div>
               );
             })}
           </div>
           <div className={cn(CARD, 'grid grid-cols-2 gap-2.5 p-5')}>
-            <h3 className="col-span-2 text-lg font-bold">Davr bo‘yicha</h3>
-            <Stat label="Haftalik checklist" value={`${data.weekly.done}/${data.weekly.total}`} />
-            <Stat label="Oylik checklist" value={`${data.monthly.done}/${data.monthly.total}`} />
+            <h3 className="col-span-2 text-lg font-bold">{P.t('byPeriod')}</h3>
+            <Stat label={P.t('weeklyCl')} value={`${data.weekly.done}/${data.weekly.total}`} />
+            <Stat label={P.t('monthlyCl')} value={`${data.monthly.done}/${data.monthly.total}`} />
             <a href="#maqsadlar" className={cn(TILE, 'col-span-2 flex items-center justify-between text-left transition hover:bg-qp-track')}>
               <span>
-                <span className="block text-[11px] font-semibold text-qp-muted">Bugungi maqsadlar</span>
+                <span className="block text-[11px] font-semibold text-qp-muted">{P.t('todayGoals')}</span>
                 <span className={cn(MONO, 'text-xl font-bold text-qp-cyan')}>
                   {todayGoals.filter((g) => g.doneDay).length}/{todayGoals.length}
                 </span>
@@ -550,6 +568,7 @@ const CELL_CLS: Record<GoalCell, string> = {
 };
 
 function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) {
+  const P = usePb();
   const { goals } = board;
   const { today, days } = data;
   const [scope, setScope] = useState<GoalScope>('day');
@@ -580,18 +599,18 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
       <div className="flex flex-wrap gap-4">
         <div className={cn(CARD, 'flex flex-[1_1_300px] flex-col justify-between gap-4 p-5')}>
           <div>
-            <h3 className="text-lg font-bold">Maqsadlar · {dayLabel(today)}</h3>
-            <p className="text-[13px] text-qp-muted">Bajarilmagan maqsad o‘chmaydi — bajarilguncha keyingi kunlarga ko‘chadi.</p>
+            <h3 className="text-lg font-bold">{P.t('goalsOf', { d: P.dl(today) })}</h3>
+            <p className="text-[13px] text-qp-muted">{P.t('carryHint')}</p>
           </div>
           <div className="grid grid-cols-3 gap-2.5">
-            <Stat label="Bugun" value={`${tDone}/${todays.length}`} tone="cyan" />
-            <Stat label="Kechikkan" value={late} tone={late ? 'red' : undefined} />
-            <Stat label="Vaqtida bajarilgan" value={`${onTimePct}%`} tone="mint" />
+            <Stat label={P.t('todayStat')} value={`${tDone}/${todays.length}`} tone="cyan" />
+            <Stat label={P.t('late')} value={late} tone={late ? 'red' : undefined} />
+            <Stat label={P.t('onTime')} value={`${onTimePct}%`} tone="mint" />
           </div>
         </div>
         <div className={cn(CARD, 'flex flex-[2_1_560px] flex-wrap items-center gap-8 p-5')}>
           <div className="flex min-w-[280px] flex-1 flex-col gap-3">
-            <h3 className="text-lg font-bold">Kunlik maqsadlar · shu hafta</h3>
+            <h3 className="text-lg font-bold">{P.t('weekGoals')}</h3>
             <WeekBars
               week={data.week}
               today={today}
@@ -601,7 +620,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
               }}
             />
           </div>
-          <Ring pct={tPct} label={`${tDone}/${todays.length} bajarildi`} />
+          <Ring pct={tPct} label={P.t('doneOf', { d: tDone, t: todays.length })} />
         </div>
       </div>
 
@@ -609,28 +628,28 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
         <div className="flex min-w-0 flex-[999_1_760px] flex-col gap-4">
           <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
             <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <h3 className="text-lg font-bold">Maqsadlar jadvali</h3>
+              <h3 className="text-lg font-bold">{P.t('goalsTable')}</h3>
               <Legend
                 items={[
-                  ['border-qp-mint bg-qp-mint', 'Bajarildi'],
-                  ['border-qp-yellow/40 bg-qp-yellow-soft', 'Ochiq'],
-                  ['border-qp-red/40 bg-qp-red-soft', 'Kechikkan'],
+                  ['border-qp-mint bg-qp-mint', P.t('done')],
+                  ['border-qp-yellow/40 bg-qp-yellow-soft', P.t('open')],
+                  ['border-qp-red/40 bg-qp-red-soft', P.t('late')],
                 ]}
               />
             </div>
             {sorted.length === 0 ? (
-              <p className="py-6 text-center text-sm text-qp-muted">Bu oyda maqsad yo‘q — o‘ngdagi maydondan qo‘shing.</p>
+              <p className="py-6 text-center text-sm text-qp-muted">{P.t('noGoalsMonth')}</p>
             ) : (
               <div className="overflow-x-auto pb-1">
                 <table className="border-separate border-spacing-[3px] text-xs">
                   <thead>
                     <tr>
-                      <th className="w-[230px] min-w-[230px] pr-2.5 text-left font-semibold text-qp-muted">Maqsad</th>
+                      <th className="w-[230px] min-w-[230px] pr-2.5 text-left font-semibold text-qp-muted">{P.t('goal')}</th>
                       {days.map((d) => (
                         <th key={d.key} className="p-0 font-semibold">
                           <div className={DAY_HEAD({ ...d, off: false }, today)}>
                             <span className={cn(MONO, 'text-[11px]')}>{d.n}</span>
-                            <span className="text-[9px]">{d.w}</span>
+                            <span className="text-[9px]">{P.wd(d)}</span>
                           </div>
                         </th>
                       ))}
@@ -641,7 +660,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                       <tr key={g.id}>
                         <td className="max-w-[230px] pr-2.5" title={g.title}>
                           <span className={cn('block truncate font-semibold', g.doneDay && 'text-qp-muted line-through')}>{g.title}</span>
-                          <span className="text-[10px] text-qp-muted">{SCOPES.find((s) => s.k === g.scope)?.n}</span>
+                          <span className="text-[10px] text-qp-muted">{P.sc(g.scope)}</span>
                         </td>
                         {days.map((d) => {
                           const c = goalCell(g, d.key, today);
@@ -655,10 +674,10 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                     ))}
                   </tbody>
                   <tfoot>
-                    <FootRow label="Kunlik maqsad %" days={days} today={today} pct value={(d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)} />
-                    <FootRow label="Shu kuni bajarildi" tone="mint" days={days} today={today} value={(d) => (dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).onTime : null)} />
+                    <FootRow label={P.t('dayGoalPct')} days={days} today={today} pct value={(d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)} />
+                    <FootRow label={P.t('doneThatDay')} tone="mint" days={days} today={today} value={(d) => (dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).onTime : null)} />
                     <FootRow
-                      label="Qolib ketdi"
+                      label={P.t('leftBehind')}
                       tone="red"
                       days={days}
                       today={today}
@@ -675,12 +694,12 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
 
           <div className={cn(CARD, 'flex flex-col gap-2.5 p-5')}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-lg font-bold">Maqsadlar dinamikasi</h3>
-              <span className={cn(MONO, 'text-[13px] font-bold text-qp-cyan')}>O‘rtacha: {avg}%</span>
+              <h3 className="text-lg font-bold">{P.t('goalsDyn')}</h3>
+              <span className={cn(MONO, 'text-[13px] font-bold text-qp-cyan')}>{P.t('avg', { n: avg })}</span>
             </div>
             <MonthLine
               days={days}
-              label="Kunlar bo‘yicha kunlik maqsadlar foizi va qolib ketganlar"
+              label={P.t('goalsLineAria')}
               series={[
                 { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)), color: 'var(--qp-cyan)', area: true },
                 {
@@ -694,8 +713,8 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
               ]}
             />
             <div className="flex gap-4 text-[11px] font-semibold">
-              <span className="text-qp-cyan">— Shu kuni bajarilgan %</span>
-              <span className="text-qp-red">- - Qolib ketgan %</span>
+              <span className="text-qp-cyan">{P.t('doneThatDayPct')}</span>
+              <span className="text-qp-red">{P.t('leftPct')}</span>
             </div>
           </div>
         </div>
@@ -703,7 +722,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-4">
           <LeftBehind goals={goals} today={today} onToggle={board.toggleGoal} />
           <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
-            <h3 className="text-lg font-bold">Bajarish kerak</h3>
+            <h3 className="text-lg font-bold">{P.t('toDo')}</h3>
             <div className="flex gap-1 rounded-xl bg-qp-bg p-1">
               {SCOPES.map((s) => (
                 <button
@@ -713,7 +732,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                   aria-pressed={scope === s.k}
                   className={cn('h-9 flex-1 rounded-[9px] text-xs font-semibold', scope === s.k ? 'bg-qp-card-2 text-qp-ink' : 'text-qp-muted')}
                 >
-                  {s.n}
+                  {P.sc(s.k)}
                 </button>
               ))}
             </div>
@@ -724,23 +743,23 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && add()}
                 maxLength={160}
-                placeholder="Yangi maqsad…"
-                aria-label="Yangi maqsad"
+                placeholder={P.t('newGoal')}
+                aria-label={P.t('newGoalAria')}
                 className="h-10 min-w-0 flex-1 rounded-[10px] border border-qp-line bg-qp-bg px-3 text-[13px] text-qp-ink outline-none placeholder:text-qp-muted focus:border-qp-mint"
               />
-              <button type="button" onClick={add} disabled={!draft.trim()} aria-label="Qo‘shish" className="grid size-10 place-items-center rounded-[10px] bg-qp-mint text-qp-mint-ink disabled:opacity-40">
+              <button type="button" onClick={add} disabled={!draft.trim()} aria-label={P.t('add')} className="grid size-10 place-items-center rounded-[10px] bg-qp-mint text-qp-mint-ink disabled:opacity-40">
                 <Plus className="size-4" />
               </button>
             </div>
           </div>
           <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
-            <h3 className="text-lg font-bold">Tahlil</h3>
+            <h3 className="text-lg font-bold">{P.t('analysis')}</h3>
             {SCOPES.map((s) => {
               const m = goalSummary(goals, s.k);
               return (
                 <div key={s.k} className="flex flex-col gap-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="font-semibold">{s.n}</span>
+                    <span className="font-semibold">{P.sc(s.k)}</span>
                     <span className={cn(MONO, 'font-bold text-qp-cyan')}>
                       {m.done}/{m.total} · {m.pct}%
                     </span>
@@ -749,7 +768,7 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
                     <div className="h-full rounded-full bg-qp-cyan transition-[width] duration-500" style={{ width: `${m.pct}%` }} />
                   </div>
                   <span className="text-[11px] text-qp-muted">
-                    Vaqtida: {m.onTime} · Kechikib: {m.late} · Ochiq: {m.total - m.done}
+                    {P.t('summary', { o: m.onTime, l: m.late, p: m.total - m.done })}
                   </span>
                 </div>
               );
@@ -764,23 +783,24 @@ function GoalsBoard({ data, board }: { data: ProgressBoardData; board: Board }) 
 /** Which goals were left behind, day by day — still open ones can be
  * finished from here; ones done late say when. */
 function LeftBehind({ goals, today, onToggle }: { goals: BoardGoal[]; today: string; onToggle: (id: string) => void }) {
+  const P = usePb();
   const groups = leftBehind(goals, today);
   const open = groups.reduce((t, g) => t + g.goals.filter((x) => !x.doneDay).length, 0);
   return (
     <div className={cn(CARD, 'flex flex-col gap-3.5 p-5')}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-lg font-bold">Qolib ketgan maqsadlar</h3>
-        {open > 0 && <span className={cn(MONO, 'rounded-full bg-qp-red-soft px-2.5 py-0.5 text-xs font-bold text-qp-red')}>{open} ochiq</span>}
+        <h3 className="text-lg font-bold">{P.t('leftTitle')}</h3>
+        {open > 0 && <span className={cn(MONO, 'rounded-full bg-qp-red-soft px-2.5 py-0.5 text-xs font-bold text-qp-red')}>{P.t('nOpen', { n: open })}</span>}
       </div>
       {groups.length === 0 ? (
-        <p className="text-xs text-qp-muted">Hech narsa qolib ketmagan — barakalla.</p>
+        <p className="text-xs text-qp-muted">{P.t('nothingLeft')}</p>
       ) : (
         <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto pr-1">
           {groups.map((grp) => (
             <div key={grp.day} className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold">{dayLabel(grp.day)}</span>
-                <span className="text-qp-red">{grp.goals.length} ta qoldi</span>
+                <span className="font-bold">{P.dl(grp.day)}</span>
+                <span className="text-qp-red">{P.t('nLeft', { n: grp.goals.length })}</span>
               </div>
               {grp.goals.map((g) => (
                 <div key={g.id} className="flex items-start gap-2.5 rounded-xl bg-qp-card-2 px-3 py-2">
@@ -788,7 +808,7 @@ function LeftBehind({ goals, today, onToggle }: { goals: BoardGoal[]; today: str
                     type="button"
                     onClick={() => onToggle(g.id)}
                     aria-pressed={!!g.doneDay}
-                    aria-label="Bajarildi deb belgilash"
+                    aria-label={P.t('markDone')}
                     className={cn('grid size-[22px] shrink-0 place-items-center rounded-[7px] border-[1.5px]', g.doneDay ? 'border-qp-mint bg-qp-mint text-qp-mint-ink' : 'border-qp-red/60')}
                   >
                     {g.doneDay && <Check className="size-3.5" strokeWidth={3.5} />}
@@ -796,7 +816,7 @@ function LeftBehind({ goals, today, onToggle }: { goals: BoardGoal[]; today: str
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className={cn('text-[13px] font-semibold', g.doneDay && 'text-qp-muted line-through')}>{g.title}</span>
                     <span className="text-[11px] text-qp-muted">
-                      {SCOPES.find((x) => x.k === g.scope)?.n} · {g.doneDay ? `${dayLabel(g.doneDay)}da kechikib bajarildi` : 'hali bajarilmagan — bugungi ro‘yxatda turibdi'}
+                      {P.sc(g.scope)} · {g.doneDay ? P.t('doneLate', { d: P.dl(g.doneDay) }) : P.t('stillOpen')}
                     </span>
                   </span>
                 </div>
@@ -810,8 +830,9 @@ function LeftBehind({ goals, today, onToggle }: { goals: BoardGoal[]; today: str
 }
 
 function GoalList({ goals, periodKey, board }: { goals: BoardGoal[]; periodKey: string; board: Board }) {
+  const P = usePb();
   const [editing, setEditing] = useState<string | null>(null);
-  if (!goals.length) return <p className="text-xs text-qp-muted">Bu davr uchun maqsad yo‘q.</p>;
+  if (!goals.length) return <p className="text-xs text-qp-muted">{P.t('noGoals')}</p>;
   return (
     <ul className="flex flex-col gap-2">
       {goals.map((g) => (
@@ -820,7 +841,7 @@ function GoalList({ goals, periodKey, board }: { goals: BoardGoal[]; periodKey: 
             type="button"
             onClick={() => board.toggleGoal(g.id)}
             aria-pressed={!!g.doneDay}
-            aria-label="Bajarildi deb belgilash"
+            aria-label={P.t('markDone')}
             className={cn('grid size-[22px] shrink-0 place-items-center rounded-[7px] border-[1.5px]', g.doneDay ? 'border-qp-mint bg-qp-mint text-qp-mint-ink' : 'border-qp-muted/50')}
           >
             {g.doneDay && <Check className="size-3.5" strokeWidth={3.5} />}
@@ -842,14 +863,14 @@ function GoalList({ goals, periodKey, board }: { goals: BoardGoal[]; periodKey: 
                 <span className={cn('text-[13px] font-semibold', g.doneDay && 'text-qp-muted line-through')}>{g.title}</span>
                 {g.periodKey < periodKey && (
                   <span className={cn(MONO, 'inline-flex items-center gap-1 text-[10px] text-qp-yellow')}>
-                    <RotateCw className="size-3" /> {g.scope === 'month' ? g.periodKey : dayLabel(g.periodKey)} dan ko‘chdi
+                    <RotateCw className="size-3" /> {P.t('movedFrom', { d: g.scope === 'month' ? g.periodKey : P.dl(g.periodKey) })}
                   </span>
                 )}
               </span>
-              <button type="button" onClick={() => setEditing(g.id)} aria-label="Tahrirlash" className="shrink-0 rounded-md p-1 text-qp-muted hover:text-qp-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
+              <button type="button" onClick={() => setEditing(g.id)} aria-label={P.t('edit')} className="shrink-0 rounded-md p-1 text-qp-muted hover:text-qp-ink sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
                 <Pencil className="size-3.5" />
               </button>
-              <button type="button" onClick={() => board.deleteGoal(g.id)} aria-label="O‘chirish" className="shrink-0 rounded-md p-1 text-qp-muted hover:text-qp-red sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
+              <button type="button" onClick={() => board.deleteGoal(g.id)} aria-label={P.t('delete')} className="shrink-0 rounded-md p-1 text-qp-muted hover:text-qp-red sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100">
                 <X className="size-3.5" />
               </button>
             </>
@@ -862,6 +883,7 @@ function GoalList({ goals, periodKey, board }: { goals: BoardGoal[]; periodKey: 
 
 /** Dashboard, bottom, full width: today, this week and the month at a glance. */
 export function DashboardProgress({ data }: { data: ProgressBoardData }) {
+  const P = usePb();
   const board = useBoard(data);
   const { ticks, goals } = board;
   const { today, items, days } = data;
@@ -876,14 +898,14 @@ export function DashboardProgress({ data }: { data: ProgressBoardData }) {
   const mo = goalSummary(openToday(goals, 'month', data.periodKeys.month), 'month');
 
   return (
-    <section className="flex flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label="Checklist va maqsadlar">
+    <section className="flex flex-col gap-4 rounded-[24px] bg-qp-bg p-4 text-qp-ink sm:p-6" aria-label={P.t('dashAria')}>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className={cn(MONO, 'text-[11px] tracking-[.16em] text-qp-mint')}>CHECKLIST VA MAQSADLAR</span>
-          <h2 className="text-[22px] font-extrabold tracking-tight">Bugungi holat va oy dinamikasi</h2>
+          <span className={cn(MONO, 'text-[11px] tracking-[.16em] text-qp-mint')}>{P.t('dashKicker')}</span>
+          <h2 className="text-[22px] font-extrabold tracking-tight">{P.t('dashTitle')}</h2>
         </div>
         <Link href="/task-tracker?tab=progress" className="inline-flex h-10 items-center gap-2 rounded-full border border-qp-mint/40 px-4 text-[13px] font-bold text-qp-mint hover:bg-qp-mint-soft">
-          To‘liq statistika <ArrowRight className="size-4" />
+          {P.t('fullStats')} <ArrowRight className="size-4" />
         </Link>
       </header>
 
@@ -891,31 +913,31 @@ export function DashboardProgress({ data }: { data: ProgressBoardData }) {
         <div className={cn(TILE, 'flex items-center gap-4')}>
           <Ring pct={t.pct} size={104} label="" />
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-qp-muted">Bugungi checklist</span>
+            <span className="text-xs font-semibold text-qp-muted">{P.t('todayCl')}</span>
             <span className={cn(MONO, 'text-lg font-bold')}>
               {t.done}/{t.total}
             </span>
             <span className="inline-flex items-center gap-1 text-xs text-qp-mint">
-              <Flame className="size-3.5" /> {streak} kun ketma-ket
+              <Flame className="size-3.5" /> {P.t('streakDays', { n: streak })}
             </span>
           </div>
         </div>
-        <Stat label="Checklist · oy o‘rtachasi" value={`${avg}%`} />
-        <Stat label="Maqsadlar · bugun" value={`${tDone}/${todays.length}`} tone="cyan" />
-        <Stat label="Haftalik · oylik maqsadlar" value={`${wk.done}/${wk.total} · ${mo.done}/${mo.total}`} />
+        <Stat label={P.t('clMonthAvg')} value={`${avg}%`} />
+        <Stat label={P.t('goalsToday')} value={`${tDone}/${todays.length}`} tone="cyan" />
+        <Stat label={P.t('wmGoals')} value={`${wk.done}/${wk.total} · ${mo.done}/${mo.total}`} />
       </div>
 
       <div className="flex flex-wrap items-stretch gap-3.5">
         <div className={cn(TILE, 'flex flex-[1_1_260px] flex-col gap-2')}>
-          <span className="text-sm font-bold">Shu hafta</span>
+          <span className="text-sm font-bold">{P.t('thisWeek')}</span>
           <WeekBars week={data.week} today={today} value={(d) => (d.off || !items.length ? null : day(d.key).pct)} />
         </div>
         <div className={cn(TILE, 'flex min-w-0 flex-[2_1_420px] flex-col gap-2')}>
-          <span className="text-sm font-bold">{data.monthTitle} dinamikasi</span>
+          <span className="text-sm font-bold">{P.t('monthDyn', { m: P.mt(data.monthTitle) })}</span>
           <MonthLine
             days={days}
             height={170}
-            label="Kunlar bo‘yicha checklist va maqsadlar foizi"
+            label={P.t('bothLineAria')}
             series={[
               { values: days.map((d) => (isWorkDay(d, today) && items.length ? day(d.key).pct : null)), color: 'var(--qp-mint)', area: true },
               { values: days.map((d) => (d.key <= today && dayGoals(goals, d.key, today).total ? dayGoals(goals, d.key, today).pct : null)), color: 'var(--qp-cyan)', dashed: true },
@@ -923,13 +945,13 @@ export function DashboardProgress({ data }: { data: ProgressBoardData }) {
           />
           <div className="flex gap-4 text-[11px] font-semibold">
             <span className="text-qp-mint">— Checklist %</span>
-            <span className="text-qp-cyan">- - Maqsadlar %</span>
+            <span className="text-qp-cyan">{P.t('goalsPct')}</span>
           </div>
         </div>
         <div className={cn(TILE, 'flex flex-[1_1_300px] flex-col gap-2')}>
-          <span className="text-sm font-bold">Bugungi maqsadlar</span>
+          <span className="text-sm font-bold">{P.t('todayGoals')}</span>
           <GoalList goals={todays} periodKey={today} board={board} />
-          <span className="text-[11px] text-qp-muted">Bajarilmagan maqsad ertaga ham shu yerda turadi.</span>
+          <span className="text-[11px] text-qp-muted">{P.t('staysTomorrow')}</span>
         </div>
       </div>
     </section>

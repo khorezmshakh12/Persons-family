@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { dmy, when } from './ops-students-meta';
 
 const Sec = ({ children }: { children: React.ReactNode }) => <div className="-mb-1 mt-1 text-xs font-extrabold uppercase tracking-wider text-au-faint">{children}</div>;
@@ -32,16 +33,18 @@ export function CommentList({
   const [remind, setRemind] = useState('');
   const [editing, setEditing] = useState<{ id: string; body: string; remindAt: string } | null>(null);
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.cm');
+  const to = useTranslations('ops');
   return (
     <div className="flex flex-col gap-2">
-      <Sec>Izohlar</Sec>
+      <Sec>{t('title')}</Sec>
       {canEdit && (
         <>
           <textarea id="cm-new" className="sx-inp min-h-[70px] leading-relaxed" maxLength={2000} placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} />
           <div className="flex flex-wrap items-center gap-2">
             {reminderFrom && (
               <label className="flex items-center gap-1.5 text-xs font-semibold text-au-muted">
-                ⏰ Eslatma sanasi
+                {t('remDate')}
                 <input id="cm-remind" type="date" className="sx-inp !w-[150px]" min={reminderFrom} value={remind} onChange={(e) => setRemind(e.target.value)} />
               </label>
             )}
@@ -57,33 +60,33 @@ export function CommentList({
                 })
               }
             >
-              {remind ? 'Izoh va eslatma qo‘shish' : 'Izoh qo‘shish'}
+              {remind ? t('addRem') : t('add')}
             </button>
           </div>
-          {reminderFrom && remind && <div className="text-xs text-au-faint">Shu kuni dashboard’ingizda chiqadi; «O‘qidim» bosmaguningizcha turadi.</div>}
+          {reminderFrom && remind && <div className="text-xs text-au-faint">{t('remHint')}</div>}
         </>
       )}
       {items === null ? (
-        <div className="text-sm text-au-faint">Yuklanmoqda…</div>
+        <div className="text-sm text-au-faint">{to('c.loading')}</div>
       ) : items.length === 0 ? (
-        <div className="text-sm text-au-faint">Hali izoh yo‘q</div>
+        <div className="text-sm text-au-faint">{t('none')}</div>
       ) : (
         items.map((c) => (
           <div key={c.id} className="rounded-xl border border-au-line bg-au-card-2/50 px-3 py-2.5">
             <div className="flex flex-wrap items-center gap-2 text-xs text-au-faint">
               <b className="text-au-ink">{c.by || '—'}</b>
               <span>{when(c.at)}</span>
-              {c.editedAt && <span>· tahrirlandi {when(c.editedAt)}{c.editedBy && c.editedBy !== c.by ? ` (${c.editedBy})` : ''}</span>}
+              {c.editedAt && <span>{t('edited', { when: when(c.editedAt) })}{c.editedBy && c.editedBy !== c.by ? ` (${c.editedBy})` : ''}</span>}
               {c.remindAt && (
                 <span className={cn('sx-pl', c.remindDone ? 'mute' : reminderFrom && c.remindAt <= reminderFrom ? 'warn' : 'info')}>
                   ⏰ {dmy(c.remindAt)}
-                  {c.remindDone ? ' · o‘qildi' : ''}
+                  {c.remindDone ? t('read') : ''}
                 </span>
               )}
               <span className="flex-1" />
               {canEdit && meId && c.byId === meId && editing?.id !== c.id && (
                 <button className="sx-btn sm" onClick={() => setEditing({ id: c.id, body: c.body, remindAt: c.remindAt ?? '' })}>
-                  Tahrirlash
+                  {to('c.edit')}
                 </button>
               )}
             </div>
@@ -92,21 +95,21 @@ export function CommentList({
                 <textarea id={`cm-${c.id}`} className="sx-inp min-h-[70px] leading-relaxed" maxLength={2000} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
                 {reminderFrom && (
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-au-muted">
-                    ⏰ Eslatma sanasi
+                    {t('remDate')}
                     <input id={`cm-r-${c.id}`} type="date" className="sx-inp !w-[150px]" value={editing.remindAt} onChange={(e) => setEditing({ ...editing, remindAt: e.target.value })} />
                     {editing.remindAt && (
                       <button type="button" className="sx-btn sm" onClick={() => setEditing({ ...editing, remindAt: '' })}>
-                        Olib tashlash
+                        {t('remove')}
                       </button>
                     )}
                   </label>
                 )}
                 <div className="flex gap-2">
                   <button className="sx-btn sm primary" disabled={pending || !editing.body.trim()} onClick={() => start(async () => { if (await onEdit(c.id, editing.body.trim(), editing.remindAt || null)) setEditing(null); })}>
-                    Saqlash
+                    {to('c.save')}
                   </button>
                   <button className="sx-btn sm" onClick={() => setEditing(null)}>
-                    Bekor
+                    {t('cancel')}
                   </button>
                 </div>
               </div>

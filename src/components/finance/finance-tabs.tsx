@@ -3,6 +3,7 @@
 import { BookOpenCheck, Target, Wallet } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 /** Finance is one section with three views (owner design, 2026-10-21):
  * payroll on /finance, the books on /accounting, and the viewer's own pay +
@@ -19,25 +20,26 @@ export function FinanceTabs({
   className?: string;
 }) {
   const pathname = usePathname();
+  const t = useTranslations('fin.nav');
   const mine = `/finance/${meId}`;
   const tabs = [
     payroll && {
       href: '/finance',
-      n: 'Ish haqi va Avanslar',
+      n: t('payroll'),
       Icon: Wallet,
       on: pathname === '/finance' || (pathname.startsWith('/finance/') && pathname !== mine),
     },
-    accounting && { href: '/accounting', n: 'Hisob-kitob', Icon: BookOpenCheck, on: pathname.startsWith('/accounting') },
+    accounting && { href: '/accounting', n: t('accounting'), Icon: BookOpenCheck, on: pathname.startsWith('/accounting') },
     {
       href: payroll ? mine : '/finance',
-      n: 'Mening moliyam & B-nuqta',
+      n: t('mine'),
       Icon: Target,
       on: pathname === mine || (!payroll && pathname === '/finance'),
     },
   ].filter((t) => !!t);
   if (tabs.length < 2) return null;
   return (
-    <nav aria-label="Moliya bo‘limlari" className={cn('flex flex-wrap items-center gap-1.5 border-b border-au-line pb-2.5', className)}>
+    <nav aria-label={t('aria')} className={cn('flex flex-wrap items-center gap-1.5 border-b border-au-line pb-2.5', className)}>
       {tabs.map(({ href, n, Icon, on }) => (
         <Link
           key={href}

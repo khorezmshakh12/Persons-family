@@ -42,14 +42,26 @@ import {
 } from '@/lib/actions/profile-hub';
 import { PROFILE_METRIC, type ProfileMetricKey } from '@/lib/profile-metrics';
 import type { ActivityItem, OneOnOne, PrivateNote, ProfileCard, ProfileMetrics, Skill, WorkSnapshot } from '@/lib/profile-insights';
+import { useLocale, useTranslations } from 'next-intl';
+import { monthName } from '@/lib/month-names';
 
 const BTN =
   'inline-flex items-center justify-center gap-1.5 rounded-au-ctl px-3 h-8 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none';
 const BTN_GHOST = cn(BTN, 'border border-au-line bg-au-card text-au-ink hover:bg-au-card-2');
 const BTN_PRIMARY = cn(BTN, 'bg-au-primary text-au-primary-ink hover:opacity-90');
-const MONTHS = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
-const ERR: Record<string, string> = { forbidden: 'Ruxsat yo‘q', invalidInput: 'Ma’lumotni tekshiring' };
-const errText = (c: string) => ERR[c] ?? 'Saqlab bo‘lmadi, qayta urinib ko‘ring';
+type Tr = ReturnType<typeof useTranslations>;
+const ERR: Record<string, string> = { forbidden: 'eForbidden', invalidInput: 'eInvalid' };
+/** Translated helpers for every card of the profile. */
+function useHub() {
+  const t = useTranslations('profile.hub');
+  const tm = useTranslations('profile.metric');
+  const locale = useLocale();
+  const errText = (c: string) => t(ERR[c] ?? 'eOther');
+  const mShort = (m: string) => monthName(locale, Number(m.slice(5, 7)), true);
+  const metricN = (k: ProfileMetricKey) => tm(k);
+  const unitOf = (k: ProfileMetricKey) => (k === 'selfDev' ? t('unitBall') : PROFILE_METRIC[k].unit);
+  return { t, errText, mShort, metricN, unitOf };
+}
 
 function Card({ title, icon, i = 0, action, children, className }: { title: string; icon: ReactNode; i?: number; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -68,15 +80,16 @@ function Card({ title, icon, i = 0, action, children, className }: { title: stri
 
 /* ------------------------------------------------------------ hero strip */
 
-const STATUS: Record<string, string> = { lesson: 'Darsda', meeting: 'Yig‘ilishda', busy: 'Band', away: 'Ishda emas' };
+const STATUS: Record<string, string> = { lesson: 'stLesson', meeting: 'stMeeting', busy: 'stBusy', away: 'stAway' };
 
-function tenure(hire: string | null, today: string) {
+/** null = no hire date, 'new' = under a month. */
+function tenure(hire: string | null, today: string, t: Tr): string | null {
   if (!hire) return null;
   const [y1, m1] = hire.split('-').map(Number);
   const [y2, m2] = today.split('-').map(Number);
   const months = (y2 - y1) * 12 + (m2 - m1);
-  if (months < 1) return 'yangi xodim';
-  return months >= 12 ? `${Math.floor(months / 12)} yil ${months % 12 ? `${months % 12} oy` : ''}`.trim() : `${months} oy`;
+  if (months < 1) return 'new';
+  return months >= 12 ? `${t('years', { y: Math.floor(months / 12) })} ${months % 12 ? t('months', { m: months % 12 }) : ''}`.trim() : t('months', { m: months });
 }
 
 function daysUntil(md: string | null, today: string) {
@@ -111,7 +124,8 @@ export function ProfileStrip({
   metrics: ProfileMetrics;
   name: string;
 }) {
-  const ten = tenure(card.hire_date, today);
+  const { t, metricN, unitOf, mShort } = useHub();
+  const ten = tenure(card.hire_date, today, t);
   const bday = daysUntil(card.date_of_birth, today);
   const anniv = card.hire_date ? daysUntil(card.hire_date, today) : null;
   const pct = card.completeness.pct;
@@ -122,23 +136,23 @@ export function ProfileStrip({
           {p}
         </span>
       ))}
-      {ten && <span className={CHIP_NEUTRAL}>Staj: {ten}</span>}
-      {card.chat_status && <span className={CHIP_INFO}>{STATUS[card.chat_status] ?? card.chat_status}</span>}
+      {ten && <span className={CHIP_NEUTRAL}>{t('tenure', { t: ten === 'new' ? t('newHire') : ten })}</span>}
+      {card.chat_status && <span className={CHIP_INFO}>{STATUS[card.chat_status] ? t(STATUS[card.chat_status]) : card.chat_status}</span>}
       {bday !== null && bday <= 7 && (
         <span className={CHIP_OK}>
-          <CalendarHeart className="size-3" /> {bday === 0 ? 'Bugun tug‘ilgan kun!' : `Tug‘ilgan kun ${bday} kundan keyin`}
+          <CalendarHeart className="size-3" /> {bday === 0 ? t('bdayToday') : t('bdayIn', { n: bday })}
         </span>
       )}
-      {anniv !== null && anniv <= 7 && ten && ten !== 'yangi xodim' && <span className={CHIP_OK}>Ish yilligi {anniv === 0 ? 'bugun' : `${anniv} kundan keyin`}</span>}
-      {!card.telegram && <span className={CHIP_BAD}>Telegram ulanmagan</span>}
+      {anniv !== null && anniv <= 7 && ten && ten !== 'new' && <span className={CHIP_OK}>{anniv === 0 ? t('annivToday') : t('annivIn', { n: anniv })}</span>}
+      {!card.telegram && <span className={CHIP_BAD}>{t('noTg')}</span>}
       <div className="ml-auto flex items-center gap-2">
         {(isSelf || isLead || showPct) && (
-          <span className="flex items-center gap-1.5 text-xs text-au-muted" title={card.completeness.missing.length ? `Yetishmaydi: ${card.completeness.missing.join(', ')}` : 'Profil to‘liq'}>
-            <Ring pct={pct} /> Profil {pct}%
+          <span className="flex items-center gap-1.5 text-xs text-au-muted" title={card.completeness.missing.length ? t('missing', { m: card.completeness.missing.join(', ') }) : t('complete')}>
+            <Ring pct={pct} /> {t('profilePct', { n: pct })}
           </span>
         )}
         {isLead && (
-          <button className={BTN_GHOST} onClick={() => exportProfilePdf(name, positions, card, metrics)}>
+          <button className={BTN_GHOST} onClick={() => exportProfilePdf(name, positions, card, metrics, { head: t('pdfMetric'), metricN, unitOf, mShort })}>
             <FileDown className="size-3.5" /> PDF
           </button>
         )}
@@ -175,10 +189,11 @@ export function MetricsCard({ metrics, people, staffId, isLead }: { metrics: Pro
   const [sel, setSel] = useState<ProfileMetricKey>('tasksDone');
   const [cmp, setCmp] = useState<{ name: string; metrics: ProfileMetrics } | null>(null);
   const [busy, start] = useTransition();
+  const { t, errText, mShort, metricN, unitOf } = useHub();
   const vals = metrics.series[sel];
   const other = cmp?.metrics.series[sel];
   const max = Math.max(1, ...vals.map((v) => Math.abs(v ?? 0)), ...(other ?? []).map((v) => Math.abs(v ?? 0)));
-  const unit = PROFILE_METRIC[sel].unit;
+  const unit = unitOf(sel);
   const fmt = (v: number | null) => (v === null ? '—' : `${Math.round(v)}${unit}`);
   const lastOf = (k: ProfileMetricKey) => {
     const s = metrics.series[k];
@@ -188,7 +203,7 @@ export function MetricsCard({ metrics, people, staffId, isLead }: { metrics: Pro
 
   return (
     <Card
-      title="Ko‘rsatkichlar · 12 oy"
+      title={t('metrics')}
       icon={<Gauge className="size-4" />}
       i={1}
       action={
@@ -207,7 +222,7 @@ export function MetricsCard({ metrics, people, staffId, isLead }: { metrics: Pro
               });
             }}
           >
-            <option value="">{cmp ? `Solishtirish: ${cmp.name}` : 'Boshqa xodim bilan solishtirish'}</option>
+            <option value="">{cmp ? t('compareWith', { n: cmp.name }) : t('compare')}</option>
             {people
               .filter((p) => p.id !== staffId)
               .map((p) => (
@@ -227,9 +242,9 @@ export function MetricsCard({ metrics, people, staffId, isLead }: { metrics: Pro
             style={{ ['--i' as string]: i }}
             className={cn('ms-rise flex flex-col rounded-au-ctl border px-3 py-2 text-left transition', sel === k ? 'border-au-accent bg-au-accent-soft' : 'border-au-line hover:bg-au-card-2')}
           >
-            <span className="text-[11px] font-semibold text-au-muted">{PROFILE_METRIC[k].n}</span>
+            <span className="text-[11px] font-semibold text-au-muted">{metricN(k)}</span>
             <span className="text-lg font-bold tabular-nums">
-              {lastOf(k) === null ? '—' : `${Math.round(lastOf(k)!)}${PROFILE_METRIC[k].unit}`}
+              {lastOf(k) === null ? '—' : `${Math.round(lastOf(k)!)}${unitOf(k)}`}
             </span>
           </button>
         ))}
@@ -253,20 +268,20 @@ export function MetricsCard({ metrics, people, staffId, isLead }: { metrics: Pro
       <div className="flex gap-1.5 text-center text-[10px] text-au-muted">
         {metrics.months.map((m) => (
           <span key={m} className="flex-1">
-            {MONTHS[Number(m.slice(5, 7)) - 1]}
+            {mShort(m)}
           </span>
         ))}
       </div>
       {cmp && (
         <p className="flex items-center gap-3 text-[11px] text-au-muted">
           <span className="flex items-center gap-1">
-            <i className="size-2 rounded-full bg-au-ink/40" /> Shu xodim
+            <i className="size-2 rounded-full bg-au-ink/40" /> {t('thisStaff')}
           </span>
           <span className="flex items-center gap-1">
             <i className="size-2 rounded-full bg-au-info" /> {cmp.name}
           </span>
           <button className="ml-auto hover:text-au-ink" onClick={() => setCmp(null)}>
-            Solishtirishni yopish
+            {t('closeCompare')}
           </button>
         </p>
       )}
@@ -286,10 +301,13 @@ const KIND_ICON: Record<ActivityItem['kind'], ReactNode> = {
 };
 
 export function ActivityCard({ items }: { items: ActivityItem[] }) {
+  const { t } = useHub();
+  const ta = useTranslations('profile.act');
+  const textOf = (a: ActivityItem) => (a.k ? ta(a.k, a.v) : a.text);
   return (
-    <Card title="Faollik · 30 kun" icon={<Sparkles className="size-4" />} i={2}>
+    <Card title={t('activity')} icon={<Sparkles className="size-4" />} i={2}>
       {items.length === 0 ? (
-        <p className="text-sm text-au-muted">So‘nggi 30 kunda qayd etilgan voqea yo‘q</p>
+        <p className="text-sm text-au-muted">{t('noActivity')}</p>
       ) : (
         <ol className="flex flex-col gap-2">
           {items.map((a, i) => (
@@ -298,10 +316,10 @@ export function ActivityCard({ items }: { items: ActivityItem[] }) {
               <span className="min-w-0 flex-1">
                 {a.href ? (
                   <Link href={a.href} className="hover:underline">
-                    {a.text}
+                    {textOf(a)}
                   </Link>
                 ) : (
-                  a.text
+                  textOf(a)
                 )}
               </span>
               <span className="shrink-0 text-[11px] text-au-muted tabular-nums">{a.at.slice(5, 10).replace('-', '.')}</span>
@@ -323,6 +341,7 @@ export function AboutCard({ staffId, bio, skills: initial, canEdit, isLead }: { 
   const [name, setName] = useState('');
   const [level, setLevel] = useState(3);
   const [busy, start] = useTransition();
+  const { t, errText } = useHub();
 
   const saveBio = () =>
     start(async () => {
@@ -353,43 +372,43 @@ export function AboutCard({ staffId, bio, skills: initial, canEdit, isLead }: { 
 
   return (
     <Card
-      title="O‘zi haqida va ko‘nikmalar"
+      title={t('about')}
       icon={<Smile className="size-4" />}
       i={3}
       action={
         canEdit && !editing ? (
           <button className={BTN_GHOST} onClick={() => setEditing(true)}>
-            <Pencil className="size-3.5" /> Tahrirlash
+            <Pencil className="size-3.5" /> {t('edit')}
           </button>
         ) : undefined
       }
     >
       {editing ? (
         <div className="flex flex-col gap-2">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={1000} className={cn(INPUT, 'py-2')} placeholder="Tajriba, yo‘nalish, qiziqishlar…" />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={1000} className={cn(INPUT, 'py-2')} placeholder={t('bioPh')} />
           <div className="flex justify-end gap-2">
             <button className={BTN_GHOST} onClick={() => setEditing(false)}>
-              Bekor
+              {t('cancel')}
             </button>
             <button className={BTN_PRIMARY} disabled={busy} onClick={saveBio}>
-              Saqlash
+              {t('save')}
             </button>
           </div>
         </div>
       ) : bio ? (
         <p className="text-sm whitespace-pre-wrap">{bio}</p>
       ) : (
-        <p className="text-sm text-au-muted italic">{canEdit ? 'O‘zingiz haqingizda qisqacha yozing' : 'Ma’lumot kiritilmagan'}</p>
+        <p className="text-sm text-au-muted italic">{canEdit ? t('writeAbout') : t('noInfo')}</p>
       )}
 
       <div className="flex flex-col gap-2 border-t border-au-line pt-3">
-        <span className="text-xs font-bold tracking-wide text-au-muted uppercase">Ko‘nikmalar</span>
-        {skills.length === 0 && <p className="text-sm text-au-muted">Hali ko‘nikma qo‘shilmagan</p>}
+        <span className="text-xs font-bold tracking-wide text-au-muted uppercase">{t('skills')}</span>
+        {skills.length === 0 && <p className="text-sm text-au-muted">{t('noSkills')}</p>}
         <ul className="flex flex-col gap-1.5">
           {skills.map((s, i) => (
             <li key={s.id} style={{ ['--i' as string]: i }} className="ms-rise flex items-center gap-2">
               <span className="w-36 truncate text-sm font-semibold">{s.name}</span>
-              <span className="flex flex-1 gap-0.5" aria-label={`Daraja ${s.level}/5`}>
+              <span className="flex flex-1 gap-0.5" aria-label={t('level', { n: s.level })}>
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
@@ -400,16 +419,16 @@ export function AboutCard({ staffId, bio, skills: initial, canEdit, isLead }: { 
                 ))}
               </span>
               {s.verified ? (
-                <button disabled={!isLead} onClick={() => verify(s)} className={CHIP_OK} title="CEO tasdiqlagan">
+                <button disabled={!isLead} onClick={() => verify(s)} className={CHIP_OK} title={t('ceoVerified')}>
                   <BadgeCheck className="size-3" />
                 </button>
               ) : isLead ? (
-                <button onClick={() => verify(s)} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')} title="Tasdiqlash">
+                <button onClick={() => verify(s)} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')} title={t('verify')}>
                   <BadgeCheck className="size-3" />
                 </button>
               ) : null}
               {canEdit && (
-                <button onClick={() => del(s.id)} className="text-au-muted hover:text-au-bad" aria-label="O‘chirish">
+                <button onClick={() => del(s.id)} className="text-au-muted hover:text-au-bad" aria-label={t('delete')}>
                   <X className="size-3.5" />
                 </button>
               )}
@@ -418,7 +437,7 @@ export function AboutCard({ staffId, bio, skills: initial, canEdit, isLead }: { 
         </ul>
         {canEdit && (
           <div className="flex gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Masalan: IELTS Speaking" className={cn(INPUT, 'h-8 flex-1 text-sm')} />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('skillPh')} className={cn(INPUT, 'h-8 flex-1 text-sm')} />
             <select value={level} onChange={(e) => setLevel(Number(e.target.value))} className={cn(INPUT, 'h-8 w-16 text-sm')}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
@@ -439,15 +458,16 @@ export function AboutCard({ staffId, bio, skills: initial, canEdit, isLead }: { 
 /* ------------------------------------------------------------ work tab */
 
 const TASK_STATUS: Record<string, [string, string]> = {
-  pending: ['Rejada', CHIP_NEUTRAL],
-  in_progress: ['Jarayonda', CHIP_INFO],
-  submitted: ['Tekshiruvda', CHIP_ACCENT],
-  awaiting_upload: ['Isbot kutilmoqda', CHIP_ACCENT],
-  done: ['Bajarildi', CHIP_OK],
+  pending: ['sPending', CHIP_NEUTRAL],
+  in_progress: ['sInProgress', CHIP_INFO],
+  submitted: ['sSubmitted', CHIP_ACCENT],
+  awaiting_upload: ['sAwaiting', CHIP_ACCENT],
+  done: ['sDone', CHIP_OK],
 };
 
 /** `commenterId`: HR / CEO viewing someone's work — each task gets its comment thread (owner, 2026-11-23). */
-function TaskDetails({ t, late }: { t: WorkSnapshot['tasks'][number]; late: boolean }) {
+function TaskDetails({ t: task, late }: { t: WorkSnapshot['tasks'][number]; late: boolean }) {
+  const { t } = useHub();
   const row = (k: string, v: ReactNode) => (
     <div className="flex gap-2">
       <dt className="w-28 shrink-0 text-au-muted">{k}</dt>
@@ -456,22 +476,22 @@ function TaskDetails({ t, late }: { t: WorkSnapshot['tasks'][number]; late: bool
   );
   return (
     <dl className="mt-2 ml-5 flex flex-col gap-1 rounded-au-ctl bg-au-card-2 px-3 py-2 text-xs">
-      {row('Tavsif', t.description?.trim() ? <span className="whitespace-pre-wrap">{t.description}</span> : <span className="text-au-muted">—</span>)}
-      {row('Muddat', t.due_at ? <span className={cn('tabular-nums', late && 'font-bold text-au-bad')}>{t.due_at}{late ? ' · muddati o‘tgan' : ''}</span> : 'Muddatsiz')}
-      {row('Berilgan', <span className="tabular-nums">{t.created}{t.assigner ? ` · ${t.assigner}` : ''}</span>)}
-      {t.done_at && row('Bajarilgan', <span className="tabular-nums">{t.done_at}</span>)}
-      {row('Mukofot', t.star_reward > 0 ? `+${t.star_reward} ★` : '—')}
+      {row(t('dDesc'), task.description?.trim() ? <span className="whitespace-pre-wrap">{task.description}</span> : <span className="text-au-muted">—</span>)}
+      {row(t('dDue'), task.due_at ? <span className={cn('tabular-nums', late && 'font-bold text-au-bad')}>{task.due_at}{late ? t('late') : ''}</span> : t('noDue'))}
+      {row(t('dGiven'), <span className="tabular-nums">{task.created}{task.assigner ? ` · ${task.assigner}` : ''}</span>)}
+      {task.done_at && row(t('dDone'), <span className="tabular-nums">{task.done_at}</span>)}
+      {row(t('dReward'), task.star_reward > 0 ? `+${task.star_reward} ★` : '—')}
       {row(
-        'Jarima (minus)',
-        t.star_penalty > 0 ? (
-          <span className={t.penalty_applied ? 'font-bold text-au-bad' : undefined}>
-            −{t.star_penalty} ★ {t.penalty_applied ? '· yechilgan' : '· muddat o‘tsa yechiladi'}
+        t('dPenalty'),
+        task.star_penalty > 0 ? (
+          <span className={task.penalty_applied ? 'font-bold text-au-bad' : undefined}>
+            −{task.star_penalty} ★ {task.penalty_applied ? t('penApplied') : t('penIfLate')}
           </span>
         ) : (
           '—'
         ),
       )}
-      {t.requires_proof && row('Isbot', 'Fayl / rasm talab qilinadi')}
+      {task.requires_proof && row(t('dProof'), t('proofNeeded'))}
     </dl>
   );
 }
@@ -479,44 +499,46 @@ function TaskDetails({ t, late }: { t: WorkSnapshot['tasks'][number]; late: bool
 export function WorkTab({ work, today, commenterId }: { work: WorkSnapshot; today: string; commenterId?: string }) {
   const open = work.tasks.filter((t) => t.status !== 'done').length;
   const [openId, setOpenId] = useState<string | null>(null);
+  const { t } = useHub();
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <Card title={`Vazifalar · ${open} ochiq, ${work.tasks.length - open} bu oy bajarildi`} icon={<CheckCircle2 className="size-4" />} i={0} className="lg:row-span-2">
+      <Card title={t('tasks', { open, done: work.tasks.length - open })} icon={<CheckCircle2 className="size-4" />} i={0} className="lg:row-span-2">
         {work.tasks.length === 0 ? (
-          <p className="text-sm text-au-muted">Bu oy vazifa yo‘q</p>
+          <p className="text-sm text-au-muted">{t('noTasks')}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-au-line">
-            {work.tasks.map((t, i) => {
-              const late = t.deadline && t.deadline.slice(0, 10) < today && (t.status === 'pending' || t.status === 'in_progress');
-              const [n, cls] = TASK_STATUS[t.status] ?? [t.status, CHIP_NEUTRAL];
+            {work.tasks.map((task, i) => {
+              const late = task.deadline && task.deadline.slice(0, 10) < today && (task.status === 'pending' || task.status === 'in_progress');
+              const [n, cls] = TASK_STATUS[task.status] ? [t(TASK_STATUS[task.status][0]), TASK_STATUS[task.status][1]] : [task.status, CHIP_NEUTRAL];
+              const tt = task;
               return (
-                <li key={t.id} style={{ ['--i' as string]: Math.min(i, 12) }} className="ms-rise flex flex-col py-2">
+                <li key={tt.id} style={{ ['--i' as string]: Math.min(i, 12) }} className="ms-rise flex flex-col py-2">
                   <div className="flex items-center gap-2">
                     {/* Title opens the details (owner, 2026-11-23: HR sees description, deadline, stars). */}
                     <button
                       type="button"
-                      onClick={() => setOpenId(openId === t.id ? null : t.id)}
+                      onClick={() => setOpenId(openId === tt.id ? null : tt.id)}
                       className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-semibold hover:underline"
                     >
-                      <ChevronDown className={cn('size-3.5 shrink-0 text-au-muted transition', openId === t.id && 'rotate-180')} />
-                      <span className="truncate">{t.title}</span>
+                      <ChevronDown className={cn('size-3.5 shrink-0 text-au-muted transition', openId === tt.id && 'rotate-180')} />
+                      <span className="truncate">{tt.title}</span>
                     </button>
-                    {t.deadline && <span className={cn('text-[11px] tabular-nums', late ? 'font-bold text-au-bad' : 'text-au-muted')}>{t.deadline.slice(5, 10).replace('-', '.')}</span>}
+                    {tt.deadline && <span className={cn('text-[11px] tabular-nums', late ? 'font-bold text-au-bad' : 'text-au-muted')}>{tt.deadline.slice(5, 10).replace('-', '.')}</span>}
                     <span className={cls}>{n}</span>
                     {commenterId && (
-                      <TaskCommentsDrawer taskId={t.id} taskTitle={t.title} currentUserId={commenterId} canComment commentCount={t.comments} />
+                      <TaskCommentsDrawer taskId={tt.id} taskTitle={tt.title} currentUserId={commenterId} canComment commentCount={tt.comments} />
                     )}
                   </div>
-                  {openId === t.id && <TaskDetails t={t} late={!!late} />}
+                  {openId === tt.id && <TaskDetails t={tt} late={!!late} />}
                 </li>
               );
             })}
           </ul>
         )}
       </Card>
-      <Card title="Natija kalitlari (OKR)" icon={<Target className="size-4" />} i={1}>
+      <Card title={t('okr')} icon={<Target className="size-4" />} i={1}>
         {work.krs.length === 0 ? (
-          <p className="text-sm text-au-muted">Mas’ul bo‘lgan KR yo‘q</p>
+          <p className="text-sm text-au-muted">{t('noKr')}</p>
         ) : (
           <ul className="flex flex-col gap-2.5">
             {work.krs.map((k) => (
@@ -531,9 +553,9 @@ export function WorkTab({ work, today, commenterId }: { work: WorkSnapshot; toda
           </ul>
         )}
       </Card>
-      <Card title={`Guruhlar · ${work.groups.length}`} icon={<Users className="size-4" />} i={2}>
+      <Card title={t('groups', { n: work.groups.length })} icon={<Users className="size-4" />} i={2}>
         {work.groups.length === 0 ? (
-          <p className="text-sm text-au-muted">Biriktirilgan guruh yo‘q</p>
+          <p className="text-sm text-au-muted">{t('noGroups')}</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {work.groups.map((g) => (
@@ -573,16 +595,17 @@ export function PeopleTab({
   const [notes, setNotes] = useState(initialNotes ?? []);
   const [note, setNote] = useState('');
   const [busy, start] = useTransition();
+  const { t, errText } = useHub();
 
   const save = () =>
     form &&
     start(async () => {
       const res = await saveOneOnOneAction({ staffId, ...form });
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      const row: OneOnOne = { id: res.id, held_on: form.heldOn, agenda: form.agenda, notes: form.notes, mood: form.mood, lead: 'Siz', task_ids: [] };
+      const row: OneOnOne = { id: res.id, held_on: form.heldOn, agenda: form.agenda, notes: form.notes, mood: form.mood, lead: t('you'), task_ids: [] };
       setMeetings([row, ...meetings.filter((m) => m.id !== res.id)].sort((a, b) => (a.held_on < b.held_on ? 1 : -1)));
       setForm(null);
-      toast.success('1:1 saqlandi');
+      toast.success(t('saved11'));
       router.refresh();
     });
   const del = (id: string) =>
@@ -595,7 +618,7 @@ export function PeopleTab({
     start(async () => {
       const res = await addPrivateNoteAction(staffId, note);
       if (res.error !== undefined) return void toast.error(errText(res.error));
-      setNotes([{ id: res.id, body: note.trim(), at: new Date().toISOString(), author: 'Siz' }, ...notes]);
+      setNotes([{ id: res.id, body: note.trim(), at: new Date().toISOString(), author: t('you') }, ...notes]);
       setNote('');
     });
   const delNote = (id: string) =>
@@ -608,13 +631,13 @@ export function PeopleTab({
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
       <Card
-        title="1:1 uchrashuvlar"
+        title={t('oneOnOnes')}
         icon={<Users className="size-4" />}
         i={0}
         action={
           isLead && !form ? (
             <button className={BTN_PRIMARY} onClick={() => setForm({ heldOn: today, agenda: '', notes: '', mood: null })}>
-              <Plus className="size-3.5" /> Yangi
+              <Plus className="size-3.5" /> {t('new')}
             </button>
           ) : undefined
         }
@@ -623,7 +646,7 @@ export function PeopleTab({
           <div className="ms-pop-in flex flex-col gap-2 rounded-au-ctl border border-au-line bg-au-card-2 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <input type="date" value={form.heldOn} onChange={(e) => setForm({ ...form, heldOn: e.target.value })} className={cn(INPUT, 'h-8 w-auto text-sm')} />
-              <span className="flex gap-1" aria-label="Kayfiyat">
+              <span className="flex gap-1" aria-label={t('mood')}>
                 {[1, 2, 3, 4, 5].map((m) => (
                   <button key={m} onClick={() => setForm({ ...form, mood: form.mood === m ? null : m })} className={cn('rounded-md px-1.5 text-lg transition', form.mood === m ? 'bg-au-accent-soft' : 'opacity-50 hover:opacity-100')}>
                     {MOOD[m]}
@@ -631,34 +654,34 @@ export function PeopleTab({
                 ))}
               </span>
             </div>
-            <textarea value={form.agenda} onChange={(e) => setForm({ ...form, agenda: e.target.value })} rows={2} placeholder="Kun tartibi" className={cn(INPUT, 'py-2 text-sm')} />
-            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={4} placeholder="Qaydlar, kelishuvlar" className={cn(INPUT, 'py-2 text-sm')} />
+            <textarea value={form.agenda} onChange={(e) => setForm({ ...form, agenda: e.target.value })} rows={2} placeholder={t('agenda')} className={cn(INPUT, 'py-2 text-sm')} />
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={4} placeholder={t('notesPh')} className={cn(INPUT, 'py-2 text-sm')} />
             <div className="flex flex-wrap justify-end gap-2">
               <button className={BTN_GHOST} onClick={() => setForm(null)}>
-                Bekor
+                {t('cancel')}
               </button>
               <button className={BTN_PRIMARY} disabled={busy} onClick={save}>
-                Saqlash
+                {t('save')}
               </button>
             </div>
           </div>
         )}
         {meetings.length === 0 && !form ? (
-          <p className="text-sm text-au-muted">{isLead ? `${name} bilan hali 1:1 qayd etilmagan` : 'Hali 1:1 uchrashuv qayd etilmagan'}</p>
+          <p className="text-sm text-au-muted">{isLead ? t('no11With', { n: name }) : t('no11')}</p>
         ) : (
           <ol className="flex flex-col gap-3">
             {meetings.map((m, i) => (
               <li key={m.id} style={{ ['--i' as string]: Math.min(i, 10) }} className="ms-rise flex flex-col gap-1.5 rounded-au-ctl border border-au-line p-3">
                 <div className="flex items-center gap-2">
                   <b className="text-sm tabular-nums">{m.held_on}</b>
-                  {m.mood && <span title="Kayfiyat">{MOOD[m.mood]}</span>}
+                  {m.mood && <span title={t('mood')}>{MOOD[m.mood]}</span>}
                   <span className="text-[11px] text-au-muted">{m.lead}</span>
                   {isLead && (
                     <span className="ml-auto flex gap-1">
-                      <button className="text-au-muted hover:text-au-ink" onClick={() => setForm({ id: m.id, heldOn: m.held_on, agenda: m.agenda, notes: m.notes, mood: m.mood })} aria-label="Tahrirlash">
+                      <button className="text-au-muted hover:text-au-ink" onClick={() => setForm({ id: m.id, heldOn: m.held_on, agenda: m.agenda, notes: m.notes, mood: m.mood })} aria-label={t('edit')}>
                         <Pencil className="size-3.5" />
                       </button>
-                      <button className="text-au-muted hover:text-au-bad" onClick={() => del(m.id)} aria-label="O‘chirish">
+                      <button className="text-au-muted hover:text-au-bad" onClick={() => del(m.id)} aria-label={t('delete')}>
                         <Trash2 className="size-3.5" />
                       </button>
                     </span>
@@ -666,7 +689,7 @@ export function PeopleTab({
                 </div>
                 {m.agenda && (
                   <p className="text-sm">
-                    <b className="text-[11px] font-bold text-au-muted uppercase">Kun tartibi:</b> {m.agenda}
+                    <b className="text-[11px] font-bold text-au-muted uppercase">{t('agendaL')}</b> {m.agenda}
                   </p>
                 )}
                 {m.notes && <p className="text-sm whitespace-pre-wrap">{m.notes}</p>}
@@ -675,7 +698,7 @@ export function PeopleTab({
                     href={`/tasks?new=1&title=${encodeURIComponent(`1:1 (${m.held_on}): `)}&desc=${encodeURIComponent(m.notes.slice(0, 500))}`}
                     className="inline-flex w-fit items-center gap-1 text-[11px] font-semibold text-au-muted hover:text-au-ink"
                   >
-                    <Send className="size-3" /> Kelishuvdan vazifa yaratish
+                    <Send className="size-3" /> {t('taskFrom')}
                   </Link>
                 )}
               </li>
@@ -685,10 +708,10 @@ export function PeopleTab({
       </Card>
 
       {isLead && (
-        <Card title="Yopiq eslatmalar" icon={<Lock className="size-4" />} i={1}>
-          <p className="text-[11px] text-au-muted">Faqat rahbariyat ko‘radi — xodimga ko‘rinmaydi.</p>
+        <Card title={t('privateNotes')} icon={<Lock className="size-4" />} i={1}>
+          <p className="text-[11px] text-au-muted">{t('privateHint')}</p>
           <div className="flex gap-2">
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Eslatma…" className={cn(INPUT, 'h-8 flex-1 text-sm')} />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('notePh')} className={cn(INPUT, 'h-8 flex-1 text-sm')} />
             <button className={BTN_GHOST} disabled={busy || note.trim().length < 2} onClick={addNote}>
               <NotebookPen className="size-3.5" />
             </button>
@@ -702,7 +725,7 @@ export function PeopleTab({
                     {n.author} · {n.at.slice(0, 10)}
                   </span>
                 </span>
-                <button className="text-au-muted hover:text-au-bad" onClick={() => delNote(n.id)} aria-label="O‘chirish">
+                <button className="text-au-muted hover:text-au-bad" onClick={() => delNote(n.id)} aria-label={t('delete')}>
                   <Trash2 className="size-3.5" />
                 </button>
               </li>
@@ -717,14 +740,15 @@ export function PeopleTab({
 /* ------------------------------------------------------------ account tab */
 
 export function AccountTab({ card, isSelf }: { card: ProfileCard; isSelf: boolean }) {
+  const { t } = useHub();
   const rows: [string, ReactNode][] = [
-    ['Telegram', card.telegram ? <span className={CHIP_OK}>Ulangan</span> : <span className={CHIP_BAD}>Ulanmagan</span>],
-    ['Oxirgi faollik', card.last_seen_at ? card.last_seen_at.slice(0, 16).replace('T', ' ') : <span className="text-au-muted">ma’lumot yo‘q</span>],
-    ['Profil to‘liqligi', `${card.completeness.pct}%`],
+    ['Telegram', card.telegram ? <span className={CHIP_OK}>{t('connected')}</span> : <span className={CHIP_BAD}>{t('notConnected')}</span>],
+    [t('lastSeen'), card.last_seen_at ? card.last_seen_at.slice(0, 16).replace('T', ' ') : <span className="text-au-muted">{t('noData')}</span>],
+    [t('completeness'), `${card.completeness.pct}%`],
   ];
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <Card title="Hisob holati" icon={<KeyRound className="size-4" />} i={0}>
+      <Card title={t('account')} icon={<KeyRound className="size-4" />} i={0}>
         <dl className="flex flex-col divide-y divide-au-line">
           {rows.map(([k, v]) => (
             <div key={k} className="flex items-center justify-between gap-3 py-2 text-sm">
@@ -735,19 +759,19 @@ export function AccountTab({ card, isSelf }: { card: ProfileCard; isSelf: boolea
         </dl>
         {card.completeness.missing.length > 0 && (
           <p className="text-xs text-au-muted">
-            To‘ldirilmagan: <b className="text-au-ink">{card.completeness.missing.join(', ')}</b>
+            {t('notFilled')} <b className="text-au-ink">{card.completeness.missing.join(', ')}</b>
           </p>
         )}
       </Card>
       {isSelf && (
-        <Card title="Sozlamalar" icon={<Lock className="size-4" />} i={1}>
+        <Card title={t('settings')} icon={<Lock className="size-4" />} i={1}>
           <div className="flex flex-col gap-2">
             <Link href="/settings" className={cn(BTN_GHOST, 'h-9 justify-start')}>
-              <KeyRound className="size-4" /> Parolni o‘zgartirish va mavzu
+              <KeyRound className="size-4" /> {t('pwTheme')}
             </Link>
             {!card.telegram && (
               <Link href="/settings" className={cn(BTN_GHOST, 'h-9 justify-start')}>
-                <Send className="size-4" /> Telegram’ni ulash
+                <Send className="size-4" /> {t('connectTg')}
               </Link>
             )}
           </div>
@@ -761,7 +785,9 @@ export function AccountTab({ card, isSelf }: { card: ProfileCard; isSelf: boolea
 
 const latin = (s: string) => s.replace(/[‘’ʻʼ`]/g, "'").replace(/[−–—]/g, '-').replace(/·/g, '-').replace(/★/g, '*');
 
-async function exportProfilePdf(name: string, positions: string[], card: ProfileCard, metrics: ProfileMetrics) {
+type PdfLabels = { head: string; metricN: (k: ProfileMetricKey) => string; unitOf: (k: ProfileMetricKey) => string; mShort: (m: string) => string };
+
+async function exportProfilePdf(name: string, positions: string[], card: ProfileCard, metrics: ProfileMetrics, L: PdfLabels) {
   const { default: jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF({ orientation: 'landscape' });
@@ -779,10 +805,10 @@ async function exportProfilePdf(name: string, positions: string[], card: Profile
   }
   autoTable(doc, {
     startY: card.bio ? 44 : 32,
-    head: [["Ko'rsatkich", ...metrics.months.map((m) => MONTHS[Number(m.slice(5, 7)) - 1])]],
+    head: [[latin(L.head), ...metrics.months.map((m) => latin(L.mShort(m)))]],
     body: (Object.keys(PROFILE_METRIC) as ProfileMetricKey[]).map((k) => [
-      latin(PROFILE_METRIC[k].n),
-      ...metrics.series[k].map((v) => (v === null ? '-' : `${Math.round(v)}${latin(PROFILE_METRIC[k].unit)}`)),
+      latin(L.metricN(k)),
+      ...metrics.series[k].map((v) => (v === null ? '-' : `${Math.round(v)}${latin(L.unitOf(k))}`)),
     ]),
     headStyles: { fillColor: [45, 52, 70] },
     styles: { fontSize: 8 },

@@ -10,12 +10,13 @@ import { MoneyInput } from '@/components/ui/money-input';
 import type { StudentRow } from '@/lib/ops-students';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
-import { TRIGGERS, VARS, dmy, errText } from './ops-students-meta';
+import { useTranslations } from 'next-intl';
+import { VARS, dmy, useOpsMeta } from './ops-students-meta';
 import { LogItem } from './ops-students';
 
 const LEAD_SAMPLE = { ism: 'Aziza', kurs: 'IELTS', sinov_sana: '25.11.2026', sinov_vaqt: '16:00' };
 const LEAD_VARS = ['{ism}', '{kurs}', '{sinov_sana}', '{sinov_vaqt}'];
-const LEAD_TRIGGERS: Record<string, string> = { before: 'Avto: sinov darsidan 1 kun oldin', none: 'Faqat qo‘lda' };
+const LEAD_TRIGGERS: Record<string, string> = { before: 'leadBefore', none: 'manualOnly' };
 const SAMPLE = {
   ism: 'Aziza Karimova',
   ota_ona: 'Nilufar',
@@ -27,13 +28,14 @@ const SAMPLE = {
 };
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+  const to = useTranslations('ops');
   return (
     <div className="sx-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className={wide ? 'sx-modal !w-[min(760px,100%)]' : 'sx-modal'} role="dialog" aria-modal="true" aria-label={title}>
         <div className="sx-h">
           <h3>{title}</h3>
           <span className="sp" />
-          <button className="sx-btn sm" onClick={onClose} aria-label="Yopish">
+          <button className="sx-btn sm" onClick={onClose} aria-label={to('c.close')}>
             <X className="size-4" />
           </button>
         </div>
@@ -50,7 +52,10 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
   const router = useRouter();
   const [pending, start] = useTransition();
   const lead = audience === 'lead';
-  const triggers = lead ? LEAD_TRIGGERS : TRIGGERS;
+  const ta = useTranslations('ops.adm');
+  const to = useTranslations('ops');
+  const { TRIGGERS, errText } = useOpsMeta();
+  const triggers = lead ? Object.fromEntries(Object.entries(LEAD_TRIGGERS).map(([k, v]) => [k, ta(v)])) : TRIGGERS;
   const vars = lead ? LEAD_VARS : VARS;
   const sample: Record<string, string> = lead ? LEAD_SAMPLE : SAMPLE;
   const [list, setList] = useState<Draft[]>((lead ? data.sales.templates : data.students.templates).map((t) => ({ ...t, key: t.id })));
@@ -72,21 +77,18 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
         return;
       }
       playSound('ok');
-      toast.success('Shablonlar saqlandi');
+      toast.success(ta('tplSaved'));
       router.refresh();
       onClose();
     });
   const canEdit = data.canEdit;
   return (
-    <Modal title={lead ? 'Lidlarga xabar shablonlari' : 'Ota-onaga xabar shablonlari'} onClose={onClose} wide>
+    <Modal title={lead ? ta('tplLead') : ta('tplParent')} onClose={onClose} wide>
       <p className="mb-3 text-sm leading-relaxed text-au-muted">
         {lead ? (
-          <>Qavs ichidagi so‘zlar xabar ketayotganda lid ma’lumoti bilan almashadi. «Avto» shablon sinov darsidan 1 kun oldin Telegrami bor lidga o‘zi ketadi.</>
+          <>{ta('tplLeadNote')}</>
         ) : (
-          <>
-            Qavs ichidagi so‘zlar xabar ketayotganda o‘quvchi ma’lumoti bilan almashadi. «Avto» shablonlar o‘z vaqtida o‘zi ketadi: to‘lovdan{' '}
-            {data.students.settings.remindDays} kun oldin, to‘lov kuni va to‘lov qabul qilinganda (chek).
-          </>
+          <>{ta('tplParentNote', { n: data.students.settings.remindDays })}</>
         )}
       </p>
       <div className="flex flex-col gap-3">
@@ -96,7 +98,7 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
               <input
                 id={`tpl-n-${t.key}`}
                 className="sx-inp !w-[240px] font-bold"
-                aria-label="Shablon nomi"
+                aria-label={ta('tplName')}
                 maxLength={120}
                 disabled={!canEdit}
                 value={t.name}
@@ -105,7 +107,7 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
               <select
                 id={`tpl-t-${t.key}`}
                 className="sx-inp !w-auto"
-                aria-label="Qachon ketadi"
+                aria-label={ta('whenSent')}
                 disabled={!canEdit}
                 value={t.trigger}
                 onChange={(e) => set(t.key, { trigger: e.target.value as Draft['trigger'] })}
@@ -119,14 +121,14 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
               <span className="flex-1" />
               {canEdit && (
                 <button className="sx-btn sm text-au-bad" onClick={() => setList((l) => l.filter((x) => x.key !== t.key))}>
-                  <Trash2 className="size-4" /> O‘chirish
+                  <Trash2 className="size-4" /> {to('c.delete')}
                 </button>
               )}
             </div>
             <textarea
               id={`tpl-${t.key}`}
               className="sx-inp min-h-[90px] leading-relaxed"
-              aria-label="Matn"
+              aria-label={ta('text')}
               maxLength={3000}
               disabled={!canEdit}
               value={t.body}
@@ -152,14 +154,14 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
           <button
             className="sx-btn"
             onClick={() =>
-              setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: 'Yangi shablon', body: lead ? 'Assalomu alaykum, {ism}! ' : 'Assalomu alaykum, {ota_ona}! {ism} bo‘yicha ', trigger: 'none' }])
+              setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: ta('newTpl'), body: lead ? 'Assalomu alaykum, {ism}! ' : 'Assalomu alaykum, {ota_ona}! {ism} bo‘yicha ', trigger: 'none' }])
             }
           >
-            <Plus className="size-4" /> Yangi shablon
+            <Plus className="size-4" /> {ta('newTpl')}
           </button>
           <span className="flex-1" />
           <button className="sx-btn primary" disabled={pending || list.some((t) => !t.name.trim() || !t.body.trim())} onClick={save}>
-            Saqlash
+            {to('c.save')}
           </button>
         </div>
       )}
@@ -169,6 +171,7 @@ export function TemplatesModal({ data, onClose, audience = 'student' }: { data: 
 
 /** Avto-yechim sozlamasi. */
 const PAID_SOURCES = ['Boshqa CRM', 'Naqd, eski daftar', 'Boshqa'];
+const SRC_KEY: Record<string, string> = { 'Boshqa CRM': 'crm', 'Naqd, eski daftar': 'book', Boshqa: 'other' };
 
 /** Qo'lda faol: one or many students who paid in another CRM. No payment is recorded here. */
 export function PaidElsewhereModal({ students, onClose, onDone }: { students: StudentRow[]; onClose: () => void; onDone: () => void }) {
@@ -176,6 +179,9 @@ export function PaidElsewhereModal({ students, onClose, onDone }: { students: St
   const [pending, start] = useTransition();
   const [fee, setFee] = useState('');
   const [source, setSource] = useState(PAID_SOURCES[0]);
+  const ta = useTranslations('ops.adm');
+  const to = useTranslations('ops');
+  const { errText } = useOpsMeta();
   const [note, setNote] = useState('');
   const one = students.length === 1;
   const noFee = students.filter((s) => s.fee <= 0).length;
@@ -189,14 +195,14 @@ export function PaidElsewhereModal({ students, onClose, onDone }: { students: St
         return;
       }
       playSound('ok');
-      toast.success(one ? `${students[0].name} faol qilindi` : `${r.done ?? students.length} ta o‘quvchi faol qilindi`);
+      toast.success(one ? ta('madeActive', { name: students[0].name }) : ta('nMadeActive', { n: r.done ?? students.length }));
       router.refresh();
       onDone();
     });
   return (
-    <Modal title={one ? `${students[0].name}ni faol qilish` : `${students.length} ta o‘quvchini faol qilish`} onClose={onClose}>
+    <Modal title={one ? ta('activateOne', { name: students[0].name }) : ta('activateMany', { n: students.length })} onClose={onClose}>
       <p className="mb-3 text-sm leading-relaxed text-au-muted">
-        Boshqa CRM’da to‘lov qilgan o‘quvchi. To‘lov bu yerga yozilmaydi va kassaga qo‘shilmaydi, faqat o‘quvchi faol deb belgilanadi.
+        {ta('peNote')}
       </p>
       <div className="flex flex-col gap-3">
         {!one && (
@@ -204,7 +210,7 @@ export function PaidElsewhereModal({ students, onClose, onDone }: { students: St
             {students.map((s) => (
               <li key={s.id}>
                 <span className="text-au-ink">{s.name}</span>{' '}
-                <span className="text-au-faint">· {s.fee > 0 ? `${formatUZS(s.fee)} so‘m` : 'oylik summa yo‘q'}</span>
+                <span className="text-au-faint">· {s.fee > 0 ? `${formatUZS(s.fee)} so‘m` : ta('noFee')}</span>
               </li>
             ))}
           </ul>
@@ -213,34 +219,34 @@ export function PaidElsewhereModal({ students, onClose, onDone }: { students: St
           <>
             {!one && (
               <div className="rounded-xl bg-au-accent-soft px-3 py-2 text-xs text-au-accent-text">
-                {noFee} ta o‘quvchida oylik summa yo‘q. Quyidagi summa faqat ularga yoziladi.
+                {ta('noFeeMany', { n: noFee })}
               </div>
             )}
             <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-              {one ? 'Oylik to‘lov (so‘m), majburiy' : 'Summasi yo‘qlar uchun oylik to‘lov (so‘m)'}
-              <MoneyInput id="pe-fee" className="sx-inp" placeholder="masalan 600,000" value={fee ? Number(fee.replace(/\D/g, '')) : null} onValue={(v) => setFee(v == null ? '' : String(v))} />
+              {one ? ta('feeReq') : ta('feeForMissing')}
+              <MoneyInput id="pe-fee" className="sx-inp" placeholder={ta('feePh')} value={fee ? Number(fee.replace(/\D/g, '')) : null} onValue={(v) => setFee(v == null ? '' : String(v))} />
             </label>
           </>
         )}
         <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-          Qayerda to‘lagan
+          {ta('wherePaid')}
           <select id="pe-src" className="sx-inp" value={source} onChange={(e) => setSource(e.target.value)}>
             {PAID_SOURCES.map((x) => (
-              <option key={x}>{x}</option>
+              <option key={x} value={x}>{ta(`src.${SRC_KEY[x]}`)}</option>
             ))}
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-          Izoh (ixtiyoriy)
-          <input id="pe-note" className="sx-inp" maxLength={300} placeholder="masalan: oktabr uchun to‘lagan" value={note} onChange={(e) => setNote(e.target.value)} />
+          {ta('noteOpt')}
+          <input id="pe-note" className="sx-inp" maxLength={300} placeholder={ta('peNotePh')} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <button className="sx-btn" onClick={onClose}>
-          Bekor
+          {to('c.cancel')}
         </button>
         <button className="sx-btn primary" disabled={pending || (noFee > 0 && !Number(fee.replace(/\D/g, '')))} onClick={save}>
-          Faol qilish
+          {ta('makeActive')}
         </button>
       </div>
     </Modal>
@@ -251,6 +257,9 @@ export function BillingSettingsModal({ data, onClose }: { data: OpsData; onClose
   const router = useRouter();
   const [pending, start] = useTransition();
   const [f, setF] = useState(data.students.settings);
+  const ta = useTranslations('ops.adm');
+  const to = useTranslations('ops');
+  const { errText } = useOpsMeta();
   const save = () =>
     start(async () => {
       const r = await saveBillingSettingsAction(f);
@@ -260,43 +269,42 @@ export function BillingSettingsModal({ data, onClose }: { data: OpsData; onClose
         return;
       }
       playSound('ok');
-      toast.success(f.enabled ? 'Avto-yechim yoqildi' : 'Avto-yechim o‘chirildi');
+      toast.success(f.enabled ? ta('autoOn') : ta('autoOff'));
       router.refresh();
       onClose();
     });
   const dis = !data.canEdit;
   return (
-    <Modal title="Avto-yechim" onClose={onClose}>
+    <Modal title={ta('autoTitle')} onClose={onClose}>
       <p className="mb-3 text-sm leading-relaxed text-au-muted">
-        Har kuni 09:00 da to‘lov kuni (aktiv bo‘lgan sana) kelgan o‘quvchidan oylik summa yechiladi — balansga qarz bo‘lib tushadi. Muzlatilgan va arxivdagilardan
-        yechilmaydi. {dmy(f.startDate)} dan oldingi davrlar yechilmaydi, toki eski tizimdan kelgan qarzlar ikki marta yozilmasin.
+        {ta('autoNote', { d: dmy(f.startDate) })}
       </p>
       <div className="flex flex-col gap-3">
         <label className="flex items-center gap-2 text-sm font-semibold text-au-ink">
           <input id="bs-on" type="checkbox" disabled={dis} checked={f.enabled} onChange={(e) => setF({ ...f, enabled: e.target.checked })} />
-          Avtomatik yechish va eslatmalar yoqilgan
+          {ta('autoEnabled')}
         </label>
         <div className="grid grid-cols-2 gap-3 max-[480px]:grid-cols-1">
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            Qaysi sanadan boshlab
+            {ta('fromDate')}
             <input id="bs-start" type="date" className="sx-inp" disabled={dis} value={f.startDate} onChange={(e) => e.target.value && setF({ ...f, startDate: e.target.value })} />
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            Eslatma necha kun oldin
+            {ta('remindBefore')}
             <select id="bs-remind" className="sx-inp" disabled={dis} value={f.remindDays} onChange={(e) => setF({ ...f, remindDays: Number(e.target.value) })}>
               {[0, 1, 2, 3, 4, 5, 7].map((n) => (
                 <option key={n} value={n}>
-                  {n === 0 ? 'Faqat to‘lov kuni' : `${n} kun oldin`}
+                  {n === 0 ? ta('onlyPayDay') : ta('nDaysBefore', { n })}
                 </option>
               ))}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            Qo‘ng‘iroq ro‘yxati: qarz necha kundan oshsa
+            {ta('callAfter')}
             <input id="bs-call" className="sx-inp" inputMode="numeric" disabled={dis} value={f.callAfterDays} onChange={(e) => setF({ ...f, callAfterDays: Math.min(60, Number(e.target.value.replace(/\D/g, '')) || 1) })} />
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            To‘lov havolasi (Click / Payme) — {'{havola}'}
+            {ta('payLink')}
             <input id="bs-link" className="sx-inp" disabled={dis} maxLength={300} placeholder="https://…" value={f.payLink} onChange={(e) => setF({ ...f, payLink: e.target.value })} />
           </label>
         </div>
@@ -304,7 +312,7 @@ export function BillingSettingsModal({ data, onClose }: { data: OpsData; onClose
       {!dis && (
         <div className="mt-4 flex justify-end">
           <button className="sx-btn primary" disabled={pending} onClick={save}>
-            Saqlash
+            {to('c.save')}
           </button>
         </div>
       )}
@@ -313,10 +321,11 @@ export function BillingSettingsModal({ data, onClose }: { data: OpsData; onClose
 }
 
 export function LogModal({ data, onClose, onOpen }: { data: OpsData; onClose: () => void; onOpen: (id: string) => void }) {
+  const ta = useTranslations('ops.adm');
   return (
-    <Modal title="Barcha amallar" onClose={onClose} wide>
+    <Modal title={ta('allActions')} onClose={onClose} wide>
       {data.students.log.length === 0 ? (
-        <div className="sx-empty">Hali amal yo‘q</div>
+        <div className="sx-empty">{ta('noActions')}</div>
       ) : (
         <ul className="flex flex-col gap-2">
           {data.students.log.map((l) => (

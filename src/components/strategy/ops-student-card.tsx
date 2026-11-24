@@ -34,11 +34,38 @@ import { playSound, toast } from './suite-shell';
 import { CommentList } from './ops-comments';
 import { PaymentEditor } from './ops-payments';
 import type { OpsData } from './operations-workspace';
-import { CALLS, GRADE, METHODS, PAY_METHODS, REASONS, dmy, errText, som, when } from './ops-students-meta';
+import { useTranslations } from 'next-intl';
+import { PAY_METHODS, dmy, som, useOpsMeta, when } from './ops-students-meta';
 
 type Pane = 'pay' | 'msg' | 'info' | 'terms' | 'adj' | 'fix' | 'shift' | 'freeze' | 'out' | 'del' | 'call' | null;
-const PARENT_LABEL: Record<string, string> = { father: 'Otasi', mother: 'Onasi', guardian: 'Ota-ona / vasiy', other: 'Boshqa kontakt' };
+const PARENT_LABEL: Record<string, string> = { father: 'pFather', mother: 'pMother', guardian: 'pGuardian', other: 'pOther' };
 const digits = (v: string) => v.replace(/\D/g, '');
+/** Stored reason text (Uzbek) → its label key under ops.card.rs. */
+const RS: Record<string, string> = {
+  'Kitob / material': 'book',
+  'Imtihon to‘lovi': 'exam',
+  'Xato to‘lovni tuzatish': 'fixPay',
+  Boshqa: 'other',
+  'Xato yechilgan': 'wrong',
+  'Ikki marta yechilgan': 'twice',
+  'O‘quvchi shu oy o‘qimadi': 'noStudy',
+  'Oyning bir qismi o‘qidi': 'partMonth',
+  'Summa noto‘g‘ri edi': 'wrongSum',
+  'SchoolUp importidagi xato minus': 'import',
+  'Ikki marta yechilgan oylik': 'twiceFee',
+  'Ortiqcha qo‘lda yechilgan': 'extraManual',
+  'Darsga kelmayapti, keyin qaytadi': 'absent',
+  'Kasal / safarda': 'ill',
+  'To‘lov kelishuvi (CEO ruxsati)': 'deal',
+  'Darsga kelmadi': 'missed',
+  'Kasal edi': 'sick',
+  'Safarda edi': 'away',
+  'Guruh hali boshlanmadi': 'notStarted',
+};
+function useRs() {
+  const t = useTranslations('ops.card.rs');
+  return (v: string) => (RS[v] ? t(RS[v]) : v);
+}
 const grouped = (v: string) => (digits(v) ? formatUZS(Number(digits(v))) : '');
 
 /** O'quvchi kartasi: profile, balance, next payment, every payment and charge with who did it, and all actions. */
@@ -54,6 +81,9 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   const [cancelCh, setCancelCh] = useState<string | null>(null);
   const today = data.today.day;
   const canEdit = data.canEdit;
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
+  const { CALLS, GRADE, METHODS, errText, reasonLabel } = useOpsMeta();
 
   // Loads on open and after each change (tick); keyed by student, no router in deps.
   useEffect(() => {
@@ -107,7 +137,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
   });
   const fixBtn = data.canFixBalance && s.balance < 0 && (
     <PaneBtn p="fix" cur={pane} set={setPane}>
-      ⟲ Balansni tuzatish
+      {t('fixBalance')}
     </PaneBtn>
   );
 
@@ -125,41 +155,41 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
             <h2 className="text-xl font-extrabold text-au-ink">{s.name}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-au-faint">
               {archived ? (
-                <span className="sx-pl mute">Arxivda · {s.leaveReason || 'sababsiz'}</span>
+                <span className="sx-pl mute">{t('archivedReason', { r: s.leaveReason ? reasonLabel(s.leaveReason) : t('noReason') })}</span>
               ) : s.grade.total ? (
                 <>
                   <span className={cn('sx-pl', g.tone)}>{g.n}</span>
-                  {s.grade.onTime}/{s.grade.total} to‘lov vaqtida · o‘rtacha kechikish {s.grade.avgDelay} kun
+                  {t('gradeLine', { a: s.grade.onTime, b: s.grade.total, d: s.grade.avgDelay })}
                 </>
               ) : (
-                'Hali to‘lov tarixi yo‘q'
+                t('noHistory')
               )}
-              {s.risk && <span className="sx-pl bad">Ketish xavfi · oxirgi 3 darsga kelmadi</span>}
+              {s.risk && <span className="sx-pl bad">{t('risk')}</span>}
             </div>
           </div>
-          <button className="sx-btn sm" onClick={onClose} aria-label="Yopish">
+          <button className="sx-btn sm" onClick={onClose} aria-label={to('c.close')}>
             <X className="size-4" />
           </button>
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto px-5 pb-8 pt-4">
           <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-            <Kv k="Balans">
+            <Kv k={t('balance')}>
               <span className={cn(s.balance < 0 ? 'text-au-bad' : 'text-au-ok')}>
-                {s.balance < 0 ? `−${som(-s.balance)} qarz` : s.balance > 0 ? `+${som(s.balance)} oldindan` : '0 · qarz yo‘q'}
+                {s.balance < 0 ? t('debt', { sum: som(-s.balance) }) : s.balance > 0 ? t('prepaid', { sum: som(s.balance) }) : t('noDebt')}
               </span>
             </Kv>
-            <Kv k="Keyingi to‘lov" sub={next ? `${daysBetween(today, next) === 0 ? 'bugun' : `${daysBetween(today, next)} kun qoldi`} · oylik ${formatUZS(s.fee)}${s.balance < 0 ? ` + qarz ${formatUZS(-s.balance)}` : ''}` : undefined}>
-              {archived ? 'Arxivda' : s.status === 'frozen' ? `Muzlatilgan${s.frozenUntil ? ` · ${dmy(s.frozenUntil)} gacha` : ''}` : next ? `${dmy(next)} · ${som(s.fee + Math.max(0, -s.balance))}` : 'Aktiv sana kiritilmagan'}
+            <Kv k={t('nextPay')} sub={next ? `${t('nextSub', { when: daysBetween(today, next) === 0 ? t('today') : t('daysLeft', { n: daysBetween(today, next) }), fee: formatUZS(s.fee) })}${s.balance < 0 ? t('plusDebt', { sum: formatUZS(-s.balance) }) : ''}` : undefined}>
+              {archived ? t('archived') : s.status === 'frozen' ? `${t('frozen')}${s.frozenUntil ? t('until', { d: dmy(s.frozenUntil) }) : ''}` : next ? `${dmy(next)} · ${som(s.fee + Math.max(0, -s.balance))}` : t('noStart')}
             </Kv>
-            <Kv k="Oylik to‘lov" sub={[s.feeOwn ? 'qo‘lda kiritilgan' : 'guruh tariflaridan', s.discountPct ? `chegirma ${s.discountPct}%${s.discountReason ? ` (${s.discountReason})` : ''}` : '', s.installments === 2 ? '2 qismda' : ''].filter(Boolean).join(' · ')}>
+            <Kv k={t('fee')} sub={[s.feeOwn ? t('feeOwn') : t('feeGroups'), s.discountPct ? `${t('discount', { n: s.discountPct })}${s.discountReason ? ` (${s.discountReason})` : ''}` : '', s.installments === 2 ? t('twoParts') : ''].filter(Boolean).join(' · ')}>
               {s.fee ? som(s.fee) : '—'}
             </Kv>
-            <Kv k="Hisob boshlangan sana" sub={s.start ? `har oy ${Number(s.start.slice(8, 10))}-sanada yechiladi` : undefined}>
+            <Kv k={t('start')} sub={s.start ? t('startSub', { d: Number(s.start.slice(8, 10)) }) : undefined}>
               {s.start ? dmy(s.start) : '—'}
             </Kv>
             {card && (
-              <Kv k="Telefon" sub={card.contacts.find((c) => c.kind === 'student')?.tg ? 'Telegram botga ulangan' : undefined}>
+              <Kv k={t('phone')} sub={card.contacts.find((c) => c.kind === 'student')?.tg ? t('botLinked') : undefined}>
                 {card.contacts.find((c) => c.kind === 'student')?.phone || '—'}
               </Kv>
             )}
@@ -169,60 +199,60 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                 card.contacts
                   .filter((c) => c.kind === kind)
                   .map((c, i) => (
-                    <Kv key={`${kind}-${i}`} k={PARENT_LABEL[kind]} sub={c.tg ? 'Telegram botga ulangan · eslatmalar boradi' : 'Telegram ulanmagan'}>
+                    <Kv key={`${kind}-${i}`} k={t(PARENT_LABEL[kind])} sub={c.tg ? t('botLinkedRem') : t('botNo')}>
                       {[c.name, c.phone].filter(Boolean).join(' · ') || '—'}
                     </Kv>
                   )),
               )}
-            {card?.birthday && <Kv k="Tug‘ilgan kun">{dmy(card.birthday)}</Kv>}
+            {card?.birthday && <Kv k={t('birthday')}>{dmy(card.birthday)}</Kv>}
           </div>
 
           {canEdit && (
             <div className="flex flex-wrap gap-2">
               {archived ? (
                 <>
-                  <RestoreButton id={s.id} onDone={() => done('Arxivdan qaytarildi')} onFail={fail} />
+                  <RestoreButton id={s.id} onDone={() => done(t('restored'))} onFail={fail} />
                   {fixBtn}
                   <PaneBtn p="del" cur={pane} set={setPane} danger>
-                    🗑 O‘chirish
+                    {t('del')}
                   </PaneBtn>
                 </>
               ) : (
                 <>
                   <PaneBtn p="pay" cur={pane} set={setPane} primary>
-                    + To‘lov qabul qilish
+                    {t('takePay')}
                   </PaneBtn>
                   <PaneBtn p="msg" cur={pane} set={setPane}>
-                    ✉ Xabar yuborish
+                    {t('sendMsg')}
                   </PaneBtn>
                   <PaneBtn p="info" cur={pane} set={setPane}>
-                    ✎ Tahrirlash
+                    {t('edit')}
                   </PaneBtn>
                   <PaneBtn p="terms" cur={pane} set={setPane}>
-                    ✎ Summa, sana, chegirma
+                    {t('terms')}
                   </PaneBtn>
                   {data.money && s.status === 'active' && (
                     <PaneBtn p="shift" cur={pane} set={setPane}>
-                      ⇥ To‘lov sanasini surish
+                      {t('shift')}
                     </PaneBtn>
                   )}
                   <PaneBtn p="adj" cur={pane} set={setPane}>
-                    − Qo‘lda yechish
+                    {t('adj')}
                   </PaneBtn>
                   {fixBtn}
                   <PaneBtn p="freeze" cur={pane} set={setPane}>
-                    ❄ {s.status === 'frozen' ? 'Muzlatishni bekor qilish' : 'Muzlatish'}
+                    ❄ {s.status === 'frozen' ? t('unfreeze') : t('freeze')}
                   </PaneBtn>
                   {s.balance < 0 && (
                     <PaneBtn p="call" cur={pane} set={setPane}>
-                      ☎ Qo‘ng‘iroq natijasi
+                      {t('callRes')}
                     </PaneBtn>
                   )}
                   <PaneBtn p="out" cur={pane} set={setPane} danger>
-                    Chiqarish
+                    {t('out')}
                   </PaneBtn>
                   <PaneBtn p="del" cur={pane} set={setPane} danger>
-                    🗑 O‘chirish
+                    {t('del')}
                   </PaneBtn>
                 </>
               )}
@@ -246,7 +276,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
               s={s}
               onDone={() => {
                 playSound('ok');
-                toast.success('O‘quvchi o‘chirildi');
+                toast.success(t('deleted'));
                 router.refresh();
                 onClose();
               }}
@@ -259,7 +289,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
             items={notes}
             meId={meId}
             canEdit={canEdit}
-            placeholder="Izoh yozing… (masalan: onasi to‘lovni 20-sanagacha kechiktirishni so‘radi)"
+            placeholder={t('notePh')}
             reminderFrom={today}
             onAdd={async (body, remindAt) => {
               const r = await addStudentNoteAction({ studentId: s.id, body, remindAt });
@@ -267,31 +297,31 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                 fail(r.error);
                 return false;
               }
-              toast.success(remindAt ? `Izoh qo‘shildi — ${dmy(remindAt)} kuni dashboard’da eslatadi` : 'Izoh qo‘shildi');
+              toast.success(remindAt ? t('noteAddedRem', { d: dmy(remindAt) }) : t('noteAdded'));
               setTick((t) => t + 1);
               return true;
             }}
             onEdit={async (id, body, remindAt) => {
               const r = await editStudentNoteAction({ id, body, remindAt });
               if (r.error) {
-                toast.error(r.error === 'forbidden' ? 'Faqat o‘zingiz yozgan izohni tahrirlay olasiz' : errText(r.error));
+                toast.error(r.error === 'forbidden' ? t('ownNoteOnly') : errText(r.error));
                 return false;
               }
-              toast.success('Izoh tahrirlandi');
+              toast.success(t('noteEdited'));
               setTick((t) => t + 1);
               return true;
             }}
           />
 
           {!card ? (
-            <div className="sx-empty">{failed ? 'Kartani yuklab bo‘lmadi' : 'Yuklanmoqda…'}</div>
+            <div className="sx-empty">{failed ? t('loadFailed') : to('c.loading')}</div>
           ) : (
             <>
-              <Sec>To‘lov va yechimlar</Sec>
+              <Sec>{t('ledger')}</Sec>
               {!data.money ? (
-                <div className="text-sm text-au-faint">To‘lovlar tarixi sizga ko‘rinmaydi — yuqorida oylik va qarz bor.</div>
+                <div className="text-sm text-au-faint">{t('ledgerHidden')}</div>
               ) : ledger.length === 0 ? (
-                <div className="text-sm text-au-faint">Hali yozuv yo‘q</div>
+                <div className="text-sm text-au-faint">{t('noEntries')}</div>
               ) : (
                 <ul className="flex flex-col">
                   {ledger.map((e) => (
@@ -300,30 +330,30 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                       <span className="min-w-0">
                         <b className="text-sm text-au-ink">
                           {e.type === 'fix'
-                            ? 'Balans tuzatildi'
+                            ? t('fixed')
                             : e.type === 'pay'
                             ? e.amount < 0
-                              ? 'Qaytarildi'
-                              : `To‘lov · ${METHODS[e.kind] ?? e.kind}`
+                              ? t('refunded')
+                              : t('payOf', { m: METHODS[e.kind] ?? e.kind })
                             : e.kind === 'manual'
-                              ? 'Qo‘lda yechildi'
-                              : 'Oylik yechim'}
+                              ? t('manualCharge')
+                              : t('monthlyCharge')}
                         </b>
                         <span className="block text-xs text-au-faint">
                           {dmy(e.date)} · {e.actor}
                           {e.note ? ` · ${e.note}` : ''}
                         </span>
-                        {e.type === 'fix' && <span className="block text-xs text-au-info">To‘lov emas — tushum va statistikaga kirmaydi</span>}
-                        {e.cancelled && <span className="block text-xs font-semibold text-au-bad">Bekor qilingan</span>}
+                        {e.type === 'fix' && <span className="block text-xs text-au-info">{t('notPayment')}</span>}
+                        {e.cancelled && <span className="block text-xs font-semibold text-au-bad">{t('cancelled')}</span>}
                         {e.edit && <span className="block text-xs text-au-info">✎ {e.edit}</span>}
                         {canEdit && e.type === 'pay' && e.amount > 0 && !e.cancelled && !e.isCancel && (
                           <button className="mt-1 text-xs font-semibold text-au-accent-text hover:underline" onClick={() => setEditPay(editPay === e.id ? null : e.id)}>
-                            {editPay === e.id ? 'Yopish' : 'Tahrirlash'}
+                            {editPay === e.id ? to('c.close') : to('c.edit')}
                           </button>
                         )}
                         {canCancelCharge(e) && (
                           <button className="mt-1 text-xs font-semibold text-au-bad hover:underline" onClick={() => setCancelCh(cancelCh === e.id ? null : e.id)}>
-                            {cancelCh === e.id ? 'Yopish' : 'Yechimni bekor qilish'}
+                            {cancelCh === e.id ? to('c.close') : t('cancelCharge')}
                           </button>
                         )}
                         {cancelCh === e.id && (
@@ -343,7 +373,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                           {formatUZS(Math.abs(e.amount))}
                         </b>
                         <span className="text-[11px] tabular-nums text-au-faint">
-                          balans {e.after < 0 ? '−' : ''}
+                          {t('balanceAfter')} {e.after < 0 ? '−' : ''}
                           {formatUZS(Math.abs(e.after))}
                         </span>
                       </span>
@@ -351,16 +381,16 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                   ))}
                   {Math.round(opening) !== 0 && (
                     <li className="py-2 text-xs text-au-faint">
-                      Boshlang‘ich qoldiq (eski tizimdan): {opening < 0 ? '−' : '+'}
+                      {t('opening')} {opening < 0 ? '−' : '+'}
                       {som(Math.abs(opening))}
                       {opening < 0 && (
                         <span className="mt-1.5 block rounded-lg bg-au-info/10 px-2.5 py-1.5 text-au-info">
-                          Bu minusning yechim yozuvi yo‘q (import), shuning uchun «Yechimni bekor qilish» chiqmaydi.
+                          {t('openingNote')}
                           {data.canFixBalance && s.balance < 0 && !archived ? (
                             <>
-                              {' '}Xato bo‘lsa —{' '}
+                              {' '}{t('ifWrong')}{' '}
                               <button className="font-semibold underline" onClick={() => setPane('fix')}>
-                                Balansni tuzatish
+                                {t('fixBalanceLink')}
                               </button>
                             </>
                           ) : null}
@@ -371,16 +401,16 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                 </ul>
               )}
 
-              <Sec>Ota-onaga yuborilgan xabarlar</Sec>
+              <Sec>{t('msgs')}</Sec>
               {card.messages.length === 0 ? (
-                <div className="text-sm text-au-faint">Xabar yuborilmagan</div>
+                <div className="text-sm text-au-faint">{t('noMsgs')}</div>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {card.messages.map((m) => (
                     <li key={m.id} className="rounded-xl border border-au-line px-3 py-2">
                       <div className="flex items-center gap-2 text-sm">
-                        <b className="text-au-ink">{m.title || 'Xabar'}</b>
-                        <span className={cn('sx-pl', m.sent ? 'ok' : 'bad')}>{m.sent ? 'yetkazildi' : 'yetmadi'}</span>
+                        <b className="text-au-ink">{m.title || t('msg')}</b>
+                        <span className={cn('sx-pl', m.sent ? 'ok' : 'bad')}>{m.sent ? t('delivered') : t('notDelivered')}</span>
                         <span className="flex-1" />
                         <span className="text-xs text-au-faint">
                           {m.actor} · {when(m.at)}
@@ -394,12 +424,12 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
 
               {card.calls.length > 0 && (
                 <>
-                  <Sec>Qo‘ng‘iroqlar</Sec>
+                  <Sec>{t('calls')}</Sec>
                   <ul className="flex flex-col">
                     {card.calls.map((c) => (
                       <li key={c.id} className="border-b border-au-line py-2 text-sm">
                         <b className="text-au-ink">{CALLS[c.result]}</b>
-                        {c.promised && <span className="text-au-muted"> · va’da {dmy(c.promised)}</span>}
+                        {c.promised && <span className="text-au-muted">{t('promised', { d: dmy(c.promised) })}</span>}
                         {c.note && <span className="text-au-muted"> · {c.note}</span>}
                         <span className="block text-xs text-au-faint">
                           {c.actor} · {when(c.at)}
@@ -410,9 +440,9 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
                 </>
               )}
 
-              <Sec>Amallar tarixi</Sec>
+              <Sec>{t('history')}</Sec>
               {card.log.length === 0 ? (
-                <div className="text-sm text-au-faint">Bo‘sh</div>
+                <div className="text-sm text-au-faint">{t('empty')}</div>
               ) : (
                 <ul className="flex flex-col">
                   {card.log.map((l) => (
@@ -427,7 +457,7 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
               )}
               {card.note && (
                 <>
-                  <Sec>CRM izohi</Sec>
+                  <Sec>{t('crmNote')}</Sec>
                   <div className="text-sm text-au-muted">{card.note}</div>
                 </>
               )}
@@ -441,16 +471,17 @@ export function StudentCardDrawer({ s, data, pane: initial, onClose }: { s: Stud
 
 /** Lid → o‘quvchi → guruh → faol, oldest first. */
 function Dates({ d }: { d: StudentCard['dates'] }) {
+  const tr = useTranslations('ops.card');
   const items = [
-    d.lead && { at: d.lead.at.slice(0, 10), t: 'Lid sifatida keldi', sub: d.lead.source },
-    { at: d.created.at.slice(0, 10), t: 'O‘quvchi qilib qo‘shildi', sub: d.created.by },
-    ...d.groups.map((g) => ({ at: g.since, t: 'Guruhga qo‘shildi', sub: `${g.name}${g.status === 'active' ? '' : ` · ${g.status === 'frozen' ? 'muzlatilgan' : 'chiqqan'}`}` })),
-    d.active ? { at: d.active.at, t: 'Faol bo‘ldi', sub: d.active.how } : { at: '', t: 'Hali faol emas', sub: 'birinchi to‘lov kutilmoqda' },
+    d.lead && { at: d.lead.at.slice(0, 10), t: tr('dLead'), sub: d.lead.source },
+    { at: d.created.at.slice(0, 10), t: tr('dCreated'), sub: d.created.by },
+    ...d.groups.map((g) => ({ at: g.since, t: tr('dGroup'), sub: `${g.name}${g.status === 'active' ? '' : ` · ${g.status === 'frozen' ? tr('gFrozen') : tr('gLeft')}`}` })),
+    d.active ? { at: d.active.at, t: tr('dActive'), sub: d.active.how } : { at: '', t: tr('dNotActive'), sub: tr('dWaitPay') },
   ].filter((x): x is { at: string; t: string; sub: string } => !!x);
   items.sort((a, b) => (a.at || '9999').localeCompare(b.at || '9999'));
   return (
     <div className="flex flex-col gap-2">
-      <Sec>Sanalar</Sec>
+      <Sec>{tr('dates')}</Sec>
       <ol className="ml-1.5 border-l-2 border-au-line">
         {items.map((x, i) => (
           <li key={i} className="relative pb-2.5 pl-4 last:pb-0">
@@ -503,13 +534,14 @@ const Field = ({ label, children, className }: { label: string; children: React.
   </label>
 );
 function Actions({ pending, ok, okText, onCancel, danger }: { pending: boolean; ok: () => void; okText: string; onCancel: () => void; danger?: boolean }) {
+  const t = useTranslations('ops.card');
   return (
     <div className="flex flex-wrap gap-2">
       <button className={cn('sx-btn', danger ? 'text-au-bad' : 'primary')} disabled={pending} onClick={ok}>
         {okText}
       </button>
       <button className="sx-btn" onClick={onCancel}>
-        Bekor
+        {t('cancelShort')}
       </button>
     </div>
   );
@@ -517,6 +549,9 @@ function Actions({ pending, ok, okText, onCancel, danger }: { pending: boolean; 
 
 function PayPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
+  const { METHODS } = useOpsMeta();
   const [amount, setAmount] = useState(grouped(String(Math.max(-s.balance, s.fee))));
   const [method, setMethod] = useState<(typeof PAY_METHODS)[number]>('cash');
   const [paidAt, setPaidAt] = useState(today);
@@ -528,15 +563,15 @@ function PayPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: st
       const r = await recordPaymentAction({ studentId: s.id, amount: Number(digits(amount)), method, paidAt, note, notify, idem: idem.current });
       if (r.error) return onFail(r.error);
       idem.current = crypto.randomUUID();
-      onDone(`${som(Number(digits(amount)))} qabul qilindi${notify ? (r.sent ? ' · ota-onaga chek ketdi' : ' · chek yuborilmadi') : ''}`);
+      onDone(`${t('paidToast', { sum: som(Number(digits(amount))) })}${notify ? (r.sent ? t('receiptSent') : t('receiptNot')) : ''}`);
     });
   return (
-    <Panel title="To‘lov qabul qilish">
+    <Panel title={t('payTitle')}>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-        <Field label="Summa">
+        <Field label={to('c.amount')}>
           <MoneyInput id="pay-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
-        <Field label="Usul">
+        <Field label={to('c.method')}>
           <select id="pay-m" className="sx-inp" value={method} onChange={(e) => setMethod(e.target.value as typeof method)}>
             {PAY_METHODS.map((m) => (
               <option key={m} value={m}>
@@ -546,23 +581,24 @@ function PayPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: st
           </select>
         </Field>
       </div>
-      <Field label="Sana">
+      <Field label={to('c.date')}>
         <input id="pay-date" type="date" className="sx-inp !w-[170px]" min={addDaysToKey(today, -60)} max={today} value={paidAt} onChange={(e) => setPaidAt(e.target.value || today)} />
       </Field>
-      <Field label="Izoh">
-        <input id="pay-note" className="sx-inp" maxLength={300} placeholder="Ixtiyoriy" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Field label={to('c.note')}>
+        <input id="pay-note" className="sx-inp" maxLength={300} placeholder={t('optional')} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <label className="flex items-center gap-2 text-sm text-au-ink">
         <input id="pay-notify" type="checkbox" checked={notify} disabled={!s.tg} onChange={(e) => setNotify(e.target.checked)} />
-        Ota-onaga «To‘lov qabul qilindi» chekini yuborish{!s.tg && ' (Telegram ulanmagan)'}
+        {t('sendReceipt')}{!s.tg && t('tgNotLinked')}
       </label>
-      <Actions pending={pending || !digits(amount)} ok={ok} okText="Qabul qilish" onCancel={onCancel} />
+      <Actions pending={pending || !digits(amount)} ok={ok} okText={t('accept')} onCancel={onCancel} />
     </Panel>
   );
 }
 
 function MsgPane({ s, data, onDone, onFail, onCancel }: PaneProps & { data: OpsData }) {
   const [pending, start] = useTransition();
+  const tr = useTranslations('ops.card');
   const tpls = data.students.templates;
   const [tplId, setTplId] = useState(tpls[0]?.id ?? '');
   const [text, setText] = useState('');
@@ -586,13 +622,13 @@ function MsgPane({ s, data, onDone, onFail, onCancel }: PaneProps & { data: OpsD
   const ok = () =>
     start(async () => {
       const t = tpls.find((x) => x.id === tplId);
-      const r = await sendStudentMessageAction({ studentId: s.id, templateId: t?.id ?? null, title: t?.name ?? 'Xabar', body: text });
+      const r = await sendStudentMessageAction({ studentId: s.id, templateId: t?.id ?? null, title: t?.name ?? tr('msg'), body: text });
       if (r.error) return onFail(r.error);
-      onDone(`Xabar yuborildi (${r.sent}/${r.recipients})`);
+      onDone(tr('msgSent', { a: r.sent ?? 0, b: r.recipients ?? 0 }));
     });
   return (
-    <Panel title="Ota-onaga xabar yuborish">
-      <Field label="Shablon">
+    <Panel title={tr('msgTitle')}>
+      <Field label={tr('template')}>
         <select
           id="msg-tpl"
           className="sx-inp"
@@ -602,7 +638,7 @@ function MsgPane({ s, data, onDone, onFail, onCancel }: PaneProps & { data: OpsD
             fill(e.target.value);
           }}
         >
-          <option value="">— shablonsiz —</option>
+          <option value="">{tr('noTemplate')}</option>
           {tpls.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -610,17 +646,19 @@ function MsgPane({ s, data, onDone, onFail, onCancel }: PaneProps & { data: OpsD
           ))}
         </select>
       </Field>
-      <Field label="Matn (o‘zgartirish mumkin)">
-        <textarea id="msg-text" className="sx-inp min-h-[110px] leading-relaxed" maxLength={3000} value={loading ? 'Tayyorlanmoqda…' : text} onChange={(e) => setText(e.target.value)} />
+      <Field label={tr('text')}>
+        <textarea id="msg-text" className="sx-inp min-h-[110px] leading-relaxed" maxLength={3000} value={loading ? tr('preparing') : text} onChange={(e) => setText(e.target.value)} />
       </Field>
-      {!s.tg && <div className="text-xs text-au-bad">Ota-ona Telegram botga ulanmagan — xabar bormaydi. Telefon qiling: {s.parent || s.phone || '—'}</div>}
-      <Actions pending={pending || loading || !text.trim() || !s.tg} ok={ok} okText="Telegram’da yuborish" onCancel={onCancel} />
+      {!s.tg && <div className="text-xs text-au-bad">{tr('noTgCall', { p: s.parent || s.phone || '—' })}</div>}
+      <Actions pending={pending || loading || !text.trim() || !s.tg} ok={ok} okText={tr('sendTg')} onCancel={onCancel} />
     </Panel>
   );
 }
 
 function TermsPane({ s, onDone, onFail, onCancel }: PaneProps) {
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
   const [own, setOwn] = useState(s.feeOwn);
   const [fee, setFee] = useState(grouped(String(s.feeBase)));
   const [startDate, setStart] = useState(s.start ?? '');
@@ -638,43 +676,45 @@ function TermsPane({ s, onDone, onFail, onCancel }: PaneProps) {
         installments: split ? 2 : 1,
       });
       if (r.error) return onFail(r.error);
-      onDone('Saqlandi — keyingi yechimdan amal qiladi');
+      onDone(t('savedNext'));
     });
   return (
-    <Panel title="Oylik to‘lov, sana, chegirma">
+    <Panel title={t('termsTitle')}>
       <label className="flex items-center gap-2 text-sm text-au-ink">
         <input id="t-own" type="checkbox" checked={own} onChange={(e) => setOwn(e.target.checked)} />
-        Oylik summani qo‘lda belgilash (aks holda guruh tariflari yig‘indisi)
+        {t('ownFee')}
       </label>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-        <Field label="Oylik to‘lov">
+        <Field label={t('fee')}>
           <MoneyInput id="t-fee" className="sx-inp tabular-nums" disabled={!own} value={digits(fee) ? Number(digits(fee)) : null} onValue={(v) => setFee(v == null ? '' : grouped(String(v)))} />
         </Field>
-        <Field label="Aktiv bo‘lgan sana (to‘lov kuni)">
+        <Field label={t('activeDate')}>
           <input id="t-start" type="date" className="sx-inp" value={startDate} onChange={(e) => setStart(e.target.value)} />
         </Field>
-        <Field label="Chegirma, %">
+        <Field label={t('discountPct')}>
           <input id="t-disc" className="sx-inp tabular-nums" inputMode="numeric" value={discount} onChange={(e) => setDiscount(digits(e.target.value).slice(0, 3))} />
         </Field>
-        <Field label="Chegirma sababi">
-          <input id="t-reason" className="sx-inp" maxLength={200} placeholder="Aka-uka, oldindan to‘lov…" value={reason} onChange={(e) => setReason(e.target.value)} />
+        <Field label={t('discountWhy')}>
+          <input id="t-reason" className="sx-inp" maxLength={200} placeholder={t('discountPh')} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       </div>
       <label className="flex items-center gap-2 text-sm text-au-ink">
         <input id="t-split" type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />
-        Bo‘lib to‘lash: yarmi to‘lov kuni, yarmi 15 kundan keyin
+        {t('split')}
       </label>
       <div className="text-xs text-au-muted">
-        Har oy yechiladi: <b className="text-au-ink">{som(Math.round(((own ? Number(digits(fee)) : s.feeBase) * (100 - Math.min(100, Number(discount) || 0))) / 100))}</b>. Yozilgan qarz
-        o‘zgarmaydi. Sana yoki bo‘lib to‘lash o‘zgarsa, shu oyning yechimi bo‘lsa qayta yechilmaydi; farq bo‘lsa — yechimni bekor qilib, qo‘lda yeching.
+        {t('monthlyCharged')} <b className="text-au-ink">{som(Math.round(((own ? Number(digits(fee)) : s.feeBase) * (100 - Math.min(100, Number(discount) || 0))) / 100))}</b>. {t('termsNote')}
       </div>
-      <Actions pending={pending || Number(discount) > 100} ok={ok} okText="Saqlash" onCancel={onCancel} />
+      <Actions pending={pending || Number(discount) > 100} ok={ok} okText={to('c.save')} onCancel={onCancel} />
     </Panel>
   );
 }
 
 function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
+  const rs = useRs();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('Kitob / material');
   const [other, setOther] = useState('');
@@ -682,28 +722,28 @@ function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
     start(async () => {
       const r = await manualChargeAction({ studentId: s.id, amount: Number(digits(amount)), reason: reason === 'Boshqa' ? other || 'Boshqa' : reason });
       if (r.error) return onFail(r.error);
-      onDone(`${som(Number(digits(amount)))} yechildi`);
+      onDone(t('charged', { sum: som(Number(digits(amount))) }));
     });
   return (
-    <Panel title="Qo‘lda yechish (minus)">
+    <Panel title={t('adjTitle')}>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-        <Field label="Summa">
-          <MoneyInput id="adj-amt" className="sx-inp tabular-nums" placeholder="masalan 100,000" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
+        <Field label={to('c.amount')}>
+          <MoneyInput id="adj-amt" className="sx-inp tabular-nums" placeholder={t('adjPh')} value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
-        <Field label="Sabab">
+        <Field label={t('reason')}>
           <select id="adj-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
             {['Kitob / material', 'Imtihon to‘lovi', 'Xato to‘lovni tuzatish', 'Boshqa'].map((r) => (
-              <option key={r}>{r}</option>
+              <option key={r} value={r}>{rs(r)}</option>
             ))}
           </select>
         </Field>
       </div>
       {reason === 'Boshqa' && (
-        <Field label="Izoh">
+        <Field label={to('c.note')}>
           <input id="adj-o" className="sx-inp" maxLength={200} value={other} onChange={(e) => setOther(e.target.value)} />
         </Field>
       )}
-      <Actions pending={pending || !digits(amount)} ok={ok} okText="Yechish" onCancel={onCancel} />
+      <Actions pending={pending || !digits(amount)} ok={ok} okText={t('doCharge')} onCancel={onCancel} />
     </Panel>
   );
 }
@@ -711,6 +751,9 @@ function AdjPane({ s, onDone, onFail, onCancel }: PaneProps) {
 /** «Yechimni bekor qilish»: the charge stays in the history marked cancelled, its sum goes back to the balance. Qisman: only part of it. */
 function ChargeCancel({ charge, onDone, onFail, onCancel }: { charge: StudentCard['ledger'][number]; onDone: (m: string) => void; onFail: (e: string) => void; onCancel: () => void }) {
   const [pending, start] = useTransition();
+  const to = useTranslations('ops');
+  const t = useTranslations('ops.card');
+  const rs = useRs();
   const [part, setPart] = useState(false);
   const [amount, setAmount] = useState(grouped(String(Math.round(charge.amount / 2))));
   const [reason, setReason] = useState('Xato yechilgan');
@@ -721,38 +764,38 @@ function ChargeCancel({ charge, onDone, onFail, onCancel }: { charge: StudentCar
     start(async () => {
       const r = await cancelChargeAction({ chargeId: charge.id, reason: why, amount: part ? n : undefined });
       if (r.error) return onFail(r.error);
-      onDone(part ? `Yechimdan ${som(n)} qisman bekor qilindi — balansga qaytdi` : `Yechim bekor qilindi: +${som(charge.amount)} balansga qaytdi`);
+      onDone(part ? t('ccPart', { sum: som(n) }) : t('ccFull', { sum: som(charge.amount) }));
     });
   return (
-    <Panel title={`${dmy(charge.date)} dagi ${som(charge.amount)} yechimni bekor qilish`} danger>
-      <p className="text-xs text-au-muted">Yozuv o‘chmaydi — tarixda qoladi, kim va nima sababdan bekor qilgani yoziladi. Avto-yechim shu oyni qayta yechmaydi.</p>
+    <Panel title={t('ccTitle', { date: dmy(charge.date), sum: som(charge.amount) })} danger>
+      <p className="text-xs text-au-muted">{t('ccNote')}</p>
       <div className="sx-seg self-start">
         <button className={cn(!part && 'on')} onClick={() => setPart(false)}>
-          To‘liq
+          {t('full')}
         </button>
         <button className={cn(part && 'on')} onClick={() => setPart(true)}>
-          Qisman
+          {t('partial')}
         </button>
       </div>
       {part && (
-        <Field label={`Qancha qaytadi (eng ko‘pi ${formatUZS(charge.amount - 1)})`}>
+        <Field label={t('howMuch', { max: formatUZS(charge.amount - 1) })}>
           <MoneyInput id="cc-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
       )}
-      <Field label="Sabab">
+      <Field label={t('reason')}>
         <select id="cc-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
           {['Xato yechilgan', 'Ikki marta yechilgan', 'O‘quvchi shu oy o‘qimadi', 'Oyning bir qismi o‘qidi', 'Summa noto‘g‘ri edi', 'Boshqa'].map((r) => (
-            <option key={r}>{r}</option>
+            <option key={r} value={r}>{rs(r)}</option>
           ))}
         </select>
       </Field>
-      <Field label="Izoh (majburiy)">
-        <input id="cc-o" className="sx-inp" maxLength={250} placeholder="Masalan: 2 hafta kasal bo‘ldi, ota-onasi bilan kelishildi" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Field label={t('noteReq')}>
+        <input id="cc-o" className="sx-inp" maxLength={250} placeholder={t('ccPh')} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <div className="text-xs text-au-muted">
-        +{som(n)} balansga qaytadi{part && n < charge.amount ? ` · yechim ${som(charge.amount - n)} bo‘lib qoladi` : ''}
+        {t('backToBal', { sum: som(n) })}{part && n < charge.amount ? t('remains', { sum: som(charge.amount - n) }) : ''}
       </div>
-      <Actions pending={pending || note.trim().length < 3 || n <= 0 || (part && n >= charge.amount)} ok={ok} okText="Bekor qilish" onCancel={onCancel} danger />
+      <Actions pending={pending || note.trim().length < 3 || n <= 0 || (part && n >= charge.amount)} ok={ok} okText={to('c.cancel')} onCancel={onCancel} danger />
     </Panel>
   );
 }
@@ -761,6 +804,7 @@ function ChargeCancel({ charge, onDone, onFail, onCancel }: { charge: StudentCar
 function useOpenCharge(studentId: string) {
   const [charge, setCharge] = useState<{ id: string; amount: number; date: string } | null>(null);
   const [take, setTake] = useState(false);
+  const t = useTranslations('ops.card');
   useEffect(() => {
     let live = true;
     getOpenChargeAction(studentId).then((r) => live && setCharge(r.charge ?? null));
@@ -772,8 +816,8 @@ function useOpenCharge(studentId: string) {
     <label className="flex items-start gap-2 text-sm text-au-ink">
       <input id="oc-take" type="checkbox" className="mt-1" checked={take} onChange={(e) => setTake(e.target.checked)} />
       <span>
-        {dmy(charge.date)} dagi <b>{som(charge.amount)}</b> oylik yechimni ham bekor qilish
-        <span className="block text-xs text-au-muted">Shu oy o‘qimagan bo‘lsa belgilang — summa balansga qaytadi.</span>
+        {t('ocCancel', { date: dmy(charge.date), sum: som(charge.amount) })}
+        <span className="block text-xs text-au-muted">{t('ocHint')}</span>
       </span>
     </label>
   );
@@ -784,6 +828,9 @@ function useOpenCharge(studentId: string) {
 function FixPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
   const [pending, start] = useTransition();
   const max = Math.round(-s.balance);
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
+  const rs = useRs();
   const [mode, setMode] = useState<'zero' | 'keep'>('zero');
   const [manual, setManual] = useState(false);
   const [until, setUntil] = useState('');
@@ -798,35 +845,35 @@ function FixPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: st
       if (mode === 'zero') {
         const r = await fixStudentBalanceAction({ studentId: s.id, amount: n, reason: why });
         if (r.error) return onFail(r.error);
-        return onDone(`Balans tuzatildi: +${som(n)}`);
+        return onDone(t('fixedToast', { sum: som(n) }));
       }
       const r = await pauseBillingAction({ studentId: s.id, until: manual ? null : until, reason: why });
       if (r.error) return onFail(r.error);
-      onDone(manual ? 'Minus qoldi — qo‘lda faollashtirilguncha muzlatildi' : `Minus qoldi — ${dmy(until)} gacha oylik yechilmaydi`);
+      onDone(manual ? t('keepManual') : t('keepUntil', { d: dmy(until) }));
     });
   const reasons =
     mode === 'zero'
       ? ['SchoolUp importidagi xato minus', 'Ikki marta yechilgan oylik', 'Ortiqcha qo‘lda yechilgan', 'Boshqa']
       : ['Darsga kelmayapti, keyin qaytadi', 'Kasal / safarda', 'To‘lov kelishuvi (CEO ruxsati)', 'Boshqa'];
   return (
-    <Panel title="Balansni qo‘lda tuzatish">
-      <p className="text-xs text-au-muted">To‘lov emas: tushum, kassa, to‘lovlar soni va faollikka kirmaydi. Tarixda kim qilgani qoladi.</p>
+    <Panel title={t('fixTitle')}>
+      <p className="text-xs text-au-muted">{t('fixNote')}</p>
       <label className="flex items-start gap-2 text-sm text-au-ink">
         <input id="fx-zero" type="radio" name="fx-mode" className="mt-1" checked={mode === 'zero'} onChange={() => { setMode('zero'); setReason('SchoolUp importidagi xato minus'); }} />
         <span>
-          <b>Minusni yopish</b>
-          <span className="block text-xs text-au-muted">Balans eng ko‘pi 0 gacha ko‘tariladi, ortig‘i emas.</span>
+          <b>{t('closeMinus')}</b>
+          <span className="block text-xs text-au-muted">{t('closeMinusHint')}</span>
         </span>
       </label>
       <label className="flex items-start gap-2 text-sm text-au-ink">
         <input id="fx-keep" type="radio" name="fx-mode" className="mt-1" disabled={frozen} checked={mode === 'keep'} onChange={() => { setMode('keep'); setReason('Darsga kelmayapti, keyin qaytadi'); }} />
         <span>
-          <b>Minus qolsin, yechim to‘xtasin</b>
-          <span className="block text-xs text-au-muted">{frozen ? 'Muzlatilgan yoki arxivdagi o‘quvchida oylik allaqachon yechilmaydi.' : 'Qarz turaveradi, lekin yangi oylik yechilmaydi.'}</span>
+          <b>{t('keepMinus')}</b>
+          <span className="block text-xs text-au-muted">{frozen ? t('keepFrozen') : t('keepHint')}</span>
         </span>
       </label>
       {mode === 'zero' ? (
-        <Field label={`Summa (eng ko‘pi ${formatUZS(max)})`}>
+        <Field label={t('amountMax', { max: formatUZS(max) })}>
           <MoneyInput id="fix-amt" className="sx-inp tabular-nums" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : grouped(String(v)))} />
         </Field>
       ) : (
@@ -834,45 +881,45 @@ function FixPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: st
           <label className="flex items-start gap-2 text-sm text-au-ink">
             <input id="fk-date" type="radio" name="fx-keep" className="mt-1" checked={!manual} onChange={() => setManual(false)} />
             <span>
-              Sanagacha yechilmasin
-              <span className="block text-xs text-au-muted">Shu sanada oylik yechiladi, keyin har oy shu sanada.</span>
+              {t('untilDate')}
+              <span className="block text-xs text-au-muted">{t('untilDateHint')}</span>
             </span>
           </label>
           {!manual && <input id="fk-until" type="date" className="sx-inp !w-[170px]" min={addDaysToKey(today, 1)} value={until} onChange={(e) => setUntil(e.target.value)} />}
           <label className="flex items-start gap-2 text-sm text-au-ink">
             <input id="fk-manual" type="radio" name="fx-keep" className="mt-1" checked={manual} onChange={() => setManual(true)} />
             <span>
-              Qo‘lda «Faollashtirish» bosilguncha
-              <span className="block text-xs text-au-muted">O‘quvchi muzlatiladi. Faollashtirilgan kun yangi to‘lov kuni bo‘ladi.</span>
+              {t('untilManual')}
+              <span className="block text-xs text-au-muted">{t('untilManualHint')}</span>
             </span>
           </label>
         </div>
       )}
-      <Field label="Sabab">
+      <Field label={t('reason')}>
         <select id="fix-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
           {reasons.map((r) => (
-            <option key={r}>{r}</option>
+            <option key={r} value={r}>{rs(r)}</option>
           ))}
         </select>
       </Field>
       {reason === 'Boshqa' && (
-        <Field label="Izoh (majburiy)">
+        <Field label={t('noteReq')}>
           <input id="fix-o" className="sx-inp" maxLength={200} value={other} onChange={(e) => setOther(e.target.value)} />
         </Field>
       )}
       <div className="text-xs text-au-muted">
         {mode === 'zero'
-          ? `Balans: −${formatUZS(max)} → ${n >= max ? '0' : `−${formatUZS(max - n)}`}`
+          ? t('balTo', { max: formatUZS(max), to: n >= max ? '0' : `−${formatUZS(max - n)}` })
           : manual
-            ? `Balans −${formatUZS(max)} qoladi · qo‘lda faollashtirilguncha yechim yo‘q`
+            ? t('balKeepManual', { max: formatUZS(max) })
             : until
-              ? `Balans −${formatUZS(max)} qoladi · ${dmy(until)} gacha yechim yo‘q, keyin har oy ${Number(until.slice(8))}-sanada`
-              : 'Sanani tanlang'}
+              ? t('balKeepUntil', { max: formatUZS(max), d: dmy(until), day: Number(until.slice(8)) })
+              : t('pickDate')}
       </div>
       <Actions
         pending={pending || why.length < 3 || (mode === 'zero' ? n <= 0 || n > max : !manual && !until)}
         ok={ok}
-        okText="Saqlash"
+        okText={to('c.save')}
         onCancel={onCancel}
       />
     </Panel>
@@ -882,6 +929,8 @@ function FixPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: st
 /** To'lov sanasini surish: a student who missed lessons pays later; the new day stays the pay day. */
 function ShiftPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.card');
+  const rs = useRs();
   const next = s.start ? nextDueDate(s.start, today) : null;
   const base = next && next > today ? next : addDaysToKey(today, 1);
   const [days, setDays] = useState<number | null>(7);
@@ -900,21 +949,21 @@ function ShiftPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: 
     start(async () => {
       const r = await shiftPayDateAction({ studentId: s.id, date, reason: why, cancelChargeId: open.cancelChargeId });
       if (r.error) return onFail(r.error);
-      onDone(`To‘lov sanasi surildi: keyingi yechim ${dmy(date)}${open.cancelChargeId ? ', shu davr yechimi bekor qilindi' : ''}`);
+      onDone(`${t('shifted', { d: dmy(date) })}${open.cancelChargeId ? t('shiftedCancel') : ''}`);
     });
   return (
-    <Panel title="To‘lov sanasini surish (darsga kelmadi)">
+    <Panel title={t('shiftTitle')}>
       <div className="text-xs text-au-muted">
-        Hozirgi keyingi yechim: <b className="text-au-ink">{next ? dmy(next) : '—'}</b>. Necha kun o‘tkazib yuborgan bo‘lsa, to‘lov kuni shuncha suriladi.
+        {t('curNext')} <b className="text-au-ink">{next ? dmy(next) : '—'}</b>. {t('curNextHint')}
       </div>
       <div className="flex flex-wrap gap-1.5">
         {[3, 7, 14, 30].map((d) => (
           <button key={d} className={cn('sx-btn !px-2.5 !py-1 text-xs', days === d && 'primary')} onClick={() => pick(d)}>
-            +{d === 30 ? '1 oy' : `${d} kun`}
+            +{d === 30 ? t('plus1m') : t('plusDays', { n: d })}
           </button>
         ))}
       </div>
-      <Field label="Yangi to‘lov sanasi">
+      <Field label={t('newDate')}>
         <input
           id="sh-date"
           type="date"
@@ -927,15 +976,15 @@ function ShiftPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: 
           }}
         />
       </Field>
-      <Field label="Sabab">
+      <Field label={t('reason')}>
         <select id="sh-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
           {['Darsga kelmadi', 'Kasal edi', 'Safarda edi', 'Guruh hali boshlanmadi', 'Boshqa'].map((r) => (
-            <option key={r}>{r}</option>
+            <option key={r} value={r}>{rs(r)}</option>
           ))}
         </select>
       </Field>
       {reason === 'Boshqa' && (
-        <Field label="Izoh (majburiy)">
+        <Field label={t('noteReq')}>
           <input id="sh-o" className="sx-inp" maxLength={200} value={other} onChange={(e) => setOther(e.target.value)} />
         </Field>
       )}
@@ -943,16 +992,16 @@ function ShiftPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: 
       <div className="text-xs text-au-muted">
         {date ? (
           <>
-            Keyingi yechim: <b className="text-au-ink">{next ? dmy(next) : '—'}</b> → <b className="text-au-ink">{dmy(date)}</b>, keyin har oy{' '}
-            {Number(date.slice(8))}-sanada. Eski sana tarixda qoladi.
-            {s.installments === 2 && ' Bo‘lib to‘lash: shu davrning 2-qismi eski sanasida yechiladi.'}
+            {t('nextCharge')} <b className="text-au-ink">{next ? dmy(next) : '—'}</b> → <b className="text-au-ink">{dmy(date)}</b>
+            {t('everyMonth', { d: Number(date.slice(8)) })}
+            {s.installments === 2 && t('splitShift')}
           </>
         ) : (
-          'Sanani tanlang'
+          t('pickDate')
         )}
       </div>
-      {date && date < minDate && <div className="text-xs font-semibold text-au-bad">Bu sana shu davr ichida — avval shu davr yechimini bekor qilishni belgilang yoki {dmy(minDate)} dan keyingi sanani tanlang.</div>}
-      <Actions pending={pending || !date || date < minDate || why.length < 3} ok={ok} okText="Surish" onCancel={onCancel} />
+      {date && date < minDate && <div className="text-xs font-semibold text-au-bad">{t('inPeriod', { d: dmy(minDate) })}</div>}
+      <Actions pending={pending || !date || date < minDate || why.length < 3} ok={ok} okText={t('doShift')} onCancel={onCancel} />
     </Panel>
   );
 }
@@ -962,30 +1011,31 @@ function FreezePane({ s, today, onDone, onFail, onCancel }: PaneProps & { today:
   const [until, setUntil] = useState('');
   const frozen = s.status === 'frozen';
   const open = useOpenCharge(s.id);
+  const t = useTranslations('ops.card');
   const ok = () =>
     start(async () => {
       const r = await freezeStudentAction({ studentId: s.id, until: frozen ? null : until, cancelChargeId: frozen ? null : open.cancelChargeId });
       if (r.error) return onFail(r.error);
-      onDone(frozen ? 'Muzlatish bekor qilindi' : `${dmy(until)} gacha muzlatildi${open.cancelChargeId ? ', oylik yechim bekor qilindi' : ''}`);
+      onDone(frozen ? t('unfrozen') : `${t('frozenUntil', { d: dmy(until) })}${open.cancelChargeId ? t('frozenCancel') : ''}`);
     });
   return (
-    <Panel title={frozen ? 'Muzlatishni bekor qilish' : 'Muzlatish'}>
+    <Panel title={frozen ? t('unfreeze') : t('freeze')}>
       {frozen ? (
         <div className="text-sm text-au-muted">
           {s.restartOnActivate
-            ? `O‘quvchi bugundan qayta faol bo‘ladi. To‘lov kuni endi ${dmy(today)} — keyingi yechim shu kundan boshlanadi.`
-            : 'O‘quvchi bugundan qayta faol bo‘ladi va to‘lov kunida yechim davom etadi.'}
+            ? t('unfreezeRestart', { d: dmy(today) })
+            : t('unfreezeKeep')}
         </div>
       ) : (
         <>
-          <div className="text-sm text-au-muted">Kasallik, safar yoki ta’til: shu sanagacha oylik yechilmaydi, keyin o‘zi faollashadi.</div>
-          <Field label="Qaysi sanagacha">
+          <div className="text-sm text-au-muted">{t('freezeHint')}</div>
+          <Field label={t('untilWhen')}>
             <input id="fr-until" type="date" className="sx-inp !w-[170px]" min={today} value={until} onChange={(e) => setUntil(e.target.value)} />
           </Field>
           {open.box}
         </>
       )}
-      <Actions pending={pending || (!frozen && !until)} ok={ok} okText={frozen ? 'Faollashtirish' : 'Muzlatish'} onCancel={onCancel} />
+      <Actions pending={pending || (!frozen && !until)} ok={ok} okText={frozen ? t('activate') : t('freeze')} onCancel={onCancel} />
     </Panel>
   );
 }
@@ -993,21 +1043,24 @@ function FreezePane({ s, today, onDone, onFail, onCancel }: PaneProps & { today:
 function CallPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: string }) {
   const [pending, start] = useTransition();
   const [result, setResult] = useState<'promised' | 'no_answer' | 'refused' | 'other'>('promised');
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
+  const { CALLS } = useOpsMeta();
   const [promised, setPromised] = useState('');
   const [note, setNote] = useState('');
   const ok = () =>
     start(async () => {
       const r = await logDebtCallAction({ studentId: s.id, result, promisedDate: result === 'promised' && promised ? promised : null, note });
       if (r.error) return onFail(r.error);
-      onDone('Qo‘ng‘iroq natijasi yozildi');
+      onDone(t('callSaved'));
     });
   return (
-    <Panel title={`Qo‘ng‘iroq: ${s.parent || s.phone || '—'}`}>
+    <Panel title={t('callTitle', { p: s.parent || s.phone || '—' })}>
       <div className="text-sm text-au-muted">
-        Qarz: <b className="text-au-bad">{som(-s.balance)}</b> · {s.grade.openDays} kundan beri
+        {t('debtFor')} <b className="text-au-bad">{som(-s.balance)}</b> · {t('sinceDays', { n: s.grade.openDays })}
       </div>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-        <Field label="Natija">
+        <Field label={t('result')}>
           <select id="call-r" className="sx-inp" value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
             {Object.entries(CALLS).map(([k, v]) => (
               <option key={k} value={k}>
@@ -1017,15 +1070,15 @@ function CallPane({ s, today, onDone, onFail, onCancel }: PaneProps & { today: s
           </select>
         </Field>
         {result === 'promised' && (
-          <Field label="Qachon to‘laydi">
+          <Field label={t('whenPay')}>
             <input id="call-d" type="date" className="sx-inp" min={today} value={promised} onChange={(e) => setPromised(e.target.value)} />
           </Field>
         )}
       </div>
-      <Field label="Izoh">
+      <Field label={to('c.note')}>
         <input id="call-n" className="sx-inp" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <Actions pending={pending} ok={ok} okText="Saqlash" onCancel={onCancel} />
+      <Actions pending={pending} ok={ok} okText={to('c.save')} onCancel={onCancel} />
     </Panel>
   );
 }
@@ -1035,29 +1088,32 @@ function OutPane({ s, onDone, onFail, onCancel }: PaneProps) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const open = useOpenCharge(s.id);
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
+  const { REASONS } = useOpsMeta();
   const ok = () =>
     start(async () => {
       if (!reason) return onFail('invalidInput');
       const r = await archiveStudentAction({ studentId: s.id, reason, note, cancelChargeId: open.cancelChargeId });
       if (r.error) return onFail(r.error);
-      onDone(open.cancelChargeId ? 'Arxivga o‘tkazildi, oylik yechim bekor qilindi' : 'Arxivga o‘tkazildi');
+      onDone(open.cancelChargeId ? t('archivedCancel') : t('archivedToast'));
     });
   return (
-    <Panel title="O‘quvchini chiqarish" danger>
-      <div className="text-sm text-au-muted">O‘quvchi arxivga o‘tadi, avto-yechim to‘xtaydi. Arxivdan istalgan payt qaytarish mumkin. Sabab statistikaga yoziladi.</div>
-      <Field label="Sabab (majburiy)">
+    <Panel title={t('outTitle')} danger>
+      <div className="text-sm text-au-muted">{t('outNote')}</div>
+      <Field label={to('c.reasonRequired')}>
         <select id="out-r" className="sx-inp" value={reason} onChange={(e) => setReason(e.target.value)}>
-          <option value="">— tanlang —</option>
+          <option value="">{t('pick')}</option>
           {REASONS.map((r) => (
-            <option key={r.n}>{r.n}</option>
+            <option key={r.v} value={r.v}>{r.n}</option>
           ))}
         </select>
       </Field>
-      <Field label="Izoh">
-        <input id="out-n" className="sx-inp" maxLength={500} placeholder="Masalan: 3 haftadan beri darsga kelmayapti" value={note} onChange={(e) => setNote(e.target.value)} />
+      <Field label={to('c.note')}>
+        <input id="out-n" className="sx-inp" maxLength={500} placeholder={t('outPh')} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       {open.box}
-      <Actions pending={pending || !reason} ok={ok} okText="Chiqarish va arxivlash" onCancel={onCancel} danger />
+      <Actions pending={pending || !reason} ok={ok} okText={t('outBtn')} onCancel={onCancel} danger />
     </Panel>
   );
 }
@@ -1067,6 +1123,8 @@ type Person = { name: string; phone: string };
 function InfoPane({ s, card, onDone, onFail, onCancel }: { s: StudentRow; card: StudentCard; onDone: (m: string) => void; onFail: (e: string) => void; onCancel: () => void }) {
   const [pending, start] = useTransition();
   const own = card.contacts.find((c) => c.kind === 'student');
+  const t = useTranslations('ops.card');
+  const to = useTranslations('ops');
   const slot = (kind: string): Person => {
     const c = card.contacts.find((x) => x.kind === kind);
     return { name: c?.name ?? '', phone: c?.phone ?? '' };
@@ -1087,47 +1145,47 @@ function InfoPane({ s, card, onDone, onFail, onCancel }: { s: StudentRow; card: 
     start(async () => {
       const r = await updateStudentInfoAction({ studentId: s.id, name, phone, tgUsername: tg, father, mother, guardian });
       if (r.error) return onFail(r.error);
-      onDone('Saqlandi');
+      onDone(t('saved'));
     });
   const row = (label: string, id: string, v: Person, set: (p: Person) => void) => (
     <>
-      <Field label={`${label} ismi`}>
+      <Field label={t('ofName', { label })}>
         <input id={`info-${id}-n`} className="sx-inp" maxLength={120} value={v.name} onChange={(e) => set({ ...v, name: e.target.value })} />
       </Field>
-      <Field label={`${label} telefoni`}>
+      <Field label={t('ofPhone', { label })}>
         <input id={`info-${id}-p`} className="sx-inp" inputMode="tel" maxLength={30} value={v.phone} onChange={(e) => set({ ...v, phone: e.target.value })} />
       </Field>
     </>
   );
   return (
-    <Panel title="O‘quvchini tahrirlash">
+    <Panel title={t('infoTitle')}>
       <div className="grid grid-cols-2 gap-2.5 max-[480px]:grid-cols-1">
-        <Field label="Ism familiya">
+        <Field label={to('c.name')}>
           <input id="info-name" className="sx-inp" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Telefon">
+        <Field label={to('c.phone')}>
           <input id="info-phone" className="sx-inp" inputMode="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
         <Field label="Telegram username" className="col-span-2 max-[480px]:col-span-1">
           <input id="info-tg" className={cn('sx-inp', !tgOk && 'border-au-bad')} maxLength={40} placeholder="@username" value={tg} onChange={(e) => setTg(e.target.value)} />
         </Field>
-        {row('Otasining', 'father', father, setFather)}
-        {row('Onasining', 'mother', mother, setMother)}
-        {row('Vasiy / ota-ona', 'guardian', guardian, setGuardian)}
+        {row(t('lFather'), 'father', father, setFather)}
+        {row(t('lMother'), 'mother', mother, setMother)}
+        {row(t('lGuardian'), 'guardian', guardian, setGuardian)}
       </div>
       {(guardian.name || guardian.phone) && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-au-muted">
-          «Vasiy / ota-ona» raqami kimniki?
+          {t('whose')}
           <button type="button" className="sx-btn sm" onClick={() => move('father')}>
-            Otasiniki
+            {t('fathers')}
           </button>
           <button type="button" className="sx-btn sm" onClick={() => move('mother')}>
-            Onasiniki
+            {t('mothers')}
           </button>
         </div>
       )}
-      <div className="text-xs text-au-faint">Bo‘sh qoldirilgan ota-ona o‘chiriladi (Telegram’ga ulangan bo‘lsa, ulanish saqlanadi). Har bir o‘zgarish tarixga yoziladi.</div>
-      <Actions pending={pending || name.trim().length < 2 || !tgOk} ok={ok} okText="Saqlash" onCancel={onCancel} />
+      <div className="text-xs text-au-faint">{t('infoNote')}</div>
+      <Actions pending={pending || name.trim().length < 2 || !tgOk} ok={ok} okText={to('c.save')} onCancel={onCancel} />
     </Panel>
   );
 }
@@ -1135,6 +1193,7 @@ function InfoPane({ s, card, onDone, onFail, onCancel }: { s: StudentRow; card: 
 function DeletePane({ s, onDone, onFail, onCancel }: { s: StudentRow; onDone: () => void; onFail: (e: string) => void; onCancel: () => void }) {
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState('');
+  const t = useTranslations('ops.card');
   const ok = () =>
     start(async () => {
       const r = await deleteStudentAction(s.id);
@@ -1142,21 +1201,19 @@ function DeletePane({ s, onDone, onFail, onCancel }: { s: StudentRow; onDone: ()
       onDone();
     });
   return (
-    <Panel title="O‘quvchini o‘chirish" danger>
-      <div className="text-sm text-au-muted">
-        O‘quvchi, uning kontaktlari, abonementlari, yechimlari va izohlari butunlay o‘chiriladi — qaytarib bo‘lmaydi. To‘lovi bor o‘quvchini o‘chirib bo‘lmaydi (kassa
-        hisobotlari buziladi) — uni «Chiqarish» bilan arxivlang.
-      </div>
-      <Field label="Tasdiqlash uchun ismini yozing">
+    <Panel title={t('delTitle')} danger>
+      <div className="text-sm text-au-muted">{t('delNote')}</div>
+      <Field label={t('typeName')}>
         <input id="del-confirm" className="sx-inp" autoComplete="off" placeholder={s.name} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
       </Field>
-      <Actions pending={pending || confirm.trim() !== s.name.trim()} ok={ok} okText="Butunlay o‘chirish" onCancel={onCancel} danger />
+      <Actions pending={pending || confirm.trim() !== s.name.trim()} ok={ok} okText={t('delForever')} onCancel={onCancel} danger />
     </Panel>
   );
 }
 
 function RestoreButton({ id, onDone, onFail }: { id: string; onDone: () => void; onFail: (e: string) => void }) {
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.card');
   return (
     <button
       className="sx-btn primary"
@@ -1169,7 +1226,7 @@ function RestoreButton({ id, onDone, onFail }: { id: string; onDone: () => void;
         })
       }
     >
-      Arxivdan qaytarish
+      {t('restore')}
     </button>
   );
 }

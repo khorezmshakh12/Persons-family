@@ -10,26 +10,27 @@ import { daysBetween, nextDueDate } from '@/lib/billing';
 import type { StudentRow } from '@/lib/ops-students';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
-import { CALLS, GRADE, METHODS, dmy, errText, fixFor, som, when } from './ops-students-meta';
+import { useTranslations } from 'next-intl';
+import { dmy, som, useOpsMeta, when } from './ops-students-meta';
 import { StudentCardDrawer } from './ops-student-card';
 import { BillingSettingsModal, LogModal, PaidElsewhereModal, TemplatesModal } from './ops-student-admin';
 
 type Filter = 'active' | 'inactive' | 'debt' | 'frozen' | 'risk' | 'notg' | 'archive';
 const FILTERS: [Filter, string][] = [
-  ['active', 'Faol'],
-  ['inactive', 'Faol emas'],
-  ['debt', 'Qarzdorlar'],
-  ['frozen', 'Muzlatilgan'],
-  ['risk', 'Ketish xavfi'],
-  ['notg', 'Telegramsiz'],
-  ['archive', 'Arxiv'],
+  ['active', 'fActive'],
+  ['inactive', 'fInactive'],
+  ['debt', 'fDebt'],
+  ['frozen', 'fFrozen'],
+  ['risk', 'fRisk'],
+  ['notg', 'fNotg'],
+  ['archive', 'fArchive'],
 ];
 type GradeF = 'all' | 'ok' | 'late' | 'hard';
 const GRADES: [GradeF, string][] = [
-  ['all', 'Barcha baho'],
-  ['ok', 'Vaqtida'],
-  ['late', 'Kechikadi'],
-  ['hard', 'Qiyin'],
+  ['all', 'gAll'],
+  ['ok', 'gOk'],
+  ['late', 'gLate'],
+  ['hard', 'gHard'],
 ];
 const PAGE = 100;
 const LOG_ICON: Record<string, [string, string]> = {
@@ -47,7 +48,7 @@ const LOG_ICON: Record<string, [string, string]> = {
 const isLive = (s: StudentRow) => s.status !== 'archived';
 /** Not archived, not frozen, but no monthly fee or no payment yet — so not «faol». */
 const isPending = (s: StudentRow) => s.status === 'active' && !s.active;
-const WHY: Record<string, string> = { nofee: 'Oylik summa biriktirilmagan', nopay: 'Hali to‘lov qilmagan' };
+const WHY: Record<string, string> = { nofee: 'whyNofee', nopay: 'whyNopay' };
 
 /**
  * Operation HQ › O'quvchilar (2026-10-23): every CRM student — phone, debt (red)
@@ -68,6 +69,9 @@ export function OpsStudents({ data }: { data: OpsData }) {
   const [faol, setFaol] = useState<StudentRow[] | null>(null);
   const router = useRouter();
   const [undoing, startUndo] = useTransition();
+  const t = useTranslations('ops.stu');
+  const to = useTranslations('ops');
+  const { CALLS, GRADE, errText, reasonLabel } = useOpsMeta();
 
   const live = d.rows.filter(isLive);
   const billed = live.filter((s) => s.active);
@@ -114,7 +118,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
         return;
       }
       playSound('ok');
-      toast.success('Faollik bekor qilindi');
+      toast.success(t('undone'));
       router.refresh();
     });
 
@@ -123,7 +127,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
     .sort((a, b) => a.balance - b.balance);
 
   const exportCsv = () => {
-    const head = ['Ism familiya', 'Telefon', 'Telegram', 'Otasi', 'Onasi', 'Ota-ona / vasiy', 'Guruhga qo‘shilgan', 'Faol bo‘lgan', 'Holat', 'Balans', 'Oylik to‘lov', 'Chegirma %', 'Hisob boshlangan sana', 'Keyingi to‘lov', 'Baho'];
+    const head = t('csvHead').split('|');
     const lines = rows.map((s) => [
       s.name,
       s.phone,
@@ -133,7 +137,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
       s.parent,
       s.groupSince ?? '',
       s.activeSince ?? '',
-      s.status === 'archived' ? `Arxiv: ${s.leaveReason}` : s.balance < 0 ? 'Qarzdor' : s.status === 'frozen' ? 'Muzlatilgan' : 'Aktiv',
+      s.status === 'archived' ? t('csvArchive', { reason: reasonLabel(s.leaveReason) }) : s.balance < 0 ? t('debtor') : s.status === 'frozen' ? t('frozen') : t('active'),
       String(Math.round(s.balance)),
       String(s.fee),
       String(s.discountPct),
@@ -160,15 +164,15 @@ export function OpsStudents({ data }: { data: OpsData }) {
       {/* Oxirgi amallar */}
       <div className="sx-card px-5 py-[18px]">
         <div className="sx-h">
-          <h3>Oxirgi amallar</h3>
-          <small>kim, qachon, nima qildi</small>
+          <h3>{t('recent')}</h3>
+          <small>{t('recentSub')}</small>
           <span className="sp" />
           <button className="sx-btn sm" onClick={() => setModal('log')}>
-            Hammasi
+            {t('all')}
           </button>
         </div>
         {d.log.length === 0 ? (
-          <div className="sx-empty">Hali amal yo‘q — to‘lov, yechim va xabarlar shu yerda ko‘rinadi</div>
+          <div className="sx-empty">{t('noLog')}</div>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {d.log.slice(0, 6).map((l) => (
@@ -181,30 +185,30 @@ export function OpsStudents({ data }: { data: OpsData }) {
       {data.money && (
       <div className="sx-grid">
         <div className="sx-card sx-stat dark s3">
-          <div className="l">Faol o‘quvchilar</div>
+          <div className="l">{t('activeStudents')}</div>
           <div className="v">{billed.length}</div>
           <div className="d">
-            {live.filter(isPending).length} faol emas · {live.filter((s) => s.status === 'frozen').length} muzlatilgan · {d.rows.length - live.length} arxivda
+            {t('activeBreak', { p: live.filter(isPending).length, f: live.filter((s) => s.status === 'frozen').length, a: d.rows.length - live.length })}
           </div>
         </div>
         <div className="sx-card sx-stat s3">
-          <div className="l">Bu oy to‘lagan</div>
+          <div className="l">{t('paidMonth')}</div>
           <div className="v">
             {paidCount} <span className="text-base text-au-faint">/ {billed.length}</span>
           </div>
           <div className="d">
-            {som(d.stats.collected)} tushdi · reja {formatUZS(expected)}
+            {t('inPlan', { sum: som(d.stats.collected), plan: formatUZS(expected) })}
           </div>
         </div>
         <div className="sx-card sx-stat s3">
-          <div className="l">Qarzdorlar</div>
+          <div className="l">{t('debtors')}</div>
           <div className={cn('v', debtors.length > 0 && 'text-au-bad')}>{debtors.length}</div>
-          <div className="d">jami {som(debt)}</div>
+          <div className="d">{t('total', { sum: som(debt) })}</div>
         </div>
         <div className="sx-card sx-stat s3">
-          <div className="l">Bu oy chiqib ketgan</div>
+          <div className="l">{t('leftMonth')}</div>
           <div className="v">{leftThisMonth}</div>
-          <div className="d">{live.filter((s) => s.risk).length} ta ketish xavfida</div>
+          <div className="d">{t('atRisk', { n: live.filter((s) => s.risk).length })}</div>
         </div>
       </div>
       )}
@@ -212,25 +216,25 @@ export function OpsStudents({ data }: { data: OpsData }) {
       {/* Ro'yxat */}
       <div className="sx-card px-5 py-[18px]">
         <div className="sx-h flex-wrap gap-2">
-          <h3>O‘quvchilar</h3>
-          <small>{rows.length} ta</small>
+          <h3>{t('students')}</h3>
+          <small>{to('c.count', { n: rows.length })}</small>
           <span className="sp" />
-          <button className="sx-btn sm" onClick={exportCsv} title="Ko‘rinib turgan ro‘yxatni Excel’da ochiladigan faylga yuklab olish">
+          <button className="sx-btn sm" onClick={exportCsv} title={t('excelTip')}>
             <Download className="size-4" /> Excel
           </button>
           <button className="sx-btn sm" onClick={() => setModal('tpl')}>
-            <Mail className="size-4" /> Xabar shablonlari
+            <Mail className="size-4" /> {t('templates')}
           </button>
           <button className="sx-btn sm" onClick={() => setModal('settings')}>
-            <Settings2 className="size-4" /> Avto-yechim{' '}
-            <span className={cn('sx-pl', d.settings.enabled ? 'ok' : 'mute')}>{d.settings.enabled ? 'yoqilgan' : 'o‘chiq'}</span>
+            <Settings2 className="size-4" /> {t('autoCharge')}{' '}
+            <span className={cn('sx-pl', d.settings.enabled ? 'ok' : 'mute')}>{d.settings.enabled ? t('on') : t('off')}</span>
           </button>
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="sx-seg">
             {FILTERS.map(([k, n]) => (
               <button key={k} className={cn(filter === k && 'on')} onClick={() => { setFilter(k); setLimit(PAGE); setSel(new Set()); }}>
-                {n}
+                {t(n)}
               </button>
             ))}
           </div>
@@ -238,7 +242,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
             <div className="sx-seg">
               {GRADES.map(([k, n]) => (
                 <button key={k} className={cn(grade === k && 'on')} onClick={() => { setGrade(k); setLimit(PAGE); }}>
-                  {n}
+                  {t(n)}
                 </button>
               ))}
             </div>
@@ -246,23 +250,23 @@ export function OpsStudents({ data }: { data: OpsData }) {
           <span className="flex-1" />
           <label className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-au-faint" />
-            <input id="ops-stu-q" className="sx-inp !w-[230px] !pl-8" placeholder="Ism yoki telefon" value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} />
+            <input id="ops-stu-q" className="sx-inp !w-[230px] !pl-8" placeholder={t('searchPh')} value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} />
           </label>
         </div>
         {rows.length === 0 ? (
-          <div className="sx-empty">{d.rows.length ? 'Hech kim topilmadi' : 'CRM’da o‘quvchi yo‘q'}</div>
+          <div className="sx-empty">{d.rows.length ? t('notFound') : t('noStudents')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="sx-tbl lt min-w-[980px]">
               <thead>
                 {filter === 'archive' ? (
                   <tr>
-                    <th>Ism familiya</th>
-                    <th>Telefon</th>
-                    <th>Chiqarilgan</th>
-                    <th>Sabab</th>
-                    <th>Kim chiqardi</th>
-                    <th className="text-right">Qolgan qarz</th>
+                    <th>{to('c.name')}</th>
+                    <th>{to('c.phone')}</th>
+                    <th>{t('archived')}</th>
+                    <th>{t('reason')}</th>
+                    <th>{t('archivedBy')}</th>
+                    <th className="text-right">{t('debtLeft')}</th>
                   </tr>
                 ) : (
                   <tr>
@@ -272,20 +276,20 @@ export function OpsStudents({ data }: { data: OpsData }) {
                           <input
                             id="ops-stu-all"
                             type="checkbox"
-                            aria-label="Faol emaslarni tanlash"
+                            aria-label={t('pickInactive')}
                             checked={pickable.every((s) => sel.has(s.id))}
                             onChange={(e) => setSel(e.target.checked ? new Set(pickable.map((s) => s.id)) : new Set())}
                           />
                         )}
                       </th>
                     )}
-                    <th>Ism familiya</th>
-                    <th>Telefon</th>
-                    <th>Holat</th>
-                    <th>To‘lov bahosi</th>
-                    <th className="text-right">Oylik to‘lov</th>
-                    <th>Sanalar</th>
-                    <th>Keyingi to‘lov</th>
+                    <th>{to('c.name')}</th>
+                    <th>{to('c.phone')}</th>
+                    <th>{t('status')}</th>
+                    <th>{t('grade')}</th>
+                    <th className="text-right">{t('fee')}</th>
+                    <th>{t('dates')}</th>
+                    <th>{t('next')}</th>
                     {data.canEdit && <th className="w-[120px]" />}
                   </tr>
                 )}
@@ -298,7 +302,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
                       <td className="whitespace-nowrap tabular-nums text-au-muted">{s.phone || '—'}</td>
                       <td className="tabular-nums">{s.archivedAt ? dmy(s.archivedAt) : '—'}</td>
                       <td>
-                        <span className="sx-pl mute">{s.leaveReason || 'Sababsiz'}</span>
+                        <span className="sx-pl mute">{s.leaveReason ? reasonLabel(s.leaveReason) : t('noReason')}</span>
                         {s.leaveNote && <div className="mt-1 text-xs text-au-faint">{s.leaveNote}</div>}
                       </td>
                       <td className="text-xs text-au-muted">{s.archivedBy || '—'}</td>
@@ -323,38 +327,36 @@ export function OpsStudents({ data }: { data: OpsData }) {
         )}
         {chosen.length > 0 && (
           <div className="sticky bottom-3 z-10 mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-au-ink px-4 py-2.5 text-sm text-au-card">
-            <span>{chosen.length} ta tanlandi</span>
+            <span>{t('nSelected', { n: chosen.length })}</span>
             <span className="flex-1" />
             <button className="sx-btn sm" onClick={() => setSel(new Set())}>
-              Bekor
+              {t('cancelShort')}
             </button>
             <button className="sx-btn sm primary" onClick={() => setFaol(chosen)}>
-              Tanlanganlarni faol qilish
+              {t('makeActive')}
             </button>
           </div>
         )}
         {rows.length > limit && (
           <div className="mt-3 flex justify-center">
             <button className="sx-btn" onClick={() => setLimit(limit + PAGE)}>
-              Yana {Math.min(PAGE, rows.length - limit)} ta ko‘rsatish
+              {t('more', { n: Math.min(PAGE, rows.length - limit) })}
             </button>
           </div>
         )}
         <div className="mt-2 text-xs text-au-faint">
-          Qatorni bosing — o‘quvchi kartasi: barcha to‘lov va yechimlar, xabarlar, kim nima qilgani. Faol o‘quvchi avtomatik: oylik summa biriktirilgan va kamida
-          bitta to‘lov qilgan; muzlatilgan o‘quvchi faol hisoblanmaydi. Boshqa CRM’da to‘lagan o‘quvchini «Faol qilish» tugmasi bilan
-          qo‘lda faol qiling.
+          {t('listNote')}
         </div>
       </div>
 
       {/* Qarzdorga qo'ng'iroq */}
       <div className="sx-card px-5 py-[18px]">
         <div className="sx-h">
-          <h3>Qo‘ng‘iroq qilish kerak</h3>
-          <small>qarzi {d.settings.callAfterDays} kundan oshganlar · {callList.length} ta</small>
+          <h3>{t('callTitle')}</h3>
+          <small>{t('callSub', { d: d.settings.callAfterDays, n: callList.length })}</small>
         </div>
         {callList.length === 0 ? (
-          <div className="sx-empty">Uzoq muddatli qarzdor yo‘q</div>
+          <div className="sx-empty">{t('noLongDebt')}</div>
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
             {callList.slice(0, 12).map((s) => (
@@ -362,18 +364,18 @@ export function OpsStudents({ data }: { data: OpsData }) {
                 <div className="min-w-0 flex-1">
                   <b className="text-au-ink">{s.name}</b> <span className="tabular-nums text-sm font-bold text-au-bad">−{formatUZS(-s.balance)}</span>
                   <div className="text-xs text-au-faint">
-                    {s.grade.openDays} kundan beri · {s.parent || s.phone || 'telefon yo‘q'}
-                    {s.lastCall && ` · oxirgi: ${CALLS[s.lastCall.result]} ${when(s.lastCall.at).slice(0, 10)}${s.lastCall.promised ? ` (va’da ${dmy(s.lastCall.promised)})` : ''}`}
+                    {t('sinceDays', { n: s.grade.openDays })} · {s.parent || s.phone || t('noPhone')}
+                    {s.lastCall && `${t('lastCall', { res: CALLS[s.lastCall.result], date: when(s.lastCall.at).slice(0, 10) })}${s.lastCall.promised ? t('promise', { date: dmy(s.lastCall.promised) }) : ''}`}
                   </div>
                 </div>
                 <button className="sx-btn sm" onClick={() => openCard(s.id, 'call')}>
-                  <Phone className="size-4" /> Natija
+                  <Phone className="size-4" /> {t('result')}
                 </button>
               </li>
             ))}
           </ul>
         )}
-        {callList.length > 12 && <div className="mt-2 text-xs text-au-faint">Yana {callList.length - 12} ta — «Qarzdorlar» filtrida.</div>}
+        {callList.length > 12 && <div className="mt-2 text-xs text-au-faint">{t('moreDebtors', { n: callList.length - 12 })}</div>}
       </div>
 
       {data.money && <Stats data={data} />}
@@ -424,6 +426,9 @@ function Row({
   onFaol: () => void;
   onUndo?: () => void;
 }) {
+  const t = useTranslations('ops.stu');
+  const to = useTranslations('ops');
+  const { GRADE } = useOpsMeta();
   const g = GRADE[s.grade.grade];
   const next = s.start && s.status === 'active' ? nextDueDate(s.start, today) : null;
   const left = next ? daysBetween(today, next) : 0;
@@ -431,51 +436,51 @@ function Row({
     <tr className={cn('cursor-pointer hover:bg-au-card-2', pick?.on && 'bg-au-card-2')} tabIndex={0} onClick={() => onOpen()} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
       {pick && (
         <td onClick={(e) => e.stopPropagation()}>
-          {isPending(s) && <input type="checkbox" aria-label={`${s.name}ni tanlash`} checked={pick.on} onChange={pick.toggle} />}
+          {isPending(s) && <input type="checkbox" aria-label={t('pick', { name: s.name })} checked={pick.on} onChange={pick.toggle} />}
         </td>
       )}
       <td>
         <b className="text-au-ink">{s.name}</b>
         <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
           {s.risk && (
-            <span className="sx-pl bad" title="Oxirgi 3 darsga kelmadi">
-              <AlertTriangle className="size-3" /> xavf
+            <span className="sx-pl bad" title={t('riskTip')}>
+              <AlertTriangle className="size-3" /> {t('risk')}
             </span>
           )}
-          {!s.tg && <span className="sx-pl mute" title="Ota-ona Telegram botga ulanmagan — eslatma bormaydi">TG yo‘q</span>}
+          {!s.tg && <span className="sx-pl mute" title={t('noTgTip')}>{t('noTg')}</span>}
         </span>
         {s.tgUsername && <div className="text-xs text-au-faint">@{s.tgUsername}</div>}
       </td>
       <td className="whitespace-nowrap tabular-nums text-au-muted">
         {s.phone || '—'}
-        {s.father && <div className="text-xs text-au-faint">Ota: {s.father}</div>}
-        {s.mother && <div className="text-xs text-au-faint">Ona: {s.mother}</div>}
+        {s.father && <div className="text-xs text-au-faint">{t('father', { n: s.father })}</div>}
+        {s.mother && <div className="text-xs text-au-faint">{t('mother', { n: s.mother })}</div>}
         {!s.father && !s.mother && s.parent && <div className="text-xs text-au-faint">{s.parent}</div>}
       </td>
       <td className="whitespace-nowrap">
         {isPending(s) ? (
-          <span className="sx-pl warn">Faol emas · {WHY[s.inactiveWhy]}</span>
+          <span className="sx-pl warn">{t('notActiveWhy', { why: t(WHY[s.inactiveWhy] ?? 'whyNopay') })}</span>
         ) : s.balance < 0 ? (
           <b className="tabular-nums text-au-bad">−{som(-s.balance)}</b>
         ) : s.status === 'frozen' ? (
-          <span className="sx-pl info">Muzlatilgan</span>
+          <span className="sx-pl info">{t('frozen')}</span>
         ) : (
-          <span className="sx-pl ok">Aktiv{s.balance > 0 ? ` · +${formatUZS(s.balance)}` : ''}</span>
+          <span className="sx-pl ok">{t('active')}{s.balance > 0 ? ` · +${formatUZS(s.balance)}` : ''}</span>
         )}
         {s.paidElsewhere && (
           <div className="mt-1 text-xs text-au-faint" title={`${dmy(s.paidElsewhere.at)}${s.paidElsewhere.by ? ` · ${s.paidElsewhere.by}` : ''}`}>
-            qo‘lda faol · {s.paidElsewhere.source}
+            {t('manualActive', { src: s.paidElsewhere.source })}
           </div>
         )}
       </td>
       <td>
         {s.grade.total === 0 ? (
-          <span className="text-xs text-au-faint">Hali to‘lov yo‘q</span>
+          <span className="text-xs text-au-faint">{t('noPayYet')}</span>
         ) : (
           <>
             <span className={cn('sx-pl', g.tone)}>{g.n}</span>
             <div className="mt-1 text-xs text-au-faint">
-              {s.grade.onTime}/{s.grade.total} vaqtida · o‘rtacha {s.grade.avgDelay} kun
+              {t('onTime', { a: s.grade.onTime, b: s.grade.total, d: s.grade.avgDelay })}
             </div>
           </>
         )}
@@ -486,7 +491,7 @@ function Row({
           <div className="text-xs text-au-faint">
             {s.discountPct > 0 && `−${s.discountPct}%`}
             {s.discountPct > 0 && s.installments === 2 && ' · '}
-            {s.installments === 2 && '2 qism'}
+            {s.installments === 2 && t('twoParts')}
           </div>
         )}
       </td>
@@ -494,22 +499,22 @@ function Row({
         {s.start ? (
           <>
             {dmy(s.start)}
-            <div className="text-xs text-au-faint">har oy {Number(s.start.slice(8, 10))}-sanada</div>
+            <div className="text-xs text-au-faint">{t('monthly', { d: Number(s.start.slice(8, 10)) })}</div>
           </>
         ) : (
-          <span className="text-xs text-au-faint">Kiritilmagan</span>
+          <span className="text-xs text-au-faint">{t('notSet')}</span>
         )}
-        <div className="text-xs text-au-faint">Guruhga: {s.groupSince ? dmy(s.groupSince) : '—'}</div>
-        <div className="text-xs text-au-faint">Faol: {s.activeSince ? dmy(s.activeSince) : '—'}</div>
+        <div className="text-xs text-au-faint">{t('inGroup', { d: s.groupSince ? dmy(s.groupSince) : '—' })}</div>
+        <div className="text-xs text-au-faint">{t('activeOn', { d: s.activeSince ? dmy(s.activeSince) : '—' })}</div>
       </td>
       <td>
         {s.status === 'frozen' ? (
-          <span className="text-xs text-au-muted">{s.frozenUntil ? `${dmy(s.frozenUntil)} gacha to‘xtatilgan` : 'To‘xtatilgan'}</span>
+          <span className="text-xs text-au-muted">{s.frozenUntil ? t('pausedUntil', { d: dmy(s.frozenUntil) }) : t('paused')}</span>
         ) : next ? (
           <>
             <span className="tabular-nums text-au-ink">{dmy(next)}</span>
             <div className={cn('text-xs', left <= 3 ? 'font-semibold text-au-accent' : 'text-au-faint')}>
-              {left === 0 ? 'bugun' : `${left} kun qoldi`} · {formatUZS(s.fee + Math.max(0, -s.balance))}
+              {left === 0 ? t('today') : t('daysLeft', { n: left })} · {formatUZS(s.fee + Math.max(0, -s.balance))}
             </div>
           </>
         ) : (
@@ -520,19 +525,19 @@ function Row({
         <td onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-end gap-1.5">
             {isPending(s) && (
-              <button className="sx-btn sm primary" title="Boshqa CRM’da to‘lagan — faol qilish" onClick={onFaol}>
-                Faol qilish
+              <button className="sx-btn sm primary" title={t('paidElsewhereTip')} onClick={onFaol}>
+                {t('makeOne')}
               </button>
             )}
             {s.paidElsewhere && (
-              <button className="sx-btn sm" title="Qo‘lda faollikni bekor qilish" disabled={!onUndo} onClick={onUndo}>
-                Bekor qilish
+              <button className="sx-btn sm" title={t('undoTip')} disabled={!onUndo} onClick={onUndo}>
+                {to('c.cancel')}
               </button>
             )}
-            <button className="sx-btn sm" title="Tahrirlash" aria-label="Tahrirlash" onClick={() => onOpen('info')}>
+            <button className="sx-btn sm" title={to('c.edit')} aria-label={to('c.edit')} onClick={() => onOpen('info')}>
               <Pencil className="size-3.5" />
             </button>
-            <button className="sx-btn sm" title="O‘chirish" aria-label="O‘chirish" onClick={() => onOpen('del')}>
+            <button className="sx-btn sm" title={to('c.delete')} aria-label={to('c.delete')} onClick={() => onOpen('del')}>
               <Trash2 className="size-3.5" />
             </button>
           </div>
@@ -562,6 +567,9 @@ function Bars({ items, tone }: { items: { k: string; v: number; label: string; h
 }
 
 function Stats({ data }: { data: OpsData }) {
+  const t = useTranslations('ops.stu');
+  const to = useTranslations('ops');
+  const { METHODS, fixFor, reasonLabel } = useOpsMeta();
   const d = data.students;
   const live = d.rows.filter(isLive);
   const billed = live.filter((s) => s.active);
@@ -573,9 +581,9 @@ function Stats({ data }: { data: OpsData }) {
   for (const s of graded) cnt[s.grade.grade]++;
   const tot = graded.length || 1;
   const aging = [
-    { k: '1–7 kun', v: 0 },
-    { k: '8–30 kun', v: 0 },
-    { k: '30+ kun', v: 0 },
+    { k: t('d1'), v: 0 },
+    { k: t('d2'), v: 0 },
+    { k: t('d3'), v: 0 },
   ];
   for (const s of live) if (s.balance < 0) aging[s.grade.openDays <= 7 ? 0 : s.grade.openDays <= 30 ? 1 : 2].v += -s.balance;
   const todayK = d.stats.kassa.filter((k) => k.today);
@@ -587,29 +595,29 @@ function Stats({ data }: { data: OpsData }) {
     <div className="sx-grid">
       <div className="sx-card s12 !pb-2">
         <div className="sx-h !mb-0">
-          <h3>Statistika</h3>
-          <small>{dmy(`${d.stats.month}-01`).slice(3)} oyi</small>
+          <h3>{t('statsTitle')}</h3>
+          <small>{t('monthOf', { m: dmy(`${d.stats.month}-01`).slice(3) })}</small>
         </div>
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Bu oy to‘lov</h3>
+          <h3>{t('payThis')}</h3>
         </div>
         <div className="text-[26px] font-bold tabular-nums text-au-ink">
           {paid} / {billed.length}
         </div>
-        <div className="text-xs text-au-faint">o‘quvchi to‘ladi · {billed.length - paid} tasi hali to‘lamagan</div>
+        <div className="text-xs text-au-faint">{t('paidOf', { n: billed.length - paid })}</div>
         <div className="sx-hb mt-4">
           <i className="bg-au-ok" style={{ width: `${pct}%` }} />
         </div>
         <div className="mt-2 text-xs text-au-muted">
-          {som(d.stats.collected)} tushdi · reja {som(expected)} · {pct}%
+          {t('inPlanPct', { sum: som(d.stats.collected), plan: som(expected), pct })}
         </div>
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>To‘lov bahosi</h3>
-          <small>{graded.length} o‘quvchi</small>
+          <h3>{t('grade')}</h3>
+          <small>{t('nStudents', { n: graded.length })}</small>
         </div>
         <div className="flex h-2.5 overflow-hidden rounded-full bg-au-card-2">
           <i className="bg-au-ok" style={{ width: `${(cnt.ok / tot) * 100}%` }} />
@@ -617,42 +625,42 @@ function Stats({ data }: { data: OpsData }) {
           <i className="bg-au-bad" style={{ width: `${(cnt.hard / tot) * 100}%` }} />
         </div>
         <div className="mt-2.5 flex flex-wrap gap-3 text-xs text-au-muted">
-          <span><i className="mr-1 inline-block size-2.5 rounded-sm bg-au-ok" />Vaqtida {cnt.ok}</span>
-          <span><i className="mr-1 inline-block size-2.5 rounded-sm bg-au-accent" />Kechikadi {cnt.late}</span>
-          <span><i className="mr-1 inline-block size-2.5 rounded-sm bg-au-bad" />Qiyin {cnt.hard}</span>
+          <span><i className="mr-1 inline-block size-2.5 rounded-sm bg-au-ok" />{t('gradeOk', { n: cnt.ok })}</span>
+          <span><i className="mr-1 inline-block size-2.5 rounded-sm bg-au-accent" />{t('gradeLate', { n: cnt.late })}</span>
+          <span><i className="mr-1 inline-block size-2.5 rounded-sm bg-au-bad" />{t('gradeHard', { n: cnt.hard })}</span>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-au-faint">
-          Baho oxirgi 4 to‘lovdan: o‘rtacha 3 kungacha kechiksa — vaqtida; 4–14 kun — kechikadi; 14 kundan ko‘p yoki 2 oylik qarz — qiyin.
+          {t('gradeNote')}
         </p>
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Qarz necha kundan beri</h3>
+          <h3>{t('aging')}</h3>
         </div>
         <Bars tone="bg-au-bad" items={aging.map((a) => ({ k: a.k, v: a.v, label: formatUZS(a.v) }))} />
         <div className="sx-h !mb-2 mt-4">
-          <h3 className="!text-sm">To‘lov usuli</h3>
+          <h3 className="!text-sm">{to('c.payMethod')}</h3>
         </div>
         {d.stats.methods.length ? (
           <Bars tone="bg-au-accent" items={d.stats.methods.map((m) => ({ k: METHODS[m.method] ?? m.method, v: m.amount, label: formatUZS(m.amount) }))} />
         ) : (
-          <div className="text-xs text-au-faint">Bu oy to‘lov yo‘q</div>
+          <div className="text-xs text-au-faint">{t('noPayMonth')}</div>
         )}
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Kunlik kassa</h3>
-          <small>bugun · {som(todayTotal)}</small>
+          <h3>{t('kassa')}</h3>
+          <small>{t('kassaSub', { sum: som(todayTotal) })}</small>
         </div>
         {todayK.length === 0 ? (
-          <div className="sx-empty">Bugun to‘lov qabul qilinmagan</div>
+          <div className="sx-empty">{t('noPayToday')}</div>
         ) : (
           <table className="sx-tbl lt">
             <tbody>
               {todayK.map((k) => (
                 <tr key={`${k.actor}-${k.method}`}>
                   <td className="text-au-ink">{k.actor}</td>
-                  <td className="text-au-muted">{METHODS[k.method] ?? k.method} · {k.count} ta</td>
+                  <td className="text-au-muted">{METHODS[k.method] ?? k.method} · {to('c.count', { n: k.count })}</td>
                   <td className="text-right font-bold tabular-nums">{formatUZS(k.amount)}</td>
                 </tr>
               ))}
@@ -662,29 +670,29 @@ function Stats({ data }: { data: OpsData }) {
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Chiqib ketish sabablari</h3>
-          <small>oxirgi 90 kun · {reasons.reduce((a, r) => a + r.n, 0)} ta</small>
+          <h3>{t('exitReasons')}</h3>
+          <small>{t('last90', { n: reasons.reduce((a, r) => a + r.n, 0) })}</small>
         </div>
         {reasons.length ? (
-          <Bars tone="bg-au-faint" items={reasons.map((r) => ({ k: r.reason, v: r.n, label: `${r.n} ta`, hot: r.n >= 3 }))} />
+          <Bars tone="bg-au-faint" items={reasons.map((r) => ({ k: reasonLabel(r.reason), v: r.n, label: to('c.count', { n: r.n }), hot: r.n >= 3 }))} />
         ) : (
-          <div className="sx-empty">Hali hech kim chiqarilmagan</div>
+          <div className="sx-empty">{t('nobodyArchived')}</div>
         )}
       </div>
       <div className="sx-card s4">
         <div className="sx-h">
-          <h3>Yechim kerak</h3>
-          <small>bir xil sabab 2 va undan ko‘p marta</small>
+          <h3>{t('needFix')}</h3>
+          <small>{t('repeatSub')}</small>
         </div>
         {repeated.length === 0 ? (
-          <div className="sx-empty">Takrorlanayotgan sabab yo‘q</div>
+          <div className="sx-empty">{t('noRepeat')}</div>
         ) : (
           <div className="flex flex-col gap-2">
             {repeated.map((r) => (
               <div key={r.reason} className={cn('rounded-xl border px-3 py-2.5', r.n >= 3 ? 'border-au-bad/50 bg-au-bad-soft' : 'border-au-line bg-au-card-2/50')}>
                 <div className="flex items-center gap-2">
-                  <b className="text-sm text-au-ink">{r.reason}</b>
-                  <span className={cn('sx-pl', r.n >= 3 ? 'bad' : 'warn')}>{r.n} marta</span>
+                  <b className="text-sm text-au-ink">{reasonLabel(r.reason)}</b>
+                  <span className={cn('sx-pl', r.n >= 3 ? 'bad' : 'warn')}>{t('nTimes', { n: r.n })}</span>
                 </div>
                 <div className="mt-1 text-[13px] leading-snug text-au-muted">{fixFor(r.reason)}</div>
               </div>

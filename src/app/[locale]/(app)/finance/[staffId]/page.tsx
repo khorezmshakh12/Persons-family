@@ -22,8 +22,7 @@ import { MyPaymentsPanel, ReimbursePanel } from '@/components/finance/my-money';
 
 export const dynamic = 'force-dynamic';
 
-const MONTHS_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
-const monthLabel = (ym: string) => `${MONTHS_UZ[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+import { monthYear } from '@/lib/month-names';
 
 // Exported so /finance/page.tsx can render a non-admin viewer's own finance
 // page in place instead of redirect()-ing here — see the matching comment
@@ -37,6 +36,8 @@ export async function FinanceDetailContent({
   searchParams?: Promise<{ incomeYear?: string; month?: string }> | { incomeYear?: string; month?: string };
 }) {
   const tStaff = await getTranslations('staff');
+  const tf = await getTranslations('fin.nav');
+  const loc = await getLocale();
   const locale = await getLocale();
   const { user, profile } = await getAuthState();
   if (!user || !profile) return null; // layout redirects to /login
@@ -111,22 +112,22 @@ export async function FinanceDetailContent({
               </h1>
               <span className="fp-chip fp-chip-accent">{roleName}</span>
             </div>
-            <span className="text-xs text-au-muted">Shaxsiy hisob varaqasi, avanslar, B-nuqta va daromad xaritasi</span>
+            <span className="text-xs text-au-muted">{tf('staffSub')}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href={monthHref(-1)}
             className="inline-flex size-8 items-center justify-center rounded-au-ctl border border-au-line bg-au-card-2 text-au-ink transition hover:bg-au-accent-soft"
-            aria-label="Oldingi oy"
+            aria-label={tf('prev')}
           >
             <ChevronLeft className="size-4" />
           </Link>
-          <span className="min-w-32 text-center text-base font-bold text-au-ink">{monthLabel(month)}</span>
+          <span className="min-w-32 text-center text-base font-bold text-au-ink">{monthYear(loc, month)}</span>
           <Link
             href={monthHref(1)}
             className="inline-flex size-8 items-center justify-center rounded-au-ctl border border-au-line bg-au-card-2 text-au-ink transition hover:bg-au-accent-soft"
-            aria-label="Keyingi oy"
+            aria-label={tf('next')}
           >
             <ChevronRight className="size-4" />
           </Link>

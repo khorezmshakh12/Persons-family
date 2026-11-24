@@ -35,24 +35,36 @@ import {
 } from '@/lib/actions/team-report';
 import { change, fmtMetric, METRIC_META, METRICS, RANGE_LABEL, RANGES, type Metric, type Range, type ReportConfig } from '@/lib/team-report';
 import type { TeamReport } from '@/lib/team-report-data';
+import { useLocale, useTranslations } from 'next-intl';
+import { localizeMonths } from '@/lib/month-names';
 
-const DEPT_OPTS: [string, string][] = [
-  ['', 'Butun jamoa'],
-  ['top', 'Rahbariyat'],
-  ['acad', 'Akademik'],
-  ['com', 'Tijorat'],
-  ['ops', 'Operatsiya'],
-  ['fin', 'Moliya'],
-  ['hr', 'HR'],
-];
+const DEPT_OPTS = ['', 'top', 'acad', 'com', 'ops', 'fin', 'hr'] as const;
+
+/** Report labels in the viewer's language. */
+function useRv() {
+  const t = useTranslations('rv');
+  const tm = useTranslations('rv.m');
+  const th = useTranslations('rv.h');
+  const tr = useTranslations('rv.r');
+  const ta = useTranslations('tl.aud');
+  const locale = useLocale();
+  return {
+    t,
+    mn: (m: Metric) => tm(m),
+    mh: (m: Metric) => th(m),
+    rng: Object.fromEntries(RANGES.map((r) => [r, tr(r)])) as Record<Range, string>,
+    dept: (d: string) => (d === '' ? t('wholeTeam') : (DEPT_OPTS as readonly string[]).includes(d) ? ta(d as Exclude<(typeof DEPT_OPTS)[number], ''>) : d),
+    err: (c: string) => t(ERR[c] ?? 'eOther'),
+    lbl: (s: string) => localizeMonths(s, locale),
+  };
+}
 
 const BTN =
   'inline-flex items-center justify-center gap-1.5 rounded-au-ctl px-3.5 h-9 text-sm font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none';
 const BTN_GHOST = cn(BTN, 'border border-au-line bg-au-card text-au-ink hover:bg-au-card-2');
 const BTN_PRIMARY = cn(BTN, 'bg-au-primary text-au-primary-ink hover:opacity-90');
 
-const ERR: Record<string, string> = { aiDisabled: 'Jev ulanmagan', aiFailed: 'Jev javob bermadi', forbidden: 'Ruxsat yo‘q', invalidInput: 'Ma’lumotni tekshiring' };
-const errText = (c: string) => ERR[c] ?? 'Yuklab bo‘lmadi, qayta urinib ko‘ring';
+const ERR: Record<string, string> = { aiDisabled: 'eAiOff', aiFailed: 'eAiFail', forbidden: 'eForbidden', invalidInput: 'eInvalid' };
 
 function deltaText(d: number | null, unit: string) {
   if (d === null) return '—';
@@ -66,6 +78,7 @@ function tone(d: number | null, good: 'up' | 'down') {
 }
 
 export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved: SavedReport[]; me: string }) {
+  const R = useRv();
   const [rep, setRep] = useState(initial);
   const [range, setRange] = useState<Range>(initial.range);
   const [dept, setDept] = useState<string>(initial.dept ?? '');
@@ -82,7 +95,7 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
       const id = ++reqId.current;
       const res = await getTeamReportAction(r, d || null);
       if (id !== reqId.current) return;
-      if (res.error !== undefined) return void toast.error(errText(res.error));
+      if (res.error !== undefined) return void toast.error(R.err(res.error));
       setRep(res.report);
       setRanked(null);
     });
@@ -90,12 +103,12 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
   const rankJev = () =>
     startJev(async () => {
       const res = await rankInsightsWithJevAction(range, dept || null);
-      if (res.error !== undefined) return void toast.error(errText(res.error));
+      if (res.error !== undefined) return void toast.error(R.err(res.error));
       setRanked(Object.fromEntries(res.ranked.map((x) => [x.id, x])));
-      toast.success('Jev xulosalarni muhimligi bo‘yicha saraladi');
+      toast.success(R.t('ranked'));
     });
 
-  const labels = rep.buckets.map((b) => b.label);
+  const labels = rep.buckets.map((b) => R.lbl(b.label));
   const order = { high: 0, medium: 1, low: 2 } as const;
   const insights = ranked
     ? [...rep.insights].sort((a, b) => (order[ranked[a.id]?.priority ?? 'low'] ?? 2) - (order[ranked[b.id]?.priority ?? 'low'] ?? 2))
@@ -116,7 +129,7 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
               }}
               className={cn('h-8 rounded-[10px] px-3.5 text-sm font-semibold transition', range === r ? 'bg-au-card text-au-ink shadow-au-card' : 'text-au-muted hover:text-au-ink')}
             >
-              {RANGE_LABEL[r]}
+              {R.rng[r]}
             </button>
           ))}
         </div>
@@ -128,9 +141,9 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
           }}
           className={cn(INPUT, 'h-10 w-auto')}
         >
-          {DEPT_OPTS.map(([v, n]) => (
+          {DEPT_OPTS.map((v) => (
             <option key={v} value={v}>
-              {n}
+              {R.dept(v)}
             </option>
           ))}
         </select>
@@ -146,9 +159,9 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
         <div className="ms-pop-in flex items-center gap-2 rounded-au-ctl bg-au-accent-soft px-3.5 py-2 text-sm">
           <Bookmark className="size-4 text-au-accent-text" />
           <span>
-            Saqlangan hisobot: <b>{custom.name}</b> — {custom.config.metrics.length} ko‘rsatkich
+            {R.t.rich('savedReport', { n: custom.name, m: custom.config.metrics.length, b: (c) => <b>{c}</b> })}
           </span>
-          <button className="ml-auto text-au-muted hover:text-au-ink" onClick={() => setCustom(null)} aria-label="Yopish">
+          <button className="ml-auto text-au-muted hover:text-au-ink" onClick={() => setCustom(null)} aria-label={R.t('close')}>
             <X className="size-4" />
           </button>
         </div>
@@ -157,7 +170,7 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
       {(rep.missing.selfDev > 0 || rep.missing.kpiPlan > 0) && (
         <p className="flex items-center gap-2 rounded-au-ctl bg-au-card-2 px-3.5 py-2 text-xs text-au-muted">
           <AlertTriangle className="size-3.5" />
-          Ma’lumot to‘liq emas: {rep.missing.selfDev} xodim bu oy o‘zini rivojlantirish hisobotini, {rep.missing.kpiPlan} xodim keyingi oy KPI rejasini topshirmagan.
+          {R.t('missing', { s: rep.missing.selfDev, k: rep.missing.kpiPlan })}
         </p>
       )}
 
@@ -180,7 +193,7 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
                 metric === m && 'ring-2 ring-au-accent',
               )}
             >
-              <span className="text-xs font-semibold text-au-muted">{meta.n}</span>
+              <span className="text-xs font-semibold text-au-muted">{R.mn(m)}</span>
               <span className="text-2xl font-bold tabular-nums">
                 <CountUp value={fmtMetric(v, meta.unit)} />
               </span>
@@ -207,17 +220,17 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
 
           {/* Departments */}
           <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 3 }}>
-            <h3 className={CARD_TITLE}>Bo‘limlar kesimi · {labels[labels.length - 1]}</h3>
+            <h3 className={CARD_TITLE}>{R.t('byDept', { l: labels[labels.length - 1] })}</h3>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
                 <thead>
                   <tr className="text-left text-[11px] font-bold tracking-wide text-au-muted uppercase">
-                    <th className="py-2">Bo‘lim</th>
-                    <th className="py-2 text-right">Xodim</th>
-                    <th className="py-2 text-right">Bajarilgan</th>
-                    <th className="py-2 text-right">O‘z vaqtida</th>
-                    <th className="py-2 text-right">Muddati o‘tgan</th>
-                    <th className="py-2 text-right">O‘zini riv.</th>
+                    <th className="py-2">{R.t('dept')}</th>
+                    <th className="py-2 text-right">{R.t('staff')}</th>
+                    <th className="py-2 text-right">{R.t('done')}</th>
+                    <th className="py-2 text-right">{R.t('onTime')}</th>
+                    <th className="py-2 text-right">{R.t('overdue')}</th>
+                    <th className="py-2 text-right">{R.t('selfDev')}</th>
                     <th className="py-2 text-right">KPI</th>
                   </tr>
                 </thead>
@@ -241,11 +254,11 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
           {/* Attention */}
           <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 4 }}>
             <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-              <UserRound className="size-4 text-au-muted" /> E’tibor kerak {rep.attention.length > 0 && <span className={CHIP_BAD}>{rep.attention.length}</span>}
+              <UserRound className="size-4 text-au-muted" /> {R.t('attention')} {rep.attention.length > 0 && <span className={CHIP_BAD}>{rep.attention.length}</span>}
             </h3>
             {rep.attention.length === 0 ? (
               <p className="flex items-center gap-2 text-sm text-au-ok">
-                <CheckCircle2 className="size-4" /> Hammasi joyida
+                <CheckCircle2 className="size-4" /> {R.t('allGood')}
               </p>
             ) : (
               <ul className="grid gap-2 md:grid-cols-2">
@@ -270,14 +283,14 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
           <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 2 }}>
             <div className="flex items-center justify-between gap-2">
               <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-                <Lightbulb className="size-4 text-au-muted" /> Xulosa
+                <Lightbulb className="size-4 text-au-muted" /> {R.t('insights')}
               </h3>
               <button className={cn(BTN_GHOST, 'h-8 px-2.5 text-xs')} disabled={jevBusy || !rep.insights.length} onClick={rankJev}>
-                {jevBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Bot className="size-3.5" />} Jev saralasin
+                {jevBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Bot className="size-3.5" />} {R.t('jevRank')}
               </button>
             </div>
             {insights.length === 0 ? (
-              <p className="text-sm text-au-muted">Bu davrda sezilarli o‘zgarish yo‘q</p>
+              <p className="text-sm text-au-muted">{R.t('noChange')}</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {insights.map((x, i) => {
@@ -295,13 +308,13 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
                         {x.text}
                         {x.metric && (
                           <Link href={METRIC_META[x.metric].href} className="ml-1 text-xs font-semibold text-au-muted underline-offset-2 hover:underline">
-                            ochish
+                            {R.t('open')}
                           </Link>
                         )}
                       </span>
                       {r && (
-                        <span className={r.priority === 'high' ? CHIP_BAD : r.priority === 'medium' ? CHIP_ACCENT : CHIP_NEUTRAL} title={`Jev ishonchi ${Math.round(r.confidence * 100)}%`}>
-                          {r.priority === 'high' ? 'Shoshilinch' : r.priority === 'medium' ? 'Muhim' : 'Ma’lumot'}
+                        <span className={r.priority === 'high' ? CHIP_BAD : r.priority === 'medium' ? CHIP_ACCENT : CHIP_NEUTRAL} title={R.t('jevConf', { n: Math.round(r.confidence * 100) })}>
+                          {r.priority === 'high' ? R.t('pHigh') : r.priority === 'medium' ? R.t('pMed') : R.t('pLow')}
                         </span>
                       )}
                     </li>
@@ -309,7 +322,7 @@ export function ReportsView({ initial, saved, me }: { initial: TeamReport; saved
                 })}
               </ul>
             )}
-            <p className="text-[11px] text-au-muted">Xulosalar raqamlardan qoida asosida tuziladi; Jev faqat qaysi biri shoshilinch ekanini baholaydi.</p>
+            <p className="text-[11px] text-au-muted">{R.t('rule')}</p>
           </section>
 
           <Builder
@@ -375,6 +388,7 @@ function TrendCard({
   me: string;
   onNotes: (f: (n: TeamReport['notes']) => TeamReport['notes']) => void;
 }) {
+  const R = useRv();
   const meta = METRIC_META[metric];
   const vals = rep.series[metric];
   const [sel, setSel] = useState<number>(vals.length - 1);
@@ -388,23 +402,23 @@ function TrendCard({
   const add = () =>
     start(async () => {
       const res = await addReportNoteAction({ metric, week: rep.buckets[sel].start, body: note.trim() });
-      if (res.error !== undefined) return void toast.error(errText(res.error));
-      const row = { id: res.id, metric, week: rep.buckets[sel].start, body: note.trim(), author: 'Siz' };
+      if (res.error !== undefined) return void toast.error(R.err(res.error));
+      const row = { id: res.id, metric, week: rep.buckets[sel].start, body: note.trim(), author: R.t('you') };
       onNotes((n) => [...n, row]);
       setNote('');
     });
   const del = (id: string) =>
     start(async () => {
       const res = await deleteReportNoteAction(id);
-      if (res.error !== undefined) return void toast.error(errText(res.error));
+      if (res.error !== undefined) return void toast.error(R.err(res.error));
       onNotes((n) => n.filter((x) => x.id !== id));
     });
 
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 1 }}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className={CARD_TITLE}>{meta.n}</h3>
-        <span className="text-xs text-au-muted">{meta.hint}</span>
+        <h3 className={CARD_TITLE}>{R.mn(metric)}</h3>
+        <span className="text-xs text-au-muted">{R.mh(metric)}</span>
       </div>
       <div className="flex h-44 items-end gap-2">
         {vals.map((v, i) => {
@@ -436,23 +450,23 @@ function TrendCard({
         ))}
       </div>
       <div className="flex flex-col gap-2 border-t border-au-line pt-3">
-        <span className="text-xs font-semibold text-au-muted">{labels[sel]} uchun izohlar</span>
+        <span className="text-xs font-semibold text-au-muted">{R.t('notesFor', { l: labels[sel] })}</span>
         {selNotes.map((n) => (
           <div key={n.id} className="flex items-start gap-2 rounded-au-ctl bg-au-info-soft px-3 py-1.5 text-sm">
             <span className="flex-1">
-              {n.body} <span className="text-[11px] text-au-muted">— {n.author ?? 'Noma’lum'}</span>
+              {n.body} <span className="text-[11px] text-au-muted">— {n.author ?? R.t('unknown')}</span>
             </span>
             {(n.author === 'Siz' || n.author === me) && (
-              <button onClick={() => del(n.id)} className="text-au-muted hover:text-au-bad" aria-label="O‘chirish">
+              <button onClick={() => del(n.id)} className="text-au-muted hover:text-au-bad" aria-label={R.t('delete')}>
                 <Trash2 className="size-3.5" />
               </button>
             )}
           </div>
         ))}
         <div className="flex gap-2">
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Masalan: bayram haftasi edi" className={cn(INPUT, 'h-9 flex-1')} />
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={R.t('notePh')} className={cn(INPUT, 'h-9 flex-1')} />
           <button className={cn(BTN_GHOST, 'h-9')} disabled={busy || note.trim().length < 2} onClick={add}>
-            <MessageSquarePlus className="size-4" /> Izoh
+            <MessageSquarePlus className="size-4" /> {R.t('note')}
           </button>
         </div>
       </div>
@@ -461,6 +475,7 @@ function TrendCard({
 }
 
 function Builder({ saved, range, dept, onApply }: { saved: SavedReport[]; range: Range; dept: string; onApply: (s: SavedReport) => void }) {
+  const R = useRv();
   const [list, setList] = useState(saved);
   const [open, setOpen] = useState(false);
   const [pick, setPick] = useState<Metric[]>(['tasksDone', 'onTime', 'missed']);
@@ -472,18 +487,18 @@ function Builder({ saved, range, dept, onApply }: { saved: SavedReport[]; range:
   const save = () =>
     start(async () => {
       const res = await saveReportAction({ name: name.trim(), config, shared });
-      if (res.error !== undefined) return void toast.error(errText(res.error));
+      if (res.error !== undefined) return void toast.error(R.err(res.error));
       const s: SavedReport = { id: res.id, name: name.trim(), config, shared, mine: true };
       setList([s, ...list]);
       setOpen(false);
       setName('');
-      toast.success('Hisobot saqlandi');
+      toast.success(R.t('reportSaved'));
       onApply(s);
     });
   const del = (id: string) =>
     start(async () => {
       const res = await deleteSavedReportAction(id);
-      if (res.error !== undefined) return void toast.error(errText(res.error));
+      if (res.error !== undefined) return void toast.error(R.err(res.error));
       setList(list.filter((x) => x.id !== id));
     });
 
@@ -491,17 +506,17 @@ function Builder({ saved, range, dept, onApply }: { saved: SavedReport[]; range:
     <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 5 }}>
       <div className="flex items-center justify-between">
         <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-          <Bookmark className="size-4 text-au-muted" /> Mening hisobotlarim
+          <Bookmark className="size-4 text-au-muted" /> {R.t('mine')}
         </h3>
         {!open && (
           <button className={cn(BTN_GHOST, 'h-8 px-2.5 text-xs')} onClick={() => setOpen(true)}>
-            Yangi
+            {R.t('new')}
           </button>
         )}
       </div>
       {open && (
         <div className="ms-pop-in flex flex-col gap-2 rounded-au-ctl border border-au-line bg-au-card-2 p-3">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nomi (masalan: Akademik haftalik)" className={INPUT} />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={R.t('namePh')} className={INPUT} />
           <div className="flex flex-wrap gap-1">
             {METRICS.map((m) => (
               <button
@@ -509,28 +524,28 @@ function Builder({ saved, range, dept, onApply }: { saved: SavedReport[]; range:
                 onClick={() => setPick(pick.includes(m) ? pick.filter((x) => x !== m) : [...pick, m])}
                 className={cn('h-7 rounded-full px-2.5 text-xs font-semibold', pick.includes(m) ? 'bg-au-ink text-au-card' : 'bg-au-card text-au-muted')}
               >
-                {METRIC_META[m].n}
+                {R.mn(m)}
               </button>
             ))}
           </div>
           <p className="text-[11px] text-au-muted">
-            Davr: {RANGE_LABEL[range]} · {DEPT_OPTS.find(([v]) => v === dept)?.[1]} (yuqoridagi tanlovdan olinadi)
+            {R.t('period', { r: R.rng[range], d: R.dept(dept) })}
           </p>
           <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> Rahbariyat bilan ulashish
+            <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /> {R.t('share')}
           </label>
           <div className="flex justify-end gap-2">
             <button className="h-8 px-3 text-xs font-semibold text-au-muted" onClick={() => setOpen(false)}>
-              Bekor
+              {R.t('cancel')}
             </button>
             <button className={cn(BTN_PRIMARY, 'h-8 text-xs')} disabled={busy || name.trim().length < 2 || !pick.length} onClick={save}>
-              Saqlash
+              {R.t('save')}
             </button>
           </div>
         </div>
       )}
       {list.length === 0 && !open ? (
-        <p className="text-sm text-au-muted">Ko‘rsatkichlarni tanlab, o‘z hisobotingizni saqlang</p>
+        <p className="text-sm text-au-muted">{R.t('empty')}</p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {list.map((s) => (
@@ -538,16 +553,16 @@ function Builder({ saved, range, dept, onApply }: { saved: SavedReport[]; range:
               <button className="flex min-w-0 flex-1 flex-col text-left" onClick={() => onApply(s)}>
                 <span className="truncate text-sm font-semibold">{s.name}</span>
                 <span className="text-[11px] text-au-muted">
-                  {RANGE_LABEL[s.config.range]} · {s.config.metrics.length} ko‘rsatkich
+                  {R.t('nMetrics', { r: R.rng[s.config.range], n: s.config.metrics.length })}
                 </span>
               </button>
               {s.shared && (
-                <span className={CHIP_INFO} title="Ulashilgan">
+                <span className={CHIP_INFO} title={R.t('shared')}>
                   <Share2 className="size-3" />
                 </span>
               )}
               {s.mine && (
-                <button onClick={() => del(s.id)} className="text-au-muted hover:text-au-bad" aria-label="O‘chirish">
+                <button onClick={() => del(s.id)} className="text-au-muted hover:text-au-bad" aria-label={R.t('delete')}>
                   <Trash2 className="size-3.5" />
                 </button>
               )}

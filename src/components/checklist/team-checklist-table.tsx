@@ -7,6 +7,7 @@ import { addChecklistFeedbackAction, deleteChecklistFeedbackAction } from '@/lib
 import type { ChecklistFeedback } from '@/lib/checklist-feedback';
 import { SURFACE_CARD, BTN_SECONDARY, INPUT } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { CadenceStat, TeamItem, TeamStatRow } from '@/lib/checklist-stats';
 
@@ -14,7 +15,6 @@ type StatKey = 'daily' | 'dailyWeek' | 'dailyMonth' | 'weekly' | 'monthly';
 type SortKey = 'name' | 'role' | StatKey;
 
 const pctOf = (s: CadenceStat) => (s.total > 0 ? Math.round((s.done / s.total) * 100) : 0);
-const CADENCE_LABEL: Record<TeamItem['cadence'], string> = { daily: 'Kunlik', weekly: 'Haftalik', monthly: 'Oylik' };
 
 const shiftDay = (key: string, days: number) => {
   const d = new Date(`${key}T00:00:00Z`);
@@ -50,6 +50,7 @@ export function TeamChecklistTable({
   const [sortKey, setSortKey] = useState<SortKey>('daily');
   const [dir, setDir] = useState<1 | -1>(-1);
   const [open, setOpen] = useState<string | null>(null);
+  const t = useTranslations('cl.team');
   const roleLabel = (r: string) => roleLabels[r] ?? r;
   const router = useRouter();
   const pathname = usePathname();
@@ -118,11 +119,11 @@ export function TeamChecklistTable({
     <div className={cn(SURFACE_CARD, 'flex flex-col gap-4 p-5')}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-bold text-au-ink">
-          Jamoa · {periodLabel}
-          {isToday && <span className="ml-2 align-middle text-xs font-medium text-au-ok">● jonli</span>}
+          {t('team', { p: periodLabel })}
+          {isToday && <span className="ml-2 align-middle text-xs font-medium text-au-ok">{t('live')}</span>}
         </h2>
         <div className="flex items-center gap-1.5">
-          <button type="button" className={cn(BTN_SECONDARY, 'px-2')} onClick={() => goTo(shiftDay(day, -1))} aria-label="Oldingi kun">
+          <button type="button" className={cn(BTN_SECONDARY, 'px-2')} onClick={() => goTo(shiftDay(day, -1))} aria-label={t('prevDay')}>
             <ChevronLeft className="size-4" />
           </button>
           <input
@@ -131,45 +132,45 @@ export function TeamChecklistTable({
             value={day}
             max={today}
             onChange={(e) => e.target.value && goTo(e.target.value)}
-            aria-label="Sana"
+            aria-label={t('date')}
           />
           <button
             type="button"
             className={cn(BTN_SECONDARY, 'px-2')}
             onClick={() => goTo(shiftDay(day, 1))}
             disabled={isToday}
-            aria-label="Keyingi kun"
+            aria-label={t('nextDay')}
           >
             <ChevronRight className="size-4" />
           </button>
           {!isToday && (
             <button type="button" className={BTN_SECONDARY} onClick={() => goTo(today)}>
-              Bugun
+              {t('today')}
             </button>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <Kpi label="Kunlikni to‘liq bajardi" value={`${fullyDone}/${withDaily.length}`} />
-        <Kpi label="Kunlik (shu kun)" value={`${pctOf(sum('daily'))}%`} />
-        <Kpi label="Kunlik (hafta)" value={`${pctOf(sum('dailyWeek'))}%`} />
-        <Kpi label="Kunlik (oy)" value={`${pctOf(sum('dailyMonth'))}%`} />
-        <Kpi label="Haftalik" value={`${pctOf(sum('weekly'))}%`} />
-        <Kpi label="Oylik" value={`${pctOf(sum('monthly'))}%`} />
+        <Kpi label={t('fullDaily')} value={`${fullyDone}/${withDaily.length}`} />
+        <Kpi label={t('dailyDay')} value={`${pctOf(sum('daily'))}%`} />
+        <Kpi label={t('dailyWeek')} value={`${pctOf(sum('dailyWeek'))}%`} />
+        <Kpi label={t('dailyMonth')} value={`${pctOf(sum('dailyMonth'))}%`} />
+        <Kpi label={t('weekly')} value={`${pctOf(sum('weekly'))}%`} />
+        <Kpi label={t('monthly')} value={`${pctOf(sum('monthly'))}%`} />
       </div>
 
       <div className="overflow-x-auto rounded-au-ctl border border-au-line">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="border-b border-au-line text-left text-xs text-au-muted">
-              <SortHead k="name" sortKey={sortKey} dir={dir} onSort={sortBy}>Xodim</SortHead>
-              <SortHead k="role" sortKey={sortKey} dir={dir} onSort={sortBy}>Rol</SortHead>
-              <SortHead k="daily" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-40">Kunlik ({isToday ? 'bugun' : 'shu kun'})</SortHead>
-              <SortHead k="dailyWeek" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">Kunlik · hafta</SortHead>
-              <SortHead k="dailyMonth" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">Kunlik · oy</SortHead>
-              <SortHead k="weekly" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">Haftalik</SortHead>
-              <SortHead k="monthly" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">Oylik</SortHead>
+              <SortHead k="name" sortKey={sortKey} dir={dir} onSort={sortBy}>{t('staff')}</SortHead>
+              <SortHead k="role" sortKey={sortKey} dir={dir} onSort={sortBy}>{t('role')}</SortHead>
+              <SortHead k="daily" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-40">{t('dailyCol', { d: isToday ? t('todayL') : t('thisDay') })}</SortHead>
+              <SortHead k="dailyWeek" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">{t('dWeek')}</SortHead>
+              <SortHead k="dailyMonth" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">{t('dMonth')}</SortHead>
+              <SortHead k="weekly" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">{t('weekly')}</SortHead>
+              <SortHead k="monthly" sortKey={sortKey} dir={dir} onSort={sortBy} className="w-36">{t('monthly')}</SortHead>
             </tr>
           </thead>
           <tbody>
@@ -192,7 +193,7 @@ export function TeamChecklistTable({
                           {r.name}
                         </Link>
                         {feedback.some((f) => f.userId === r.userId) && (
-                          <span className="inline-flex items-center gap-0.5 text-[11px] text-au-accent-text" title="Feedback bor">
+                          <span className="inline-flex items-center gap-0.5 text-[11px] text-au-accent-text" title={t('hasFeedback')}>
                             <MessageSquareText className="size-3" aria-hidden />
                             {feedback.filter((f) => f.userId === r.userId).length}
                           </span>
@@ -201,7 +202,7 @@ export function TeamChecklistTable({
                     </td>
                     <td className="px-3 py-2 text-au-muted">{roleLabel(r.role)}</td>
                     <td className="px-3 py-2">
-                      {r.lesson ? <StatCell s={r.daily} /> : <span className="text-xs text-au-faint">dars yo‘q</span>}
+                      {r.lesson ? <StatCell s={r.daily} /> : <span className="text-xs text-au-faint">{t('noLesson')}</span>}
                     </td>
                     <td className="px-3 py-2"><StatCell s={r.dailyWeek} pctOnly /></td>
                     <td className="px-3 py-2"><StatCell s={r.dailyMonth} pctOnly /></td>
@@ -229,7 +230,7 @@ export function TeamChecklistTable({
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-3 py-6 text-center text-au-muted">
-                  Checklistli xodim topilmadi.
+                  {t('noRows')}
                 </td>
               </tr>
             )}
@@ -258,6 +259,8 @@ function ItemList({
   viewerId?: string;
 }) {
   const [itemOpen, setItemOpen] = useState<string | null>(null);
+  const t = useTranslations('cl.team');
+  const tc = useTranslations('cl.cad');
   const itemIds = new Set(items.map((i) => i.id));
   // Day notes, plus notes whose item was since deleted from the templates.
   const dayNotes = feedback.filter((f) => !f.templateId || !itemIds.has(f.templateId));
@@ -268,9 +271,9 @@ function ItemList({
           const list = items.filter((i) => i.cadence === c);
           return (
             <div key={c} className="flex flex-col gap-1">
-              <div className="text-xs font-semibold text-au-muted">{CADENCE_LABEL[c]}</div>
+              <div className="text-xs font-semibold text-au-muted">{tc(c)}</div>
               {list.length === 0 && <span className="text-xs text-au-faint">—</span>}
-              {c === 'daily' && dailyOff && list.length > 0 && <span className="text-xs text-au-faint">Bu kuni dars yo‘q — talab qilinmaydi</span>}
+              {c === 'daily' && dailyOff && list.length > 0 && <span className="text-xs text-au-faint">{t('noLessonDay')}</span>}
               {list.map((i) => {
                 const notes = feedback.filter((f) => f.templateId === i.id);
                 return (
@@ -287,7 +290,7 @@ function ItemList({
                           type="button"
                           onClick={() => setItemOpen(itemOpen === i.id ? null : i.id)}
                           className="shrink-0 rounded p-0.5 text-au-faint hover:bg-au-card hover:text-au-ink"
-                          aria-label={`«${i.title}» bandiga izoh`}
+                          aria-label={t('noteOn', { t: i.title })}
                           aria-expanded={itemOpen === i.id}
                         >
                           <MessageSquarePlus className="size-3.5" />
@@ -296,7 +299,7 @@ function ItemList({
                     </div>
                     {notes.length > 0 && <NoteList notes={notes} viewerId={viewerId} compact />}
                     {canFeedback && itemOpen === i.id && (
-                      <NoteForm userId={userId} day={day} templateId={i.id} placeholder="Shu bandga izoh…" onDone={() => setItemOpen(null)} />
+                      <NoteForm userId={userId} day={day} templateId={i.id} placeholder={t('itemPh')} onDone={() => setItemOpen(null)} />
                     )}
                   </div>
                 );
@@ -308,9 +311,9 @@ function ItemList({
 
       {(canFeedback || dayNotes.length > 0) && (
         <div className="flex flex-col gap-2 border-t border-au-line pt-3">
-          <div className="text-xs font-semibold text-au-muted">Kun bo‘yicha feedback</div>
+          <div className="text-xs font-semibold text-au-muted">{t('dayFeedback')}</div>
           {dayNotes.length > 0 && <NoteList notes={dayNotes} viewerId={viewerId} />}
-          {canFeedback && <NoteForm userId={userId} day={day} templateId={null} placeholder="Shu kungi checklist bo‘yicha izoh…" />}
+          {canFeedback && <NoteForm userId={userId} day={day} templateId={null} placeholder={t('dayPh')} />}
         </div>
       )}
     </div>
@@ -320,11 +323,12 @@ function ItemList({
 function NoteList({ notes, viewerId, compact }: { notes: ChecklistFeedback[]; viewerId?: string; compact?: boolean }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const t = useTranslations('cl.team');
   const remove = (id: string) =>
     start(async () => {
       const res = await deleteChecklistFeedbackAction(id);
-      if (res.error) return void toast.error('O‘chirib bo‘lmadi');
-      toast.success('Izoh o‘chirildi');
+      if (res.error) return void toast.error(t('delFail'));
+      toast.success(t('noteDeleted'));
       router.refresh();
     });
   return (
@@ -342,7 +346,7 @@ function NoteList({ notes, viewerId, compact }: { notes: ChecklistFeedback[]; vi
               disabled={busy}
               onClick={() => remove(n.id)}
               className="shrink-0 text-au-faint hover:text-au-bad disabled:opacity-50"
-              aria-label="Izohni o‘chirish"
+              aria-label={t('delNote')}
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -353,12 +357,7 @@ function NoteList({ notes, viewerId, compact }: { notes: ChecklistFeedback[]; vi
   );
 }
 
-const FEEDBACK_ERR: Record<string, string> = {
-  forbidden: 'Bu xodimga feedback yozish huquqingiz yo‘q',
-  self: 'O‘zingizga feedback yozib bo‘lmaydi',
-  day: 'Bu sanaga izoh yozib bo‘lmaydi',
-  invalid: 'Matn 1–1000 belgi bo‘lsin',
-};
+const FEEDBACK_ERR: Record<string, string> = { forbidden: 'eForbidden', self: 'eSelf', day: 'eDay', invalid: 'eInvalid' };
 
 function NoteForm({
   userId,
@@ -376,11 +375,12 @@ function NoteForm({
   const router = useRouter();
   const [text, setText] = useState('');
   const [busy, start] = useTransition();
+  const t = useTranslations('cl.team');
   const send = () =>
     start(async () => {
       const res = await addChecklistFeedbackAction({ userId, day, templateId, body: text });
-      if (res.error) return void toast.error(FEEDBACK_ERR[res.error] ?? 'Saqlab bo‘lmadi');
-      toast.success('Feedback yuborildi');
+      if (res.error) return void toast.error(t(FEEDBACK_ERR[res.error] ?? 'saveFail'));
+      toast.success(t('sent'));
       setText('');
       onDone?.();
       router.refresh();
@@ -397,7 +397,7 @@ function NoteForm({
         className={cn(INPUT, 'min-h-9 flex-1 resize-y py-1.5 text-sm')}
       />
       <button type="button" className={cn(BTN_SECONDARY, 'shrink-0')} disabled={busy || !text.trim()} onClick={send}>
-        {busy ? 'Yuborilmoqda…' : 'Yuborish'}
+        {busy ? t('sending') : t('send')}
       </button>
     </div>
   );
