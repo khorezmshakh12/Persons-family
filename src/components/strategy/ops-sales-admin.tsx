@@ -8,16 +8,18 @@ import { createLeadAction, restoreLeadAction, saveLeadGroupsAction, saveStagesAc
 import { toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
 import { when } from './ops-students-meta';
-import { GROUP_COLORS, GROUP_TONE, LEVELS, NEW_SOURCES, PREF_DAYS, SOURCES, leadErr } from './ops-sales-meta';
+import { useTranslations } from 'next-intl';
+import { GROUP_COLORS, GROUP_TONE, LEVELS, NEW_SOURCES, useSalesMeta } from './ops-sales-meta';
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const to = useTranslations('ops');
   return (
     <div className="sx-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sx-modal" role="dialog" aria-modal="true" aria-label={title}>
         <div className="sx-h">
           <h3>{title}</h3>
           <span className="sp" />
-          <button className="sx-btn sm" onClick={onClose} aria-label="Yopish">
+          <button className="sx-btn sm" onClick={onClose} aria-label={to('c.close')}>
             <X className="size-4" />
           </button>
         </div>
@@ -39,6 +41,11 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
   const [pending, start] = useTransition();
   const [f, setF] = useState({ name: '', phone: '', age: '', course: '', groupId: '', level: '', prefDays: '' as '' | 'odd' | 'even' | 'daily' | 'weekend', prefTime: '', source: 'insta' as (typeof NEW_SOURCES)[number] });
   const [dup, setDup] = useState<{ id: string; name: string } | null>(null);
+  const t = useTranslations('ops.sa');
+  const tl = useTranslations('ops.lead');
+  const to = useTranslations('ops');
+  const { PREF_DAYS, SOURCES, leadErr, levelLabel } = useSalesMeta();
+  const tsv = useTranslations('ops.sv');
   const create = (force: boolean) =>
     start(async () => {
       const r = await createLeadAction({
@@ -55,23 +62,23 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
       });
       if (r.dup) return setDup(r.dup);
       if (r.error) return void toast.error(leadErr(r.error));
-      toast.success('Lid qo‘shildi — birinchi bosqichda eng tepada');
+      toast.success(t('added'));
       router.refresh();
       onClose();
     });
   return (
-    <Modal title="Yangi lid" onClose={onClose}>
+    <Modal title={t('newLead')} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3 max-[480px]:grid-cols-1">
-        <Field label="Ism familiya *">
-          <input id="nl-name" className="sx-inp" maxLength={120} placeholder="Ali Valiyev" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <Field label={t('nameReq')}>
+          <input id="nl-name" className="sx-inp" maxLength={120} placeholder={t('namePh')} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </Field>
-        <Field label="Telefon *">
+        <Field label={t('phoneReq')}>
           <input id="nl-phone" className="sx-inp tabular-nums" maxLength={25} placeholder="+998 90 123 45 67" value={f.phone} onChange={(e) => { setF({ ...f, phone: e.target.value }); setDup(null); }} />
         </Field>
-        <Field label="Yoshi">
+        <Field label={tl('age')}>
           <input id="nl-age" className="sx-inp tabular-nums" inputMode="numeric" placeholder="14" value={f.age} onChange={(e) => setF({ ...f, age: e.target.value.replace(/\D/g, '').slice(0, 2) })} />
         </Field>
-        <Field label="Qaysi kursda o‘qimoqchi">
+        <Field label={t('courseWant')}>
           <input id="nl-course" className="sx-inp" list="nl-courses" maxLength={120} placeholder="IELTS" value={f.course} onChange={(e) => setF({ ...f, course: e.target.value })} />
           <datalist id="nl-courses">
             {data.sales.courses.map((c) => (
@@ -79,9 +86,9 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
             ))}
           </datalist>
         </Field>
-        <Field label="Guruh">
+        <Field label={tl('group')}>
           <select id="nl-group" className="sx-inp" value={f.groupId} onChange={(e) => setF({ ...f, groupId: e.target.value })}>
-            <option value="">— guruhsiz —</option>
+            <option value="">{tl('noGroup')}</option>
             {data.sales.groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -89,15 +96,15 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
             ))}
           </select>
         </Field>
-        <Field label="Daraja">
-          <input id="nl-level" className="sx-inp" list="nl-levels" maxLength={40} placeholder="Bilmayman" value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} />
+        <Field label={tl('level')}>
+          <input id="nl-level" className="sx-inp" list="nl-levels" maxLength={40} placeholder={levelLabel('Bilmayman')} value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })} />
           <datalist id="nl-levels">
             {LEVELS.map((c) => (
-              <option key={c} value={c} />
+              <option key={c} value={c}>{levelLabel(c)}</option>
             ))}
           </datalist>
         </Field>
-        <Field label="Qulay kunlar">
+        <Field label={tl('prefDays')}>
           <select id="nl-days" className="sx-inp" value={f.prefDays} onChange={(e) => setF({ ...f, prefDays: e.target.value as typeof f.prefDays })}>
             <option value="">—</option>
             {Object.entries(PREF_DAYS).map(([k, v]) => (
@@ -107,10 +114,10 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
             ))}
           </select>
         </Field>
-        <Field label="Qulay vaqt">
+        <Field label={tl('prefTime')}>
           <input id="nl-ptime" type="time" className="sx-inp" value={f.prefTime} onChange={(e) => setF({ ...f, prefTime: e.target.value })} />
         </Field>
-        <Field label="Manba">
+        <Field label={tsv('source')}>
           <select id="nl-src" className="sx-inp" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value as typeof f.source })}>
             {NEW_SOURCES.map((s) => (
               <option key={s} value={s}>
@@ -122,23 +129,23 @@ export function AddLeadModal({ data, onClose, onOpen }: { data: OpsData; onClose
       </div>
       {dup && (
         <div className="mt-3 rounded-xl border border-au-bad/50 bg-au-bad-soft px-3 py-2.5 text-sm text-au-ink">
-          Bu telefon raqami bilan lid allaqachon bor: <b>{dup.name || 'ismsiz'}</b>.
+          {t('dup')} <b>{dup.name || t('noName')}</b>.
           <div className="mt-2 flex flex-wrap gap-2">
             <button className="sx-btn sm" onClick={() => onOpen(dup.id)}>
-              Mavjud lidni ochish
+              {t('openExisting')}
             </button>
             <button className="sx-btn sm" disabled={pending} onClick={() => create(true)}>
-              Baribir yangi qo‘shish
+              {t('addAnyway')}
             </button>
           </div>
         </div>
       )}
       <div className="mt-4 flex justify-end gap-2">
         <button className="sx-btn" onClick={onClose}>
-          Bekor
+          {to('c.cancel')}
         </button>
         <button className="sx-btn primary" disabled={pending || !f.name.trim() || f.phone.replace(/\D/g, '').length < 7} onClick={() => create(false)}>
-          Qo‘shish
+          {t('add')}
         </button>
       </div>
     </Modal>
@@ -151,17 +158,20 @@ export function GroupsModal({ data, onClose }: { data: OpsData; onClose: () => v
   const [pending, start] = useTransition();
   const [list, setList] = useState(data.sales.groups.map((g) => ({ key: g.id, id: g.id as string | null, name: g.name, color: g.color })));
   const set = (key: string, patch: Partial<(typeof list)[number]>) => setList((l) => l.map((g) => (g.key === key ? { ...g, ...patch } : g)));
+  const t = useTranslations('ops.sa');
+  const to = useTranslations('ops');
+  const { leadErr } = useSalesMeta();
   const save = () =>
     start(async () => {
       const r = await saveLeadGroupsAction(list.map(({ id, name, color }) => ({ id, name, color: color as 'g1' })));
       if (r.error) return void toast.error(leadErr(r.error));
-      toast.success('Guruhlar saqlandi');
+      toast.success(t('groupsSaved'));
       router.refresh();
       onClose();
     });
   return (
-    <Modal title="Lid guruhlari" onClose={onClose}>
-      <p className="mb-3 text-sm text-au-muted">Masalan: «Bolalar 7–12», «IELTS», «Instagram aksiya». O‘chirilgan guruhdagi lidlar guruhsiz qoladi.</p>
+    <Modal title={t('groupsTitle')} onClose={onClose}>
+      <p className="mb-3 text-sm text-au-muted">{t('groupsNote')}</p>
       <div className="flex flex-col gap-2">
         {list.map((g) => (
           <div key={g.key} className="flex items-center gap-2">
@@ -169,27 +179,27 @@ export function GroupsModal({ data, onClose }: { data: OpsData; onClose: () => v
               {GROUP_COLORS.map((c) => (
                 <button
                   key={c}
-                  aria-label={`Rang ${c}`}
+                  aria-label={t('color', { c })}
                   className={cn('size-5 rounded-full border-2', GROUP_TONE[c].dot, g.color === c ? 'border-au-ink' : 'border-transparent')}
                   onClick={() => set(g.key, { color: c })}
                 />
               ))}
             </div>
             <input id={`gr-${g.key}`} className="sx-inp flex-1" maxLength={60} value={g.name} onChange={(e) => set(g.key, { name: e.target.value })} />
-            <button className="sx-btn sm text-au-bad" aria-label="O‘chirish" onClick={() => setList((l) => l.filter((x) => x.key !== g.key))}>
+            <button className="sx-btn sm text-au-bad" aria-label={to('c.delete')} onClick={() => setList((l) => l.filter((x) => x.key !== g.key))}>
               <Trash2 className="size-4" />
             </button>
           </div>
         ))}
-        {list.length === 0 && <div className="sx-empty">Hali guruh yo‘q</div>}
+        {list.length === 0 && <div className="sx-empty">{t('noGroups')}</div>}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className="sx-btn" onClick={() => setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: 'Yangi guruh', color: GROUP_COLORS[l.length % GROUP_COLORS.length] }])}>
-          <Plus className="size-4" /> Guruh
+        <button className="sx-btn" onClick={() => setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: t('newGroup'), color: GROUP_COLORS[l.length % GROUP_COLORS.length] }])}>
+          <Plus className="size-4" /> {t('group')}
         </button>
         <span className="flex-1" />
         <button className="sx-btn primary" disabled={pending || list.some((g) => !g.name.trim())} onClick={save}>
-          Saqlash
+          {to('c.save')}
         </button>
       </div>
     </Modal>
@@ -203,31 +213,32 @@ export function StagesModal({ data, onClose }: { data: OpsData; onClose: () => v
   const fixed = data.sales.stages.filter((s) => s.kind === 'joined' || s.kind === 'lost');
   const [list, setList] = useState(data.sales.stages.filter((s) => !fixed.includes(s)).map((s) => ({ key: s.id, id: s.id as string | null, name: s.name })));
   const [fixedNames, setFixedNames] = useState(fixed.map((s) => ({ id: s.id, name: s.name })));
+  const t = useTranslations('ops.sa');
+  const to = useTranslations('ops');
+  const { leadErr } = useSalesMeta();
   const swap = (i: number, j: number) => setList((l) => { const n = [...l]; [n[i], n[j]] = [n[j], n[i]]; return n; });
   const save = () =>
     start(async () => {
       const r = await saveStagesAction([...list.map(({ id, name }) => ({ id, name })), ...fixedNames]);
       if (r.error) return void toast.error(leadErr(r.error));
-      toast.success('Bosqichlar saqlandi');
+      toast.success(t('stagesSaved'));
       router.refresh();
       onClose();
     });
   return (
-    <Modal title="Sotuv bosqichlari" onClose={onClose}>
-      <p className="mb-3 text-sm text-au-muted">
-        «Telegram» ustuni doim birinchi turadi (botdan kelganlar). O‘chirilgan bosqichdagi lidlar birinchi bosqichga o‘tadi. «O‘quvchi bo‘ldi» va «Rad etdi» o‘chirilmaydi.
-      </p>
+    <Modal title={t('stagesTitle')} onClose={onClose}>
+      <p className="mb-3 text-sm text-au-muted">{t('stagesNote')}</p>
       <div className="flex flex-col gap-2">
         {list.map((s, i) => (
           <div key={s.key} className="flex items-center gap-2">
             <input id={`st-${s.key}`} className="sx-inp flex-1" maxLength={60} value={s.name} onChange={(e) => setList((l) => l.map((x) => (x.key === s.key ? { ...x, name: e.target.value } : x)))} />
-            <button className="sx-btn sm" aria-label="Yuqoriga" disabled={i === 0} onClick={() => swap(i, i - 1)}>
+            <button className="sx-btn sm" aria-label={t('up')} disabled={i === 0} onClick={() => swap(i, i - 1)}>
               <ArrowUp className="size-4" />
             </button>
-            <button className="sx-btn sm" aria-label="Pastga" disabled={i === list.length - 1} onClick={() => swap(i, i + 1)}>
+            <button className="sx-btn sm" aria-label={t('down')} disabled={i === list.length - 1} onClick={() => swap(i, i + 1)}>
               <ArrowDown className="size-4" />
             </button>
-            <button className="sx-btn sm text-au-bad" aria-label="O‘chirish" disabled={list.length === 1} onClick={() => setList((l) => l.filter((x) => x.key !== s.key))}>
+            <button className="sx-btn sm text-au-bad" aria-label={to('c.delete')} disabled={list.length === 1} onClick={() => setList((l) => l.filter((x) => x.key !== s.key))}>
               <Trash2 className="size-4" />
             </button>
           </div>
@@ -235,17 +246,17 @@ export function StagesModal({ data, onClose }: { data: OpsData; onClose: () => v
         {fixedNames.map((s) => (
           <div key={s.id} className="flex items-center gap-2">
             <input id={`stf-${s.id}`} className="sx-inp flex-1" maxLength={60} value={s.name} onChange={(e) => setFixedNames((l) => l.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)))} />
-            <span className="sx-pl mute">yakuniy</span>
+            <span className="sx-pl mute">{t('final')}</span>
           </div>
         ))}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button className="sx-btn" onClick={() => setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: 'Yangi bosqich' }])}>
-          <Plus className="size-4" /> Bosqich
+        <button className="sx-btn" onClick={() => setList((l) => [...l, { key: crypto.randomUUID(), id: null, name: t('newStage') }])}>
+          <Plus className="size-4" /> {t('stage')}
         </button>
         <span className="flex-1" />
         <button className="sx-btn primary" disabled={pending || [...list, ...fixedNames].some((s) => !s.name.trim())} onClick={save}>
-          Saqlash
+          {to('c.save')}
         </button>
       </div>
     </Modal>
@@ -256,17 +267,19 @@ export function StagesModal({ data, onClose }: { data: OpsData; onClose: () => v
 export function ArchiveModal({ data, onClose }: { data: OpsData; onClose: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const t = useTranslations('ops.sa');
+  const { leadErr } = useSalesMeta();
   const restore = (id: string) =>
     start(async () => {
       const r = await restoreLeadAction(id);
       if (r.error) return void toast.error(leadErr(r.error));
-      toast.success('Lid qaytarildi');
+      toast.success(t('restored'));
       router.refresh();
     });
   return (
-    <Modal title="O‘chirilgan lidlar" onClose={onClose}>
+    <Modal title={t('archTitle')} onClose={onClose}>
       {data.sales.archived.length === 0 ? (
-        <div className="sx-empty">Arxiv bo‘sh</div>
+        <div className="sx-empty">{t('archEmpty')}</div>
       ) : (
         <ul className="flex flex-col">
           {data.sales.archived.map((a) => (
@@ -280,7 +293,7 @@ export function ArchiveModal({ data, onClose }: { data: OpsData; onClose: () => 
               </div>
               {data.canEdit && (
                 <button className="sx-btn sm" disabled={pending} onClick={() => restore(a.id)}>
-                  Qaytarish
+                  {t('restore')}
                 </button>
               )}
             </li>

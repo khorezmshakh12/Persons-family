@@ -6,12 +6,9 @@ import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
 import { getOpsHealthAction } from '@/lib/actions/ops-health';
 import { shiftMonthKey, type Health, type NameItem } from '@/lib/ops-health';
-import { dmy, som } from './ops-students-meta';
-
-const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
-const SHORT = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
-const mLabel = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
-const mShort = (m: string) => SHORT[Number(m.slice(5, 7)) - 1];
+import { useLocale, useTranslations } from 'next-intl';
+import { monthName } from '@/lib/month-names';
+import { dmy, som, useOpsMeta } from './ops-students-meta';
 const mln = (v: number) => `${(v / 1_000_000).toFixed(1)}m`;
 
 type Open = { title: string; items: NameItem[] } | null;
@@ -22,6 +19,13 @@ export function OpsHealth({ month: current }: { month: string }) {
   const [h, setH] = useState<Health | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState<Open>(null);
+  const t = useTranslations('ops.health');
+  const to = useTranslations('ops');
+  const locale = useLocale();
+  const { reasonLabel } = useOpsMeta();
+  const mLabel = (m: string) => `${monthName(locale, Number(m.slice(5, 7)))} ${m.slice(0, 4)}`;
+  const mShort = (m: string) => monthName(locale, Number(m.slice(5, 7)), true);
+  const note = (n?: string) => (n === 'sababsiz' ? t('noReason') : n ? reasonLabel(n) : n);
 
   // Loads once per chosen month; a server read, no router refresh.
   useEffect(() => {
@@ -41,10 +45,10 @@ export function OpsHealth({ month: current }: { month: string }) {
   const head = (
     <div className="sx-card s12 !pb-2">
       <div className="sx-h !mb-0 flex-wrap">
-        <h3>Markaz holati</h3>
-        <small>{h && h.month === month ? `${dmy(h.month)} – ${dmy(h.to)} · faqat bazadagi yozuvlardan, raqamni bosing: ro‘yxati ochiladi` : 'Yuklanmoqda…'}</small>
+        <h3>{t('title')}</h3>
+        <small>{h && h.month === month ? t('sub', { from: dmy(h.month), to: dmy(h.to) }) : to('c.loading')}</small>
         <span className="flex-1" />
-        <select className="sx-inp !w-auto" aria-label="Oy" value={month} onChange={(e) => { setOpen(null); setMonth(e.target.value); }}>
+        <select className="sx-inp !w-auto" aria-label={t('month')} value={month} onChange={(e) => { setOpen(null); setMonth(e.target.value); }}>
           {months.map((m) => (
             <option key={m} value={m}>
               {mLabel(m)}
@@ -54,33 +58,33 @@ export function OpsHealth({ month: current }: { month: string }) {
       </div>
     </div>
   );
-  if (!h || h.month !== month) return <>{head}<div className="sx-card s12"><div className="sx-empty">{failed ? 'Statistikani yuklab bo‘lmadi' : 'Yuklanmoqda…'}</div></div></>;
+  if (!h || h.month !== month) return <>{head}<div className="sx-card s12"><div className="sx-empty">{failed ? t('loadFailed') : to('c.loading')}</div></div></>;
 
   const st = h.students;
   const mo = h.money;
   const f = h.funnel;
   const show = (title: string, items: NameItem[]) => setOpen(open?.title === title ? null : { title, items });
-  const tMax = Math.max(1, ...h.trend.map((t) => t.active));
-  const cMax = Math.max(1, ...h.trend.map((t) => t.collected));
+  const tMax = Math.max(1, ...h.trend.map((x) => x.active));
+  const cMax = Math.max(1, ...h.trend.map((x) => x.collected));
 
   return (
     <>
       {head}
-      <Section>O‘quvchilar</Section>
-      <Tile l="Faol o‘quvchilar" v={st.activeEnd} d={`oy boshida ${st.activeStart} · ${st.activeEnd - st.activeStart >= 0 ? '+' : ''}${st.activeEnd - st.activeStart}`} tone={st.activeEnd >= st.activeStart ? 'ok' : 'bad'} />
-      <Tile l="Yangi faol bo‘ldi" v={st.newActive.length} d="birinchi to‘lovni qildi" onClick={() => show('Yangi faol bo‘lganlar', st.newActive)} />
-      <Tile l="Ketdi (arxiv)" v={st.left.length} d={st.churnPct === null ? 'faollardan ketish —' : `faollardan ketish ${st.churnPct}%`} tone={st.left.length ? 'bad' : undefined} onClick={() => show('Ketganlar', st.left)} />
-      <Tile l="To‘lov kutilyapti" v={st.waiting.length} d="qo‘shilgan, hali to‘lamagan · hozir" onClick={() => show('To‘lov kutilyotganlar', st.waiting)} />
-      <Tile l="Muzlatilgan" v={st.frozen.length} d="hozir" onClick={() => show('Muzlatilganlar', st.frozen)} />
-      <Tile l="O‘rtacha o‘qish muddati" v={st.avgMonths === null ? '—' : `${st.avgMonths} oy`} d="oxirgi 12 oyda ketganlar bo‘yicha" />
-      <Tile l="Bir o‘quvchidan o‘rtacha tushum" v={st.avgRevenue === null ? '—' : som(st.avgRevenue)} d="to‘lagan o‘quvchilar, butun davr" />
-      <Tile l="Davomat" v={st.attendancePct === null ? '—' : `${st.attendancePct}%`} d="belgilangan darslar, sinovsiz" />
+      <Section>{t('students')}</Section>
+      <Tile l={t('active')} v={st.activeEnd} d={t('activeD', { start: st.activeStart, diff: `${st.activeEnd - st.activeStart >= 0 ? '+' : ''}${st.activeEnd - st.activeStart}` })} tone={st.activeEnd >= st.activeStart ? 'ok' : 'bad'} />
+      <Tile l={t('newActive')} v={st.newActive.length} d={t('newActiveD')} onClick={() => show(t('newActiveList'), st.newActive)} />
+      <Tile l={t('left')} v={st.left.length} d={st.churnPct === null ? t('churnNone') : t('churn', { n: st.churnPct })} tone={st.left.length ? 'bad' : undefined} onClick={() => show(t('leftList'), st.left)} />
+      <Tile l={t('waiting')} v={st.waiting.length} d={t('waitingD')} onClick={() => show(t('waitingList'), st.waiting)} />
+      <Tile l={t('frozen')} v={st.frozen.length} d={t('now')} onClick={() => show(t('frozenList'), st.frozen)} />
+      <Tile l={t('avgMonths')} v={st.avgMonths === null ? '—' : t('nMonths', { n: st.avgMonths })} d={t('avgMonthsD')} />
+      <Tile l={t('avgRevenue')} v={st.avgRevenue === null ? '—' : som(st.avgRevenue)} d={t('avgRevenueD')} />
+      <Tile l={t('attendance')} v={st.attendancePct === null ? '—' : `${st.attendancePct}%`} d={t('attendanceD')} />
 
-      <Section>Pul</Section>
-      <Tile l="Kutilgan tushum" v={som(mo.expected)} d="faollarning oylik to‘lovi (chegirmadan keyin)" />
-      <Tile l="Yig‘ildi" v={som(mo.collected)} d={mo.collectedPct === null ? '' : `${mo.collectedPct}% yig‘ildi`} tone={mo.collectedPct !== null && mo.collectedPct >= 90 ? 'ok' : undefined} bar={mo.collectedPct} />
-      <Tile l="Jami qarz (hozir)" v={som(mo.debt)} d={`${mo.debtors.length} qarzdor · ${mo.bigDebtors} tasida 1 oylikdan ko‘p`} tone={mo.debt ? 'bad' : undefined} onClick={() => show('Qarzdorlar', mo.debtors)} />
-      <Tile l="Keyingi oy prognozi" v={som(mo.forecast)} d="faollar + to‘lov kutilyotganlar oylik summasi" />
+      <Section>{t('money')}</Section>
+      <Tile l={t('expected')} v={som(mo.expected)} d={t('expectedD')} />
+      <Tile l={t('collected')} v={som(mo.collected)} d={mo.collectedPct === null ? '' : t('collectedPct', { n: mo.collectedPct })} tone={mo.collectedPct !== null && mo.collectedPct >= 90 ? 'ok' : undefined} bar={mo.collectedPct} />
+      <Tile l={t('debt')} v={som(mo.debt)} d={t('debtD', { n: mo.debtors.length, big: mo.bigDebtors })} tone={mo.debt ? 'bad' : undefined} onClick={() => show(t('debtorsList'), mo.debtors)} />
+      <Tile l={t('forecast')} v={som(mo.forecast)} d={t('forecastD')} />
 
       {open && (
         <div className="sx-card s12">
@@ -89,7 +93,7 @@ export function OpsHealth({ month: current }: { month: string }) {
               {open.title} · {open.items.length}
             </h3>
             <span className="flex-1" />
-            <button className="sx-btn sm" onClick={() => setOpen(null)} aria-label="Yopish">
+            <button className="sx-btn sm" onClick={() => setOpen(null)} aria-label={to('c.close')}>
               <X className="size-4" />
             </button>
           </div>
@@ -98,29 +102,29 @@ export function OpsHealth({ month: current }: { month: string }) {
               {open.items.map((i) => (
                 <li key={i.id} className="flex min-w-0 justify-between gap-2 border-b border-au-line py-1">
                   <span className="truncate text-au-ink">{i.name}</span>
-                  {i.note && <span className="shrink-0 text-au-faint">{i.note}</span>}
+                  {i.note && <span className="shrink-0 text-au-faint">{note(i.note)}</span>}
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="text-xs text-au-faint">Bo‘sh</div>
+            <div className="text-xs text-au-faint">{t('empty')}</div>
           )}
         </div>
       )}
 
       <div className="sx-card s6">
         <div className="sx-h">
-          <h3>Lid → o‘quvchi voronkasi</h3>
-          <small>{mLabel(h.month)} da kelgan lidlar</small>
+          <h3>{t('funnel')}</h3>
+          <small>{t('funnelSub', { month: mLabel(h.month) })}</small>
         </div>
         {f.leads ? (
           <div className="flex flex-col gap-2">
             {(
               [
-                ['Yangi lid', f.leads],
-                ['Sinovga yozildi', f.trial],
-                ['O‘quvchi bo‘ldi', f.converted],
-                ['To‘ladi (faol)', f.paid],
+                [t('fLead'), f.leads],
+                [t('fTrial'), f.trial],
+                [t('fConverted'), f.converted],
+                [t('fPaid'), f.paid],
               ] as const
             ).map(([n, v]) => (
               <div key={n} className="grid grid-cols-[110px_1fr_48px] items-center gap-2.5 text-[13px]">
@@ -134,20 +138,20 @@ export function OpsHealth({ month: current }: { month: string }) {
               </div>
             ))}
             <div className="text-xs text-au-faint">
-              Lid kelgandan birinchi to‘lovgacha o‘rtacha: <b className="text-au-ink">{f.avgDays === null ? '—' : `${f.avgDays} kun`}</b>
+              {t('avgDays')} <b className="text-au-ink">{f.avgDays === null ? '—' : t('nDays', { n: f.avgDays })}</b>
               {f.lost.length > 0 && (
                 <>
-                  {' '}· yo‘qotish sabablari: {f.lost.map((l) => `${l.reason} (${l.n})`).join(', ')}
+                  {' '}· {t('lostReasons')} {f.lost.map((l) => `${l.reason} (${l.n})`).join(', ')}
                 </>
               )}
             </div>
             <table className="mt-1 w-full text-[13px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wider text-au-faint">
-                  <th className="py-1 font-bold">Manba</th>
-                  <th className="py-1 text-right font-bold">Lid</th>
-                  <th className="py-1 text-right font-bold">To‘ladi</th>
-                  <th className="py-1 text-right font-bold">Konversiya</th>
+                  <th className="py-1 font-bold">{t('source')}</th>
+                  <th className="py-1 text-right font-bold">{t('lead')}</th>
+                  <th className="py-1 text-right font-bold">{t('paid')}</th>
+                  <th className="py-1 text-right font-bold">{t('conversion')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,23 +167,23 @@ export function OpsHealth({ month: current }: { month: string }) {
             </table>
           </div>
         ) : (
-          <div className="text-xs text-au-faint">Bu oyda lid yo‘q</div>
+          <div className="text-xs text-au-faint">{t('noLeads')}</div>
         )}
       </div>
 
       <div className="sx-card s6">
         <div className="sx-h">
-          <h3>6 oylik dinamika</h3>
-          <small>ustun: oy oxirida faol · raqam: yig‘ilgan tushum</small>
+          <h3>{t('trend')}</h3>
+          <small>{t('trendSub')}</small>
         </div>
         <div className="flex h-44 items-end gap-2">
-          {h.trend.map((t) => (
-            <div key={t.month} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${mLabel(t.month)} · ${t.active} faol · ${som(t.collected)}`}>
-              <span className="text-[11px] font-bold tabular-nums text-au-ink">{t.active}</span>
-              <i className={cn('block w-full rounded-t-md', t.month === h.month ? 'bg-au-accent' : 'bg-au-accent-soft')} style={{ height: `${Math.max(3, (t.active / tMax) * 70)}%` }} />
-              <i className="block w-full rounded-sm bg-au-info-soft" style={{ height: `${Math.max(2, (t.collected / cMax) * 18)}%` }} />
-              <span className="text-[10px] tabular-nums text-au-muted">{mln(t.collected)}</span>
-              <span className="text-[10px] text-au-faint">{mShort(t.month)}</span>
+          {h.trend.map((m) => (
+            <div key={m.month} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={t('trendTip', { month: mLabel(m.month), n: m.active, sum: som(m.collected) })}>
+              <span className="text-[11px] font-bold tabular-nums text-au-ink">{m.active}</span>
+              <i className={cn('block w-full rounded-t-md', m.month === h.month ? 'bg-au-accent' : 'bg-au-accent-soft')} style={{ height: `${Math.max(3, (m.active / tMax) * 70)}%` }} />
+              <i className="block w-full rounded-sm bg-au-info-soft" style={{ height: `${Math.max(2, (m.collected / cMax) * 18)}%` }} />
+              <span className="text-[10px] tabular-nums text-au-muted">{mln(m.collected)}</span>
+              <span className="text-[10px] text-au-faint">{mShort(m.month)}</span>
             </div>
           ))}
         </div>
@@ -187,16 +191,16 @@ export function OpsHealth({ month: current }: { month: string }) {
 
       <div className="sx-card s6">
         <div className="sx-h">
-          <h3>Kohort: faol bo‘lgan oyi bo‘yicha qolganlar</h3>
+          <h3>{t('cohort')}</h3>
         </div>
         <table className="w-full text-center text-[13px] tabular-nums">
           <thead>
             <tr className="text-[11px] uppercase tracking-wider text-au-faint">
-              <th className="py-1 text-left font-bold">Oy</th>
-              <th className="py-1 font-bold">Soni</th>
+              <th className="py-1 text-left font-bold">{t('month')}</th>
+              <th className="py-1 font-bold">{t('count')}</th>
               {[1, 2, 3, 4].map((k) => (
                 <th key={k} className="py-1 font-bold">
-                  {k}-oy
+                  {t('nthMonth', { n: k })}
                 </th>
               ))}
             </tr>
@@ -215,13 +219,13 @@ export function OpsHealth({ month: current }: { month: string }) {
             ))}
           </tbody>
         </table>
-        <div className="mt-2 text-xs text-au-faint">Masalan «2-oy 75%»: o‘sha oyda faol bo‘lganlarning 75% i 2 oydan keyin ham o‘qiyapti. «—»: hali 2 oy o‘tmagan.</div>
+        <div className="mt-2 text-xs text-au-faint">{t('cohortNote')}</div>
       </div>
 
       <div className="sx-card s6">
         <div className="sx-h">
-          <h3>Guruhlar to‘lishi</h3>
-          <small>faol guruhlar · hozir</small>
+          <h3>{t('groups')}</h3>
+          <small>{t('groupsSub')}</small>
         </div>
         {h.groups.length ? (
           <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
@@ -241,24 +245,24 @@ export function OpsHealth({ month: current }: { month: string }) {
             })}
           </div>
         ) : (
-          <div className="text-xs text-au-faint">Faol guruh yo‘q</div>
+          <div className="text-xs text-au-faint">{t('noGroups')}</div>
         )}
       </div>
 
       <div className="sx-card s12">
         <div className="sx-h">
-          <h3>Ma’lumot to‘liqligi</h3>
-          <small>statistika aniq bo‘lishi uchun to‘ldirilishi kerak · bosing: ro‘yxat</small>
+          <h3>{t('data')}</h3>
+          <small>{t('dataSub')}</small>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5">
           {h.gaps.map((g) => (
             <button
               key={g.key}
               type="button"
-              onClick={() => show(g.label, g.items)}
+              onClick={() => show(t(`gap.${g.key}`), g.items)}
               className="flex items-center justify-between gap-2 rounded-xl border border-au-line px-3 py-2.5 text-left text-[13px] hover:border-au-accent"
             >
-              <span className="text-au-ink">{g.label}</span>
+              <span className="text-au-ink">{t(`gap.${g.key}`)}</span>
               <span className={cn('sx-pl', g.items.length ? 'bad' : 'ok')}>{g.items.length}</span>
             </button>
           ))}

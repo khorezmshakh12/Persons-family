@@ -10,14 +10,20 @@ import { shiftMonthKey, monthEnd } from '@/lib/ops-health';
 import { cancelPaymentAction, listPaymentsAction, updatePaymentAction, type PaymentRow } from '@/lib/actions/students';
 import { playSound, toast } from './suite-shell';
 import type { OpsData } from './operations-workspace';
-import { METHODS, PAY_METHODS, dmy, errText, som, when } from './ops-students-meta';
+import { useLocale, useTranslations } from 'next-intl';
+import { PAY_METHODS, dmy, som, useOpsMeta, when } from './ops-students-meta';
 
-const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+/** «Noyabr 2026» / «November 2026» for a 'YYYY-MM-01' key. */
+export const monthLabel = (locale: string, m: string) =>
+  new Intl.DateTimeFormat(locale === 'uz' ? 'uz-Latn' : locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${m}T00:00:00Z`));
 const digits = (v: string) => v.replace(/\D/g, '');
 
 /** Operation HQ › To'lovlar: every student payment of a period — filter, totals by method, correct or cancel. */
 export function OpsPayments({ data }: { data: OpsData }) {
   const router = useRouter();
+  const t = useTranslations('ops');
+  const locale = useLocale();
+  const { METHODS, errText } = useOpsMeta();
   const today = data.today.day;
   const cur = `${today.slice(0, 7)}-01`;
   const [span, setSpan] = useState(cur);
@@ -78,45 +84,45 @@ export function OpsPayments({ data }: { data: OpsData }) {
     <div className="sx-grid">
       <div className="sx-card s12">
         <div className="sx-h flex-wrap">
-          <h3>To‘lovlar</h3>
-          <small>har bir kiritilgan to‘lov · tahrirlash va bekor qilish tarixda qoladi</small>
+          <h3>{t('pay.title')}</h3>
+          <small>{t('pay.subtitle')}</small>
         </div>
         <div className="flex flex-wrap gap-2">
-          <select className="sx-inp !w-auto" aria-label="Davr" value={span} onChange={(e) => setSpan(e.target.value)}>
-            <option value="7d">Oxirgi 7 kun</option>
+          <select className="sx-inp !w-auto" aria-label={t('c.period')} value={span} onChange={(e) => setSpan(e.target.value)}>
+            <option value="7d">{t('c.last7')}</option>
             {Array.from({ length: 12 }, (_, i) => shiftMonthKey(cur, -i)).map((m) => (
               <option key={m} value={m}>
-                {MONTHS[Number(m.slice(5, 7)) - 1]} {m.slice(0, 4)}
+                {monthLabel(locale, m)}
               </option>
             ))}
           </select>
-          <select className="sx-inp !w-auto" aria-label="To‘lov usuli" value={method} onChange={(e) => setMethod(e.target.value)}>
-            <option value="">Barcha usullar</option>
+          <select className="sx-inp !w-auto" aria-label={t('c.payMethod')} value={method} onChange={(e) => setMethod(e.target.value)}>
+            <option value="">{t('pay.allMethods')}</option>
             {Object.entries(METHODS).map(([k, n]) => (
               <option key={k} value={k}>
                 {n}
               </option>
             ))}
           </select>
-          <select className="sx-inp !w-auto" aria-label="Kim qabul qildi" value={actor} onChange={(e) => setActor(e.target.value)}>
-            <option value="">Hamma qabul qilganlar</option>
+          <select className="sx-inp !w-auto" aria-label={t('pay.receivedBy')} value={actor} onChange={(e) => setActor(e.target.value)}>
+            <option value="">{t('pay.allReceivers')}</option>
             {actors.map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>
             ))}
           </select>
-          <input className="sx-inp !w-auto min-w-[180px] flex-1" placeholder="O‘quvchi ismi…" aria-label="Qidirish" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="sx-inp !w-auto min-w-[180px] flex-1" placeholder={t('pay.studentName')} aria-label={t('c.search')} value={q} onChange={(e) => setQ(e.target.value)} />
           <label className="flex items-center gap-1.5 text-xs font-semibold text-au-muted">
-            <input type="checkbox" checked={onlyEdited} onChange={(e) => setOnlyEdited(e.target.checked)} /> Faqat tahrirlangan / bekor qilingan
+            <input type="checkbox" checked={onlyEdited} onChange={(e) => setOnlyEdited(e.target.checked)} /> {t('pay.onlyEdited')}
           </label>
         </div>
       </div>
 
       <div className="sx-card sx-stat dark s3">
-        <div className="l">Jami (sof)</div>
+        <div className="l">{t('pay.net')}</div>
         <div className="v">{som(total)}</div>
-        <div className="d">{list.filter((r) => !r.refund && !r.cancelled).length} ta to‘lov</div>
+        <div className="d">{t('pay.nPayments', { n: list.filter((r) => !r.refund && !r.cancelled).length })}</div>
       </div>
       {[...byMethod]
         .sort((a, b) => b[1] - a[1])
@@ -125,30 +131,30 @@ export function OpsPayments({ data }: { data: OpsData }) {
           <div key={m} className="sx-card sx-stat s3">
             <div className="l">{METHODS[m] ?? m}</div>
             <div className="v">{som(v)}</div>
-            <div className="d">{total ? Math.round((v / total) * 100) : 0}% ulush</div>
+            <div className="d">{t('c.share', { n: total ? Math.round((v / total) * 100) : 0 })}</div>
           </div>
         ))}
       <div className="sx-card sx-stat s3">
-        <div className="l">Tahrirlangan / bekor qilingan</div>
+        <div className="l">{t('pay.edited')}</div>
         <div className="v">{edited}</div>
-        <div className="d">kim, nimani o‘zgartirgani yozilgan</div>
+        <div className="d">{t('pay.editedHint')}</div>
       </div>
 
       <div className="sx-card s12 overflow-x-auto">
         {!rows ? (
-          <div className="sx-empty">{failed ? 'To‘lovlarni yuklab bo‘lmadi' : 'Yuklanmoqda…'}</div>
+          <div className="sx-empty">{failed ? t('pay.loadFailed') : t('c.loading')}</div>
         ) : list.length === 0 ? (
-          <div className="sx-empty">Bu filtrda to‘lov yo‘q</div>
+          <div className="sx-empty">{t('pay.empty')}</div>
         ) : (
           <table className="w-full min-w-[760px] text-[13px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wider text-au-faint">
-                <th className="px-2 py-2 font-bold">Sana</th>
-                <th className="px-2 py-2 font-bold">O‘quvchi</th>
-                <th className="px-2 py-2 text-right font-bold">Summa</th>
-                <th className="px-2 py-2 font-bold">Usul</th>
-                <th className="px-2 py-2 font-bold">Qabul qildi</th>
-                <th className="px-2 py-2 font-bold">Izoh</th>
+                <th className="px-2 py-2 font-bold">{t('c.date')}</th>
+                <th className="px-2 py-2 font-bold">{t('c.student')}</th>
+                <th className="px-2 py-2 text-right font-bold">{t('c.amount')}</th>
+                <th className="px-2 py-2 font-bold">{t('c.method')}</th>
+                <th className="px-2 py-2 font-bold">{t('pay.received')}</th>
+                <th className="px-2 py-2 font-bold">{t('c.note')}</th>
                 <th className="px-2 py-2" />
               </tr>
             </thead>
@@ -166,6 +172,8 @@ export function OpsPayments({ data }: { data: OpsData }) {
 
 function PayRow({ r, today, canEdit, open, onOpen, onDone, onFail }: { r: PaymentRow; today: string; canEdit: boolean; open: boolean; onOpen: () => void; onDone: (m: string) => void; onFail: (e: string) => void }) {
   const locked = r.refund || r.cancelled;
+  const t = useTranslations('ops');
+  const { METHODS } = useOpsMeta();
   return (
     <>
       <tr className={cn('border-t border-au-line align-top', (r.edit || r.cancelled) && 'bg-au-info-soft/50', r.cancelled && 'text-au-faint line-through')}>
@@ -180,9 +188,9 @@ function PayRow({ r, today, canEdit, open, onOpen, onDone, onFail }: { r: Paymen
         </td>
         <td className="px-2 py-2 text-au-muted">{r.actor}</td>
         <td className="max-w-[280px] px-2 py-2 text-xs text-au-muted">
-          {r.isCancel ? 'Bekor qilish yozuvi' : r.refund ? 'Qaytarildi' : ''}
+          {r.isCancel ? t('pay.cancelRow') : r.refund ? t('pay.refunded') : ''}
           {r.note && <div className="no-underline">{r.note}</div>}
-          {r.cancelled && <div className="font-semibold text-au-bad">Bekor qilingan</div>}
+          {r.cancelled && <div className="font-semibold text-au-bad">{t('pay.cancelled')}</div>}
           {r.edit && (
             <div className="text-au-info">
               ✎ {r.edit}
@@ -194,7 +202,7 @@ function PayRow({ r, today, canEdit, open, onOpen, onDone, onFail }: { r: Paymen
         <td className="px-2 py-2 text-right">
           {canEdit && !locked && (
             <button className={cn('sx-btn sm', open && 'border-au-accent')} onClick={onOpen}>
-              Tahrirlash
+              {t('c.edit')}
             </button>
           )}
         </td>
@@ -225,6 +233,8 @@ export function PaymentEditor({
   onCancel: () => void;
 }) {
   const [pending, start] = useTransition();
+  const t = useTranslations('ops');
+  const { METHODS } = useOpsMeta();
   const [method, setMethod] = useState(payment.method);
   const [amount, setAmount] = useState(formatUZS(payment.amount));
   const [paidAt, setPaidAt] = useState(payment.date);
@@ -235,19 +245,19 @@ export function PaymentEditor({
     start(async () => {
       const r = await updatePaymentAction({ paymentId: payment.id, method: method as (typeof PAY_METHODS)[number], amount: Number(digits(amount)), paidAt, reason });
       if (r.error) return onFail(r.error);
-      onDone('To‘lov tahrirlandi');
+      onDone(t('pay.editedToast'));
     });
   const cancel = () =>
     start(async () => {
       const r = await cancelPaymentAction({ paymentId: payment.id, reason });
       if (r.error) return onFail(r.error);
-      onDone(`${som(payment.amount)} to‘lov bekor qilindi`);
+      onDone(t('pay.cancelledToast', { sum: som(payment.amount) }));
     });
   return (
     <div className="flex flex-col gap-2.5 rounded-2xl border border-au-accent/50 bg-au-accent-soft/60 p-3.5">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
         <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-au-muted">
-          To‘lov usuli
+          {t('c.payMethod')}
           <select id={`pe-m-${payment.id}`} className="sx-inp" value={method} onChange={(e) => setMethod(e.target.value)}>
             {PAY_METHODS.map((m) => (
               <option key={m} value={m}>
@@ -257,36 +267,36 @@ export function PaymentEditor({
           </select>
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-au-muted">
-          Summa
+          {t('c.amount')}
           <MoneyInput id={`pe-a-${payment.id}`} className="sx-inp" value={digits(amount) ? Number(digits(amount)) : null} onValue={(v) => setAmount(v == null ? '' : formatUZS(v))} />
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-au-muted">
-          Sana
+          {t('c.date')}
           <input id={`pe-d-${payment.id}`} type="date" className="sx-inp" max={today} value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-au-muted">
-          Sabab (majburiy)
-          <input id={`pe-r-${payment.id}`} className="sx-inp" maxLength={300} placeholder="Masalan: aslida Click orqali to‘langan" value={reason} onChange={(e) => setReason(e.target.value)} />
+          {t('c.reasonRequired')}
+          <input id={`pe-r-${payment.id}`} className="sx-inp" maxLength={300} placeholder={t('pay.reasonPh')} value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
       </div>
       <div className="text-xs text-au-faint">
-        Summa o‘zgarsa balans farq bo‘yicha to‘g‘rilanadi. Bekor qilish hech narsani o‘chirmaydi: summa bugungi sana bilan qaytariladi, asl yozuv «bekor qilingan» bo‘lib qoladi.
+        {t('pay.editHint')}
       </div>
       <div className="flex flex-wrap gap-2">
         <button className="sx-btn primary" disabled={pending || !ok || !digits(amount) || !paidAt} onClick={save}>
-          Saqlash
+          {t('c.save')}
         </button>
         {sure ? (
           <button className="sx-btn text-au-bad" disabled={pending || !ok} onClick={cancel}>
-            Ha, {som(payment.amount)} ni bekor qilish
+            {t('pay.confirmCancel', { sum: som(payment.amount) })}
           </button>
         ) : (
           <button className="sx-btn text-au-bad" disabled={pending || !ok} onClick={() => setSure(true)}>
-            To‘lovni bekor qilish
+            {t('pay.cancelPayment')}
           </button>
         )}
         <button className="sx-btn" onClick={onCancel}>
-          Yopish
+          {t('c.close')}
         </button>
       </div>
     </div>

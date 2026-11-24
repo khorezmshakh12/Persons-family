@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { BarChart3, KanbanSquare, Users, Wallet } from 'lucide-react';
 import { SectionHead, SuiteShell, SuiteTabs, playSound, type PaletteItem } from './suite-shell';
 import type { StudentsData } from '@/lib/ops-students';
@@ -38,10 +39,10 @@ export type OpsData = {
 // Operation HQ (2026-10-23): Statistika (kunlik · haftalik · oylik), O'quvchilar, To'lovlar (2026-10-28), Sales.
 type Tab = 'ov' | 'stu' | 'pay' | 'sales';
 const TABS: { v: Tab; n: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-  { v: 'ov', n: 'Statistika', Icon: BarChart3 },
-  { v: 'stu', n: 'O‘quvchilar', Icon: Users },
-  { v: 'pay', n: 'To‘lovlar', Icon: Wallet },
-  { v: 'sales', n: 'Sales', Icon: KanbanSquare },
+  { v: 'ov', n: 'tOv', Icon: BarChart3 },
+  { v: 'stu', n: 'tStu', Icon: Users },
+  { v: 'pay', n: 'tPay', Icon: Wallet },
+  { v: 'sales', n: 'tSales', Icon: KanbanSquare },
 ];
 const KEY = 'persons-ops-tab';
 // Module-level so each reference is stable: Statistika follows the two
@@ -54,7 +55,9 @@ const tabsFor = (stats: boolean, pay: boolean) => {
 };
 
 export function OperationsWorkspace({ data }: { data: OpsData }) {
-  const tabs = tabsFor(data.statsPeople || data.statsMoney, data.money);
+  const tw = useTranslations('ops.ws');
+  const keyTabs = tabsFor(data.statsPeople || data.statsMoney, data.money);
+  const tabs = useMemo(() => keyTabs.map((x) => ({ ...x, n: tw(x.n) })), [keyTabs, tw]);
   const [tab, setTab] = useState<Tab>(tabs[0].v);
   const [openLead, setOpenLead] = useState<string | null>(null);
   const restored = useRef(false);
@@ -91,17 +94,17 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
     go('sales');
   };
   const items: PaletteItem[] = [
-    ...data.sales.leads.map((l) => ({ g: 'Lidlar', t: l.name || l.phone, sub: l.phone, run: () => lead(l.id) })),
-    ...data.students.rows.map((s) => ({ g: 'O‘quvchilar', t: s.name, sub: s.phone, run: () => go('stu') })),
+    ...data.sales.leads.map((l) => ({ g: tw('gLeads'), t: l.name || l.phone, sub: l.phone, run: () => lead(l.id) })),
+    ...data.students.rows.map((s) => ({ g: tw('gStudents'), t: s.name, sub: s.phone, run: () => go('stu') })),
   ];
   return (
     <SuiteShell section="ops" tabs={tabs} onTab={go} items={items}>
       <div className="px-4 sm:px-7">
         <SectionHead
-          crumb="Operatsiya HQ · o‘quvchilar, to‘lovlar, sotuv, statistika"
-          title="Operatsiya"
+          crumb={tw('crumb')}
+          title={tw('title')}
           em="HQ"
-          pill={`${data.money ? `${data.students.rows.filter((s) => s.active).length} faol o‘quvchi · ` : ''}${data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length} ochiq lid`}
+          pill={`${data.money ? tw('activeStu', { n: data.students.rows.filter((s) => s.active).length }) : ''}${tw('openLeads', { n: data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length })}`}
         />
         <SuiteTabs tabs={tabs} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>
