@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { SURFACE_CARD, SURFACE_INSET, INPUT, BTN_PRIMARY } from '@/lib/glass';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import {
   toggleTemplateTickAction,
   addTemplateAction,
@@ -17,11 +18,7 @@ export type Cadence = 'daily' | 'weekly' | 'monthly';
 export type ChecklistRow = { id: string; cadence: Cadence; title: string; detail: string; sort: number; done: boolean };
 export type RoleOption = { value: string; label: string };
 
-const TABS: { key: Cadence; label: string }[] = [
-  { key: 'daily', label: 'Kunlik' },
-  { key: 'weekly', label: 'Haftalik' },
-  { key: 'monthly', label: 'Oylik' },
-];
+const TABS: { key: Cadence }[] = [{ key: 'daily' }, { key: 'weekly' }, { key: 'monthly' }];
 
 export function ChecklistPage(props: {
   data: { daily: ChecklistRow[]; weekly: ChecklistRow[]; monthly: ChecklistRow[] };
@@ -36,6 +33,8 @@ export function ChecklistPage(props: {
   const { data, role, roleLabel, canManage, managing, roles, dailyLocked } = props;
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations('cl.page');
+  const tc = useTranslations('goals.scope');
 
   const [active, setActive] = useState<Cadence>('daily');
   const locked = active === 'daily' && !!dailyLocked && !managing;
@@ -83,7 +82,7 @@ export function ChecklistPage(props: {
               <select
                 value={role}
                 onChange={(e) => goRole(e.target.value)}
-                aria-label="Rolni tanlang"
+                aria-label={t('pickRole')}
                 className={cn(INPUT, 'h-9 w-44 appearance-none pr-9')}
               >
                 {roles.map((r) => (
@@ -116,7 +115,7 @@ export function ChecklistPage(props: {
                   : 'border-transparent text-au-muted hover:bg-au-card-2 hover:text-au-ink',
               )}
             >
-              {tab.label}
+              {tc(tab.key === 'daily' ? 'day' : tab.key === 'weekly' ? 'week' : 'month')}
               <span
                 className={cn(
                   'rounded-md px-1.5 py-0.5 text-xs tabular-nums',
@@ -133,15 +132,15 @@ export function ChecklistPage(props: {
       {locked ? (
         /* Ustozda bugun dars yo'q — kunlik checklist talab qilinmaydi. */
         <div className={cn(SURFACE_CARD, 'flex flex-col items-center gap-1 p-6 text-center')}>
-          <p className="text-sm font-semibold text-au-ink">Bugun dars yo‘q</p>
-          <p className="text-xs text-au-muted">Bugun darsingiz bo‘lmagani uchun kunlik checklist talab qilinmaydi.</p>
+          <p className="text-sm font-semibold text-au-ink">{t('noLesson')}</p>
+          <p className="text-xs text-au-muted">{t('noLessonSub')}</p>
         </div>
       ) : (
         <>
           {/* Progress */}
           <div className={cn(SURFACE_CARD, 'flex flex-col gap-2 p-4')}>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-au-ink">Bajarildi</span>
+              <span className="text-sm font-semibold text-au-ink">{t('done')}</span>
               <span className="text-sm font-semibold tabular-nums text-au-muted">
                 {done}/{total} · {pct}%
               </span>
@@ -165,7 +164,7 @@ export function ChecklistPage(props: {
             ))}
             {rows.length === 0 && (
               <li className={cn(SURFACE_INSET, 'px-4 py-3 text-sm text-au-muted')}>
-                Hali band yo‘q.{managing && canManage ? ' Quyidan yangi band qo‘shing.' : ''}
+                {t('noItems')}{managing && canManage ? t('addBelow') : ''}
               </li>
             )}
           </ul>
@@ -197,6 +196,7 @@ function ChecklistItemRow({
   const [title, setTitle] = useState(row.title);
   const [detail, setDetail] = useState(row.detail);
   const [, start] = useTransition();
+  const tp = useTranslations('cl.page');
 
   const saveEdit = () => {
     const t = title.trim();
@@ -213,7 +213,7 @@ function ChecklistItemRow({
   };
 
   const del = () => {
-    if (!window.confirm(`“${row.title}” bandi o‘chirilsinmi?`)) return;
+    if (!window.confirm(tp('confirmDel', { t: row.title }))) return;
     start(async () => {
       const res = await deleteTemplateAction(row.id);
       if ('error' in res) {
@@ -231,7 +231,7 @@ function ChecklistItemRow({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={160}
-          placeholder="Band nomi"
+          placeholder={tp('itemName')}
           className={cn(INPUT, 'h-10')}
         />
         <textarea
@@ -239,12 +239,12 @@ function ChecklistItemRow({
           onChange={(e) => setDetail(e.target.value)}
           rows={2}
           maxLength={400}
-          placeholder="Tavsif (ixtiyoriy)"
+          placeholder={tp('detailPh')}
           className={cn(INPUT, 'h-auto resize-y py-2')}
         />
         <div className="flex items-center gap-2">
           <button type="button" onClick={saveEdit} disabled={!title.trim()} className={cn(BTN_PRIMARY, 'h-9')}>
-            Saqlash
+            {tp('save')}
           </button>
           <button
             type="button"
@@ -255,7 +255,7 @@ function ChecklistItemRow({
             }}
             className="inline-flex h-9 items-center rounded-au-ctl border border-au-line bg-au-card px-3 text-sm font-semibold text-au-ink transition-colors hover:bg-au-card-2"
           >
-            Bekor qilish
+            {tp('cancel')}
           </button>
         </div>
       </li>
@@ -269,7 +269,7 @@ function ChecklistItemRow({
         onClick={onToggle}
         disabled={managing}
         aria-pressed={done}
-        aria-label={done ? 'Belgini olib tashlash' : 'Bajarildi deb belgilash'}
+        aria-label={done ? tp('unmark') : tp('markDone')}
         className={cn(
           'mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border transition-colors',
           done ? 'border-au-accent bg-au-accent text-white' : 'border-au-line bg-au-card hover:border-au-accent',
@@ -291,7 +291,7 @@ function ChecklistItemRow({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            aria-label="Tahrirlash"
+            aria-label={tp('edit')}
             className="rounded-md p-1.5 text-au-muted transition-colors hover:bg-au-card-2 hover:text-au-ink"
           >
             <Pencil className="size-4" />
@@ -299,7 +299,7 @@ function ChecklistItemRow({
           <button
             type="button"
             onClick={del}
-            aria-label="O‘chirish"
+            aria-label={tp('delete')}
             className="rounded-md p-1.5 text-au-muted transition-colors hover:bg-au-bad-soft hover:text-au-bad"
           >
             <Trash2 className="size-4" />
@@ -323,6 +323,7 @@ function AddTemplateForm({
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
   const [, start] = useTransition();
+  const tp = useTranslations('cl.page');
 
   const submit = () => {
     const t = title.trim();
@@ -351,7 +352,7 @@ function AddTemplateForm({
         )}
       >
         <Plus className="size-4" />
-        Band qo‘shish
+        {tp('addItem')}
       </button>
     );
   }
@@ -363,7 +364,7 @@ function AddTemplateForm({
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         maxLength={160}
-        placeholder="Yangi band…"
+        placeholder={tp('newItem')}
         autoFocus
         className={cn(INPUT, 'h-10')}
       />
@@ -372,13 +373,13 @@ function AddTemplateForm({
         onChange={(e) => setDetail(e.target.value)}
         rows={2}
         maxLength={400}
-        placeholder="Tavsif (ixtiyoriy)"
+        placeholder={tp('detailPh')}
         className={cn(INPUT, 'h-auto resize-y py-2')}
       />
       <div className="flex items-center gap-2">
         <button type="button" onClick={submit} disabled={!title.trim()} className={cn(BTN_PRIMARY, 'h-9')}>
           <Plus className="size-4" />
-          Qo‘shish
+          {tp('add')}
         </button>
         <button
           type="button"
@@ -387,7 +388,7 @@ function AddTemplateForm({
             setTitle('');
             setDetail('');
           }}
-          aria-label="Bekor qilish"
+          aria-label={tp('cancel')}
           className="inline-flex h-9 items-center rounded-au-ctl border border-au-line bg-au-card px-3 text-sm font-semibold text-au-ink transition-colors hover:bg-au-card-2"
         >
           <X className="size-4" />

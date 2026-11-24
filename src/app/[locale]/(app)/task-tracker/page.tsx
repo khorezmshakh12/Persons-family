@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { monthName } from '@/lib/month-names';
 import { getAuthState } from '@/lib/auth/session';
 import { canSeeFor, canFor, isLeadershipRole, ROLES } from '@/lib/permissions';
 import { loadChecklist } from '@/lib/checklist-data';
@@ -71,7 +72,8 @@ export default async function TaskTrackerPage({
   const roles = canManage ? ROLES.map((r) => ({ value: r, label: roleLabelOf(r) })) : [];
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabelOf(r)]));
   const [year, month, day] = teamDay.split('-').map(Number);
-  const periodLabel = `${day}-${MONTHS_UZ[month - 1]}, ${year}`;
+  const loc = await getLocale();
+  const periodLabel = loc === 'uz' ? `${day}-${MONTHS_UZ[month - 1]}, ${year}` : `${day} ${monthName(loc, month)} ${year}`;
 
   const checklist = finalData && (
     <ChecklistPage
