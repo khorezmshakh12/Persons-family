@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
-import { useNow } from 'next-intl';
+import { useLocale, useNow, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
@@ -70,10 +70,7 @@ import {
 import type { IssueStats } from '@/lib/actions/issue-stats';
 import {
   AUTO_CLOSE_DAYS,
-  fmtSpan,
   ISSUE_KINDS,
-  KIND_META,
-  MOVE_LABEL,
   PRIORITIES,
   PRIORITY_META,
   priorityFromUrgency,
@@ -89,29 +86,36 @@ import {
 import { AiTriageButton } from './ai-triage-button';
 import { IssueAiChips } from './issue-ai-chips';
 import { IssuesStats } from './issues-stats';
+import { localizeMonths } from '@/lib/month-names';
 
 /* ------------------------------------------------------------ shared bits */
 
 type Person = { id: string; name: string };
 type View = 'queue' | 'waiting' | 'closed' | 'stats' | 'archive';
 
-const ERR: Record<string, string> = {
-  sessionExpired: 'Sessiya tugagan — sahifani yangilang',
-  forbidden: 'Ruxsat yo‘q',
-  invalidInput: 'Ma’lumotni tekshiring',
-  invalidTransition: 'Bu bosqichdan bunday o‘tib bo‘lmaydi',
-  conflict: 'Kimdir hozirgina o‘zgartirdi — ro‘yxat yangilandi',
-  resolutionNote: 'Nima qilinganini qisqacha yozing',
-  reopenReason: 'Nima hal bo‘lmaganini yozing',
-  invalidAssignee: 'Bu xodimni tanlab bo‘lmaydi',
-  cannotAssign: 'Bu xodimga vazifa bera olmaysiz',
-  deadlinePast: 'Muddat kelajakda bo‘lishi kerak',
-  alreadyLinked: 'Bu murojaat allaqachon vazifaga aylantirilgan',
-  anonymousIdea: 'Anonim murojaat faqat «Taklif» bo‘lib qoladi',
-  notFound: 'Murojaat topilmadi',
-  commentInvalid: 'Izoh bo‘sh',
-};
-const errText = (c?: string) => (c ? (ERR[c] ?? 'Saqlab bo‘lmadi, qayta urinib ko‘ring') : '');
+const ERR_KEYS = ['sessionExpired', 'forbidden', 'invalidInput', 'invalidTransition', 'conflict', 'resolutionNote', 'reopenReason', 'invalidAssignee', 'cannotAssign', 'deadlinePast', 'alreadyLinked', 'anonymousIdea', 'notFound', 'commentInvalid'];
+const EVENT_KEYS = ['created', 'accepted', 'in_progress', 'resolved', 'reopened', 'confirmed', 'rejected_fix', 'auto_closed', 'priority', 'kind', 'assigned', 'task_linked', 'root_cause'];
+
+/** Labels, spans and dates in the UI language. */
+function useIss() {
+  const t = useTranslations('iss');
+  const locale = useLocale();
+  const errText = (c?: string) => (c ? t(ERR_KEYS.includes(c) ? `err.${c}` : 'err.other') : '');
+  const kindN = (k: string, fallback?: string) => (k === 'problem' || k === 'request' || k === 'idea' ? t(`kind.${k}`) : (fallback ?? k));
+  const evLabel = (k: string) => (EVENT_KEYS.includes(k) ? t(`ev.${k}`) : k);
+  const span = (ms: number) => {
+    const m = Math.max(0, Math.round(Math.abs(ms) / 60_000));
+    const d = Math.floor(m / 1440);
+    const h = Math.floor((m % 1440) / 60);
+    const mm = m % 60;
+    if (d > 0) return h ? t('spanDH', { d, h }) : t('spanD', { d });
+    if (h > 0) return mm ? t('spanHM', { h, m: mm }) : t('spanH', { h });
+    return t('spanM', { m: mm });
+  };
+  const dt = (iso: string) =>
+    new Date(iso).toLocaleString(locale === 'uz' ? 'uz-UZ' : locale, { day: '2-digit', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', timeZone: 'Asia/Tashkent' });
+  return { t, tIss: t, errText, kindN, evLabel, span, dt };
+}
 
 const TONE_CHIP = { info: CHIP_INFO, accent: CHIP_ACCENT, ok: CHIP_OK, neutral: CHIP_NEUTRAL, bad: CHIP_BAD } as const;
 const PRIORITY_BAR: Record<Priority, string> = { urgent: 'bg-au-bad', high: 'bg-au-accent', normal: 'bg-au-line' };
@@ -121,31 +125,7 @@ const KIND_ICON: Record<IssueKind, ReactNode> = {
   request: <Inbox className="size-3.5" />,
   idea: <Lightbulb className="size-3.5" />,
 };
-const EVENT_LABEL: Record<string, string> = {
-  created: 'Yuborildi',
-  accepted: 'Qabul qilindi',
-  in_progress: 'Ish boshlandi',
-  resolved: 'Hal qilindi',
-  reopened: 'Qayta ochildi',
-  confirmed: 'Muallif tasdiqladi — yopildi',
-  rejected_fix: 'Muallif: hal bo‘lmadi — qayta ochildi',
-  auto_closed: 'Avtomatik yopildi',
-  priority: 'Ustuvorlik o‘zgardi',
-  kind: 'Turi o‘zgardi',
-  assigned: 'Topshirildi',
-  task_linked: 'Vazifaga aylantirildi',
-  root_cause: 'Ildiz sababi yozildi',
-};
-const FLOW: { s: Stage; n: string }[] = [
-  { s: 'new', n: 'Yuborildi' },
-  { s: 'accepted', n: 'Qabul qilindi' },
-  { s: 'in_progress', n: 'Jarayonda' },
-  { s: 'resolved', n: 'Hal qilindi' },
-  { s: 'closed', n: 'Tasdiqlandi' },
-];
-
-const dt = (iso: string) =>
-  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', timeZone: 'Asia/Tashkent' });
+const FLOW: { s: Stage }[] = [{ s: 'new' }, { s: 'accepted' }, { s: 'in_progress' }, { s: 'resolved' }, { s: 'closed' }];
 
 /** "YYYY-MM-DDTHH:mm" in Tashkent, `days` from now at 18:00. */
 function tashkentInput(nowMs: number, days: number): string {
@@ -154,32 +134,35 @@ function tashkentInput(nowMs: number, days: number): string {
 }
 
 function SlaPill({ i, now }: { i: CenterIssue; now: number }) {
+  const { t, span, dt } = useIss();
   const s = slaOf(i, now);
   if (!s) return null;
-  const label = s.what === 'respond' ? 'javob' : 'hal qilish';
+  const label = s.what === 'respond' ? t('respond') : t('resolve');
   if (s.breached)
     return (
-      <span className={CHIP_BAD} title={`Muddat: ${dt(new Date(s.dueMs).toISOString())}`}>
-        <AlertTriangle className="size-3" /> {label}: {fmtSpan(s.leftMs)} o‘tdi
+      <span className={CHIP_BAD} title={t('deadline', { d: dt(new Date(s.dueMs).toISOString()) })}>
+        <AlertTriangle className="size-3" /> {t('over', { what: label, span: span(s.leftMs) })}
       </span>
     );
   const warn = (s.pctUsed ?? 0) >= 75;
   return (
-    <span className={warn ? CHIP_ACCENT : CHIP_NEUTRAL} title={`Muddat: ${dt(new Date(s.dueMs).toISOString())}`}>
-      <Clock3 className="size-3" /> {label}: {fmtSpan(s.leftMs)} qoldi
+    <span className={warn ? CHIP_ACCENT : CHIP_NEUTRAL} title={t('deadline', { d: dt(new Date(s.dueMs).toISOString()) })}>
+      <Clock3 className="size-3" /> {t('left', { what: label, span: span(s.leftMs) })}
     </span>
   );
 }
 
 function StageChip({ i }: { i: CenterIssue }) {
+  const { t } = useIss();
   const st = stageOf(i);
-  return <span className={TONE_CHIP[STAGE_META[st].tone]}>{st === 'resolved' ? 'Tasdiq kutilmoqda' : STAGE_META[st].n}</span>;
+  return <span className={TONE_CHIP[STAGE_META[st].tone]}>{st === 'resolved' ? t('awaitConfirm') : t(`stage.${st}`)}</span>;
 }
 
 function Stepper({ stage }: { stage: Stage }) {
+  const { t } = useIss();
   const at = FLOW.findIndex((f) => f.s === stage);
   return (
-    <ol className="flex items-center gap-1" aria-label="Bosqichlar">
+    <ol className="flex items-center gap-1" aria-label={t('stages')}>
       {FLOW.map((f, k) => (
         <li key={f.s} className="flex min-w-0 flex-1 flex-col items-center gap-1">
           <span className="flex w-full items-center">
@@ -194,7 +177,7 @@ function Stepper({ stage }: { stage: Stage }) {
             </span>
             <span className={cn('h-0.5 flex-1', k === FLOW.length - 1 ? 'opacity-0' : k < at ? 'bg-au-ok' : 'bg-au-line')} />
           </span>
-          <span className={cn('truncate text-[10px] font-semibold sm:text-[11px]', k === at ? 'text-au-ink' : 'text-au-muted')}>{f.n}</span>
+          <span className={cn('truncate text-[10px] font-semibold sm:text-[11px]', k === at ? 'text-au-ink' : 'text-au-muted')}>{t(`flow.${f.s}`)}</span>
         </li>
       ))}
     </ol>
@@ -247,6 +230,7 @@ export function IssuesCenterView({
   const [view, setView] = useState<View>('queue');
   const [openId, setOpenId] = useState<string | null>(focusId);
   const [creating, setCreating] = useState(openNew);
+  const { t } = useIss();
 
   // Server re-render (router.refresh / a bell link to ?id=…) hands us a
   // fresh snapshot and maybe a new issue to open.
@@ -306,11 +290,11 @@ export function IssuesCenterView({
   const myConfirm = waiting.filter((i) => i.isMine);
 
   const tabs: { v: View; n: string; c?: number; Icon: typeof Inbox }[] = [
-    { v: 'queue', n: manager ? 'Navbat' : 'Faol', c: active.length, Icon: Inbox },
-    { v: 'waiting', n: 'Tasdiq kutilmoqda', c: waiting.length, Icon: Hourglass },
-    { v: 'closed', n: 'Yopilgan (14 kun)', Icon: CheckCircle2 },
-    ...(manager ? [{ v: 'stats' as View, n: 'Statistika', Icon: BarChart3 }] : []),
-    { v: 'archive', n: 'Arxiv', Icon: Archive },
+    { v: 'queue', n: manager ? t('queue') : t('active'), c: active.length, Icon: Inbox },
+    { v: 'waiting', n: t('awaitConfirm'), c: waiting.length, Icon: Hourglass },
+    { v: 'closed', n: t('closed14'), Icon: CheckCircle2 },
+    ...(manager ? [{ v: 'stats' as View, n: t('stats'), Icon: BarChart3 }] : []),
+    { v: 'archive', n: t('archive'), Icon: Archive },
   ];
 
   return (
@@ -318,24 +302,22 @@ export function IssuesCenterView({
       <section className={cn(SURFACE_HERO, 'ms-rise flex flex-col gap-4 px-6 py-6 sm:px-8')}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">Murojaatlar</h1>
+            <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
             <p className="max-w-2xl text-sm text-au-muted">
-              {manager
-                ? 'Xodimlarning muammo, so‘rov va takliflari — muddatida javob berish, hal qilish va muallif tasdig‘i bitta joyda.'
-                : 'Muammo, so‘rov yoki taklif yuboring — kim va qachon hal qilishini shu yerda kuzatasiz.'}
+              {manager ? t('subManager') : t('subStaff')}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {manager && <AiTriageButton />}
             <button type="button" className={BTN_PRIMARY} onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> Yangi murojaat
+              <Plus className="size-4" /> {t('new')}
             </button>
           </div>
         </div>
         <div className="hidden sm:block">
           <Stepper stage="new" />
           <p className="mt-2 text-center text-[11px] text-au-muted">
-            Har bir murojaat shu yo‘ldan o‘tadi. Hal qilingach muallif tasdiqlaydi; {AUTO_CLOSE_DAYS} kun javob bo‘lmasa, o‘zi yopiladi.
+            {t('flowNote', { n: AUTO_CLOSE_DAYS })}
           </p>
         </div>
       </section>
@@ -343,12 +325,12 @@ export function IssuesCenterView({
       {myConfirm.length > 0 && (
         <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-2 border-au-ok/40 p-4')}>
           <h2 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-            <ThumbsUp className="size-4 text-au-ok" /> Sizdan tasdiq kutilmoqda
+            <ThumbsUp className="size-4 text-au-ok" /> {t('awaitYou')}
           </h2>
           {myConfirm.map((i) => (
             <button key={i.id} type="button" onClick={() => setOpenId(i.id)} className={cn(SURFACE_INSET, 'flex items-center gap-3 px-3 py-2 text-left hover:bg-au-card')}>
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">{i.title}</span>
-              <span className="text-xs text-au-muted">hal bo‘ldimi?</span>
+              <span className="text-xs text-au-muted">{t('resolvedQ')}</span>
               <ArrowRight className="size-4 text-au-muted" />
             </button>
           ))}
@@ -384,14 +366,14 @@ export function IssuesCenterView({
           similarCount={similarCount}
           assignees={assignees}
           onOpen={setOpenId}
-          empty={manager ? 'Navbat bo‘sh — hamma murojaatlar hal qilingan 🎉' : 'Faol murojaatingiz yo‘q. Muammo yoki taklif bo‘lsa — «Yangi murojaat».'}
+          empty={manager ? t('emptyManager') : t('emptyStaff')}
         />
       )}
       {view === 'waiting' && (
-        <Queue issues={waiting} manager={manager} viewerId={viewerId} now={now} similarCount={similarCount} assignees={[]} onOpen={setOpenId} empty="Tasdiq kutayotgan murojaat yo‘q." compact />
+        <Queue issues={waiting} manager={manager} viewerId={viewerId} now={now} similarCount={similarCount} assignees={[]} onOpen={setOpenId} empty={t('emptyWaiting')} compact />
       )}
       {view === 'closed' && (
-        <Queue issues={closed} manager={manager} viewerId={viewerId} now={now} similarCount={similarCount} assignees={[]} onOpen={setOpenId} empty="So‘nggi 14 kunda yopilgan murojaat yo‘q." compact />
+        <Queue issues={closed} manager={manager} viewerId={viewerId} now={now} similarCount={similarCount} assignees={[]} onOpen={setOpenId} empty={t('emptyClosed')} compact />
       )}
       {view === 'stats' && manager && <StatsView stats={stats} />}
       {view === 'archive' && <ArchiveView archive={archive} />}
@@ -456,6 +438,7 @@ function Queue({
   const [prio, setPrio] = useState<Priority | 'all'>('all');
   const [who, setWho] = useState('all');
   const [quick, setQuick] = useState<'none' | 'new' | 'late' | 'unassigned'>('none');
+  const { t, kindN, dt } = useIss();
 
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -485,19 +468,19 @@ function Queue({
     <div className="flex flex-col gap-3">
       {!compact && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Kpi label="Yangi" value={fresh} hint="javob kutmoqda" tone={fresh ? 'info' : undefined} onClick={() => setQuick(quick === 'new' ? 'none' : 'new')} active={quick === 'new'} />
-          <Kpi label="Muddati o‘tgan" value={late} hint="javob yoki hal qilish" tone={late ? 'bad' : 'ok'} onClick={() => setQuick(quick === 'late' ? 'none' : 'late')} active={quick === 'late'} />
-          <Kpi label="Menga topshirilgan" value={mineToDo} hint="men hal qilaman" />
+          <Kpi label={t('kNew')} value={fresh} hint={t('kNewHint')} tone={fresh ? 'info' : undefined} onClick={() => setQuick(quick === 'new' ? 'none' : 'new')} active={quick === 'new'} />
+          <Kpi label={t('kLate')} value={late} hint={t('kLateHint')} tone={late ? 'bad' : 'ok'} onClick={() => setQuick(quick === 'late' ? 'none' : 'late')} active={quick === 'late'} />
+          <Kpi label={t('kMine')} value={mineToDo} hint={t('kMineHint')} />
           {manager ? (
             <Kpi
-              label="Mas’ulsiz"
+              label={t('kUnassigned')}
               value={issues.filter((i) => !i.assigned_to).length}
-              hint="hech kimga berilmagan"
+              hint={t('kUnassignedHint')}
               onClick={() => setQuick(quick === 'unassigned' ? 'none' : 'unassigned')}
               active={quick === 'unassigned'}
             />
           ) : (
-            <Kpi label="Jami faol" value={issues.length} />
+            <Kpi label={t('kTotal')} value={issues.length} />
           )}
         </div>
       )}
@@ -505,14 +488,14 @@ function Queue({
       <div className="flex flex-wrap items-center gap-2">
         <label className="relative min-w-[200px] flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-au-muted" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Qidirish: sarlavha, muallif, mas’ul…" className={cn(INPUT, 'h-9 pl-9')} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPh')} className={cn(INPUT, 'h-9 pl-9')} />
         </label>
-        <Seg value={kind} onChange={setKind} options={[['all', 'Hammasi'], ...ISSUE_KINDS.map((k) => [k, KIND_META[k].n] as [IssueKind, string])]} />
-        {!compact && <Seg value={prio} onChange={setPrio} options={[['all', 'Har qanday'], ...PRIORITIES.map((p) => [p, PRIORITY_META[p].n] as [Priority, string])]} />}
+        <Seg value={kind} onChange={setKind} options={[['all', t('all')], ...ISSUE_KINDS.map((k) => [k, kindN(k)] as [IssueKind, string])]} />
+        {!compact && <Seg value={prio} onChange={setPrio} options={[['all', t('anyPrio')], ...PRIORITIES.map((p) => [p, t(`prio.${p}`)] as [Priority, string])]} />}
         {manager && assignees.length > 0 && !compact && (
-          <select value={who} onChange={(e) => setWho(e.target.value)} className={cn(INPUT, 'h-9 w-auto')} aria-label="Mas’ul">
-            <option value="all">Barcha mas’ullar</option>
-            <option value="none">Mas’ulsiz</option>
+          <select value={who} onChange={(e) => setWho(e.target.value)} className={cn(INPUT, 'h-9 w-auto')} aria-label={t('owner')}>
+            <option value="all">{t('allOwners')}</option>
+            <option value="none">{t('kUnassigned')}</option>
             {assignees.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -523,7 +506,7 @@ function Queue({
       </div>
 
       {list.length === 0 ? (
-        <div className={cn(SURFACE_CARD, 'px-6 py-12 text-center text-sm text-au-muted')}>{issues.length ? 'Filtr bo‘yicha hech narsa topilmadi.' : empty}</div>
+        <div className={cn(SURFACE_CARD, 'px-6 py-12 text-center text-sm text-au-muted')}>{issues.length ? t('noneFound') : empty}</div>
       ) : (
         <ul className="flex flex-col gap-2">
           {list.map((i, k) => (
@@ -537,27 +520,27 @@ function Queue({
                 <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                   <span className="flex flex-wrap items-center gap-1.5">
                     <span className={CHIP_NEUTRAL}>
-                      {KIND_ICON[i.kind]} {KIND_META[i.kind].n}
+                      {KIND_ICON[i.kind]} {kindN(i.kind)}
                     </span>
                     <StageChip i={i} />
-                    {i.priority !== 'normal' && <span className={PRIORITY_CHIP[i.priority]}>{PRIORITY_META[i.priority].n}</span>}
+                    {i.priority !== 'normal' && <span className={PRIORITY_CHIP[i.priority]}>{t(`prio.${i.priority}`)}</span>}
                     <SlaPill i={i} now={now} />
                     {i.anonymous && (
                       <span className={CHIP_NEUTRAL}>
-                        <EyeOff className="size-3" /> Anonim
+                        <EyeOff className="size-3" /> {t('anon')}
                       </span>
                     )}
                     {manager && (similarCount.get(i.id) ?? 0) >= 1 && (
-                      <span className={CHIP_ACCENT} title="30 kun ichidagi o‘xshash murojaatlar">
-                        <Repeat2 className="size-3" /> {(similarCount.get(i.id) ?? 0) + 1}-marta
+                      <span className={CHIP_ACCENT} title={t('similarTip')}>
+                        <Repeat2 className="size-3" /> {t('nth', { n: (similarCount.get(i.id) ?? 0) + 1 })}
                       </span>
                     )}
-                    {i.reopen_count > 0 && <span className={CHIP_BAD}>↩ {i.reopen_count}× qayta ochilgan</span>}
+                    {i.reopen_count > 0 && <span className={CHIP_BAD}>{t('reopened', { n: i.reopen_count })}</span>}
                   </span>
                   <span className="truncate text-[15px] font-semibold text-au-ink">{i.title}</span>
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-au-muted">
                     <span>
-                      {i.isMine ? 'Siz' : i.reporterName} → {i.assigned_to === viewerId ? 'siz' : (i.assigneeName ?? 'mas’ul yo‘q')}
+                      {i.isMine ? t('you') : i.reporterName} → {i.assigned_to === viewerId ? t('youLower') : (i.assigneeName ?? t('noOwner'))}
                     </span>
                     <span>{dt(i.created_at)}</span>
                     {i.comments.length > 0 && (
@@ -567,7 +550,7 @@ function Queue({
                     )}
                     {i.task && (
                       <span className="inline-flex items-center gap-1">
-                        <ListChecks className="size-3" /> vazifa
+                        <ListChecks className="size-3" /> {t('task')}
                       </span>
                     )}
                     {i.rating && (
@@ -640,6 +623,7 @@ function Drawer({
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { t, kindN, errText, evLabel, dt } = useIss();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -674,7 +658,7 @@ function Drawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={i.title}>
-      <button type="button" aria-label="Yopish" onClick={onClose} className="absolute inset-0 bg-black/30 animate-in fade-in-0" />
+      <button type="button" aria-label={t('close')} onClick={onClose} className="absolute inset-0 bg-black/30 animate-in fade-in-0" />
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -684,9 +668,9 @@ function Drawer({
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className={CHIP_NEUTRAL}>
-                {KIND_ICON[i.kind]} {KIND_META[i.kind].n}
+                {KIND_ICON[i.kind]} {kindN(i.kind)}
               </span>
-              <span className={PRIORITY_CHIP[i.priority]}>{PRIORITY_META[i.priority].n}</span>
+              <span className={PRIORITY_CHIP[i.priority]}>{t(`prio.${i.priority}`)}</span>
               <StageChip i={i} />
               <SlaPill i={i} now={now} />
             </div>
@@ -696,16 +680,16 @@ function Drawer({
               <h2 className="text-lg leading-snug font-bold text-au-ink">{i.title}</h2>
             )}
             <p className="text-xs text-au-muted">
-              {i.isMine ? 'Siz' : i.reporterName} · {dt(i.created_at)} · Mas’ul: {i.assigned_to === viewerId ? 'siz' : (i.assigneeName ?? 'belgilanmagan')}
+              {t('meta', { who: i.isMine ? t('you') : i.reporterName, when: dt(i.created_at), owner: i.assigned_to === viewerId ? t('youLower') : (i.assigneeName ?? t('unassigned')) })}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {manager && !editing && (
-              <button type="button" onClick={() => setEditing(true)} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink" aria-label="Tahrirlash">
+              <button type="button" onClick={() => setEditing(true)} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink" aria-label={t('edit')}>
                 <Pencil className="size-4" />
               </button>
             )}
-            <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink" aria-label="Yopish">
+            <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2 hover:text-au-ink" aria-label={t('close')}>
               <X className="size-5" />
             </button>
           </div>
@@ -728,7 +712,7 @@ function Drawer({
           {/* Work actions */}
           {moves.length > 0 && (
             <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-4')}>
-              <h3 className={CARD_TITLE}>{stage === 'resolved' || stage === 'closed' ? 'Qayta ochish' : 'Keyingi qadam'}</h3>
+              <h3 className={CARD_TITLE}>{stage === 'resolved' || stage === 'closed' ? t('reopen') : t('nextStep')}</h3>
               {resolving ? (
                 <div className="flex flex-col gap-2">
                   <textarea
@@ -737,7 +721,7 @@ function Drawer({
                     onChange={(e) => setNote(e.target.value)}
                     rows={3}
                     maxLength={1000}
-                    placeholder="Nima qilindi? Muallif shuni o‘qib tasdiqlaydi."
+                    placeholder={t('whatDone')}
                     className={cn(INPUT, 'h-auto py-2.5')}
                   />
                   <div className="flex flex-wrap gap-2">
@@ -745,12 +729,12 @@ function Drawer({
                       type="button"
                       disabled={pending || note.trim().length < 3}
                       className={BTN_PRIMARY}
-                      onClick={() => run(() => moveIssueAction({ id: i.id, to: 'resolved', note }), i.isMine ? 'Yopildi' : 'Hal qilindi — muallifdan tasdiq so‘raldi', () => setResolving(false))}
+                      onClick={() => run(() => moveIssueAction({ id: i.id, to: 'resolved', note }), i.isMine ? t('closedToast') : t('resolvedAsk'), () => setResolving(false))}
                     >
-                      {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} Hal qilindi
+                      {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />} {t('resolved')}
                     </button>
                     <button type="button" className={BTN_SECONDARY} onClick={() => setResolving(false)}>
-                      Bekor
+                      {t('cancel')}
                     </button>
                   </div>
                 </div>
@@ -759,7 +743,7 @@ function Drawer({
                   {moves.map((to) =>
                     to === 'resolved' ? (
                       <button key={to} type="button" disabled={pending} className={BTN_PRIMARY} onClick={() => setResolving(true)}>
-                        <CheckCircle2 className="size-4" /> Hal qilindi…
+                        <CheckCircle2 className="size-4" /> {t('resolvedDots')}
                       </button>
                     ) : (
                       <button
@@ -767,15 +751,15 @@ function Drawer({
                         type="button"
                         disabled={pending}
                         className={BTN_SECONDARY}
-                        onClick={() => run(() => moveIssueAction({ id: i.id, to }), STAGE_META[to].n)}
+                        onClick={() => run(() => moveIssueAction({ id: i.id, to }), t(`stage.${to}`))}
                       >
-                        {stage === 'resolved' || stage === 'closed' ? 'Qayta ochish' : to === 'accepted' && stage === 'in_progress' ? 'Qabulga qaytarish' : MOVE_LABEL[to]}
+                        {stage === 'resolved' || stage === 'closed' ? t('reopen') : to === 'accepted' && stage === 'in_progress' ? t('backToAccepted') : t(`move.${to}`)}
                       </button>
                     ),
                   )}
                 </div>
               )}
-              {stage === 'new' && <p className="text-xs text-au-muted">«Qabul qilish» — muallifga «ko‘rdik» degan xabar boradi va javob muddati bajariladi.</p>}
+              {stage === 'new' && <p className="text-xs text-au-muted">{t('acceptHint')}</p>}
             </section>
           )}
 
@@ -786,11 +770,11 @@ function Drawer({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{i.task.title}</p>
                 <p className="text-xs text-au-muted">
-                  Vazifa · {i.task.assigneeName ?? '—'} · {i.task.status === 'done' ? 'bajarildi' : 'jarayonda'} — bajarilganda murojaat o‘zi «Hal qilindi»ga o‘tadi
+                  {t('taskLine', { who: i.task.assigneeName ?? '—', state: i.task.status === 'done' ? t('taskDone') : t('taskOpen') })}
                 </p>
               </div>
               <Link href="/tasks" className="text-xs font-semibold text-au-muted hover:text-au-ink">
-                Ochish →
+                {t('open')}
               </Link>
             </section>
           ) : (
@@ -800,47 +784,47 @@ function Drawer({
           {/* Manager triage */}
           {manager && (
             <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-4')}>
-              <h3 className={CARD_TITLE}>Boshqaruv</h3>
+              <h3 className={CARD_TITLE}>{t('manage')}</h3>
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-                  Ustuvorlik
+                  {t('priority')}
                   <select
                     value={i.priority}
                     disabled={pending}
-                    onChange={(e) => run(() => setIssueMetaAction({ id: i.id, priority: e.target.value as Priority }), 'Ustuvorlik o‘zgardi — muddatlar qayta hisoblandi')}
+                    onChange={(e) => run(() => setIssueMetaAction({ id: i.id, priority: e.target.value as Priority }), t('prioChanged'))}
                     className={cn(INPUT, 'h-9')}
                   >
                     {PRIORITIES.map((p) => (
                       <option key={p} value={p}>
-                        {PRIORITY_META[p].n} ({PRIORITY_META[p].respondH} soat / {Math.round(PRIORITY_META[p].resolveH / 24)} kun)
+                        {t('prioOpt', { n: t(`prio.${p}`), h: PRIORITY_META[p].respondH, d: Math.round(PRIORITY_META[p].resolveH / 24) })}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-                  Turi
+                  {t('kindL')}
                   <select
                     value={i.kind}
                     disabled={pending || i.anonymous}
-                    onChange={(e) => run(() => setIssueMetaAction({ id: i.id, kind: e.target.value as IssueKind }), 'Turi o‘zgardi')}
+                    onChange={(e) => run(() => setIssueMetaAction({ id: i.id, kind: e.target.value as IssueKind }), t('kindChanged'))}
                     className={cn(INPUT, 'h-9')}
                   >
                     {ISSUE_KINDS.map((k) => (
                       <option key={k} value={k}>
-                        {KIND_META[k].n}
+                        {kindN(k)}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-                  Mas’ul
+                  {t('owner')}
                   <select
                     value={i.assigned_to ?? ''}
                     disabled={pending}
-                    onChange={(e) => run(() => setIssueMetaAction({ id: i.id, assignedTo: e.target.value || null }), 'Topshirildi')}
+                    onChange={(e) => run(() => setIssueMetaAction({ id: i.id, assignedTo: e.target.value || null }), t('assigned'))}
                     className={cn(INPUT, 'h-9')}
                   >
-                    <option value="">— belgilanmagan —</option>
+                    <option value="">{t('noAssignee')}</option>
                     {assignees.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -851,26 +835,26 @@ function Drawer({
               </div>
               {aiPriority && aiPriority !== i.priority && i.status !== 'done' && (
                 <div className="flex flex-wrap items-center gap-2 rounded-au-ctl bg-au-accent-soft px-3 py-2 text-xs text-au-accent-text">
-                  <Sparkles className="size-3.5" /> Jev taklifi: <b>{PRIORITY_META[aiPriority].n}</b>
+                  <Sparkles className="size-3.5" /> {t('jevSuggest')} <b>{t(`prio.${aiPriority}`)}</b>
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => run(() => setIssueMetaAction({ id: i.id, priority: aiPriority }), 'Qo‘llandi')}
+                    onClick={() => run(() => setIssueMetaAction({ id: i.id, priority: aiPriority }), t('applied'))}
                     className="ml-auto rounded-full bg-au-card px-2.5 py-1 font-semibold text-au-ink hover:bg-au-card-2"
                   >
-                    Qo‘llash
+                    {t('apply')}
                   </button>
                 </div>
               )}
               {(i.ai?.itBug ?? 0) >= 0.6 && (
                 <p className="flex items-center gap-1.5 text-xs text-au-bad">
-                  <Bug className="size-3.5" /> Jev: bu sayt/dastur xatosiga o‘xshaydi — IT mas’ulga topshiring.
+                  <Bug className="size-3.5" /> {t('itBug')}
                 </p>
               )}
               <div className="flex justify-end">
                 {confirmDelete ? (
                   <span className="flex items-center gap-2 text-xs">
-                    Rostdan o‘chirilsinmi? Qaytarib bo‘lmaydi.
+                    {t('sureDelete')}
                     <button
                       type="button"
                       disabled={pending}
@@ -878,18 +862,18 @@ function Drawer({
                       onClick={() => {
                         const fd = new FormData();
                         fd.set('id', i.id);
-                        run(() => deleteIssueAction(fd), 'O‘chirildi', onClose);
+                        run(() => deleteIssueAction(fd), t('deleted'), onClose);
                       }}
                     >
-                      Ha, o‘chirish
+                      {t('yesDelete')}
                     </button>
                     <button type="button" className="font-semibold text-au-muted" onClick={() => setConfirmDelete(false)}>
-                      Yo‘q
+                      {t('no')}
                     </button>
                   </span>
                 ) : (
                   <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-au-muted hover:text-au-bad">
-                    <Trash2 className="size-3.5" /> O‘chirish
+                    <Trash2 className="size-3.5" /> {t('delete')}
                   </button>
                 )}
               </div>
@@ -901,25 +885,25 @@ function Drawer({
 
           {/* Timeline */}
           <section className="flex flex-col gap-2">
-            <h3 className={CARD_TITLE}>Tarix va muhokama</h3>
+            <h3 className={CARD_TITLE}>{t('history')}</h3>
             <ol className="flex flex-col gap-2">
-              {timeline.map((t) =>
-                'ev' in t && t.ev ? (
-                  <li key={t.k} className="flex items-start gap-2 text-xs text-au-muted">
+              {timeline.map((x) =>
+                'ev' in x && x.ev ? (
+                  <li key={x.k} className="flex items-start gap-2 text-xs text-au-muted">
                     <span className="mt-1 size-1.5 shrink-0 rounded-full bg-au-muted" />
                     <span className="min-w-0 flex-1">
-                      <b className="text-au-ink">{EVENT_LABEL[t.ev.kind] ?? t.ev.kind}</b>
-                      {t.ev.actorName ? ` · ${t.ev.actorName}` : ''} · {dt(t.at)}
-                      {t.ev.note && <span className="mt-0.5 block whitespace-pre-wrap text-au-ink">{t.ev.note}</span>}
+                      <b className="text-au-ink">{evLabel(x.ev.kind)}</b>
+                      {x.ev.actorName ? ` · ${x.ev.actorName}` : ''} · {dt(x.at)}
+                      {x.ev.note && <span className="mt-0.5 block whitespace-pre-wrap text-au-ink">{x.ev.note}</span>}
                     </span>
                   </li>
-                ) : 'c' in t && t.c ? (
-                  <li key={t.k} className={cn('flex flex-col gap-1 rounded-au-ctl px-3 py-2', t.c.author_id === viewerId ? 'ml-6 bg-au-info-soft' : 'mr-6 border border-au-line bg-au-card')}>
+                ) : 'c' in x && x.c ? (
+                  <li key={x.k} className={cn('flex flex-col gap-1 rounded-au-ctl px-3 py-2', x.c.author_id === viewerId ? 'ml-6 bg-au-info-soft' : 'mr-6 border border-au-line bg-au-card')}>
                     <span className="text-[11px] font-semibold text-au-muted">
-                      {t.c.author_id === viewerId ? 'Siz' : t.c.authorName}
-                      {t.c.authorRole === 'assignee' ? ' · mas’ul' : t.c.authorRole === 'author' ? ' · muallif' : t.c.authorRole === 'manager' ? ' · rahbariyat' : ''} · {dt(t.at)}
+                      {x.c.author_id === viewerId ? t('you') : x.c.authorName}
+                      {x.c.authorRole === 'assignee' ? t('rAssignee') : x.c.authorRole === 'author' ? t('rAuthor') : x.c.authorRole === 'manager' ? t('rManager') : ''} · {dt(x.at)}
                     </span>
-                    <span className="text-sm whitespace-pre-wrap text-au-ink">{t.c.body}</span>
+                    <span className="text-sm whitespace-pre-wrap text-au-ink">{x.c.body}</span>
                   </li>
                 ) : null,
               )}
@@ -938,46 +922,47 @@ function ConfirmBox({ i, pending, run }: { i: CenterIssue; pending: boolean; run
   const [no, setNo] = useState(false);
   const [reason, setReason] = useState('');
   const resolvedNote = [...i.events].reverse().find((e) => e.kind === 'resolved')?.note;
+  const { t } = useIss();
   return (
     <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 border-au-ok/50 p-4')}>
       <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-        <ThumbsUp className="size-4 text-au-ok" /> Murojaatingiz hal bo‘ldimi?
+        <ThumbsUp className="size-4 text-au-ok" /> {t('resolvedQTitle')}
       </h3>
-      {resolvedNote && <p className={cn(SURFACE_INSET, 'px-3 py-2 text-sm whitespace-pre-wrap')}>Nima qilindi: {resolvedNote}</p>}
+      {resolvedNote && <p className={cn(SURFACE_INSET, 'px-3 py-2 text-sm whitespace-pre-wrap')}>{t('whatWasDone', { n: resolvedNote })}</p>}
       {!no ? (
         <>
-          <div className="flex items-center gap-1" aria-label="Baho">
-            <span className="mr-1 text-xs text-au-muted">Baho (ixtiyoriy):</span>
+          <div className="flex items-center gap-1" aria-label={t('rating')}>
+            <span className="mr-1 text-xs text-au-muted">{t('ratingOpt')}</span>
             {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} type="button" onClick={() => setRating(n === rating ? 0 : n)} aria-label={`${n} yulduz`} className="p-0.5">
+              <button key={n} type="button" onClick={() => setRating(n === rating ? 0 : n)} aria-label={t('nStars', { n })} className="p-0.5">
                 <Star className={cn('size-5', n <= rating ? 'fill-au-accent text-au-accent' : 'text-au-line')} />
               </button>
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={pending} className={BTN_PRIMARY} onClick={() => run(() => confirmIssueAction({ id: i.id, ok: true, rating: rating || undefined }), 'Rahmat! Murojaat yopildi')}>
-              <ThumbsUp className="size-4" /> Ha, hal bo‘ldi
+            <button type="button" disabled={pending} className={BTN_PRIMARY} onClick={() => run(() => confirmIssueAction({ id: i.id, ok: true, rating: rating || undefined }), t('thanksClosed'))}>
+              <ThumbsUp className="size-4" /> {t('yesResolved')}
             </button>
             <button type="button" disabled={pending} className={BTN_SECONDARY} onClick={() => setNo(true)}>
-              <ThumbsDown className="size-4" /> Yo‘q, hal bo‘lmadi
+              <ThumbsDown className="size-4" /> {t('noResolved')}
             </button>
           </div>
-          <p className="text-[11px] text-au-muted">{AUTO_CLOSE_DAYS} kun ichida javob bermasangiz, murojaat avtomatik yopiladi.</p>
+          <p className="text-[11px] text-au-muted">{t('autoClose', { n: AUTO_CLOSE_DAYS })}</p>
         </>
       ) : (
         <div className="flex flex-col gap-2">
-          <textarea autoFocus value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={1000} placeholder="Nima hal bo‘lmadi?" className={cn(INPUT, 'h-auto py-2.5')} />
+          <textarea autoFocus value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={1000} placeholder={t('whatNot')} className={cn(INPUT, 'h-auto py-2.5')} />
           <div className="flex gap-2">
             <button
               type="button"
               disabled={pending || reason.trim().length < 3}
               className={BTN_PRIMARY}
-              onClick={() => run(() => confirmIssueAction({ id: i.id, ok: false, note: reason }), 'Qayta ochildi — mas’ulga xabar berildi')}
+              onClick={() => run(() => confirmIssueAction({ id: i.id, ok: false, note: reason }), t('reopenedToast'))}
             >
-              Qayta ochish
+              {t('reopen')}
             </button>
             <button type="button" className={BTN_SECONDARY} onClick={() => setNo(false)}>
-              Orqaga
+              {t('back')}
             </button>
           </div>
         </div>
@@ -990,19 +975,20 @@ function ToTask({ i, people, now, pending, run }: { i: CenterIssue; people: Pers
   const [open, setOpen] = useState(false);
   const [who, setWho] = useState(i.assigned_to && people.some((p) => p.id === i.assigned_to) ? i.assigned_to : (people[0]?.id ?? ''));
   const [due, setDue] = useState(() => tashkentInput(now, i.priority === 'urgent' ? 0 : i.priority === 'high' ? 2 : 5));
+  const { t } = useIss();
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)} className={cn(SURFACE_INSET, 'flex items-center gap-2 px-3 py-2.5 text-left text-sm font-semibold hover:bg-au-card')}>
-        <ListChecks className="size-4 text-au-accent-text" /> Vazifaga aylantirish
-        <span className="ml-auto text-xs font-normal text-au-muted">ish ko‘p qadamli bo‘lsa</span>
+        <ListChecks className="size-4 text-au-accent-text" /> {t('toTask')}
+        <span className="ml-auto text-xs font-normal text-au-muted">{t('multiStep')}</span>
       </button>
     );
   return (
     <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 p-4')}>
-      <h3 className={CARD_TITLE}>Vazifaga aylantirish</h3>
+      <h3 className={CARD_TITLE}>{t('toTask')}</h3>
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-          Kim bajaradi
+          {t('who')}
           <select value={who} onChange={(e) => setWho(e.target.value)} className={cn(INPUT, 'h-9')}>
             {people.map((p) => (
               <option key={p.id} value={p.id}>
@@ -1012,22 +998,22 @@ function ToTask({ i, people, now, pending, run }: { i: CenterIssue; people: Pers
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-          Muddat (Toshkent)
+          {t('due')}
           <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} className={cn(INPUT, 'h-9')} />
         </label>
       </div>
-      <p className="text-xs text-au-muted">Vazifa bajarilganda murojaat o‘zi «Hal qilindi»ga o‘tadi va muallifdan tasdiq so‘raladi.</p>
+      <p className="text-xs text-au-muted">{t('taskHint')}</p>
       <div className="flex gap-2">
         <button
           type="button"
           disabled={pending || !who || !due}
           className={BTN_PRIMARY}
-          onClick={() => run(() => issueToTaskAction({ id: i.id, assigneeId: who, deadline: `${due}:00+05:00` }), 'Vazifa yaratildi', () => setOpen(false))}
+          onClick={() => run(() => issueToTaskAction({ id: i.id, assigneeId: who, deadline: `${due}:00+05:00` }), t('taskCreated'), () => setOpen(false))}
         >
-          Yaratish
+          {t('create')}
         </button>
         <button type="button" className={BTN_SECONDARY} onClick={() => setOpen(false)}>
-          Bekor
+          {t('cancel')}
         </button>
       </div>
     </section>
@@ -1048,11 +1034,12 @@ function RootCause({
   onOpen: (id: string) => void;
 }) {
   const [text, setText] = useState(i.root_cause ?? '');
+  const { t, dt } = useIss();
   return (
     <section className={cn(SURFACE_CARD, 'flex flex-col gap-3 border-au-accent/40 p-4')}>
       <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
         <Repeat2 className="size-4 text-au-accent-text" />
-        {similar.length ? `Bu takrorlanyapti: 30 kunda ${similar.length + 1}-marta` : 'Ildiz sababi'}
+        {similar.length ? t('repeats', { n: similar.length + 1 }) : t('rootCause')}
       </h3>
       {similar.length > 0 && (
         <ul className="flex flex-col gap-1">
@@ -1067,16 +1054,16 @@ function RootCause({
           ))}
         </ul>
       )}
-      <p className="text-xs text-au-muted">Bir xil muammo qaytaversa, sababini yozing — keyingi safar shu yerdan ko‘rinadi.</p>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={1000} placeholder="Masalan: 204-xona proyektori eskirgan — almashtirish kerak" className={cn(INPUT, 'h-auto py-2')} />
+      <p className="text-xs text-au-muted">{t('rootHint')}</p>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={1000} placeholder={t('rootPh')} className={cn(INPUT, 'h-auto py-2')} />
       <div>
         <button
           type="button"
           disabled={pending || text === (i.root_cause ?? '')}
           className={BTN_SECONDARY}
-          onClick={() => run(() => setIssueMetaAction({ id: i.id, rootCause: text }), 'Saqlandi')}
+          onClick={() => run(() => setIssueMetaAction({ id: i.id, rootCause: text }), t('saved'))}
         >
-          Saqlash
+          {t('save')}
         </button>
       </div>
     </section>
@@ -1087,6 +1074,7 @@ function EditText({ i, onDone, onSaved }: { i: CenterIssue; onDone: () => void; 
   const [title, setTitle] = useState(i.title);
   const [desc, setDesc] = useState(i.description ?? '');
   const [pending, start] = useTransition();
+  const { t, errText } = useIss();
   return (
     <div className="flex flex-col gap-2">
       <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} className={cn(INPUT, 'h-9 font-semibold')} />
@@ -1104,16 +1092,16 @@ function EditText({ i, onDone, onSaved }: { i: CenterIssue; onDone: () => void; 
               fd.set('description', desc);
               const res = await updateIssueAction(undefined, fd);
               if (res?.error) return void toast.error(errText(res.error));
-              toast.success('Saqlandi');
+              toast.success(t('saved'));
               onDone();
               await onSaved();
             })
           }
         >
-          Saqlash
+          {t('save')}
         </button>
         <button type="button" className={cn(BTN_SECONDARY, 'h-9')} onClick={onDone}>
-          Bekor
+          {t('cancel')}
         </button>
       </div>
     </div>
@@ -1123,6 +1111,7 @@ function EditText({ i, onDone, onSaved }: { i: CenterIssue; onDone: () => void; 
 function Composer({ issueId, onSent }: { issueId: string; onSent: () => Promise<void> }) {
   const [body, setBody] = useState('');
   const [pending, start] = useTransition();
+  const { t, errText } = useIss();
   const send = () =>
     start(async () => {
       const res = await addIssueCommentAction({ issueId, body });
@@ -1140,10 +1129,10 @@ function Composer({ issueId, onSent }: { issueId: string; onSent: () => Promise<
         }}
         rows={1}
         maxLength={2000}
-        placeholder="Izoh yozing… (Ctrl+Enter)"
+        placeholder={t('commentPh')}
         className={cn(INPUT, 'h-auto max-h-32 min-h-10 resize-y py-2')}
       />
-      <button type="button" disabled={pending || !body.trim()} onClick={send} className={cn(BTN_PRIMARY, 'h-10 px-3')} aria-label="Yuborish">
+      <button type="button" disabled={pending || !body.trim()} onClick={send} className={cn(BTN_PRIMARY, 'h-10 px-3')} aria-label={t('send')}>
         {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
       </button>
     </div>
@@ -1168,6 +1157,7 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const { t, kindN, errText } = useIss();
 
   const stopMic = useCallback(() => {
     if (recRef.current && recRef.current.state !== 'inactive') {
@@ -1207,9 +1197,9 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
         setUploading(true);
         try {
           const u = await requestIssueVoiceUploadUrlAction(`voice-note-${Date.now()}.webm`);
-          if (u.error || !u.path || !u.url) return void toast.error('Ovozli xabarni yuklab bo‘lmadi');
+          if (u.error || !u.path || !u.url) return void toast.error(t('voiceFail'));
           const put = await fetch(u.url, { method: 'PUT', headers: { 'Content-Type': 'audio/webm' }, body: blob });
-          if (!put.ok) return void toast.error('Ovozli xabarni yuklab bo‘lmadi');
+          if (!put.ok) return void toast.error(t('voiceFail'));
           setVoicePath(u.path);
         } finally {
           setUploading(false);
@@ -1219,7 +1209,7 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
       rec.start();
       setRecording(true);
     } catch {
-      toast.error('Mikrofonga ruxsat berilmadi');
+      toast.error(t('micDenied'));
     }
   }
 
@@ -1235,18 +1225,18 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
       if (manager && assignee) fd.set('assignedTo', assignee);
       if (voicePath && !(kind === 'idea' && anon)) fd.set('voiceUrl', voicePath);
       const res = await createIssueAction(undefined, fd);
-      if (res?.error || !res?.id) return void toast.error(res?.error === 'invalidInput' ? 'Sarlavha kamida 3 harf bo‘lsin' : errText(res?.error));
-      toast.success(kind === 'idea' && anon ? 'Taklif anonim yuborildi' : 'Murojaat yuborildi');
+      if (res?.error || !res?.id) return void toast.error(res?.error === 'invalidInput' ? t('titleShort') : errText(res?.error));
+      toast.success(kind === 'idea' && anon ? t('sentAnon') : t('sent'));
       onCreated(res.id);
     });
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-3" role="dialog" aria-modal="true" aria-label="Yangi murojaat">
-      <button type="button" aria-label="Yopish" onClick={onClose} className="absolute inset-0 bg-black/40 animate-in fade-in-0" />
+    <div className="fixed inset-0 z-50 grid place-items-center p-3" role="dialog" aria-modal="true" aria-label={t('new')}>
+      <button type="button" aria-label={t('close')} onClick={onClose} className="absolute inset-0 bg-black/40 animate-in fade-in-0" />
       <div className={cn(SURFACE_CARD, 'relative flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden animate-in zoom-in-95 duration-150 motion-reduce:animate-none')}>
         <header className="flex items-center justify-between border-b border-au-line px-5 py-3.5">
-          <h2 className="text-base font-bold">Yangi murojaat</h2>
-          <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2" aria-label="Yopish">
+          <h2 className="text-base font-bold">{t('new')}</h2>
+          <button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2" aria-label={t('close')}>
             <X className="size-5" />
           </button>
         </header>
@@ -1264,30 +1254,30 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
                 )}
               >
                 <span className="flex items-center gap-1.5 text-sm font-bold">
-                  {KIND_ICON[k]} {KIND_META[k].n}
+                  {KIND_ICON[k]} {kindN(k)}
                 </span>
-                <span className="text-[11px] leading-tight text-au-muted">{KIND_META[k].hint}</span>
+                <span className="text-[11px] leading-tight text-au-muted">{t(`kindHint.${k}`)}</span>
               </button>
             ))}
           </div>
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            Qisqacha sarlavha
+            {t('shortTitle')}
             <input
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
-              placeholder={kind === 'idea' ? 'Masalan: Dars jadvalini Telegramga yuborish' : 'Masalan: 204-xonada proyektor yonmayapti'}
+              placeholder={kind === 'idea' ? t('phIdea') : t('phProblem')}
               className={INPUT}
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-            Batafsil (ixtiyoriy)
-            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} maxLength={2000} placeholder="Qayerda, qachondan beri, nimaga xalaqit beryapti…" className={cn(INPUT, 'h-auto py-2.5')} />
+            {t('details')}
+            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} maxLength={2000} placeholder={t('detailsPh')} className={cn(INPUT, 'h-auto py-2.5')} />
           </label>
           {kind !== 'idea' && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold text-au-muted">Qanchalik shoshilinch?</span>
+              <span className="text-xs font-semibold text-au-muted">{t('howUrgent')}</span>
               <div className="grid grid-cols-3 gap-2">
                 {PRIORITIES.map((p) => (
                   <button
@@ -1300,9 +1290,9 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
                       priority === p ? 'border-au-primary bg-au-card ring-2 ring-au-primary/15' : 'border-au-line bg-au-card-2 hover:bg-au-card',
                     )}
                   >
-                    <span className="text-sm font-bold">{PRIORITY_META[p].n}</span>
+                    <span className="text-sm font-bold">{t(`prio.${p}`)}</span>
                     <span className="text-[11px] text-au-muted">
-                      javob {PRIORITY_META[p].respondH} soatda · hal {PRIORITY_META[p].resolveH >= 48 ? `${PRIORITY_META[p].resolveH / 24} kunda` : `${PRIORITY_META[p].resolveH} soatda`}
+                      {t('slaLine', { r: PRIORITY_META[p].respondH, fix: PRIORITY_META[p].resolveH >= 48 ? t('inDays', { n: PRIORITY_META[p].resolveH / 24 }) : t('inHours', { n: PRIORITY_META[p].resolveH }) })}
                     </span>
                   </button>
                 ))}
@@ -1314,13 +1304,13 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
               <label className={cn(SURFACE_INSET, 'flex cursor-pointer items-start gap-3 p-3')}>
                 <input type="checkbox" checked={it} onChange={(e) => setIt(e.target.checked)} className="mt-0.5 size-4 accent-au-primary" />
                 <span className="flex flex-col gap-0.5">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold">💻 IT / sayt muammosi</span>
-                  <span className="text-xs text-au-muted">Belgilansa, murojaat to‘g‘ridan-to‘g‘ri IT dasturchiga boradi.</span>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold">{t('itIssue')}</span>
+                  <span className="text-xs text-au-muted">{t('itHint')}</span>
                 </span>
               </label>
               {it && (
                 <p className="rounded-au-ctl border border-au-line bg-au-card-2 px-3 py-2 text-xs text-au-ink">
-                  ⚠️ Bu yerga <b>faqat IT / sayt (dastur) muammosi</b>ni yozing — masalan tizim xatosi, sahifa ochilmasligi, kirish/hisob muammosi. Boshqa muammolar uchun bu belgini olib tashlang.
+                  {t('itWarn')}
                 </p>
               )}
             </div>
@@ -1330,29 +1320,29 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
               <input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} className="mt-0.5 size-4 accent-au-primary" />
               <span className="flex flex-col gap-0.5">
                 <span className="flex items-center gap-1.5 text-sm font-semibold">
-                  <EyeOff className="size-4" /> Anonim yuborish
+                  <EyeOff className="size-4" /> {t('sendAnon')}
                 </span>
-                <span className="text-xs text-au-muted">Ismingiz hech kimga, rahbariyatga ham ko‘rinmaydi. Javob va natijani o‘zingiz shu yerda ko‘rasiz.</span>
+                <span className="text-xs text-au-muted">{t('anonHint')}</span>
               </span>
             </label>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={toggleRecord} disabled={uploading || (kind === 'idea' && anon)} title={kind === 'idea' && anon ? 'Anonim taklifda ovoz sizni tanitib qo‘yadi' : undefined} className={cn(BTN_SECONDARY, 'h-9', recording && 'border-au-bad text-au-bad')}>
+            <button type="button" onClick={toggleRecord} disabled={uploading || (kind === 'idea' && anon)} title={kind === 'idea' && anon ? t('anonVoice') : undefined} className={cn(BTN_SECONDARY, 'h-9', recording && 'border-au-bad text-au-bad')}>
               {recording ? <Square className="size-4" /> : <Mic className="size-4" />}
-              {recording ? 'To‘xtatish' : uploading ? 'Yuklanmoqda…' : 'Ovozli xabar'}
+              {recording ? t('stop') : uploading ? t('uploading') : t('voice')}
             </button>
             {preview && !recording && <audio controls src={preview} className="h-9 max-w-[240px]" />}
             {preview && !recording && (
               <button type="button" onClick={() => { URL.revokeObjectURL(preview); setPreview(null); setVoicePath(null); }} className="text-xs font-semibold text-au-muted hover:text-au-bad">
-                O‘chirish
+                {t('delete')}
               </button>
             )}
           </div>
           {manager && (
             <label className="flex flex-col gap-1 text-xs font-semibold text-au-muted">
-              Mas’ul (ixtiyoriy)
+              {t('ownerOpt')}
               <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className={INPUT}>
-                <option value="">— keyin belgilayman —</option>
+                <option value="">{t('later')}</option>
                 {assignees.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -1361,14 +1351,14 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
               </select>
             </label>
           )}
-          {!manager && <p className="text-xs text-au-muted">Murojaat rahbariyatga boradi; ular mas’ul belgilaydi. Har bir qadam haqida sizga xabar keladi.</p>}
+          {!manager && <p className="text-xs text-au-muted">{t('staffNote')}</p>}
         </div>
         <footer className="flex justify-end gap-2 border-t border-au-line bg-au-card-2 px-5 py-3">
           <button type="button" className={BTN_SECONDARY} onClick={onClose}>
-            Bekor
+            {t('cancel')}
           </button>
           <button type="button" className={BTN_PRIMARY} disabled={pending || uploading || recording || title.trim().length < 3} onClick={submit}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Yuborish
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} {t('send')}
           </button>
         </footer>
       </div>
@@ -1379,24 +1369,25 @@ function CreateDialog({ manager, assignees, onClose, onCreated }: { manager: boo
 /* ------------------------------------------------------------ stats & archive */
 
 function StatsView({ stats }: { stats: IssueStats | null }) {
+  const { t, kindN } = useIss();
   if (!stats) return <IssuesStats stats={null} />;
   const o = stats.overall;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <Kpi label="Muddatida hal" value={o.slaOnTimePct == null ? '—' : `${o.slaOnTimePct}%`} hint="muddatli murojaatlar" tone={o.slaOnTimePct != null && o.slaOnTimePct < 80 ? 'bad' : 'ok'} />
-        <Kpi label="Muddat buzilgan" value={o.slaBreached} hint="hozir yoki kech hal" tone={o.slaBreached ? 'bad' : undefined} />
-        <Kpi label="O‘rtacha baho" value={o.avgRating == null ? '—' : `${o.avgRating} ★`} hint={`${o.ratedCount} ta baho`} />
-        <Kpi label="Qayta ochilgan" value={o.reopenPct == null ? '—' : `${o.reopenPct}%`} hint="muallif rad etgan" tone={(o.reopenPct ?? 0) > 15 ? 'bad' : undefined} />
-        <Kpi label="Tasdiq kutilmoqda" value={o.awaitingConfirm} hint="muallif javobi" />
-        <Kpi label="Median hal qilish" value={o.medianResolutionDays == null ? '—' : `${o.medianResolutionDays} kun`} />
+        <Kpi label={t('sOnTime')} value={o.slaOnTimePct == null ? '—' : `${o.slaOnTimePct}%`} hint={t('sOnTimeHint')} tone={o.slaOnTimePct != null && o.slaOnTimePct < 80 ? 'bad' : 'ok'} />
+        <Kpi label={t('sBreached')} value={o.slaBreached} hint={t('sBreachedHint')} tone={o.slaBreached ? 'bad' : undefined} />
+        <Kpi label={t('sRating')} value={o.avgRating == null ? '—' : `${o.avgRating} ★`} hint={t('sRatingHint', { n: o.ratedCount })} />
+        <Kpi label={t('sReopen')} value={o.reopenPct == null ? '—' : `${o.reopenPct}%`} hint={t('sReopenHint')} tone={(o.reopenPct ?? 0) > 15 ? 'bad' : undefined} />
+        <Kpi label={t('sAwait')} value={o.awaitingConfirm} hint={t('sAwaitHint')} />
+        <Kpi label={t('sMedian')} value={o.medianResolutionDays == null ? '—' : t('nDays', { n: o.medianResolutionDays })} />
       </div>
       {stats.byKind.length > 0 && (
         <div className={cn(SURFACE_CARD, 'flex flex-wrap gap-2 p-4')}>
-          <span className={cn(CARD_TITLE, 'mr-2')}>Turlar bo‘yicha</span>
+          <span className={cn(CARD_TITLE, 'mr-2')}>{t('byKind')}</span>
           {stats.byKind.map((k) => (
             <span key={k.kind} className={CHIP_NEUTRAL}>
-              {KIND_META[k.kind as IssueKind]?.n ?? k.kind}: {k.total} {k.open ? `(${k.open} faol)` : ''}
+              {kindN(k.kind as IssueKind, k.kind)}: {k.total} {k.open ? t('nActive', { n: k.open }) : ''}
             </span>
           ))}
         </div>
@@ -1408,22 +1399,24 @@ function StatsView({ stats }: { stats: IssueStats | null }) {
 
 function ArchiveView({ archive }: { archive: MonthlyIssueArchiveEntry[] }) {
   const [openM, setOpenM] = useState<string | null>(archive[0]?.monthKey ?? null);
-  if (!archive.length) return <div className={cn(SURFACE_CARD, 'px-6 py-12 text-center text-sm text-au-muted')}>Arxiv hali bo‘sh — yopilgan murojaatlar 14 kundan keyin shu yerga o‘tadi.</div>;
+  const { t, kindN, dt } = useIss();
+  const locale = useLocale();
+  if (!archive.length) return <div className={cn(SURFACE_CARD, 'px-6 py-12 text-center text-sm text-au-muted')}>{t('archiveEmpty')}</div>;
   return (
     <div className="flex flex-col gap-2">
       {archive.map((m) => (
         <section key={m.monthKey} className={cn(SURFACE_CARD, 'overflow-hidden')}>
           <button type="button" onClick={() => setOpenM(openM === m.monthKey ? null : m.monthKey)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-au-card-2">
-            <span className="flex-1 text-sm font-bold capitalize">{m.label}</span>
+            <span className="flex-1 text-sm font-bold capitalize">{localizeMonths(m.label, locale)}</span>
             <span className="text-xs text-au-muted">
-              {m.counts.resolved} ta hal qilindi · {m.counts.raisedInMonth} ta kelgan
+              {t('archiveLine', { a: m.counts.resolved, b: m.counts.raisedInMonth })}
             </span>
           </button>
           {openM === m.monthKey && (
             <ul className="divide-y divide-au-line border-t border-au-line">
               {m.issues.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
-                  <span className={CHIP_NEUTRAL}>{KIND_META[i.kind]?.n ?? i.kind}</span>
+                  <span className={CHIP_NEUTRAL}>{kindN(i.kind, i.kind)}</span>
                   <span className="min-w-0 flex-1 truncate">{i.title}</span>
                   <span className="text-xs text-au-muted">
                     {i.reporterName} → {i.assigneeName ?? '—'}
