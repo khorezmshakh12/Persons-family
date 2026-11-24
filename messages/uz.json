@@ -5101,5 +5101,34 @@
     "assignOnly": "faqat tayinlanadi",
     "sent": "So‘rov yuborildi — CEO tasdig‘ini kuting",
     "ask": "So‘rash"
+  },
+  "ss": {
+    "sec": {
+      "str": "Strategiya",
+      "acct": "Hisob-kitob",
+      "ops": "Operatsiya HQ"
+    },
+    "cancel": "Bekor qilish",
+    "delete": "O‘chirish",
+    "sndOn": "UI ovozlari yoqildi",
+    "sndOff": "UI ovozlari o‘chirildi",
+    "sections": "Bo‘limlar",
+    "other": "Boshqa bo‘lim",
+    "actions": "Amallar",
+    "sndTurnOff": "UI ovozlarini o‘chirish",
+    "sndTurnOn": "UI ovozlarini yoqish",
+    "navAria": "Strategiya bo‘limlari",
+    "pdfTitle": "Joriy hisobotni PDF sifatida saqlash (chop etish → PDF)",
+    "pdf": "PDF eksport",
+    "sndTitle": "UI ovozlari (M)",
+    "snd": "UI ovozlari",
+    "palette": "Buyruqlar paneli",
+    "searchPh": "Bo‘lim, amal yoki yozuv nomini yozing…",
+    "none": "«{q}» bo‘yicha hech narsa topilmadi",
+    "kSelect": "tanlash",
+    "kOpen": "ochish",
+    "kTabs": "tablar",
+    "kNew": "yangi",
+    "kSound": "ovoz"
   }
 }

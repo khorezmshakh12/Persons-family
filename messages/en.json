@@ -5101,5 +5101,34 @@
     "assignOnly": "assigned only",
     "sent": "Request sent — wait for CEO approval",
     "ask": "Request"
+  },
+  "ss": {
+    "sec": {
+      "str": "Strategy",
+      "acct": "Accounting",
+      "ops": "Operation HQ"
+    },
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "sndOn": "UI sounds on",
+    "sndOff": "UI sounds off",
+    "sections": "Sections",
+    "other": "Other section",
+    "actions": "Actions",
+    "sndTurnOff": "Turn UI sounds off",
+    "sndTurnOn": "Turn UI sounds on",
+    "navAria": "Strategy sections",
+    "pdfTitle": "Save the current report as PDF (print → PDF)",
+    "pdf": "PDF export",
+    "sndTitle": "UI sounds (M)",
+    "snd": "UI sounds",
+    "palette": "Command palette",
+    "searchPh": "Type a section, action or record name…",
+    "none": "Nothing found for «{q}»",
+    "kSelect": "select",
+    "kOpen": "open",
+    "kTabs": "tabs",
+    "kNew": "new",
+    "kSound": "sound"
   }
 }

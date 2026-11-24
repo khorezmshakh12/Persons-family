@@ -5,6 +5,7 @@ import { toast as sonner } from 'sonner';
 import { ArrowRight, Calculator, FileDown, Gauge, Map as MapIcon, Search, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { useMotionKit } from './motion-kit';
 
 /* =====================================================================
@@ -51,12 +52,16 @@ export function playSound(kind: SoundKind) {
   } catch {}
 }
 
+/** The page language (set on <html lang>), for the few labels built outside React. */
+const UNDO: Record<string, string> = { uz: 'Qaytarish', en: 'Undo', ru: 'Вернуть' };
+const undoLabel = () => UNDO[typeof document !== 'undefined' ? document.documentElement.lang : 'uz'] ?? UNDO.uz;
+
 /** sonner toasts that also chime. */
 export const toast = {
   /** `undo` adds a "Qaytarish" button (8 s) to the toast. */
   success: (m: string, undo?: () => void) => {
     playSound('ok');
-    return sonner.success(m, undo ? { action: { label: 'Qaytarish', onClick: undo }, duration: 8000 } : undefined);
+    return sonner.success(m, undo ? { action: { label: undoLabel(), onClick: undo }, duration: 8000 } : undefined);
   },
   error: (m: string) => {
     playSound('err');
@@ -72,18 +77,19 @@ export const toast = {
    In-app confirm — replaces window.confirm (which blocks the page and
    looks foreign). `if (await ask('…')) …` anywhere inside the suite.
    ===================================================================== */
-type AskReq = { msg: string; ok: string; danger: boolean; resolve: (v: boolean) => void };
+type AskReq = { msg: string; ok?: string; danger: boolean; resolve: (v: boolean) => void };
 let askListener: ((r: AskReq) => void) | null = null;
 
 export function ask(msg: string, opts: { ok?: string; danger?: boolean } = {}): Promise<boolean> {
   return new Promise((resolve) => {
     if (!askListener) return resolve(window.confirm(msg));
-    askListener({ msg, ok: opts.ok ?? 'O‘chirish', danger: opts.danger ?? true, resolve });
+    askListener({ msg, ok: opts.ok, danger: opts.danger ?? true, resolve });
   });
 }
 
 export function AskHost() {
   const [req, setReq] = useState<AskReq | null>(null);
+  const t = useTranslations('ss');
   const okRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     askListener = (r) => setReq(r);
@@ -112,10 +118,10 @@ export function AskHost() {
         <p>{req.msg}</p>
         <div className="row">
           <button className="sx-btn" onClick={() => close(false)}>
-            Bekor qilish
+            {t('cancel')}
           </button>
           <button ref={okRef} className={cn('sx-btn', req.danger ? 'danger' : 'primary')} onClick={() => close(true)}>
-            {req.ok}
+            {req.ok ?? t('delete')}
           </button>
         </div>
       </div>
@@ -164,6 +170,8 @@ export function SuiteShell({
   const [ck, setCk] = useState(false);
   const [snd, setSnd] = useState(false);
   const [bar, setBar] = useState(0);
+  const t = useTranslations('ss');
+  const ts = useTranslations('ss.sec');
 
   useEffect(() => {
     // Mirror the module-level flag into state once (mount-only).
@@ -178,8 +186,8 @@ export function SuiteShell({
     } catch {}
     setSnd(soundOn);
     if (soundOn) playSound('ok');
-    sonner(soundOn ? 'UI ovozlari yoqildi' : "UI ovozlari o'chirildi");
-  }, []);
+    sonner(soundOn ? t('sndOn') : t('sndOff'));
+  }, [t]);
 
   const tab = useCallback(
     (v: string) => {
@@ -276,20 +284,20 @@ export function SuiteShell({
 
   const all: PaletteItem[] = useMemo(
     () => [
-      ...tabs.map((t, i) => ({ g: "Bo'limlar", t: t.n, sub: SECTIONS.find((s) => s.k === section)!.n, k: String(i + 1), run: () => tab(t.v) })),
+      ...tabs.map((x, i) => ({ g: t('sections'), t: x.n, sub: ts(section), k: String(i + 1), run: () => tab(x.v) })),
       ...SECTIONS.filter((s) => s.k !== section).map((s) => ({
-        g: "Bo'limlar",
-        t: s.n,
-        sub: 'Boshqa bo‘lim',
+        g: t('sections'),
+        t: ts(s.k),
+        sub: t('other'),
         run: () => {
           playSound('nav');
           router.push(s.href);
         },
       })),
       ...items,
-      { g: 'Amallar', t: snd ? "UI ovozlarini o'chirish" : 'UI ovozlarini yoqish', k: 'M', run: toggleSound },
+      { g: t('actions'), t: snd ? t('sndTurnOff') : t('sndTurnOn'), k: 'M', run: toggleSound },
     ],
-    [tabs, items, section, snd, tab, toggleSound, router],
+    [tabs, items, section, snd, tab, toggleSound, router, t, ts],
   );
 
   return (
@@ -301,12 +309,12 @@ export function SuiteShell({
           <i />
         </div>
         <span key={bar} className={cn('sx-topbar', bar > 0 && 'go')} aria-hidden />
-        <nav className="sx-secbar lite mx-4 sm:mx-7" aria-label="Strategiya bo'limlari">
+        <nav className="sx-secbar lite mx-4 sm:mx-7" aria-label={t('navAria')}>
           <span className="flex-1" />
-          <button className="ibtn" onClick={() => window.print()} title="Joriy hisobotni PDF sifatida saqlash (chop etish → PDF)" aria-label="PDF eksport">
+          <button className="ibtn" onClick={() => window.print()} title={t('pdfTitle')} aria-label={t('pdf')}>
             <FileDown className="size-4" />
           </button>
-          <button className={cn('ibtn', snd && 'on')} onClick={toggleSound} title="UI ovozlari (M)" aria-label="UI ovozlari">
+          <button className={cn('ibtn', snd && 'on')} onClick={toggleSound} title={t('sndTitle')} aria-label={t('snd')}>
             {snd ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
             <span className="eq" aria-hidden>
               <i />
@@ -327,6 +335,7 @@ function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () => void
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const [open, setOpen] = useState(false);
+  const t = useTranslations('ss');
   const listRef = useRef<HTMLDivElement>(null);
   const Q = q.trim().toLowerCase();
   const list = items.filter((x) => !Q || `${x.t} ${x.sub ?? ''}`.toLowerCase().includes(Q)).slice(0, 40);
@@ -369,13 +378,13 @@ function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () => void
   let g = '';
   return (
     <div className={cn('sx-ck-bg', open && 'open')} onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="sx-ck" role="dialog" aria-label="Buyruqlar paneli">
+      <div className="sx-ck" role="dialog" aria-label={t('palette')}>
         <div className="ck-in">
           <Search className="size-5 text-au-faint" />
           <input
             autoFocus
             value={q}
-            placeholder="Bo'lim, amal yoki yozuv nomini yozing…"
+            placeholder={t('searchPh')}
             onChange={(e) => {
               setQ(e.target.value);
               setSel(0);
@@ -402,7 +411,7 @@ function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () => void
         </div>
         <div className="ck-l" ref={listRef}>
           <span className="ck-hl" style={hl} aria-hidden />
-          {list.length === 0 && <div className="ck-e">«{q}» bo‘yicha hech narsa topilmadi</div>}
+          {list.length === 0 && <div className="ck-e">{t('none', { q })}</div>}
           {list.map((x, i) => {
             const head = x.g !== g ? (g = x.g) : null;
             return (
@@ -426,19 +435,19 @@ function Palette({ items, onClose }: { items: PaletteItem[]; onClose: () => void
         </div>
         <div className="ck-f">
           <span>
-            <kbd>↑</kbd> <kbd>↓</kbd> tanlash
+            <kbd>↑</kbd> <kbd>↓</kbd> {t('kSelect')}
           </span>
           <span>
-            <kbd>Enter</kbd> ochish
+            <kbd>Enter</kbd> {t('kOpen')}
           </span>
           <span>
-            <kbd>1</kbd>–<kbd>9</kbd> tablar
+            <kbd>1</kbd>–<kbd>9</kbd> {t('kTabs')}
           </span>
           <span>
-            <kbd>N</kbd> yangi
+            <kbd>N</kbd> {t('kNew')}
           </span>
           <span>
-            <kbd>M</kbd> ovoz
+            <kbd>M</kbd> {t('kSound')}
           </span>
         </div>
       </div>
