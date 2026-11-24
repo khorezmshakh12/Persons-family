@@ -81,6 +81,8 @@ export function OpsStudents({ data }: { data: OpsData }) {
   const leftThisMonth = d.rows.filter((s) => s.archivedAt?.startsWith(month)).length;
   const expected = billed.reduce((a, s) => a + s.fee, 0);
   const paidCount = billed.filter((s) => s.paidThisMonth).length;
+  /** Payments this month (one student can pay twice), as SchoolUp counts them. */
+  const payCount = d.stats.kassa.reduce((a, k) => a + k.count, 0);
 
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -186,7 +188,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
       <div className="sx-grid">
         <div className="sx-card sx-stat dark s3">
           <div className="l">{t('activeStudents')}</div>
-          <div className="v">{billed.length + live.filter((s) => s.status === 'frozen').length}</div>
+          <div className="v">{billed.length}</div>
           <div className="d">
             {t('activeBreak', { p: live.filter(isPending).length, f: live.filter((s) => s.status === 'frozen').length, a: d.rows.length - live.length })}
           </div>
@@ -197,7 +199,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
             {paidCount} <span className="text-base text-au-faint">/ {billed.length}</span>
           </div>
           <div className="d">
-            {t('inPlan', { sum: som(d.stats.collected), plan: formatUZS(expected) })}
+            {t('inPlan', { sum: som(d.stats.collected), plan: formatUZS(expected), n: payCount })}
           </div>
         </div>
         <div className="sx-card sx-stat s3">
@@ -606,7 +608,7 @@ function Stats({ data }: { data: OpsData }) {
         <div className="text-[26px] font-bold tabular-nums text-au-ink">
           {paid} / {billed.length}
         </div>
-        <div className="text-xs text-au-faint">{t('paidOf', { n: billed.length - paid })}</div>
+        <div className="text-xs text-au-faint">{t('paidOf', { n: billed.length - paid, p: d.stats.kassa.reduce((a, k) => a + k.count, 0) })}</div>
         <div className="sx-hb mt-4">
           <i className="bg-au-ok" style={{ width: `${pct}%` }} />
         </div>

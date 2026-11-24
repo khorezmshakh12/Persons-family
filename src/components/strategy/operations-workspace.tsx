@@ -104,7 +104,7 @@ export function OperationsWorkspace({ data }: { data: OpsData }) {
           crumb={tw('crumb')}
           title={tw('title')}
           em="HQ"
-          pill={`${data.money ? tw('activeStu', { n: data.students.rows.filter((s) => s.active || s.status === 'frozen').length }) : ''}${tw('openLeads', { n: data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length })}`}
+          pill={`${data.money ? tw('activeStu', { n: data.students.rows.filter((s) => s.active).length }) : ''}${tw('openLeads', { n: data.sales.leads.filter((l) => !l.studentId && !l.lostReason).length })}`}
         />
         <SuiteTabs tabs={tabs} value={tab} onChange={(v) => { playSound('nav'); go(v); }} />
       </div>

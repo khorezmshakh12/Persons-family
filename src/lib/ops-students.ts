@@ -176,7 +176,7 @@ export async function loadStudentsData(opts: { money?: boolean } = {}): Promise<
       where archived_at >= now() - interval '90 days' group by 1 order by 2 desc`,
     sql<{ actor: string; method: string; amount: number; count: number; today: boolean }[]>`
       select coalesce(p.first_name || ' ' || p.last_name, 'Import') as actor, y.method, (y.paid_at = ${today}) as today,
-        sum(case when y.is_refund then -y.amount else y.amount end) as amount, count(*)::int as count
+        sum(case when y.is_refund then -y.amount else y.amount end) as amount, count(*) filter (where not y.is_refund)::int as count
       from crm_payments y left join profiles p on p.id = y.created_by
       where y.paid_at >= ${`${month}-01`} and ${REAL_PAYMENT()} and ${money}
       group by 1, 2, 3 order by 4 desc`,
