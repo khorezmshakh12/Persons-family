@@ -148,7 +148,9 @@ async function loadTrends(day: string, ranges: Record<OpsPeriodKey, { from: stri
       ), act as (
         select s.id, s.archived_at, least(pay.first, (s.paid_elsewhere_at at time zone 'Asia/Tashkent')::date) as since
         from crm_students s left join pay on pay.sid = s.id
-        where s.discount_pct < 100
+        -- Freezes have no history: a student frozen now is left out of every
+        -- point, so the line does not drop on the live (frozen-free) count.
+        where s.discount_pct < 100 and s.status <> 'frozen'
           and coalesce(s.monthly_fee, (select sum(e.tariff_amount) from crm_enrollments e where e.student_id = s.id and e.status = 'active'), 0) > 0
       )
       select t.k, t.i,
@@ -268,6 +270,6 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
   const byDay = new Map(series.map((s) => [s.day, Number(s.amount)]));
   for (const s of out.series) s.amount = byDay.get(s.day) ?? 0;
   out.snapshot = snap;
-  Object.assign(out, await loadTrends(day, r, snap.active + snap.frozen));
+  Object.assign(out, await loadTrends(day, r, snap.active));
   return out;
 }
