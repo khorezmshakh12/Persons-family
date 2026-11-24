@@ -60,7 +60,8 @@ export async function loadProfileMetrics(staffId: string): Promise<ProfileMetric
   };
 }
 
-export type ActivityItem = { at: string; kind: 'task' | 'selfdev' | 'kpi' | 'issue' | 'star' | 'oneOnOne'; text: string; href?: string };
+/** `k` + `v`: a messages key (profile.act.*) and its values, so the UI shows `text` in the viewer's language. */
+export type ActivityItem = { at: string; kind: 'task' | 'selfdev' | 'kpi' | 'issue' | 'star' | 'oneOnOne'; text: string; href?: string; k?: string; v?: Record<string, string | number> };
 
 /** The person's notable events, last 30 days, newest first. */
 export async function loadProfileActivity(staffId: string, withStars: boolean): Promise<ActivityItem[]> {
@@ -85,10 +86,10 @@ export async function loadProfileActivity(staffId: string, withStars: boolean): 
       : Promise.resolve([] as { at: string; delta: number; reason: string | null }[]),
   ]);
   const items: ActivityItem[] = [
-    ...tasks.map((t) => ({ at: t.at, kind: 'task' as const, text: `Vazifa bajarildi: ${t.title}`, href: '/tasks' })),
-    ...sd.map((s) => ({ at: s.at, kind: 'selfdev' as const, text: s.scored ? 'O‘zini rivojlantirish hisoboti baholandi' : 'O‘zini rivojlantirish hisoboti topshirildi', href: '/self-development' })),
-    ...kpi.map((k) => ({ at: k.at, kind: 'kpi' as const, text: `KPI baholandi: ${k.pct > 0 ? '+' : ''}${Math.round(k.pct)}%`, href: '/my-kpi' })),
-    ...issues.map((i) => ({ at: i.at, kind: 'issue' as const, text: `Muammo hal qilindi: ${i.title}`, href: '/issues' })),
+    ...tasks.map((t) => ({ at: t.at, kind: 'task' as const, text: `Vazifa bajarildi: ${t.title}`, href: '/tasks', k: 'task', v: { title: t.title } })),
+    ...sd.map((s) => ({ at: s.at, kind: 'selfdev' as const, text: s.scored ? 'O‘zini rivojlantirish hisoboti baholandi' : 'O‘zini rivojlantirish hisoboti topshirildi', href: '/self-development', k: s.scored ? 'sdScored' : 'sdSent' })),
+    ...kpi.map((k) => ({ at: k.at, kind: 'kpi' as const, text: `KPI baholandi: ${k.pct > 0 ? '+' : ''}${Math.round(k.pct)}%`, href: '/my-kpi', k: 'kpi', v: { pct: `${k.pct > 0 ? '+' : ''}${Math.round(k.pct)}` } })),
+    ...issues.map((i) => ({ at: i.at, kind: 'issue' as const, text: `Muammo hal qilindi: ${i.title}`, href: '/issues', k: 'issue', v: { title: i.title } })),
     ...stars.map((s) => ({ at: s.at, kind: 'star' as const, text: `${s.delta > 0 ? '+' : ''}${s.delta} ★${s.reason ? ` — ${s.reason}` : ''}` })),
   ];
   return items.filter((i) => i.at).sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 25);

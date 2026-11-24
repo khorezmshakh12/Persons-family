@@ -29,7 +29,7 @@ test('a deadline moves with its goal', () => {
 
 test('deadline chip: plain before mount, late / soon after', () => {
   const goal = g({ dueDate: '2026-11-02', dueTime: '18:00' });
-  assert.deepEqual(dueChip(goal, null), { text: '⏰ 18:00', tone: 'neutral' });
+  assert.deepEqual(dueChip(goal, null), { text: '⏰ 18:00', tone: 'neutral', k: 'time', v: { t: '18:00' } });
   assert.equal(dueChip(goal, { day: '2026-11-02', clock: '18:30' })?.tone, 'late');
   assert.equal(dueChip(goal, { day: '2026-11-02', clock: '17:00' })?.text, '⏰ 18:00 · 1 soat 0 daq qoldi');
   assert.equal(dueChip(g({ scope: 'week', dueDate: '2026-11-06' }), { day: '2026-11-02', clock: '10:00' })?.text, '📅 06.11 · 4 kun qoldi');

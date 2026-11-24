@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { Check, Plus, X, ListChecks } from 'lucide-react';
 import { SURFACE_CARD } from '@/lib/glass';
@@ -14,6 +15,7 @@ export function DailyChecklist({ items: initial }: { items: ChecklistItem[] }) {
   const [items, setItems] = useState<ChecklistItem[]>(initial);
   const [title, setTitle] = useState('');
   const [, start] = useTransition();
+  const tc = useTranslations('cl');
 
   const done = items.filter((i) => i.done).length;
   const total = items.length;
@@ -50,7 +52,7 @@ export function DailyChecklist({ items: initial }: { items: ChecklistItem[] }) {
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-au-accent-soft text-au-accent-text">
           <ListChecks className="size-4" />
         </span>
-        <h2 className="flex-1 text-base font-bold text-au-ink">Bugungi checklist</h2>
+        <h2 className="flex-1 text-base font-bold text-au-ink">{tc('today')}</h2>
         {total > 0 && (
           <span className="shrink-0 text-xs font-semibold tabular-nums text-au-muted">
             {done}/{total}
@@ -82,14 +84,14 @@ export function DailyChecklist({ items: initial }: { items: ChecklistItem[] }) {
             <button
               type="button"
               onClick={() => del(i.id)}
-              aria-label="O'chirish"
+              aria-label={tc('delete')}
               className="shrink-0 rounded-md p-1 text-au-faint opacity-0 transition hover:text-au-bad group-hover:opacity-100 focus-visible:opacity-100"
             >
               <X className="size-3.5" />
             </button>
           </li>
         ))}
-        {total === 0 && <li className="text-xs text-au-muted">Hali band yo‘q. Kunlik vazifalaringizni qo‘shing.</li>}
+        {total === 0 && <li className="text-xs text-au-muted">{tc('noItems')}</li>}
       </ul>
 
       <div className="mt-1 flex items-center gap-2">
@@ -98,14 +100,14 @@ export function DailyChecklist({ items: initial }: { items: ChecklistItem[] }) {
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           maxLength={120}
-          placeholder="Yangi band…"
+          placeholder={tc('newItem')}
           className="min-w-0 flex-1 rounded-au-ctl border border-au-line bg-au-card px-3 py-1.5 text-sm text-au-ink outline-none placeholder:text-au-faint focus:border-au-accent"
         />
         <button
           type="button"
           onClick={add}
           disabled={!title.trim()}
-          aria-label="Qo‘shish"
+          aria-label={tc('add')}
           className="grid size-8 shrink-0 place-items-center rounded-au-ctl bg-au-accent text-white transition hover:opacity-90 disabled:opacity-40"
         >
           <Plus className="size-4" />

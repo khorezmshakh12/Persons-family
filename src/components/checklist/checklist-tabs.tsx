@@ -1,17 +1,13 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState, useTransition, type ReactNode } from 'react';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 export type ChecklistTab = 'mine' | 'team' | 'manage' | 'progress';
 
-const LABELS: Record<ChecklistTab, string> = {
-  mine: 'Mening checklistim',
-  team: 'Jamoa statistikasi',
-  manage: 'Boshqarish',
-  progress: 'Progress',
-};
+const LABELS: Record<ChecklistTab, string> = { mine: 'tabMine', team: 'tabTeam', manage: 'tabManage', progress: 'tabProgress' };
 
 /** Checklist page sections as tabs (like Operation HQ), so nothing sinks to
  * the bottom of a long page. The tab lives in the URL (?tab=) so a refresh or
@@ -30,6 +26,7 @@ export function ChecklistTabs({
   // The tab the user just clicked, shown as selected while the server renders it.
   const [pendingTab, setPendingTab] = useState<ChecklistTab | null>(null);
   const [pending, start] = useTransition();
+  const tc = useTranslations('cl');
   const shown = pending && pendingTab ? pendingTab : value;
 
   const go = (t: ChecklistTab) => {
@@ -40,7 +37,7 @@ export function ChecklistTabs({
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <div role="tablist" aria-label="Checklist bo‘limlari" className="flex gap-1.5 overflow-x-auto border-b border-au-line pb-2">
+      <div role="tablist" aria-label={tc('tabsAria')} className="flex gap-1.5 overflow-x-auto border-b border-au-line pb-2">
         {tabs.map((t) => {
           const on = t === shown;
           return (
@@ -57,7 +54,7 @@ export function ChecklistTabs({
                   : 'border-transparent text-au-muted hover:bg-au-card-2 hover:text-au-ink',
               )}
             >
-              {LABELS[t]}
+              {tc(LABELS[t])}
             </button>
           );
         })}

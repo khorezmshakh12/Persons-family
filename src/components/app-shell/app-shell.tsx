@@ -66,6 +66,7 @@ export async function AppShell({
 }) {
   const tStaff = await getTranslations('staff');
   const tNav = await getTranslations('nav');
+  const tAct = await getTranslations('nav.act');
   // ⌘K "Pages": exactly the sections this person's sidebar shows.
   const palettePages = navItemsForRole(profile.role, { materialsLinked, coreViews })
     .filter((i) => !i.external)
@@ -73,11 +74,11 @@ export async function AppShell({
   // ⌘K "Amallar" (v8-A): the everyday actions this person can take.
   const has = (href: string) => palettePages.some((p) => p.href === href);
   const paletteActions = [
-    has('/issues') && { href: '/issues?new=1', label: 'Murojaat yuborish' },
-    canAssignTasks(profile.role) && has('/tasks') && { href: '/tasks?new=1', label: 'Vazifa yaratish' },
-    has('/accounting') && { href: '/accounting?tab=ma_cash', label: 'Kirim / chiqim qo‘shish' },
-    has('/self-development') && { href: '/self-development', label: 'O‘sish hisobotini yozish' },
-    { href: '/settings?s=notifications', label: 'Bildirishnoma sozlamalari' },
+    has('/issues') && { href: '/issues?new=1', label: tAct('issue') },
+    canAssignTasks(profile.role) && has('/tasks') && { href: '/tasks?new=1', label: tAct('task') },
+    has('/accounting') && { href: '/accounting?tab=ma_cash', label: tAct('cash') },
+    has('/self-development') && { href: '/self-development', label: tAct('growth') },
+    { href: '/settings?s=notifications', label: tAct('notif') },
   ].filter((x): x is { href: string; label: string } => Boolean(x));
   // The Roadmap section was removed (owner, 2026-09-26), and with it the
   // sidebar goal card that linked to it.
