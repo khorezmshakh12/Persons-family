@@ -186,7 +186,7 @@ export function OpsStudents({ data }: { data: OpsData }) {
       <div className="sx-grid">
         <div className="sx-card sx-stat dark s3">
           <div className="l">{t('activeStudents')}</div>
-          <div className="v">{billed.length}</div>
+          <div className="v">{billed.length + live.filter((s) => s.status === 'frozen').length}</div>
           <div className="d">
             {t('activeBreak', { p: live.filter(isPending).length, f: live.filter((s) => s.status === 'frozen').length, a: d.rows.length - live.length })}
           </div>
