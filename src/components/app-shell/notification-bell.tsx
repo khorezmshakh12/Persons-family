@@ -383,7 +383,7 @@ export function NotificationBell({
                           {r.body && <span className="line-clamp-2 text-xs leading-snug whitespace-pre-line text-au-muted">{r.body}</span>}
                           <span className="flex items-center gap-1.5 text-[11px] text-au-faint">
                             {format.relativeTime(new Date(r.at), now)}
-                            {r.action && <span className="rounded bg-au-bad-soft px-1 font-semibold text-au-bad">Harakat kerak</span>}
+                            {r.action && <span className="rounded bg-au-bad-soft px-1 font-semibold text-au-bad">{t('needsAction')}</span>}
                           </span>
                         </span>
                         {r.unread && <span aria-label={t('unreadDot')} className="mt-2 size-2 shrink-0 rounded-full bg-au-info" />}
@@ -412,7 +412,7 @@ export function NotificationBell({
               </div>
 
               <div className="flex items-center justify-between border-t border-au-line bg-au-card-2 px-4 py-2 text-[11px] text-au-muted">
-                <span>90 kun saqlanadi</span>
+                <span>{t('kept90')}</span>
                 <Link href="/settings?s=notifications" onClick={() => setOpen(false)} className="inline-flex items-center gap-1 font-semibold hover:text-au-ink">
                   <Settings2 className="size-3.5" /> Telegram sozlamalari
                 </Link>

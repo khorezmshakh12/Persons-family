@@ -40,6 +40,7 @@ const shiftYm = (ym: string, d: number) => {
 export function AddPerformanceEntryDialog({ staffId, month }: { staffId: string; month?: string }) {
   const t = useTranslations('performance');
   const tCommon = useTranslations('common');
+  const tFin = useTranslations('fin.nav');
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState<number | null>(null);
   const [state, formAction, isPending] = useActionState<PerformanceActionState, FormData>(
@@ -106,7 +107,7 @@ export function AddPerformanceEntryDialog({ staffId, month }: { staffId: string;
           </div>
           {month && (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="period">Qaysi oy oyligiga</Label>
+              <Label htmlFor="period">{tFin('periodFor')}</Label>
               <select id="period" name="period" defaultValue={month} className="h-9 rounded-md border border-au-line bg-au-card px-3 text-sm text-au-ink">
                 {[-2, -1, 0, 1].map((d) => {
                   const ym = shiftYm(month, d);

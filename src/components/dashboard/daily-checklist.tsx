@@ -47,7 +47,7 @@ export function DailyChecklist({ items: initial }: { items: ChecklistItem[] }) {
   };
 
   return (
-    <section className={cn(SURFACE_CARD, 'flex min-w-0 flex-col gap-3 p-5')} aria-label="Kunlik checklist">
+    <section className={cn(SURFACE_CARD, 'flex min-w-0 flex-col gap-3 p-5')} aria-label={tc('dailyAria')}>
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-au-accent-soft text-au-accent-text">
           <ListChecks className="size-4" />

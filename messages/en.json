@@ -1466,7 +1466,9 @@
     "allRead": "Mark all read",
     "noAction": "Nothing needs you right now 🎉",
     "noUnread": "Everything is read.",
-    "unreadDot": "unread"
+    "unreadDot": "unread",
+    "needsAction": "Action needed",
+    "kept90": "Kept for 90 days"
   },
   "profile": {
     "sectionError": "This section couldn't load. Try refreshing the page.",
@@ -4088,7 +4090,8 @@
     "feedback": "Feedback on your checklist",
     "last7": "· last 7 days",
     "item": "Item: {t}",
-    "wholeDay": "For the day"
+    "wholeDay": "For the day",
+    "dailyAria": "Daily checklist"
   },
   "dash": {
     "rem": {
@@ -4249,5 +4252,104 @@
     "dist": "Grade distribution · {n}",
     "calib": "Most are “{s}” — check the calibration",
     "totalEffect": "Total effect on pay"
+  },
+  "pg": {
+    "kpi": {
+      "teamTitle": "Team KPI",
+      "myTitle": "My KPI",
+      "teamSub": "Approve next month's plans and grade the finished month — the grade lands on pay as a bonus or a deduction.",
+      "mySub": "By 23:59 on the last day of each month, submit next month's plan in three scenarios: bad, good and great."
+    },
+    "news": {
+      "title": "Team life",
+      "sub": "Announcements, events, deadlines, leave and holidays — in one place.",
+      "news": "Announcements",
+      "calendar": "Calendar"
+    },
+    "hr": {
+      "people": "People",
+      "org": "Structure",
+      "roadmap": "Growth",
+      "growth": "Roadmap · Mind map",
+      "onboarding": "Onboarding",
+      "analytics": "Analytics",
+      "attendance": "Attendance",
+      "leave": "Leave",
+      "hiring": "Hiring",
+      "me": "My profile",
+      "subManager": "Team, structure, new hires and 360° profiles — every department in one place",
+      "subStaff": "Your profile, onboarding and leave requests",
+      "navAria": "HR sections"
+    },
+    "report": {
+      "title": "Reports",
+      "sub": "Team results in one place: tasks, issues, attendance, self-development and KPI — by period."
+    },
+    "set": {
+      "profile": "Profile",
+      "security": "Security",
+      "notifications": "Notifications",
+      "appearance": "Appearance",
+      "telegram": "Telegram",
+      "system": "System (CEO)",
+      "securitySub": "Sign-in status and signing out of all devices. Change your password in the “Profile” section.",
+      "notifSub": "Choose which messages reach you in Telegram. Badges on the site don't change.",
+      "navAria": "Settings"
+    },
+    "staff": {
+      "accounts": "Accounts",
+      "access": "Access rights",
+      "security": "Security",
+      "audit": "Log",
+      "sub": "Accounts, access rights and security — who can sign in and what they can see",
+      "navAria": "Staff sections"
+    },
+    "plat": {
+      "health": "System health",
+      "quality": "Data quality",
+      "journal": "Log"
+    },
+    "dash": {
+      "bpTitle": "Set your B-point",
+      "bpSub": "Enter your monthly pay goal for half a year, 1 year and 3 years →"
+    }
+  },
+  "bpp": {
+    "title": "Towards the B-point",
+    "sub": "{h} · {from} → {to} · pay received each month",
+    "subMln": " · bars in mln UZS",
+    "notSet": "No B-point set for {h} — enter the monthly goal first to see the chart.",
+    "pay": "pay {n}",
+    "ofB": "{n}% of the B-point",
+    "future": "month not here yet",
+    "futureShort": "not yet",
+    "bLine": "B-point · {n}/mo",
+    "aLine": "A-point · {n}",
+    "lgPay": "Month's pay",
+    "lgHit": "Month that hit the B-point",
+    "lgFuture": "Not yet",
+    "now": "Now:",
+    "best": "Best month:",
+    "avg": "Monthly average:",
+    "reached": "B-point reached",
+    "need": "Still needed:"
+  },
+  "fin": {
+    "nav": {
+      "payroll": "Payroll and advances",
+      "accounting": "Accounting",
+      "mine": "My finances & B-point",
+      "aria": "Finance sections",
+      "staffSub": "Personal statement, advances, B-point and income roadmap",
+      "prev": "Previous month",
+      "next": "Next month",
+      "periodFor": "For which month's pay",
+      "bpLine": "B-point · {n}/mo"
+    }
+  },
+  "sv2": {
+    "noMatch": "No tasks match the filter",
+    "add": "Add",
+    "taskPh": "Task name… (Enter)"
   }
 }

@@ -14,12 +14,7 @@ import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-const TABS: { k: ConsoleTab; n: string }[] = [
-  { k: 'accounts', n: 'Hisoblar' },
-  { k: 'access', n: 'Kirish huquqlari' },
-  { k: 'security', n: 'Xavfsizlik' },
-  { k: 'audit', n: 'Jurnal' },
-];
+const TABS: { k: ConsoleTab }[] = [{ k: 'accounts' }, { k: 'access' }, { k: 'security' }, { k: 'audit' }];
 
 /**
  * Staff console — accounts and access (Okta / Google Admin style). People
@@ -31,6 +26,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
   const { tab: tabParam } = await searchParams;
   const tab = (TABS.some((t) => t.k === tabParam) ? tabParam : 'accounts') as ConsoleTab;
   const t = await getTranslations('staff');
+  const tp = await getTranslations('pg.staff');
   const { user, profile } = await getAuthState();
   if (!user || !profile) return null; // layout redirects to /login
   const isCeo = profile!.role === 'ceo';
@@ -46,14 +42,14 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
         <BgVideo variant="hero" />
         <div className="relative z-10">
           <h1 className="text-[28px] leading-[34px] font-bold tracking-tight text-au-ink">{t('title')}</h1>
-          <p className="mt-1 text-sm text-au-muted">Hisoblar, kirish huquqlari va xavfsizlik — kim tizimga kira oladi va nimani ko‘radi</p>
+          <p className="mt-1 text-sm text-au-muted">{tp('sub')}</p>
         </div>
         <div className="relative z-10">
           <AddStaffDialog canAssignCeo={can(profile!.role, 'staff.manageProtected')} />
         </div>
       </header>
 
-      <nav aria-label="Xodimlar bo‘limlari" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <nav aria-label={tp('navAria')} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div className="inline-flex rounded-au-ctl border border-au-line bg-au-card-2 p-1">
           {TABS.map((x) => (
             <Link
@@ -65,7 +61,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
                 x.k === tab ? 'bg-au-card text-au-ink shadow-au-card' : 'text-au-muted hover:text-au-ink',
               )}
             >
-              {x.n}
+              {tp(x.k)}
             </Link>
           ))}
         </div>

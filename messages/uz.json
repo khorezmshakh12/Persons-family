@@ -1466,7 +1466,9 @@
     "allRead": "Hammasi o‘qildi",
     "noAction": "Sizdan hech narsa kutilmayapti 🎉",
     "noUnread": "Hammasi o‘qilgan.",
-    "unreadDot": "o‘qilmagan"
+    "unreadDot": "o‘qilmagan",
+    "needsAction": "Harakat kerak",
+    "kept90": "90 kun saqlanadi"
   },
   "profile": {
     "sectionError": "Bu bo'limni yuklab bo'lmadi. Sahifani yangilab ko'ring.",
@@ -4088,7 +4090,8 @@
     "feedback": "Checklistingizga feedback",
     "last7": "· oxirgi 7 kun",
     "item": "Band: {t}",
-    "wholeDay": "Kun bo‘yicha"
+    "wholeDay": "Kun bo‘yicha",
+    "dailyAria": "Kunlik checklist"
   },
   "dash": {
     "rem": {
@@ -4249,5 +4252,104 @@
     "dist": "Baholar taqsimoti · {n} ta",
     "calib": "Ko‘pchilik “{s}” — kalibrlashni tekshiring",
     "totalEffect": "Maoshga umumiy ta’sir"
+  },
+  "pg": {
+    "kpi": {
+      "teamTitle": "Jamoa KPI",
+      "myTitle": "Mening KPI",
+      "teamSub": "Keyingi oy rejalarini tasdiqlang, tugagan oyni baholang — baho oylikka bonus yoki ushlab qolish bo‘lib tushadi.",
+      "mySub": "Har oy oxirgi kuni 23:59 gacha keyingi oy rejangizni uch ssenariyda topshiring: yomon, yaxshi va juda yaxshi."
+    },
+    "news": {
+      "title": "Jamoa hayoti",
+      "sub": "E’lonlar, tadbirlar, muddatlar, ta’tillar va bayramlar — bir joyda.",
+      "news": "E’lonlar",
+      "calendar": "Kalendar"
+    },
+    "hr": {
+      "people": "Xodimlar",
+      "org": "Tuzilma",
+      "roadmap": "Rivojlanish",
+      "growth": "Roadmap · Mind map",
+      "onboarding": "Onboarding",
+      "analytics": "Tahlil",
+      "attendance": "Davomat",
+      "leave": "Ta’til",
+      "hiring": "Ishga olish",
+      "me": "Mening profilim",
+      "subManager": "Jamoa, tuzilma, yangi xodimlar va 360° profil — barcha bo‘limlar ma’lumoti bir joyda",
+      "subStaff": "Profilingiz, onboarding va ta’til so‘rovlari",
+      "navAria": "HR bo‘limlari"
+    },
+    "report": {
+      "title": "Hisobotlar",
+      "sub": "Jamoa natijalari bir joyda: vazifalar, muammolar, kelganlar, o‘zini rivojlantirish va KPI — davrlar kesimida."
+    },
+    "set": {
+      "profile": "Profil",
+      "security": "Xavfsizlik",
+      "notifications": "Bildirishnomalar",
+      "appearance": "Ko‘rinish",
+      "telegram": "Telegram",
+      "system": "Tizim (CEO)",
+      "securitySub": "Kirish holati va barcha qurilmalardan chiqish. Parolni “Profil” bo‘limida almashtirasiz.",
+      "notifSub": "Telegram’da qaysi xabarlar kelishini o‘zingiz tanlaysiz. Saytdagi belgilar o‘zgarmaydi.",
+      "navAria": "Sozlamalar"
+    },
+    "staff": {
+      "accounts": "Hisoblar",
+      "access": "Kirish huquqlari",
+      "security": "Xavfsizlik",
+      "audit": "Jurnal",
+      "sub": "Hisoblar, kirish huquqlari va xavfsizlik — kim tizimga kira oladi va nimani ko‘radi",
+      "navAria": "Xodimlar bo‘limlari"
+    },
+    "plat": {
+      "health": "Tizim holati",
+      "quality": "Ma’lumot sifati",
+      "journal": "Jurnal"
+    },
+    "dash": {
+      "bpTitle": "B-nuqtangizni belgilang",
+      "bpSub": "Yarim yil, 1 yil va 3 yil uchun oylik maosh maqsadingizni kiriting →"
+    }
+  },
+  "bpp": {
+    "title": "B-nuqta sari",
+    "sub": "{h} · {from} → {to} · har oy olingan oylik",
+    "subMln": " · ustunlarda mln so‘m",
+    "notSet": "{h} uchun B-nuqta belgilanmagan — grafik uchun avval oylik maqsadni kiriting.",
+    "pay": "oylik {n}",
+    "ofB": "B-nuqtaning {n}%",
+    "future": "hali kelmagan oy",
+    "futureShort": "hali kelmagan",
+    "bLine": "B-nuqta · {n}/oy",
+    "aLine": "A-nuqta · {n}",
+    "lgPay": "Oy oyligi",
+    "lgHit": "B-nuqtaga yetgan oy",
+    "lgFuture": "Hali kelmagan",
+    "now": "Hozir:",
+    "best": "Eng yuqori oy:",
+    "avg": "O‘rtacha oyiga:",
+    "reached": "B-nuqtaga yetildi",
+    "need": "Yana kerak:"
+  },
+  "fin": {
+    "nav": {
+      "payroll": "Ish haqi va Avanslar",
+      "accounting": "Hisob-kitob",
+      "mine": "Mening moliyam & B-nuqta",
+      "aria": "Moliya bo‘limlari",
+      "staffSub": "Shaxsiy hisob varaqasi, avanslar, B-nuqta va daromad xaritasi",
+      "prev": "Oldingi oy",
+      "next": "Keyingi oy",
+      "periodFor": "Qaysi oy oyligiga",
+      "bpLine": "B-nuqta · {n}/oy"
+    }
+  },
+  "sv2": {
+    "noMatch": "Filtrga mos vazifa topilmadi",
+    "add": "Qo‘shish",
+    "taskPh": "Vazifa nomi… (Enter)"
   }
 }
