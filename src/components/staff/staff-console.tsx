@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { SURFACE_CARD, CARD_TITLE, CHIP_BAD, CHIP_INFO, CHIP_NEUTRAL, CHIP_OK, CHIP_ACCENT, INPUT } from '@/lib/glass';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -90,7 +91,37 @@ const SECTION_LABEL: [SectionKey, string][] = [
   ['profile', 'Profil'],
   ['settings', 'Sozlamalar'],
 ];
-const SECTION_NAME = Object.fromEntries(SECTION_LABEL) as Record<string, string>;
+
+const DEPTS: Department[] = ['top', 'acad', 'com', 'ops', 'fin', 'hr'];
+
+/** Labels, relative times and dates in the viewer's language. */
+function useSc() {
+  const t = useTranslations('sc');
+  const td = useTranslations('att.dept');
+  const ts = useTranslations('sc.sec');
+  const ta = useTranslations('sc.au');
+  const locale = useLocale();
+  const loc = locale === 'uz' ? 'uz-UZ' : locale;
+  const dept = Object.fromEntries(DEPTS.map((d) => [d, d === 'hr' ? 'HR' : td(d)])) as Record<Department, string>;
+  const sec = Object.fromEntries(SECTION_LABEL.map(([k]) => [k, ts(k)])) as Record<string, string>;
+  return {
+    t,
+    dept,
+    sec,
+    au: (type: string) => (AUDIT_LABEL[type] ? ta(type.replace('.', '_')) : type),
+    ago: (iso: string | null, now: number) => {
+      if (!iso) return t('noData');
+      const d = now - new Date(iso).getTime();
+      if (d < 60_000) return t('justNow');
+      if (d < 3_600_000) return t('minAgo', { n: Math.floor(d / 60_000) });
+      if (d < DAY) return t('hAgo', { n: Math.floor(d / 3_600_000) });
+      if (d < 30 * DAY) return t('dAgo', { n: Math.floor(d / DAY) });
+      return t('moAgo', { n: Math.floor(d / (30 * DAY)) });
+    },
+    fd: (iso: string | null) => (iso ? new Intl.DateTimeFormat(loc, { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso)) : '—'),
+    fdt: (iso: string) => new Intl.DateTimeFormat(loc, { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(iso)),
+  };
+}
 
 const AUDIT_LABEL: Record<string, { n: string; tone: string }> = {
   'staff.create': { n: 'Hisob yaratildi', tone: CHIP_OK },
@@ -109,21 +140,6 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 const fullName = (a: Pick<Profile, 'first_name' | 'last_name'>) => `${a.first_name} ${a.last_name}`;
 
-/** "3 daqiqa oldin" / "5 kun oldin" relative to `now` (passed from the server render). */
-function ago(iso: string | null, now: number): string {
-  if (!iso) return 'ma’lumot yo‘q';
-  const d = now - new Date(iso).getTime();
-  if (d < 60_000) return 'hozirgina';
-  if (d < 3_600_000) return `${Math.floor(d / 60_000)} daqiqa oldin`;
-  if (d < DAY) return `${Math.floor(d / 3_600_000)} soat oldin`;
-  if (d < 30 * DAY) return `${Math.floor(d / DAY)} kun oldin`;
-  return `${Math.floor(d / (30 * DAY))} oy oldin`;
-}
-
-const fmtDate = (iso: string | null) =>
-  iso ? new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso)) : '—';
-const fmtDateTime = (iso: string) =>
-  new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(iso));
 const dayKey = (iso: string) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 
@@ -216,6 +232,7 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
   roleLabels: Record<string, string>;
   onOpen: (id: string) => void;
 }) {
+  const S = useSc();
   const router = useRouter();
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('');
@@ -336,10 +353,10 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
     start(async () => {
       const r = await bulkSetStaffActiveAction([...sel], active);
       if (r.error) {
-        toast.error('Bajarib bo‘lmadi');
+        toast.error(S.t('failed'));
         return;
       }
-      toast.success(`${r.changed} ta hisob ${active ? 'faollashtirildi' : 'nofaol qilindi'}${r.skipped ? ` · ${r.skipped} tasi o‘tkazib yuborildi` : ''}`);
+      toast.success(`${S.t('bulkDone', { n: r.changed ?? 0, a: active ? S.t('activated') : S.t('deactivated') })}${r.skipped ? S.t('skipped', { n: r.skipped }) : ''}`);
       setSel(new Set());
       router.refresh();
     });
@@ -350,21 +367,21 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
     email: a.email ?? '',
     role: roleLabels[a.role] ?? a.role,
     positions: a.positions.map((p) => roleLabels[p] ?? p).join(', '),
-    dept: DEPT_LABEL[deptOf(a.role)],
-    telegram: a.telegram_id ? 'ha' : 'yo‘q',
-    lastSeen: a.last_seen_at ? fmtDate(a.last_seen_at) : '',
-    created: fmtDate(a.created_at),
-    status: a.is_active ? 'faol' : 'nofaol',
+    dept: S.dept[deptOf(a.role)],
+    telegram: a.telegram_id ? S.t('yes') : S.t('no'),
+    lastSeen: a.last_seen_at ? S.fd(a.last_seen_at) : '',
+    created: S.fd(a.created_at),
+    status: a.is_active ? S.t('active') : S.t('inactive'),
   }));
 
   const lastChange = (id: string) => audit.find((e) => e.description.includes(id));
 
   const quickKpis: { k: Quick; label: string; value: number; hint: string; Icon: typeof Users; tone: string }[] = [
-    { k: 'active', label: 'Faol hisoblar', value: counts.active, hint: `jami ${accounts.length} ta`, Icon: Users, tone: 'var(--au-ok)' },
-    { k: 'inactive', label: 'Nofaol', value: counts.inactive, hint: 'muzlatilgan yoki chiqib ketgan', Icon: Ban, tone: 'var(--au-muted)' },
-    { k: 'noTelegram', label: 'Telegram ulanmagan', value: counts.noTelegram, hint: 'bildirishnoma bormaydi', Icon: Send, tone: 'var(--au-info)' },
-    { k: 'stale', label: `${STALE_DAYS}+ kun kirmagan`, value: counts.stale, hint: 'faol, lekin ishlatmayapti', Icon: Clock3, tone: 'var(--au-accent)' },
-    { k: 'temp', label: 'Vaqtinchalik parol', value: counts.temp, hint: 'parolni hali almashtirmagan', Icon: KeyRound, tone: 'var(--au-bad)' },
+    { k: 'active', label: S.t('kActive'), value: counts.active, hint: S.t('kActiveHint', { n: accounts.length }), Icon: Users, tone: 'var(--au-ok)' },
+    { k: 'inactive', label: S.t('kInactive'), value: counts.inactive, hint: S.t('kInactiveHint'), Icon: Ban, tone: 'var(--au-muted)' },
+    { k: 'noTelegram', label: S.t('kNoTg'), value: counts.noTelegram, hint: S.t('kNoTgHint'), Icon: Send, tone: 'var(--au-info)' },
+    { k: 'stale', label: S.t('kStale', { n: STALE_DAYS }), value: counts.stale, hint: S.t('kStaleHint'), Icon: Clock3, tone: 'var(--au-accent)' },
+    { k: 'temp', label: S.t('kTemp'), value: counts.temp, hint: S.t('kTempHint'), Icon: KeyRound, tone: 'var(--au-bad)' },
   ];
 
   return (
@@ -383,31 +400,31 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
               ref={searchRef}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Ism, telefon, e-pochta yoki rol…  ( / )"
+              placeholder={S.t('searchPh')}
               className={cn(INPUT, 'h-10 pl-9')}
             />
           </label>
-          <select value={dept} onChange={(e) => setDept(e.target.value)} className={cn(INPUT, 'h-10 w-auto')} aria-label="Bo‘lim">
-            <option value="">Barcha bo‘limlar</option>
-            {(Object.keys(DEPT_LABEL) as Department[]).map((d) => (
+          <select value={dept} onChange={(e) => setDept(e.target.value)} className={cn(INPUT, 'h-10 w-auto')} aria-label={S.t('dept')}>
+            <option value="">{S.t('allDepts')}</option>
+            {(DEPTS).map((d) => (
               <option key={d} value={d}>
-                {DEPT_LABEL[d]}
+                {S.dept[d]}
               </option>
             ))}
           </select>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className={cn(INPUT, 'h-10 w-auto')} aria-label="Rol">
-            <option value="">Barcha rollar</option>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className={cn(INPUT, 'h-10 w-auto')} aria-label={S.t('role')}>
+            <option value="">{S.t('allRoles')}</option>
             {ROLES.map((r) => (
               <option key={r} value={r}>
                 {roleLabels[r]}
               </option>
             ))}
           </select>
-          <div className="inline-flex rounded-au-ctl border border-au-line bg-au-card-2 p-1" role="group" aria-label="Ko‘rinish">
+          <div className="inline-flex rounded-au-ctl border border-au-line bg-au-card-2 p-1" role="group" aria-label={S.t('view')}>
             {(
               [
-                ['table', List, 'Jadval'],
-                ['cards', LayoutGrid, 'Kartochkalar'],
+                ['table', List, S.t('table')],
+                ['cards', LayoutGrid, S.t('cards')],
               ] as const
             ).map(([k, Icon, n]) => (
               <button
@@ -425,22 +442,22 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
           <ExportButtons
             filename="xodimlar"
             columns={[
-              { header: 'Ism', key: 'name' },
-              { header: 'Telefon', key: 'phone' },
-              { header: 'E-pochta', key: 'email' },
-              { header: 'Rol', key: 'role' },
-              { header: 'Qo‘shimcha lavozimlar', key: 'positions' },
-              { header: 'Bo‘lim', key: 'dept' },
+              { header: S.t('cName'), key: 'name' },
+              { header: S.t('cPhone'), key: 'phone' },
+              { header: S.t('cEmail'), key: 'email' },
+              { header: S.t('role'), key: 'role' },
+              { header: S.t('cPositions'), key: 'positions' },
+              { header: S.t('dept'), key: 'dept' },
               { header: 'Telegram', key: 'telegram' },
-              { header: 'Oxirgi faollik', key: 'lastSeen' },
-              { header: 'Qo‘shilgan', key: 'created' },
-              { header: 'Holat', key: 'status' },
+              { header: S.t('cLastSeen'), key: 'lastSeen' },
+              { header: S.t('cCreated'), key: 'created' },
+              { header: S.t('cStatus'), key: 'status' },
             ]}
             rows={exportRows}
           />
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="font-semibold text-au-muted">Saqlangan:</span>
+          <span className="font-semibold text-au-muted">{S.t('saved')}</span>
           {views.map((v) => (
             <span key={v.name} className="ms-pop-in inline-flex items-center rounded-full border border-au-line bg-au-card-2">
               <button
@@ -455,7 +472,7 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
               >
                 {v.name}
               </button>
-              <button type="button" aria-label={`${v.name} — o‘chirish`} className="pr-2 text-au-faint hover:text-au-bad" onClick={() => dropView(v.name)}>
+              <button type="button" aria-label={S.t('dropView', { n: v.name })} className="pr-2 text-au-faint hover:text-au-bad" onClick={() => dropView(v.name)}>
                 <X className="size-3" />
               </button>
             </span>
@@ -463,10 +480,10 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
           {naming === null ? (
             <button
               type="button"
-              onClick={() => setNaming(roleLabels[role] ?? (dept ? DEPT_LABEL[dept as Department] : ''))}
+              onClick={() => setNaming(roleLabels[role] ?? (dept ? S.dept[dept as Department] : ''))}
               className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold text-au-accent-text hover:bg-au-accent-soft"
             >
-              <Bookmark className="size-3" /> Joriy filtrni saqlash
+              <Bookmark className="size-3" /> {S.t('saveFilter')}
             </button>
           ) : (
             <form
@@ -481,17 +498,17 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
                 value={naming}
                 onChange={(e) => setNaming(e.target.value)}
                 onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
-                placeholder="Ko‘rinish nomi"
+                placeholder={S.t('viewName')}
                 maxLength={30}
                 className="h-7 w-36 rounded-full border border-au-line bg-au-card px-3 text-xs focus:ring-2 focus:ring-au-accent/40 focus:outline-none"
               />
               <button type="submit" className={cn(CHIP_INFO, 'h-7 px-2.5')}>
-                Saqlash
+                {S.t('save')}
               </button>
             </form>
           )}
           <span className="ml-auto text-au-faint">
-            {rows.length} ta · J/K — yurish · Enter — ochish · X — tanlash
+            {S.t('keysHint', { n: rows.length })}
           </span>
         </div>
       </div>
@@ -499,7 +516,7 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
       {rows.length === 0 ? (
         <div className={cn(SURFACE_CARD, 'grid place-items-center gap-2 py-14 text-center')}>
           <Users className="size-8 text-au-faint" />
-          <p className="text-sm font-semibold text-au-ink">Hech kim topilmadi</p>
+          <p className="text-sm font-semibold text-au-ink">{S.t('nobody')}</p>
           <button
             type="button"
             className="text-xs font-semibold text-au-accent-text"
@@ -510,7 +527,7 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
               setQuick('all');
             }}
           >
-            Filtrlarni tozalash
+            {S.t('clear')}
           </button>
         </div>
       ) : layout === 'table' ? (
@@ -521,18 +538,18 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
                 <th className="w-10 py-3 pl-4">
                   <input
                     type="checkbox"
-                    aria-label="Hammasini tanlash"
+                    aria-label={S.t('selectAll')}
                     checked={allOn}
                     onChange={() => setSel(allOn ? new Set() : new Set(rows.map((r) => r.id)))}
                     className="size-4 accent-[var(--au-ink)]"
                   />
                 </th>
-                <th className="py-3">Xodim</th>
-                <th className="py-3">Rol · bo‘lim</th>
-                <th className="py-3">Oxirgi faollik</th>
-                <th className="py-3">Kirish</th>
-                <th className="py-3">Holat</th>
-                <th className="py-3 pr-4 text-right">Amallar</th>
+                <th className="py-3">{S.t('hStaff')}</th>
+                <th className="py-3">{S.t('hRoleDept')}</th>
+                <th className="py-3">{S.t('cLastSeen')}</th>
+                <th className="py-3">{S.t('hSignin')}</th>
+                <th className="py-3">{S.t('cStatus')}</th>
+                <th className="py-3 pr-4 text-right">{S.t('hActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -560,7 +577,7 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
                     <td className="py-3 pl-4">
                       <input
                         type="checkbox"
-                        aria-label={`${fullName(a)} — tanlash`}
+                        aria-label={S.t('select', { n: fullName(a) })}
                         checked={sel.has(a.id)}
                         onChange={() => toggle(a.id)}
                         className="size-4 accent-[var(--au-ink)]"
@@ -572,7 +589,7 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-au-ink">
                             {fullName(a)}
-                            {a.id === currentUserId && <span className="ml-1.5 text-[11px] font-medium text-au-faint">(siz)</span>}
+                            {a.id === currentUserId && <span className="ml-1.5 text-[11px] font-medium text-au-faint">{S.t('you')}</span>}
                           </p>
                           <p className="truncate text-xs text-au-muted">{a.phone}</p>
                         </div>
@@ -581,38 +598,38 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
                     <td className="py-3">
                       <div className="flex flex-wrap items-center gap-1">
                         <span className="font-medium text-au-ink">{roleLabels[a.role] ?? a.role}</span>
-                        {isProtectedRole(a.role) && <ShieldCheck className="size-3.5 text-au-accent-text" aria-label="Himoyalangan rol" />}
+                        {isProtectedRole(a.role) && <ShieldCheck className="size-3.5 text-au-accent-text" aria-label={S.t('protected')} />}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-au-muted">
                         <i className="size-1.5 rounded-full" style={{ background: DEPT_TONE[dept] }} />
-                        {DEPT_LABEL[dept]}
-                        {a.positions.length > 0 && <span className={cn(CHIP_NEUTRAL, 'h-5 px-1.5 text-[10px]')}>+{a.positions.length} lavozim</span>}
+                        {S.dept[dept]}
+                        {a.positions.length > 0 && <span className={cn(CHIP_NEUTRAL, 'h-5 px-1.5 text-[10px]')}>{S.t('nPos', { n: a.positions.length })}</span>}
                       </div>
                     </td>
                     <td className="py-3">
-                      <span className={cn('text-xs', stale ? 'font-semibold text-au-bad' : 'text-au-muted')}>{ago(a.last_seen_at, now)}</span>
-                      {change && <p className="mt-0.5 text-[11px] text-au-faint">{AUDIT_LABEL[change.type]?.n ?? change.type} · {fmtDate(change.at)}</p>}
+                      <span className={cn('text-xs', stale ? 'font-semibold text-au-bad' : 'text-au-muted')}>{S.ago(a.last_seen_at, now)}</span>
+                      {change && <p className="mt-0.5 text-[11px] text-au-faint">{S.au(change.type)} · {S.fd(change.at)}</p>}
                     </td>
                     <td className="py-3">
                       <div className="flex items-center gap-1.5">
-                        <span title={a.telegram_id ? 'Telegram ulangan' : 'Telegram ulanmagan'} className={cn('grid size-6 place-items-center rounded-full', a.telegram_id ? 'bg-au-info-soft text-au-info' : 'bg-au-card-2 text-au-faint')}>
+                        <span title={a.telegram_id ? S.t('tgOn') : S.t('kNoTg')} className={cn('grid size-6 place-items-center rounded-full', a.telegram_id ? 'bg-au-info-soft text-au-info' : 'bg-au-card-2 text-au-faint')}>
                           <Send className="size-3" />
                         </span>
                         {a.must_change_password && (
-                          <span title="Vaqtinchalik parol" className="grid size-6 place-items-center rounded-full bg-au-bad-soft text-au-bad">
+                          <span title={S.t('kTemp')} className="grid size-6 place-items-center rounded-full bg-au-bad-soft text-au-bad">
                             <KeyRound className="size-3" />
                           </span>
                         )}
                         {a.overrides.length > 0 && (
-                          <span title="Shaxsiy bo‘lim ruxsatlari" className={cn(CHIP_ACCENT, 'h-6 px-1.5 text-[10px]')}>
-                            {a.overrides.length} ruxsat
+                          <span title={S.t('personalAccess')} className={cn(CHIP_ACCENT, 'h-6 px-1.5 text-[10px]')}>
+                            {S.t('nAccess', { n: a.overrides.length })}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="py-3">
                       <span className={a.is_active ? CHIP_OK : a.frozen_reason === 'star_balance' ? CHIP_BAD : CHIP_NEUTRAL}>
-                        {a.is_active ? 'Faol' : a.frozen_reason === 'star_balance' ? 'Yulduz bo‘yicha muzlatilgan' : 'Nofaol'}
+                        {a.is_active ? S.t('stActive') : a.frozen_reason === 'star_balance' ? S.t('stFrozen') : S.t('stInactive')}
                       </span>
                     </td>
                     <td className="py-3 pr-4">
@@ -648,20 +665,20 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
                       {fullName(a)}
                     </button>
                     <p className="truncate text-xs text-au-muted">
-                      {roleLabels[a.role] ?? a.role} · {DEPT_LABEL[dept]}
+                      {roleLabels[a.role] ?? a.role} · {S.dept[dept]}
                     </p>
                   </div>
-                  <input type="checkbox" aria-label={`${fullName(a)} — tanlash`} checked={sel.has(a.id)} onChange={() => toggle(a.id)} className="size-4 accent-[var(--au-ink)]" />
+                  <input type="checkbox" aria-label={S.t('select', { n: fullName(a) })} checked={sel.has(a.id)} onChange={() => toggle(a.id)} className="size-4 accent-[var(--au-ink)]" />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <span className={a.is_active ? CHIP_OK : CHIP_NEUTRAL}>{a.is_active ? 'Faol' : 'Nofaol'}</span>
+                  <span className={a.is_active ? CHIP_OK : CHIP_NEUTRAL}>{a.is_active ? S.t('stActive') : S.t('stInactive')}</span>
                   <span className={a.telegram_id ? CHIP_INFO : CHIP_NEUTRAL}>
-                    <Send className="size-3" /> {a.telegram_id ? 'Telegram' : 'Telegram yo‘q'}
+                    <Send className="size-3" /> {a.telegram_id ? 'Telegram' : S.t('noTg')}
                   </span>
-                  {a.must_change_password && <span className={CHIP_BAD}>Vaqtinchalik parol</span>}
+                  {a.must_change_password && <span className={CHIP_BAD}>{S.t('kTemp')}</span>}
                 </div>
                 <div className="mt-auto flex items-center justify-between border-t border-au-line pt-3">
-                  <span className={cn('text-xs', isStale(a, now) ? 'font-semibold text-au-bad' : 'text-au-faint')}>{ago(a.last_seen_at, now)}</span>
+                  <span className={cn('text-xs', isStale(a, now) ? 'font-semibold text-au-bad' : 'text-au-faint')}>{S.ago(a.last_seen_at, now)}</span>
                   <StaffRowActions target={a} currentUserId={currentUserId} actingRole={actingRole} />
                 </div>
               </article>
@@ -673,15 +690,15 @@ function Accounts({ accounts, audit, now, currentUserId, actingRole, roleLabels,
       {sel.size > 0 && (
         <div className="ms-rise fixed inset-x-0 bottom-[calc(16px+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
           <div className="flex flex-wrap items-center gap-2 rounded-full border border-au-line bg-au-card px-4 py-2 shadow-au-pop">
-            <span className="text-sm font-bold text-au-ink tabular-nums">{sel.size} ta tanlandi</span>
+            <span className="text-sm font-bold text-au-ink tabular-nums">{S.t('nSelected', { n: sel.size })}</span>
             <span className="h-5 w-px bg-au-line" />
             <button type="button" disabled={pending} onClick={() => bulk(true)} className={cn(CHIP_OK, 'h-8 px-3 disabled:opacity-50')}>
-              <CheckCircle2 className="size-3.5" /> Faollashtirish
+              <CheckCircle2 className="size-3.5" /> {S.t('activate')}
             </button>
             <button type="button" disabled={pending} onClick={() => bulk(false)} className={cn(CHIP_BAD, 'h-8 px-3 disabled:opacity-50')}>
-              <Ban className="size-3.5" /> Nofaol qilish
+              <Ban className="size-3.5" /> {S.t('deactivate')}
             </button>
-            <button type="button" onClick={() => setSel(new Set())} aria-label="Tanlovni bekor qilish" className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2">
+            <button type="button" onClick={() => setSel(new Set())} aria-label={S.t('clearSel')} className="grid size-8 place-items-center rounded-full text-au-muted hover:bg-au-card-2">
               <X className="size-4" />
             </button>
           </div>
@@ -703,19 +720,20 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
   nameOf: (desc: string) => string;
   onClose: () => void;
 }) {
+  const S = useSc();
   const dept = deptOf(a.role);
   const overrides = Object.fromEntries(a.overrides.map((o) => [o.section, o.allow]));
   const visible = SECTION_LABEL.filter(([s]) => canSeeFor({ role: a.role, section_overrides: overrides }, s));
   const history = audit.filter((e) => e.description.includes(a.id)).slice(0, 12);
   const facts: [string, ReactNode][] = [
-    ['Telefon', a.phone],
-    ['E-pochta', a.email || '—'],
-    ['Tug‘ilgan sana', fmtDate(a.date_of_birth)],
-    ['Qo‘shilgan', fmtDate(a.created_at)],
-    ['Oxirgi faollik', ago(a.last_seen_at, now)],
-    ['Telegram', a.telegram_id ? 'Ulangan' : 'Ulanmagan'],
-    ['Parol', a.must_change_password ? 'Vaqtinchalik — hali almashtirilmagan' : 'O‘zi o‘rnatgan'],
-    ['Holat', a.is_active ? 'Faol' : a.frozen_reason === 'star_balance' ? 'Yulduz balansi bo‘yicha muzlatilgan' : 'Nofaol'],
+    [S.t('cPhone'), a.phone],
+    [S.t('cEmail'), a.email || '—'],
+    [S.t('fBirth'), S.fd(a.date_of_birth)],
+    [S.t('cCreated'), S.fd(a.created_at)],
+    [S.t('cLastSeen'), S.ago(a.last_seen_at, now)],
+    ['Telegram', a.telegram_id ? S.t('connected') : S.t('notConnected')],
+    [S.t('fPassword'), a.must_change_password ? S.t('pwTemp') : S.t('pwOwn')],
+    [S.t('cStatus'), a.is_active ? S.t('stActive') : a.frozen_reason === 'star_balance' ? S.t('stFrozenLong') : S.t('stInactive')],
   ];
 
   return (
@@ -726,11 +744,11 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
         <div className="min-w-0">
           <SheetTitle className="truncate text-lg font-bold text-au-ink">{fullName(a)}</SheetTitle>
           <SheetDescription className="text-sm text-au-muted">
-            {roleLabels[a.role] ?? a.role} · {DEPT_LABEL[dept]}
+            {roleLabels[a.role] ?? a.role} · {S.dept[dept]}
           </SheetDescription>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Link href={`/profile/${a.id}`} onClick={onClose} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')}>
-              <UserRound className="size-3" /> Profil
+              <UserRound className="size-3" /> {S.t('profile')}
             </Link>
             <Link href="/hr?tab=people" onClick={onClose} className={cn(CHIP_NEUTRAL, 'hover:text-au-ink')}>
               <Users className="size-3" /> HR
@@ -754,9 +772,9 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
         </dl>
 
         <section>
-          <h3 className={cn(CARD_TITLE, 'mb-2')}>Lavozimlar</h3>
+          <h3 className={cn(CARD_TITLE, 'mb-2')}>{S.t('positions')}</h3>
           <div className="flex flex-wrap gap-1.5">
-            <span className={CHIP_INFO}>{roleLabels[a.role] ?? a.role} · asosiy</span>
+            <span className={CHIP_INFO}>{S.t('main', { r: roleLabels[a.role] ?? a.role })}</span>
             {a.positions.map((p) => (
               <span key={p} className={CHIP_NEUTRAL}>
                 {roleLabels[p] ?? p}
@@ -764,7 +782,7 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
             ))}
             {a.market_editor && (
               <span className={CHIP_ACCENT}>
-                <Store className="size-3" /> Market muharriri
+                <Store className="size-3" /> {S.t('marketEditor')}
               </span>
             )}
           </div>
@@ -772,38 +790,38 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
 
         <section>
           <h3 className={cn(CARD_TITLE, 'mb-2')}>
-            Ko‘radigan bo‘limlar <span className="text-xs font-medium text-au-faint">({visible.length})</span>
+            {S.t('visibleSecs')} <span className="text-xs font-medium text-au-faint">({visible.length})</span>
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {visible.map(([s, n]) => (
-              <span key={s} className={s in overrides ? CHIP_ACCENT : CHIP_NEUTRAL} title={s in overrides ? 'Shaxsiy ruxsat' : 'Rol bo‘yicha'}>
-                {n}
+            {visible.map(([s]) => (
+              <span key={s} className={s in overrides ? CHIP_ACCENT : CHIP_NEUTRAL} title={s in overrides ? S.t('personal') : S.t('byRole')}>
+                {S.sec[s]}
               </span>
             ))}
           </div>
           {a.overrides.some((o) => !o.allow) && (
             <p className="mt-2 text-xs text-au-muted">
-              Yopilgan:{' '}
+              {S.t('closed')}{' '}
               {a.overrides
                 .filter((o) => !o.allow)
-                .map((o) => SECTION_NAME[o.section] ?? o.section)
+                .map((o) => S.sec[o.section] ?? o.section)
                 .join(', ')}
             </p>
           )}
         </section>
 
         <section>
-          <h3 className={cn(CARD_TITLE, 'mb-2')}>Hisob tarixi</h3>
+          <h3 className={cn(CARD_TITLE, 'mb-2')}>{S.t('history')}</h3>
           {history.length === 0 ? (
-            <p className="text-sm text-au-faint">Hozircha yozuv yo‘q.</p>
+            <p className="text-sm text-au-faint">{S.t('noHistory')}</p>
           ) : (
             <ol className="relative flex flex-col gap-3 border-l border-au-line pl-4">
               {history.map((e, i) => (
                 <li key={e.id} className="ms-rise relative" style={{ ['--i' as string]: i }}>
                   <i className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-au-card bg-au-accent" />
-                  <p className="text-sm font-semibold text-au-ink">{AUDIT_LABEL[e.type]?.n ?? e.type}</p>
+                  <p className="text-sm font-semibold text-au-ink">{S.au(e.type)}</p>
                   <p className="text-xs text-au-muted">
-                    {fmtDateTime(e.at)} · {e.actor ?? 'tizim'}
+                    {S.fdt(e.at)} · {e.actor ?? S.t('system')}
                   </p>
                   {e.type === 'staff.update' && e.description.includes('role') && <p className="text-xs text-au-faint">{nameOf(e.description)}</p>}
                 </li>
@@ -819,6 +837,7 @@ function AccountDrawer({ a, audit, now, currentUserId, actingRole, roleLabels, n
 /* ------------------------------------------------------------ access */
 
 function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabels: Record<string, string> }) {
+  const S = useSc();
   const [hover, setHover] = useState<{ r: number; c: number } | null>(null);
   const [person, setPerson] = useState('');
   const p = accounts.find((a) => a.id === person) ?? null;
@@ -832,11 +851,11 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
       <div className={cn(SURFACE_CARD, 'p-4 sm:p-5')}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className={CARD_TITLE}>Rol × bo‘lim matritsasi</h2>
-            <p className="text-xs text-au-muted">Kim qaysi bo‘limni ko‘radi. Shaxsiy ruxsatlar Platforma sozlamalarida beriladi.</p>
+            <h2 className={CARD_TITLE}>{S.t('matrix')}</h2>
+            <p className="text-xs text-au-muted">{S.t('matrixSub')}</p>
           </div>
-          <select value={person} onChange={(e) => setPerson(e.target.value)} className={cn(INPUT, 'h-10 w-auto max-w-[260px]')} aria-label="Xodim bo‘yicha ko‘rish">
-            <option value="">Xodim bo‘yicha tekshirish…</option>
+          <select value={person} onChange={(e) => setPerson(e.target.value)} className={cn(INPUT, 'h-10 w-auto max-w-[260px]')} aria-label={S.t('byPerson')}>
+            <option value="">{S.t('checkPerson')}</option>
             {accounts
               .filter((a) => a.is_active)
               .map((a) => (
@@ -865,7 +884,8 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
               </tr>
             </thead>
             <tbody>
-              {SECTION_LABEL.map(([s, n], ri) => {
+              {SECTION_LABEL.map(([s], ri) => {
+                const n = S.sec[s];
                 const pVal = p ? canSeeFor({ role: p.role, section_overrides: pOverrides }, s) : false;
                 return (
                   <tr key={s}>
@@ -883,7 +903,7 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
                           <span
                             className={cn('ms-wave inline-block size-3 rounded-[4px]', on ? 'bg-au-ink' : 'border border-au-line')}
                             style={{ ['--i' as string]: Math.min(ri + c, 30) }}
-                            title={`${roleLabels[r]} — ${n}: ${on ? 'ko‘radi' : 'yo‘q'}`}
+                            title={`${roleLabels[r]} — ${n}: ${on ? S.t('sees') : S.t('no')}`}
                           />
                         </td>
                       );
@@ -891,8 +911,8 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
                     {p && (
                       <td className="px-2">
                         <span className={cn(pVal ? CHIP_OK : CHIP_NEUTRAL, 'h-5 text-[10px]', s in pOverrides && 'ring-1 ring-au-accent')}>
-                          {pVal ? 'ha' : 'yo‘q'}
-                          {s in pOverrides && ' · shaxsiy'}
+                          {pVal ? S.t('yes') : S.t('no')}
+                          {s in pOverrides && S.t('personalShort')}
                         </span>
                       </td>
                     )}
@@ -906,9 +926,9 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className={cn(SURFACE_CARD, 'p-4 sm:p-5')}>
-          <h2 className={cn(CARD_TITLE, 'mb-3')}>Shaxsiy bo‘lim ruxsatlari</h2>
+          <h2 className={cn(CARD_TITLE, 'mb-3')}>{S.t('personalAccess')}</h2>
           {withOverrides.length === 0 ? (
-            <p className="text-sm text-au-faint">Hamma rol bo‘yicha ishlayapti — istisno yo‘q.</p>
+            <p className="text-sm text-au-faint">{S.t('noExceptions')}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-au-line">
               {withOverrides.map((a) => (
@@ -917,7 +937,7 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{fullName(a)}</span>
                   {a.overrides.map((o) => (
                     <span key={o.section} className={o.allow ? CHIP_OK : CHIP_BAD}>
-                      {o.allow ? '+' : '−'} {SECTION_NAME[o.section] ?? o.section}
+                      {o.allow ? '+' : '−'} {S.sec[o.section] ?? o.section}
                     </span>
                   ))}
                 </li>
@@ -925,13 +945,13 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
             </ul>
           )}
           <Link href="/platform" className="mt-3 inline-block text-xs font-semibold text-au-accent-text">
-            Platforma sozlamalarida o‘zgartirish →
+            {S.t('changeInPlatform')}
           </Link>
         </div>
         <div className={cn(SURFACE_CARD, 'p-4 sm:p-5')}>
-          <h2 className={cn(CARD_TITLE, 'mb-3')}>Bir nechta lavozimdagi xodimlar</h2>
+          <h2 className={cn(CARD_TITLE, 'mb-3')}>{S.t('multi')}</h2>
           {multi.length === 0 ? (
-            <p className="text-sm text-au-faint">Hamma bitta lavozimda.</p>
+            <p className="text-sm text-au-faint">{S.t('allSingle')}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-au-line">
               {multi.map((a) => (
@@ -949,7 +969,7 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
             </ul>
           )}
           <Link href="/roles" className="mt-3 inline-block text-xs font-semibold text-au-accent-text">
-            Rollar sahifasida boshqarish →
+            {S.t('manageRoles')}
           </Link>
         </div>
       </div>
@@ -962,9 +982,10 @@ function Access({ accounts, roleLabels }: { accounts: ConsoleAccount[]; roleLabe
 type Finding = { key: string; title: string; why: string; weight: number; people: ConsoleAccount[]; fix?: 'reset' | 'telegram' };
 
 function SecurityRing({ score }: { score: number }) {
+  const S = useSc();
   const tone = score >= 85 ? 'var(--au-ok)' : score >= 60 ? 'var(--au-accent)' : 'var(--au-bad)';
   return (
-    <svg viewBox="0 0 120 120" className="size-32" role="img" aria-label={`Xavfsizlik bahosi ${score}`}>
+    <svg viewBox="0 0 120 120" className="size-32" role="img" aria-label={S.t('secScore', { n: score })}>
       <circle cx="60" cy="60" r="50" fill="none" stroke="var(--au-ring-track)" strokeWidth="11" />
       <circle
         cx="60"
@@ -990,43 +1011,44 @@ function SecurityRing({ score }: { score: number }) {
 }
 
 function Security({ accounts, now, roleLabels, onOpen }: { accounts: ConsoleAccount[]; now: number; roleLabels: Record<string, string>; onOpen: (id: string) => void }) {
+  const S = useSc();
   const [fix, setFix] = useState<{ kind: 'reset' | 'telegram'; id: string } | null>(null);
   const active = accounts.filter((a) => a.is_active);
   const findings: Finding[] = [
     {
       key: 'never',
-      title: 'Hech qachon tizimga kirmagan',
-      why: 'Hisob 3 kundan oldin ochilgan, lekin vaqtinchalik parol hali almashtirilmagan. Parol boshqa odamda qolgan bo‘lishi mumkin.',
+      title: S.t('fNever'),
+      why: S.t('fNeverWhy'),
       weight: 6,
       people: active.filter((a) => neverSignedIn(a, now)),
       fix: 'reset',
     },
     {
       key: 'stale',
-      title: `${STALE_DAYS} kundan beri faol emas`,
-      why: 'Hisob faol, lekin ishlatilmayapti. Xodim ketgan bo‘lsa — nofaol qiling.',
+      title: S.t('fStale', { n: STALE_DAYS }),
+      why: S.t('fStaleWhy'),
       weight: 4,
       people: active.filter((a) => isStale(a, now)),
     },
     {
       key: 'tgInactive',
-      title: 'Nofaol, lekin Telegram ulangan',
-      why: 'Bot bu odamga ichki bildirishnomalarni yuborishi mumkin. Telegram’ni uzing.',
+      title: S.t('fTgInactive'),
+      why: S.t('fTgInactiveWhy'),
       weight: 5,
       people: accounts.filter((a) => !a.is_active && !!a.telegram_id),
       fix: 'telegram',
     },
     {
       key: 'noTg',
-      title: 'Telegram ulanmagan',
-      why: 'Vazifa, muddat va xavfsizlik bildirishnomalari bormaydi.',
+      title: S.t('fNoTg'),
+      why: S.t('fNoTgWhy'),
       weight: 1,
       people: active.filter((a) => !a.telegram_id),
     },
     {
       key: 'protected',
-      title: 'Yuqori darajali rollar',
-      why: 'Moliya va boshqaruv ruxsatiga ega hisoblar — har chorakda ro‘yxatni ko‘rib chiqing.',
+      title: S.t('fProtected'),
+      why: S.t('fProtectedWhy'),
       weight: 0,
       people: active.filter((a) => isProtectedRole(a.role) || a.positions.some(isProtectedRole)),
     },
@@ -1040,9 +1062,9 @@ function Security({ accounts, now, roleLabels, onOpen }: { accounts: ConsoleAcco
       <div className={cn(SURFACE_CARD, 'flex flex-wrap items-center gap-6 p-5')}>
         <SecurityRing score={score} />
         <div className="min-w-[220px] flex-1">
-          <h2 className="text-lg font-bold text-au-ink">Hisoblar xavfsizligi</h2>
+          <h2 className="text-lg font-bold text-au-ink">{S.t('secTitle')}</h2>
           <p className="mt-1 text-sm text-au-muted">
-            {score >= 85 ? 'Yaxshi holat. Quyidagi kichik ishlarni yopsangiz yetarli.' : score >= 60 ? 'E’tibor kerak — bir nechta hisobni tartibga keltiring.' : 'Xavfli holat — avval qizil bandlarni yoping.'}
+            {score >= 85 ? S.t('secGood') : score >= 60 ? S.t('secMid') : S.t('secBad')}
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {findings
@@ -1078,15 +1100,15 @@ function Security({ accounts, now, roleLabels, onOpen }: { accounts: ConsoleAcco
                   <button type="button" onClick={() => onOpen(a.id)} className="min-w-0 flex-1 truncate text-left text-sm font-semibold hover:underline">
                     {fullName(a)} <span className="font-normal text-au-muted">· {roleLabels[a.role] ?? a.role}</span>
                   </button>
-                  <span className="text-xs text-au-faint">{f.key === 'never' ? `ochilgan ${fmtDate(a.created_at)}` : ago(a.last_seen_at, now)}</span>
+                  <span className="text-xs text-au-faint">{f.key === 'never' ? S.t('opened', { d: S.fd(a.created_at) }) : S.ago(a.last_seen_at, now)}</span>
                   {f.fix === 'reset' && (
                     <button type="button" onClick={() => setFix({ kind: 'reset', id: a.id })} className={cn(CHIP_ACCENT, 'h-7 px-2.5')}>
-                      <KeyRound className="size-3" /> Yangi parol
+                      <KeyRound className="size-3" /> {S.t('newPw')}
                     </button>
                   )}
                   {f.fix === 'telegram' && (
                     <button type="button" onClick={() => setFix({ kind: 'telegram', id: a.id })} className={cn(CHIP_BAD, 'h-7 px-2.5')}>
-                      <Send className="size-3" /> Uzish
+                      <Send className="size-3" /> {S.t('disconnect')}
                     </button>
                   )}
                 </li>
@@ -1105,6 +1127,7 @@ function Security({ accounts, now, roleLabels, onOpen }: { accounts: ConsoleAcco
 /* ------------------------------------------------------------ audit */
 
 function Audit({ audit, nameOf, onOpen, idsIn }: { audit: AuditEntry[]; nameOf: (s: string) => string; onOpen: (id: string) => void; idsIn: (s: string) => string[] }) {
+  const S = useSc();
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
   const needle = q.trim().toLowerCase();
@@ -1123,15 +1146,15 @@ function Audit({ audit, nameOf, onOpen, idsIn }: { audit: AuditEntry[]; nameOf: 
       <div className={cn(SURFACE_CARD, 'flex flex-wrap items-center gap-2 p-3 sm:p-4')}>
         <label className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-au-faint" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Xodim yoki bajargan odam…" className={cn(INPUT, 'h-10 pl-9')} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={S.t('auditPh')} className={cn(INPUT, 'h-10 pl-9')} />
         </label>
         <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => setType('')} className={cn(type ? CHIP_NEUTRAL : CHIP_INFO, 'h-8 px-3')}>
-            Hammasi · {audit.length}
+            {S.t('all', { n: audit.length })}
           </button>
           {present.map((t) => (
             <button key={t} type="button" onClick={() => setType(type === t ? '' : t)} className={cn(type === t ? CHIP_INFO : CHIP_NEUTRAL, 'h-8 px-3')}>
-              {AUDIT_LABEL[t]?.n ?? t} · {audit.filter((e) => e.type === t).length}
+              {S.au(t)} · {audit.filter((e) => e.type === t).length}
             </button>
           ))}
         </div>
@@ -1140,13 +1163,13 @@ function Audit({ audit, nameOf, onOpen, idsIn }: { audit: AuditEntry[]; nameOf: 
       {days.length === 0 ? (
         <div className={cn(SURFACE_CARD, 'grid place-items-center gap-2 py-14 text-center')}>
           <Clock3 className="size-8 text-au-faint" />
-          <p className="text-sm font-semibold">Jurnal bo‘sh</p>
-          <p className="max-w-sm text-xs text-au-muted">Hisob yaratish, rol, parol, Telegram va ruxsat o‘zgarishlari shu yerda yoziladi.</p>
+          <p className="text-sm font-semibold">{S.t('emptyLog')}</p>
+          <p className="max-w-sm text-xs text-au-muted">{S.t('emptyLogSub')}</p>
         </div>
       ) : (
         days.map(([day, list], di) => (
           <section key={day} className={cn(SURFACE_CARD, 'ms-rise p-4 sm:p-5')} style={{ ['--i' as string]: Math.min(di, 8) }}>
-            <h3 className="mb-3 text-xs font-bold tracking-wide text-au-muted uppercase">{fmtDate(list[0].at)}</h3>
+            <h3 className="mb-3 text-xs font-bold tracking-wide text-au-muted uppercase">{S.fd(list[0].at)}</h3>
             <ol className="flex flex-col divide-y divide-au-line">
               {list.map((e) => {
                 const meta = AUDIT_LABEL[e.type] ?? { n: e.type, tone: CHIP_NEUTRAL };
@@ -1154,14 +1177,14 @@ function Audit({ audit, nameOf, onOpen, idsIn }: { audit: AuditEntry[]; nameOf: 
                 return (
                   <li key={e.id} className="flex flex-wrap items-center gap-3 py-2.5">
                     <span className="w-12 shrink-0 text-xs text-au-faint tabular-nums">
-                      {new Intl.DateTimeFormat('uz-UZ', { timeZone: 'Asia/Tashkent', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(e.at))}
+                      {new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }).format(new Date(e.at))}
                     </span>
-                    <span className={meta.tone}>{meta.n}</span>
+                    <span className={meta.tone}>{S.au(e.type)}</span>
                     <span className="min-w-0 flex-1 truncate text-sm text-au-ink">{nameOf(e.description)}</span>
-                    <span className="text-xs text-au-muted">{e.actor ?? 'tizim'}</span>
+                    <span className="text-xs text-au-muted">{e.actor ?? S.t('system')}</span>
                     {target && (
                       <button type="button" onClick={() => onOpen(target)} className="text-xs font-semibold text-au-accent-text">
-                        Ochish
+                        {S.t('open')}
                       </button>
                     )}
                   </li>
@@ -1186,6 +1209,7 @@ export function StaffConsole({ tab, accounts, audit, now, currentUserId, actingR
   actingRole: Profile['role'];
   roleLabels: Record<string, string>;
 }) {
+  const S = useSc();
   const [openId, setOpenId] = useState<string | null>(null);
   const open = accounts.find((a) => a.id === openId) ?? null;
   const byId = new Map(accounts.map((a) => [a.id, a]));
@@ -1195,12 +1219,12 @@ export function StaffConsole({ tab, accounts, audit, now, currentUserId, actingR
     s
       .replace(UUID, (id) => {
         const a = byId.get(id.toLowerCase());
-        return a ? fullName(a) : 'o‘chirilgan xodim';
+        return a ? fullName(a) : S.t('deletedStaff');
       })
       .replace(/^(Updated|Reset password of|Disconnected Telegram of|Deactivated staff member|Reactivated staff member|Created staff member|Deleted staff member)\s*/i, '')
-      .replace(/\brole\b/, '· rol:')
-      .replace(/\(bulk\)/, '· ommaviy')
-      .replace(/\b([a-z_]+)(?= →| ✕|=)/g, (r) => roleLabels[r] ?? SECTION_NAME[r] ?? r)
+      .replace(/\brole\b/, S.t('roleWord'))
+      .replace(/\(bulk\)/, S.t('bulk'))
+      .replace(/\b([a-z_]+)(?= →| ✕|=)/g, (r) => roleLabels[r] ?? S.sec[r] ?? r)
       .replace(/→ ([a-z_]+)\b/g, (_m, r: string) => `→ ${roleLabels[r] ?? r}`);
 
   return (

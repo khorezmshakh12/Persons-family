@@ -23,14 +23,7 @@ import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
-const DEPT_LABEL: Record<Department, string> = {
-  top: 'Rahbariyat',
-  acad: 'Akademik',
-  com: 'Tijorat',
-  ops: 'Operatsiya',
-  fin: 'Moliya',
-  hr: 'HR',
-};
+const DEPTS: Department[] = ['top', 'acad', 'com', 'ops', 'fin', 'hr'];
 
 /**
  * HR hub — all native. Leave and hiring moved off Core on 2026-11-21 (the
@@ -83,6 +76,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 
   const tStaff = await getTranslations('staff');
   const tp = await getTranslations('pg.hr');
+  const tDept = await getTranslations('att.dept');
+  const DEPT_LABEL = Object.fromEntries(DEPTS.map((d) => [d, d === 'hr' ? 'HR' : tDept(d)])) as Record<Department, string>;
   const roleLabels = Object.fromEntries(ROLES.map((r) => [r, roleLabel(tStaff, r)]));
   const native = tab === 'people' || tab === 'org' || tab === 'onboarding' || tab === 'analytics';
   const people = !native || !profile ? [] : await loadHrPeople(isManager ? undefined : profile.id);
