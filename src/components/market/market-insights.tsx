@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
+import { monthName } from '@/lib/month-names';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { AlertTriangle, BarChart3, Gift, Heart, PackageCheck, Timer, Users } from 'lucide-react';
@@ -8,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { CARD_TITLE, CHIP_BAD, CHIP_NEUTRAL, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { setMarketLowStockAction, setMarketOrderFulfilledAction, type MarketInsights } from '@/lib/actions/market';
 
-const MONTHS = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyn', 'Iyl', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+
 
 function Card({ title, icon, i, children, className }: { title: string; icon: React.ReactNode; i: number; children: React.ReactNode; className?: string }) {
   return (
@@ -26,6 +28,8 @@ function Card({ title, icon, i, children, className }: { title: string; icon: Re
 export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const t = useTranslations('mi');
+  const locale = useLocale();
   const [handover, setHandover] = useState(data.handover);
   const [pendingCount, setPendingCount] = useState(data.handoverCount);
   const [thr, setThr] = useState<Record<string, string>>({});
@@ -35,14 +39,14 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
   const fulfil = (id: string) =>
     start(async () => {
       const res = await setMarketOrderFulfilledAction(id, true);
-      if (res?.error) return void toast.error('Saqlab bo‘lmadi');
+      if (res?.error) return void toast.error(t('saveFail'));
       const row = handover.find((h) => h.id === id);
       setHandover((l) => l.filter((h) => h.id !== id));
       setPendingCount((n) => Math.max(0, n - 1));
-      toast.success('Topshirildi — xodimga xabar yuborildi', {
+      toast.success(t('given'), {
         duration: 6000,
         action: {
-          label: 'Bekor qilish',
+          label: t('undo'),
           onClick: () =>
             void setMarketOrderFulfilledAction(id, false).then((r) => {
               if (!r?.error && row) {
@@ -57,10 +61,10 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
   const saveThr = (id: string) =>
     start(async () => {
       const v = Number(thr[id]);
-      if (!Number.isInteger(v) || v < 0) return void toast.error('Butun son kiriting');
+      if (!Number.isInteger(v) || v < 0) return void toast.error(t('intOnly'));
       const res = await setMarketLowStockAction({ itemId: id, lowStock: v });
-      if (res?.error) return void toast.error('Saqlab bo‘lmadi');
-      toast.success('Chegara saqlandi');
+      if (res?.error) return void toast.error(t('saveFail'));
+      toast.success(t('thrSaved'));
       router.refresh();
     });
 
@@ -68,10 +72,10 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { n: '6 oyda sarflangan', v: `${total.toLocaleString('en-US')} ★`, icon: <BarChart3 className="size-4" /> },
-          { n: 'Xaridorlar (90 kun)', v: String(data.buyers), icon: <Users className="size-4" /> },
-          { n: 'Topshirish kutilmoqda', v: String(pendingCount), icon: <Gift className="size-4" />, tone: pendingCount ? 'text-au-accent-text' : '' },
-          { n: 'O‘rtacha qaror vaqti', v: data.avgDecisionHours === null ? '—' : data.avgDecisionHours < 48 ? `${data.avgDecisionHours.toFixed(1)} soat` : `${(data.avgDecisionHours / 24).toFixed(1)} kun`, icon: <Timer className="size-4" /> },
+          { n: t('spent6'), v: `${total.toLocaleString('en-US')} ★`, icon: <BarChart3 className="size-4" /> },
+          { n: t('buyers'), v: String(data.buyers), icon: <Users className="size-4" /> },
+          { n: t('toGive'), v: String(pendingCount), icon: <Gift className="size-4" />, tone: pendingCount ? 'text-au-accent-text' : '' },
+          { n: t('avgDecision'), v: data.avgDecisionHours === null ? '—' : data.avgDecisionHours < 48 ? t('hours', { n: data.avgDecisionHours.toFixed(1) }) : t('days', { n: (data.avgDecisionHours / 24).toFixed(1) }), icon: <Timer className="size-4" /> },
         ].map((k, i) => (
           <div key={k.n} style={{ ['--i' as string]: i }} className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-1 p-4')}>
             <span className="flex items-center gap-1.5 text-xs font-semibold text-au-muted">
@@ -83,9 +87,9 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Topshirish navbati" icon={<PackageCheck className="size-4" />} i={1}>
+        <Card title={t('queue')} icon={<PackageCheck className="size-4" />} i={1}>
           {handover.length === 0 ? (
-            <p className="text-sm text-au-muted">Hamma tasdiqlangan sovg‘alar topshirilgan</p>
+            <p className="text-sm text-au-muted">{t('allGiven')}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-au-line">
               {handover.map((h) => (
@@ -97,7 +101,7 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
                     </span>
                   </div>
                   <button disabled={busy} onClick={() => fulfil(h.id)} className="h-8 shrink-0 rounded-au-ctl bg-au-ok px-3 text-xs font-semibold text-white disabled:opacity-50">
-                    Topshirildi
+                    {t('givenBtn')}
                   </button>
                 </li>
               ))}
@@ -105,9 +109,9 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
           )}
         </Card>
 
-        <Card title="Ombor ogohlantirishi" icon={<AlertTriangle className="size-4" />} i={2}>
+        <Card title={t('stockAlert')} icon={<AlertTriangle className="size-4" />} i={2}>
           {data.lowStock.length === 0 ? (
-            <p className="text-sm text-au-muted">Qoldiq yetarli</p>
+            <p className="text-sm text-au-muted">{t('stockOk')}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-au-line">
               {data.lowStock.map((s) => (
@@ -115,14 +119,14 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-sm font-semibold">{s.name}</span>
                     <span className="text-[11px] text-au-muted">
-                      {s.wishes} kishi xohlaydi · chegara {s.low_stock}
+                      {t('wishThr', { w: s.wishes, t: s.low_stock })}
                     </span>
                   </div>
-                  <span className={s.stock === 0 ? CHIP_BAD : CHIP_NEUTRAL}>{s.stock === 0 ? 'Tugagan' : `${s.stock} dona`}</span>
+                  <span className={s.stock === 0 ? CHIP_BAD : CHIP_NEUTRAL}>{s.stock === 0 ? t('outOf') : t('pcs', { n: s.stock })}</span>
                   <input
                     value={thr[s.id] ?? ''}
                     onChange={(e) => setThr({ ...thr, [s.id]: e.target.value })}
-                    placeholder="chegara"
+                    placeholder={t('thrPh')}
                     inputMode="numeric"
                     className={cn(INPUT, 'h-7 w-16 px-2 text-xs')}
                   />
@@ -137,9 +141,9 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
           )}
         </Card>
 
-        <Card title="Eng ko‘p istalganlar" icon={<Heart className="size-4" />} i={3}>
+        <Card title={t('wished')} icon={<Heart className="size-4" />} i={3}>
           {data.wished.length === 0 ? (
-            <p className="text-sm text-au-muted">Istaklar ro‘yxati bo‘sh</p>
+            <p className="text-sm text-au-muted">{t('noWishes')}</p>
           ) : (
             <ul className="flex flex-col gap-1.5 text-sm">
               {data.wished.map((w) => (
@@ -147,25 +151,25 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
                   <span className="truncate">{w.name}</span>
                   <span className="flex shrink-0 items-center gap-1.5 text-xs">
                     <span className="font-bold tabular-nums">♥ {w.wishes}</span>
-                    {w.stock === 0 && <span className={CHIP_BAD}>yo‘q</span>}
+                    {w.stock === 0 && <span className={CHIP_BAD}>{t('none')}</span>}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-          <p className="text-[11px] text-au-muted">Ko‘p istalgan, lekin omborda yo‘q sovg‘alarni birinchi to‘ldiring.</p>
+          <p className="text-[11px] text-au-muted">{t('wishHint')}</p>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Oylar bo‘yicha sarflangan yulduzlar" icon={<BarChart3 className="size-4" />} i={4}>
+        <Card title={t('byMonth')} icon={<BarChart3 className="size-4" />} i={4}>
           {data.months.length === 0 ? (
-            <p className="text-sm text-au-muted">Ma’lumot yo‘q</p>
+            <p className="text-sm text-au-muted">{t('noData')}</p>
           ) : (
             <>
               <div className="flex h-36 items-end gap-2">
                 {data.months.map((m, i) => (
-                  <div key={m.month} className="group flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${m.month}: ${m.stars} ★ · ${m.orders} buyurtma`}>
+                  <div key={m.month} className="group flex h-full flex-1 flex-col items-center justify-end gap-1" title={t('orders', { m: m.month, s: m.stars, o: m.orders })}>
                     <span className="text-[10px] font-bold text-au-muted tabular-nums">{m.stars}</span>
                     <span style={{ height: `${(m.stars / max) * 100}%`, ['--i' as string]: i }} className="ms-grow-y w-full max-w-10 rounded-t-md bg-au-accent" />
                   </div>
@@ -174,16 +178,16 @@ export function MarketInsightsPanel({ data }: { data: MarketInsights }) {
               <div className="flex gap-2 text-center text-[10px] text-au-muted">
                 {data.months.map((m) => (
                   <span key={m.month} className="flex-1">
-                    {MONTHS[Number(m.month.slice(5, 7)) - 1]}
+                    {monthName(locale, Number(m.month.slice(5, 7)), true)}
                   </span>
                 ))}
               </div>
             </>
           )}
         </Card>
-        <Card title="Eng ko‘p olinganlar (180 kun)" icon={<Gift className="size-4" />} i={5}>
+        <Card title={t('top')} icon={<Gift className="size-4" />} i={5}>
           {data.top.length === 0 ? (
-            <p className="text-sm text-au-muted">Hali buyurtma yo‘q</p>
+            <p className="text-sm text-au-muted">{t('noOrders')}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {data.top.map((t, i) => (
