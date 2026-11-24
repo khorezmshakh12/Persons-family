@@ -268,6 +268,6 @@ export async function loadOpsStats(): Promise<OpsStatsData> {
   const byDay = new Map(series.map((s) => [s.day, Number(s.amount)]));
   for (const s of out.series) s.amount = byDay.get(s.day) ?? 0;
   out.snapshot = snap;
-  Object.assign(out, await loadTrends(day, r, snap.active));
+  Object.assign(out, await loadTrends(day, r, snap.active + snap.frozen));
   return out;
 }

@@ -113,8 +113,8 @@ export function OpsStats({ data }: { data: OpsData }) {
       <>
       <div className="sx-card sx-stat dark s4">
         <div className="l">{tr('activeStudents')}</div>
-        <div className="v">{s.snapshot.active}</div>
-        <div className="d">{tr('activeHint')}</div>
+        <div className="v">{s.snapshot.active + s.snapshot.frozen}</div>
+        <div className="d">{tr('activeHint', { a: s.snapshot.active, f: s.snapshot.frozen })}</div>
       </div>
       <div className="sx-card sx-stat s4">
         <div className="l">{tr('debtors')}</div>
