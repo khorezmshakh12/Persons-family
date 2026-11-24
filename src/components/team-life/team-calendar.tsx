@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { CalendarPlus, ChevronLeft, ChevronRight, Copy, Link2, Loader2, MapPin, Pencil, RefreshCw, Smartphone, Trash2, X } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useLocale, useTranslations } from 'next-intl';
+import { monthName } from '@/lib/month-names';
 import { CARD_TITLE, CHIP_NEUTRAL, INPUT, SURFACE_CARD } from '@/lib/glass';
 import {
   calendarTokenAction,
@@ -15,14 +17,29 @@ import {
   revokeCalendarTokenAction,
   saveEventAction,
 } from '@/lib/actions/team-life';
-import { EVENT_KIND_LABEL, EVENT_KINDS, LAYER_META, LAYERS, type CalEvent, type EventKind, type Layer } from '@/lib/team-life';
+import { EVENT_KINDS, LAYER_META, LAYERS, type CalEvent, type EventKind, type Layer } from '@/lib/team-life';
 
 const BTN =
   'inline-flex items-center justify-center gap-1.5 rounded-au-ctl px-3 h-8 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none';
 const BTN_GHOST = cn(BTN, 'border border-au-line bg-au-card text-au-ink hover:bg-au-card-2');
 const BTN_PRIMARY = cn(BTN, 'bg-au-primary text-au-primary-ink hover:opacity-90');
-const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
-const DOW = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'];
+const DOW = [0, 1, 2, 3, 4, 5, 6];
+
+/** Calendar labels in the viewer's language. */
+function useCal() {
+  const t = useTranslations('tc');
+  const tl = useTranslations('tc.layer');
+  const td = useTranslations('tc.dow');
+  const te = useTranslations('tl.ev');
+  const locale = useLocale();
+  return {
+    t,
+    layer: (l: Layer) => tl(l),
+    dow: (i: number) => td(String(i)),
+    kind: (k: EventKind) => te(k),
+    mon: (m: number, short = false) => monthName(locale, m, short),
+  };
+}
 const LS_KEY = 'team-cal-layers';
 
 function addDays(k: string, n: number) {
@@ -50,6 +67,7 @@ const covers = (e: CalEvent, day: string) => e.day <= day && (e.endDay ?? e.day)
 type EventDraft = { id?: string; title: string; description: string; day: string; time: string; endDay: string; location: string; kind: EventKind; repeat: 'none' | 'weekly' | 'monthly' | 'yearly'; repeatUntil?: string | null; notify: boolean };
 
 export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: CalEvent[]; today: string; canPublish: boolean; canAll: boolean }) {
+  const C = useCal();
   const [view, setView] = useState<View>('month');
   const [anchor, setAnchor] = useState(today);
   const [scope, setScope] = useState<'mine' | 'all'>('all');
@@ -91,7 +109,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
       const { from, to } = rangeFor(v, a);
       const res = await getCalendarAction(from, to, s);
       if (id !== req.current) return;
-      if (res.error !== undefined) return void toast.error('Kalendarni yuklab bo‘lmadi');
+      if (res.error !== undefined) return void toast.error(C.t('loadFail'));
       setEvents(res.events);
     });
 
@@ -114,17 +132,17 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
   const dayEvents = (d: string) => visible.filter((e) => covers(e, d));
   const title =
     view === 'month'
-      ? `${MONTHS[Number(anchor.slice(5, 7)) - 1]} ${anchor.slice(0, 4)}`
+      ? `${C.mon(Number(anchor.slice(5, 7)))} ${anchor.slice(0, 4)}`
       : view === 'week'
         ? `${from.slice(8)}.${from.slice(5, 7)} — ${addDays(from, 6).slice(8)}.${addDays(from, 6).slice(5, 7)}`
-        : `${from} dan 6 hafta`;
+        : C.t('sixWeeks', { d: from });
 
   const rsvp = (e: CalEvent, r: 'yes' | 'no' | 'maybe') =>
     start(async () => {
       if (!e.eventId) return;
       const next = e.rsvp?.mine === r ? null : r;
       const res = await respondEventAction(e.eventId, next);
-      if (res.error !== undefined) return void toast.error('Saqlab bo‘lmadi');
+      if (res.error !== undefined) return void toast.error(C.t('saveFail'));
       const upd = (x: CalEvent) => {
         if (x.eventId !== e.eventId || !x.rsvp) return x;
         const c = { ...x.rsvp };
@@ -152,8 +170,8 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
         repeatUntil: draft.repeatUntil ?? null,
         notify: draft.notify,
       });
-      if (res.error !== undefined) return void toast.error('Saqlab bo‘lmadi — maydonlarni tekshiring');
-      toast.success(draft.id ? 'Tadbir yangilandi' : 'Tadbir qo‘shildi');
+      if (res.error !== undefined) return void toast.error(C.t('saveFailFields'));
+      toast.success(draft.id ? C.t('updated') : C.t('added'));
       setDraft(null);
       load(view, anchor, scope);
     });
@@ -162,34 +180,34 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
     start(async () => {
       if (!e.eventId) return;
       const res = await deleteEventAction(e.eventId);
-      if (res.error !== undefined) return void toast.error('O‘chirib bo‘lmadi');
+      if (res.error !== undefined) return void toast.error(C.t('delFail'));
       setOpenEv(null);
       setEvents((l) => l.filter((x) => x.eventId !== e.eventId));
-      toast.success('Tadbir o‘chirildi', {
+      toast.success(C.t('deleted'), {
         duration: 6000,
-        action: { label: 'Bekor qilish', onClick: () => void restoreEventAction(e.eventId!).then(() => load(view, anchor, scope)) },
+        action: { label: C.t('undo'), onClick: () => void restoreEventAction(e.eventId!).then(() => load(view, anchor, scope)) },
       });
     });
 
   const feedLink = (rotate: boolean) =>
     start(async () => {
       const res = await calendarTokenAction(rotate);
-      if (res.error !== undefined) return void toast.error('Havolani yaratib bo‘lmadi');
+      if (res.error !== undefined) return void toast.error(C.t('linkFail'));
       setFeed(`${location.origin}/staff/api/calendar/${res.token}.ics`);
-      if (rotate) toast.success('Yangi havola yaratildi — eskisi endi ishlamaydi');
+      if (rotate) toast.success(C.t('linkRotated'));
     });
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col gap-3 p-3 sm:p-4')}>
         <div className="flex flex-wrap items-center gap-2">
-          <button className={BTN_GHOST} onClick={() => step(-1)} aria-label="Oldingi">
+          <button className={BTN_GHOST} onClick={() => step(-1)} aria-label={C.t('prev')}>
             <ChevronLeft className="size-4" />
           </button>
           <button className={BTN_GHOST} onClick={() => go(view, today)}>
-            Bugun
+            {C.t('today')}
           </button>
-          <button className={BTN_GHOST} onClick={() => step(1)} aria-label="Keyingi">
+          <button className={BTN_GHOST} onClick={() => step(1)} aria-label={C.t('next')}>
             <ChevronRight className="size-4" />
           </button>
           <h2 className="min-w-40 text-lg font-bold">{title}</h2>
@@ -198,9 +216,9 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
             <div className="inline-flex rounded-au-ctl border border-au-line bg-au-card-2 p-0.5">
               {(
                 [
-                  ['month', 'Oy'],
-                  ['week', 'Hafta'],
-                  ['list', 'Ro‘yxat'],
+                  ['month', C.t('vMonth')],
+                  ['week', C.t('vWeek')],
+                  ['list', C.t('vList')],
                 ] as [View, string][]
               ).map(([v, n]) => (
                 <button key={v} onClick={() => go(v, v === 'month' ? `${anchor.slice(0, 7)}-01` : anchor)} className={cn('h-7 rounded-[8px] px-2.5 text-xs font-semibold', view === v ? 'bg-au-card shadow-au-card' : 'text-au-muted')}>
@@ -212,8 +230,8 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
               <div className="inline-flex rounded-au-ctl border border-au-line bg-au-card-2 p-0.5">
                 {(
                   [
-                    ['all', 'Jamoa'],
-                    ['mine', 'Men'],
+                    ['all', C.t('team')],
+                    ['mine', C.t('me')],
                   ] as ['all' | 'mine', string][]
                 ).map(([s, n]) => (
                   <button
@@ -231,7 +249,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
             )}
             {canPublish && (
               <button className={BTN_PRIMARY} onClick={() => setDraft({ title: '', description: '', day: sel, time: '', endDay: '', location: '', kind: 'company', repeat: 'none', notify: true })}>
-                <CalendarPlus className="size-3.5" /> Tadbir
+                <CalendarPlus className="size-3.5" /> {C.t('event')}
               </button>
             )}
           </div>
@@ -245,7 +263,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
               className={cn('inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold transition', layers.has(l) ? 'bg-au-card-2 text-au-ink' : 'text-au-muted line-through opacity-60')}
             >
               <i className="size-2 rounded-full" style={{ background: LAYER_META[l].c }} />
-              {LAYER_META[l].n}
+              {C.layer(l)}
             </button>
           ))}
         </div>
@@ -259,7 +277,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                   <span className={cn('w-14 shrink-0 text-center', d === today && 'font-bold text-au-accent-text')}>
                     <b className="block text-xl tabular-nums">{d.slice(8)}</b>
                     <span className="text-[10px] text-au-muted uppercase">
-                      {DOW[(new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7]} · {MONTHS[Number(d.slice(5, 7)) - 1].slice(0, 3)}
+                      {C.dow((new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7)} · {C.mon(Number(d.slice(5, 7)), true)}
                     </span>
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -269,13 +287,13 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                   </div>
                 </li>
               ))}
-            {!days.some((d) => dayEvents(d).length) && <p className="py-8 text-center text-sm text-au-muted">Bu davrda voqea yo‘q</p>}
+            {!days.some((d) => dayEvents(d).length) && <p className="py-8 text-center text-sm text-au-muted">{C.t('noneRange')}</p>}
           </ol>
         ) : (
           <div className="grid grid-cols-7 gap-px overflow-hidden rounded-au-ctl border border-au-line bg-au-line">
             {DOW.map((d) => (
               <div key={d} className="bg-au-card-2 py-1.5 text-center text-[11px] font-bold text-au-muted">
-                {d}
+                {C.dow(d)}
               </div>
             ))}
             {days.map((d, i) => {
@@ -300,7 +318,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                   {evs.slice(0, max).map((e) => (
                     <Pill key={e.id + d} e={e} onClick={() => setOpenEv(e)} />
                   ))}
-                  {evs.length > max && <span className="px-1 text-[10px] font-semibold text-au-muted">+{evs.length - max} yana</span>}
+                  {evs.length > max && <span className="px-1 text-[10px] font-semibold text-au-muted">{C.t('more', { n: evs.length - max })}</span>}
                 </button>
               );
             })}
@@ -316,14 +334,14 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
             <div className="flex items-start gap-2">
               <i className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ background: LAYER_META[openEv.layer].c }} />
               <h3 className={cn(CARD_TITLE, 'flex-1')}>{openEv.title}</h3>
-              <button onClick={() => setOpenEv(null)} className="text-au-muted hover:text-au-ink" aria-label="Yopish">
+              <button onClick={() => setOpenEv(null)} className="text-au-muted hover:text-au-ink" aria-label={C.t('close')}>
                 <X className="size-4" />
               </button>
             </div>
             <p className="text-sm text-au-muted">
               {openEv.day}
               {openEv.endDay && openEv.endDay !== openEv.day ? ` — ${openEv.endDay}` : ''}
-              {openEv.time ? ` · ${openEv.time}` : ''} · {LAYER_META[openEv.layer].n}
+              {openEv.time ? ` · ${openEv.time}` : ''} · {C.layer(openEv.layer)}
             </p>
             {openEv.meta && (
               <p className="flex items-start gap-1.5 text-sm">
@@ -336,9 +354,9 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                 <div className="flex gap-1.5">
                   {(
                     [
-                      ['yes', 'Boraman'],
-                      ['maybe', 'Balki'],
-                      ['no', 'Bormayman'],
+                      ['yes', C.t('yes')],
+                      ['maybe', C.t('maybe')],
+                      ['no', C.t('no')],
                     ] as const
                   ).map(([r, n]) => (
                     <button
@@ -352,14 +370,14 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                   ))}
                 </div>
                 <span className="text-[11px] text-au-muted">
-                  {openEv.rsvp.yes} boradi · {openEv.rsvp.maybe} balki · {openEv.rsvp.no} bormaydi
+                  {C.t('rsvp', { y: openEv.rsvp.yes, m: openEv.rsvp.maybe, n: openEv.rsvp.no })}
                 </span>
               </div>
             )}
             <div className="flex flex-wrap gap-1.5">
               {openEv.href && (
                 <Link href={openEv.href} className={BTN_GHOST}>
-                  Ochish
+                  {C.t('open')}
                 </Link>
               )}
               {openEv.editable && openEv.eventId && (
@@ -383,10 +401,10 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                       setOpenEv(null);
                     }}
                   >
-                    <Pencil className="size-3.5" /> Tahrirlash
+                    <Pencil className="size-3.5" /> {C.t('edit')}
                   </button>
                   <button className={cn(BTN_GHOST, 'hover:text-au-bad')} disabled={busy} onClick={() => delEvent(openEv)}>
-                    <Trash2 className="size-3.5" /> O‘chirish
+                    <Trash2 className="size-3.5" /> {C.t('delete')}
                   </button>
                 </>
               )}
@@ -395,10 +413,10 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
         ) : (
           <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-2 p-4')}>
             <h3 className={CARD_TITLE}>
-              {sel === today ? 'Bugun' : sel} · {dayEvents(sel).length} voqea
+              {C.t('dayHead', { d: sel === today ? C.t('today') : sel, n: dayEvents(sel).length })}
             </h3>
             {dayEvents(sel).length === 0 ? (
-              <p className="text-sm text-au-muted">Bu kunda voqea yo‘q</p>
+              <p className="text-sm text-au-muted">{C.t('noneDay')}</p>
             ) : (
               dayEvents(sel).map((e) => <Pill key={e.id} e={e} onClick={() => setOpenEv(e)} wide />)
             )}
@@ -407,18 +425,18 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
 
         <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-2 p-4')} style={{ ['--i' as string]: 2 }}>
           <h3 className={cn(CARD_TITLE, 'flex items-center gap-2')}>
-            <Smartphone className="size-4 text-au-muted" /> Telefon kalendariga ulash
+            <Smartphone className="size-4 text-au-muted" /> {C.t('phone')}
           </h3>
-          <p className="text-[11px] text-au-muted">Shaxsiy havola: tadbirlar, vazifa muddatlaringiz, ta’tillar va tug‘ilgan kunlar Google / iPhone kalendarida avtomatik ko‘rinadi.</p>
+          <p className="text-[11px] text-au-muted">{C.t('phoneSub')}</p>
           {feed ? (
             <div className="flex flex-col gap-1.5">
               <code className="rounded-au-ctl bg-au-card-2 px-2 py-1.5 text-[11px] break-all">{feed}</code>
               <div className="flex flex-wrap gap-1.5">
-                <button className={BTN_GHOST} onClick={() => navigator.clipboard.writeText(feed).then(() => toast.success('Nusxa olindi'))}>
-                  <Copy className="size-3.5" /> Nusxa
+                <button className={BTN_GHOST} onClick={() => navigator.clipboard.writeText(feed).then(() => toast.success(C.t('copied')))}>
+                  <Copy className="size-3.5" /> {C.t('copy')}
                 </button>
                 <button className={BTN_GHOST} disabled={busy} onClick={() => feedLink(true)}>
-                  <RefreshCw className="size-3.5" /> Yangilash
+                  <RefreshCw className="size-3.5" /> {C.t('rotate')}
                 </button>
                 <button
                   className={cn(BTN_GHOST, 'hover:text-au-bad')}
@@ -427,17 +445,17 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
                     start(async () => {
                       await revokeCalendarTokenAction();
                       setFeed(null);
-                      toast.success('Havola o‘chirildi');
+                      toast.success(C.t('linkDeleted'));
                     })
                   }
                 >
-                  O‘chirish
+                  {C.t('delete')}
                 </button>
               </div>
             </div>
           ) : (
             <button className={BTN_GHOST} disabled={busy} onClick={() => feedLink(false)}>
-              <Link2 className="size-3.5" /> Havolani olish
+              <Link2 className="size-3.5" /> {C.t('getLink')}
             </button>
           )}
         </section>
@@ -447,6 +465,7 @@ export function TeamCalendar({ initial, today, canPublish, canAll }: { initial: 
 }
 
 function Pill({ e, onClick, wide }: { e: CalEvent; onClick: () => void; wide?: boolean }) {
+  const C = useCal();
   return (
     <span
       role="button"
@@ -466,60 +485,61 @@ function Pill({ e, onClick, wide }: { e: CalEvent; onClick: () => void; wide?: b
       <i className="size-1.5 shrink-0 rounded-full" style={{ background: LAYER_META[e.layer].c }} />
       {e.time && <span className="shrink-0 tabular-nums opacity-70">{e.time}</span>}
       <span className="truncate">{e.title}</span>
-      {wide && e.rsvp?.mine && <span className={cn(CHIP_NEUTRAL, 'ml-auto h-5')}>{e.rsvp.mine === 'yes' ? 'Boraman' : e.rsvp.mine === 'no' ? 'Yo‘q' : 'Balki'}</span>}
+      {wide && e.rsvp?.mine && <span className={cn(CHIP_NEUTRAL, 'ml-auto h-5')}>{e.rsvp.mine === 'yes' ? C.t('yes') : e.rsvp.mine === 'no' ? C.t('pNo') : C.t('maybe')}</span>}
     </span>
   );
 }
 
 function EventForm({ draft, setDraft, busy, onSave }: { draft: EventDraft; setDraft: (d: EventDraft | null) => void; busy: boolean; onSave: () => void }) {
+  const C = useCal();
   const set = (p: Partial<EventDraft>) => setDraft({ ...draft, ...p });
   return (
     <section className={cn(SURFACE_CARD, 'ms-pop-in flex flex-col gap-2 p-4')}>
-      <h3 className={CARD_TITLE}>{draft.id ? 'Tadbirni tahrirlash' : 'Yangi tadbir'}</h3>
-      <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="Nomi" className={INPUT} maxLength={160} />
+      <h3 className={CARD_TITLE}>{draft.id ? C.t('editEvent') : C.t('newEvent')}</h3>
+      <input value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder={C.t('name')} className={INPUT} maxLength={160} />
       <select value={draft.kind} onChange={(e) => set({ kind: e.target.value as EventKind })} className={cn(INPUT, 'h-9')}>
         {EVENT_KINDS.map((k) => (
           <option key={k} value={k}>
-            {EVENT_KIND_LABEL[k]}
+            {C.kind(k)}
           </option>
         ))}
       </select>
       <div className="grid grid-cols-2 gap-2">
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Sana
+          {C.t('date')}
           <input type="date" value={draft.day} onChange={(e) => set({ day: e.target.value })} className={cn(INPUT, 'h-9')} />
         </label>
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Vaqt (bo‘sh = kun bo‘yi)
+          {C.t('time')}
           <input type="time" value={draft.time} onChange={(e) => set({ time: e.target.value })} className={cn(INPUT, 'h-9')} />
         </label>
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Tugash sanasi
+          {C.t('endDate')}
           <input type="date" value={draft.endDay} min={draft.day} onChange={(e) => set({ endDay: e.target.value })} className={cn(INPUT, 'h-9')} />
         </label>
         <label className="flex flex-col gap-1 text-[11px] font-semibold text-au-muted">
-          Takrorlanish
+          {C.t('repeat')}
           <select value={draft.repeat} onChange={(e) => set({ repeat: e.target.value as EventDraft['repeat'] })} className={cn(INPUT, 'h-9')}>
-            <option value="none">Yo‘q</option>
-            <option value="weekly">Har hafta</option>
-            <option value="monthly">Har oy</option>
-            <option value="yearly">Har yili</option>
+            <option value="none">{C.t('rNone')}</option>
+            <option value="weekly">{C.t('rWeekly')}</option>
+            <option value="monthly">{C.t('rMonthly')}</option>
+            <option value="yearly">{C.t('rYearly')}</option>
           </select>
         </label>
       </div>
-      <input value={draft.location} onChange={(e) => set({ location: e.target.value })} placeholder="Joy (ixtiyoriy)" className={INPUT} />
-      <textarea value={draft.description} onChange={(e) => set({ description: e.target.value })} rows={3} placeholder="Tavsif (ixtiyoriy)" className={cn(INPUT, 'py-2')} />
+      <input value={draft.location} onChange={(e) => set({ location: e.target.value })} placeholder={C.t('place')} className={INPUT} />
+      <textarea value={draft.description} onChange={(e) => set({ description: e.target.value })} rows={3} placeholder={C.t('desc')} className={cn(INPUT, 'py-2')} />
       {!draft.id && (
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={draft.notify} onChange={(e) => set({ notify: e.target.checked })} /> Jamoaga Telegram orqali xabar berish
+          <input type="checkbox" checked={draft.notify} onChange={(e) => set({ notify: e.target.checked })} /> {C.t('notify')}
         </label>
       )}
       <div className="flex justify-end gap-2">
         <button className={BTN_GHOST} onClick={() => setDraft(null)}>
-          Bekor
+          {C.t('cancel')}
         </button>
         <button className={BTN_PRIMARY} disabled={busy || !draft.title.trim() || !draft.day} onClick={onSave}>
-          Saqlash
+          {C.t('save')}
         </button>
       </div>
     </section>
