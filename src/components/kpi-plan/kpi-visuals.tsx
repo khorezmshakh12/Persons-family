@@ -3,12 +3,27 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUZS } from '@/lib/format-currency';
-import { SCENARIO_LABEL, SCENARIOS, monthName, type KpiPlan, type Scenario } from '@/lib/kpi-plan';
+import { SCENARIOS, type KpiPlan, type Scenario } from '@/lib/kpi-plan';
+import { useLocale, useTranslations } from 'next-intl';
+import { monthName as mName, monthYear } from '@/lib/month-names';
 import type { Forecast } from '@/lib/kpi-forecast';
 
 /* ------------------------------------------------------------ stepper */
 
-const STEPS = ['Reja', 'Topshirildi', 'Tasdiqlandi', 'O‘z bahom', 'CEO bahosi', 'Maosh'] as const;
+const STEPS = ['s0', 's1', 's2', 's3', 's4', 's5'] as const;
+
+function useKv() {
+  const t = useTranslations('kpv');
+  const ts = useTranslations('kpw.sc');
+  const locale = useLocale();
+  return {
+    t,
+    sc: (s: Scenario) => ts(s),
+    mN: (m: string) => monthYear(locale, m),
+    mS: (m: string) => mName(locale, Number(m.slice(5, 7)), true),
+    som: (n: number) => t('som', { n: formatUZS(n) }),
+  };
+}
 
 /** 0-based index of the step a plan is on (the first step not yet done). */
 export function planStep(plan: KpiPlan | undefined): number {
@@ -21,10 +36,11 @@ export function planStep(plan: KpiPlan | undefined): number {
 
 /** Six-step lifecycle rail; the line fills up to the current step, which pulses. */
 export function KpiStepper({ plan, className }: { plan: KpiPlan | undefined; className?: string }) {
+  const K = useKv();
   const at = planStep(plan);
   const pct = (Math.min(at, STEPS.length - 1) / (STEPS.length - 1)) * 100;
   return (
-    <ol className={cn('relative grid grid-cols-6 gap-1', className)} aria-label="KPI bosqichlari">
+    <ol className={cn('relative grid grid-cols-6 gap-1', className)} aria-label={K.t('stepsAria')}>
       <span aria-hidden className="absolute top-[13px] right-[8.33%] left-[8.33%] h-[3px] rounded-full bg-au-card-2">
         <span className="ms-fill block h-full rounded-full bg-au-accent" style={{ width: `${pct}%` }} />
       </span>
@@ -43,7 +59,7 @@ export function KpiStepper({ plan, className }: { plan: KpiPlan | undefined; cla
             >
               {done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
             </span>
-            <span className={cn('text-[10.5px] leading-tight font-semibold sm:text-xs', current ? 'text-au-ink' : done ? 'text-au-muted' : 'text-au-faint')}>{label}</span>
+            <span className={cn('text-[10.5px] leading-tight font-semibold sm:text-xs', current ? 'text-au-ink' : done ? 'text-au-muted' : 'text-au-faint')}>{K.t(label)}</span>
           </li>
         );
       })}
@@ -55,6 +71,7 @@ export function KpiStepper({ plan, className }: { plan: KpiPlan | undefined; cla
 
 /** Half-circle gauge with three zones; the needle springs to the forecast. */
 export function ForecastGauge({ value, className }: { value: Forecast | null; className?: string }) {
+  const K = useKv();
   // score 0..2 → angle -90..90
   const angle = value ? -90 + (value.score / 2) * 180 : -90;
   const arc = (from: number, to: number) => {
@@ -66,7 +83,7 @@ export function ForecastGauge({ value, className }: { value: Forecast | null; cl
   };
   return (
     <figure className={cn('flex flex-col items-center', className)}>
-      <svg viewBox="0 0 120 68" className="w-full max-w-[220px]" role="img" aria-label={value ? `Bashorat: ${SCENARIO_LABEL[value.scenario]}` : 'Bashorat yo‘q'}>
+      <svg viewBox="0 0 120 68" className="w-full max-w-[220px]" role="img" aria-label={value ? K.t('forecastOf', { s: K.sc(value.scenario) }) : K.t('noForecast')}>
         <path d={arc(-90, -27)} stroke="var(--au-bad)" strokeWidth="10" fill="none" strokeLinecap="round" opacity=".85" />
         <path d={arc(-21, 39)} stroke="var(--au-accent)" strokeWidth="10" fill="none" strokeLinecap="round" opacity=".85" />
         <path d={arc(45, 90)} stroke="var(--au-ok)" strokeWidth="10" fill="none" strokeLinecap="round" opacity=".85" />
@@ -77,9 +94,9 @@ export function ForecastGauge({ value, className }: { value: Forecast | null; cl
       </svg>
       <figcaption className="-mt-1 text-center">
         <span className={cn('block text-lg font-bold', value ? (value.scenario === 'bad' ? 'text-au-bad' : value.scenario === 'great' ? 'text-au-ok' : 'text-au-accent-text') : 'text-au-faint')}>
-          {value ? SCENARIO_LABEL[value.scenario] : '—'}
+          {value ? K.sc(value.scenario) : '—'}
         </span>
-        <span className="text-[11px] text-au-muted">{value ? `${value.scored} ta ko‘rsatkich bo‘yicha` : 'Haqiqiy natijalarni kiriting'}</span>
+        <span className="text-[11px] text-au-muted">{value ? K.t('byN', { n: value.scored }) : K.t('enterActual')}</span>
       </figcaption>
     </figure>
   );
@@ -92,6 +109,7 @@ const DOT: Record<Scenario, string> = { bad: 'var(--au-bad)', good: 'var(--au-ac
 
 /** Grades over the months as a stepped line that draws itself in. */
 export function GradeHistory({ plans }: { plans: KpiPlan[] }) {
+  const K = useKv();
   const graded = plans.filter((p) => p.grade).sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
   if (graded.length < 2) return null;
   const W = 600;
@@ -101,13 +119,13 @@ export function GradeHistory({ plans }: { plans: KpiPlan[] }) {
   const d = graded.map((p, i) => `${i ? 'L' : 'M'} ${x(i)} ${y(p.grade!)}`).join(' ');
   return (
     <div className="rounded-au-card border border-au-line bg-au-card p-4 shadow-au-card">
-      <h3 className="mb-2 text-sm font-bold text-au-ink">Baholar dinamikasi</h3>
-      <svg viewBox={`0 0 ${W} ${H + 24}`} className="w-full" role="img" aria-label="Oylar bo‘yicha KPI baholari">
+      <h3 className="mb-2 text-sm font-bold text-au-ink">{K.t('dynamics')}</h3>
+      <svg viewBox={`0 0 ${W} ${H + 24}`} className="w-full" role="img" aria-label={K.t('dynAria')}>
         {SCENARIOS.map((s) => (
           <g key={s}>
             <line x1="40" x2={W - 30} y1={y(s)} y2={y(s)} stroke="var(--au-line)" strokeDasharray="3 5" />
             <text x="0" y={y(s) + 4} fontSize="11" fill="var(--au-faint)">
-              {SCENARIO_LABEL[s].split(' ')[0]}
+              {K.sc(s).split(' ')[0]}
             </text>
           </g>
         ))}
@@ -116,12 +134,12 @@ export function GradeHistory({ plans }: { plans: KpiPlan[] }) {
           <g key={p.id} className="ms-wave" style={{ ['--i' as string]: i * 3, transformOrigin: `${x(i)}px ${y(p.grade!)}px`, transformBox: 'view-box' }}>
             <circle cx={x(i)} cy={y(p.grade!)} r="6" fill={DOT[p.grade!]} stroke="var(--au-card)" strokeWidth="2">
               <title>
-                {monthName(p.month)}: {SCENARIO_LABEL[p.grade!]}
-                {p.grade_amount != null ? ` · ${formatUZS(Math.round(p.grade_amount))} so‘m` : ''}
+                {K.mN(p.month)}: {K.sc(p.grade!)}
+                {p.grade_amount != null ? ` · ${K.som(Math.round(p.grade_amount))}` : ''}
               </title>
             </circle>
             <text x={x(i)} y={H + 18} textAnchor="middle" fontSize="11" fill="var(--au-muted)">
-              {monthName(p.month).slice(0, 3)}
+              {K.mS(p.month)}
             </text>
           </g>
         ))}
@@ -146,16 +164,17 @@ const CELL: Record<string, string> = {
 /** Staff × months. Colour = grade (or status when not graded yet); a
  * hatched cell = nothing filed. Cells arrive as a diagonal wave. */
 export function KpiHeatmap({ team, plans, months }: { team: HeatMember[]; plans: KpiPlan[]; months: string[] }) {
+  const K = useKv();
   const key = (uid: string, m: string) => plans.find((p) => p.user_id === uid && p.month === m);
   return (
     <div className="overflow-x-auto rounded-au-card border border-au-line bg-au-card p-4 shadow-au-card">
       <table className="w-full min-w-[560px] border-separate border-spacing-1.5 text-sm">
         <thead>
           <tr className="text-[11px] font-semibold tracking-wide text-au-faint uppercase">
-            <th className="text-left font-semibold">Xodim</th>
+            <th className="text-left font-semibold">{K.t('staff')}</th>
             {months.map((m) => (
               <th key={m} className="font-semibold">
-                {monthName(m).slice(0, 3)}
+                {K.mS(m)}
               </th>
             ))}
           </tr>
@@ -172,14 +191,14 @@ export function KpiHeatmap({ team, plans, months }: { team: HeatMember[]; plans:
                 return (
                   <td key={m} className="p-0">
                     <span
-                      title={`${monthName(m)}: ${p?.grade ? SCENARIO_LABEL[p.grade] : state ?? 'topshirilmagan'}`}
+                      title={`${K.mN(m)}: ${p?.grade ? K.sc(p.grade) : state ? K.t(`st.${state}`) : K.t('st.none')}`}
                       className={cn(
                         'ms-wave mx-auto grid h-8 min-w-12 place-items-center rounded-[9px] text-[11px] font-bold',
                         state ? CELL[state] : 'border border-dashed border-au-line bg-[repeating-linear-gradient(135deg,transparent_0_5px,var(--au-card-2)_5px_10px)] text-au-faint',
                       )}
                       style={{ ['--i' as string]: r + c }}
                     >
-                      {p?.grade ? SCENARIO_LABEL[p.grade].split(' ')[0] : state === 'approved' ? '✓' : state === 'submitted' ? '…' : state === 'returned' ? '↩' : ''}
+                      {p?.grade ? K.sc(p.grade).split(' ')[0] : state === 'approved' ? '✓' : state === 'submitted' ? '…' : state === 'returned' ? '↩' : ''}
                     </span>
                   </td>
                 );
@@ -192,14 +211,14 @@ export function KpiHeatmap({ team, plans, months }: { team: HeatMember[]; plans:
         {(['great', 'good', 'bad'] as const).map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
             <i className={cn('size-3 rounded-[4px]', CELL[s].split(' ')[0])} />
-            {SCENARIO_LABEL[s]}
+            {K.sc(s)}
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5">
-          <i className="size-3 rounded-[4px] bg-au-ok-soft" /> Tasdiqlangan
+          <i className="size-3 rounded-[4px] bg-au-ok-soft" /> {K.t('st.approved')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <i className="size-3 rounded-[4px] bg-au-accent-soft" /> Kutilmoqda
+          <i className="size-3 rounded-[4px] bg-au-accent-soft" /> {K.t('waiting')}
         </span>
       </div>
     </div>
@@ -210,6 +229,7 @@ export function KpiHeatmap({ team, plans, months }: { team: HeatMember[]; plans:
 
 /** Grade distribution + total salary effect; warns when grades bunch at the top. */
 export function GradeCalibration({ plans }: { plans: KpiPlan[] }) {
+  const K = useKv();
   const graded = plans.filter((p) => p.grade);
   if (graded.length === 0) return null;
   const count = (s: Scenario) => graded.filter((p) => p.grade === s).length;
@@ -219,29 +239,29 @@ export function GradeCalibration({ plans }: { plans: KpiPlan[] }) {
     <div className="grid gap-3 rounded-au-card border border-au-line bg-au-card p-4 shadow-au-card sm:grid-cols-[1fr_auto] sm:items-center">
       <div>
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-au-muted">
-          <span>Baholar taqsimoti · {graded.length} ta</span>
-          {greatShare > 0.6 && graded.length >= 4 && <span className="text-au-bad">Ko‘pchilik “Juda yaxshi” — kalibrlashni tekshiring</span>}
+          <span>{K.t('dist', { n: graded.length })}</span>
+          {greatShare > 0.6 && graded.length >= 4 && <span className="text-au-bad">{K.t('calib', { s: K.sc('great') })}</span>}
         </div>
         <div className="flex h-3 overflow-hidden rounded-full bg-au-card-2">
           {(['bad', 'good', 'great'] as const).map((s) =>
             count(s) ? (
-              <span key={s} className="ms-fill h-full" style={{ width: `${(count(s) / graded.length) * 100}%`, background: DOT[s] }} title={`${SCENARIO_LABEL[s]}: ${count(s)}`} />
+              <span key={s} className="ms-fill h-full" style={{ width: `${(count(s) / graded.length) * 100}%`, background: DOT[s] }} title={`${K.sc(s)}: ${count(s)}`} />
             ) : null,
           )}
         </div>
         <div className="mt-1.5 flex gap-4 text-[11px] text-au-muted">
           {(['bad', 'good', 'great'] as const).map((s) => (
             <span key={s}>
-              {SCENARIO_LABEL[s]}: <b className="text-au-ink">{count(s)}</b>
+              {K.sc(s)}: <b className="text-au-ink">{count(s)}</b>
             </span>
           ))}
         </div>
       </div>
       <div className="text-right">
-        <div className="text-[11px] font-semibold text-au-muted">Maoshga umumiy ta’sir</div>
+        <div className="text-[11px] font-semibold text-au-muted">{K.t('totalEffect')}</div>
         <div className={cn('text-xl font-bold tabular-nums', total < 0 ? 'text-au-bad' : total > 0 ? 'text-au-ok' : 'text-au-ink')}>
           {total < 0 ? '−' : total > 0 ? '+' : ''}
-          {formatUZS(Math.abs(Math.round(total)))} so‘m
+          {K.som(Math.abs(Math.round(total)))}
         </div>
       </div>
     </div>
