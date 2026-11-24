@@ -48,3 +48,9 @@ export function localizeMonths(text: string, locale: string): string {
   for (const [w, i] of Object.entries(UZ_SHORT_ALT)) out = out.replace(new RegExp(`\\b${w}\\b`, 'g'), n.short[i]);
   return out;
 }
+
+/** «Noyabr 2026» / «November 2026» for a 'YYYY-MM' or 'YYYY-MM-DD' key, in the UI language. */
+export function monthYear(locale: string, period: string): string {
+  const [y, m] = period.split('-').map(Number);
+  return `${monthName(locale, m)} ${y}`;
+}

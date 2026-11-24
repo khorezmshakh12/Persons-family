@@ -10,7 +10,9 @@ import { formatUZS } from '@/lib/format-currency';
 import { CHIP_BAD, CHIP_NEUTRAL, CHIP_OK, INPUT, SURFACE_CARD } from '@/lib/glass';
 import { CountUp } from '@/components/motion/count-up';
 import { cancelAdvanceAction, requestAdvanceAction } from '@/lib/actions/pay-run';
-import { COMPONENT_LABEL, monthLabel, payState, type PayLine } from '@/lib/pay-run';
+import { payState, type PayLine } from '@/lib/pay-run';
+import { useLocale, useTranslations } from 'next-intl';
+import { monthYear } from '@/lib/month-names';
 import { startOfTashkentMonthKey } from '@/lib/time';
 import type { AdvanceRequest, MonthPoint } from '@/lib/pay-run-data';
 import { downloadPayslips } from './payslip';
@@ -20,11 +22,11 @@ const som = (n: number) => formatUZS(Math.round(n));
 const signed = (n: number) => `${n >= 0 ? '+' : '−'}${formatUZS(Math.abs(Math.round(n)))}`;
 
 const ADV_ERR: Record<string, string> = {
-  alreadyPending: 'Sizda ko‘rib chiqilayotgan so‘rov bor',
-  overLimit: 'Avans oylik maoshdan oshmasligi kerak',
-  noSalary: 'Bu oy uchun maoshingiz hali belgilanmagan — avans so‘rab bo‘lmaydi',
-  alreadyDecided: 'So‘rov allaqachon ko‘rib chiqilgan',
-  invalidInput: 'Summa va sababni tekshiring',
+  alreadyPending: 'eAlreadyPending',
+  overLimit: 'eOverLimit',
+  noSalary: 'eNoSalary',
+  alreadyDecided: 'eDecided',
+  invalidInput: 'eInvalid',
 };
 
 /** One person's month: what was given, KPI/bonus/jarima, and the month's
@@ -55,9 +57,10 @@ export function PayStatement({
 }
 
 export function PayHistoryCard({ history, period }: { history: MonthPoint[]; period: string }) {
+  const t = useTranslations('pay.ps');
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 1 }}>
-      <h3 className="text-xs font-bold tracking-wider text-au-muted uppercase">12 oy: oylik va berilganlar</h3>
+      <h3 className="text-xs font-bold tracking-wider text-au-muted uppercase">{t('history')}</h3>
       <MonthBars points={history} current={period} />
     </section>
   );
@@ -68,21 +71,25 @@ export function PayHistoryCard({ history, period }: { history: MonthPoint[]; per
 export function PayStatementCard({ line, period }: { line: PayLine | null; period: string }) {
   const running = payState(period, startOfTashkentMonthKey()) === 'Oy davom etyapti';
   const extra = line ? line.kpi + line.bonuses + line.deductions : 0;
+  const t = useTranslations('pay.ps');
+  const tAll = useTranslations();
+  const locale = useLocale();
+  const mL = (p: string) => monthYear(locale, p);
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex min-w-0 flex-col gap-4 p-5')}>
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-au-line pb-3">
         <div className="min-w-0">
-          <h3 className="text-base font-bold text-au-ink">Oylik va avans hisob varaqasi ({monthLabel(period)})</h3>
-          <p className="text-xs text-au-muted">Oylik = berilgan avans va oylik + KPI + bonus − jarima</p>
+          <h3 className="text-base font-bold text-au-ink">{t('title', { m: mL(period) })}</h3>
+          <p className="text-xs text-au-muted">{t('formula')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn('fp-chip', running ? 'fp-chip-info' : 'fp-chip-ok')}>{running ? 'Oy davom etyapti' : 'Yakunlandi'}</span>
+          <span className={cn('fp-chip', running ? 'fp-chip-info' : 'fp-chip-ok')}>{running ? t('running') : t('done')}</span>
           {line && (
             <button
               onClick={() => downloadPayslips([line], period)}
               className="inline-flex h-7 items-center gap-1.5 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-xs font-semibold text-au-ink hover:bg-au-card-2"
             >
-              <FileDown className="size-3.5" /> Kvitansiya PDF
+              <FileDown className="size-3.5" /> {t('receipt')}
             </button>
           )}
         </div>
@@ -90,25 +97,25 @@ export function PayStatementCard({ line, period }: { line: PayLine | null; perio
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="min-w-0 rounded-lg border border-au-line bg-au-accent-soft p-3">
-          <span className="block text-[11px] text-au-muted">{running ? 'Shu oygacha oylik' : 'Oylik'}</span>
+          <span className="block text-[11px] text-au-muted">{running ? t('soFar') : t('salary')}</span>
           <b className="text-base break-words text-au-accent-text tabular-nums">
-            <CountUp value={som(line?.payable ?? 0)} /> so‘m
+            <CountUp value={som(line?.payable ?? 0)} /> {t('uzs')}
           </b>
         </div>
         <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-          <span className="block text-[11px] text-au-muted">Shu oy berildi (avans + oylik)</span>
-          <b className="text-base break-words tabular-nums">{som(line?.paid ?? 0)} so‘m</b>
+          <span className="block text-[11px] text-au-muted">{t('given')}</span>
+          <b className="text-base break-words tabular-nums">{som(line?.paid ?? 0)} {t('uzs')}</b>
         </div>
         <div className="min-w-0 rounded-lg border border-au-line bg-au-card-2 p-3">
-          <span className="block text-[11px] text-au-muted">KPI, bonus − jarima</span>
-          <b className={cn('text-base break-words tabular-nums', extra > 0 ? 'text-au-ok' : extra < 0 ? 'text-au-bad' : 'text-au-ink')}>{signed(extra)} so‘m</b>
+          <span className="block text-[11px] text-au-muted">{t('extra')}</span>
+          <b className={cn('text-base break-words tabular-nums', extra > 0 ? 'text-au-ok' : extra < 0 ? 'text-au-bad' : 'text-au-ink')}>{signed(extra)} {t('uzs')}</b>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <h4 className="text-xs font-bold tracking-wider text-au-muted uppercase">{monthLabel(period)} — barcha yozuvlar va to‘lovlar</h4>
+        <h4 className="text-xs font-bold tracking-wider text-au-muted uppercase">{t('allEntries', { m: mL(period) })}</h4>
         {!line || (line.components.length === 0 && line.payments.length === 0) ? (
-          <p className="text-sm text-au-muted">Bu oy uchun hali hisob yo‘q</p>
+          <p className="text-sm text-au-muted">{t('none')}</p>
         ) : (
           <>
             {line.components.map((c, i) => (
@@ -118,14 +125,14 @@ export function PayStatementCard({ line, period }: { line: PayLine | null; perio
                 className="ms-rise flex items-center justify-between gap-3 rounded-lg border border-au-line bg-au-card-2/50 px-3.5 py-2.5 text-xs"
               >
                 <div className="flex min-w-0 flex-col">
-                  <span className="font-semibold text-au-ink">{COMPONENT_LABEL[c.kind]}</span>
+                  <span className="font-semibold text-au-ink">{tAll(`pay.comp.${c.kind}`)}</span>
                   <span className="truncate text-[11px] text-au-muted">
                     {c.title}
                     {c.at ? ` · ${c.at.slice(0, 10)}` : ''}
                   </span>
                 </div>
                 <span className={cn('shrink-0 font-bold tabular-nums', c.amount >= 0 ? 'text-au-ok' : 'text-au-bad')}>
-                  {signed(c.amount)} so‘m
+                  {signed(c.amount)} {t('uzs')}
                 </span>
               </div>
             ))}
@@ -133,12 +140,12 @@ export function PayStatementCard({ line, period }: { line: PayLine | null; perio
               <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-au-line bg-au-card-2/50 px-3.5 py-2.5 text-xs">
                 <div className="flex min-w-0 flex-col">
                   <span className="flex items-center gap-1.5 font-semibold text-au-ink">
-                    <span className="truncate">{p.title || (p.kind === 'advance' ? 'Avans' : 'Oylik')}</span>
-                    <span className={cn('fp-chip h-4 px-1.5 text-[10px]', p.kind === 'advance' ? 'fp-chip-info' : 'fp-chip-ok')}>{p.kind === 'advance' ? 'Avans' : 'Oylik'}</span>
+                    <span className="truncate">{p.title || (p.kind === 'advance' ? t('advance') : t('salary'))}</span>
+                    <span className={cn('fp-chip h-4 px-1.5 text-[10px]', p.kind === 'advance' ? 'fp-chip-info' : 'fp-chip-ok')}>{p.kind === 'advance' ? t('advance') : t('salary')}</span>
                   </span>
-                  <span className="text-[11px] text-au-muted">To‘lov{p.at ? ` · ${p.at.slice(0, 10)}` : ''}</span>
+                  <span className="text-[11px] text-au-muted">{t('payment')}{p.at ? ` · ${p.at.slice(0, 10)}` : ''}</span>
                 </div>
-                <span className={cn('shrink-0 font-bold tabular-nums', p.kind === 'advance' ? 'text-au-info' : 'text-au-ok')}>+{som(p.amount)} so‘m</span>
+                <span className={cn('shrink-0 font-bold tabular-nums', p.kind === 'advance' ? 'text-au-info' : 'text-au-ok')}>+{som(p.amount)} {t('uzs')}</span>
               </div>
             ))}
           </>
@@ -156,62 +163,63 @@ export function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
   const [reason, setReason] = useState('');
   const num = Number(amount.replace(/\s/g, ''));
   const pending = advances.find((a) => a.status === 'pending');
+  const t = useTranslations('pay.ps');
 
   const submit = () =>
     start(async () => {
       const res = await requestAdvanceAction({ amount: num, reason: reason.trim() });
-      if (res.error !== undefined) return void toast.error(ADV_ERR[res.error] ?? 'Yuborib bo‘lmadi');
+      if (res.error !== undefined) return void toast.error(t(ADV_ERR[res.error] ?? 'eSend'));
       setOpen(false);
       setAmount('');
       setReason('');
-      toast.success('So‘rov yuborildi — CEO’ga xabar ketdi');
+      toast.success(t('sent'));
       router.refresh();
     });
 
   const cancel = (id: string) =>
     start(async () => {
       const res = await cancelAdvanceAction(id);
-      if (res.error !== undefined) return void toast.error(ADV_ERR[res.error] ?? 'Bekor qilib bo‘lmadi');
-      toast.success('So‘rov qaytarib olindi');
+      if (res.error !== undefined) return void toast.error(t(ADV_ERR[res.error] ?? 'eCancel'));
+      toast.success(t('withdrawn'));
       router.refresh();
     });
 
   return (
     <section className={cn(SURFACE_CARD, 'ms-rise flex flex-col gap-3 p-4')} style={{ ['--i' as string]: 2 }}>
       <h3 className="flex items-center gap-2 text-sm font-bold text-au-ink">
-        <HandCoins className="size-4 text-au-info" /> Tezkor avans so‘rovi
+        <HandCoins className="size-4 text-au-info" /> {t('quick')}
       </h3>
-      <p className="text-xs text-au-muted">So‘rov «Ish haqi» bo‘limidagi avans so‘rovlari ro‘yxatiga tushadi.</p>
+      <p className="text-xs text-au-muted">{t('quickNote')}</p>
       {pending ? (
         <div className="flex flex-col gap-1.5 rounded-au-ctl bg-au-info-soft p-3 text-sm">
           <span>
-            <b className="tabular-nums">{som(pending.amount)} so‘m</b> so‘rovingiz ko‘rib chiqilmoqda
+            <b className="tabular-nums">{som(pending.amount)} {t('uzs')}</b> {t('reviewing')}
           </span>
           <button disabled={busy} onClick={() => cancel(pending.id)} className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-au-muted hover:text-au-ink">
-            <Undo2 className="size-3.5" /> Qaytarib olish
+            <Undo2 className="size-3.5" /> {t('withdraw')}
           </button>
         </div>
       ) : open ? (
         <div className="ms-pop-in flex flex-col gap-2">
-          <MoneyInput value={amount ? Number(amount.replace(/\D/g, '')) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder="Summa, so‘m" className={cn(INPUT, 'tabular-nums')} />
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Sabab" className={INPUT} />
-          <p className="text-[11px] text-au-muted">Tasdiqlansa, shu oyning oyligiga qo‘shib yoziladi.</p>
+          <MoneyInput value={amount ? Number(amount.replace(/\D/g, '')) : null} onValue={(v) => setAmount(v == null ? '' : String(v))} placeholder={t('amountPh')} className={cn(INPUT, 'tabular-nums')} />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('reason')} className={INPUT} />
+          <p className="text-[11px] text-au-muted">{t('addedIf')}</p>
           <div className="flex justify-end gap-2">
             <button className="h-8 px-3 text-xs font-semibold text-au-muted" onClick={() => setOpen(false)}>
-              Bekor
+              {t('cancel')}
             </button>
             <button
               disabled={busy || !(num > 0) || reason.trim().length < 3}
               onClick={submit}
               className="h-8 rounded-au-ctl bg-au-primary px-3 text-xs font-semibold text-au-primary-ink disabled:opacity-50"
             >
-              Yuborish
+              {t('send')}
             </button>
           </div>
         </div>
       ) : (
         <button onClick={() => setOpen(true)} className="h-9 rounded-au-ctl border border-au-line text-sm font-semibold hover:bg-au-card-2">
-          Avans so‘rash
+          {t('ask')}
         </button>
       )}
       {advances.filter((a) => a.status !== 'pending').length > 0 && (
@@ -223,7 +231,7 @@ export function AdvancePanel({ advances }: { advances: AdvanceRequest[] }) {
               <li key={a.id} className="flex items-center justify-between gap-2">
                 <span className="tabular-nums">{som(a.amount)}</span>
                 <span className={a.status === 'approved' ? CHIP_OK : a.status === 'rejected' ? CHIP_BAD : CHIP_NEUTRAL} title={a.decision_note ?? undefined}>
-                  {a.status === 'approved' ? 'Tasdiqlangan' : a.status === 'rejected' ? 'Rad etilgan' : 'Bekor qilingan'}
+                  {a.status === 'approved' ? t('approved') : a.status === 'rejected' ? t('rejected') : t('cancelled')}
                 </span>
               </li>
             ))}

@@ -82,7 +82,7 @@ export function FinanceEntriesList({
     const entry = entries.find((e) => e.id === entryId);
     if (
       !window.confirm(
-        `«${entry?.title ?? ''}» yozuvi o‘chirilsinmi? (${formatUZS(entry?.amount ?? 0)} so‘m)`,
+        t('confirmDelete', { title: entry?.title ?? '', sum: formatUZS(entry?.amount ?? 0) }),
       )
     )
       return;
@@ -110,7 +110,7 @@ export function FinanceEntriesList({
                 {entry.title}
                 {SOURCE_LABEL[entry.source] && (
                   <span className="bg-au-card text-au-muted ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
-                    {SOURCE_LABEL[entry.source]}
+                    {t(`src.${entry.source}`)}
                   </span>
                 )}
               </span>
