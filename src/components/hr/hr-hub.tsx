@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Cake, Check, ClipboardList, Flame, Network, PartyPopper, Pencil, Plus, Search, ShieldCheck, Sparkles, Star, Trash2, Users } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { SURFACE_CARD } from '@/lib/glass';
 import { celebrate } from '@/components/motion/events';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -38,10 +39,11 @@ const monthsBetween = (from: string, to: string) => {
   const [ty, tm, td] = to.split('-').map(Number);
   return (ty - fy) * 12 + (tm - fm) - (td < fd ? 1 : 0);
 };
-const tenure = (hire: string | null, today: string) => {
+type Tr = ReturnType<typeof useTranslations>;
+const tenure = (hire: string | null, today: string, t: Tr) => {
   if (!hire) return null;
   const m = Math.max(0, monthsBetween(hire, today));
-  return m < 12 ? `${m} oy` : `${Math.floor(m / 12)} yil${m % 12 ? ` ${m % 12} oy` : ''}`;
+  return m < 12 ? t('months', { n: m }) : `${t('years', { n: Math.floor(m / 12) })}${m % 12 ? ` ${t('months', { n: m % 12 })}` : ''}`;
 };
 
 function Avatar({ p, size = 44 }: { p: Pick<HrPerson, 'avatar' | 'name' | 'dept'>; size?: number }) {
@@ -89,6 +91,7 @@ function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, canO
   const [busy, start] = useTransition();
   const [hire, setHire] = useState(p.hire_date ?? '');
   const [prob, setProb] = useState(p.probation_until ?? '');
+  const t = useTranslations('hub');
   const stat = (label: string, value: ReactNode, sub?: string) => (
     <div className="rounded-au-ctl bg-au-card-2 p-3">
       <div className="text-[11px] font-semibold text-au-muted">{label}</div>
@@ -106,24 +109,24 @@ function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, canO
             {p.roles.map((r) => roleLabels[r] ?? r).join(' · ')} · {deptLabels[p.dept]}
           </SheetDescription>
           <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
-            {p.hire_date && <span className="rounded-full bg-au-card-2 px-2 py-0.5 font-semibold text-au-muted">Staj: {tenure(p.hire_date, today)}</span>}
-            {p.probation_until && p.probation_until >= today && <span className="rounded-full bg-au-accent-soft px-2 py-0.5 font-semibold text-au-accent-text">Sinov: {p.probation_until} gacha</span>}
+            {p.hire_date && <span className="rounded-full bg-au-card-2 px-2 py-0.5 font-semibold text-au-muted">{t('tenure', { t: tenure(p.hire_date, today, t) ?? '' })}</span>}
+            {p.probation_until && p.probation_until >= today && <span className="rounded-full bg-au-accent-soft px-2 py-0.5 font-semibold text-au-accent-text">{t('probation', { d: p.probation_until })}</span>}
             {p.phone && <span className="rounded-full bg-au-card-2 px-2 py-0.5 font-semibold text-au-muted">{p.phone}</span>}
           </div>
           {canOpenProfile && (
             <Link href={`/profile/${p.id}`} className="mt-2 inline-block text-xs font-semibold text-au-accent-text hover:underline">
-              To‘liq profilni ochish →
+              {t('openProfile')}
             </Link>
           )}
         </div>
       </SheetHeader>
       <div className="grid gap-4 px-5 py-5">
         <div className="grid grid-cols-2 gap-2">
-          {stat('Yulduzlar', <span className="inline-flex items-center gap-1"><Star className="size-4 text-au-accent-text" />{p.stars}</span>)}
-          {stat('KPI · 6 oy', <KpiDots kpi={p.kpi} />)}
-          {stat('Self-dev', p.selfDev.score ?? '—', p.selfDev.months ? `${p.selfDev.months} oy ketma-ket` : undefined)}
-          {stat('Vazifalar o‘z vaqtida', p.tasks.onTime === null ? '—' : `${p.tasks.onTime}%`, `${p.tasks.open} ochiq · ${p.tasks.overdue} kechikkan`)}
-          {p.lessons !== null && stat('Dars rejalari (30 kun)', `${p.lessons}%`, 'muddatida to‘liq')}
+          {stat(t('stars'), <span className="inline-flex items-center gap-1"><Star className="size-4 text-au-accent-text" />{p.stars}</span>)}
+          {stat(t('kpi6'), <KpiDots kpi={p.kpi} />)}
+          {stat('Self-dev', p.selfDev.score ?? '—', p.selfDev.months ? t('sdStreak', { n: p.selfDev.months }) : undefined)}
+          {stat(t('onTime'), p.tasks.onTime === null ? '—' : `${p.tasks.onTime}%`, t('taskSub', { o: p.tasks.open, l: p.tasks.overdue }))}
+          {p.lessons !== null && stat(t('lessons30'), `${p.lessons}%`, t('onTimeFull'))}
           {p.onboarding.total > 0 && stat('Onboarding', `${p.onboarding.done}/${p.onboarding.total}`)}
         </div>
 
@@ -131,14 +134,14 @@ function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, canO
 
         {isManager && (
           <div className="grid gap-2 rounded-au-ctl border border-au-line p-3">
-            <div className="text-xs font-semibold text-au-muted">Ish ma’lumotlari</div>
+            <div className="text-xs font-semibold text-au-muted">{t('employment')}</div>
             <div className="grid grid-cols-2 gap-2">
               <label className="grid gap-1 text-[11px] font-semibold text-au-muted">
-                Ishga kirgan sana
+                {t('hireDate')}
                 <input type="date" value={hire} onChange={(e) => setHire(e.target.value)} className="h-9 rounded-au-ctl border border-au-line bg-au-card px-2 text-sm text-au-ink" />
               </label>
               <label className="grid gap-1 text-[11px] font-semibold text-au-muted">
-                Sinov muddati tugashi
+                {t('probEnd')}
                 <input type="date" value={prob} onChange={(e) => setProb(e.target.value)} className="h-9 rounded-au-ctl border border-au-line bg-au-card px-2 text-sm text-au-ink" />
               </label>
             </div>
@@ -149,14 +152,14 @@ function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, canO
                 onClick={() =>
                   start(async () => {
                     const r = await updateEmploymentAction({ userId: p.id, hireDate: hire || null, probationUntil: prob || null });
-                    if (r.error) return void toast.error('Saqlab bo‘lmadi');
-                    toast.success('Saqlandi');
+                    if (r.error) return void toast.error(t('saveFail'));
+                    toast.success(t('saved'));
                     router.refresh();
                   })
                 }
                 className="inline-flex h-9 items-center gap-1.5 rounded-au-ctl bg-au-primary px-3.5 text-sm font-semibold text-au-primary-ink hover:opacity-90"
               >
-                <Check className="size-4" /> Saqlash
+                <Check className="size-4" /> {t('save')}
               </button>
               {p.onboarding.total === 0 && (
                 <button
@@ -165,15 +168,15 @@ function Profile({ p, isManager, today, roleLabels, deptLabels, onboarding, canO
                   onClick={() =>
                     start(async () => {
                       const r = await startOnboardingAction(p.id);
-                      if (r.error) return void toast.error('Boshlab bo‘lmadi');
-                      toast.success('Onboarding boshlandi');
+                      if (r.error) return void toast.error(t('startFail'));
+                      toast.success(t('obStarted'));
                       onClose();
                       router.refresh();
                     })
                   }
                   className="inline-flex h-9 items-center gap-1.5 rounded-au-ctl border border-au-line bg-au-card px-3.5 text-sm font-semibold text-au-ink hover:bg-au-card-2"
                 >
-                  <ClipboardList className="size-4" /> Onboarding boshlash
+                  <ClipboardList className="size-4" /> {t('obStart')}
                 </button>
               )}
             </div>
@@ -194,6 +197,7 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
   const [editing, setEditing] = useState<string | null>(null);
   /** Item whose delete was clicked once — the second click deletes. */
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const t = useTranslations('hub');
   const isDone = (i: OnboardingItem) => local[i.id] ?? !!i.done_at;
   const done = items.filter(isDone).length;
   const share = items.length ? done / items.length : 0;
@@ -210,7 +214,7 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
         <div>
           <div className="text-sm font-bold text-au-ink">Onboarding</div>
           <div className="text-xs text-au-muted">
-            {done}/{items.length} bajarildi
+            {t('nDone', { d: done, t: items.length })}
           </div>
         </div>
       </div>
@@ -235,7 +239,7 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
                     if (!v || v === it.title) return;
                     start(async () => {
                       const r = await renameOnboardingItemAction({ itemId: it.id, title: v });
-                      if (r.error) return void toast.error('Saqlab bo‘lmadi');
+                      if (r.error) return void toast.error(t('saveFail'));
                       router.refresh();
                     });
                   }}
@@ -250,9 +254,9 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
                     const r = await toggleOnboardingItemAction(it.id, !d);
                     if (r.error) {
                       setLocal((l) => ({ ...l, [it.id]: d }));
-                      return void toast.error('Saqlab bo‘lmadi');
+                      return void toast.error(t('saveFail'));
                     }
-                    if (!d && done + 1 === items.length) celebrate('Onboarding yakunlandi!');
+                    if (!d && done + 1 === items.length) celebrate(t('obDone'));
                     router.refresh();
                   })
                 }
@@ -266,14 +270,14 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
               )}
               {isManager && editing !== it.id && (
                 <span className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <button type="button" aria-label="Tahrirlash" className="grid size-7 place-items-center rounded text-au-muted hover:bg-au-card-2 hover:text-au-ink" onClick={() => setEditing(it.id)}>
+                  <button type="button" aria-label={t('edit')} className="grid size-7 place-items-center rounded text-au-muted hover:bg-au-card-2 hover:text-au-ink" onClick={() => setEditing(it.id)}>
                     <Pencil className="size-3.5" />
                   </button>
                   <button
                     type="button"
                     disabled={busy}
-                    aria-label={confirmDel === it.id ? 'O‘chirishni tasdiqlash' : 'O‘chirish'}
-                    title={confirmDel === it.id ? 'Yana bosing — o‘chiriladi' : 'O‘chirish'}
+                    aria-label={confirmDel === it.id ? t('confirmDel') : t('delete')}
+                    title={confirmDel === it.id ? t('clickAgain') : t('delete')}
                     onBlur={() => setConfirmDel((c) => (c === it.id ? null : c))}
                     className={cn('grid h-7 place-items-center rounded px-1.5 text-xs', confirmDel === it.id ? 'bg-au-bad text-white' : 'text-au-muted hover:bg-au-card-2 hover:text-au-bad')}
                     onClick={() => {
@@ -281,12 +285,12 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
                       setConfirmDel(null);
                       start(async () => {
                         const r = await deleteOnboardingItemAction(it.id);
-                        if (r.error) return void toast.error('O‘chirib bo‘lmadi');
+                        if (r.error) return void toast.error(t('delFail'));
                         router.refresh();
                       });
                     }}
                   >
-                    {confirmDel === it.id ? 'O‘chirilsinmi?' : <Trash2 className="size-3.5" />}
+                    {confirmDel === it.id ? t('delQ') : <Trash2 className="size-3.5" />}
                   </button>
                 </span>
               )}
@@ -302,14 +306,14 @@ function Checklist({ items, canEdit, userId, isManager }: { items: OnboardingIte
             if (!add.trim()) return;
             start(async () => {
               const r = await addOnboardingItemAction({ userId, title: add });
-              if (r.error) return void toast.error('Qo‘shib bo‘lmadi');
+              if (r.error) return void toast.error(t('addFail'));
               setAdd('');
               router.refresh();
             });
           }}
         >
-          <input value={add} onChange={(e) => setAdd(e.target.value)} maxLength={200} placeholder="Yangi band" className="h-8 flex-1 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-sm text-au-ink" />
-          <button type="submit" disabled={busy} className="grid size-8 place-items-center rounded-au-ctl bg-au-card-2 text-au-ink hover:bg-au-line" aria-label="Qo‘shish">
+          <input value={add} onChange={(e) => setAdd(e.target.value)} maxLength={200} placeholder={t('newItem')} className="h-8 flex-1 rounded-au-ctl border border-au-line bg-au-card px-2.5 text-sm text-au-ink" />
+          <button type="submit" disabled={busy} className="grid size-8 place-items-center rounded-au-ctl bg-au-card-2 text-au-ink hover:bg-au-line" aria-label={t('add')}>
             <Plus className="size-4" />
           </button>
         </form>
@@ -348,6 +352,7 @@ export function HrHub({
   const [q, setQ] = useState('');
   const [dept, setDept] = useState<Department | 'all'>('all');
   const [openId, setOpenId] = useState<string | null>(null);
+  const t = useTranslations('hub');
   const month = today.slice(5, 7);
   const visible = useMemo(
     () =>
@@ -365,11 +370,11 @@ export function HrHub({
   const open = people.find((p) => p.id === openId) ?? null;
 
   const strip = [
-    { k: 'Faol xodimlar', v: people.length, icon: Users, tone: 'text-au-ink' },
-    { k: 'Sinov muddatida', v: probation.length, icon: ShieldCheck, tone: probation.length ? 'text-au-accent-text' : 'text-au-ink' },
-    { k: 'Bu oy tug‘ilgan kun', v: birthdays.length, icon: Cake, tone: birthdays.length ? 'text-au-info' : 'text-au-ink' },
-    { k: 'Ish yubileyi', v: anniversaries.length, icon: PartyPopper, tone: anniversaries.length ? 'text-au-ok' : 'text-au-ink' },
-    { k: 'Onboardingda', v: onboardingPeople.length, icon: ClipboardList, tone: onboardingPeople.length ? 'text-au-accent-text' : 'text-au-ink' },
+    { k: t('sActive'), v: people.length, icon: Users, tone: 'text-au-ink' },
+    { k: t('sProbation'), v: probation.length, icon: ShieldCheck, tone: probation.length ? 'text-au-accent-text' : 'text-au-ink' },
+    { k: t('sBirthdays'), v: birthdays.length, icon: Cake, tone: birthdays.length ? 'text-au-info' : 'text-au-ink' },
+    { k: t('sAnniv'), v: anniversaries.length, icon: PartyPopper, tone: anniversaries.length ? 'text-au-ok' : 'text-au-ink' },
+    { k: t('sOnboarding'), v: onboardingPeople.length, icon: ClipboardList, tone: onboardingPeople.length ? 'text-au-accent-text' : 'text-au-ink' },
   ];
 
   return (
@@ -394,7 +399,7 @@ export function HrHub({
             <div className="flex flex-wrap items-center gap-2">
               <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-au-faint" aria-hidden />
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ism yoki lavozim" className="h-9 w-full rounded-au-ctl border border-au-line bg-au-card pr-3 pl-9 text-sm text-au-ink" />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchPh')} className="h-9 w-full rounded-au-ctl border border-au-line bg-au-card pr-3 pl-9 text-sm text-au-ink" />
               </label>
               {(['all', ...DEPT_ORDER] as const).map((d) => (
                 <button
@@ -404,7 +409,7 @@ export function HrHub({
                   aria-pressed={dept === d}
                   className={cn('h-8 rounded-full px-3 text-xs font-semibold transition-colors', dept === d ? 'bg-au-ink text-au-card' : 'bg-au-card-2 text-au-muted hover:text-au-ink')}
                 >
-                  {d === 'all' ? `Hammasi · ${people.length}` : `${deptLabels[d]} · ${people.filter((p) => p.dept === d).length}`}
+                  {d === 'all' ? t('allN', { n: people.length }) : `${deptLabels[d]} · ${people.filter((p) => p.dept === d).length}`}
                 </button>
               ))}
             </div>
@@ -423,11 +428,11 @@ export function HrHub({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-au-ink">
                       {p.name}
-                      {p.id === meId && <span className="ml-1.5 text-[10px] font-bold text-au-accent-text">· siz</span>}
+                      {p.id === meId && <span className="ml-1.5 text-[10px] font-bold text-au-accent-text">{t('you')}</span>}
                     </span>
                     <span className="block truncate text-xs text-au-muted">{p.roles.map((r) => roleLabels[r] ?? r).join(' · ')}</span>
                   </span>
-                  {p.probation_until && p.probation_until >= today && <ShieldCheck className="size-4 shrink-0 text-au-accent-text" aria-label="Sinov muddatida" />}
+                  {p.probation_until && p.probation_until >= today && <ShieldCheck className="size-4 shrink-0 text-au-accent-text" aria-label={t('sProbation')} />}
                 </span>
                 <span className="flex items-center justify-between gap-2 text-xs">
                   <span className="inline-flex items-center gap-1 font-semibold text-au-ink">
@@ -437,7 +442,7 @@ export function HrHub({
                   <span className="inline-flex items-center gap-1 text-au-muted">
                     <Flame className={cn('size-3.5', p.selfDev.months >= 3 ? 'text-au-accent-text' : 'text-au-faint')} aria-hidden /> {p.selfDev.months}
                   </span>
-                  <span className="text-au-faint">{tenure(p.hire_date, today) ?? ''}</span>
+                  <span className="text-au-faint">{tenure(p.hire_date, today, t) ?? ''}</span>
                 </span>
               </button>
             ))}
@@ -447,7 +452,7 @@ export function HrHub({
               {birthdays.length > 0 && (
                 <div className={cn(SURFACE_CARD, 'p-4')}>
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-au-ink">
-                    <Cake className="size-4 text-au-info" /> Bu oy tug‘ilgan kunlar
+                    <Cake className="size-4 text-au-info" /> {t('birthdays')}
                   </h3>
                   <ul className="grid gap-1 text-sm">
                     {birthdays.map((p) => (
@@ -464,13 +469,13 @@ export function HrHub({
               {anniversaries.length > 0 && (
                 <div className={cn(SURFACE_CARD, 'p-4')}>
                   <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-au-ink">
-                    <PartyPopper className="size-4 text-au-ok" /> Ish yubileylari
+                    <PartyPopper className="size-4 text-au-ok" /> {t('annivs')}
                   </h3>
                   <ul className="grid gap-1 text-sm">
                     {anniversaries.map((p) => (
                       <li key={p.id} className="flex justify-between gap-2">
                         <span className="text-au-ink">{p.name}</span>
-                        <span className="text-au-muted tabular-nums">{Number(today.slice(0, 4)) - Number(p.hire_date!.slice(0, 4))} yil</span>
+                        <span className="text-au-muted tabular-nums">{t('nYears', { n: Number(today.slice(0, 4)) - Number(p.hire_date!.slice(0, 4)) })}</span>
                       </li>
                     ))}
                   </ul>
@@ -487,7 +492,7 @@ export function HrHub({
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {people.filter((p) => p.onboarding.total > 0).length === 0 && (
             <p className={cn(SURFACE_CARD, 'p-8 text-center text-sm text-au-muted md:col-span-2 xl:col-span-3')}>
-              Hozir onboardingdagi xodim yo‘q. Xodim kartasini ochib «Onboarding boshlash» ni bosing.
+              {t('noOb')}
             </p>
           )}
           {people
@@ -498,7 +503,7 @@ export function HrHub({
                   <Avatar p={p} size={36} />
                   <div className="min-w-0">
                     <div className="truncate font-semibold text-au-ink">{p.name}</div>
-                    <div className="text-xs text-au-muted">{p.hire_date ? `Ishga kirgan: ${p.hire_date}` : roleLabels[p.role]}</div>
+                    <div className="text-xs text-au-muted">{p.hire_date ? t('hired', { d: p.hire_date }) : roleLabels[p.role]}</div>
                   </div>
                 </div>
                 <Checklist items={onboarding.filter((o) => o.user_id === p.id)} canEdit={isManager || p.id === meId} userId={p.id} isManager={isManager} />
@@ -583,13 +588,14 @@ function OrgChart({ people, roleLabels, deptLabels, onOpen }: { people: HrPerson
 /* ------------------------------------------------------------ analytics */
 
 function Analytics({ people, today, deptLabels, extra }: { people: HrPerson[]; today: string; deptLabels: Record<Department, string>; extra?: ReactNode }) {
+  const t = useTranslations('hub');
   const byDept = DEPT_ORDER.map((d) => ({ d, n: people.filter((p) => p.dept === d).length })).filter((x) => x.n);
   const maxD = Math.max(1, ...byDept.map((x) => x.n));
   const buckets = [
-    { k: '< 6 oy', f: (m: number) => m < 6 },
-    { k: '6–12 oy', f: (m: number) => m >= 6 && m < 12 },
-    { k: '1–2 yil', f: (m: number) => m >= 12 && m < 24 },
-    { k: '2+ yil', f: (m: number) => m >= 24 },
+    { k: t('b6'), f: (m: number) => m < 6 },
+    { k: t('b12'), f: (m: number) => m >= 6 && m < 12 },
+    { k: t('b24'), f: (m: number) => m >= 12 && m < 24 },
+    { k: t('b2p'), f: (m: number) => m >= 24 },
   ].map((b) => ({ k: b.k, n: people.filter((p) => p.hire_date && b.f(monthsBetween(p.hire_date, today))).length }));
   const unknown = people.filter((p) => !p.hire_date).length;
   const maxB = Math.max(1, ...buckets.map((b) => b.n));
@@ -600,7 +606,7 @@ function Analytics({ people, today, deptLabels, extra }: { people: HrPerson[]; t
       <div className="grid gap-4 md:grid-cols-3">
         <div className={cn(SURFACE_CARD, 'p-5')}>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-au-ink">
-            <Network className="size-4" /> Bo‘limlar tarkibi
+            <Network className="size-4" /> {t('deptMix')}
           </h3>
           <div className="grid gap-2">
             {byDept.map((x, i) => (
@@ -615,7 +621,7 @@ function Analytics({ people, today, deptLabels, extra }: { people: HrPerson[]; t
           </div>
         </div>
         <div className={cn(SURFACE_CARD, 'p-5')}>
-          <h3 className="mb-3 text-sm font-bold text-au-ink">Staj taqsimoti</h3>
+          <h3 className="mb-3 text-sm font-bold text-au-ink">{t('tenureDist')}</h3>
           <div className="flex h-32 items-end gap-3">
             {buckets.map((b, i) => (
               <div key={b.k} className="flex flex-1 flex-col items-center gap-1">
@@ -625,13 +631,13 @@ function Analytics({ people, today, deptLabels, extra }: { people: HrPerson[]; t
               </div>
             ))}
           </div>
-          {unknown > 0 && <p className="mt-2 text-[11px] text-au-faint">{unknown} kishida ishga kirgan sana kiritilmagan</p>}
+          {unknown > 0 && <p className="mt-2 text-[11px] text-au-faint">{t('noHire', { n: unknown })}</p>}
         </div>
         <div className={cn(SURFACE_CARD, 'flex flex-col justify-center gap-1 p-5')}>
           <Sparkles className="size-5 text-au-accent-text" />
-          <div className="text-[11px] font-semibold text-au-muted">Vazifalar o‘z vaqtida (o‘rtacha)</div>
+          <div className="text-[11px] font-semibold text-au-muted">{t('avgOnTime')}</div>
           <div className="text-3xl font-bold text-au-ink tabular-nums">{avgOnTime === null ? '—' : `${avgOnTime}%`}</div>
-          <div className="text-xs text-au-muted">{disciplined.length} xodim bo‘yicha</div>
+          <div className="text-xs text-au-muted">{t('byN', { n: disciplined.length })}</div>
         </div>
       </div>
       {extra}
